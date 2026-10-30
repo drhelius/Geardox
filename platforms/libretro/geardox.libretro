@@ -1,0 +1,11 @@
+[Libretro]
+Type=Emulator
+Version=1.0.0
+Name=Geardox
+Module=geardox_libretro.so
+LibretroVersion=1
+Authors=Ignacio Sanchez Gines;
+License=GPL-3.0+;
+
+[Platform:DOS]
+MimeType=application/x-dos-disk-image;application/x-cue;

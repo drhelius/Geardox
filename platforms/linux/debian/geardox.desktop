@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Geardox
+GenericName=MS-DOS PC/AT emulator
+Comment=Play MS-DOS PC software
+Exec=/usr/games/geardox %f
+TryExec=/usr/games/geardox
+Icon=geardox
+Terminal=false
+MimeType=application/x-dos-disk-image;application/x-cue;
+Categories=Game;Emulator;
+Keywords=MS-DOS;DOS;PC;IBM;Emulator;
+StartupNotify=true

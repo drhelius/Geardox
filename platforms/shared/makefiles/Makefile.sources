@@ -1,0 +1,37 @@
+SRC_DIR = ../../src
+DESKTOP_SRC_DIR = ../shared/desktop
+DEPS_DIR = ../shared/dependencies
+
+SOURCES_C := \
+    $(DEPS_DIR)/libchdr/src/libchdr_bitstream.c \
+    $(DEPS_DIR)/libchdr/src/libchdr_cdrom.c \
+    $(DEPS_DIR)/libchdr/src/libchdr_chd.c \
+    $(DEPS_DIR)/libchdr/src/libchdr_flac.c \
+    $(DEPS_DIR)/libchdr/src/libchdr_huffman.c \
+    $(DEPS_DIR)/lzma/src/LzFind.c \
+    $(DEPS_DIR)/lzma/src/LzmaEnc.c \
+    $(DEPS_DIR)/lzma/src/LzmaDec.c \
+    $(DEPS_DIR)/lzma/src/CpuArch.c \
+    $(DEPS_DIR)/minivorbis/minivorbis.c \
+    $(DEPS_DIR)/miniz/miniz.c \
+
+SOURCES_LIGHTNING := \
+    $(DEPS_DIR)/lightning/lib/lightning.c \
+    $(DEPS_DIR)/lightning/lib/jit_disasm.c \
+    $(DEPS_DIR)/lightning/lib/jit_memory.c \
+    $(DEPS_DIR)/lightning/lib/jit_note.c \
+    $(DEPS_DIR)/lightning/lib/jit_print.c \
+    $(DEPS_DIR)/lightning/lib/jit_size.c \
+
+SOURCES_CXX := \
+    $(DEPS_DIR)/imgui/imgui_impl_sdl3.cpp \
+    $(DEPS_DIR)/imgui/imgui_impl_opengl3.cpp \
+    $(DEPS_DIR)/imgui/imgui.cpp \
+    $(DEPS_DIR)/imgui/imgui_draw.cpp \
+    $(DEPS_DIR)/imgui/imgui_widgets.cpp \
+    $(DEPS_DIR)/imgui/imgui_tables.cpp \
+    $(DEPS_DIR)/imgui/imgui_demo.cpp \
+    $(DEPS_DIR)/imgui/implot.cpp \
+    $(DEPS_DIR)/imgui/implot_items.cpp \
+    $(DEPS_DIR)/imgui/implot_demo.cpp \
+    $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp

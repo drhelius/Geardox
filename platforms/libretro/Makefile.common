@@ -1,0 +1,23 @@
+SOURCES_C   :=  $(DEPS_DIR)/miniz/miniz.c \
+                $(DEPS_DIR)/libchdr/src/libchdr_bitstream.c \
+                $(DEPS_DIR)/libchdr/src/libchdr_cdrom.c \
+                $(DEPS_DIR)/libchdr/src/libchdr_chd.c \
+                $(DEPS_DIR)/libchdr/src/libchdr_flac.c \
+                $(DEPS_DIR)/libchdr/src/libchdr_huffman.c \
+                $(DEPS_DIR)/lzma/src/LzFind.c \
+                $(DEPS_DIR)/lzma/src/LzmaEnc.c \
+                $(DEPS_DIR)/lzma/src/LzmaDec.c \
+                $(DEPS_DIR)/lzma/src/CpuArch.c \
+                $(DEPS_DIR)/minivorbis/minivorbis.c \
+
+ifneq ($(DISABLE_DYNAREC), 1)
+SOURCES_C   +=  $(DEPS_DIR)/lightning/lib/lightning.c \
+                $(DEPS_DIR)/lightning/lib/jit_disasm.c \
+                $(DEPS_DIR)/lightning/lib/jit_memory.c \
+                $(DEPS_DIR)/lightning/lib/jit_note.c \
+                $(DEPS_DIR)/lightning/lib/jit_print.c \
+                $(DEPS_DIR)/lightning/lib/jit_size.c
+endif
+
+SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
+                $(CORE_DIR)/libretro_vfs_file.cpp

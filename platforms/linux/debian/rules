@@ -1,0 +1,43 @@
+#!/usr/bin/make -f
+
+include /usr/share/dpkg/pkg-info.mk
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CFLAGS_MAINT_APPEND = -ffile-prefix-map=$(CURDIR)=.
+export DEB_CXXFLAGS_MAINT_APPEND = -ffile-prefix-map=$(CURDIR)=.
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) -C platforms/linux \
+		GIT_VERSION="$(DEB_VERSION_UPSTREAM)" \
+		USE_CLANG=0 \
+		DEBUG=0
+
+override_dh_auto_clean:
+	$(MAKE) -C platforms/linux clean || true
+
+override_dh_install:
+	dh_install
+	for size in 16 24 32 48 64 128 256 512; do \
+		install -Dm644 platforms/shared/desktop/icons/geardox-$${size}.png \
+			debian/geardox/usr/share/icons/hicolor/$${size}x$${size}/apps/geardox.png; \
+	done
+	install -dm755 debian/geardox/usr/lib/geardox/mcp/resources/hardware
+	install -m644 platforms/shared/desktop/mcp/resources/hardware/*.md \
+		debian/geardox/usr/lib/geardox/mcp/resources/hardware/
+	install -m644 platforms/shared/desktop/mcp/resources/hardware/toc.json \
+		debian/geardox/usr/lib/geardox/mcp/resources/hardware/toc.json
+	install -dm755 debian/geardox/usr/lib/geardox/shaders
+	install -m644 platforms/shared/desktop/shaders/*.gshader \
+		debian/geardox/usr/lib/geardox/shaders/
+	install -m644 platforms/shared/desktop/shaders/*.glsl \
+		debian/geardox/usr/lib/geardox/shaders/
+	install -m644 platforms/shared/desktop/shaders/README.md \
+		debian/geardox/usr/lib/geardox/shaders/
+	install -dm755 debian/geardox/usr/games
+	ln -s ../lib/geardox/geardox debian/geardox/usr/games/geardox
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
