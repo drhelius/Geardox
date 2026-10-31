@@ -322,7 +322,7 @@ else
 endif
 
 ifneq (,$(filter unix osx win,$(platform)))
-	PLATFORM_FLAGS += -DGD_ENABLE_CDROM_CUEBIN_READAHEAD
+	PLATFORM_FLAGS += -DGDOX_ENABLE_CDROM_CUEBIN_READAHEAD
 endif
 
 # The dynarec needs a GNU lightning backend and executable memory, src/i386/dynarec_platform.h lists the providers
@@ -331,7 +331,7 @@ ifneq (,$(filter switch ps3 psl1ght emscripten sf2000 ps2 psp1 ctr wiiu tvos-arm
 endif
 
 ifeq ($(DISABLE_DYNAREC), 1)
-	PLATFORM_FLAGS += -DGD_DISABLE_DYNAREC
+	PLATFORM_FLAGS += -DGDOX_DISABLE_DYNAREC
 endif
 
 ifneq (,$(filter unix% win% classic_armv7_a7 rs90 gcw0 retrofw miyoo,$(platform)))
@@ -384,8 +384,8 @@ INCLUDES += -I$(DEPS_DIR)/lzma/include
 INCLUDES += -I$(DEPS_DIR)/lightning/include
 INCLUDES += -I$(DEPS_DIR)/bochs_fpu
 
-CFLAGS   += -DGD_DISABLE_DISASSEMBLER -DGD_DISABLE_VGMRECORDER -Wall -fno-exceptions -D__LIBRETRO__ -DZ7_ST -DZSTD_DISABLE_ASM $(INCLUDES) $(fpic)
-CXXFLAGS += -DGD_DISABLE_DISASSEMBLER -DGD_DISABLE_VGMRECORDER -Wall -fno-exceptions -D__LIBRETRO__ -DZ7_ST -DZSTD_DISABLE_ASM $(INCLUDES) $(fpic)
+CFLAGS   += -DGDOX_DISABLE_DISASSEMBLER -DGDOX_DISABLE_VGMRECORDER -Wall -fno-exceptions -D__LIBRETRO__ -DZ7_ST -DZSTD_DISABLE_ASM $(INCLUDES) $(fpic)
+CXXFLAGS += -DGDOX_DISABLE_DISASSEMBLER -DGDOX_DISABLE_VGMRECORDER -Wall -fno-exceptions -D__LIBRETRO__ -DZ7_ST -DZSTD_DISABLE_ASM $(INCLUDES) $(fpic)
 
 $(DEPS_DIR)/%.o: CPPFLAGS += -w
 

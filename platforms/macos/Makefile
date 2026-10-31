@@ -2,7 +2,7 @@ include ../shared/makefiles/Makefile.sources
 
 SOURCES_MM += macos.mm
 OBJECTS += $(SOURCES_MM:.mm=.o)
-CPPFLAGS += -DGD_ENABLE_PHYSICAL_CDROM
+CPPFLAGS += -DGDOX_ENABLE_PHYSICAL_CDROM
 LDFLAGS += -framework AppKit
 LDFLAGS += -framework IOKit -framework CoreFoundation -framework DiscRecording
 
