@@ -1,0 +1,845 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include "gui_debug_memory_provider.h"
+
+#include "../emu.h"
+#include "media/firmware.h"
+#include "drive/fdc.h"
+#include "drive/floppy_disk.h"
+#include "geardox.h"
+#include "system/io.h"
+#include "system/scheduler.h"
+
+static const int DEBUG_MEMORY_MAX_TRANSACTION_SIZE = 0x100000;
+
+static int firmware_region_id(GDOX_Firmware_Type type)
+{
+    switch (type)
+    {
+        case GDOX_FIRMWARE_SYSTEM_BIOS: return GDOX_DEBUG_REGION_SYSTEM_ROM;
+        default: return 0;
+    }
+}
+
+static const u8* firmware_region_data(Firmware* firmware, GDOX_Firmware_Type type)
+{
+    if (!IsValidPointer(firmware))
+        return NULL;
+
+    switch (type)
+    {
+        case GDOX_FIRMWARE_SYSTEM_BIOS: return firmware->GetSystemRom();
+        default: return NULL;
+    }
+}
+
+static bool firmware_region_listed(GDOX_Firmware_Type type)
+{
+    GeardoxCore* core = emu_get_core();
+    Memory* memory = IsValidPointer(core) ? core->GetMemory() : NULL;
+    int id = firmware_region_id(type);
+
+    if ((id == 0) || !IsValidPointer(core) || !core->GetFirmware()->GetInfo(type).loaded)
+        return false;
+
+    if (!IsValidPointer(memory))
+        return true;
+
+    int count = memory->GetDebugRegionCount();
+
+    for (int i = 0; i < count; i++)
+    {
+        GDOX_Debug_Memory_Region region;
+
+        if (memory->GetDebugRegion(i, region) && region.id == id)
+            return false;
+    }
+
+    return true;
+}
+
+DebugMemoryProvider::DebugMemoryProvider()
+{
+    m_last_message[0] = 0;
+    m_request_undo = false;
+    m_request_redo = false;
+    m_changed = false;
+}
+
+DebugMemoryProvider::~DebugMemoryProvider()
+{
+}
+
+void DebugMemoryProvider::Init()
+{
+    Reset();
+}
+
+void DebugMemoryProvider::Reset()
+{
+    m_pending_writes.clear();
+    m_undo_history.clear();
+    m_redo_history.clear();
+
+    m_last_message[0] = 0;
+    m_request_undo = false;
+    m_request_redo = false;
+    m_changed = true;
+}
+
+void DebugMemoryProvider::Update()
+{
+    if (m_request_undo)
+    {
+        m_request_undo = false;
+
+        if (!m_undo_history.empty())
+        {
+            WriteTransaction transaction = m_undo_history.back();
+            m_undo_history.pop_back();
+            std::vector<u8> after = transaction.after;
+            transaction.after = transaction.before;
+
+            if (ApplyTransaction(transaction, false))
+            {
+                transaction.after = after;
+                m_redo_history.push_back(transaction);
+                SetMessage("Memory edit undone");
+            }
+        }
+    }
+
+    if (m_request_redo)
+    {
+        m_request_redo = false;
+
+        if (!m_redo_history.empty())
+        {
+            WriteTransaction transaction = m_redo_history.back();
+            m_redo_history.pop_back();
+
+            if (ApplyTransaction(transaction, false))
+            {
+                m_undo_history.push_back(transaction);
+                SetMessage("Memory edit redone");
+            }
+        }
+    }
+
+    for (size_t i = 0; i < m_pending_writes.size(); i++)
+    {
+        WriteTransaction transaction = m_pending_writes[i];
+
+        if (!transaction.undo)
+        {
+            char message[GDOX_DEBUG_MEMORY_REASON_SIZE];
+            strncpy_fit(message, m_last_message, sizeof(message));
+            ApplyTransaction(transaction, false);
+            SetMessage(message);
+            continue;
+        }
+
+        if (ApplyTransaction(transaction, true))
+        {
+            m_undo_history.push_back(transaction);
+            m_redo_history.clear();
+            SetMessage("Memory edit applied at an emulation safe point");
+        }
+    }
+
+    m_pending_writes.clear();
+}
+
+int DebugMemoryProvider::GetRegionCount() const
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core))
+        return 0;
+
+    int count = 0;
+    Memory* memory = core->GetMemory();
+
+    if (IsValidPointer(memory))
+        count += memory->GetDebugRegionCount();
+
+    Firmware* firmware = core->GetFirmware();
+
+    if (IsValidPointer(firmware) && firmware->IsReady())
+    {
+        for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
+        {
+            if (firmware_region_listed((GDOX_Firmware_Type)i))
+                count++;
+        }
+    }
+
+    if (HasMediaImageRegion())
+        count++;
+
+    for (int drive = 0; drive < FDC_DRIVES; drive++)
+    {
+        if (core->GetFDC()->GetDisk(drive)->IsInserted())
+            count++;
+    }
+
+    return count;
+}
+
+bool DebugMemoryProvider::GetRegion(int index, GDOX_Debug_Memory_Region& region) const
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core) || index < 0)
+        return false;
+
+    Memory* memory = core->GetMemory();
+    int memory_count = IsValidPointer(memory) ? memory->GetDebugRegionCount() : 0;
+
+    if (index < memory_count)
+        return memory->GetDebugRegion(index, region);
+
+    return GetExternalRegion(index - memory_count, region);
+}
+
+bool DebugMemoryProvider::GetRegionById(int id, GDOX_Debug_Memory_Region& region) const
+{
+    int count = GetRegionCount();
+
+    for (int i = 0; i < count; i++)
+    {
+        if (GetRegion(i, region) && region.id == id)
+            return true;
+    }
+
+    return false;
+}
+
+u32 DebugMemoryProvider::GetAddressLimit(const GDOX_Debug_Memory_Address& address) const
+{
+    if (address.space == GDOX_DEBUG_MEMORY_IO)
+        return 0xFFFF;
+
+    if (address.space != GDOX_DEBUG_MEMORY_REGION)
+        return 0xFFFFFFFF;
+
+    GDOX_Debug_Memory_Region region;
+
+    if (!GetRegionById(address.region, region) || region.size == 0)
+        return 0;
+
+    return region.size - 1;
+}
+
+void DebugMemoryProvider::ReadBlock(const GDOX_Debug_Memory_Address& address, u8* data, GDOX_Debug_Memory_Status* status,
+    u32 size, GDOX_Debug_Memory_Block_Info* info) const
+{
+    if (!IsValidPointer(data) || !IsValidPointer(status))
+        return;
+
+    if (IsValidPointer(info))
+    {
+        info->snapshot_id = GetSnapshotId();
+        info->map_generation = GetMapGeneration();
+    }
+
+    memset(data, 0, size);
+
+    for (u32 i = 0; i < size; i++)
+        status[i] = GDOX_DEBUG_MEMORY_UNAVAILABLE;
+
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core))
+        return;
+
+    if (address.space == GDOX_DEBUG_MEMORY_REGION)
+    {
+        Memory* memory = core->GetMemory();
+        bool memory_region = false;
+
+        if (IsValidPointer(memory))
+        {
+            int region_count = memory->GetDebugRegionCount();
+
+            for (int i = 0; i < region_count; i++)
+            {
+                GDOX_Debug_Memory_Region region;
+
+                if (memory->GetDebugRegion(i, region) && region.id == address.region)
+                {
+                    memory_region = true;
+                    break;
+                }
+            }
+        }
+
+        if (memory_region)
+            memory->DebugReadRegionBlock(address.region, address.address, data, status, size);
+        else
+            ReadExternalRegion(address.region, address.address, data, status, size);
+
+        return;
+    }
+
+    Memory* memory = core->GetMemory();
+    I386* cpu = core->GetI386();
+
+    if (address.space == GDOX_DEBUG_MEMORY_PHYSICAL && IsValidPointer(memory))
+    {
+        memory->DebugReadPhysicalBlock(address.address, data, status, size);
+        return;
+    }
+
+    if (address.space == GDOX_DEBUG_MEMORY_BUS && IsValidPointer(memory))
+    {
+        memory->DebugReadBusBlock(address.address, data, status, size);
+        return;
+    }
+
+    if (address.space == GDOX_DEBUG_MEMORY_IO)
+    {
+        IO* io = core->GetIO();
+        u64 clocks = core->GetScheduler()->GetClocks();
+
+        for (u32 i = 0; IsValidPointer(io) && i < size; i++)
+        {
+            u64 port = (u64)address.address + i;
+
+            if (port > 0xFFFF)
+                status[i] = GDOX_DEBUG_MEMORY_UNMAPPED;
+            else
+                status[i] = io->Peek((u16)port, clocks, data[i]) ? GDOX_DEBUG_MEMORY_READ_ONLY : GDOX_DEBUG_MEMORY_UNMAPPED;
+        }
+
+        return;
+    }
+
+    if (!IsValidPointer(cpu))
+        return;
+
+    for (u32 i = 0; i < size; i++)
+    {
+        u64 current = (u64)address.address + i;
+
+        if (current > 0xFFFFFFFFULL)
+        {
+            status[i] = GDOX_DEBUG_MEMORY_UNMAPPED;
+            continue;
+        }
+
+        bool valid = false;
+
+        if (address.space == GDOX_DEBUG_MEMORY_LINEAR)
+            valid = cpu->TryPeekLinear((u32)current, data[i]);
+        else if (address.space == GDOX_DEBUG_MEMORY_LOGICAL)
+        {
+            if (address.segment_register >= 0)
+            {
+                valid = cpu->TryPeekLogical((I386_Segment_Register)address.segment_register, (u32)current, data[i]);
+            }
+            else
+                valid = cpu->TryPeekLogical(address.segment, (u32)current, data[i]);
+        }
+
+        status[i] = valid ? GDOX_DEBUG_MEMORY_VALID : GDOX_DEBUG_MEMORY_UNAVAILABLE;
+    }
+}
+
+bool DebugMemoryProvider::Translate(const GDOX_Debug_Memory_Address& address, GDOX_Debug_Memory_Translation& translation) const
+{
+    memset(&translation, 0, sizeof(translation));
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core))
+    {
+        strncpy_fit(translation.reason, "Core is not available", sizeof(translation.reason));
+        return false;
+    }
+
+    if (address.space == GDOX_DEBUG_MEMORY_REGION)
+    {
+        GDOX_Debug_Memory_Region region;
+
+        if (!GetRegionById(address.region, region) || address.address >= region.size)
+        {
+            strncpy_fit(translation.reason, "Region offset is outside the region", sizeof(translation.reason));
+            return false;
+        }
+
+        translation.region_valid = true;
+        translation.region = region.id;
+        translation.region_offset = address.address;
+        strncpy_fit(translation.region_name, region.name, sizeof(translation.region_name));
+
+        if ((region.flags & GDOX_DEBUG_REGION_MAPPED) != 0)
+        {
+            translation.bus_valid = true;
+            translation.bus = region.physical_base + address.address;
+            translation.physical_valid = true;
+            translation.physical = translation.bus;
+        }
+
+        return true;
+    }
+
+    Memory* memory = core->GetMemory();
+    I386* cpu = core->GetI386();
+
+    if (address.space == GDOX_DEBUG_MEMORY_PHYSICAL && IsValidPointer(memory))
+        return memory->DebugTranslatePhysical(address.address, translation);
+
+    if (address.space == GDOX_DEBUG_MEMORY_BUS && IsValidPointer(memory))
+        return memory->DebugTranslateBus(address.address, translation);
+
+    if (address.space == GDOX_DEBUG_MEMORY_LINEAR && IsValidPointer(cpu))
+        return cpu->DebugTranslateLinear(address.address, translation);
+
+    if (address.space == GDOX_DEBUG_MEMORY_LOGICAL && IsValidPointer(cpu))
+    {
+        if (address.segment_register >= 0)
+        {
+            return cpu->DebugTranslateLogical((I386_Segment_Register)address.segment_register, address.address,
+                translation);
+        }
+
+        return cpu->DebugTranslateLogical(address.segment, address.address, translation);
+    }
+
+    strncpy_fit(translation.reason,
+        address.space == GDOX_DEBUG_MEMORY_IO ? "I/O ports are not memory mapped" : "Address translation is unavailable",
+        sizeof(translation.reason));
+    return false;
+}
+
+bool DebugMemoryProvider::QueueWrite(const GDOX_Debug_Memory_Address& address, const u8* data, u32 size, bool undo)
+{
+    if (!IsValidPointer(data) || size == 0 || size > DEBUG_MEMORY_MAX_TRANSACTION_SIZE)
+    {
+        SetMessage("Invalid or oversized memory edit");
+        return false;
+    }
+
+    WriteTransaction transaction;
+    transaction.address = address;
+    transaction.after.assign(data, data + size);
+    transaction.map_generation = GetMapGeneration();
+    transaction.undo = undo;
+    m_pending_writes.push_back(transaction);
+
+    if (undo)
+        SetMessage("Memory edit queued for the next safe point");
+
+    return true;
+}
+
+bool DebugMemoryProvider::WriteNow(const GDOX_Debug_Memory_Address& address, const u8* data, u32 size)
+{
+    if (!IsValidPointer(data) || size == 0 || size > DEBUG_MEMORY_MAX_TRANSACTION_SIZE)
+    {
+        SetMessage("Invalid or oversized memory edit");
+        return false;
+    }
+
+    WriteTransaction transaction;
+    transaction.address = address;
+    transaction.after.assign(data, data + size);
+    transaction.map_generation = GetMapGeneration();
+    transaction.undo = true;
+
+    if (!ApplyTransaction(transaction, true))
+        return false;
+
+    m_undo_history.push_back(transaction);
+    m_redo_history.clear();
+    SetMessage("Memory edit applied");
+    return true;
+}
+
+void DebugMemoryProvider::RequestUndo()
+{
+    if (CanUndo())
+        m_request_undo = true;
+}
+
+void DebugMemoryProvider::RequestRedo()
+{
+    if (CanRedo())
+        m_request_redo = true;
+}
+
+bool DebugMemoryProvider::CanUndo() const
+{
+    return !m_undo_history.empty();
+}
+
+bool DebugMemoryProvider::CanRedo() const
+{
+    return !m_redo_history.empty();
+}
+
+bool DebugMemoryProvider::ConsumeChanged()
+{
+    bool changed = m_changed;
+    m_changed = false;
+    return changed;
+}
+
+const char* DebugMemoryProvider::GetLastMessage() const
+{
+    return m_last_message;
+}
+
+bool DebugMemoryProvider::GetRegisterValue(const char* name, u32& value) const
+{
+    GeardoxCore* core = emu_get_core();
+    return IsValidPointer(core) && IsValidPointer(core->GetI386()) &&
+        core->GetI386()->GetDebugRegisterValue(name, value);
+}
+
+u64 DebugMemoryProvider::GetViewKey(const GDOX_Debug_Memory_Address& source) const
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core) || source.space == GDOX_DEBUG_MEMORY_IO)
+        return 0;
+
+    u64 key = GetSnapshotId() ^ ((u64)GetMapGeneration() << 40);
+
+    if (source.space != GDOX_DEBUG_MEMORY_LINEAR && source.space != GDOX_DEBUG_MEMORY_LOGICAL)
+        return key | 1;
+
+    const I386_State* state = core->GetI386()->GetState();
+    u64 hash = 14695981039346656037ULL;
+    u32 values[4 + I386_SEGMENT_COUNT * 3];
+    int count = 0;
+
+    values[count++] = state->cr0;
+    values[count++] = state->cr3;
+    values[count++] = state->gdtr.base;
+    values[count++] = state->ldtr.base;
+
+    for (int i = 0; i < I386_SEGMENT_COUNT; i++)
+    {
+        values[count++] = state->segments[i].base;
+        values[count++] = state->segments[i].limit;
+        values[count++] = state->segments[i].attributes;
+    }
+
+    for (int i = 0; i < count; i++)
+        hash = (hash ^ values[i]) * 1099511628211ULL;
+
+    return (key ^ hash) | 1;
+}
+
+const char* DebugMemoryProvider::GetSpaceName(GDOX_Debug_Memory_Space space)
+{
+    switch (space)
+    {
+        case GDOX_DEBUG_MEMORY_LOGICAL: return "Logical";
+        case GDOX_DEBUG_MEMORY_LINEAR: return "Linear";
+        case GDOX_DEBUG_MEMORY_PHYSICAL: return "Physical";
+        case GDOX_DEBUG_MEMORY_BUS: return "Bus";
+        case GDOX_DEBUG_MEMORY_REGION: return "Region";
+        case GDOX_DEBUG_MEMORY_IO: return "I/O Ports";
+        default: return "Unknown";
+    }
+}
+
+const char* DebugMemoryProvider::GetStatusName(GDOX_Debug_Memory_Status status)
+{
+    switch (status)
+    {
+        case GDOX_DEBUG_MEMORY_VALID: return "Writable";
+        case GDOX_DEBUG_MEMORY_READ_ONLY: return "Read-only";
+        case GDOX_DEBUG_MEMORY_UNMAPPED: return "Unmapped";
+        case GDOX_DEBUG_MEMORY_UNAVAILABLE: return "Passive read unavailable";
+        default: return "Unknown";
+    }
+}
+
+bool DebugMemoryProvider::GetExternalRegion(int index, GDOX_Debug_Memory_Region& region) const
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core) || index < 0)
+        return false;
+
+    Firmware* firmware = core->GetFirmware();
+
+    if (IsValidPointer(firmware) && firmware->IsReady())
+    {
+        for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
+        {
+            GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
+
+            if (!firmware_region_listed(type))
+                continue;
+
+            if (index == 0)
+            {
+                memset(&region, 0, sizeof(region));
+                region.id = firmware_region_id(type);
+                strncpy_fit(region.name, Firmware::GetComponentName(type), sizeof(region.name));
+                region.size = (u32)Firmware::GetExpectedSize(type);
+                region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM;
+                return true;
+            }
+
+            index--;
+        }
+    }
+
+    Media* media = core->GetMedia();
+
+    if (HasMediaImageRegion())
+    {
+        if (index == 0)
+        {
+            memset(&region, 0, sizeof(region));
+            region.id = GDOX_DEBUG_REGION_MEDIA_IMAGE;
+            strncpy_fit(region.name, "Media Image", sizeof(region.name));
+            region.size = (u32)media->GetSize();
+            region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_ROM;
+            return true;
+        }
+
+        index--;
+    }
+
+    for (int drive = 0; drive < FDC_DRIVES; drive++)
+    {
+        FloppyDisk* disk = core->GetFDC()->GetDisk(drive);
+
+        if (!disk->IsInserted())
+            continue;
+
+        if (index == 0)
+        {
+            memset(&region, 0, sizeof(region));
+            region.id = GDOX_DEBUG_REGION_FLOPPY_IMAGE + drive;
+            snprintf(region.name, sizeof(region.name), "Floppy %d Image", drive);
+            region.size = disk->GetImageSize();
+            region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_ROM;
+            return true;
+        }
+
+        index--;
+    }
+
+    return false;
+}
+
+bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_Debug_Memory_Status* status, u32 size) const
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core))
+        return false;
+
+    const u8* source = NULL;
+    u32 source_size = 0;
+    Firmware* firmware = core->GetFirmware();
+
+    if (IsValidPointer(firmware) && firmware->IsReady())
+    {
+        for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
+        {
+            GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
+
+            if (firmware_region_id(type) == id)
+            {
+                source = firmware_region_data(firmware, type);
+                source_size = (u32)Firmware::GetExpectedSize(type);
+                break;
+            }
+        }
+    }
+
+    if (id == GDOX_DEBUG_REGION_MEDIA_IMAGE && !emu_is_media_loading())
+    {
+        Media* media = core->GetMedia();
+
+        if (IsValidPointer(media) && media->IsReady())
+        {
+            source = media->GetData();
+            source_size = (u32)media->GetSize();
+        }
+    }
+
+    if (id >= GDOX_DEBUG_REGION_FLOPPY_IMAGE && id < GDOX_DEBUG_REGION_FLOPPY_IMAGE + FDC_DRIVES)
+    {
+        FloppyDisk* disk = core->GetFDC()->GetDisk(id - GDOX_DEBUG_REGION_FLOPPY_IMAGE);
+
+        if (disk->IsInserted())
+        {
+            source = disk->GetImage();
+            source_size = disk->GetImageSize();
+        }
+    }
+
+    for (u32 i = 0; i < size; i++)
+    {
+        u64 current = (u64)offset + i;
+
+        if (IsValidPointer(source) && current < source_size)
+        {
+            data[i] = source[current];
+            status[i] = GDOX_DEBUG_MEMORY_READ_ONLY;
+        }
+        else
+        {
+            data[i] = 0;
+            status[i] = GDOX_DEBUG_MEMORY_UNMAPPED;
+        }
+    }
+
+    return IsValidPointer(source);
+}
+
+bool DebugMemoryProvider::WriteBlock(const GDOX_Debug_Memory_Address& address, const u8* data, u32 size)
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core) || !IsValidPointer(core->GetMemory()))
+        return false;
+
+    Memory* memory = core->GetMemory();
+
+    if (address.space == GDOX_DEBUG_MEMORY_REGION)
+        return memory->DebugWriteRegionBlock(address.region, address.address, data, size);
+
+    if (address.space == GDOX_DEBUG_MEMORY_PHYSICAL)
+        return memory->DebugWritePhysicalBlock(address.address, data, size);
+
+    if (address.space == GDOX_DEBUG_MEMORY_BUS)
+        return memory->DebugWriteBusBlock(address.address, data, size);
+
+    if (address.space != GDOX_DEBUG_MEMORY_LINEAR && address.space != GDOX_DEBUG_MEMORY_LOGICAL)
+        return false;
+
+    std::vector<u32> physical(size);
+
+    for (u32 i = 0; i < size; i++)
+    {
+        GDOX_Debug_Memory_Translation translation;
+        GDOX_Debug_Memory_Address current = address;
+        current.address = address.address + i;
+
+        if (!Translate(current, translation) || !translation.physical_valid)
+            return false;
+
+        physical[i] = translation.physical;
+    }
+
+    for (u32 i = 0; i < size; i++)
+    {
+        if (!memory->DebugWritePhysicalBlock(physical[i], &data[i], 1))
+            return false;
+    }
+
+    return true;
+}
+
+bool DebugMemoryProvider::HasMediaImageRegion() const
+{
+    GeardoxCore* core = emu_get_core();
+    Media* media = IsValidPointer(core) ? core->GetMedia() : NULL;
+
+    return !emu_is_media_loading() && IsValidPointer(media) && media->IsReady() && IsValidPointer(media->GetData()) &&
+        media->GetSize() > 0;
+}
+
+bool DebugMemoryProvider::ApplyTransaction(WriteTransaction& transaction, bool capture_before)
+{
+    u32 size = (u32)transaction.after.size();
+
+    if (size == 0 || !ValidateWritable(transaction.address, size))
+    {
+        SetMessage("Memory edit rejected: range is read-only or unavailable");
+        return false;
+    }
+
+    if (transaction.map_generation != GetMapGeneration())
+    {
+        SetMessage("Memory edit rejected: the memory map changed");
+        return false;
+    }
+
+    if (capture_before)
+    {
+        transaction.before.resize(size);
+        std::vector<GDOX_Debug_Memory_Status> status(size);
+        ReadBlock(transaction.address, &transaction.before[0], &status[0], size, NULL);
+    }
+
+    if (!WriteBlock(transaction.address, &transaction.after[0], size))
+    {
+        SetMessage("Memory edit was not accepted by the selected source");
+        return false;
+    }
+
+    m_changed = true;
+    return true;
+}
+
+bool DebugMemoryProvider::ValidateWritable(const GDOX_Debug_Memory_Address& address, u32 size) const
+{
+    std::vector<u8> data(size);
+    std::vector<GDOX_Debug_Memory_Status> status(size);
+    ReadBlock(address, &data[0], &status[0], size, NULL);
+
+    for (u32 i = 0; i < size; i++)
+    {
+        if (status[i] != GDOX_DEBUG_MEMORY_VALID)
+            return false;
+    }
+
+    return true;
+}
+
+u64 DebugMemoryProvider::GetSnapshotId() const
+{
+    GeardoxCore* core = emu_get_core();
+
+    if (!IsValidPointer(core))
+        return 0;
+
+    u64 id = 0;
+
+    if (IsValidPointer(core->GetMemory()))
+        id = core->GetMemory()->GetDebugSnapshotId();
+
+    if (!emu_is_media_loading() && IsValidPointer(core->GetMedia()) && core->GetMedia()->IsReady())
+        id ^= ((u64)core->GetMedia()->GetCRC() << 32);
+
+    return id;
+}
+
+u32 DebugMemoryProvider::GetMapGeneration() const
+{
+    GeardoxCore* core = emu_get_core();
+    return IsValidPointer(core) && IsValidPointer(core->GetMemory()) ? core->GetMemory()->GetMapGeneration() : 0;
+}
+
+void DebugMemoryProvider::SetMessage(const char* message)
+{
+    strncpy_fit(m_last_message, message, sizeof(m_last_message));
+}

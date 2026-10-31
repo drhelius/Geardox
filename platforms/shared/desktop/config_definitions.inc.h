@@ -48,16 +48,11 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "Rewind", config_debug.show_rewind, false);
     CONFIG_BOOL("Debug", "Interrupts", config_debug.show_pic, false);
     CONFIG_BOOL("Debug", "Timers", config_debug.show_pit, false);
-    CONFIG_BOOL("Debug", "DMA", config_debug.show_dma, false);
-    CONFIG_BOOL("Debug", "Keyboard", config_debug.show_keyboard, false);
+    CONFIG_BOOL("Debug", "SystemControl", config_debug.show_system_control, false);
     CONFIG_BOOL("Debug", "GamePorts", config_debug.show_game_ports, false);
-    CONFIG_BOOL("Debug", "VideoOutput", config_debug.show_video_output, false);
-    CONFIG_BOOL("Debug", "Palettes", config_debug.show_palettes, false);
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
-    CONFIG_BOOL("Debug", "CDROM", config_debug.show_cdrom, false);
     CONFIG_BOOL("Debug", "CDROMTOC", config_debug.show_cdrom_toc, false);
     CONFIG_BOOL("Debug", "CDROMAudio", config_debug.show_cdrom_audio, false);
-    CONFIG_BOOL("Debug", "FDC", config_debug.show_fdc, false);
     CONFIG_BOOL("Debug", "FloppyDrives", config_debug.show_floppy_drives, false);
     CONFIG_BOOL("Debug", "DiskViewer", config_debug.show_disk_viewer, false);
     CONFIG_INT_RANGE("Debug", "DiskViewerDrive", config_debug.disk_viewer_drive, 0, 0, 1);

@@ -2209,13 +2209,6 @@ static void menu_debug(void)
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Video", config_debug.debug))
-        {
-            ImGui::MenuItem("Show Output Control", "", &config_debug.show_video_output);
-            ImGui::MenuItem("Show Palettes", "", &config_debug.show_palettes);
-            ImGui::EndMenu();
-        }
-
         if (ImGui::BeginMenu("Audio", config_debug.debug))
         {
             ImGui::MenuItem("Show Sound Control", "", &config_debug.show_sound_control);
@@ -2224,7 +2217,6 @@ static void menu_debug(void)
 
         if (ImGui::BeginMenu("CD-ROM", config_debug.debug))
         {
-            ImGui::MenuItem("Show Controller", "", &config_debug.show_cdrom);
             ImGui::MenuItem("Show TOC", "", &config_debug.show_cdrom_toc);
             ImGui::MenuItem("Show CD Audio", "", &config_debug.show_cdrom_audio);
             ImGui::EndMenu();
@@ -2232,7 +2224,6 @@ static void menu_debug(void)
 
         if (ImGui::BeginMenu("Floppy", config_debug.debug))
         {
-            ImGui::MenuItem("Show FDC", "", &config_debug.show_fdc);
             ImGui::MenuItem("Show Drives", "", &config_debug.show_floppy_drives);
             ImGui::MenuItem("Show Disk Viewer", "", &config_debug.show_disk_viewer);
             ImGui::EndMenu();
@@ -2242,13 +2233,12 @@ static void menu_debug(void)
         {
             ImGui::MenuItem("Show Interrupts", "", &config_debug.show_pic);
             ImGui::MenuItem("Show Timers", "", &config_debug.show_pit);
-            ImGui::MenuItem("Show DMA", "", &config_debug.show_dma);
+            ImGui::MenuItem("Show System Control", "", &config_debug.show_system_control);
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Input", config_debug.debug))
         {
-            ImGui::MenuItem("Show Keyboard", "", &config_debug.show_keyboard);
             ImGui::MenuItem("Show Game Ports", "", &config_debug.show_game_ports);
             ImGui::EndMenu();
         }

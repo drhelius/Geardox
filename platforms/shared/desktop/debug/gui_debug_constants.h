@@ -29,170 +29,8 @@ struct stDebugPortLabel
     const char* description;
 };
 
-static const stDebugPortLabel k_debug_port_labels[] =
-{
-    { 0x0000, "PIC_M_CMD", "PIC master ICW1/OCW2/OCW3, IRR/ISR read" },
-    { 0x0002, "PIC_M_DATA", "PIC master ICW2-ICW4, IMR" },
-    { 0x0010, "PIC_S_CMD", "PIC slave ICW1/OCW2/OCW3, IRR/ISR read" },
-    { 0x0012, "PIC_S_DATA", "PIC slave ICW2-ICW4, IMR" },
-    { 0x0020, "SYS_RESET", "Reset cause read, reset and write protect" },
-    { 0x0022, "SYS_POWER", "Power off, CRT power off on the HG" },
-    { 0x0024, "CPU_MISC3", "Capability flags, UG and later" },
-    { 0x0025, "NMI_CAPABILITY", "NMI mask facility, UX and later" },
-    { 0x0026, "FREE_RUN_LO", "Free-running microsecond timer low, UG, HG and the Marty" },
-    { 0x0027, "FREE_RUN_HI", "Free-running microsecond timer high, UG, HG and the Marty" },
-    { 0x0028, "NMI_MASK", "NMI mask, UX and later" },
-    { 0x0030, "MACHINE_ID_LO", "Machine ID low, LSPEED write on the UX" },
-    { 0x0031, "MACHINE_ID_HI", "Machine ID high" },
-    { 0x0032, "SERIAL_ROM", "Serial ID ROM" },
-    { 0x0040, "PIT0_COUNT0", "PIT counter 0, interval timer" },
-    { 0x0042, "PIT0_COUNT1", "PIT counter 1, I/O timeout" },
-    { 0x0044, "PIT0_COUNT2", "PIT counter 2, buzzer" },
-    { 0x0046, "PIT0_CONTROL", "PIT counters 0-2 control" },
-    { 0x0050, "PIT1_COUNT3", "PIT counter 3" },
-    { 0x0052, "PIT1_COUNT4", "PIT counter 4, RS-232C baud rate" },
-    { 0x0054, "PIT1_COUNT5", "PIT counter 5" },
-    { 0x0056, "PIT1_CONTROL", "PIT counters 3-5 control" },
-    { 0x0060, "TIMER_CONTROL", "Timer interrupt status and control, buzzer" },
-    { 0x0068, "TIMER2_CONTROL", "Interval Timer II status and control, 10F and later" },
-    { 0x006A, "TIMER2_PERIOD_LO", "Interval Timer II period low, 10F and later" },
-    { 0x006B, "TIMER2_PERIOD_HI", "Interval Timer II period high, 10F and later" },
-    { 0x006C, "WAIT_1US", "1 us wait, 10F and later" },
-    { 0x0070, "RTC_DATA", "RTC data" },
-    { 0x0080, "RTC_COMMAND", "RTC command" },
-    { 0x00A0, "DMA_INIT", "DMA initialize" },
-    { 0x00A1, "DMA_CHANNEL", "DMA channel select" },
-    { 0x00A2, "DMA_COUNT_LO", "DMA count low" },
-    { 0x00A3, "DMA_COUNT_HI", "DMA count high" },
-    { 0x00A4, "DMA_ADDRESS_0", "DMA address bits 0-7" },
-    { 0x00A5, "DMA_ADDRESS_1", "DMA address bits 8-15" },
-    { 0x00A6, "DMA_ADDRESS_2", "DMA address bits 16-23" },
-    { 0x00A7, "DMA_ADDRESS_3", "DMA address bits 24-31" },
-    { 0x00A8, "DMA_DEVICE_LO", "DMA device control low" },
-    { 0x00A9, "DMA_DEVICE_HI", "DMA device control high" },
-    { 0x00AA, "DMA_MODE", "DMA mode control" },
-    { 0x00AB, "DMA_STATUS", "DMA status" },
-    { 0x00AC, "DMA_TEMP_LO", "DMA temporary low" },
-    { 0x00AD, "DMA_TEMP_HI", "DMA temporary high" },
-    { 0x00AE, "DMA_REQUEST", "DMA software request" },
-    { 0x00AF, "DMA_MASK", "DMA mask" },
-    { 0x00C0, "CACHE_CONTROL", "Board cache control, HR" },
-    { 0x00C2, "CACHE_MODE", "Cache diagnostic mode, HR" },
-    { 0x0200, "FDC_STATUS", "FDC status read, command write" },
-    { 0x0202, "FDC_TRACK", "FDC track" },
-    { 0x0204, "FDC_SECTOR", "FDC sector" },
-    { 0x0206, "FDC_DATA", "FDC data" },
-    { 0x0208, "FDC_DRIVE_CONTROL", "FDC drive status read, drive control write" },
-    { 0x020C, "FDC_DRIVE_SELECT", "FDC drive select" },
-    { 0x020E, "FDC_DRIVE_SWITCH", "FDC drive switch" },
-    { 0x0400, "VIDEO_RESOLUTION", "Resolution status" },
-    { 0x0404, "FMR_VRAM_MAP", "FM-R VRAM mapping" },
-    { 0x0440, "CRTC_ADDRESS", "CRTC register index" },
-    { 0x0442, "CRTC_DATA_LO", "CRTC data low" },
-    { 0x0443, "CRTC_DATA_HI", "CRTC data high" },
-    { 0x0448, "VIDEO_OUT_ADDRESS", "Video output control register index" },
-    { 0x044A, "VIDEO_OUT_DATA", "Video output control data" },
-    { 0x044C, "VIDEO_STATUS", "Digital palette and sprite status" },
-    { 0x0450, "SPRITE_ADDRESS", "Sprite controller register index" },
-    { 0x0452, "SPRITE_DATA", "Sprite controller data" },
-    { 0x0458, "VRAM_MASK_ADDRESS", "VRAM write mask register index" },
-    { 0x045A, "VRAM_MASK_LO", "VRAM write mask low" },
-    { 0x045B, "VRAM_MASK_HI", "VRAM write mask high" },
-    { 0x0480, "SYS_ROM_MAP", "Boot ROM and dictionary windows" },
-    { 0x0484, "DIC_ROM_BANK", "Dictionary ROM bank" },
-    { 0x048A, "MEMCARD_STATUS", "Memory card status" },
-    { 0x0490, "MEMCARD_BANK", "Memory card bank, UX and later" },
-    { 0x0491, "MEMCARD_ATTRIBUTE", "Memory card attribute space and JEIDA-4 capability, UX and later" },
-    { 0x04C0, "CDROM_MASTER", "CD-ROM master status and control" },
-    { 0x04C2, "CDROM_COMMAND", "CD-ROM status read, command write" },
-    { 0x04C4, "CDROM_DATA", "CD-ROM data read, parameter write" },
-    { 0x04C6, "CDROM_TRANSFER", "CD-ROM transfer control" },
-    { 0x04C8, "CDROM_CACHE", "CD-ROM cache, HR" },
-    { 0x04CC, "CDROM_SUBCODE", "CD-ROM subcode status" },
-    { 0x04CD, "CDROM_SUBCODE_DATA", "CD-ROM subcode data" },
-    { 0x04D0, "PAD_A", "Game port A" },
-    { 0x04D2, "PAD_B", "Game port B" },
-    { 0x04D5, "SOUND_MUTE", "Sound mute" },
-    { 0x04D6, "PAD_OUTPUT", "Game port output control" },
-    { 0x04D8, "FM_ADDRESS_0", "YM3438 status read, part 0 address write" },
-    { 0x04DA, "FM_DATA_0", "YM3438 part 0 data" },
-    { 0x04DC, "FM_ADDRESS_1", "YM3438 part 1 address" },
-    { 0x04DE, "FM_DATA_1", "YM3438 part 1 data" },
-    { 0x04E0, "EVOL1_DATA", "Electronic volume 1 data" },
-    { 0x04E1, "EVOL1_COMMAND", "Electronic volume 1 command" },
-    { 0x04E2, "EVOL2_DATA", "Electronic volume 2 data" },
-    { 0x04E3, "EVOL2_COMMAND", "Electronic volume 2 command" },
-    { 0x04E7, "ADC_DATA", "ADC sample data" },
-    { 0x04E8, "ADC_READY", "ADC sample ready" },
-    { 0x04E9, "SOUND_IRQ_CAUSE", "Sound interrupt cause" },
-    { 0x04EA, "PCM_IRQ_MASK", "PCM interrupt mask" },
-    { 0x04EB, "PCM_IRQ_CAUSE", "PCM interrupt cause" },
-    { 0x04EC, "SOUND_LED_MUTE", "LED and output mute" },
-    { 0x04F0, "PCM_ENV", "RF5C68 envelope" },
-    { 0x04F1, "PCM_PAN", "RF5C68 pan" },
-    { 0x04F2, "PCM_FD_LO", "RF5C68 step low" },
-    { 0x04F3, "PCM_FD_HI", "RF5C68 step high" },
-    { 0x04F4, "PCM_LS_LO", "RF5C68 loop start low" },
-    { 0x04F5, "PCM_LS_HI", "RF5C68 loop start high" },
-    { 0x04F6, "PCM_ST", "RF5C68 start address" },
-    { 0x04F7, "PCM_CONTROL", "RF5C68 control" },
-    { 0x04F8, "PCM_CHANNEL_ON", "RF5C68 channel enables" },
-    { 0x05C0, "EXP_NMI_MASK", "Expansion NMI mask" },
-    { 0x05C2, "EXP_NMI_STATUS", "Expansion NMI status" },
-    { 0x05C8, "TVRAM_WRITTEN", "Text VRAM written" },
-    { 0x05CA, "VSYNC_IRQ_CLEAR", "VSYNC interrupt clear" },
-    { 0x05E0, "UNDOCUMENTED", "Undocumented, BIOS writes 01h" },
-    { 0x05E2, "MEMORY_WAIT", "Memory wait, 10F and later" },
-    { 0x05E6, "MEMORY_WAIT_2", "Memory wait, 10F and later" },
-    { 0x05E8, "RAM_SIZE", "Installed RAM in MB, 1F and later" },
-    { 0x05EC, "SPEED_CONTROL", "Speed control, CX and later" },
-    { 0x05ED, "MAXIMUM_CLOCK", "Maximum CPU clock in MHz, UG and later" },
-    { 0x05EE, "VRAM_CACHE", "VRAM cache, HR" },
-    { 0x0600, "KB_DATA", "Keyboard data" },
-    { 0x0602, "KB_STATUS", "Keyboard status read, command write" },
-    { 0x0604, "KB_IRQ", "Keyboard interrupt" },
-    { 0x0800, "PRN_DATA", "Printer data, status 1" },
-    { 0x0802, "PRN_CONTROL", "Printer control, status 2" },
-    { 0x0804, "PRN_IRQ", "Printer interrupt enable" },
-    { 0x0A00, "SIO_DATA", "RS-232C data" },
-    { 0x0A02, "SIO_STATUS", "RS-232C status read, command write" },
-    { 0x0A04, "SIO_MODEM_STATUS", "RS-232C modem status" },
-    { 0x0A06, "SIO_IRQ_CAUSE", "RS-232C interrupt cause" },
-    { 0x0A08, "SIO_IRQ_CONTROL", "RS-232C interrupt control" },
-    { 0x0A0A, "SIO_MODEM_CONTROL", "RS-232C modem control" },
-    { 0x0C30, "SCSI_DATA", "SCSI data" },
-    { 0x0C32, "SCSI_STATUS", "SCSI status read, control write" },
-    { 0x0C34, "SCSI_WORDDMA", "SCSI word DMA flag" },
-    { 0xFD90, "PAL_INDEX", "Palette index" },
-    { 0xFD92, "PAL_BLUE", "Palette blue" },
-    { 0xFD94, "PAL_RED", "Palette red" },
-    { 0xFD96, "PAL_GREEN", "Palette green" },
-    { 0xFD98, "DPAL_0", "FM-R digital palette 0" },
-    { 0xFD99, "DPAL_1", "FM-R digital palette 1" },
-    { 0xFD9A, "DPAL_2", "FM-R digital palette 2" },
-    { 0xFD9B, "DPAL_3", "FM-R digital palette 3" },
-    { 0xFD9C, "DPAL_4", "FM-R digital palette 4" },
-    { 0xFD9D, "DPAL_5", "FM-R digital palette 5" },
-    { 0xFD9E, "DPAL_6", "FM-R digital palette 6" },
-    { 0xFD9F, "DPAL_7", "FM-R digital palette 7" },
-    { 0xFDA0, "CRT_OUTPUT", "Sync status read, CRT output control write" },
-    { 0xFDA2, "CRT_OUTPUT_READ", "CRT output control readback, UG and later" },
-    { 0xFDA4, "CRT_READBACK", "CRT register readback enable, UG and later" },
-    { 0xFF81, "FMR_PLANE_MASK", "FM-R plane access mask" },
-    { 0xFF82, "FMR_DISPLAY", "FM-R display planes and page" },
-    { 0xFF83, "FMR_PAGE", "FM-R access page" },
-    { 0xFF84, "FMR_LIGHT_PEN", "FM-R light pen status" },
-    { 0xFF86, "FMR_SYNC", "FM-R sync status" },
-    { 0xFF94, "KANJI_HI", "Kanji ROM code high, status read" },
-    { 0xFF95, "KANJI_LO", "Kanji ROM code low" },
-    { 0xFF96, "KANJI_LEFT", "Kanji ROM pattern left" },
-    { 0xFF97, "KANJI_RIGHT", "Kanji ROM pattern right, row advance" },
-    { 0xFF98, "BUZZER", "Buzzer on read, off write" },
-    { 0xFF99, "FMR_ANK", "ANK font window" },
-    { 0xFFA0, "FMR_LOGIC", "FM-R logical operation status" }
-};
-
-static const int k_debug_port_label_count = sizeof(k_debug_port_labels) / sizeof(k_debug_port_labels[0]);
+static const int k_debug_port_label_count = 0;
+static const stDebugPortLabel k_debug_port_labels[k_debug_port_label_count + 1] = { { 0, NULL, NULL } };
 
 struct stDebugInterruptName
 {
@@ -201,7 +39,7 @@ struct stDebugInterruptName
     const char* description;
 };
 
-// Software interrupts of DOS and the real mode BIOS of the FM Towns
+// Software interrupts of DOS
 static const stDebugInterruptName k_debug_interrupt_names[] =
 {
     { 0x20, "DOS_EXIT", "DOS terminate program" },
@@ -214,18 +52,7 @@ static const stDebugInterruptName k_debug_interrupt_names[] =
     { 0x27, "DOS_TSR", "DOS terminate and stay resident" },
     { 0x28, "DOS_IDLE", "DOS idle" },
     { 0x29, "DOS_FAST_OUT", "DOS fast console output" },
-    { 0x2F, "MULTIPLEX", "DOS multiplex, MSCDEX" },
-    { 0x8E, "EXT_SERVICE", "Extended service routines" },
-    { 0x90, "KEYBOARD_BIOS", "Keyboard BIOS" },
-    { 0x93, "DISK_BIOS", "Disk and CD-ROM BIOS" },
-    { 0x94, "PRINTER_BIOS", "Printer BIOS" },
-    { 0x96, "CALENDAR_BIOS", "Calendar clock BIOS" },
-    { 0x97, "TIMER_BIOS", "Timer manager BIOS" },
-    { 0x98, "ALARM_BIOS", "Clock and alarm manager BIOS" },
-    { 0x9B, "RS232C_BIOS", "RS-232C BIOS" },
-    { 0x9E, "BUZZER_BIOS", "Buzzer BIOS" },
-    { 0xAE, "INT_MANAGER", "General interrupt manager" },
-    { 0xAF, "SERVICE_BIOS", "Service routines" }
+    { 0x2F, "MULTIPLEX", "DOS multiplex, MSCDEX" }
 };
 
 static const int k_debug_interrupt_name_count = sizeof(k_debug_interrupt_names) / sizeof(k_debug_interrupt_names[0]);
@@ -238,7 +65,7 @@ struct stDebugInterruptFunction
     const char* name;
 };
 
-// Functions picked by AX, the first match wins: the CD-ROM device codes C0h-CFh come before the disk entries
+// Functions picked by AX, the first match wins
 static const stDebugInterruptFunction k_debug_interrupt_functions[] =
 {
     { 0x21, 0xFF00, 0x0000, "Terminate program" },
@@ -348,97 +175,7 @@ static const stDebugInterruptFunction k_debug_interrupt_functions[] =
     { 0x2F, 0xFFFF, 0x150D, "MSCDEX: get drive letters" },
     { 0x2F, 0xFFFF, 0x150E, "MSCDEX: volume descriptor preference" },
     { 0x2F, 0xFFFF, 0x150F, "MSCDEX: get directory entry" },
-    { 0x2F, 0xFFFF, 0x1510, "MSCDEX: send device request" },
-    { 0x8E, 0xFF00, 0x0000, "Get system information area" },
-    { 0x8E, 0xFF00, 0x0100, "Set cut-sheet feeder control" },
-    { 0x90, 0xFF00, 0x0000, "Initialize" },
-    { 0x90, 0xFF00, 0x0100, "Set input buffering" },
-    { 0x90, 0xFF00, 0x0200, "Set mode, code system and masks" },
-    { 0x90, 0xFF00, 0x0300, "Get mode, code system and masks" },
-    { 0x90, 0xFF00, 0x0400, "Lock or unlock keyboard" },
-    { 0x90, 0xFF00, 0x0500, "Key click control" },
-    { 0x90, 0xFF00, 0x0600, "Clear input buffer" },
-    { 0x90, 0xFF00, 0x0700, "Peek input" },
-    { 0x90, 0xFF00, 0x0800, "Get shift state" },
-    { 0x90, 0xFF00, 0x0900, "Read character" },
-    { 0x90, 0xFF00, 0x0A00, "Read key matrix" },
-    { 0x90, 0xFF00, 0x0B00, "Insert character string" },
-    { 0x90, 0xFF00, 0x0C00, "Set PF key routine" },
-    { 0x90, 0xFF00, 0x0D00, "Get PF key routine" },
-    { 0x90, 0xFF00, 0x0E00, "Set key replacement string" },
-    { 0x90, 0xFF00, 0x0F00, "Get key replacement string" },
-    { 0x93, 0xFFF0, 0x00C0, "CD-ROM: set drive mode" },
-    { 0x93, 0xFFF0, 0x01C0, "CD-ROM: get drive mode" },
-    { 0x93, 0xFFF0, 0x02C0, "CD-ROM: get drive status" },
-    { 0x93, 0xFFF0, 0x03C0, "CD-ROM: restore" },
-    { 0x93, 0xFFF0, 0x04C0, "CD-ROM: seek by sector" },
-    { 0x93, 0xFFF0, 0x05C0, "CD-ROM: read by sector" },
-    { 0x93, 0xFFF0, 0x14C0, "CD-ROM: seek by time" },
-    { 0x93, 0xFFF0, 0x15C0, "CD-ROM: read by time" },
-    { 0x93, 0xFFF0, 0x50C0, "CD-ROM: play audio" },
-    { 0x93, 0xFFF0, 0x51C0, "CD-ROM: get audio range" },
-    { 0x93, 0xFFF0, 0x52C0, "CD-ROM: stop audio" },
-    { 0x93, 0xFFF0, 0x53C0, "CD-ROM: get audio state" },
-    { 0x93, 0xFFF0, 0x54C0, "CD-ROM: read table of contents" },
-    { 0x93, 0xFFF0, 0x55C0, "CD-ROM: pause audio" },
-    { 0x93, 0xFFF0, 0x56C0, "CD-ROM: resume audio" },
-    { 0x93, 0xFF00, 0x0000, "Disk: set floppy mode" },
-    { 0x93, 0xFF00, 0x0100, "Disk: get floppy mode" },
-    { 0x93, 0xFF00, 0x0200, "Disk: get drive status" },
-    { 0x93, 0xFF00, 0x0300, "Disk: seek cylinder 0" },
-    { 0x93, 0xFF00, 0x0400, "Disk: seek cylinder" },
-    { 0x93, 0xFF00, 0x0500, "Disk: read sectors" },
-    { 0x93, 0xFF00, 0x0600, "Disk: write sectors" },
-    { 0x93, 0xFF00, 0x0700, "Disk: verify sectors" },
-    { 0x93, 0xFF00, 0x0800, "Disk: reset hard disk controller" },
-    { 0x93, 0xFF00, 0x0900, "Disk: read sector ID" },
-    { 0x93, 0xFF00, 0x0A00, "Disk: format track" },
-    { 0x93, 0xFF00, 0x0D00, "Disk: get hard disk error details" },
-    { 0x94, 0xFF00, 0x0000, "Get printer status" },
-    { 0x94, 0xFF00, 0x0100, "Print byte" },
-    { 0x94, 0xFF00, 0x0200, "Print string" },
-    { 0x96, 0xFF00, 0x0000, "Set date and time" },
-    { 0x96, 0xFF00, 0x0100, "Get date and time" },
-    { 0x97, 0xFF00, 0x0000, "Register timer" },
-    { 0x97, 0xFF00, 0x0100, "Cancel timer" },
-    { 0x97, 0xFF00, 0x0200, "Get timer count" },
-    { 0x98, 0xFF00, 0x0000, "Register alarm" },
-    { 0x98, 0xFF00, 0x0100, "Cancel alarm" },
-    { 0x9B, 0xFF00, 0x0000, "Detect serial ports" },
-    { 0x9B, 0xFF00, 0x0100, "Open port" },
-    { 0x9B, 0xFF00, 0x0200, "Close port" },
-    { 0x9B, 0xFF00, 0x0300, "Set line parameters" },
-    { 0x9B, 0xFF00, 0x0400, "Get line parameters" },
-    { 0x9B, 0xFF00, 0x0500, "Get received byte count" },
-    { 0x9B, 0xFF00, 0x0600, "Receive byte" },
-    { 0x9B, 0xFF00, 0x0700, "Send byte" },
-    { 0x9B, 0xFF00, 0x0800, "Set DTR and RTS" },
-    { 0x9B, 0xFF00, 0x0900, "Get line state" },
-    { 0x9B, 0xFF00, 0x0A00, "Clear receive buffer" },
-    { 0x9B, 0xFF00, 0x0B00, "Send break" },
-    { 0x9B, 0xFF00, 0x0C00, "Set CTS and CI routines" },
-    { 0x9B, 0xFF00, 0x0D00, "Get CTS and CI routines" },
-    { 0x9B, 0xFF00, 0x0E00, "Keep DTR on close" },
-    { 0x9B, 0xFF00, 0x0F00, "Clear XOFF state" },
-    { 0x9B, 0xFF00, 0x1000, "Get queued transmit count" },
-    { 0x9E, 0xFF00, 0x0000, "Tone on" },
-    { 0x9E, 0xFF00, 0x0100, "Tone off" },
-    { 0x9E, 0xFF00, 0x0200, "Beep" },
-    { 0x9E, 0xFF00, 0x0300, "Tone by divider" },
-    { 0x9E, 0xFF00, 0x0400, "Get divider tone state" },
-    { 0x9E, 0xFF00, 0x0500, "Tone by frequency" },
-    { 0x9E, 0xFF00, 0x0600, "Get frequency tone state" },
-    { 0xAE, 0xFF00, 0x0000, "Set cause data block" },
-    { 0xAE, 0xFF00, 0x0100, "Get cause data block" },
-    { 0xAE, 0xFF00, 0x0200, "Set enable data" },
-    { 0xAE, 0xFF00, 0x0300, "Get enable data" },
-    { 0xAE, 0xFF00, 0x0400, "Get data block table" },
-    { 0xAF, 0xFF00, 0x0000, "JIS to Shift-JIS" },
-    { 0xAF, 0xFF00, 0x0100, "Shift-JIS to JIS" },
-    { 0xAF, 0xFF00, 0x0200, "Get CPU type" },
-    { 0xAF, 0xFF00, 0x0300, "JIS to Shift-JIS, bytes swapped" },
-    { 0xAF, 0xFF00, 0x0400, "Shift-JIS to JIS, bytes swapped" },
-    { 0xAF, 0xFF00, 0x0500, "Get machine information" }
+    { 0x2F, 0xFFFF, 0x1510, "MSCDEX: send device request" }
 };
 
 static const int k_debug_interrupt_function_count =
@@ -502,19 +239,9 @@ static const char* const k_debug_dma_service_names[4] =
     "DEMAND", "SINGLE", "BLOCK", "CASCADE"
 };
 
-static const char* const k_debug_dma_control_names[10] =
-{
-    "MTM", "AHLD", "DDMA", "CMP", "ROT", "EXW", "RQL", "AKL", "BHLD", "WEV"
-};
-
 static const char* const k_debug_rtc_register_names[16] =
 {
     "S1", "S10", "MI1", "MI10", "H1", "H10", "W", "D1", "D10", "MO1", "MO10", "Y1", "Y10", "RESET", "REF", "REF"
-};
-
-static const char* const k_debug_weekday_names[7] =
-{
-    "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
 };
 
 static const char* const k_debug_crtc_register_names[32] =
@@ -522,13 +249,6 @@ static const char* const k_debug_crtc_register_names[32] =
     "HSW1", "HSW2", "--", "--", "HST", "VST1", "VST2", "EET", "VST", "HDS0", "HDE0", "HDS1", "HDE1", "VDS0", "VDE0", "VDS1",
     "VDE1", "FA0", "HAJ0", "FO0", "LO0", "FA1", "HAJ1", "FO1", "LO1", "EHAJ", "EVAJ", "ZOOM", "CR0", "CR1", "FR", "CR2"
 };
-
-static const char* const k_debug_layer_format_names[4] =
-{
-    "OFF", "16 COLORS", "256 COLORS", "32K COLORS"
-};
-
-static const double k_debug_crtc_clocks[4] = { 28.636364, 24.545455, 25.175, 21.0525 };
 
 struct stDebugKeyName
 {
@@ -666,10 +386,6 @@ static inline const char* gui_debug_port_label(u16 port)
     if (IsValidPointer(label))
         return label->label;
 
-    // CMOS RAM sits on the even ports of 3000h-3FFEh
-    if ((port & 0xF001) == 0x3000)
-        return "CMOS";
-
     return NULL;
 }
 
@@ -682,26 +398,6 @@ static inline const char* gui_debug_key_name(int key)
     }
 
     return NULL;
-}
-
-static inline const char* gui_debug_cdrom_command_name(u8 command)
-{
-    switch (command)
-    {
-        case 0x00: return "SEEK";
-        case 0x01: return "MODE2 READ";
-        case 0x02: return "MODE1 READ";
-        case 0x03: return "RAW READ";
-        case 0x04: return "CDDA PLAY";
-        case 0x05: return "TOC READ";
-        case 0x06: return "SUBQ READ";
-        case 0x80: return "GET STATE";
-        case 0x81: return "CDDA SET";
-        case 0x84: return "CDDA STOP";
-        case 0x85: return "CDDA PAUSE";
-        case 0x87: return "CDDA RESUME";
-        default: return "UNKNOWN";
-    }
 }
 
 static const char* const k_debug_mb8877_type1_status[8] =
@@ -778,10 +474,7 @@ static inline const char* gui_debug_floppy_status_name(u8 status)
     }
 }
 
-static const u8 k_debug_ym3438_lfo_cycles[8] = { 108, 77, 71, 67, 62, 44, 8, 5 };
 static const char* const k_debug_ym3438_ch3_mode_names[4] = { "NORMAL ", "SPECIAL", "CSM    ", "SPECIAL" };
-static const char* const k_debug_ym3438_envelope_names[4] = { "ATTACK ", "DECAY  ", "SUSTAIN", "RELEASE" };
-static const char* const k_debug_note_names[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 // Register order within a channel block is OP1, OP3, OP2, OP4
 static const int k_debug_ym3438_register_slot[4] = { 1, 3, 2, 4 };
@@ -843,113 +536,6 @@ static inline bool gui_debug_ym3438_register_name(int part, u8 address, char* na
     }
 
     return false;
-}
-
-static inline const char* gui_debug_scsi_command_name(u8 command)
-{
-    switch (command)
-    {
-        case 0x00: return "TEST UNIT READY";
-        case 0x01: return "REZERO UNIT";
-        case 0x03: return "REQUEST SENSE";
-        case 0x04: return "FORMAT UNIT";
-        case 0x08: return "READ(6)";
-        case 0x0A: return "WRITE(6)";
-        case 0x0B: return "SEEK(6)";
-        case 0x12: return "INQUIRY";
-        case 0x15: return "MODE SELECT(6)";
-        case 0x16: return "RESERVE";
-        case 0x17: return "RELEASE";
-        case 0x1A: return "MODE SENSE(6)";
-        case 0x1B: return "START STOP UNIT";
-        case 0x1D: return "SEND DIAGNOSTIC";
-        case 0x1E: return "PREVENT ALLOW";
-        case 0x25: return "READ CAPACITY";
-        case 0x28: return "READ(10)";
-        case 0x2A: return "WRITE(10)";
-        case 0x2B: return "SEEK(10)";
-        case 0x2F: return "VERIFY(10)";
-        default: return "UNKNOWN";
-    }
-}
-
-static const char* const k_debug_scsi_phase_names[8] =
-{
-    "BUS FREE", "SELECTION", "COMMAND", "DATA IN", "DATA OUT", "STATUS", "MESSAGE IN", "MESSAGE OUT"
-};
-
-static const char* const k_debug_scsi_sense_keys[16] =
-{
-    "NO SENSE", "RECOVERED ERROR", "NOT READY", "MEDIUM ERROR", "HARDWARE ERROR", "ILLEGAL REQUEST",
-    "UNIT ATTENTION", "DATA PROTECT", "BLANK CHECK", "VENDOR SPECIFIC", "COPY ABORTED", "ABORTED COMMAND", "EQUAL",
-    "VOLUME OVERFLOW", "MISCOMPARE", "RESERVED"
-};
-
-static inline const char* gui_debug_scsi_sense_code_name(u8 code)
-{
-    switch (code)
-    {
-        case 0x11: return "UNRECOVERED READ ERROR";
-        case 0x1D: return "MISCOMPARE DURING VERIFY";
-        case 0x20: return "INVALID COMMAND OPERATION CODE";
-        case 0x21: return "LBA OUT OF RANGE";
-        case 0x24: return "INVALID FIELD IN CDB";
-        case 0x25: return "LOGICAL UNIT NOT SUPPORTED";
-        case 0x27: return "WRITE PROTECTED";
-        default: return "";
-    }
-}
-
-static inline const char* gui_debug_scsi_message_name(u8 message)
-{
-    if ((message & 0x80) != 0)
-        return "IDENTIFY";
-
-    switch (message)
-    {
-        case 0x00: return "COMMAND COMPLETE";
-        case 0x06: return "ABORT";
-        case 0x07: return "MESSAGE REJECT";
-        case 0x08: return "NO OPERATION";
-        case 0x0C: return "BUS DEVICE RESET";
-        default: return "UNKNOWN";
-    }
-}
-
-static inline void gui_debug_scsi_command(const u8* command, char* text, size_t size)
-{
-    const char* name = gui_debug_scsi_command_name(command[0]);
-    u32 lba6 = ((u32)(command[1] & 0x1F) << 16) | ((u32)command[2] << 8) | command[3];
-    u32 lba10 = ((u32)command[2] << 24) | ((u32)command[3] << 16) | ((u32)command[4] << 8) | command[5];
-    u32 blocks10 = ((u32)command[7] << 8) | command[8];
-
-    switch (command[0])
-    {
-        case 0x08:
-        case 0x0A:
-            snprintf(text, size, "%s LBA %06X x%u", name, lba6, command[4] == 0 ? 256 : command[4]);
-            break;
-        case 0x0B:
-            snprintf(text, size, "%s LBA %06X", name, lba6);
-            break;
-        case 0x28:
-        case 0x2A:
-        case 0x2F:
-            snprintf(text, size, "%s LBA %08X x%u", name, lba10, blocks10);
-            break;
-        case 0x2B:
-            snprintf(text, size, "%s LBA %08X", name, lba10);
-            break;
-        case 0x03:
-        case 0x12:
-        case 0x15:
-        case 0x1A:
-            snprintf(text, size, "%s length %u", name, command[4]);
-            break;
-        default:
-            snprintf(text, size, "%s", name);
-            break;
-    }
 }
 
 #endif /* GUI_DEBUG_CONSTANTS_H */

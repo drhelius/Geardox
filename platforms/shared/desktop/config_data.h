@@ -304,16 +304,11 @@ struct config_Debug
     bool show_rewind;
     bool show_pic;
     bool show_pit;
-    bool show_dma;
-    bool show_keyboard;
+    bool show_system_control;
     bool show_game_ports;
-    bool show_video_output;
-    bool show_palettes;
     bool show_sound_control;
-    bool show_cdrom;
     bool show_cdrom_toc;
     bool show_cdrom_audio;
-    bool show_fdc;
     bool show_floppy_drives;
     bool show_disk_viewer;
     int disk_viewer_drive;

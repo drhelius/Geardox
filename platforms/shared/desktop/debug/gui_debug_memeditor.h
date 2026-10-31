@@ -1,0 +1,163 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#ifndef GUI_DEBUG_MEMEDITOR_H
+#define GUI_DEBUG_MEMEDITOR_H
+
+#include <vector>
+#include "common/debug_memory.h"
+
+class DebugMemoryProvider;
+struct ImVec2;
+
+class MemEditor
+{
+public:
+    struct Options
+    {
+        int bytes_per_row;
+        bool uppercase_hex;
+        bool gray_out_zeros;
+        bool auto_refresh;
+        int refresh_rate;
+        int preview_endian;
+    };
+
+public:
+    MemEditor();
+    ~MemEditor();
+    void Init(DebugMemoryProvider* provider);
+    void Reset();
+    void Update();
+    void Draw();
+    void Refresh(bool preserve_previous = true);
+    void RequestRefresh();
+    void JumpToAddress(u32 address, bool add_history = true);
+    void SetSource(const GDOX_Debug_Memory_Address& source);
+    void SetFollow(bool follow);
+    const GDOX_Debug_Memory_Address& GetSource() const;
+    u32 GetBufferBase() const;
+    u32 GetBufferSize() const;
+    void GetSelection(u32& start, u32& end) const;
+    void SetSelection(u32 start, u32 end);
+
+    void CopySelection(bool decimal = false);
+    void PasteSelection();
+    void FillSelection(u8 value);
+    const char* GetTitle() const;
+    bool IsAvailable() const;
+    void SetAvailable(bool available);
+
+    bool TakeBookmarkRequest(GDOX_Debug_Memory_Address& address, u32& end);
+    bool TakeWatchRequest(GDOX_Debug_Memory_Address& address);
+    bool TakeBreakpointRequest(GDOX_Debug_Memory_Address& address, u32& end, u8& type);
+    DebugMemoryProvider* GetProvider() const;
+
+    Options GetOptions() const;
+    void SetOptions(const Options& options);
+
+private:
+    void DrawStatusBar();
+    void DrawGrid();
+    void DrawCell(u32 address, u32 offset, int column, int bytes_per_row, float cell_width);
+    void DrawSelectionFrame(u32 address, int column, int bytes_per_row, ImVec2 minimum, ImVec2 maximum);
+    void DrawContextMenu(u32 address);
+    void DrawOptions();
+    void DrawRightAligned(const char* label, const char* value);
+    void DrawButtonTooltip(const char* text);
+
+    void UpdateTitle();
+    int GetBytesPerRow() const;
+    s64 GetRowCount(int bytes_per_row) const;
+    void SetViewRow(s64 row, int bytes_per_row);
+    void KeepVisible(u32 address, int bytes_per_row);
+    void EnsureBuffer(u32 start, u32 end);
+    void MoveBuffer(u32 base);
+    void NavigateKeyboard(int bytes_per_row);
+    bool ParseAddressInput(GDOX_Debug_Memory_Address& address, char* reason, size_t reason_size) const;
+    bool ReadRange(u32 start, u32 end, std::vector<u8>& data, std::vector<GDOX_Debug_Memory_Status>& status) const;
+    void CopyRange(u32 start, u32 end, bool decimal);
+    void PasteRange(u32 start, u32 end);
+
+    u32 GetSelectionStart() const;
+    u32 GetSelectionEnd() const;
+    u32 GetSelectionSize() const;
+    bool IsSelected(u64 address) const;
+    bool IsAddressInSource(u32 address) const;
+
+    void PushHistory(u32 address);
+    void HistoryBack();
+    void HistoryForward();
+
+private:
+    static const u32 BUFFER_SIZE = 0x4000;
+    static const int HISTORY_SIZE = 32;
+    static const u8 CHANGE_HIGHLIGHT_REFRESHES = 60;
+
+    DebugMemoryProvider* m_provider;
+    char m_title[96];
+
+    GDOX_Debug_Memory_Address m_source;
+    u32 m_buffer_base;
+    u32 m_fresh_start;
+    u32 m_fresh_size;
+    u32 m_view_address;
+    int m_visible_rows;
+    float m_scroll_rows;
+
+    u32 m_selection_start;
+    u32 m_selection_end;
+    u32 m_editing_address;
+
+    u32 m_history[HISTORY_SIZE];
+    int m_history_count;
+    int m_history_position;
+
+    int m_update_counter;
+
+    char m_address_input[96];
+    char m_edit_buffer[3];
+
+    Options m_options;
+    GDOX_Debug_Memory_Block_Info m_block_info;
+    u64 m_view_key;
+
+    std::vector<u8> m_data;
+    std::vector<u8> m_previous;
+    std::vector<u8> m_change_age;
+    std::vector<GDOX_Debug_Memory_Status> m_status;
+
+    bool m_available;
+    bool m_has_snapshot;
+    bool m_refresh_requested;
+    bool m_edit_focus;
+    bool m_drag_selecting;
+    bool m_follow_expression;
+    bool m_follow_valid;
+    GDOX_Debug_Memory_Address m_follow_target;
+
+    bool m_bookmark_request;
+    bool m_watch_request;
+    bool m_breakpoint_request;
+    u8 m_breakpoint_type;
+    u32 m_request_start;
+    u32 m_request_end;
+};
+
+#endif /* GUI_DEBUG_MEMEDITOR_H */

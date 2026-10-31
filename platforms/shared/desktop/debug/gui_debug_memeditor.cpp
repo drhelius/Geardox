@@ -1,0 +1,1538 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include <algorithm>
+#include <string>
+#include <SDL3/SDL.h>
+
+#include "gui_debug_memeditor.h"
+#include "gui_debug_memory.h"
+#include "../gui.h"
+#include "../gui_colors.h"
+#include "gui_debug_memory_provider.h"
+#include "i386/i386.h"
+#include "imgui.h"
+#include "imgui_internal.h"
+
+class MemoryExpressionParser
+{
+public:
+    MemoryExpressionParser(const char* expression, DebugMemoryProvider* provider);
+    bool Parse(u32& value);
+
+private:
+    void SkipSpaces();
+    u64 ParseAddSubtract();
+    u64 ParseMultiplyDivide();
+    u64 ParsePrimary();
+
+private:
+    const char* m_cursor;
+    DebugMemoryProvider* m_provider;
+    bool m_valid;
+};
+
+static bool equal_prefix(const std::string& left, const char* right)
+{
+    if (left.length() != strlen(right))
+        return false;
+
+    for (size_t i = 0; i < left.length(); i++)
+    {
+        if (toupper((unsigned char)left[i]) != toupper((unsigned char)right[i]))
+            return false;
+    }
+
+    return true;
+}
+
+MemEditor::MemEditor()
+{
+    InitPointer(m_provider);
+    m_available = false;
+    Reset();
+}
+
+MemEditor::~MemEditor()
+{
+}
+
+void MemEditor::Init(DebugMemoryProvider* provider)
+{
+    m_provider = provider;
+    m_data.resize(BUFFER_SIZE);
+    m_previous.resize(BUFFER_SIZE);
+    m_change_age.resize(BUFFER_SIZE);
+    m_status.resize(BUFFER_SIZE);
+    m_available = true;
+    Reset();
+}
+
+void MemEditor::Reset()
+{
+    memset(&m_source, 0, sizeof(m_source));
+    m_source.space = GDOX_DEBUG_MEMORY_PHYSICAL;
+    m_source.segment_register = I386_SEGMENT_CS;
+    m_buffer_base = 0;
+    m_fresh_start = 0;
+    m_fresh_size = 0;
+    m_view_address = 0;
+    m_visible_rows = 16;
+    m_scroll_rows = 0.0f;
+    m_selection_start = 0;
+    m_selection_end = 0;
+    m_editing_address = 0xFFFFFFFF;
+    memset(m_history, 0, sizeof(m_history));
+    m_history_count = 0;
+    m_history_position = -1;
+    m_update_counter = 0;
+    m_address_input[0] = 0;
+    m_edit_buffer[0] = 0;
+    memset(&m_options, 0, sizeof(m_options));
+    m_options.bytes_per_row = 16;
+    m_options.uppercase_hex = true;
+    m_options.gray_out_zeros = true;
+    m_options.auto_refresh = true;
+    m_options.refresh_rate = 1;
+    m_options.preview_endian = 0;
+    memset(&m_block_info, 0, sizeof(m_block_info));
+    m_view_key = 0;
+    m_has_snapshot = false;
+    m_refresh_requested = true;
+    m_edit_focus = false;
+    m_drag_selecting = false;
+    m_follow_expression = false;
+    m_follow_valid = false;
+    memset(&m_follow_target, 0, sizeof(m_follow_target));
+    m_bookmark_request = false;
+    m_watch_request = false;
+    m_breakpoint_request = false;
+    m_breakpoint_type = I386_BREAKPOINT_READ | I386_BREAKPOINT_WRITE;
+    m_request_start = 0;
+    m_request_end = 0;
+    UpdateTitle();
+}
+
+void MemEditor::Update()
+{
+    if (!m_available || !IsValidPointer(m_provider))
+        return;
+
+    m_update_counter++;
+    int refresh_rate = CLAMP(m_options.refresh_rate, 1, 120);
+
+    if (m_follow_expression && (m_update_counter % refresh_rate) == 0)
+    {
+        GDOX_Debug_Memory_Address address;
+        char reason[GDOX_DEBUG_MEMORY_REASON_SIZE];
+
+        if (ParseAddressInput(address, reason, sizeof(reason)) && (!m_follow_valid ||
+            !gui_debug_memory_same_source(address, m_follow_target) || address.address != m_follow_target.address))
+        {
+            m_follow_target = address;
+            m_follow_valid = true;
+            SetSource(address);
+            JumpToAddress(address.address, false);
+        }
+    }
+
+    if (m_options.auto_refresh && (m_update_counter % refresh_rate) == 0)
+    {
+        GDOX_Debug_Memory_Address source = m_source;
+        source.address = m_buffer_base;
+        u64 key = m_provider->GetViewKey(source);
+
+        if (key == 0 || key != m_view_key)
+            m_refresh_requested = true;
+    }
+
+    if (m_refresh_requested)
+        Refresh();
+}
+
+void MemEditor::Draw()
+{
+    if (!m_available)
+        return;
+
+    ImGui::PushFont(gui_default_font);
+    DrawGrid();
+    DrawStatusBar();
+    DrawOptions();
+    ImGui::PopFont();
+}
+
+void MemEditor::Refresh(bool preserve_previous)
+{
+    if (!IsValidPointer(m_provider) || m_data.size() != BUFFER_SIZE)
+        return;
+
+    bool compare = preserve_previous && m_has_snapshot;
+
+    if (compare)
+        m_previous = m_data;
+    else
+        memset(&m_previous[0], 0, m_previous.size());
+
+    GDOX_Debug_Memory_Address address = m_source;
+    address.address = m_buffer_base;
+    m_view_key = m_provider->GetViewKey(address);
+    m_provider->ReadBlock(address, &m_data[0], &m_status[0], BUFFER_SIZE, &m_block_info);
+
+    // Bytes the buffer just moved over have nothing to compare with
+    for (u32 i = m_fresh_start; i < m_fresh_start + m_fresh_size; i++)
+    {
+        m_previous[i] = m_data[i];
+        m_change_age[i] = 0;
+    }
+
+    m_fresh_size = 0;
+
+    for (u32 i = 0; i < BUFFER_SIZE; i++)
+    {
+        bool readable = m_status[i] == GDOX_DEBUG_MEMORY_VALID || m_status[i] == GDOX_DEBUG_MEMORY_READ_ONLY;
+
+        if (!compare)
+            m_change_age[i] = 0;
+        else if (readable && m_data[i] != m_previous[i])
+            m_change_age[i] = CHANGE_HIGHLIGHT_REFRESHES;
+        else if (m_change_age[i] > 0)
+            m_change_age[i]--;
+    }
+
+    m_has_snapshot = true;
+    m_refresh_requested = false;
+}
+
+void MemEditor::RequestRefresh()
+{
+    m_refresh_requested = true;
+}
+
+void MemEditor::JumpToAddress(u32 address, bool add_history)
+{
+    if (!IsAddressInSource(address))
+        return;
+
+    if (add_history)
+    {
+        PushHistory(m_selection_start);
+        PushHistory(address);
+    }
+
+    SetViewRow(address / GetBytesPerRow(), GetBytesPerRow());
+    m_selection_start = address;
+    m_selection_end = address;
+    m_editing_address = 0xFFFFFFFF;
+    m_refresh_requested = true;
+}
+
+void MemEditor::SetSource(const GDOX_Debug_Memory_Address& source)
+{
+    bool changed = !gui_debug_memory_same_source(m_source, source);
+    m_source = source;
+
+    if (!IsAddressInSource(m_source.address))
+        m_source.address = 0;
+
+    if (!changed)
+        return;
+
+    m_buffer_base = 0;
+    m_fresh_size = 0;
+    m_selection_start = m_source.address;
+    m_selection_end = m_source.address;
+    m_has_snapshot = false;
+    m_history_count = 0;
+    m_history_position = -1;
+    UpdateTitle();
+    SetViewRow(m_source.address / GetBytesPerRow(), GetBytesPerRow());
+    m_refresh_requested = true;
+}
+
+const GDOX_Debug_Memory_Address& MemEditor::GetSource() const
+{
+    return m_source;
+}
+
+u32 MemEditor::GetBufferBase() const
+{
+    return m_buffer_base;
+}
+
+u32 MemEditor::GetBufferSize() const
+{
+    return BUFFER_SIZE;
+}
+
+void MemEditor::GetSelection(u32& start, u32& end) const
+{
+    start = GetSelectionStart();
+    end = GetSelectionEnd();
+}
+
+void MemEditor::SetSelection(u32 start, u32 end)
+{
+    if (!IsAddressInSource(start) || !IsAddressInSource(end))
+        return;
+
+    m_selection_start = start;
+    m_selection_end = end;
+    KeepVisible(start, GetBytesPerRow());
+    m_refresh_requested = true;
+}
+
+void MemEditor::CopySelection(bool decimal)
+{
+    CopyRange(GetSelectionStart(), GetSelectionEnd(), decimal);
+}
+
+void MemEditor::PasteSelection()
+{
+    PasteRange(GetSelectionStart(), GetSelectionEnd());
+}
+
+void MemEditor::CopyRange(u32 start, u32 end, bool decimal)
+{
+    std::vector<u8> data;
+    std::vector<GDOX_Debug_Memory_Status> status;
+
+    if (!ReadRange(start, end, data, status))
+        return;
+
+    std::string text;
+    char value[16];
+
+    for (size_t i = 0; i < data.size(); i++)
+    {
+        if (i > 0)
+            text += " ";
+
+        if (status[i] != GDOX_DEBUG_MEMORY_VALID && status[i] != GDOX_DEBUG_MEMORY_READ_ONLY)
+            text += "??";
+        else
+        {
+            snprintf(value, sizeof(value), decimal ? "%u" : (m_options.uppercase_hex ? "%02X" : "%02x"), data[i]);
+            text += value;
+        }
+    }
+
+    SDL_SetClipboardText(text.c_str());
+}
+
+void MemEditor::PasteRange(u32 start, u32 end)
+{
+    char* clipboard = SDL_GetClipboardText();
+
+    if (!IsValidPointer(clipboard))
+        return;
+
+    std::vector<u8> data;
+    std::string compact;
+    bool hexadecimal = true;
+
+    for (const char* p = clipboard; *p != 0; p++)
+    {
+        if (is_hex_digit(*p))
+            compact += *p;
+        else if (!isspace((unsigned char)*p) && *p != ',' && *p != '-')
+            hexadecimal = false;
+    }
+
+    if (hexadecimal && !compact.empty() && (compact.length() & 1) == 0)
+    {
+        for (size_t i = 0; i < compact.length(); i += 2)
+        {
+            u8 value = 0;
+
+            if (!parse_hex_string(compact.c_str() + i, 2, &value))
+            {
+                data.clear();
+                break;
+            }
+
+            data.push_back(value);
+        }
+    }
+    else
+    {
+        size_t length = strlen(clipboard);
+        data.assign((u8*)clipboard, (u8*)clipboard + length);
+    }
+
+    SDL_free(clipboard);
+
+    u32 size = end - start + 1;
+
+    if (data.empty() || size == 0)
+        return;
+
+    if (data.size() > size)
+        data.resize(size);
+
+    GDOX_Debug_Memory_Address address = m_source;
+    address.address = start;
+
+    if (m_provider->QueueWrite(address, &data[0], (u32)data.size()))
+        m_refresh_requested = true;
+}
+
+void MemEditor::FillSelection(u8 value)
+{
+    u32 size = GetSelectionSize();
+
+    if (size == 0 || size > 0x100000)
+        return;
+
+    std::vector<u8> data(size, value);
+    GDOX_Debug_Memory_Address address = m_source;
+    address.address = GetSelectionStart();
+
+    if (m_provider->QueueWrite(address, &data[0], size))
+        m_refresh_requested = true;
+}
+
+const char* MemEditor::GetTitle() const
+{
+    return m_title;
+}
+
+bool MemEditor::IsAvailable() const
+{
+    return m_available;
+}
+
+void MemEditor::SetAvailable(bool available)
+{
+    m_available = available;
+}
+
+bool MemEditor::TakeBookmarkRequest(GDOX_Debug_Memory_Address& address, u32& end)
+{
+    if (!m_bookmark_request)
+        return false;
+
+    m_bookmark_request = false;
+    address = m_source;
+    address.address = m_request_start;
+    end = m_request_end;
+    return true;
+}
+
+bool MemEditor::TakeWatchRequest(GDOX_Debug_Memory_Address& address)
+{
+    if (!m_watch_request)
+        return false;
+
+    m_watch_request = false;
+    address = m_source;
+    address.address = m_request_start;
+    return true;
+}
+
+bool MemEditor::TakeBreakpointRequest(GDOX_Debug_Memory_Address& address, u32& end, u8& type)
+{
+    if (!m_breakpoint_request)
+        return false;
+
+    m_breakpoint_request = false;
+    address = m_source;
+    address.address = m_request_start;
+    end = m_request_end;
+    type = m_breakpoint_type;
+    return true;
+}
+
+DebugMemoryProvider* MemEditor::GetProvider() const
+{
+    return m_provider;
+}
+
+MemEditor::Options MemEditor::GetOptions() const
+{
+    return m_options;
+}
+
+void MemEditor::SetOptions(const Options& options)
+{
+    m_options = options;
+    m_options.bytes_per_row = CLAMP(m_options.bytes_per_row, 8, 32);
+    m_options.refresh_rate = CLAMP(m_options.refresh_rate, 1, 120);
+    m_options.preview_endian = CLAMP(m_options.preview_endian, 0, 1);
+}
+
+void MemEditor::DrawStatusBar()
+{
+    ImGui::BeginDisabled(m_history_position <= 0);
+
+    if (ImGui::ArrowButton("##memory_back", ImGuiDir_Left))
+        HistoryBack();
+
+    DrawButtonTooltip("Back");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(m_history_position + 1 >= m_history_count);
+
+    if (ImGui::ArrowButton("##memory_forward", ImGuiDir_Right))
+        HistoryForward();
+
+    DrawButtonTooltip("Forward");
+    ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("0").x * 18.0f + ImGui::GetStyle().FramePadding.x * 2.0f);
+    bool go = ImGui::InputTextWithHint("##memory_address", "ADDRESS", m_address_input, sizeof(m_address_input),
+        ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::PushFont(gui_roboto_font);
+        ImGui::SetTooltip("Hex address or register expression, with an optional prefix\n"
+            "Examples: 1234, ESI+10, DS:SI, L:C0000, P:FC000h");
+        ImGui::PopFont();
+    }
+
+    ImGui::SameLine();
+    go = ImGui::Button("GoTo") || go;
+
+    if (go)
+    {
+        GDOX_Debug_Memory_Address address;
+        char reason[GDOX_DEBUG_MEMORY_REASON_SIZE];
+
+        if (ParseAddressInput(address, reason, sizeof(reason)))
+        {
+            SetSource(address);
+            JumpToAddress(address.address);
+        }
+
+        m_follow_valid = false;
+    }
+
+    ImGui::SameLine();
+    ImGui::TextColored(mid_gray, "|");
+    ImGui::SameLine();
+
+    if (ImGui::Checkbox("Follow", &m_follow_expression))
+        m_follow_valid = false;
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::PushFont(gui_roboto_font);
+        ImGui::SetTooltip("Follows the address expression, moving the view each time its value changes\n"
+            "Example: SS:ESP for the stack, DS:ESI for a source pointer\n"
+            "Choosing another source, bookmark or history entry stops following");
+        ImGui::PopFont();
+    }
+
+    char selection[32];
+
+    if (GetSelectionStart() == GetSelectionEnd())
+        snprintf(selection, sizeof(selection), "%08X", GetSelectionStart());
+    else
+        snprintf(selection, sizeof(selection), "%08X-%08X", GetSelectionStart(), GetSelectionEnd());
+
+    ImGui::SameLine();
+    DrawRightAligned("SELECTION:", selection);
+}
+
+void MemEditor::DrawOptions()
+{
+    if (ImGui::Button("Options"))
+        ImGui::OpenPopup("memory_options");
+
+    u32 selected = GetSelectionStart() - m_buffer_base;
+
+    if (GetSelectionStart() >= m_buffer_base && selected < m_status.size() &&
+        m_status[selected] == GDOX_DEBUG_MEMORY_READ_ONLY)
+    {
+        ImGui::SameLine();
+        ImGui::TextColored(gray, "READ-ONLY");
+    }
+
+    if (m_follow_expression)
+    {
+        ImGui::SameLine();
+        ImGui::TextColored(yellow, "FOLLOWING");
+        ImGui::SameLine(0.0f, ImGui::CalcTextSize(" ").x);
+
+        if (m_address_input[0] != 0)
+            ImGui::TextColored(white, "%s", m_address_input);
+        else
+            ImGui::TextColored(gray, "--");
+    }
+
+    char view[32];
+    s64 view_end = (s64)m_view_address + (s64)m_visible_rows * GetBytesPerRow() - 1;
+    snprintf(view, sizeof(view), "%08X-%08X", m_view_address,
+        (u32)MIN(view_end, (s64)m_provider->GetAddressLimit(m_source)));
+    ImGui::SameLine();
+    DrawRightAligned("VIEW:", view);
+
+    if (!ImGui::BeginPopup("memory_options"))
+        return;
+
+    ImGui::PushFont(gui_roboto_font);
+    ImGui::Text("Columns:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::SliderInt("##memory_columns", &m_options.bytes_per_row, 8, 32);
+    ImGui::Checkbox("Uppercase hex", &m_options.uppercase_hex);
+    ImGui::Checkbox("Gray out zeros", &m_options.gray_out_zeros);
+    ImGui::Checkbox("Auto refresh", &m_options.auto_refresh);
+    ImGui::Text("Refresh every:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(80.0f);
+    ImGui::SliderInt("##memory_refresh_rate", &m_options.refresh_rate, 1, 120);
+    ImGui::SameLine();
+    ImGui::Text("frames");
+    ImGui::Text("Preview:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120.0f);
+    ImGui::Combo("##memory_endian", &m_options.preview_endian, "Little Endian\0Big Endian\0\0");
+    ImGui::PopFont();
+    ImGui::EndPopup();
+}
+
+void MemEditor::DrawButtonTooltip(const char* text)
+{
+    if (!ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        return;
+
+    ImGui::PushFont(gui_roboto_font);
+    ImGui::SetTooltip("%s", text);
+    ImGui::PopFont();
+}
+
+void MemEditor::DrawRightAligned(const char* label, const char* value)
+{
+    float space = ImGui::CalcTextSize(" ").x;
+    float width = ImGui::CalcTextSize(label).x + space + ImGui::CalcTextSize(value).x;
+    float available = ImGui::GetContentRegionAvail().x;
+
+    if (available > width)
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + available - width);
+
+    ImGui::TextColored(cyan, "%s", label); ImGui::SameLine(0.0f, space);
+    ImGui::TextColored(white, "%s", value);
+}
+
+// The view keeps its own row instead of ImGui's float scroll, which loses precision over a 4 GB source
+// Only the rows that fit are drawn, from a buffer that follows them, next to a scrollbar counted in rows
+void MemEditor::DrawGrid()
+{
+    int bytes_per_row = GetBytesPerRow();
+    s64 row_count = GetRowCount(bytes_per_row);
+    u64 limit = m_provider->GetAddressLimit(m_source);
+    ImVec2 character_size = ImGui::CalcTextSize("0");
+    float character_advance = ImGui::GetFontBaked()->GetCharAdvance('0');
+    float address_width = ImGui::CalcTextSize("FFFFFFFF").x + 12.0f;
+    float cell_width = character_size.x * 2.0f + 6.0f;
+    const char* text_header = "ASCII";
+    float text_width = MAX(character_advance * bytes_per_row, ImGui::CalcTextSize(text_header).x) + 4.0f;
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoKeepColumnsVisible;
+    float inner_width = address_width + bytes_per_row * cell_width + text_width + 8.0f;
+    float row_height = ImGui::GetTextLineHeight();
+    float status_bar_height = ImGui::GetFrameHeightWithSpacing() * 2.0f;
+    float scrollbar_size = ImGui::GetStyle().ScrollbarSize;
+    ImVec2 position = ImGui::GetCursorScreenPos();
+    ImVec2 available = ImGui::GetContentRegionAvail();
+    ImVec2 grid_size(MAX(available.x - scrollbar_size, 1.0f), MAX(available.y - status_bar_height, 1.0f));
+    ImRect scrollbar(position.x + grid_size.x, position.y, position.x + grid_size.x + scrollbar_size,
+        position.y + grid_size.y);
+    ImGuiIO& io = ImGui::GetIO();
+    ImS64 row = m_view_address / bytes_per_row;
+
+    ImGui::ScrollbarEx(scrollbar, ImGui::GetID("##memory_scrollbar"), ImGuiAxis_Y, &row, m_visible_rows, row_count,
+        ImDrawFlags_RoundCornersNone);
+
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && ImGui::IsMouseHoveringRect(position, scrollbar.Max) &&
+        !io.MouseWheelRequestAxisSwap)
+    {
+        m_scroll_rows -= io.MouseWheel * CLAMP(m_visible_rows * 0.67f, 1.0f, 5.0f);
+        s64 step = (s64)m_scroll_rows;
+        m_scroll_rows -= (float)step;
+        row += step;
+    }
+
+    if (!ImGui::BeginChild("##memory_grid_container", grid_size, ImGuiChildFlags_None,
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_HorizontalScrollbar))
+    {
+        ImGui::EndChild();
+        return;
+    }
+
+    int visible_rows = (int)((ImGui::GetContentRegionAvail().y - row_height) / row_height);
+    m_visible_rows = CLAMP(visible_rows, 1, (int)(BUFFER_SIZE / 2 / bytes_per_row));
+    SetViewRow(row, bytes_per_row);
+    row = m_view_address / bytes_per_row;
+    EnsureBuffer(m_view_address, (u32)MIN((u64)(row + m_visible_rows) * bytes_per_row - 1, limit));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(2.0f, 0.0f));
+
+    if (!ImGui::BeginTable("##memory_grid", bytes_per_row + 2, flags, ImVec2(inner_width, 0.0f)))
+    {
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
+        return;
+    }
+
+    ImGui::TableSetupColumn("ADDR##memory_address_column", ImGuiTableColumnFlags_WidthFixed, address_width);
+
+    for (int i = 0; i < bytes_per_row; i++)
+    {
+        char column[48];
+        snprintf(column, sizeof(column), "%02X##memory_column_%02X", i, i);
+        ImGui::TableSetupColumn(column, ImGuiTableColumnFlags_WidthFixed, cell_width);
+    }
+
+    char text_column[48];
+    snprintf(text_column, sizeof(text_column), "%s##memory_text_column", text_header);
+    ImGui::TableSetupColumn(text_column, ImGuiTableColumnFlags_WidthFixed, text_width);
+    ImGui::PushStyleColor(ImGuiCol_Text, yellow);
+    ImGui::TableHeadersRow();
+    ImGui::PopStyleColor();
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        m_drag_selecting = false;
+
+    float rows_top = ImGui::GetCursorScreenPos().y;
+
+    for (int line = 0; line < m_visible_rows && row + line < row_count; line++)
+    {
+        u32 row_address = (u32)((row + line) * bytes_per_row);
+        u32 row_offset = row_address - m_buffer_base;
+
+
+        ImGui::TableNextRow();
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+            ImGui::GetColorU32(((row + line) & 1) ? ImGuiCol_TableRowBgAlt : ImGuiCol_TableRowBg));
+        ImGui::TableNextColumn();
+
+        if (line == 0)
+            rows_top = ImGui::GetCursorScreenPos().y;
+
+        ImGui::TextColored(cyan, "%08X", row_address);
+
+        char text[65];
+        int text_length = 0;
+
+        for (int column = 0; column < bytes_per_row; column++)
+        {
+            ImGui::TableNextColumn();
+            u32 offset = row_offset + column;
+
+            if ((u64)row_address + column > limit)
+            {
+                ImGui::TextUnformatted("");
+                text[text_length++] = ' ';
+                continue;
+            }
+
+            u32 address = row_address + column;
+            DrawCell(address, offset, column, bytes_per_row, cell_width);
+
+            if (offset < m_data.size() &&
+                (m_status[offset] == GDOX_DEBUG_MEMORY_VALID || m_status[offset] == GDOX_DEBUG_MEMORY_READ_ONLY))
+            {
+                u8 value = m_data[offset];
+                text[text_length++] = value >= 32 && value < 127 ? (char)value : '.';
+            }
+            else
+                text[text_length++] = '.';
+        }
+
+        text[text_length] = 0;
+
+        ImGui::TableNextColumn();
+        ImVec2 text_position = ImGui::GetCursorScreenPos();
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        for (int column = 0; column < bytes_per_row; column++)
+        {
+            u64 address = (u64)row_address + column;
+
+            if (address > limit || address < GetSelectionStart() || address > GetSelectionEnd())
+                continue;
+
+            ImVec2 minimum = text_position + ImVec2(character_advance * column, 0.0f);
+            ImVec2 maximum = minimum + ImVec2(character_advance, character_size.y);
+            draw_list->AddRectFilled(minimum, maximum, ImGui::GetColorU32(dark_cyan));
+        }
+
+        ImGui::TextColored(magenta, "%s", text);
+    }
+
+    if (m_drag_selecting && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+    {
+        float mouse_y = ImGui::GetMousePos().y;
+        float rows_bottom = rows_top + m_visible_rows * row_height;
+        float zone = row_height * CLAMP(m_visible_rows / 8, 1, 3);
+        float depth = 0.0f;
+
+        if (mouse_y < rows_top + zone)
+            depth = mouse_y - (rows_top + zone);
+        else if (mouse_y > rows_bottom - zone)
+            depth = mouse_y - (rows_bottom - zone);
+
+        m_scroll_rows += CLAMP(depth / row_height, -10.0f, 10.0f) * 15.0f * io.DeltaTime;
+        s64 step = (s64)m_scroll_rows;
+        m_scroll_rows -= (float)step;
+        SetViewRow(row + step, bytes_per_row);
+
+        u64 column = m_selection_end % bytes_per_row;
+
+        if (mouse_y < rows_top)
+            m_selection_end = m_view_address + (u32)column;
+        else if (mouse_y >= rows_bottom)
+            m_selection_end = (u32)MIN(m_view_address + (u64)(m_visible_rows - 1) * bytes_per_row + column, limit);
+    }
+
+    if (ImGui::IsWindowFocused() && m_editing_address == 0xFFFFFFFF && !io.WantTextInput)
+        NavigateKeyboard(bytes_per_row);
+
+    ImGui::EndTable();
+    ImGui::PopStyleVar();
+    ImGui::EndChild();
+}
+
+void MemEditor::DrawCell(u32 address, u32 offset, int column, int bytes_per_row, float cell_width)
+{
+    if (offset >= m_data.size())
+        return;
+
+    GDOX_Debug_Memory_Status status = m_status[offset];
+    bool changed = m_has_snapshot && m_change_age[offset] > 0 &&
+        (status == GDOX_DEBUG_MEMORY_VALID || status == GDOX_DEBUG_MEMORY_READ_ONLY);
+    ImVec4 color = white;
+    const char* display = "??";
+    char value[4];
+
+    if (status == GDOX_DEBUG_MEMORY_VALID || status == GDOX_DEBUG_MEMORY_READ_ONLY)
+    {
+        snprintf(value, sizeof(value), m_options.uppercase_hex ? "%02X" : "%02x", m_data[offset]);
+        display = value;
+
+        if (m_options.gray_out_zeros && m_data[offset] == 0)
+            color = mid_gray;
+
+        if (changed)
+            color = gui_lerp_color(color, orange, (float)m_change_age[offset] / CHANGE_HIGHLIGHT_REFRESHES);
+    }
+    else if (status == GDOX_DEBUG_MEMORY_UNMAPPED)
+    {
+        display = "--";
+        color = mid_gray;
+    }
+    else
+        color = red;
+
+    ImVec2 padding = ImGui::GetStyle().CellPadding;
+    ImVec2 content = ImGui::GetCursorScreenPos();
+    ImVec2 cell_minimum = content - padding;
+    ImVec2 cell_size = ImVec2((float)(int)cell_width + padding.x * 2.0f, ImGui::GetTextLineHeight() + padding.y * 2.0f);
+    ImVec2 cell_maximum = cell_minimum + cell_size;
+    ImGuiHoveredFlags hover_flags = ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem;
+    bool cell_hovered = ImGui::IsWindowHovered(hover_flags) &&
+        ImGui::IsMouseHoveringRect(cell_minimum, cell_maximum, false);
+
+    if (cell_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    {
+        if (!ImGui::GetIO().KeyShift)
+            m_selection_start = address;
+
+        m_selection_end = address;
+        m_drag_selecting = true;
+
+        if (m_editing_address != address)
+            m_editing_address = 0xFFFFFFFF;
+    }
+    else if (cell_hovered && m_drag_selecting && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        m_selection_end = address;
+    }
+
+    bool selected = address >= GetSelectionStart() && address <= GetSelectionEnd();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    if (selected)
+        draw_list->AddRectFilled(cell_minimum, cell_maximum, ImGui::GetColorU32(dark_cyan));
+    else if (cell_hovered)
+        draw_list->AddRectFilled(cell_minimum, cell_maximum, ImGui::GetColorU32(ImGuiCol_HeaderHovered, 0.35f));
+
+    ImGui::PushID("memory_cell");
+    ImGui::PushID((int)address);
+    bool item_hovered = false;
+
+    if (m_editing_address == address)
+    {
+        ImGui::SetNextItemWidth(cell_width - ImGui::GetStyle().CellPadding.x * 2.0f);
+
+        if (m_edit_focus)
+        {
+            ImGui::SetKeyboardFocusHere();
+            m_edit_focus = false;
+        }
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+        bool commit = ImGui::InputText("##edit", m_edit_buffer, sizeof(m_edit_buffer),
+            ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_CharsUppercase |
+            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+        item_hovered = ImGui::IsItemHovered();
+        ImGui::PopStyleVar();
+
+        if (commit)
+        {
+            u8 data = 0;
+
+            if (parse_hex_string(m_edit_buffer, strlen(m_edit_buffer), &data))
+            {
+                GDOX_Debug_Memory_Address write_address = m_source;
+                write_address.address = address;
+                m_provider->QueueWrite(write_address, &data, 1);
+
+                if (address != 0xFFFFFFFF && IsAddressInSource(address + 1))
+                {
+                    m_editing_address = address + 1;
+                    m_selection_start = m_selection_end = address + 1;
+                    snprintf(m_edit_buffer, sizeof(m_edit_buffer), "%02X",
+                        offset + 1 < m_data.size() ? m_data[offset + 1] : 0);
+                    m_edit_focus = true;
+                    KeepVisible(address + 1, bytes_per_row);
+                }
+                else
+                    m_editing_address = 0xFFFFFFFF;
+            }
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+            m_editing_address = 0xFFFFFFFF;
+    }
+    else
+    {
+        ImVec2 text_position(content.x + (cell_width - ImGui::CalcTextSize(display).x) * 0.5f, content.y);
+        ImGui::SetCursorScreenPos(cell_minimum);
+        ImGui::InvisibleButton("##value", cell_size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+        item_hovered = ImGui::IsItemHovered();
+        draw_list->AddText(text_position, ImGui::GetColorU32(color), display);
+
+        if (item_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && status == GDOX_DEBUG_MEMORY_VALID)
+        {
+            m_editing_address = address;
+            snprintf(m_edit_buffer, sizeof(m_edit_buffer), "%02X", m_data[offset]);
+            m_edit_focus = true;
+        }
+
+        DrawContextMenu(address);
+    }
+
+    if (selected)
+        DrawSelectionFrame(address, column, bytes_per_row, cell_minimum, cell_maximum);
+
+    if (item_hovered)
+    {
+        ImGui::BeginTooltip();
+        ImGui::TextColored(cyan, "%08X", address);
+        ImGui::Text("%s", DebugMemoryProvider::GetStatusName(status));
+
+        if (changed)
+            ImGui::TextColored(orange, "Changed recently");
+
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopID();
+    ImGui::PopID();
+}
+
+void MemEditor::DrawSelectionFrame(u32 address, int column, int bytes_per_row, ImVec2 minimum, ImVec2 maximum)
+{
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImU32 color = ImGui::GetColorU32(cyan);
+    u64 cell = address;
+    u64 row = (u64)bytes_per_row;
+    bool has_left = column > 0;
+    bool has_right = column < bytes_per_row - 1;
+    bool has_up = cell >= row;
+    bool left = has_left && IsSelected(cell - 1);
+    bool right = has_right && IsSelected(cell + 1);
+    bool up = has_up && IsSelected(cell - row);
+    bool down = IsSelected(cell + row);
+
+    if (!up)
+        draw_list->AddRectFilled(minimum, ImVec2(maximum.x, minimum.y + 1.0f), color);
+
+    if (!down)
+        draw_list->AddRectFilled(ImVec2(minimum.x, maximum.y - 1.0f), maximum, color);
+
+    if (!left)
+        draw_list->AddRectFilled(minimum, ImVec2(minimum.x + 1.0f, maximum.y), color);
+
+    if (!right)
+        draw_list->AddRectFilled(ImVec2(maximum.x - 1.0f, minimum.y), maximum, color);
+
+    if (up && left && !IsSelected(cell - row - 1))
+        draw_list->AddRectFilled(minimum, ImVec2(minimum.x + 1.0f, minimum.y + 1.0f), color);
+
+    if (up && right && !IsSelected(cell - row + 1))
+        draw_list->AddRectFilled(ImVec2(maximum.x - 1.0f, minimum.y), ImVec2(maximum.x, minimum.y + 1.0f), color);
+
+    if (down && left && !IsSelected(cell + row - 1))
+        draw_list->AddRectFilled(ImVec2(minimum.x, maximum.y - 1.0f), ImVec2(minimum.x + 1.0f, maximum.y), color);
+
+    if (down && right && !IsSelected(cell + row + 1))
+        draw_list->AddRectFilled(ImVec2(maximum.x - 1.0f, maximum.y - 1.0f), maximum, color);
+}
+
+bool MemEditor::IsSelected(u64 address) const
+{
+    return address >= GetSelectionStart() && address <= GetSelectionEnd();
+}
+
+void MemEditor::DrawContextMenu(u32 address)
+{
+    if (!ImGui::BeginPopupContextItem())
+        return;
+
+    ImGui::PushFont(gui_roboto_font);
+
+    bool inside = IsSelected(address);
+    u32 start = inside ? GetSelectionStart() : address;
+    u32 end = inside ? GetSelectionEnd() : address;
+
+    if (ImGui::MenuItem("Copy", "Ctrl+C"))
+        CopyRange(start, end, false);
+
+    if (ImGui::MenuItem("Copy As Decimal"))
+        CopyRange(start, end, true);
+
+    if (ImGui::MenuItem("Paste", "Ctrl+V"))
+        PasteRange(start, end);
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("Add Bookmark"))
+        m_bookmark_request = true;
+
+    if (ImGui::MenuItem("Add Watch"))
+        m_watch_request = true;
+
+    if (ImGui::BeginMenu("Add Breakpoint"))
+    {
+        if (ImGui::MenuItem("Read"))
+        {
+            m_breakpoint_request = true;
+            m_breakpoint_type = I386_BREAKPOINT_READ;
+        }
+
+        if (ImGui::MenuItem("Write"))
+        {
+            m_breakpoint_request = true;
+            m_breakpoint_type = I386_BREAKPOINT_WRITE;
+        }
+
+        if (ImGui::MenuItem("Read and Write"))
+        {
+            m_breakpoint_request = true;
+            m_breakpoint_type = I386_BREAKPOINT_READ | I386_BREAKPOINT_WRITE;
+        }
+
+        ImGui::EndMenu();
+    }
+
+    m_request_start = start;
+    m_request_end = end;
+
+    ImGui::PopFont();
+    ImGui::EndPopup();
+}
+
+void MemEditor::UpdateTitle()
+{
+    if (m_source.space == GDOX_DEBUG_MEMORY_REGION && IsValidPointer(m_provider))
+    {
+        GDOX_Debug_Memory_Region region;
+
+        if (m_provider->GetRegionById(m_source.region, region))
+        {
+            snprintf(m_title, sizeof(m_title), "%s", region.name);
+            return;
+        }
+    }
+
+    if (m_source.space == GDOX_DEBUG_MEMORY_LOGICAL && m_source.segment_register >= 0)
+    {
+        static const char* segments[] = { "ES", "CS", "SS", "DS", "FS", "GS" };
+        const char* segment = m_source.segment_register < I386_SEGMENT_COUNT ? segments[m_source.segment_register] : "?";
+        snprintf(m_title, sizeof(m_title), "Logical %s", segment);
+    }
+    else
+    {
+        snprintf(m_title, sizeof(m_title), "%s", DebugMemoryProvider::GetSpaceName(m_source.space));
+    }
+}
+
+int MemEditor::GetBytesPerRow() const
+{
+    return CLAMP(m_options.bytes_per_row, 8, 32);
+}
+
+s64 MemEditor::GetRowCount(int bytes_per_row) const
+{
+    return ((s64)m_provider->GetAddressLimit(m_source) + bytes_per_row) / bytes_per_row;
+}
+
+void MemEditor::SetViewRow(s64 row, int bytes_per_row)
+{
+    s64 last = MAX((s64)0, GetRowCount(bytes_per_row) - m_visible_rows);
+    m_view_address = (u32)(CLAMP(row, (s64)0, last) * bytes_per_row);
+}
+
+void MemEditor::KeepVisible(u32 address, int bytes_per_row)
+{
+    s64 row = address / bytes_per_row;
+    s64 top = m_view_address / bytes_per_row;
+
+    if (row < top)
+        SetViewRow(row, bytes_per_row);
+    else if (row >= top + m_visible_rows)
+        SetViewRow(row - m_visible_rows + 1, bytes_per_row);
+}
+
+void MemEditor::EnsureBuffer(u32 start, u32 end)
+{
+    if (start >= m_buffer_base && (u64)end < (u64)m_buffer_base + BUFFER_SIZE)
+        return;
+
+    u64 limit = m_provider->GetAddressLimit(m_source);
+    u32 margin = (BUFFER_SIZE - (end - start + 1)) / 2;
+    u32 base = start > margin ? (start - margin) & ~0xFFU : 0;
+
+    if (limit + 1 <= BUFFER_SIZE)
+        base = 0;
+    else if ((u64)base + BUFFER_SIZE - 1 > limit)
+        base = (u32)(limit + 1 - BUFFER_SIZE);
+
+    MoveBuffer(base);
+}
+
+
+void MemEditor::MoveBuffer(u32 base)
+{
+    s64 delta = (s64)base - (s64)m_buffer_base;
+
+    if (delta == 0)
+        return;
+
+    if (m_has_snapshot && delta > -(s64)BUFFER_SIZE && delta < (s64)BUFFER_SIZE)
+    {
+        u32 shift = (u32)(delta < 0 ? -delta : delta);
+        u32 kept = BUFFER_SIZE - shift;
+
+        if (delta > 0)
+        {
+            memmove(&m_data[0], &m_data[shift], kept);
+            memmove(&m_change_age[0], &m_change_age[shift], kept);
+            m_fresh_start = kept;
+        }
+        else
+        {
+            memmove(&m_data[shift], &m_data[0], kept);
+            memmove(&m_change_age[shift], &m_change_age[0], kept);
+            m_fresh_start = 0;
+        }
+
+        m_fresh_size = shift;
+    }
+    else
+        m_has_snapshot = false;
+
+    m_buffer_base = base;
+    Refresh();
+}
+
+// Arrows, Page Up/Down and Home/End move the cursor, Ctrl+Home/End go to the ends of the source
+// Shift extends the selection and Enter edits the byte at the cursor
+void MemEditor::NavigateKeyboard(int bytes_per_row)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    s64 limit = m_provider->GetAddressLimit(m_source);
+    s64 cursor = m_selection_end;
+    s64 row_start = (cursor / bytes_per_row) * bytes_per_row;
+    int page_rows = MAX(1, m_visible_rows - 1);
+    s64 target;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+        target = cursor - 1;
+    else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        target = cursor + 1;
+    else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+        target = cursor - bytes_per_row;
+    else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+        target = cursor + bytes_per_row;
+    else if (ImGui::IsKeyPressed(ImGuiKey_PageUp))
+        target = cursor - (s64)bytes_per_row * page_rows;
+    else if (ImGui::IsKeyPressed(ImGuiKey_PageDown))
+        target = cursor + (s64)bytes_per_row * page_rows;
+    else if (ImGui::IsKeyPressed(ImGuiKey_Home))
+        target = io.KeyCtrl ? 0 : row_start;
+    else if (ImGui::IsKeyPressed(ImGuiKey_End))
+        target = io.KeyCtrl ? limit : row_start + bytes_per_row - 1;
+    else if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
+    {
+        u32 offset = (u32)(cursor - (s64)m_buffer_base);
+
+        if (cursor >= (s64)m_buffer_base && offset < BUFFER_SIZE && m_status[offset] == GDOX_DEBUG_MEMORY_VALID)
+        {
+            m_editing_address = (u32)cursor;
+            snprintf(m_edit_buffer, sizeof(m_edit_buffer), "%02X", m_data[offset]);
+            m_edit_focus = true;
+        }
+
+        return;
+    }
+    else
+        return;
+
+    target = CLAMP(target, 0, limit);
+
+    if (!io.KeyShift)
+        m_selection_start = (u32)target;
+
+    m_selection_end = (u32)target;
+    KeepVisible((u32)target, bytes_per_row);
+}
+
+bool MemEditor::ParseAddressInput(GDOX_Debug_Memory_Address& address, char* reason, size_t reason_size) const
+{
+    address = m_source;
+    std::string input(m_address_input);
+    size_t colon = input.find(':');
+    std::string expression = input;
+
+    if (colon != std::string::npos)
+    {
+        std::string prefix = input.substr(0, colon);
+        expression = input.substr(colon + 1);
+
+        if (equal_prefix(prefix, "CS"))
+        {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment_register = I386_SEGMENT_CS;
+        }
+        else if (equal_prefix(prefix, "SS"))
+        {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment_register = I386_SEGMENT_SS;
+        }
+        else if (equal_prefix(prefix, "DS"))
+        {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment_register = I386_SEGMENT_DS;
+        }
+        else if (equal_prefix(prefix, "ES"))
+        {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment_register = I386_SEGMENT_ES;
+        }
+        else if (equal_prefix(prefix, "FS"))
+        {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment_register = I386_SEGMENT_FS;
+        }
+        else if (equal_prefix(prefix, "GS"))
+        {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment_register = I386_SEGMENT_GS;
+        }
+        else if (equal_prefix(prefix, "LINE") || equal_prefix(prefix, "L"))
+            address.space = GDOX_DEBUG_MEMORY_LINEAR;
+        else if (equal_prefix(prefix, "PHYS") || equal_prefix(prefix, "P"))
+            address.space = GDOX_DEBUG_MEMORY_PHYSICAL;
+        else if (equal_prefix(prefix, "BUS") || equal_prefix(prefix, "B"))
+            address.space = GDOX_DEBUG_MEMORY_BUS;
+        else if (equal_prefix(prefix, "IO"))
+            address.space = GDOX_DEBUG_MEMORY_IO;
+        else
+        {
+            u16 segment = 0;
+
+            if (!parse_hex_with_prefix(prefix, &segment))
+            {
+                strncpy_fit(reason, "Unknown address-space or segment prefix", reason_size);
+                return false;
+            }
+
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
+            address.segment = segment;
+            address.segment_register = -1;
+        }
+    }
+
+    MemoryExpressionParser parser(expression.c_str(), m_provider);
+
+    if (!parser.Parse(address.address))
+    {
+        strncpy_fit(reason, "Invalid expression or unavailable CPU register", reason_size);
+        return false;
+    }
+
+    if (address.address > m_provider->GetAddressLimit(address))
+    {
+        strncpy_fit(reason, "Address is outside the selected source", reason_size);
+        return false;
+    }
+
+    reason[0] = 0;
+    return true;
+}
+
+bool MemEditor::ReadRange(u32 start, u32 end, std::vector<u8>& data, std::vector<GDOX_Debug_Memory_Status>& status) const
+{
+    u32 size = end - start + 1;
+
+    if (size == 0 || size > 0x100000 || !IsValidPointer(m_provider))
+        return false;
+
+    data.resize(size);
+    status.resize(size);
+    GDOX_Debug_Memory_Address address = m_source;
+    address.address = start;
+    m_provider->ReadBlock(address, &data[0], &status[0], size, NULL);
+    return true;
+}
+
+u32 MemEditor::GetSelectionStart() const
+{
+    return MIN(m_selection_start, m_selection_end);
+}
+
+u32 MemEditor::GetSelectionEnd() const
+{
+    return MAX(m_selection_start, m_selection_end);
+}
+
+u32 MemEditor::GetSelectionSize() const
+{
+    return GetSelectionEnd() - GetSelectionStart() + 1;
+}
+
+bool MemEditor::IsAddressInSource(u32 address) const
+{
+    return IsValidPointer(m_provider) && address <= m_provider->GetAddressLimit(m_source);
+}
+
+void MemEditor::PushHistory(u32 address)
+{
+    if (m_history_position >= 0 && m_history[m_history_position] == address)
+        return;
+
+    if (m_history_position + 1 < m_history_count)
+        m_history_count = m_history_position + 1;
+
+    if (m_history_count >= HISTORY_SIZE)
+    {
+        memmove(m_history, m_history + 1, sizeof(m_history[0]) * (HISTORY_SIZE - 1));
+        m_history_count--;
+    }
+
+    m_history[m_history_count++] = address;
+    m_history_position = m_history_count - 1;
+}
+
+void MemEditor::SetFollow(bool follow)
+{
+    m_follow_expression = follow;
+    m_follow_valid = false;
+}
+
+void MemEditor::HistoryBack()
+{
+    SetFollow(false);
+
+    if (m_history_position > 0)
+    {
+        m_history_position--;
+        JumpToAddress(m_history[m_history_position], false);
+    }
+}
+
+void MemEditor::HistoryForward()
+{
+    SetFollow(false);
+
+    if (m_history_position + 1 < m_history_count)
+    {
+        m_history_position++;
+        JumpToAddress(m_history[m_history_position], false);
+    }
+}
+
+MemoryExpressionParser::MemoryExpressionParser(const char* expression, DebugMemoryProvider* provider)
+{
+    m_cursor = expression;
+    m_provider = provider;
+    m_valid = true;
+}
+
+bool MemoryExpressionParser::Parse(u32& value)
+{
+    u64 result = ParseAddSubtract();
+    SkipSpaces();
+
+    if (!m_valid || *m_cursor != 0 || result > 0xFFFFFFFFULL)
+        return false;
+
+    value = (u32)result;
+    return true;
+}
+
+void MemoryExpressionParser::SkipSpaces()
+{
+    while (*m_cursor == ' ' || *m_cursor == '\t')
+        m_cursor++;
+}
+
+u64 MemoryExpressionParser::ParseAddSubtract()
+{
+    u64 value = ParseMultiplyDivide();
+
+    for (;;)
+    {
+        SkipSpaces();
+        char operation = *m_cursor;
+
+        if (operation != '+' && operation != '-')
+            return value;
+
+        m_cursor++;
+        u64 right = ParseMultiplyDivide();
+        value = operation == '+' ? value + right : value - right;
+    }
+}
+
+u64 MemoryExpressionParser::ParseMultiplyDivide()
+{
+    u64 value = ParsePrimary();
+
+    for (;;)
+    {
+        SkipSpaces();
+        char operation = *m_cursor;
+
+        if (operation != '*' && operation != '/')
+            return value;
+
+        m_cursor++;
+        u64 right = ParsePrimary();
+
+        if (operation == '/' && right == 0)
+        {
+            m_valid = false;
+            return 0;
+        }
+
+        value = operation == '*' ? value * right : value / right;
+    }
+}
+
+u64 MemoryExpressionParser::ParsePrimary()
+{
+    SkipSpaces();
+
+    if (*m_cursor == '(')
+    {
+        m_cursor++;
+        u64 value = ParseAddSubtract();
+        SkipSpaces();
+
+        if (*m_cursor != ')')
+        {
+            m_valid = false;
+            return 0;
+        }
+
+        m_cursor++;
+        return value;
+    }
+
+    if (*m_cursor == '-')
+    {
+        m_cursor++;
+        return (u32)(0 - (u32)ParsePrimary());
+    }
+
+    if (isalpha((unsigned char)*m_cursor) || *m_cursor == '_')
+    {
+        char name[32];
+        int length = 0;
+
+        while ((isalnum((unsigned char)*m_cursor) || *m_cursor == '_') && length < (int)sizeof(name) - 1)
+        {
+            name[length++] = *m_cursor++;
+        }
+
+        name[length] = 0;
+        u32 value = 0;
+
+        if (IsValidPointer(m_provider) && m_provider->GetRegisterValue(name, value))
+            return value;
+
+        size_t digits = (size_t)length;
+
+        if (digits > 1 && (name[digits - 1] == 'h' || name[digits - 1] == 'H'))
+            digits--;
+
+        if (!parse_hex_string(name, digits, &value))
+            m_valid = false;
+
+        return value;
+    }
+
+    const char* start = m_cursor;
+
+    if (*m_cursor == '$')
+        m_cursor++;
+    else if (m_cursor[0] == '0' && (m_cursor[1] == 'x' || m_cursor[1] == 'X'))
+        m_cursor += 2;
+
+    const char* digits = m_cursor;
+
+    while (is_hex_digit(*m_cursor))
+        m_cursor++;
+
+    if (digits == m_cursor)
+    {
+        m_valid = false;
+        return 0;
+    }
+
+    u32 value = 0;
+
+    if (!parse_hex_string(digits, (size_t)(m_cursor - digits), &value))
+    {
+        m_cursor = start;
+        m_valid = false;
+    }
+
+    if (*m_cursor == 'h' || *m_cursor == 'H')
+        m_cursor++;
+
+    return value;
+}
