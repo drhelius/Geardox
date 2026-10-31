@@ -4,6 +4,9 @@
     <Manifest Include="Geardox.manifest" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\audio\audio.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\media\firmware.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -67,7 +70,22 @@
     <ClCompile Include="..\..\src\system\memory.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\audio\vgm_recorder.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\io.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\pic.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\i8259.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\pit.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\scheduler.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\cdrom\cdrom_audio.cpp">
@@ -97,6 +115,9 @@
     <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\fdc.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -104,6 +125,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\drive\floppy_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\i8253.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\video.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\media\media.cpp">
@@ -122,6 +149,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\common\trace_logger.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\input\input.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
@@ -210,6 +240,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\audio\audio.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\audio_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\bit_ops.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\crc.h"><Filter>src</Filter></ClInclude>
@@ -227,6 +259,15 @@
     <ClInclude Include="..\..\src\i386\x87_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\io.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\io_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\pic.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\pic_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8259.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8259_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\pit.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\pit_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\machine_profiles.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\scheduler.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\scheduler_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_audio.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_audio_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\chd_file_adapter.h"><Filter>src</Filter></ClInclude>
@@ -238,15 +279,24 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\fdc.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\fdc_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\hard_disk_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8253.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8253_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\video.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\video_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\vgm_recorder.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\debug_memory.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\firmware_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\game_db.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\input.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\input_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\log.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\media.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\media_inline.h"><Filter>src</Filter></ClInclude>

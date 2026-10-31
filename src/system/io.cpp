@@ -18,6 +18,8 @@
  */
 
 #include "io.h"
+#include "pic.h"
+#include "scheduler.h"
 
 IO::IO()
 {
@@ -56,7 +58,14 @@ void IO::Reset()
 
 u8 IO::Read8(u16 port, GDOX_Bus_Access_Context& context)
 {
-    return ReadPort(port, context);
+    u64 next_event = m_scheduler->GetNextEventClocks();
+    bool interrupt = m_pic->IsInterruptPending();
+    u8 value = ReadPort(port, context);
+
+    if (m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+        context.end_batch = true;
+
+    return value;
 }
 
 u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)

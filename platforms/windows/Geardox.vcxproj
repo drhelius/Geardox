@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\audio\audio.cpp" />
     <ClCompile Include="..\..\src\media\firmware.cpp" />
     <ClCompile Include="..\..\src\i386\i386.cpp" />
     <ClCompile Include="..\..\src\i386\i386_486.cpp" />
@@ -45,8 +46,13 @@
     <ClCompile Include="..\..\src\media\ogg_vorbis_decoder.cpp" />
     <ClCompile Include="..\..\src\common\profiler.cpp" />
     <ClCompile Include="..\..\src\common\trace_logger.cpp" />
+    <ClCompile Include="..\..\src\input\input.cpp" />
     <ClCompile Include="..\..\src\system\memory.cpp" />
     <ClCompile Include="..\..\src\system\io.cpp" />
+    <ClCompile Include="..\..\src\system\pic.cpp" />
+    <ClCompile Include="..\..\src\system\i8259.cpp" />
+    <ClCompile Include="..\..\src\system\pit.cpp" />
+    <ClCompile Include="..\..\src\system\scheduler.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_audio.cpp" />
     <ClCompile Include="..\..\src\media\chd_file_adapter.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_chd_image.cpp" />
@@ -56,9 +62,13 @@
     <ClCompile Include="..\..\src\cdrom\cdrom_image.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp" />
+    <ClCompile Include="..\..\src\drive\fdc.cpp" />
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
+    <ClCompile Include="..\..\src\system\i8253.cpp" />
+    <ClCompile Include="..\..\src\video\video.cpp" />
+    <ClCompile Include="..\..\src\audio\vgm_recorder.cpp" />
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
@@ -164,6 +174,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\audio\audio.h" />
+    <ClInclude Include="..\..\src\audio\audio_inline.h" />
     <ClInclude Include="..\..\src\common\bit_ops.h" />
     <ClInclude Include="..\..\src\common\common.h" />
     <ClInclude Include="..\..\src\media\crc.h" />
@@ -181,6 +193,15 @@
     <ClInclude Include="..\..\src\i386\x87_inline.h" />
     <ClInclude Include="..\..\src\system\io.h" />
     <ClInclude Include="..\..\src\system\io_inline.h" />
+    <ClInclude Include="..\..\src\system\pic.h" />
+    <ClInclude Include="..\..\src\system\pic_inline.h" />
+    <ClInclude Include="..\..\src\system\i8259.h" />
+    <ClInclude Include="..\..\src\system\i8259_inline.h" />
+    <ClInclude Include="..\..\src\system\pit.h" />
+    <ClInclude Include="..\..\src\system\pit_inline.h" />
+    <ClInclude Include="..\..\src\system\machine_profiles.h" />
+    <ClInclude Include="..\..\src\system\scheduler.h" />
+    <ClInclude Include="..\..\src\system\scheduler_inline.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_audio.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_audio_inline.h" />
     <ClInclude Include="..\..\src\media\chd_file_adapter.h" />
@@ -192,14 +213,23 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h" />
+    <ClInclude Include="..\..\src\drive\fdc.h" />
+    <ClInclude Include="..\..\src\drive\fdc_inline.h" />
     <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\floppy_image.h" />
+    <ClInclude Include="..\..\src\system\i8253.h" />
+    <ClInclude Include="..\..\src\system\i8253_inline.h" />
+    <ClInclude Include="..\..\src\video\video.h" />
+    <ClInclude Include="..\..\src\video\video_inline.h" />
     <ClInclude Include="..\..\src\media\firmware_inline.h" />
     <ClInclude Include="..\..\src\media\game_db.h" />
+    <ClInclude Include="..\..\src\input\input.h" />
+    <ClInclude Include="..\..\src\input\input_inline.h" />
     <ClInclude Include="..\..\src\system\memory.h" />
     <ClInclude Include="..\..\src\system\memory_inline.h" />
+    <ClInclude Include="..\..\src\audio\vgm_recorder.h" />
     <ClInclude Include="..\..\src\common\debug_memory.h" />
     <ClInclude Include="..\..\src\common\log.h" />
     <ClInclude Include="..\..\src\media\media.h" />

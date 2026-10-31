@@ -37,11 +37,14 @@ SOURCES_CXX := \
     $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
     $(SRC_DIR)/common/profiler.cpp \
     $(SRC_DIR)/common/trace_logger.cpp \
+    $(SRC_DIR)/audio/audio.cpp \
+    $(SRC_DIR)/audio/vgm_recorder.cpp \
     $(SRC_DIR)/cdrom/cdrom_audio.cpp \
     $(SRC_DIR)/cdrom/cdrom_chd_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_cuebin_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_media.cpp \
+    $(SRC_DIR)/drive/fdc.cpp \
     $(SRC_DIR)/drive/hard_disk_image.cpp \
     $(SRC_DIR)/drive/floppy_disk.cpp \
     $(SRC_DIR)/drive/floppy_image.cpp \
@@ -64,11 +67,18 @@ SOURCES_CXX := \
     $(SRC_DIR)/i386/i386_task.cpp \
     $(SRC_DIR)/i386/exec_memory.cpp \
     $(SRC_DIR)/i386/x87.cpp \
+    $(SRC_DIR)/input/input.cpp \
     $(SRC_DIR)/media/chd_file_adapter.cpp \
     $(SRC_DIR)/media/firmware.cpp \
     $(SRC_DIR)/media/media.cpp \
     $(SRC_DIR)/media/media_file.cpp \
     $(SRC_DIR)/media/media_file_native.cpp \
     $(SRC_DIR)/media/ogg_vorbis_decoder.cpp \
+    $(SRC_DIR)/system/i8253.cpp \
+    $(SRC_DIR)/system/i8259.cpp \
     $(SRC_DIR)/system/io.cpp \
-    $(SRC_DIR)/system/memory.cpp
+    $(SRC_DIR)/system/memory.cpp \
+    $(SRC_DIR)/system/pic.cpp \
+    $(SRC_DIR)/system/pit.cpp \
+    $(SRC_DIR)/system/scheduler.cpp \
+    $(SRC_DIR)/video/video.cpp
