@@ -4,6 +4,9 @@
     <Manifest Include="Geardox.manifest" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\media\firmware.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\i386\i386.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -65,6 +68,54 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\system\io.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_audio.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\media\chd_file_adapter.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_chd_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_cuebin_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_drive.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_drive_win32.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\hard_disk_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\floppy_disk.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\floppy_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\media\media.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\media\media_file.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\media\media_file_native.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\media\ogg_vorbis_decoder.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\common\profiler.cpp">
@@ -161,7 +212,9 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\common\bit_ops.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\crc.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\defines.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\firmware.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\i386\i386.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\i386\i386_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\i386\i386_decode_inline.h"><Filter>src</Filter></ClInclude>
@@ -174,10 +227,32 @@
     <ClInclude Include="..\..\src\i386\x87_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\io.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\io_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_audio.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_audio_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\chd_file_adapter.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_chd_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_common.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_cuebin_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_drive.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_media.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\hard_disk_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\floppy_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\debug_memory.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\firmware_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\game_db.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\log.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\media.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\media_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\media_file.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\media_file_native.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\ogg_vorbis_decoder.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\memory_stream.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\state_serializer.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\types.h"><Filter>src</Filter></ClInclude>

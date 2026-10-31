@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\media\firmware.cpp" />
     <ClCompile Include="..\..\src\i386\i386.cpp" />
     <ClCompile Include="..\..\src\i386\i386_486.cpp" />
     <ClCompile Include="..\..\src\i386\i386_disassembler.cpp" />
@@ -38,10 +39,26 @@
     <ClCompile Include="..\..\src\i386\i386_task.cpp" />
     <ClCompile Include="..\..\src\i386\exec_memory.cpp" />
     <ClCompile Include="..\..\src\i386\x87.cpp" />
+    <ClCompile Include="..\..\src\media\media.cpp" />
+    <ClCompile Include="..\..\src\media\media_file.cpp" />
+    <ClCompile Include="..\..\src\media\media_file_native.cpp" />
+    <ClCompile Include="..\..\src\media\ogg_vorbis_decoder.cpp" />
     <ClCompile Include="..\..\src\common\profiler.cpp" />
     <ClCompile Include="..\..\src\common\trace_logger.cpp" />
     <ClCompile Include="..\..\src\system\memory.cpp" />
     <ClCompile Include="..\..\src\system\io.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_audio.cpp" />
+    <ClCompile Include="..\..\src\media\chd_file_adapter.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_chd_image.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_cuebin_image.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_drive.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_drive_win32.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_image.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp" />
+    <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp" />
+    <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
+    <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
+    <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
@@ -149,7 +166,9 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\common\bit_ops.h" />
     <ClInclude Include="..\..\src\common\common.h" />
+    <ClInclude Include="..\..\src\media\crc.h" />
     <ClInclude Include="..\..\src\common\defines.h" />
+    <ClInclude Include="..\..\src\media\firmware.h" />
     <ClInclude Include="..\..\src\i386\i386.h" />
     <ClInclude Include="..\..\src\i386\i386_inline.h" />
     <ClInclude Include="..\..\src\i386\i386_decode_inline.h" />
@@ -162,10 +181,32 @@
     <ClInclude Include="..\..\src\i386\x87_inline.h" />
     <ClInclude Include="..\..\src\system\io.h" />
     <ClInclude Include="..\..\src\system\io_inline.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_audio.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_audio_inline.h" />
+    <ClInclude Include="..\..\src\media\chd_file_adapter.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_chd_image.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_common.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_cuebin_image.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_drive.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_image.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_media.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h" />
+    <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h" />
+    <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
+    <ClInclude Include="..\..\src\drive\floppy_disk.h" />
+    <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
+    <ClInclude Include="..\..\src\drive\floppy_image.h" />
+    <ClInclude Include="..\..\src\media\firmware_inline.h" />
+    <ClInclude Include="..\..\src\media\game_db.h" />
     <ClInclude Include="..\..\src\system\memory.h" />
     <ClInclude Include="..\..\src\system\memory_inline.h" />
     <ClInclude Include="..\..\src\common\debug_memory.h" />
     <ClInclude Include="..\..\src\common\log.h" />
+    <ClInclude Include="..\..\src\media\media.h" />
+    <ClInclude Include="..\..\src\media\media_inline.h" />
+    <ClInclude Include="..\..\src\media\media_file.h" />
+    <ClInclude Include="..\..\src\media\media_file_native.h" />
+    <ClInclude Include="..\..\src\media\ogg_vorbis_decoder.h" />
     <ClInclude Include="..\..\src\common\memory_stream.h" />
     <ClInclude Include="..\..\src\common\state_serializer.h" />
     <ClInclude Include="..\..\src\common\types.h" />
