@@ -143,6 +143,28 @@
       <CompileAs>CompileAsC</CompileAs>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\sound_queue.cpp" />
+    <ClCompile Include="..\shared\desktop\application.cpp" />
+    <ClCompile Include="..\shared\desktop\application_headless.cpp" />
+    <ClCompile Include="..\shared\desktop\config.cpp" />
+    <ClCompile Include="..\shared\desktop\emu.cpp" />
+    <ClCompile Include="..\shared\desktop\emu_floppy.cpp" />
+    <ClCompile Include="..\shared\desktop\emu_hard_disk.cpp" />
+    <ClCompile Include="..\shared\desktop\single_instance.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_actions.cpp" />
+    <ClCompile Include="..\shared\desktop\input_macro.cpp" />
+    <ClCompile Include="..\shared\desktop\rewind.cpp" />
+    <ClCompile Include="..\shared\desktop\runahead.cpp" />
+    <ClCompile Include="..\shared\desktop\video_recorder.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_filedialogs.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_menus.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_popups.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_floppy.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_firmware.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_hard_disks.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_notifications.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_drive_activity.cpp" />
+    <ClCompile Include="..\shared\desktop\gui.cpp" />
     <ClCompile Include="..\shared\dependencies\imgui\imgui.cpp">
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
@@ -173,6 +195,14 @@
     <ClCompile Include="..\shared\dependencies\imgui\implot.cpp">
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\main.cpp" />
+    <ClCompile Include="..\shared\desktop\ogl_renderer.cpp" />
+    <ClCompile Include="..\shared\desktop\ogl_shader_program.cpp" />
+    <ClCompile Include="..\shared\desktop\ogl_shader_chain.cpp" />
+    <ClCompile Include="..\shared\desktop\shader_preset.cpp" />
+    <ClCompile Include="..\shared\desktop\display.cpp" />
+    <ClCompile Include="..\shared\desktop\events.cpp" />
+    <ClCompile Include="..\shared\desktop\gamepad.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\audio\audio.h" />
@@ -261,7 +291,47 @@
     <ClInclude Include="..\shared\dependencies\lzma\include\LzmaDec.h" />
     <ClInclude Include="..\shared\dependencies\lzma\include\LzmaEnc.h" />
     <ClInclude Include="..\shared\dependencies\zstd\zstddeclib.c" />
+    <ClInclude Include="..\shared\desktop\keyboard.h" />
+    <ClInclude Include="..\shared\desktop\sound_queue.h" />
+    <ClInclude Include="..\shared\desktop\single_instance.h" />
+    <ClInclude Include="..\shared\desktop\application.h" />
+    <ClInclude Include="..\shared\desktop\application_headless.h" />
+    <ClInclude Include="..\shared\desktop\backers.h" />
+    <ClInclude Include="..\shared\desktop\config.h" />
+    <ClInclude Include="..\shared\desktop\config_data.h" />
+    <ClInclude Include="..\shared\desktop\config_definitions.inc.h" />
+    <ClInclude Include="..\shared\desktop\config_macros.h" />
+    <ClInclude Include="..\shared\desktop\console_utils.h" />
+    <ClInclude Include="..\shared\desktop\emu.h" />
+    <ClInclude Include="..\shared\desktop\emu_floppy.h" />
+    <ClInclude Include="..\shared\desktop\emu_hard_disk.h" />
     <ClInclude Include="..\shared\dependencies\json\json.hpp" />
+    <ClInclude Include="..\shared\desktop\mcp\mcp_debug_adapter.h" />
+    <ClInclude Include="..\shared\desktop\mcp\mcp_manager.h" />
+    <ClInclude Include="..\shared\desktop\mcp\mcp_server.h" />
+    <ClInclude Include="..\shared\desktop\mcp\mcp_tool_registry.h" />
+    <ClInclude Include="..\shared\desktop\mcp\mcp_transport.h" />
+    <ClInclude Include="..\shared\desktop\gui_actions.h" />
+    <ClInclude Include="..\shared\desktop\gui_colors.h" />
+    <ClInclude Include="..\shared\desktop\input_macro.h" />
+    <ClInclude Include="..\shared\desktop\rewind.h" />
+    <ClInclude Include="..\shared\desktop\runahead.h" />
+    <ClInclude Include="..\shared\desktop\video_recorder.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_disassembler.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_constants.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_memory.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_trace_logger.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_profiler.h" />
+    <ClInclude Include="..\shared\desktop\gui_filedialogs.h" />
+    <ClInclude Include="..\shared\desktop\gui_menus.h" />
+    <ClInclude Include="..\shared\desktop\gui_popups.h" />
+    <ClInclude Include="..\shared\desktop\gui_floppy.h" />
+    <ClInclude Include="..\shared\desktop\gui_firmware.h" />
+    <ClInclude Include="..\shared\desktop\gui_hard_disks.h" />
+    <ClInclude Include="..\shared\desktop\gui_notifications.h" />
+    <ClInclude Include="..\shared\desktop\gui_drive_activity.h" />
+    <ClInclude Include="..\shared\desktop\gui.h" />
     <ClInclude Include="..\shared\dependencies\imgui\fonts\BIZUDGothic.h" />
     <ClInclude Include="..\shared\dependencies\imgui\fonts\IconsMaterialDesign.h" />
     <ClInclude Include="..\shared\dependencies\imgui\fonts\MaterialIcons.h" />
@@ -276,8 +346,17 @@
     <ClInclude Include="..\shared\dependencies\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\shared\dependencies\imgui\imstb_textedit.h" />
     <ClInclude Include="..\shared\dependencies\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\shared\desktop\license.h" />
     <ClInclude Include="..\shared\dependencies\mINI\ini.h" />
     <ClInclude Include="..\shared\dependencies\stb\stb_image_write.h" />
+    <ClInclude Include="..\shared\desktop\ogl_renderer.h" />
+    <ClInclude Include="..\shared\desktop\ogl_shader_program.h" />
+    <ClInclude Include="..\shared\desktop\ogl_shader_chain.h" />
+    <ClInclude Include="..\shared\desktop\shader_preset.h" />
+    <ClInclude Include="..\shared\desktop\display.h" />
+    <ClInclude Include="..\shared\desktop\events.h" />
+    <ClInclude Include="..\shared\desktop\gamepad.h" />
+    <ClInclude Include="..\shared\desktop\utils.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

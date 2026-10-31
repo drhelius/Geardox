@@ -1,0 +1,51 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#ifndef GUI_ACTIONS_H
+#define GUI_ACTIONS_H
+
+#ifdef GUI_ACTIONS_IMPORT
+    #define EXTERN
+#else
+    #define EXTERN extern
+#endif
+
+EXTERN void gui_action_load_defaults(void);
+EXTERN void gui_action_power_on(void);
+EXTERN void gui_action_power_off(void);
+EXTERN void gui_action_reset(void);
+EXTERN void gui_action_reload_rom(void);
+EXTERN void gui_action_eject_media(void);
+EXTERN void gui_action_pause(void);
+EXTERN void gui_action_ffwd(void);
+EXTERN void gui_action_rewind_pressed(void);
+EXTERN void gui_action_rewind_released(void);
+EXTERN void gui_action_save_screenshot(const char* path);
+EXTERN bool gui_action_start_video_recording(const char* path);
+EXTERN void gui_action_stop_video_recording(void);
+EXTERN void gui_action_toggle_video_recording(void);
+EXTERN void gui_action_save_state(const char* path);
+EXTERN void gui_action_load_state(const char* path);
+EXTERN void gui_action_load_state_slot(int slot);
+EXTERN void gui_action_paste_keystrokes(void);
+EXTERN void gui_action_stop_pasting(void);
+
+#undef GUI_ACTIONS_IMPORT
+#undef EXTERN
+#endif /* GUI_ACTIONS_H */

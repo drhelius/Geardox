@@ -1,0 +1,623 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include <SDL3/SDL.h>
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "geardox.h"
+#include "config.h"
+#include "gui.h"
+#include "ogl_renderer.h"
+#include "emu.h"
+#include "application.h"
+#include "rewind.h"
+#include "sound_queue.h"
+
+#define DISPLAY_IMPORT
+#include "display.h"
+
+static const double k_display_max_rate_skew = 0.01;
+static const double k_display_min_divided_rate = 45.0;
+static const double k_display_catch_up_decay = 4.0;
+
+static Uint64 frame_time_start = 0;
+static Uint64 frame_time_end = 0;
+static double monitor_refresh_rate = 60.0;
+static double content_frame_rate = 60.0;
+static double vsync_frame_accumulator = 0.0;
+static bool emu_frame_skipped = false;
+static int last_vsync_state = -1;
+static bool multi_monitor_mixed_refresh = false;
+static bool last_vsync_forced_off = false;
+static bool fixed_vsync_fallback_logged = false;
+static bool pending_gl_context_recreate = false;
+static bool swap_divider_unsupported = false;
+static int swap_divider_frames = 0;
+static Uint64 swap_divider_start = 0;
+static int swap_divider_sync_waits = 0;
+static Uint64 catch_up_last_swap = 0;
+static int catch_up_interval = 0;
+static double catch_up_debt = 0.0;
+static double catch_up_work = 0.0;
+static bool catch_up_ready = false;
+
+static bool display_is_vrr_enabled(void);
+static bool display_is_window_focused(void);
+static bool display_fixed_vsync_supported(void);
+static double display_get_pacing_frame_rate(void);
+static bool display_is_near_content_rate(double frame_rate);
+static int display_get_swap_divider(void);
+static void display_check_swap_divider(void);
+static void display_disable_swap_divider(int interval);
+static double display_get_presented_frame_rate(void);
+static bool display_can_catch_up(void);
+static void display_update_catch_up(Uint64 swap_start);
+static bool display_update_content_frame_rate(void);
+static void display_reset_vsync_accumulator(void);
+static void display_set_swap_interval(bool enabled);
+
+void display_begin_frame(void)
+{
+    frame_time_start = SDL_GetPerformanceCounter();
+}
+
+void display_render(void)
+{
+    ogl_renderer_begin_render();
+    ImGui_ImplSDL3_NewFrame();
+    gui_render();
+    ogl_renderer_render(!emu_frame_skipped);
+    ogl_renderer_end_render();
+
+    Uint64 swap_start = SDL_GetPerformanceCounter();
+    SDL_GL_SwapWindow(application_sdl_window);
+    display_update_catch_up(swap_start);
+}
+
+void display_frame_throttle(void)
+{
+    frame_time_end = SDL_GetPerformanceCounter();
+
+    if (emu_is_empty() || emu_is_paused() || emu_is_debug_idle() || !emu_is_audio_open() || config_emulator.ffwd)
+    {
+        Uint64 count_per_sec = SDL_GetPerformanceFrequency();
+        float elapsed = (float)(frame_time_end - frame_time_start) / (float)count_per_sec;
+        elapsed *= 1000.0f;
+
+        float min = 16.666f;
+
+        if (!emu_is_audio_open())
+        {
+            GDOX_Runtime_Info runtime;
+            emu_get_runtime(runtime);
+            min = runtime.frame_time;
+        }
+
+        if (config_emulator.ffwd)
+        {
+            switch (config_emulator.ffwd_speed)
+            {
+                case 0:
+                    min = 16.666f / 1.5f;
+                    break;
+                case 1:
+                    min = 16.666f / 2.0f;
+                    break;
+                case 2:
+                    min = 16.666f / 2.5f;
+                    break;
+                case 3:
+                    min = 16.666f / 3.0f;
+                    break;
+                default:
+                    min = 0.0f;
+            }
+        }
+
+        if (elapsed < min)
+            SDL_Delay((Uint32)(min - elapsed));
+    }
+}
+
+bool display_should_run_emu_frame(void)
+{
+    emu_frame_skipped = false;
+
+    if (display_is_vrr_enabled())
+        return true;
+
+    if (display_update_content_frame_rate() && config_video.sync_mode == config_VideoSync_Fixed)
+        display_use_vsync_if_enabled();
+
+    if (config_video.sync_mode == config_VideoSync_Fixed && last_vsync_state >= 1
+        && !emu_is_empty() && !emu_is_paused()
+        && !emu_is_debug_idle() && emu_is_audio_open() && !config_emulator.ffwd)
+    {
+        if (display_should_use_vsync())
+        {
+            if (last_vsync_state > 1)
+            {
+                display_check_swap_divider();
+                return true;
+            }
+
+            if (!display_fixed_vsync_supported() || content_frame_rate + 0.000001 >= monitor_refresh_rate)
+                return true;
+
+            vsync_frame_accumulator += display_get_pacing_frame_rate();
+
+            if (vsync_frame_accumulator + 0.000001 >= monitor_refresh_rate)
+            {
+                vsync_frame_accumulator -= monitor_refresh_rate;
+                if (vsync_frame_accumulator < 0.0)
+                    vsync_frame_accumulator = 0.0;
+                return true;
+            }
+
+            emu_frame_skipped = true;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool display_should_use_vsync(void)
+{
+    if (display_is_vsync_forced_off())
+        return false;
+
+    if (!display_is_window_focused())
+        return false;
+
+    if (config_video.sync_mode == config_VideoSync_Disabled)
+        return false;
+
+    if (emu_is_empty())
+        return false;
+
+    if (display_is_vrr_enabled())
+        return true;
+
+    display_update_content_frame_rate();
+    return display_fixed_vsync_supported();
+}
+
+void display_use_vsync_if_enabled(void)
+{
+    if (config_emulator.ffwd && !rewind_is_active())
+    {
+        display_disable_vsync();
+        return;
+    }
+
+    display_update_frame_pacing();
+    display_set_swap_interval(display_should_use_vsync());
+}
+
+void display_disable_vsync(void)
+{
+    display_set_swap_interval(false);
+    display_update_frame_pacing();
+}
+
+void display_update_vsync_state(void)
+{
+    bool forced_off = display_is_vsync_forced_off();
+
+    if (forced_off)
+    {
+        if (!last_vsync_forced_off || last_vsync_state != 0)
+        {
+            display_set_swap_interval(false);
+            last_vsync_forced_off = true;
+            Debug("Vsync forced off: multi-viewport with mixed refresh rate monitors");
+        }
+        return;
+    }
+
+    if (last_vsync_forced_off)
+    {
+        last_vsync_forced_off = false;
+
+        if (pending_gl_context_recreate && config_video.sync_mode != config_VideoSync_Disabled)
+        {
+            pending_gl_context_recreate = false;
+            display_recreate_gl_context();
+        }
+        else
+        {
+            display_use_vsync_if_enabled();
+        }
+        return;
+    }
+
+    if (config_video.sync_mode != config_VideoSync_Disabled && !config_emulator.ffwd && !emu_is_empty())
+    {
+        int current_state = display_should_use_vsync() ? display_get_swap_divider() : 0;
+
+        if (current_state != last_vsync_state)
+        {
+            display_set_swap_interval(current_state != 0);
+            Debug("Game FPS changed, swap interval %d", current_state);
+        }
+    }
+}
+
+void display_update_frame_pacing(void)
+{
+    SDL_DisplayID display = SDL_GetDisplayForWindow(application_sdl_window);
+
+    if (display == 0)
+        display = SDL_GetPrimaryDisplay();
+
+    double refresh_rate = 60.0;
+    const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
+
+    if (mode)
+    {
+        if (mode->refresh_rate_numerator > 0 && mode->refresh_rate_denominator > 0)
+            refresh_rate = (double)mode->refresh_rate_numerator / (double)mode->refresh_rate_denominator;
+        else if (mode->refresh_rate > 0.0f)
+            refresh_rate = (double)mode->refresh_rate;
+    }
+
+    if (refresh_rate < monitor_refresh_rate - 0.000001 || refresh_rate > monitor_refresh_rate + 0.000001)
+    {
+        monitor_refresh_rate = refresh_rate;
+        display_reset_vsync_accumulator();
+    }
+
+    display_update_content_frame_rate();
+
+    if (config_video.sync_mode == config_VideoSync_Fixed && last_vsync_state >= 1 && !display_fixed_vsync_supported())
+        display_set_swap_interval(false);
+
+    Debug("Monitor refresh rate: %.3f Hz, content frame rate: %.3f FPS%s",
+        monitor_refresh_rate, content_frame_rate, display_is_vrr_enabled() ? " (VRR)" : "");
+}
+
+void display_check_mixed_refresh_rates(void)
+{
+    int count = 0;
+    SDL_DisplayID* displays = SDL_GetDisplays(&count);
+
+    if (!displays || count <= 1)
+    {
+        if (displays)
+            SDL_free(displays);
+        multi_monitor_mixed_refresh = false;
+        return;
+    }
+
+    int first_rate = 0;
+    bool mixed = false;
+
+    for (int i = 0; i < count; i++)
+    {
+        const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(displays[i]);
+        if (mode && mode->refresh_rate > 0)
+        {
+            int rate = (int)mode->refresh_rate;
+            if (first_rate == 0)
+                first_rate = rate;
+            else if (rate != first_rate)
+            {
+                mixed = true;
+                break;
+            }
+        }
+    }
+
+    SDL_free(displays);
+
+    if (mixed != multi_monitor_mixed_refresh)
+    {
+        multi_monitor_mixed_refresh = mixed;
+        if (mixed)
+            Log("Multiple monitors with different refresh rates detected");
+
+        if (display_is_vsync_forced_off())
+        {
+            display_set_swap_interval(false);
+            Debug("Vsync forced off: multi-viewport with mixed refresh rate monitors");
+        }
+        else if (config_video.sync_mode != config_VideoSync_Disabled)
+        {
+            display_use_vsync_if_enabled();
+        }
+    }
+}
+
+bool display_is_vsync_forced_off(void)
+{
+    return config_debug.debug && config_debug.multi_viewport && multi_monitor_mixed_refresh;
+}
+
+bool display_is_vsync_pacing(void)
+{
+    return config_video.sync_mode == config_VideoSync_Fixed && last_vsync_state >= 1 && !config_emulator.ffwd;
+}
+
+float display_get_audio_ratio(void)
+{
+    if (!display_is_vsync_pacing())
+        return 1.0f;
+
+    return (float)(display_get_presented_frame_rate() / content_frame_rate);
+}
+
+bool display_should_run_catch_up_frame(void)
+{
+    if (!catch_up_ready || !display_can_catch_up())
+        return false;
+
+    catch_up_ready = false;
+    catch_up_debt -= 1.0 / content_frame_rate;
+    return true;
+}
+
+void display_request_gl_context_recreate(void)
+{
+    pending_gl_context_recreate = true;
+}
+
+void display_recreate_gl_context(void)
+{
+    ogl_renderer_destroy();
+    ImGui_ImplSDL3_Shutdown();
+
+    SDL_GLContext old_context = display_gl_context;
+    display_gl_context = SDL_GL_CreateContext(application_sdl_window);
+
+    if (display_gl_context)
+    {
+        SDL_GL_MakeCurrent(application_sdl_window, display_gl_context);
+        SDL_GL_DestroyContext(old_context);
+
+        last_vsync_state = -1;
+        display_use_vsync_if_enabled();
+
+        ImGui_ImplSDL3_InitForOpenGL(application_sdl_window, display_gl_context);
+        ogl_renderer_init();
+    }
+}
+
+static bool display_is_vrr_enabled(void)
+{
+#if defined(_WIN32)
+    return config_video.sync_mode == config_VideoSync_VRR;
+#else
+    return false;
+#endif
+}
+
+static bool display_is_window_focused(void)
+{
+    return (SDL_GetWindowFlags(application_sdl_window) & SDL_WINDOW_INPUT_FOCUS) != 0;
+}
+
+static bool display_fixed_vsync_supported(void)
+{
+    bool supported = monitor_refresh_rate * (1.0 + k_display_max_rate_skew) >= content_frame_rate;
+
+    if (!supported && !fixed_vsync_fallback_logged)
+    {
+        Log("Fixed VSync disabled: %.3f Hz monitor is slower than %.3f FPS content",
+            monitor_refresh_rate, content_frame_rate);
+        fixed_vsync_fallback_logged = true;
+    }
+    else if (supported)
+        fixed_vsync_fallback_logged = false;
+
+    return supported;
+}
+
+static double display_get_pacing_frame_rate(void)
+{
+    int interval = (int)((monitor_refresh_rate / content_frame_rate) + 0.5);
+
+    if (interval > 0)
+    {
+        double divided_frame_rate = monitor_refresh_rate / interval;
+
+        if (display_is_near_content_rate(divided_frame_rate))
+        {
+            return divided_frame_rate;
+        }
+    }
+
+    return content_frame_rate;
+}
+
+static bool display_is_near_content_rate(double frame_rate)
+{
+    double skew = content_frame_rate * k_display_max_rate_skew;
+    return (frame_rate > content_frame_rate - skew) && (frame_rate < content_frame_rate + skew);
+}
+
+static int display_get_swap_divider(void)
+{
+    if (swap_divider_unsupported || (config_video.sync_mode != config_VideoSync_Fixed))
+        return 1;
+
+    int interval = (int)((monitor_refresh_rate / content_frame_rate) + 0.5);
+
+    if ((interval < 2) || (monitor_refresh_rate / interval < k_display_min_divided_rate))
+        return 1;
+
+    if (display_is_near_content_rate(monitor_refresh_rate / interval))
+        return interval;
+
+    return 1;
+}
+
+static void display_check_swap_divider(void)
+{
+    Uint64 now = SDL_GetPerformanceCounter();
+    int sync_waits = sound_queue_get_sync_wait_count();
+
+    if (swap_divider_frames == 0)
+    {
+        swap_divider_start = now;
+        swap_divider_sync_waits = sync_waits;
+    }
+
+    if (++swap_divider_frames <= 120)
+        return;
+
+    int frames = swap_divider_frames - 1;
+    double elapsed = (double)(now - swap_divider_start) / (double)SDL_GetPerformanceFrequency();
+    double expected = (frames * last_vsync_state) / monitor_refresh_rate;
+    swap_divider_frames = 0;
+
+    if ((elapsed < expected * 0.75) || ((sync_waits - swap_divider_sync_waits) > (frames / 2)))
+        display_disable_swap_divider(last_vsync_state);
+}
+
+static void display_disable_swap_divider(int interval)
+{
+    Log("Swap interval %d is not supported, pacing with swap interval 1", interval);
+    swap_divider_unsupported = true;
+    display_set_swap_interval(true);
+}
+
+static double display_get_presented_frame_rate(void)
+{
+    if (last_vsync_state > 1)
+        return monitor_refresh_rate / last_vsync_state;
+
+    if (content_frame_rate + 0.000001 >= monitor_refresh_rate)
+        return monitor_refresh_rate;
+
+    return display_get_pacing_frame_rate();
+}
+
+static bool display_can_catch_up(void)
+{
+    return display_is_vsync_pacing() && !emu_is_empty() && !emu_is_paused() && !emu_is_debug_idle() &&
+        emu_is_audio_open() && !rewind_is_active();
+}
+
+static void display_update_catch_up(Uint64 swap_start)
+{
+    Uint64 now = SDL_GetPerformanceCounter();
+    Uint64 last_swap = catch_up_last_swap;
+    int interval = display_can_catch_up() ? last_vsync_state : 0;
+    bool measure = (last_swap != 0) && (interval > 0) && (interval == catch_up_interval);
+    double frequency = (double)SDL_GetPerformanceFrequency();
+    double work = (double)(swap_start - frame_time_start) / frequency;
+
+    catch_up_last_swap = now;
+    catch_up_interval = interval;
+    catch_up_ready = false;
+    catch_up_work += (work - catch_up_work) * 0.1;
+
+    if (!measure)
+    {
+        catch_up_debt = 0.0;
+        return;
+    }
+
+    double slot = interval / monitor_refresh_rate;
+    double frame = 1.0 / content_frame_rate;
+    double gap = (double)(now - last_swap) / frequency;
+    double decay = gap / k_display_catch_up_decay;
+    double debt = catch_up_debt + (gap - slot);
+
+    if (decay > 1.0)
+        decay = 1.0;
+
+    debt -= debt * decay;
+
+    if (debt < -2.0 * frame)
+        debt = -2.0 * frame;
+    else if (debt > 2.0 * frame)
+        debt = 2.0 * frame;
+
+    bool busy = (work > 0.5 * slot) || (catch_up_work > 0.35 * slot);
+
+    catch_up_ready = (catch_up_debt >= 0.5 * frame) && (debt >= 0.5 * frame) && !busy;
+    catch_up_debt = debt;
+}
+
+static bool display_update_content_frame_rate(void)
+{
+    double frame_rate = emu_get_frame_rate();
+
+    if (frame_rate <= 0.0)
+        frame_rate = 60.0;
+
+    if (frame_rate >= content_frame_rate - 0.000001 && frame_rate <= content_frame_rate + 0.000001)
+        return false;
+
+    // CRTC reprogramming can change the frame rate, so preserve the elapsed phase.
+    vsync_frame_accumulator *= frame_rate / content_frame_rate;
+    content_frame_rate = frame_rate;
+    return true;
+}
+
+static void display_reset_vsync_accumulator(void)
+{
+    vsync_frame_accumulator = monitor_refresh_rate - content_frame_rate;
+    if (vsync_frame_accumulator < 0.0)
+        vsync_frame_accumulator = 0.0;
+}
+
+static void display_set_swap_interval(bool enabled)
+{
+    int requested = enabled ? display_get_swap_divider() : 0;
+
+    if (!SDL_GL_SetSwapInterval(requested))
+    {
+        if (requested > 1)
+        {
+            display_disable_swap_divider(requested);
+            return;
+        }
+
+        Log("SDL_GL_SetSwapInterval(%d) failed: %s", requested, SDL_GetError());
+        last_vsync_state = -1;
+        return;
+    }
+
+    int effective = 0;
+    if (!SDL_GL_GetSwapInterval(&effective))
+    {
+        Log("SDL_GL_GetSwapInterval failed: %s", SDL_GetError());
+        last_vsync_state = -1;
+        return;
+    }
+
+    if ((requested > 1) && (effective != requested))
+    {
+        display_disable_swap_divider(requested);
+        return;
+    }
+
+    if (effective != last_vsync_state)
+    {
+        Debug("Swap interval: %d", effective);
+        swap_divider_frames = 0;
+        if (effective == 1)
+            display_reset_vsync_accumulator();
+    }
+
+    last_vsync_state = effective;
+}

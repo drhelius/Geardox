@@ -1,0 +1,685 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include <SDL3/SDL.h>
+#include <stdarg.h>
+#include <math.h>
+#include <float.h>
+#include <vector>
+
+#define GUI_POPUPS_IMPORT
+#include "gui_popups.h"
+#include "gui.h"
+#include "gui_actions.h"
+#include "gui_colors.h"
+#include "gui_menus.h"
+#include "config.h"
+#include "application.h"
+#include "display.h"
+#include "gamepad.h"
+#include "emu.h"
+#include "license.h"
+#include "backers.h"
+#include "ogl_renderer.h"
+#include "keyboard.h"
+#include "imgui.h"
+#include "implot.h"
+#include "geardox.h"
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+#include "cdrom/cdrom_drive.h"
+#endif
+
+static const char* const k_about_banner =
+    "   ____                    _           \n"
+    "  / ___| ___  __ _ _ __ __| | _____  __\n"
+    " | |  _ / _ \\/ _` | '__/ _` |/ _ \\ \\/ /\n"
+    " | |_| |  __/ (_| | | | (_| | (_) >  < \n"
+    "  \\____|\\___|\\__,_|_|  \\__,_|\\___/_/\\_\\\n";
+static char build_info[4096] = "";
+static int info_pos = 0;
+static u64 fps_frames = 0;
+static u64 fps_window_frames = 0;
+static Uint64 fps_window_start = 0;
+static Uint64 fps_last_frame = 0;
+static float fps_value = 0.0f;
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+static const char* physical_cdrom_popup_title = "Select Physical CD-ROM...";
+static std::vector<CdRomDriveInfo> physical_cdrom_drives;
+static int physical_cdrom_selected = -1;
+static bool physical_cdrom_refresh = false;
+#endif
+
+static void add_build_info(const char* fmt, ...);
+static void check_hotkey_duplicates_popup(config_Hotkey* current_hotkey);
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+static bool open_selected_physical_cdrom_drive(void);
+static void refresh_physical_cdrom_drives(void);
+#endif
+
+void gui_popup_modal_keyboard()
+{
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal("Keyboard Configuration", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        gui_dialog_in_use = true;
+        ImGui::Text("Press any key to assign...\n\n");
+        ImGui::Separator();
+
+        SDL_Scancode scancode = keyboard_get_first_pressed_scancode();
+
+        if (scancode != SDL_SCANCODE_UNKNOWN)
+        {
+            *gui_configured_key = scancode;
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void gui_popup_modal_gamepad(int pad)
+{
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal("Gamepad Configuration", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        gui_dialog_in_use = true;
+        SDL_Gamepad* controller = gamepad_controller[pad];
+
+        if (IsValidPointer(controller))
+            ImGui::Text("Press any button in your gamepad...\n\n");
+        else
+            ImGui::Text("No gamepad detected.\n\n");
+
+        ImGui::Separator();
+
+        if (IsValidPointer(controller))
+        {
+            for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
+            {
+                if (SDL_GetGamepadButton(controller, (SDL_GamepadButton)i))
+                {
+                    *gui_configured_button = i;
+                    gui_dialog_in_use = false;
+                    ImGui::CloseCurrentPopup();
+                    break;
+                }
+            }
+
+            for (int a = SDL_GAMEPAD_AXIS_LEFTX; a < SDL_GAMEPAD_AXIS_COUNT; a++)
+            {
+                if (a != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && a != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+                    continue;
+
+                Sint16 value = SDL_GetGamepadAxis(controller, (SDL_GamepadAxis)a);
+
+                if (value > GAMEPAD_VBTN_AXIS_THRESHOLD)
+                {
+                    *gui_configured_button = GAMEPAD_VBTN_AXIS_BASE + a;
+                    gui_dialog_in_use = false;
+                    ImGui::CloseCurrentPopup();
+                    break;
+                }
+            }
+        }
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void gui_popup_modal_hotkey()
+{
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal("Hotkey Configuration", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        gui_dialog_in_use = true;
+        ImGui::Text("Press any key combination...\n");
+        ImGui::Text("Hold Ctrl, Shift, or Alt before pressing the key\n\n");
+        ImGui::Separator();
+
+        SDL_Keymod mods = (SDL_Keymod)(SDL_GetModState() & (SDL_KMOD_CTRL | SDL_KMOD_SHIFT | SDL_KMOD_ALT | SDL_KMOD_GUI));
+        SDL_Scancode scancode = keyboard_get_first_pressed_scancode();
+
+        if (scancode != SDL_SCANCODE_UNKNOWN)
+        {
+            gui_configured_hotkey->key = scancode;
+            gui_configured_hotkey->mod = mods;
+            config_update_hotkey_string(gui_configured_hotkey);
+            check_hotkey_duplicates_popup(gui_configured_hotkey);
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+        {
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
+void gui_popup_modal_about(void)
+{
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal("About " GDOX_TITLE, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::PushFont(gui_default_font);
+        ImGui::TextColored(accent, "%s\n", k_about_banner);
+
+        ImGui::TextColored(violet, "  By Ignacio Sánchez (DrHelius)");
+        ImGui::Text(" "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("https://github.com/drhelius/" GDOX_TITLE);
+        ImGui::Text(" "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("https://x.com/drhelius");
+        ImGui::NewLine();
+
+        ImGui::PopFont();
+
+        if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
+        {
+            if (ImGui::BeginTabItem("Build Info"))
+            {
+                build_info[0] = '\0';
+                info_pos = 0;
+
+                add_build_info("Build: %s\n", GDOX_VERSION);
+                #if defined(__DATE__) && defined(__TIME__)
+                add_build_info("Built on: %s - %s\n", __DATE__, __TIME__);
+                #endif
+                #if defined(_M_ARM64)
+                add_build_info("Windows ARM64 build\n");
+                #endif
+                #if defined(_M_X64)
+                add_build_info("Windows 64 bit build\n");
+                #endif
+                #if defined(_M_IX86)
+                add_build_info("Windows 32 bit build\n");
+                #endif
+                #if defined(__linux__) && defined(__x86_64__)
+                add_build_info("Linux 64 bit build\n");
+                #endif
+                #if defined(__linux__) && defined(__i386__)
+                add_build_info("Linux 32 bit build\n");
+                #endif
+                #if defined(__linux__) && defined(__arm__)
+                add_build_info("Linux ARM build\n");
+                #endif
+                #if defined(__linux__) && defined(__aarch64__)
+                add_build_info("Linux ARM64 build\n");
+                #endif
+                #if defined(__APPLE__) && defined(__arm64__ )
+                add_build_info("macOS build (Apple Silicon)\n");
+                #endif
+                #if defined(__APPLE__) && defined(__x86_64__)
+                add_build_info("macOS build (Intel)\n");
+                #endif
+                #if defined(__ANDROID__)
+                add_build_info("Android build\n");
+                #endif
+                add_build_info("Config file: %s\n", config_emu_file_path);
+                add_build_info("ImGui file: %s\n", config_imgui_file_path);
+                add_build_info("Savestate version: %d\n", GDOX_SAVESTATE_VERSION);
+                #if defined(_MSC_FULL_VER)
+                add_build_info("Microsoft C++ %d\n", _MSC_FULL_VER);
+                #endif
+                #if defined(_MSVC_LANG)
+                add_build_info("MSVC %d\n", _MSVC_LANG);
+                #endif
+                #if defined(__CLR_VER)
+                add_build_info("CLR version: %d\n", __CLR_VER);
+                #endif
+                #if defined(__MINGW32__)
+                add_build_info("MinGW 32 bit (%d.%d)\n", __MINGW32_MAJOR_VERSION, __MINGW32_MINOR_VERSION);
+                #endif
+                #if defined(__MINGW64__)
+                add_build_info("MinGW 64 bit (%d.%d)\n", __MINGW64_VERSION_MAJOR, __MINGW64_VERSION_MINOR);
+                #endif
+                #if defined(__GNUC__) && !defined(__llvm__) && !defined(__INTEL_COMPILER)
+                add_build_info("GCC %d.%d.%d\n", (int)__GNUC__, (int)__GNUC_MINOR__, (int)__GNUC_PATCHLEVEL__);
+                #endif
+                #if defined(__clang_version__)
+                add_build_info("Clang %s\n", __clang_version__);
+                #endif
+                add_build_info("SDL %d.%d.%d (build)\n", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION);
+                add_build_info("SDL %d.%d.%d (link)\n", application_sdl_version_major, application_sdl_version_minor, application_sdl_version_patch);
+                add_build_info("OpenGL %s\n", ogl_renderer_opengl_version);
+                add_build_info("Dear ImGui %s (%d)\n", IMGUI_VERSION, IMGUI_VERSION_NUM);
+                add_build_info("ImPlot %s (%d)\n", IMPLOT_VERSION, IMPLOT_VERSION_NUM);
+
+                #if defined(DEBUG)
+                add_build_info("define: DEBUG\n");
+                #endif
+                #if defined(NDEBUG)
+                add_build_info("define: NDEBUG\n");
+                #endif
+                #if defined(GDOX_DEBUG)
+                add_build_info("define: GDOX_DEBUG\n");
+                #endif
+                #if defined(GDOX_NO_OPTIMIZATIONS)
+                add_build_info("define: GDOX_NO_OPTIMIZATIONS\n");
+                #endif
+                #if defined(GDOX_DISABLE_DISASSEMBLER)
+                add_build_info("define: GDOX_DISABLE_DISASSEMBLER\n");
+                #endif
+                #if defined(GDOX_DISABLE_DYNAREC)
+                add_build_info("define: GDOX_DISABLE_DYNAREC\n");
+                #endif
+                #if defined(__cplusplus)
+                add_build_info("define: __cplusplus = %d\n", (int)__cplusplus);
+                #endif
+                #if defined(__STDC__)
+                add_build_info("define: __STDC__ = %d\n", (int)__STDC__);
+                #endif
+                #if defined(__STDC_VERSION__)
+                add_build_info("define: __STDC_VERSION__ = %d\n", (int)__STDC_VERSION__);
+                #endif
+                #if defined(GDOX_LITTLE_ENDIAN)
+                add_build_info("define: GDOX_LITTLE_ENDIAN");
+                #endif
+                #if defined(GDOX_BIG_ENDIAN)
+                add_build_info("define: GDOX_BIG_ENDIAN");
+                #endif
+
+                ImGui::InputTextMultiline("##build_info", build_info, sizeof(build_info), ImVec2(-1.0f, 100.0f), ImGuiInputTextFlags_ReadOnly);
+
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Special thanks to"))
+            {
+                ImGui::BeginChild("backers", ImVec2(0, 100), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+                ImGui::Text("%s", BACKERS_STR);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("LICENSE"))
+            {
+                ImGui::BeginChild("license", ImVec2(0, 100), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+                ImGui::TextUnformatted(GPL_LICENSE_STR);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+
+        ImGui::NewLine();
+        ImGui::Separator();
+
+        if (gamepad_added_mappings || gamepad_updated_mappings)
+        {
+            ImGui::Text("%d game controller mappings added from gamecontrollerdb.txt", gamepad_added_mappings);
+            ImGui::Text("%d game controller mappings updated from gamecontrollerdb.txt", gamepad_updated_mappings);
+        }
+        else
+            ImGui::Text("ERROR: Game controller database not found (gamecontrollerdb.txt)!!");
+
+        ImGui::Separator();
+        ImGui::NewLine();
+
+        if (ImGui::Button("OK", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+            gui_dialog_in_use = false;
+        }
+
+        ImGui::SetItemDefaultFocus();
+
+        ImGui::EndPopup();
+    }
+}
+
+void gui_popup_modal_load_defaults(void)
+{
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal("Load Default Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        ImGui::Text("Are you sure you want to load default settings?\n\n");
+        ImGui::Text("Current content will close and BIOS configuration will be cleared.\n\n");
+        ImGui::Text("This action cannot be reverted.\n\n");
+        ImGui::Separator();
+
+        ImGui::BeginDisabled(gui_is_rom_loading() || emu_is_media_loading());
+
+        if (ImGui::Button("Yes", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+            gui_dialog_in_use = false;
+            gui_action_load_defaults();
+        }
+
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("No", ImVec2(120, 0)))
+        {
+            ImGui::CloseCurrentPopup();
+            gui_dialog_in_use = false;
+        }
+
+        ImGui::SetItemDefaultFocus();
+        ImGui::EndPopup();
+    }
+}
+
+void gui_popup_open_physical_cdrom(void)
+{
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    physical_cdrom_refresh = true;
+    physical_cdrom_selected = -1;
+    gui_dialog_in_use = true;
+    ImGui::OpenPopup(physical_cdrom_popup_title);
+#endif
+}
+
+void gui_popup_modal_physical_cdrom(void)
+{
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    if (physical_cdrom_refresh)
+    {
+        refresh_physical_cdrom_drives();
+        physical_cdrom_refresh = false;
+    }
+
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal(physical_cdrom_popup_title, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        gui_dialog_in_use = true;
+
+        ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings;
+
+        if (ImGui::BeginTable("##physical_cdrom_drives", 2, table_flags, ImVec2(350.0f, 100.0f)))
+        {
+            ImGui::TableSetupScrollFreeze(0, 1);
+            ImGui::TableSetupColumn("Drive", ImGuiTableColumnFlags_WidthFixed, 270.0f);
+            ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+            ImGui::TableHeadersRow();
+
+            if (physical_cdrom_drives.empty())
+            {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextDisabled("No physical CD-ROM found");
+                ImGui::TableNextColumn();
+                ImGui::TextDisabled("-");
+            }
+            else
+            {
+                for (int i = 0; i < (int)physical_cdrom_drives.size(); i++)
+                {
+                    CdRomDriveInfo& drive = physical_cdrom_drives[i];
+                    bool selected = physical_cdrom_selected == i;
+                    char label[640];
+                    snprintf(label, sizeof(label), "##physical_cdrom_%d", i);
+
+                    ImGui::TableNextRow();
+
+                    if (selected)
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, ImGui::GetColorU32(ImGuiCol_HeaderActive));
+
+                    ImGui::TableNextColumn();
+
+                    if (ImGui::Selectable(label, false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick))
+                    {
+                        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                        {
+                            physical_cdrom_selected = i;
+                            open_selected_physical_cdrom_drive();
+                        }
+                        else if (selected)
+                            physical_cdrom_selected = -1;
+                        else
+                            physical_cdrom_selected = i;
+                    }
+
+                    ImGui::SameLine(0, 0);
+                    ImGui::TextUnformatted(drive.name);
+
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(drive.has_disc ? "Ready" : "No Disc");
+                }
+            }
+
+            ImGui::EndTable();
+        }
+
+        bool can_open = (physical_cdrom_selected >= 0) && (physical_cdrom_selected < (int)physical_cdrom_drives.size()) &&
+            physical_cdrom_drives[physical_cdrom_selected].has_disc;
+
+        ImGui::BeginDisabled(!can_open);
+
+        if (ImGui::Button("Open", ImVec2(110.0f, 0.0f)))
+            open_selected_physical_cdrom_drive();
+
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Cancel", ImVec2(110.0f, 0.0f)))
+        {
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Refresh", ImVec2(110.0f, 0.0f)))
+            refresh_physical_cdrom_drives();
+
+        ImGui::EndPopup();
+    }
+#endif
+}
+
+void gui_show_info(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::Begin("Media Info", &config_emulator.show_info, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize);
+
+    static char info[512] = "";
+    emu_get_info(info, 512);
+
+    ImGui::PushFont(gui_default_font);
+    ImGui::SetCursorPosX(5.0f);
+    ImGui::Text("%s", info);
+    ImGui::PopFont();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+void gui_show_fps(const ImVec2& min, const ImVec2& max)
+{
+    const float margin = 8.0f;
+    const float padding = 6.0f;
+    const float height = 22.0f;
+    const float rounding = 4.0f;
+    const float value_size = 14.0f;
+    const float unit_size = 11.0f;
+    const float unit_spacing = 3.0f;
+    const float group_spacing = 9.0f;
+
+    Uint64 now = SDL_GetPerformanceCounter();
+    double frequency = (double)SDL_GetPerformanceFrequency();
+
+    if (emu_frame_counter != fps_frames)
+    {
+        if ((fps_window_start == 0) || (emu_frame_counter < fps_frames) ||
+            (((double)(now - fps_last_frame) / frequency) > 1.0))
+        {
+            fps_window_start = now;
+            fps_window_frames = emu_frame_counter;
+        }
+        else if (((double)(now - fps_window_start) / frequency) >= 0.5)
+        {
+            double frames = (double)(emu_frame_counter - fps_window_frames);
+            fps_value = (float)((frames * frequency) / (double)(now - fps_window_start));
+            fps_window_start = now;
+            fps_window_frames = emu_frame_counter;
+        }
+
+        fps_frames = emu_frame_counter;
+        fps_last_frame = now;
+    }
+    else if (((double)(now - fps_last_frame) / frequency) > 1.0)
+        fps_value = 0.0f;
+
+    float framerate = fps_value;
+    char values[2][16];
+    const char* units[2] = { "FPS", "ms" };
+    snprintf(values[0], sizeof(values[0]), "%.2f", framerate);
+    snprintf(values[1], sizeof(values[1]), "%.2f", (framerate > 0.0f) ? (1000.0f / framerate) : 0.0f);
+
+    ImFont* font = gui_roboto_font;
+    float value_widths[2];
+    float unit_widths[2];
+    float width = (padding * 2.0f) + group_spacing;
+
+    for (int i = 0; i < 2; i++)
+    {
+        value_widths[i] = font->CalcTextSizeA(value_size, FLT_MAX, 0.0f, values[i]).x;
+        unit_widths[i] = font->CalcTextSizeA(unit_size, FLT_MAX, 0.0f, units[i]).x;
+        width += value_widths[i] + unit_spacing + unit_widths[i];
+    }
+
+    ImVec2 box_min(roundf(min.x + margin), roundf(min.y + margin));
+    ImVec2 box_max(box_min.x + roundf(width), box_min.y + height);
+
+    if (box_max.x > max.x || box_max.y > max.y)
+        return;
+
+    const ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4 background = style.Colors[ImGuiCol_PopupBg];
+    background.w = 0.85f;
+    ImU32 value_color = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_Text]);
+    ImU32 unit_color = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_TextDisabled]);
+
+    ImFontGlyph* value_glyph = font->GetFontBaked(value_size)->FindGlyph((ImWchar)'0');
+    ImFontGlyph* unit_glyph = font->GetFontBaked(unit_size)->FindGlyph((ImWchar)'0');
+    float baseline = box_min.y + ((height + (value_glyph->Y1 - value_glyph->Y0)) * 0.5f);
+    float value_y = roundf(baseline - value_glyph->Y1);
+    float unit_y = roundf(baseline - unit_glyph->Y1);
+    float x = box_min.x + padding;
+
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    draw_list->PushClipRect(min, max, true);
+    draw_list->AddRectFilled(box_min, box_max, ImGui::ColorConvertFloat4ToU32(background), rounding);
+
+    for (int i = 0; i < 2; i++)
+    {
+        draw_list->AddText(font, value_size, ImVec2(roundf(x), value_y), value_color, values[i]);
+        x += value_widths[i] + unit_spacing;
+        draw_list->AddText(font, unit_size, ImVec2(roundf(x), unit_y), unit_color, units[i]);
+        x += unit_widths[i] + group_spacing;
+    }
+
+    draw_list->PopClipRect();
+}
+
+static void add_build_info(const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int written = vsnprintf(build_info + info_pos, sizeof(build_info) - info_pos, fmt, args);
+    if (written > 0 && info_pos + written < (int)sizeof(build_info)) {
+        info_pos += written;
+    } else {
+        info_pos = (int)sizeof(build_info) - 1;
+        build_info[info_pos] = '\0';
+    }
+
+    va_end(args);
+}
+
+static void check_hotkey_duplicates_popup(config_Hotkey* current_hotkey)
+{
+    if (current_hotkey->key == SDL_SCANCODE_UNKNOWN)
+        return;
+
+    for (int i = 0; i < config_HotkeyIndex_COUNT; i++)
+    {
+        config_Hotkey* other = &config_hotkeys[i];
+
+        if (other == current_hotkey)
+            continue;
+
+        if (other->key == current_hotkey->key && other->mod == current_hotkey->mod)
+        {
+            other->key = SDL_SCANCODE_UNKNOWN;
+            other->mod = SDL_KMOD_NONE;
+            config_update_hotkey_string(other);
+        }
+    }
+}
+
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+static bool open_selected_physical_cdrom_drive(void)
+{
+    if ((physical_cdrom_selected < 0) || (physical_cdrom_selected >= (int)physical_cdrom_drives.size()))
+        return false;
+
+    CdRomDriveInfo& drive = physical_cdrom_drives[physical_cdrom_selected];
+
+    if (!drive.has_disc)
+        return false;
+
+    Log("Opening physical CD-ROM drive %s", drive.id);
+    gui_load_physical_cdrom(drive.id);
+    gui_dialog_in_use = false;
+    ImGui::CloseCurrentPopup();
+    return true;
+}
+
+static void refresh_physical_cdrom_drives(void)
+{
+    physical_cdrom_selected = -1;
+
+    if (!CdRomDrive::ListDrives(physical_cdrom_drives))
+    {
+        Error("Physical CD-ROM drive enumeration failed");
+        return;
+    }
+
+    for (int i = 0; i < (int)physical_cdrom_drives.size(); i++)
+        Debug("Physical CD-ROM drive %d: id=%s name=%s has_disc=%s", i, physical_cdrom_drives[i].id,
+            physical_cdrom_drives[i].name, physical_cdrom_drives[i].has_disc ? "true" : "false");
+}
+#endif

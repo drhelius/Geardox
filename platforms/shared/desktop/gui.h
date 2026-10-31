@@ -1,0 +1,151 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#ifndef GUI_H
+#define GUI_H
+
+#include <SDL3/SDL.h>
+#include "geardox.h"
+#include "imgui.h"
+#include "config.h"
+
+#ifdef GUI_IMPORT
+    #define EXTERN
+#else
+    #define EXTERN extern
+#endif
+
+enum gui_ShortCutEvent
+{
+    gui_ShortcutOpenROM = 0,
+    gui_ShortcutReloadROM,
+    gui_ShortcutReset,
+    gui_ShortcutPowerOn,
+    gui_ShortcutPowerOff,
+    gui_ShortcutPause,
+    gui_ShortcutFFWD,
+    gui_ShortcutMute,
+    gui_ShortcutSaveState,
+    gui_ShortcutLoadState,
+    gui_ShortcutSelectSlot1,
+    gui_ShortcutSelectSlot2,
+    gui_ShortcutSelectSlot3,
+    gui_ShortcutSelectSlot4,
+    gui_ShortcutSelectSlot5,
+    gui_ShortcutScreenshot,
+    gui_ShortcutVideoRecording,
+    gui_ShortcutFullscreen,
+    gui_ShortcutCaptureMouse,
+    gui_ShortcutCaptureKeyboard,
+    gui_ShortcutDebugStepOver,
+    gui_ShortcutDebugStepInto,
+    gui_ShortcutDebugStepOut,
+    gui_ShortcutDebugStepFrame,
+    gui_ShortcutDebugBreak,
+    gui_ShortcutDebugContinue,
+    gui_ShortcutDebugRunToCursor,
+    gui_ShortcutDebugBreakpoint,
+    gui_ShortcutDebugGoBack,
+    gui_ShortcutShowMainMenu
+};
+
+struct gui_HotkeyMapping
+{
+    gui_ShortCutEvent shortcut;
+    int config_index;
+    bool allow_repeat;
+};
+
+#define GUI_HOTKEY_MAP_COUNT 30
+
+const gui_HotkeyMapping gui_hotkey_map[GUI_HOTKEY_MAP_COUNT] = {
+    {gui_ShortcutOpenROM, config_HotkeyIndex_OpenROM, false},
+    {gui_ShortcutReloadROM, config_HotkeyIndex_ReloadROM, false},
+    {gui_ShortcutReset, config_HotkeyIndex_Reset, false},
+    {gui_ShortcutPowerOn, config_HotkeyIndex_PowerOn, false},
+    {gui_ShortcutPowerOff, config_HotkeyIndex_PowerOff, false},
+    {gui_ShortcutPause, config_HotkeyIndex_Pause, false},
+    {gui_ShortcutFFWD, config_HotkeyIndex_FFWD, false},
+    {gui_ShortcutMute, config_HotkeyIndex_Mute, false},
+    {gui_ShortcutSaveState, config_HotkeyIndex_SaveState, false},
+    {gui_ShortcutLoadState, config_HotkeyIndex_LoadState, false},
+    {gui_ShortcutSelectSlot1, config_HotkeyIndex_SelectSlot1, false},
+    {gui_ShortcutSelectSlot2, config_HotkeyIndex_SelectSlot2, false},
+    {gui_ShortcutSelectSlot3, config_HotkeyIndex_SelectSlot3, false},
+    {gui_ShortcutSelectSlot4, config_HotkeyIndex_SelectSlot4, false},
+    {gui_ShortcutSelectSlot5, config_HotkeyIndex_SelectSlot5, false},
+    {gui_ShortcutScreenshot, config_HotkeyIndex_Screenshot, false},
+    {gui_ShortcutVideoRecording, config_HotkeyIndex_VideoRecording, false},
+    {gui_ShortcutFullscreen, config_HotkeyIndex_Fullscreen, false},
+    {gui_ShortcutCaptureMouse, config_HotkeyIndex_CaptureMouse, false},
+    {gui_ShortcutCaptureKeyboard, config_HotkeyIndex_CaptureKeyboard, false},
+    {gui_ShortcutShowMainMenu, config_HotkeyIndex_ShowMainMenu, false},
+    {gui_ShortcutDebugStepInto, config_HotkeyIndex_DebugStepInto, true},
+    {gui_ShortcutDebugStepOver, config_HotkeyIndex_DebugStepOver, true},
+    {gui_ShortcutDebugStepOut, config_HotkeyIndex_DebugStepOut, true},
+    {gui_ShortcutDebugStepFrame, config_HotkeyIndex_DebugStepFrame, true},
+    {gui_ShortcutDebugContinue, config_HotkeyIndex_DebugContinue, true},
+    {gui_ShortcutDebugBreak, config_HotkeyIndex_DebugBreak, true},
+    {gui_ShortcutDebugRunToCursor, config_HotkeyIndex_DebugRunToCursor, true},
+    {gui_ShortcutDebugBreakpoint, config_HotkeyIndex_DebugBreakpoint, true},
+    {gui_ShortcutDebugGoBack, config_HotkeyIndex_DebugGoBack, true},
+};
+
+EXTERN bool gui_in_use;
+EXTERN bool gui_main_window_hovered;
+EXTERN bool gui_main_window_focused;
+EXTERN bool gui_main_window_active;
+EXTERN SDL_WindowID gui_main_window_sdl_window_id;
+EXTERN ImFont* gui_default_font;
+EXTERN ImFont* gui_default_fonts[4];
+EXTERN ImFont* gui_roboto_font;
+EXTERN ImFont* gui_material_icons_font;
+EXTERN int gui_main_window_width;
+EXTERN int gui_main_window_height;
+EXTERN int gui_main_menu_height;
+EXTERN SDL_Scancode* gui_configured_key;
+EXTERN int* gui_configured_button;
+EXTERN config_Hotkey* gui_configured_hotkey;
+EXTERN bool gui_dialog_in_use;
+EXTERN bool gui_shortcut_open_rom;
+
+EXTERN bool gui_init(void);
+EXTERN void gui_apply_settings(void);
+EXTERN void gui_destroy(void);
+EXTERN void gui_render(void);
+EXTERN void gui_shortcut(gui_ShortCutEvent event);
+EXTERN bool gui_load_rom(const char* path, const char* symbol_path = NULL);
+EXTERN bool gui_load_playlist_disc(int index);
+EXTERN void gui_load_physical_cdrom(const char* device_id);
+EXTERN void gui_reload_cdrom(void);
+EXTERN void gui_load_media_symbols(const char* media_path, const char* symbol_path);
+EXTERN bool gui_is_rom_loading(void);
+EXTERN bool gui_finish_loading_rom(void);
+EXTERN void gui_load_state_after_media(int slot, const char* path);
+EXTERN void gui_load_bios(const char* path);
+EXTERN void gui_load_model_firmware(GDOX_Machine_Model model, const char* path);
+EXTERN void gui_get_firmware_status(GDOX_Machine_Model model, char* text, size_t text_size);
+EXTERN ImVec4 gui_get_firmware_status_color(GDOX_Machine_Model model);
+EXTERN void gui_set_style(void);
+EXTERN void gui_set_error_message(const char* message);
+EXTERN void gui_center_next_window(void);
+
+#undef GUI_IMPORT
+#undef EXTERN
+#endif /* GUI_H */

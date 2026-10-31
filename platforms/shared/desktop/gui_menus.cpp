@@ -1,0 +1,2669 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#define GUI_MENUS_IMPORT
+#include "gui_menus.h"
+#include "gui.h"
+#include "gui_filedialogs.h"
+#include "gui_popups.h"
+#include "gui_actions.h"
+#include "gui_colors.h"
+#include "gui_floppy.h"
+#include "gui_firmware.h"
+#include "gui_hard_disks.h"
+#include "gui_notifications.h"
+#include "config.h"
+#include "application.h"
+#include "display.h"
+#include "gamepad.h"
+#include "sound_queue.h"
+#include "emu.h"
+#include "ogl_renderer.h"
+#include "ogl_shader_chain.h"
+#include "shader_preset.h"
+#include "utils.h"
+#include "geardox.h"
+#include "drive/hard_disk_image.h"
+#include "rewind.h"
+#include "events.h"
+#include "input_macro.h"
+
+static bool open_rom = false;
+static bool open_state = false;
+static bool save_state = false;
+static bool open_about = false;
+static bool open_load_defaults = false;
+static bool save_screenshot = false;
+static bool save_vgm = false;
+static bool save_video = false;
+static bool choose_savestates_path = false;
+static bool choose_savefiles_path = false;
+static bool choose_screenshots_path = false;
+static bool choose_video_recordings_path = false;
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+static bool open_physical_cdrom = false;
+#endif
+static const GuiColor& machine_warning_color = amber;
+static const GuiColor& service_mcp_http_color = green;
+static const GuiColor& service_mcp_stdio_color = amber;
+static const GuiColor& video_recording_color = red;
+static const GuiColor& vgm_recording_color = red;
+static ShaderPresetInfo shader_presets[SHADER_PRESET_MAX_DISCOVERED];
+static int shader_preset_count = 0;
+
+static void menu_geardox(void);
+static void menu_drives(void);
+static void menu_cdrom(void);
+static void menu_emulator(void);
+static void menu_machine(void);
+static bool menu_machine_model(void);
+static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile);
+static bool menu_machine_ram(const GDOX_Machine_Profile& profile);
+static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
+static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
+static void menu_machine_hardware(GDOX_Machine_Model model);
+static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t text_size);
+static void menu_boot_device(void);
+static void draw_machine_profile_tooltip(GDOX_Machine_Model model);
+static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size);
+static float get_combo_width(float text_width);
+static void menu_video(void);
+static void menu_shader(void);
+static void draw_shader_parameters(void);
+static void draw_shader_parameter_tooltip(void);
+static bool shader_parameter_is_toggle(const ShaderPresetParameter* parameter);
+static bool shader_parameter_is_integer(const ShaderPresetParameter* parameter);
+static int shader_parameter_round_to_int(float value);
+static void menu_input(void);
+static void menu_input_controller(int port);
+static void menu_audio(void);
+static void menu_audio_source_mute(const char* label, int source);
+static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
+static void menu_debug(void);
+static void menu_about(void);
+static void draw_background_color_menu(const char* label, int theme);
+static void draw_mcp_status(void);
+static void draw_recording_status(const char* status, ImVec4 color, float dot_radius, float dot_width);
+static void file_dialogs(void);
+static bool media_menu_actions_enabled(void);
+static const char* get_current_media_directory_text(void);
+static void keyboard_configuration_item(const char* text, SDL_Scancode* key, int player);
+static void gamepad_configuration_item(const char* text, int* button, int player);
+static void hotkey_configuration_item(const char* text, config_Hotkey* hotkey);
+static void gamepad_device_selector(int player);
+static void draw_savestate_slot_info(int slot);
+
+void gui_init_menus(void)
+{
+    gui_shortcut_open_rom = false;
+    shader_preset_count = shader_preset_scan_bundled(shader_presets, SHADER_PRESET_MAX_DISCOVERED);
+}
+
+void gui_main_menu(void)
+{
+    open_rom = false;
+    open_state = false;
+    save_state = false;
+    open_about = false;
+    open_load_defaults = false;
+    save_screenshot = false;
+    save_vgm = false;
+    save_video = false;
+    choose_savestates_path = false;
+    choose_savefiles_path = false;
+    choose_screenshots_path = false;
+    choose_video_recordings_path = false;
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    open_physical_cdrom = false;
+#endif
+
+    if (application_show_menu && ImGui::BeginMainMenuBar())
+    {
+        menu_geardox();
+        menu_drives();
+        menu_emulator();
+        menu_video();
+        menu_input();
+        menu_audio();
+        menu_debug();
+        menu_about();
+        draw_mcp_status();
+
+        gui_main_menu_height = (int)ImGui::GetWindowSize().y;
+
+        ImGui::EndMainMenuBar();
+    }
+
+    file_dialogs();
+}
+
+static void menu_geardox(void)
+{
+    if (ImGui::BeginMenu(GDOX_TITLE))
+    {
+        gui_in_use = true;
+        GeardoxCore* core = emu_get_core();
+        bool media_actions_enabled = media_menu_actions_enabled();
+        bool loading = gui_is_rom_loading() || emu_is_media_loading();
+        bool powered_on = !emu_is_empty();
+        bool firmware_ready = core->GetFirmware()->IsReady();
+
+        if (ImGui::MenuItem("Power On", config_hotkeys[config_HotkeyIndex_PowerOn].str, false,
+            !loading && !powered_on && firmware_ready))
+        {
+            gui_action_power_on();
+        }
+
+        if (ImGui::MenuItem("Power Off", config_hotkeys[config_HotkeyIndex_PowerOff].str, false, !loading && powered_on))
+        {
+            gui_action_power_off();
+        }
+
+        if (ImGui::MenuItem("Reset", config_hotkeys[config_HotkeyIndex_Reset].str, false, media_actions_enabled))
+        {
+            gui_action_reset();
+        }
+
+        if (ImGui::BeginMenu("Reset and Boot From", media_actions_enabled))
+        {
+            menu_boot_device();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::MenuItem("Pause", config_hotkeys[config_HotkeyIndex_Pause].str, &config_emulator.paused, media_actions_enabled))
+        {
+            gui_action_pause();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Fast Forward"))
+        {
+            if (ImGui::MenuItem("Enabled", config_hotkeys[config_HotkeyIndex_FFWD].str, &config_emulator.ffwd, media_actions_enabled))
+            {
+                gui_action_ffwd();
+            }
+
+            if (ImGui::BeginMenu("Speed"))
+            {
+                ImGui::PushItemWidth(100.0f);
+                ImGui::Combo("##fwd", &config_emulator.ffwd_speed, "X 1.5\0X 2\0X 2.5\0X 3\0Unlimited\0\0");
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Rewind"))
+        {
+            if (ImGui::MenuItem("Enabled", config_hotkeys[config_HotkeyIndex_Rewind].str, &config_rewind.enabled))
+            {
+                rewind_reset();
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Rewind uses save states while it runs, which costs performance.");
+                ImGui::Text("If you don't use rewind, keep it disabled.");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::PushItemWidth(140.0f);
+            ImGui::SliderFloat("Speed", &config_rewind.speed, 1.0f, 8.0f, "%.0fx");
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Run-Ahead"))
+        {
+            ImGui::PushItemWidth(140.0f);
+            ImGui::Combo("##runahead", &config_emulator.runahead, "Disabled\0" "1 Frame\0" "2 Frames\0" "3 Frames\0\0");
+            ImGui::PopItemWidth();
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Reduces input lag by speculatively running extra frames each update.");
+                ImGui::Text("Every frame multiplies CPU cost, so use the lowest value that feels right.");
+                ImGui::Text("Ignored while fast-forwarding or using the debugger.");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Savestates"))
+        {
+            if (ImGui::MenuItem("Save As...", "", false, media_actions_enabled))
+                save_state = true;
+
+            if (ImGui::MenuItem("Load From...", "", false, media_actions_enabled))
+                open_state = true;
+
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Slot"))
+            {
+                ImGui::PushItemWidth(100.0f);
+                ImGui::Combo("##slot", &config_emulator.save_slot, "Slot 1\0Slot 2\0Slot 3\0Slot 4\0Slot 5\0\0");
+                ImGui::PopItemWidth();
+
+                ImGui::Separator();
+                draw_savestate_slot_info(config_emulator.save_slot);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::MenuItem("Save", config_hotkeys[config_HotkeyIndex_SaveState].str, false, media_actions_enabled))
+            {
+                gui_action_save_state(NULL);
+            }
+
+            if (ImGui::MenuItem("Load", config_hotkeys[config_HotkeyIndex_LoadState].str, false, media_actions_enabled))
+            {
+                gui_action_load_state(NULL);
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Slot: %d", config_emulator.save_slot + 1);
+                ImGui::Separator();
+                draw_savestate_slot_info(config_emulator.save_slot);
+                ImGui::EndTooltip();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Screenshots"))
+        {
+            if (ImGui::MenuItem("Save As...", "", false, media_actions_enabled))
+            {
+                save_screenshot = true;
+            }
+
+            if (ImGui::MenuItem("Save", config_hotkeys[config_HotkeyIndex_Screenshot].str, false, media_actions_enabled))
+            {
+                gui_action_save_screenshot(NULL);
+            }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Video Recording"))
+        {
+            bool is_recording = emu_is_video_recording();
+
+            if (ImGui::MenuItem("Start Recording As...", "", false, !is_recording && media_actions_enabled))
+            {
+                save_video = true;
+            }
+
+            if (ImGui::MenuItem("Start Recording", config_hotkeys[config_HotkeyIndex_VideoRecording].str, false,
+                !is_recording && media_actions_enabled))
+            {
+                gui_action_start_video_recording(NULL);
+            }
+
+            if (ImGui::MenuItem("Stop Recording", config_hotkeys[config_HotkeyIndex_VideoRecording].str, false,
+                is_recording))
+            {
+                gui_action_stop_video_recording();
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Scale", !is_recording))
+            {
+                ImGui::PushItemWidth(100.0f);
+                ImGui::SliderInt("##video_recording_scale", &config_video.recording_scale, 1, 20, "%dx");
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Aspect Ratio", !is_recording))
+            {
+                ImGui::PushItemWidth(190.0f);
+                ImGui::Combo("##video_recording_ratio", &config_video.recording_ratio,
+                    "Follow Screen\0Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Quality", !is_recording))
+            {
+                ImGui::PushItemWidth(200.0f);
+                ImGui::Combo("##video_recording_quality", &config_video.recording_quality,
+                    "Low\0Medium\0High\0Lossless (Uncompressed)\0Lossless (Compressed)\0\0");
+                ImGui::PopItemWidth();
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Low and Medium halve the color resolution, best used at 2x or higher.");
+                    ImGui::Text("Lossless (Uncompressed) produces very large files.");
+                    ImGui::Text("Lossless (Compressed) stores PNG frames, it needs an FFmpeg based player like VLC or mpv.");
+                    ImGui::EndTooltip();
+                }
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Load Default Settings", NULL, false, !gui_is_rom_loading() && !emu_is_media_loading()))
+        {
+            open_load_defaults = true;
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Quit", config_hotkeys[config_HotkeyIndex_Quit].str))
+        {
+            application_trigger_quit();
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_drives(void)
+{
+    if (ImGui::BeginMenu("Drives"))
+    {
+        gui_in_use = true;
+        GeardoxCore* core = emu_get_core();
+        int floppy_drives = emu_is_empty() ? core->GetPendingMachineConfig().floppy_drives :
+            core->GetMachineConfig().floppy_drives;
+
+        menu_cdrom();
+
+        if (floppy_drives > 0)
+            gui_floppy_menu(floppy_drives);
+
+        gui_hard_disks_menu();
+
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_cdrom(void)
+{
+    if (!ImGui::BeginMenu("CD-ROM"))
+        return;
+
+    Media* media = emu_get_core()->GetMedia();
+    bool loading = gui_is_rom_loading() || emu_is_media_loading();
+    bool inserted = !loading && media->IsReady();
+    bool can_insert = !loading && !media->IsReady();
+
+    if (ImGui::MenuItem("Insert Image...", config_hotkeys[config_HotkeyIndex_OpenROM].str, false, can_insert))
+    {
+        open_rom = true;
+    }
+
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    if (ImGui::MenuItem("Insert Physical Disc...", NULL, false, can_insert))
+    {
+        open_physical_cdrom = true;
+    }
+#endif
+
+    if (ImGui::MenuItem("Eject", NULL, false, inserted))
+    {
+        gui_action_eject_media();
+    }
+
+    int discs = emu_cdrom_playlist_get_count();
+
+    if ((discs > 0) && ImGui::BeginMenu("Disc in Playlist", can_insert))
+    {
+        for (int i = 0; i < discs; i++)
+        {
+            ImGui::PushID(i);
+
+            if (ImGui::MenuItem(emu_cdrom_playlist_get_name(i)))
+                gui_load_playlist_disc(i);
+
+            ImGui::PopID();
+        }
+
+        ImGui::EndMenu();
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("Preload CD-ROM in RAM", "", &config_emulator.preload_cdrom))
+    {
+        emu_set_preload_cdrom(config_emulator.preload_cdrom);
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("This option will preload all CD-ROM tracks in RAM.");
+        ImGui::Text("Load a new CD-ROM image to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::Separator();
+
+    if (loading)
+        ImGui::TextDisabled("Loading...");
+    else if (!inserted)
+        ImGui::TextDisabled("Empty");
+    else
+    {
+        const char* name = media->GetFileName();
+        const char* path = media->GetFilePath();
+
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+        if (media->IsPhysicalCdRom())
+            name = path = media->GetPhysicalCdRomDeviceId();
+#endif
+
+        ImGui::Text("%.32s%s", name, strlen(name) > 32 ? "..." : "");
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", path);
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::BeginMenu("Recent", can_insert))
+    {
+        for (int i = 0; i < config_max_recent_roms; i++)
+        {
+            if (config_emulator.recent_roms[i].length() > 0)
+            {
+                if (ImGui::MenuItem(config_emulator.recent_roms[i].c_str()))
+                {
+                    char media_path[4096];
+                    strncpy_fit(media_path, config_emulator.recent_roms[i].c_str(), sizeof(media_path));
+                    gui_load_rom(media_path);
+                }
+            }
+        }
+
+        ImGui::EndMenu();
+    }
+
+    ImGui::EndMenu();
+}
+
+static bool media_menu_actions_enabled(void)
+{
+    if (emu_is_empty())
+        return false;
+
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    if (emu_get_core()->GetMedia()->HasPhysicalCdRomError())
+        return false;
+#endif
+
+    return true;
+}
+
+static void menu_emulator(void)
+{
+    if (ImGui::BeginMenu("Emulator"))
+    {
+        gui_in_use = true;
+
+        menu_machine();
+
+        if (ImGui::MenuItem("BIOS..."))
+            gui_firmware_open();
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Directories"))
+        {
+            if (ImGui::BeginMenu("Save States"))
+            {
+                ImGui::PushItemWidth(220.0f);
+
+                if (ImGui::Combo("##savestate_option", &config_emulator.savestates_dir_option,
+                    "Default Location\0Same as ROM\0Custom Location\0\0"))
+                {
+                    update_savestates_data();
+                }
+
+                switch ((Directory_Location)config_emulator.savestates_dir_option)
+                {
+                    case Directory_Location_Default:
+                    {
+                        ImGui::Text("%s", config_root_path);
+                        break;
+                    }
+
+                    case Directory_Location_ROM:
+                    {
+                        if (!emu_is_empty())
+                            ImGui::Text("%s", get_current_media_directory_text());
+
+                        break;
+                    }
+
+                    case Directory_Location_Custom:
+                    {
+                        if (ImGui::MenuItem("Choose..."))
+                            choose_savestates_path = true;
+
+                        ImGui::PushItemWidth(450);
+
+                        if (ImGui::InputText("##savestate_path", gui_savestates_path, IM_ARRAYSIZE(gui_savestates_path),
+                            ImGuiInputTextFlags_AutoSelectAll))
+                        {
+                            config_emulator.savestates_path.assign(gui_savestates_path);
+                            update_savestates_data();
+                        }
+
+                        ImGui::PopItemWidth();
+                        break;
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Save Files"))
+            {
+                ImGui::PushItemWidth(220.0f);
+                ImGui::Combo("##savefiles_option", &config_emulator.savefiles_dir_option,
+                    "Default Location\0Same as Disk\0Custom Location\0\0");
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Where working copies of floppies and CHD hard disks, and the CMOS of each machine, are saved.\nThe CMOS uses the default location with Same as Disk.");
+
+                switch ((Directory_Location)config_emulator.savefiles_dir_option)
+                {
+                    case Directory_Location_Default:
+                    {
+                        ImGui::Text("%s", config_root_path);
+                        break;
+                    }
+
+                    case Directory_Location_ROM:
+                        break;
+
+                    case Directory_Location_Custom:
+                    {
+                        if (ImGui::MenuItem("Choose..."))
+                            choose_savefiles_path = true;
+
+                        ImGui::PushItemWidth(450);
+
+                        if (ImGui::InputText("##savefiles_path", gui_savefiles_path, IM_ARRAYSIZE(gui_savefiles_path),
+                            ImGuiInputTextFlags_AutoSelectAll))
+                        {
+                            config_emulator.savefiles_path.assign(gui_savefiles_path);
+                        }
+
+                        ImGui::PopItemWidth();
+                        break;
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Screenshots"))
+            {
+                ImGui::PushItemWidth(220.0f);
+                ImGui::Combo("##screenshots_option", &config_emulator.screenshots_dir_option, "Default Location\0Same as ROM\0Custom Location\0\0");
+
+                switch ((Directory_Location)config_emulator.screenshots_dir_option)
+                {
+                    case Directory_Location_Default:
+                    {
+                        ImGui::Text("%s", config_root_path);
+                        break;
+                    }
+
+                    case Directory_Location_ROM:
+                    {
+                        if (!emu_is_empty())
+                            ImGui::Text("%s", get_current_media_directory_text());
+
+                        break;
+                    }
+
+                    case Directory_Location_Custom:
+                    {
+                        if (ImGui::MenuItem("Choose..."))
+                        {
+                            choose_screenshots_path = true;
+                        }
+
+                        ImGui::PushItemWidth(450);
+
+                        if (ImGui::InputText("##screenshots_path", gui_screenshots_path, IM_ARRAYSIZE(gui_screenshots_path), ImGuiInputTextFlags_AutoSelectAll))
+                        {
+                            config_emulator.screenshots_path.assign(gui_screenshots_path);
+                        }
+
+                        ImGui::PopItemWidth();
+                        break;
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Video Recordings"))
+            {
+                ImGui::PushItemWidth(220.0f);
+                ImGui::Combo("##video_recordings_option", &config_emulator.video_recordings_dir_option, "Default Location\0Same as ROM\0Custom Location\0\0");
+
+                switch ((Directory_Location)config_emulator.video_recordings_dir_option)
+                {
+                    case Directory_Location_Default:
+                    {
+                        ImGui::Text("%s", config_root_path);
+                        break;
+                    }
+
+                    case Directory_Location_ROM:
+                    {
+                        if (!emu_is_empty())
+                            ImGui::Text("%s", get_current_media_directory_text());
+
+                        break;
+                    }
+
+                    case Directory_Location_Custom:
+                    {
+                        if (ImGui::MenuItem("Choose..."))
+                        {
+                            choose_video_recordings_path = true;
+                        }
+
+                        ImGui::PushItemWidth(450);
+
+                        if (ImGui::InputText("##video_recordings_path", gui_video_recordings_path, IM_ARRAYSIZE(gui_video_recordings_path), ImGuiInputTextFlags_AutoSelectAll))
+                        {
+                            config_emulator.video_recordings_path.assign(gui_video_recordings_path);
+                        }
+
+                        ImGui::PopItemWidth();
+                        break;
+                    }
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        ImGui::MenuItem("Power On at Startup", "", &config_emulator.power_on_startup);
+        ImGui::MenuItem("Start Paused", "", &config_emulator.start_paused);
+        ImGui::MenuItem("Pause When Inactive", "", &config_emulator.pause_when_inactive);
+
+        if (ImGui::MenuItem("Allow Screen Saver", "", &config_emulator.allow_screensaver))
+        {
+            if (config_emulator.allow_screensaver)
+                SDL_EnableScreenSaver();
+            else
+                SDL_DisableScreenSaver();
+        }
+
+        ImGui::Separator();
+
+        //ImGui::MenuItem("Show Media Info", "", &config_emulator.show_info);
+        ImGui::MenuItem("Show Notifications", "", &config_emulator.show_notifications);
+        ImGui::MenuItem("Show Drive Activity", "", &config_emulator.show_drive_activity);
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Hotkeys"))
+        {
+            hotkey_configuration_item("Insert CD-ROM Image:", &config_hotkeys[config_HotkeyIndex_OpenROM]);
+            hotkey_configuration_item("Quit:", &config_hotkeys[config_HotkeyIndex_Quit]);
+            hotkey_configuration_item("Power On:", &config_hotkeys[config_HotkeyIndex_PowerOn]);
+            hotkey_configuration_item("Power Off:", &config_hotkeys[config_HotkeyIndex_PowerOff]);
+            hotkey_configuration_item("Reset:", &config_hotkeys[config_HotkeyIndex_Reset]);
+            hotkey_configuration_item("Reload CD-ROM and Reset:", &config_hotkeys[config_HotkeyIndex_ReloadROM]);
+            hotkey_configuration_item("Pause:", &config_hotkeys[config_HotkeyIndex_Pause]);
+            hotkey_configuration_item("Fast Forward:", &config_hotkeys[config_HotkeyIndex_FFWD]);
+            hotkey_configuration_item("Rewind:", &config_hotkeys[config_HotkeyIndex_Rewind]);
+            hotkey_configuration_item("Save State:", &config_hotkeys[config_HotkeyIndex_SaveState]);
+            hotkey_configuration_item("Load State:", &config_hotkeys[config_HotkeyIndex_LoadState]);
+            hotkey_configuration_item("Save State Slot 1:", &config_hotkeys[config_HotkeyIndex_SelectSlot1]);
+            hotkey_configuration_item("Save State Slot 2:", &config_hotkeys[config_HotkeyIndex_SelectSlot2]);
+            hotkey_configuration_item("Save State Slot 3:", &config_hotkeys[config_HotkeyIndex_SelectSlot3]);
+            hotkey_configuration_item("Save State Slot 4:", &config_hotkeys[config_HotkeyIndex_SelectSlot4]);
+            hotkey_configuration_item("Save State Slot 5:", &config_hotkeys[config_HotkeyIndex_SelectSlot5]);
+            hotkey_configuration_item("Screenshot:", &config_hotkeys[config_HotkeyIndex_Screenshot]);
+            hotkey_configuration_item("Video Recording:", &config_hotkeys[config_HotkeyIndex_VideoRecording]);
+            hotkey_configuration_item("Mute All Audio:", &config_hotkeys[config_HotkeyIndex_Mute]);
+            hotkey_configuration_item("Fullscreen:", &config_hotkeys[config_HotkeyIndex_Fullscreen]);
+            hotkey_configuration_item("Show Main Menu:", &config_hotkeys[config_HotkeyIndex_ShowMainMenu]);
+            hotkey_configuration_item("Capture Mouse:", &config_hotkeys[config_HotkeyIndex_CaptureMouse]);
+            hotkey_configuration_item("Capture Keyboard:", &config_hotkeys[config_HotkeyIndex_CaptureKeyboard]);
+
+            gui_popup_modal_hotkey();
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Debug Hotkeys"))
+        {
+            hotkey_configuration_item("Step Into:", &config_hotkeys[config_HotkeyIndex_DebugStepInto]);
+            hotkey_configuration_item("Step Over:", &config_hotkeys[config_HotkeyIndex_DebugStepOver]);
+            hotkey_configuration_item("Step Out:", &config_hotkeys[config_HotkeyIndex_DebugStepOut]);
+            hotkey_configuration_item("Step Frame:", &config_hotkeys[config_HotkeyIndex_DebugStepFrame]);
+            hotkey_configuration_item("Continue:", &config_hotkeys[config_HotkeyIndex_DebugContinue]);
+            hotkey_configuration_item("Break:", &config_hotkeys[config_HotkeyIndex_DebugBreak]);
+            hotkey_configuration_item("Run to Cursor:", &config_hotkeys[config_HotkeyIndex_DebugRunToCursor]);
+            hotkey_configuration_item("Toggle Breakpoint:", &config_hotkeys[config_HotkeyIndex_DebugBreakpoint]);
+            hotkey_configuration_item("Go Back:", &config_hotkeys[config_HotkeyIndex_DebugGoBack]);
+            gui_popup_modal_hotkey();
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        ImGui::MenuItem("Single Instance", "", &config_debug.single_instance);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("RESTART REQUIRED");
+            ImGui::NewLine();
+            ImGui::Text("When enabled, opening media while another instance is running");
+            ImGui::Text("will send the media to the running instance instead of");
+            ImGui::Text("starting a new one.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_machine(void)
+{
+    if (!ImGui::BeginMenu("Machine"))
+        return;
+
+    GeardoxCore* core = emu_get_core();
+    bool running = !emu_is_empty();
+    const GDOX_Machine_Config& machine = running ? core->GetMachineConfig() : core->GetPendingMachineConfig();
+    const GDOX_Machine_Report& report = core->GetPendingMachineReport();
+    const GDOX_Machine_Profile& profile = k_machine_profiles[core->GetPendingMachineConfig().model];
+    bool changed = false;
+    char summary[128];
+
+    get_machine_summary(machine, summary, sizeof(summary));
+    ImGui::TextDisabled("%s", summary);
+
+    if (running && core->IsMachineConfigPending())
+    {
+        char pending[128];
+        get_machine_summary(core->GetPendingMachineConfig(), pending, sizeof(pending));
+
+        if (strcmp(pending, summary) != 0)
+            ImGui::TextDisabled("After reset: %s", pending);
+    }
+
+    if (report.model == GDOX_MACHINE_SOURCE_DATABASE)
+        ImGui::TextDisabled("Game detected: %s", report.title);
+    else if (report.model == GDOX_MACHINE_SOURCE_DEFAULT)
+        ImGui::TextDisabled("Auto: game not detected");
+
+    if (report.ram == GDOX_MACHINE_SOURCE_HARD_DISK)
+        ImGui::TextDisabled("Auto: 4 MB for the hard disk");
+
+    for (int i = 0; i < report.warning_count; i++)
+        ImGui::TextColored(machine_warning_color, "%s", report.warnings[i]);
+
+    ImGui::Separator();
+
+    if (menu_machine_model())
+        changed = true;
+
+    if (menu_machine_cpu_speed(profile))
+        changed = true;
+
+    if (menu_machine_ram(profile))
+        changed = true;
+
+    if (menu_machine_fpu(profile))
+        changed = true;
+
+    menu_machine_hardware(core->GetPendingMachineConfig().model);
+
+#if !defined(GDOX_DISABLE_DYNAREC)
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("CPU Dynarec", "", &config_emulator.dynarec))
+        emu_set_dynarec(config_emulator.dynarec);
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Use dynamic recompilation.");
+        ImGui::Text("Most games will run faster but some games may run slower.");
+        ImGui::Text("The debugger always runs the interpreter.");
+
+        if (config_emulator.dynarec && !emu_is_dynarec_enabled())
+            ImGui::TextColored(red, "Not available on this system, the interpreter is running.");
+
+        ImGui::EndTooltip();
+    }
+#endif
+
+    if (changed)
+        emu_apply_machine_settings();
+
+    if (running && core->IsMachineConfigPending())
+    {
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Reset to Apply Changes"))
+            gui_action_reset();
+    }
+
+    ImGui::EndMenu();
+}
+
+static bool menu_machine_model(void)
+{
+    if (!ImGui::BeginMenu("Model"))
+        return false;
+
+    GeardoxCore* core = emu_get_core();
+    bool changed = false;
+    float name_width = 0.0f;
+    float cpu_width = 0.0f;
+    char cpu[32];
+    char preview[64];
+
+    for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
+    {
+        const GDOX_Machine_Profile& profile = k_machine_profiles[k_machine_release_order[i]];
+        snprintf(cpu, sizeof(cpu), "%s %d MHz", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000));
+        name_width = MAX(name_width, ImGui::CalcTextSize(profile.name).x);
+        cpu_width = MAX(cpu_width, ImGui::CalcTextSize(cpu).x);
+    }
+
+    float cpu_column = name_width + ImGui::GetStyle().ItemSpacing.x * 4.0f;
+
+    if (config_machine.model == GDOX_MACHINE_AUTO)
+        snprintf(preview, sizeof(preview), "Auto (%s)", k_machine_profiles[core->GetPendingMachineConfig().model].name);
+    else
+        snprintf(preview, sizeof(preview), "%s", k_machine_profiles[config_machine.model].name);
+
+    ImGui::PushItemWidth(get_combo_width(MAX(cpu_column + cpu_width, ImGui::CalcTextSize(preview).x)));
+
+    if (ImGui::BeginCombo("##machine_model", preview))
+    {
+        if (ImGui::Selectable(config_machine.model == GDOX_MACHINE_AUTO ? preview : "Auto",
+            config_machine.model == GDOX_MACHINE_AUTO))
+        {
+            config_machine.model = GDOX_MACHINE_AUTO;
+            changed = true;
+        }
+
+        ImGui::Separator();
+
+        for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
+        {
+            GDOX_Machine_Model model = k_machine_release_order[i];
+            const GDOX_Machine_Profile& profile = k_machine_profiles[model];
+            snprintf(cpu, sizeof(cpu), "%s %d MHz", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000));
+
+            ImGui::BeginDisabled(!profile.emulated || !core->HasFirmware(model));
+
+            if (ImGui::Selectable(profile.name, config_machine.model == model))
+            {
+                config_machine.model = model;
+                changed = true;
+            }
+
+            bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
+            ImGui::SameLine(cpu_column);
+            ImGui::TextDisabled("%s", cpu);
+            ImGui::EndDisabled();
+
+            if (hovered)
+                draw_machine_profile_tooltip(model);
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("It is recommended to leave this option on Auto.");
+        ImGui::Text("Auto picks the machine and RAM from game database");
+        ImGui::Text("or the 386DX-33 if not detected.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
+{
+    if (!ImGui::BeginMenu("CPU Speed"))
+        return false;
+
+    bool changed = false;
+    int original = (int)(profile.cpu_clock_rate / 1000000);
+    int in_use = (int)(emu_get_core()->GetPendingMachineConfig().cpu_clock_rate / 1000000);
+    float text_width = 0.0f;
+    char labels[GDOX_MACHINE_CPU_SPEED_COUNT][32];
+    char auto_label[32];
+    snprintf(auto_label, sizeof(auto_label), "Auto (%d MHz)", config_machine.cpu_mhz == GDOX_MACHINE_AUTO ? in_use : original);
+    const char* preview = auto_label;
+
+    for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
+    {
+        int speed = k_machine_cpu_speeds_mhz[i];
+        snprintf(labels[i], sizeof(labels[i]), speed == original ? "%d MHz (Original)" : "%d MHz", speed);
+        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+
+        if (speed == config_machine.cpu_mhz)
+            preview = labels[i];
+    }
+
+    ImGui::PushItemWidth(get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##machine_cpu_speed", preview))
+    {
+        if (ImGui::Selectable(auto_label, config_machine.cpu_mhz == GDOX_MACHINE_AUTO))
+        {
+            config_machine.cpu_mhz = GDOX_MACHINE_AUTO;
+            changed = true;
+        }
+
+        ImGui::Separator();
+
+        for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
+        {
+            if (ImGui::Selectable(labels[i], config_machine.cpu_mhz == k_machine_cpu_speeds_mhz[i]))
+            {
+                config_machine.cpu_mhz = k_machine_cpu_speeds_mhz[i];
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("It is recommended to leave this option on Auto.");
+        ImGui::Text("Auto picks the CPU clock from game database");
+        ImGui::Text("or runs the CPU at the model's original clock.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
+{
+    if (!ImGui::BeginMenu("Main RAM"))
+        return false;
+
+    GeardoxCore* core = emu_get_core();
+    bool changed = false;
+    int in_use = (int)(core->GetPendingMachineConfig().ram_size / (1024 * 1024));
+    float text_width = 0.0f;
+    char labels[GDOX_MACHINE_RAM_SIZE_COUNT][32];
+    char auto_label[32];
+    char preview[96];
+    snprintf(auto_label, sizeof(auto_label), "Auto (%d MB)",
+        config_machine.ram_mb == GDOX_MACHINE_AUTO ? in_use : profile.ram_default_mb);
+    snprintf(preview, sizeof(preview), "%s", auto_label);
+
+    for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
+    {
+        int size = k_machine_ram_sizes_mb[i];
+        snprintf(labels[i], sizeof(labels[i]), size == profile.ram_default_mb ? "%d MB (Original)" : "%d MB", size);
+        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+
+        if (size == config_machine.ram_mb)
+            snprintf(preview, sizeof(preview), "%s", labels[i]);
+    }
+
+    if ((config_machine.ram_mb != GDOX_MACHINE_AUTO) && (config_machine.ram_mb != in_use))
+        snprintf(preview, sizeof(preview), "%d MB, %d MB on the %s", config_machine.ram_mb, in_use, profile.name);
+
+    ImGui::PushItemWidth(get_combo_width(MAX(text_width, ImGui::CalcTextSize(preview).x)));
+
+    if (ImGui::BeginCombo("##machine_ram", preview))
+    {
+        if (ImGui::Selectable(auto_label, config_machine.ram_mb == GDOX_MACHINE_AUTO))
+        {
+            config_machine.ram_mb = GDOX_MACHINE_AUTO;
+            changed = true;
+        }
+
+        ImGui::Separator();
+
+        for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
+        {
+            if (ImGui::Selectable(labels[i], config_machine.ram_mb == k_machine_ram_sizes_mb[i]))
+            {
+                config_machine.ram_mb = k_machine_ram_sizes_mb[i];
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("It is recommended to leave this option on Auto.");
+        ImGui::Text("Auto picks the RAM from game database");
+        ImGui::Text("or model's original RAM if not detected.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
+{
+    if (!ImGui::BeginMenu("FPU"))
+        return false;
+
+    bool changed = false;
+    bool in_use = emu_get_core()->GetPendingMachineConfig().fpu;
+    const char* labels[2] = { "None (Original)", get_machine_fpu_name(profile.cpu) };
+    char auto_label[32];
+    char preview[96];
+    snprintf(auto_label, sizeof(auto_label), "Auto (%s)", in_use ? labels[1] : "None");
+    snprintf(preview, sizeof(preview), "%s", config_machine.fpu == GDOX_MACHINE_AUTO ? auto_label :
+        labels[config_machine.fpu != 0 ? 1 : 0]);
+
+    if ((config_machine.fpu > 0) && !in_use)
+        snprintf(preview, sizeof(preview), "%s, none on the %s", labels[1], profile.name);
+
+    float text_width = MAX(ImGui::CalcTextSize(labels[0]).x, ImGui::CalcTextSize(preview).x);
+    ImGui::PushItemWidth(get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##machine_fpu", preview))
+    {
+        if (ImGui::Selectable(auto_label, config_machine.fpu == GDOX_MACHINE_AUTO))
+        {
+            config_machine.fpu = GDOX_MACHINE_AUTO;
+            changed = true;
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::Selectable(labels[0], config_machine.fpu == 0))
+        {
+            config_machine.fpu = 0;
+            changed = true;
+        }
+
+        ImGui::BeginDisabled(profile.fpu == GDOX_MACHINE_FPU_NONE);
+
+        if (ImGui::Selectable(labels[1], config_machine.fpu > 0))
+        {
+            config_machine.fpu = 1;
+            changed = true;
+        }
+
+        ImGui::EndDisabled();
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("It is recommended to leave this option on Auto.");
+        ImGui::Text("Auto fits an 80387 if the game database asks for one");
+        ImGui::Text("or keeps the model's original, with no FPU.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
+static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile)
+{
+    if (profile.fpu == GDOX_MACHINE_FPU_INTEGRATED)
+        return "integrated";
+
+    if (profile.fpu == GDOX_MACHINE_FPU_NONE)
+        return "none, no socket";
+
+    return profile.cpu == GDOX_MACHINE_CPU_80486SX ? "487SX, optional" : "80387, optional";
+}
+
+static void menu_machine_hardware(GDOX_Machine_Model model)
+{
+    if (!ImGui::BeginMenu("Summary"))
+        return;
+
+    char hardware[1024];
+    get_machine_hardware(model, hardware, sizeof(hardware));
+    ImVec2 size = ImGui::CalcTextSize(hardware);
+    ImVec2 padding = ImGui::GetStyle().FramePadding;
+
+    ImGui::InputTextMultiline("##hardware", hardware, sizeof(hardware),
+        ImVec2(size.x + (padding.x * 2.0f), size.y + (padding.y * 2.0f)), ImGuiInputTextFlags_ReadOnly);
+
+    ImGui::EndMenu();
+}
+
+static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t text_size)
+{
+    const GDOX_Machine_Profile& profile = k_machine_profiles[model];
+    char firmware[GDOX_MAX_PATH];
+    gui_get_firmware_status(model, firmware, sizeof(firmware));
+
+    snprintf(text, text_size, "CPU: %s at %d MHz\nFPU: %s\nFloppy drives: %d\nBIOS: %s", k_machine_cpus[profile.cpu].name,
+        (int)(profile.cpu_clock_rate / 1000000), get_machine_fpu_text(profile), profile.floppy_drives, firmware);
+}
+
+static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
+{
+    const GDOX_Machine_Profile& profile = k_machine_profiles[model];
+    char firmware[GDOX_MAX_PATH];
+    gui_get_firmware_status(model, firmware, sizeof(firmware));
+    char ram[96] = "";
+
+    for (int i = 0; profile.ram_sizes_mb[i] != 0; i++)
+    {
+        char size[8];
+        snprintf(size, sizeof(size), i == 0 ? "%d" : ", %d", profile.ram_sizes_mb[i]);
+        strncat_fit(ram, size, sizeof(ram));
+    }
+
+    ImGui::BeginTooltip();
+    ImGui::Text("Models: %s", profile.models);
+    ImGui::Text("Released: %s", profile.released);
+    ImGui::Text("CPU: %s at %d MHz", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000));
+    ImGui::Text("FPU: %s", get_machine_fpu_text(profile));
+    ImGui::Text("RAM: %s MB", ram);
+    ImGui::Text("Floppy drives: %d", profile.floppy_drives);
+    ImGui::Text("BIOS:");
+    ImGui::SameLine();
+    ImGui::TextColored(gui_get_firmware_status_color(model), "%s", firmware);
+
+    if (!profile.emulated)
+    {
+        ImGui::Separator();
+        ImGui::TextDisabled("Not emulated yet");
+    }
+    else if (!emu_get_core()->HasFirmware(model))
+    {
+        ImGui::Separator();
+        ImGui::TextDisabled("No BIOS found, see Emulator > BIOS...");
+    }
+
+    ImGui::EndTooltip();
+}
+
+static void menu_boot_device(void)
+{
+    static const char* const names[GDOX_BOOT_DEVICE_COUNT] = { "", "Floppy 1", "Floppy 2", "Hard Disk 0", "Hard Disk 1",
+        "Hard Disk 2", "Hard Disk 3", "CD-ROM" };
+    GeardoxCore* core = emu_get_core();
+    const GDOX_Machine_Config& config = core->GetPendingMachineConfig();
+
+    for (int i = GDOX_BOOT_DEVICE_FLOPPY_0; i < GDOX_BOOT_DEVICE_COUNT; i++)
+    {
+        bool enabled = true;
+
+        if ((i == GDOX_BOOT_DEVICE_FLOPPY_0) || (i == GDOX_BOOT_DEVICE_FLOPPY_1))
+            enabled = (i - GDOX_BOOT_DEVICE_FLOPPY_0) < config.floppy_drives;
+        else if ((i >= GDOX_BOOT_DEVICE_HARD_DISK_0) && (i <= GDOX_BOOT_DEVICE_HARD_DISK_3))
+        {
+            int id = i - GDOX_BOOT_DEVICE_HARD_DISK_0;
+            enabled = core->IsHardDiskPending(id) ? (core->GetPendingHardDiskPath(id)[0] != 0) :
+                core->GetHardDisk(id)->IsOpen();
+        }
+
+        if ((i == GDOX_BOOT_DEVICE_HARD_DISK_0) || (i == GDOX_BOOT_DEVICE_CDROM))
+            ImGui::Separator();
+
+        if (ImGui::MenuItem(names[i], NULL, false, enabled))
+        {
+            core->SetBootDevice((GDOX_Boot_Device)i);
+            gui_action_reset();
+        }
+    }
+}
+
+static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size)
+{
+    bool card = config.fpu && !k_machine_cpus[config.cpu].fpu;
+    snprintf(text, text_size, "%s · %s %u MHz%s%s · %u MB", k_machine_profiles[config.model].name,
+        k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000, card ? " + " : "",
+        card ? get_machine_fpu_name(config.cpu) : "", config.ram_size / (1024 * 1024));
+}
+
+static float get_combo_width(float text_width)
+{
+    return text_width + (ImGui::GetStyle().FramePadding.x * 2.0f) + ImGui::GetFrameHeight();
+}
+
+static void menu_video(void)
+{
+    if (ImGui::BeginMenu("Video"))
+    {
+        gui_in_use = true;
+
+        bool is_recording = emu_is_video_recording();
+
+        if (ImGui::MenuItem("Full Screen", config_hotkeys[config_HotkeyIndex_Fullscreen].str, &config_emulator.fullscreen, !is_recording))
+        {
+            application_trigger_fullscreen(config_emulator.fullscreen);
+        }
+
+#if !defined(__APPLE__)
+        if (ImGui::BeginMenu("Fullscreen Mode"))
+        {
+            ImGui::PushItemWidth(130.0f);
+            ImGui::Combo("##fullscreen_mode", &config_emulator.fullscreen_mode, "Borderless\0Exclusive\0\0");
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+#endif
+
+        ImGui::Separator();
+
+        ImGui::MenuItem("Always Show Menu", config_hotkeys[config_HotkeyIndex_ShowMainMenu].str, &config_emulator.always_show_menu);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("This option will enable menu even in fullscreen.");
+            ImGui::Text("Menu always shows in debug mode.");
+            ImGui::EndTooltip();
+        }
+
+        if (ImGui::MenuItem("Resize Window to Content", NULL, false, !is_recording))
+        {
+            if (!config_debug.debug)
+            {
+                application_trigger_fit_to_content(gui_main_window_width, gui_main_window_height + gui_main_menu_height);
+            }
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Scale"))
+        {
+            ImGui::PushItemWidth(250.0f);
+            ImGui::Combo("##scale", &config_video.scale,
+                "Integer Scale (Auto)\0Integer Scale (Manual)\0"
+                "Scale to Window Height\0Scale to Window Width & Height\0\0");
+
+            if (config_video.scale == 1)
+                ImGui::SliderInt("##scale_manual", &config_video.scale_manual, 1, 20);
+
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Aspect Ratio"))
+        {
+            ImGui::PushItemWidth(190.0f);
+            ImGui::Combo("##ratio", &config_video.ratio,
+                "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::MenuItem("Native Resolution", "", &config_video.native_resolution))
+            emu_set_native_resolution(config_video.native_resolution);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Output one pixel per game pixel, as shaders expect.");
+            ImGui::Text("When disabled, zoomed modes are output at monitor resolution.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Vertical Sync"))
+        {
+#if defined(_WIN32)
+            ImGui::PushItemWidth(220.0f);
+
+            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, "Disabled\0Fixed Vertical Sync\0Variable Refresh Rate (VRR)\0\0"))
+#else
+            ImGui::PushItemWidth(100.0f);
+
+            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, "Disabled\0Enabled\0\0"))
+#endif
+            {
+                if (config_video.sync_mode != config_VideoSync_Disabled)
+                {
+                    config_audio.sync = true;
+                    config_emulator.ffwd = false;
+                    emu_audio_reset();
+                }
+
+                display_use_vsync_if_enabled();
+            }
+
+            ImGui::PopItemWidth();
+
+#if defined(_WIN32)
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Disabled: do not synchronize presentation to the monitor.");
+                ImGui::Text("Fixed Vertical Sync: use normal VSync.");
+                ImGui::Text("VRR: present at the emulator frame rate.");
+                ImGui::Text("\nVRR requires fullscreen, a VRR display, and G-SYNC,");
+                ImGui::Text("FreeSync, or Adaptive Sync enabled in your monitor and GPU driver settings.");
+                ImGui::EndTooltip();
+            }
+#endif
+            ImGui::EndMenu();
+        }
+
+        ImGui::MenuItem("Show FPS", "", &config_video.fps);
+
+        ImGui::Separator();
+
+        menu_shader();
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Theme"))
+        {
+            ImGui::PushItemWidth(100.0f);
+
+            if (ImGui::Combo("##theme", &config_emulator.theme, "Light\0Dark\0\0"))
+            {
+                gui_set_style();
+            }
+
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Background Color"))
+        {
+            draw_background_color_menu("Dark Theme", config_Theme_Dark);
+            draw_background_color_menu("Light Theme", config_Theme_Light);
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+static void draw_background_color_menu(const char* label, int theme)
+{
+    if (ImGui::BeginMenu(label))
+    {
+        ImGui::PushID(theme);
+
+        ImGui::ColorEdit3("##normal_bg", config_video.background_color[theme], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_Float);
+        ImGui::SameLine();
+        ImGui::Text("Normal Background");
+
+        ImGui::Separator();
+
+        if (ImGui::ColorEdit3("##debugger_bg", config_video.background_color_debugger[theme], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_Float))
+        {
+            if (config_emulator.theme == theme)
+                gui_set_style();
+        }
+
+        ImGui::SameLine();
+        ImGui::Text("Debugger Background");
+
+        ImGui::PopID();
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_shader(void)
+{
+    if (!ImGui::BeginMenu("Shader"))
+        return;
+
+    bool has_preset = ogl_shader_chain_has_preset();
+    int selected_index = 0;
+
+    if (has_preset && config_video.shader_mode == config_ShaderMode_External)
+    {
+        for (int i = 0; i < shader_preset_count; i++)
+        {
+            if (shader_preset_config_path_matches(config_video.shader_preset_path.c_str(), shader_presets[i].path))
+            {
+                selected_index = i + 1;
+                break;
+            }
+        }
+    }
+
+    const char* preview = selected_index == 0 ? "Pixel Perfect" : shader_presets[selected_index - 1].name;
+    ImGui::PushItemWidth(240.0f);
+
+    if (ImGui::BeginCombo("##ShaderPreset", preview))
+    {
+        bool selected = selected_index == 0;
+
+        if (ImGui::Selectable("Pixel Perfect", selected))
+        {
+            if (selected_index != 0)
+            {
+                ogl_renderer_unload_shader_preset();
+                gui_notify(gui_NotificationInfo, ICON_MD_TUNE, "Shader preset loaded", "Pixel Perfect", "shader");
+            }
+        }
+
+        if (selected)
+            ImGui::SetItemDefaultFocus();
+
+        for (int i = 0; i < shader_preset_count; i++)
+        {
+            selected = selected_index == i + 1;
+
+            if (ImGui::Selectable(shader_presets[i].name, selected))
+            {
+                if (selected_index != i + 1)
+                {
+                    if (ogl_renderer_load_shader_preset(shader_presets[i].path))
+                    {
+                        gui_notify(gui_NotificationInfo, ICON_MD_TUNE, "Shader preset loaded",
+                            ogl_shader_chain_get_preset_name(), "shader");
+                    }
+                    else
+                    {
+                        gui_notify(gui_NotificationError, NULL, "Unable to load shader preset",
+                            ogl_shader_chain_get_last_error(), "shader");
+                    }
+                }
+            }
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
+
+    ImGui::PopItemWidth();
+
+    has_preset = ogl_shader_chain_has_preset();
+
+    if (has_preset && ogl_shader_chain_get_parameter_count() > 0)
+    {
+        if (ImGui::BeginMenu("Parameters"))
+        {
+            draw_shader_parameters();
+            ImGui::EndMenu();
+        }
+    }
+    else if (ogl_shader_chain_get_last_error()[0] != '\0')
+    {
+        ImGui::Separator();
+        ImGui::TextColored(red, "%s", ogl_shader_chain_get_last_error());
+    }
+
+    ImGui::EndMenu();
+}
+
+static void draw_shader_parameters(void)
+{
+    int count = ogl_shader_chain_get_parameter_count();
+
+    if (count <= 0)
+        return;
+
+    const float parameter_width = 220.0f;
+
+    if (ImGui::Button("Restore Defaults", ImVec2(parameter_width, 0.0f)))
+    {
+        if (ogl_shader_chain_restore_default_parameters())
+        {
+            ogl_renderer_save_shader_parameter_config();
+            gui_notify(gui_NotificationSuccess, ICON_MD_TUNE, "Shader parameters restored");
+        }
+    }
+
+    ImGui::PushItemWidth(parameter_width);
+
+    for (int i = 0; i < count; i++)
+    {
+        const ShaderPresetParameter* parameter = ogl_shader_chain_get_parameter(i);
+
+        if (!parameter)
+            continue;
+
+        float value = parameter->value;
+        char label[160];
+        snprintf(label, sizeof(label), "%s##shader_parameter_%d", parameter->label[0] != '\0' ? parameter->label : parameter->name, i);
+
+        if (shader_parameter_is_toggle(parameter))
+        {
+            bool enabled = value >= 0.5f;
+
+            if (ImGui::Checkbox(label, &enabled))
+            {
+                ogl_shader_chain_set_parameter(i, enabled ? 1.0f : 0.0f);
+                ogl_renderer_save_shader_parameter_config();
+            }
+
+            continue;
+        }
+
+        if (shader_parameter_is_integer(parameter))
+        {
+            int int_value = shader_parameter_round_to_int(value);
+            int min_value = shader_parameter_round_to_int(parameter->minimum);
+            int max_value = shader_parameter_round_to_int(parameter->maximum);
+
+            if (ImGui::SliderInt(label, &int_value, min_value, max_value))
+            {
+                ogl_shader_chain_set_parameter(i, (float)int_value);
+                ogl_renderer_save_shader_parameter_config();
+            }
+            draw_shader_parameter_tooltip();
+
+            continue;
+        }
+
+        if (ImGui::SliderFloat(label, &value, parameter->minimum, parameter->maximum, "%.3f"))
+        {
+            ogl_shader_chain_set_parameter(i, value);
+            ogl_renderer_save_shader_parameter_config();
+        }
+        draw_shader_parameter_tooltip();
+    }
+
+    ImGui::PopItemWidth();
+}
+
+static void draw_shader_parameter_tooltip(void)
+{
+    if (ImGui::IsItemHovered() && !ImGui::IsItemActive())
+    {
+#if defined(__APPLE__)
+        ImGui::SetTooltip("Cmd+Click to enter a value");
+#else
+        ImGui::SetTooltip("Ctrl+Click to enter a value");
+#endif
+    }
+}
+
+static bool shader_parameter_is_toggle(const ShaderPresetParameter* parameter)
+{
+    return parameter && parameter->minimum == 0.0f && parameter->maximum == 1.0f && parameter->step >= 1.0f;
+}
+
+static bool shader_parameter_is_integer(const ShaderPresetParameter* parameter)
+{
+    return parameter && parameter->step >= 1.0f;
+}
+
+static int shader_parameter_round_to_int(float value)
+{
+    return value >= 0.0f ? (int)(value + 0.5f) : (int)(value - 0.5f);
+}
+
+static void menu_input_controller(int port)
+{
+    int* setting = &config_input.controller_type[port];
+    bool automatic = *setting == config_ControllerType_Auto;
+    bool changed = false;
+    char preview[64];
+
+    if (automatic)
+        snprintf(preview, sizeof(preview), "Auto (%s)", emu_get_pad_type_name(emu_get_pad_type((GDOX_Controllers)port)));
+    else
+        snprintf(preview, sizeof(preview), "%s", emu_get_pad_type_name(*setting));
+
+    if (ImGui::BeginCombo("##controller", preview))
+    {
+        if (ImGui::Selectable(automatic ? preview : "Auto", automatic))
+        {
+            *setting = config_ControllerType_Auto;
+            changed = true;
+        }
+
+        ImGui::Separator();
+
+        for (int type = GDOX_CONTROLLER_NONE; type <= GDOX_CONTROLLER_MOUSE; type++)
+        {
+            if (ImGui::Selectable(emu_get_pad_type_name(type), *setting == type))
+            {
+                *setting = type;
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("It is recommended to leave this option on Auto.");
+        ImGui::Text("Auto picks the controller from game database or");
+        ImGui::Text("Original Gamepad (port 1) and Mouse (port 2) if not detected.");
+        ImGui::EndTooltip();
+    }
+
+    if (changed)
+        emu_update_pad_types();
+}
+
+static void menu_input(void)
+{
+    if (ImGui::BeginMenu("Input"))
+    {
+        gui_in_use = true;
+
+        if (ImGui::BeginMenu("Controller Ports"))
+        {
+            for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+            {
+                char player_name[32];
+                snprintf(player_name, sizeof(player_name), "Port %d", i + 1);
+
+                if (ImGui::BeginMenu(player_name))
+                {
+                    ImGui::PushItemWidth(200.0f);
+                    menu_input_controller(i);
+                    ImGui::PopItemWidth();
+
+                    if (ImGui::BeginMenu("Keyboard Mode"))
+                    {
+                        ImGui::PushItemWidth(170.0f);
+
+                        if (ImGui::Combo("##keyboard_mode", &config_input.keyboard_mode[i], "Gamepad\0PC Keyboard\0\0"))
+                            events_sync_input();
+
+                        ImGui::PopItemWidth();
+
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::BeginTooltip();
+                            ImGui::Text("Gamepad: the Port %d bindings from Input > Keyboard control this gamepad.", i + 1);
+                            ImGui::Text("PC Keyboard: the Port %d bindings type on the PC keyboard.", i + 1);
+                            ImGui::Text("Other keys always type on the PC keyboard.");
+                            ImGui::EndTooltip();
+                        }
+
+                        ImGui::EndMenu();
+                    }
+                    ImGui::EndMenu();
+                }
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Keyboard"))
+        {
+            if (ImGui::MenuItem("Capture Keyboard", config_hotkeys[config_HotkeyIndex_CaptureKeyboard].str, &config_emulator.capture_keyboard))
+                events_release_keyboard();
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("When enabled, keys type on the PC keyboard and only");
+                ImGui::Text("the Quit, Fullscreen and Capture Keyboard hotkeys work.");
+                ImGui::Text("When disabled, all hotkeys work and other keys still type.");
+                ImGui::Text("Press %s to toggle it.", config_hotkeys[config_HotkeyIndex_CaptureKeyboard].str);
+                ImGui::EndTooltip();
+            }
+
+            if (input_macro_get_owner() == Input_Macro_Owner_GUI)
+            {
+                if (ImGui::MenuItem("Stop Pasting"))
+                    gui_action_stop_pasting();
+            }
+            else
+            {
+                if (ImGui::MenuItem("Paste as Keystrokes", NULL, false, !emu_is_empty() &&
+                    input_macro_get_owner() == Input_Macro_Owner_None))
+                    gui_action_paste_keystrokes();
+
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Types the clipboard text on the PC keyboard, up to %d characters.", k_input_macro_max_paste);
+                    ImGui::Text("Characters the PC keyboard can't type are skipped.");
+                    ImGui::EndTooltip();
+                }
+            }
+
+            ImGui::Separator();
+
+            for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+            {
+                char keyboard_name[32];
+                snprintf(keyboard_name, sizeof(keyboard_name), "Port %d Mapping", i + 1);
+
+                if (ImGui::BeginMenu(keyboard_name))
+                {
+                    ImGui::TextDisabled("Keyboard %s", keyboard_name);
+                    ImGui::Separator();
+                    keyboard_configuration_item("Left:", &config_input_keyboard[i].key_left, i);
+                    keyboard_configuration_item("Right:", &config_input_keyboard[i].key_right, i);
+                    keyboard_configuration_item("Up:", &config_input_keyboard[i].key_up, i);
+                    keyboard_configuration_item("Down:", &config_input_keyboard[i].key_down, i);
+                    keyboard_configuration_item("Select:", &config_input_keyboard[i].key_select, i);
+                    keyboard_configuration_item("Run:", &config_input_keyboard[i].key_run, i);
+                    keyboard_configuration_item("A:", &config_input_keyboard[i].key_A, i);
+                    keyboard_configuration_item("B:", &config_input_keyboard[i].key_B, i);
+
+                    gui_popup_modal_keyboard();
+
+                    ImGui::EndMenu();
+                }
+            }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Mouse"))
+        {
+            if (ImGui::MenuItem("Capture Mouse", config_hotkeys[config_HotkeyIndex_CaptureMouse].str, &config_emulator.capture_mouse))
+                events_release_mouse();
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("When enabled, the mouse will be captured inside");
+                ImGui::Text("the emulator window to use the mouse freely.");
+                ImGui::Text("Press %s to release the mouse.", config_hotkeys[config_HotkeyIndex_CaptureMouse].str);
+                ImGui::EndTooltip();
+            }
+
+            ImGui::SliderInt("##mouse_sensitivity", &config_emulator.mouse_sensitivity, 1, 15, "Sensitivity = %d");
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Host Gamepads"))
+        {
+            for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+            {
+                char gamepad_name[32];
+                snprintf(gamepad_name, sizeof(gamepad_name), "Port %d", i + 1);
+
+                if (ImGui::BeginMenu(gamepad_name))
+                {
+                    if (!gamepad_controller[i])
+                        ImGui::TextDisabled("This gamepad is not detected");
+                    else
+                        ImGui::TextDisabled("Gamepad detected for Port %d", i + 1);
+
+                    ImGui::Separator();
+
+                    if (ImGui::BeginMenu("Device"))
+                    {
+                        gamepad_device_selector(i);
+                        ImGui::EndMenu();
+                    }
+
+                    if (ImGui::BeginMenu("Directional Controls"))
+                    {
+                        ImGui::PushItemWidth(200.0f);
+                        ImGui::Combo("##directional", &config_input_gamepad[i].gamepad_directional,
+                            "D-pad\0Left Analog Stick\0D-pad + Left Analog Stick\0\0");
+                        ImGui::PopItemWidth();
+                        ImGui::EndMenu();
+                    }
+
+                    if (ImGui::BeginMenu("Button Configuration"))
+                    {
+                        ImGui::TextDisabled("Gamepad %s", gamepad_name);
+                        ImGui::Separator();
+                        gamepad_configuration_item("Select:", &config_input_gamepad[i].gamepad_select, i);
+                        gamepad_configuration_item("Run:", &config_input_gamepad[i].gamepad_run, i);
+                        gamepad_configuration_item("A:", &config_input_gamepad[i].gamepad_A, i);
+                        gamepad_configuration_item("B:", &config_input_gamepad[i].gamepad_B, i);
+
+                        gui_popup_modal_gamepad(i);
+
+                        ImGui::EndMenu();
+                    }
+
+                    if (ImGui::BeginMenu("Shortcut Configuration"))
+                    {
+                        ImGui::TextDisabled("Gamepad %s - Shortcuts", gamepad_name);
+                        ImGui::Separator();
+
+                        gamepad_configuration_item("Save State:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SaveState], i);
+                        gamepad_configuration_item("Load State:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_LoadState], i);
+                        gamepad_configuration_item("Save State Slot 1:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot1], i);
+                        gamepad_configuration_item("Save State Slot 2:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot2], i);
+                        gamepad_configuration_item("Save State Slot 3:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot3], i);
+                        gamepad_configuration_item("Save State Slot 4:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot4], i);
+                        gamepad_configuration_item("Save State Slot 5:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot5], i);
+
+                        ImGui::Separator();
+
+                        gamepad_configuration_item("Power On:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_PowerOn], i);
+                        gamepad_configuration_item("Power Off:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_PowerOff], i);
+                        gamepad_configuration_item("Reset:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Reset], i);
+                        gamepad_configuration_item("Pause:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Pause], i);
+                        gamepad_configuration_item("Fast Forward:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_FFWD], i);
+                        gamepad_configuration_item("Rewind:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Rewind], i);
+                        gamepad_configuration_item("Screenshot:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Screenshot], i);
+                        gamepad_configuration_item("Video Recording:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_VideoRecording], i);
+                        gamepad_configuration_item("Mute All Audio:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Mute], i);
+                        gamepad_configuration_item("Fullscreen:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Fullscreen], i);
+                        gamepad_configuration_item("Capture Mouse:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_CaptureMouse], i);
+                        gamepad_configuration_item("Capture Keyboard:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_CaptureKeyboard], i);
+                        gamepad_configuration_item("Show Main Menu:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_ShowMainMenu], i);
+
+                        gui_popup_modal_gamepad(i);
+
+                        ImGui::EndMenu();
+                    }
+
+                    ImGui::EndMenu();
+                }
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        ImGui::MenuItem("Allow Up+Down / Left+Right", "", &config_input.allow_up_down);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Allow pressing, quickly alternating, or holding");
+            ImGui::Text("both left and right or up and down directions.");
+            ImGui::Text("This may cause movement glitches in certain games.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_audio(void)
+{
+    if (ImGui::BeginMenu("Audio"))
+    {
+        gui_in_use = true;
+
+        bool mute = !config_audio.enable;
+
+        if (ImGui::MenuItem("Mute All Audio", config_hotkeys[config_HotkeyIndex_Mute].str, &mute))
+        {
+            config_audio.enable = !mute;
+            emu_audio_mute(mute);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Master Volume", config_audio.enable))
+        {
+            ImGui::PushItemWidth(200.0f);
+
+            if (ImGui::SliderFloat("##master_volume", &config_audio.master_volume, 0.0f, 2.0f, "Volume = %.2f", ImGuiSliderFlags_AlwaysClamp))
+            {
+                emu_audio_set_master_volume(config_audio.master_volume);
+            }
+
+            ImGui::PopItemWidth();
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Anything above 1.00 may cause clipping.");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        menu_audio_source_mute("Mute FM", Audio::AUDIO_SOURCE_FM);
+        menu_audio_source_mute("Mute PCM", Audio::AUDIO_SOURCE_PCM);
+        menu_audio_source_mute("Mute CD-DA", Audio::AUDIO_SOURCE_CDDA);
+        menu_audio_source_mute("Mute Buzzer", Audio::AUDIO_SOURCE_BUZZER);
+
+        ImGui::Separator();
+
+        menu_audio_source_volume("FM Volume", "##fm_volume", Audio::AUDIO_SOURCE_FM, &config_audio.fm_volume);
+        menu_audio_source_volume("PCM Volume", "##pcm_volume", Audio::AUDIO_SOURCE_PCM, &config_audio.pcm_volume);
+        menu_audio_source_volume("CD-DA Volume", "##cdda_volume", Audio::AUDIO_SOURCE_CDDA, &config_audio.cdda_volume);
+        menu_audio_source_volume("Buzzer Volume", "##buzzer_volume", Audio::AUDIO_SOURCE_BUZZER, &config_audio.buzzer_volume);
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Buffer Size", config_audio.enable))
+        {
+            ImGui::PushItemWidth(150.0f);
+
+            if (ImGui::SliderInt("##buffer_count", &config_audio.buffer_count, 2, 5, "Buffers = %d"))
+            {
+                emu_audio_restart();
+            }
+
+            ImGui::PopItemWidth();
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Audio latency: %.0f ms", sound_queue_get_target_latency_ms());
+                ImGui::Text("\nLower values reduce audio latency.");
+                ImGui::Text("Higher values prevent audio underruns.");
+                ImGui::Text("Enabling VSync may force higher buffer counts.");
+
+                ImGui::EndTooltip();
+            }
+
+            ImGui::EndMenu();
+        }
+
+#ifndef GDOX_DISABLE_VGMRECORDER
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("VGM Recorder"))
+        {
+            bool is_recording = emu_is_vgm_recording();
+
+            if (ImGui::MenuItem("Start Recording...", "", false, !is_recording && !emu_is_empty()))
+            {
+                save_vgm = true;
+            }
+
+            if (ImGui::MenuItem("Stop Recording", "", false, is_recording))
+            {
+                emu_stop_vgm_recording();
+                gui_notify(gui_NotificationInfo, ICON_MD_STOP, "VGM recording stopped", NULL, "vgm");
+            }
+
+            ImGui::EndMenu();
+        }
+#endif
+
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_audio_source_mute(const char* label, int source)
+{
+    bool mute = emu_audio_is_source_muted(source);
+
+    if (ImGui::MenuItem(label, "", &mute, config_audio.enable))
+        emu_audio_set_source_mute(source, mute);
+}
+
+static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume)
+{
+    if (ImGui::BeginMenu(label, config_audio.enable))
+    {
+        ImGui::PushItemWidth(200.0f);
+
+        if (ImGui::SliderFloat(id, volume, 0.0f, 2.0f, "Volume = %.2f", ImGuiSliderFlags_AlwaysClamp))
+            emu_audio_set_source_volume(source, *volume);
+
+        ImGui::PopItemWidth();
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Anything above 1.00 may cause clipping.");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+static void menu_debug(void)
+{
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    if (ImGui::BeginMenu("Debug"))
+    {
+        gui_in_use = true;
+
+        ImGui::MenuItem("Enable", "", &config_debug.debug);
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Save Debug Settings...", "", false, config_debug.debug))
+        {
+            gui_file_dialog_save_debug_settings();
+        }
+
+        if (ImGui::MenuItem("Load Debug Settings...", "", false, config_debug.debug))
+        {
+            gui_file_dialog_load_debug_settings();
+        }
+
+        ImGui::MenuItem("Auto Save/Load Debug Settings", "", &config_debug.auto_debug_settings, config_debug.debug);
+
+        ImGui::Separator();
+
+        bool can_reload = config_debug.debug && !emu_is_empty() && emu_get_core()->GetMedia()->IsReady();
+
+        if (ImGui::MenuItem("Reload CD-ROM and Reset", config_hotkeys[config_HotkeyIndex_ReloadROM].str, false, can_reload))
+        {
+            gui_action_reload_rom();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("MCP Server", config_debug.debug))
+        {
+            bool mcp_running = emu_mcp_is_running();
+            int transport_mode = emu_mcp_get_transport_mode();
+            bool http_running = mcp_running && (transport_mode == 1);
+            bool stdio_running = mcp_running && (transport_mode == 0);
+
+            if (ImGui::MenuItem("Start HTTP Server", "", false, !mcp_running))
+            {
+                if (strlen(gui_mcp_http_address) == 0)
+                    strncpy_fit(gui_mcp_http_address, "127.0.0.1", sizeof(gui_mcp_http_address));
+
+                config_emulator.mcp_http_address = gui_mcp_http_address;
+                emu_mcp_set_transport(1, config_emulator.mcp_tcp_port, config_emulator.mcp_http_address.c_str());
+                emu_mcp_start();
+            }
+
+            if (ImGui::MenuItem("Stop HTTP Server", "", false, http_running))
+            {
+                emu_mcp_stop();
+            }
+
+            ImGui::Separator();
+
+            if (stdio_running)
+                ImGui::TextColored(service_mcp_stdio_color, "STDIO mode active");
+            else if (http_running)
+                ImGui::TextColored(service_mcp_http_color, "Listening on %s:%d", emu_mcp_get_http_address(),
+                    emu_mcp_get_http_port());
+            else
+                ImGui::TextColored(red, "Stopped");
+
+            ImGui::Separator();
+
+            ImGui::Text("HTTP Address:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(120);
+
+            if (ImGui::InputText("##mcp_address", gui_mcp_http_address, IM_ARRAYSIZE(gui_mcp_http_address), ImGuiInputTextFlags_AutoSelectAll))
+                config_emulator.mcp_http_address = gui_mcp_http_address;
+
+            ImGui::Text("HTTP Port:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(50);
+
+            if (ImGui::InputInt("##mcp_port", &config_emulator.mcp_tcp_port, 0, 0))
+            {
+                if (config_emulator.mcp_tcp_port < 1)
+                    config_emulator.mcp_tcp_port = 1;
+
+                if (config_emulator.mcp_tcp_port > 65535)
+                    config_emulator.mcp_tcp_port = 65535;
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Debug Output Screen", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Output Screen", "", &config_debug.show_screen, config_debug.debug);
+
+            if (ImGui::BeginMenu("Scale", config_debug.debug))
+            {
+                ImGui::PushItemWidth(200.0f);
+                ImGui::SliderInt("##debug_scale", &config_debug.scale, 1, 10);
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Aspect Ratio", config_debug.debug))
+            {
+                ImGui::PushItemWidth(190.0f);
+                ImGui::Combo("##debug_ratio", &config_debug.ratio,
+                    "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+        ImGui::MenuItem("Show Disassembler", "", &config_debug.show_disassembler, config_debug.debug);
+        ImGui::MenuItem("Show Memory Workspace", "", &config_debug.show_memory, config_debug.debug);
+        ImGui::MenuItem("Show Trace Logger", "", &config_debug.show_trace_logger, config_debug.debug);
+        ImGui::MenuItem("Show Profiler", "", &config_debug.show_profiler, config_debug.debug);
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Intel 80386", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Status", "", &config_debug.show_processor);
+            ImGui::MenuItem("Show System Registers", "", &config_debug.show_processor_details);
+            ImGui::MenuItem("Show Descriptor Tables", "", &config_debug.show_i386_descriptors);
+            ImGui::MenuItem("Show Paging", "", &config_debug.show_i386_paging);
+            ImGui::MenuItem("Show Call Stack", "", &config_debug.show_call_stack);
+            ImGui::MenuItem("Show Breakpoints", "", &config_debug.show_breakpoints);
+            ImGui::MenuItem("Show Symbols", "", &config_debug.show_symbols);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Intel 80387", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Status", "", &config_debug.show_x87);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Video", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Output Control", "", &config_debug.show_video_output);
+            ImGui::MenuItem("Show Palettes", "", &config_debug.show_palettes);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Audio", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Sound Control", "", &config_debug.show_sound_control);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("CD-ROM", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Controller", "", &config_debug.show_cdrom);
+            ImGui::MenuItem("Show TOC", "", &config_debug.show_cdrom_toc);
+            ImGui::MenuItem("Show CD Audio", "", &config_debug.show_cdrom_audio);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Floppy", config_debug.debug))
+        {
+            ImGui::MenuItem("Show FDC", "", &config_debug.show_fdc);
+            ImGui::MenuItem("Show Drives", "", &config_debug.show_floppy_drives);
+            ImGui::MenuItem("Show Disk Viewer", "", &config_debug.show_disk_viewer);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("System", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Interrupts", "", &config_debug.show_pic);
+            ImGui::MenuItem("Show Timers", "", &config_debug.show_pit);
+            ImGui::MenuItem("Show DMA", "", &config_debug.show_dma);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Input", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Keyboard", "", &config_debug.show_keyboard);
+            ImGui::MenuItem("Show Game Ports", "", &config_debug.show_game_ports);
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+        ImGui::MenuItem("Show Rewind", "", &config_debug.show_rewind, config_debug.debug);
+
+        ImGui::Separator();
+
+#if defined(__APPLE__) || defined(_WIN32)
+        ImGui::MenuItem("Multi-Viewport", "", &config_debug.multi_viewport, config_debug.debug);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("RESTART REQUIRED");
+            ImGui::NewLine();
+            ImGui::Text("Enables docking of debug windows outside of main window.");
+            ImGui::EndTooltip();
+        }
+#endif
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Font Size", config_debug.debug))
+        {
+            ImGui::PushItemWidth(110.0f);
+
+            if (ImGui::Combo("##font", &config_debug.font_size, "Very Small\0Small\0Medium\0Large\0\0"))
+            {
+                gui_default_font = gui_default_fonts[config_debug.font_size];
+            }
+
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenu();
+    }
+#endif
+}
+
+static void menu_about(void)
+{
+    if (ImGui::BeginMenu("About"))
+    {
+        gui_in_use = true;
+
+        if (ImGui::MenuItem("About " GDOX_TITLE " " GDOX_VERSION " ..."))
+        {
+            open_about = true;
+        }
+
+        ImGui::EndMenu();
+    }
+}
+
+static void draw_mcp_status(void)
+{
+    bool video_recording = emu_is_video_recording();
+    bool vgm_recording = emu_is_vgm_recording();
+    bool mcp_running = emu_mcp_is_running();
+
+    if (!video_recording && !vgm_recording && !mcp_running)
+        return;
+
+    const char* video_recording_status = "REC VIDEO";
+    const char* vgm_recording_status = "REC VGM";
+    char mcp_status[128];
+    ImVec4 mcp_color = service_mcp_http_color;
+
+    if (mcp_running)
+    {
+        int transport_mode = emu_mcp_get_transport_mode();
+
+        if (transport_mode == 0)
+        {
+            snprintf(mcp_status, sizeof(mcp_status), "MCP: STDIO");
+            mcp_color = service_mcp_stdio_color;
+        }
+        else
+        {
+            snprintf(mcp_status, sizeof(mcp_status), "MCP: HTTP (%s:%d)", emu_mcp_get_http_address(), emu_mcp_get_http_port());
+        }
+    }
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    float spacing = style.ItemSpacing.x * 2.0f;
+    float dot_radius = ImGui::GetFontSize() * 0.22f;
+    float dot_width = (dot_radius * 2.0f) + style.ItemInnerSpacing.x;
+    float text_width = 0.0f;
+
+    if (video_recording)
+        text_width += dot_width + ImGui::CalcTextSize(video_recording_status).x;
+    if (vgm_recording)
+    {
+        if (text_width > 0.0f)
+            text_width += spacing;
+        text_width += dot_width + ImGui::CalcTextSize(vgm_recording_status).x;
+    }
+    if (mcp_running)
+    {
+        if (text_width > 0.0f)
+            text_width += spacing;
+        text_width += ImGui::CalcTextSize(mcp_status).x;
+    }
+
+    float status_x = ImGui::GetWindowWidth() - text_width -
+        style.ItemSpacing.x - 10.0f;
+    float cursor_x = ImGui::GetCursorPosX();
+
+    if (status_x <= cursor_x + style.ItemSpacing.x)
+        return;
+
+    ImGui::SameLine(status_x);
+    ImGui::AlignTextToFramePadding();
+
+    if (video_recording)
+        draw_recording_status(video_recording_status, video_recording_color, dot_radius, dot_width);
+
+    if (vgm_recording)
+    {
+        if (video_recording)
+            ImGui::SameLine(0.0f, spacing);
+
+        draw_recording_status(vgm_recording_status, vgm_recording_color, dot_radius, dot_width);
+    }
+
+    if (mcp_running)
+    {
+        if (video_recording || vgm_recording)
+            ImGui::SameLine(0.0f, spacing);
+
+        ImGui::TextColored(mcp_color, "%s", mcp_status);
+    }
+}
+
+static void draw_recording_status(const char* status, ImVec4 color, float dot_radius, float dot_width)
+{
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + dot_width);
+    ImGui::TextColored(color, "%s", status);
+
+    ImVec2 text_min = ImGui::GetItemRectMin();
+    ImVec2 text_max = ImGui::GetItemRectMax();
+    ImVec2 dot_center = ImVec2(text_min.x - dot_width + dot_radius, (text_min.y + text_max.y) * 0.5f);
+    ImGui::GetWindowDrawList()->AddCircleFilled(dot_center, dot_radius, ImGui::GetColorU32(color));
+}
+
+static void file_dialogs(void)
+{
+    gui_file_dialog_process_results();
+
+    if (open_rom || gui_shortcut_open_rom)
+    {
+        gui_shortcut_open_rom = false;
+        gui_file_dialog_open_rom();
+    }
+
+    if (open_state)
+        gui_file_dialog_load_state();
+
+    if (save_state)
+        gui_file_dialog_save_state();
+
+    if (save_screenshot)
+        gui_file_dialog_save_screenshot();
+
+    if (save_vgm)
+        gui_file_dialog_save_vgm();
+
+    if (save_video)
+        gui_file_dialog_save_video();
+
+    if (choose_savestates_path)
+        gui_file_dialog_choose_savestate_path();
+
+    if (choose_savefiles_path)
+        gui_file_dialog_choose_savefiles_path();
+
+    if (choose_screenshots_path)
+        gui_file_dialog_choose_screenshot_path();
+
+    if (choose_video_recordings_path)
+        gui_file_dialog_choose_video_recording_path();
+
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    if (open_physical_cdrom)
+        gui_popup_open_physical_cdrom();
+#endif
+
+    if (open_about)
+    {
+        gui_dialog_in_use = true;
+        ImGui::OpenPopup("About " GDOX_TITLE);
+    }
+
+    if (open_load_defaults)
+    {
+        gui_dialog_in_use = true;
+        ImGui::OpenPopup("Load Default Settings");
+    }
+
+    gui_popup_modal_about();
+    gui_popup_modal_load_defaults();
+    gui_floppy_popups();
+    gui_hard_disks_popups();
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    gui_popup_modal_physical_cdrom();
+#endif
+}
+
+static const char* get_current_media_directory_text(void)
+{
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    if (!emu_is_empty() && emu_get_core()->GetMedia()->IsPhysicalCdRom())
+        return config_root_path;
+#endif
+
+    return emu_get_core()->GetMedia()->GetFileDirectory();
+}
+
+static void keyboard_configuration_item(const char* text, SDL_Scancode* key, int player)
+{
+    ImGui::Text("%s", text);
+    ImGui::SameLine(120);
+
+    char button_label[256];
+    snprintf(button_label, 256, "%s##%p%d", SDL_GetKeyName(SDL_GetKeyFromScancode(*key, SDL_KMOD_NONE, false)), (void*)key, player);
+
+    if (ImGui::Button(button_label, ImVec2(90,0)))
+    {
+        gui_configured_key = key;
+        ImGui::OpenPopup("Keyboard Configuration");
+    }
+
+    ImGui::SameLine();
+
+    char remove_label[256];
+    snprintf(remove_label, sizeof(remove_label), "X##rk%p%d", (void*)key, player);
+
+    if (ImGui::Button(remove_label))
+    {
+        *key = SDL_SCANCODE_UNKNOWN;
+    }
+}
+
+static void gamepad_configuration_item(const char* text, int* button, int player)
+{
+    ImGui::Text("%s", text);
+    ImGui::SameLine(140);
+
+    const char* button_name = "";
+
+    if (*button == SDL_GAMEPAD_BUTTON_INVALID)
+    {
+        button_name = "";
+    }
+    else if (*button >= 0 && *button < SDL_GAMEPAD_BUTTON_COUNT)
+    {
+        static const char* gamepad_names[21] = {"A", "B", "X" ,"Y", "BACK", "GUIDE", "START", "L3", "R3", "L1", "R1", "UP", "DOWN", "LEFT", "RIGHT", "MISC", "PAD1", "PAD2", "PAD3", "PAD4", "TOUCH"};
+        button_name = gamepad_names[*button];
+    }
+    else if (*button >= GAMEPAD_VBTN_AXIS_BASE)
+    {
+        int axis = *button - GAMEPAD_VBTN_AXIS_BASE;
+
+        if (axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER)
+            button_name = "L2";
+        else if (axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+            button_name = "R2";
+        else
+            button_name = "??";
+    }
+
+    char button_label[256];
+    snprintf(button_label, sizeof(button_label), "%s##%p%d", button_name, (void*)button, player);
+
+    if (ImGui::Button(button_label, ImVec2(70,0)))
+    {
+        gui_configured_button = button;
+        ImGui::OpenPopup("Gamepad Configuration");
+    }
+
+    ImGui::SameLine();
+
+    char remove_label[256];
+    snprintf(remove_label, sizeof(remove_label), "X##rg%p%d", (void*)button, player);
+
+    if (ImGui::Button(remove_label))
+    {
+        *button = SDL_GAMEPAD_BUTTON_INVALID;
+    }
+}
+
+static void hotkey_configuration_item(const char* text, config_Hotkey* hotkey)
+{
+    ImGui::Text("%s", text);
+    ImGui::SameLine(200);
+
+    char button_label[256];
+    snprintf(button_label, sizeof(button_label), "%s##%s", hotkey->str[0] != '\0' ? hotkey->str : "<None>", text);
+
+    if (ImGui::Button(button_label, ImVec2(150,0)))
+    {
+        gui_configured_hotkey = hotkey;
+        ImGui::OpenPopup("Hotkey Configuration");
+    }
+
+    ImGui::SameLine();
+
+    char remove_label[256];
+    snprintf(remove_label, sizeof(remove_label), "X##rh%s", text);
+
+    if (ImGui::Button(remove_label))
+    {
+        hotkey->key = SDL_SCANCODE_UNKNOWN;
+        hotkey->mod = SDL_KMOD_NONE;
+        config_update_hotkey_string(hotkey);
+    }
+}
+
+static void gamepad_device_selector(int player)
+{
+    if (player < 0 || player >= GDOX_MAX_GAMEPADS)
+        return;
+
+    const int max_detected_gamepads = 32;
+    SDL_JoystickID id_map[max_detected_gamepads];
+    id_map[0] = 0;
+    int count = 1;
+
+    std::string items;
+    items.reserve(4096);
+    items.append("<None>");
+    items.push_back('\0');
+
+    Gamepad_Detected_Info detected[max_detected_gamepads];
+    int num_detected = gamepad_get_detected(detected, max_detected_gamepads);
+
+    SDL_JoystickID current_id = 0;
+
+    if (IsValidPointer(gamepad_controller[player]))
+        current_id = SDL_GetJoystickID(SDL_GetGamepadJoystick(gamepad_controller[player]));
+
+    int selected = 0;
+
+    for (int i = 0; i < num_detected && count < max_detected_gamepads; i++)
+    {
+        const char* name = detected[i].name;
+
+        if (!IsValidPointer(name))
+            name = "Unknown Gamepad";
+
+        id_map[count] = detected[i].id;
+
+        if (current_id == detected[i].id)
+            selected = count;
+
+        size_t len = strlen(detected[i].guid_str);
+        const char* id_8 = detected[i].guid_str + (len > 8 ? len - 8 : 0);
+
+        char label[192];
+        snprintf(label, sizeof(label), "%s (ID: %s)", name, id_8);
+
+        items.append(label);
+        items.push_back('\0');
+        count++;
+    }
+
+    items.push_back('\0');
+
+    char label[32];
+    snprintf(label, sizeof(label), "##device_player%d", player + 1);
+
+    if (ImGui::Combo(label, &selected, items.c_str()))
+    {
+        SDL_JoystickID instance_id = id_map[selected];
+        gamepad_assign(player, instance_id);
+    }
+}
+
+static void draw_savestate_slot_info(int slot)
+{
+    if (slot < 0 || slot >= 5)
+        return;
+
+    if (emu_savestates[slot].magic == GDOX_SAVESTATE_MAGIC)
+    {
+        if (emu_savestates[slot].version < GDOX_SAVESTATE_MIN_VERSION || emu_savestates[slot].version > GDOX_SAVESTATE_VERSION)
+        {
+            ImGui::TextColored(red, "This savestate is from an older version and will not work");
+
+            if (emu_savestates[slot].emu_build[0] != 0)
+            {
+                ImGui::TextColored(red, "Use %s - %s", GDOX_TITLE, emu_savestates[slot].emu_build);
+            }
+
+            ImGui::Separator();
+        }
+
+        ImGui::Text("%s", emu_savestates[slot].rom_name);
+        char date[64];
+        get_date_time_string(emu_savestates[slot].timestamp, date, sizeof(date));
+        ImGui::Text("%s", date);
+
+        if (IsValidPointer(emu_savestates_screenshots[slot].data))
+        {
+            float width = (float)emu_savestates_screenshots[slot].width;
+            float height = (float)emu_savestates_screenshots[slot].height;
+            ImGui::Image((ImTextureID)(intptr_t)ogl_renderer_emu_savestates, ImVec2(320.0f, 240.0f),
+                ImVec2(0, 0), ImVec2(width / (float)SYSTEM_TEXTURE_WIDTH, height / (float)SYSTEM_TEXTURE_HEIGHT));
+        }
+    }
+    else
+    {
+        ImGui::TextColored(gray, "Slot %d is empty", slot + 1);
+    }
+}

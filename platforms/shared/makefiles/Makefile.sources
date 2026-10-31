@@ -35,6 +35,36 @@ SOURCES_CXX := \
     $(DEPS_DIR)/imgui/implot_items.cpp \
     $(DEPS_DIR)/imgui/implot_demo.cpp \
     $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
+    $(DESKTOP_SRC_DIR)/main.cpp \
+    $(DESKTOP_SRC_DIR)/application.cpp \
+    $(DESKTOP_SRC_DIR)/application_headless.cpp \
+    $(DESKTOP_SRC_DIR)/config.cpp \
+    $(DESKTOP_SRC_DIR)/gui.cpp \
+    $(DESKTOP_SRC_DIR)/gui_filedialogs.cpp \
+    $(DESKTOP_SRC_DIR)/gui_menus.cpp \
+    $(DESKTOP_SRC_DIR)/gui_popups.cpp \
+    $(DESKTOP_SRC_DIR)/gui_floppy.cpp \
+    $(DESKTOP_SRC_DIR)/gui_firmware.cpp \
+    $(DESKTOP_SRC_DIR)/gui_hard_disks.cpp \
+    $(DESKTOP_SRC_DIR)/gui_notifications.cpp \
+    $(DESKTOP_SRC_DIR)/gui_drive_activity.cpp \
+    $(DESKTOP_SRC_DIR)/gui_actions.cpp \
+    $(DESKTOP_SRC_DIR)/ogl_renderer.cpp \
+    $(DESKTOP_SRC_DIR)/ogl_shader_program.cpp \
+    $(DESKTOP_SRC_DIR)/ogl_shader_chain.cpp \
+    $(DESKTOP_SRC_DIR)/shader_preset.cpp \
+    $(DESKTOP_SRC_DIR)/display.cpp \
+    $(DESKTOP_SRC_DIR)/events.cpp \
+    $(DESKTOP_SRC_DIR)/gamepad.cpp \
+    $(DESKTOP_SRC_DIR)/input_macro.cpp \
+    $(DESKTOP_SRC_DIR)/rewind.cpp \
+    $(DESKTOP_SRC_DIR)/runahead.cpp \
+    $(DESKTOP_SRC_DIR)/video_recorder.cpp \
+    $(DESKTOP_SRC_DIR)/emu.cpp \
+    $(DESKTOP_SRC_DIR)/emu_floppy.cpp \
+    $(DESKTOP_SRC_DIR)/emu_hard_disk.cpp \
+    $(DESKTOP_SRC_DIR)/sound_queue.cpp \
+    $(DESKTOP_SRC_DIR)/single_instance.cpp \
     $(SRC_DIR)/geardox_core.cpp \
     $(SRC_DIR)/common/profiler.cpp \
     $(SRC_DIR)/common/trace_logger.cpp \

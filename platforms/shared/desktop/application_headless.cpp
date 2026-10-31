@@ -1,0 +1,130 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include <SDL3/SDL.h>
+#include <signal.h>
+#include "application_headless.h"
+#include "config.h"
+#include "emu.h"
+#include "gui.h"
+#include "debug/gui_debug.h"
+#include "debug/gui_debug_profiler.h"
+#include "common/log.h"
+
+static volatile bool headless_running = true;
+
+static void headless_signal_handler(int sig)
+{
+    (void)sig;
+    headless_running = false;
+}
+
+int application_headless_init(const ApplicationParams& params)
+{
+    Log("\n%s", GDOX_TITLE_ASCII);
+    Log("%s %s Headless Mode", GDOX_TITLE, GDOX_VERSION);
+
+    if (params.mcp_mode < 0)
+    {
+        Error("Headless mode requires MCP");
+        return 1;
+    }
+
+    if (!SDL_Init(0))
+    {
+        Error("Failed to initialize SDL (headless)");
+        return 1;
+    }
+
+    if (!emu_init())
+    {
+        Error("Failed to initialize emulator");
+        return 2;
+    }
+
+    config_debug.debug = params.mcp_mode >= 0;
+    emu_audio_mute(true);
+
+    gui_debug_init();
+
+    if (!config_emulator.bios_path.empty())
+    {
+        Log("Loading BIOS directory: %s", config_emulator.bios_path.c_str());
+        emu_load_bios(config_emulator.bios_path.c_str());
+    }
+
+    emu_apply_machine_settings();
+    emu_power_on();
+
+    application_load_media(params);
+
+    if (params.mcp_mode >= 0)
+    {
+        const char* mcp_http_address = params.mcp_http_address.empty() ? "127.0.0.1" : params.mcp_http_address.c_str();
+
+        if (params.mcp_mode == 0)
+            Log("Starting MCP server (mode: stdio)...");
+        else
+            Log("Starting MCP server (mode: http, address: %s, port: %d)...", mcp_http_address, params.mcp_tcp_port);
+
+        emu_mcp_set_transport(params.mcp_mode, params.mcp_tcp_port, mcp_http_address);
+        emu_mcp_start();
+    }
+
+    signal(SIGINT, headless_signal_handler);
+    signal(SIGTERM, headless_signal_handler);
+
+    return 0;
+}
+
+void application_headless_destroy(void)
+{
+    gui_debug_destroy();
+    emu_destroy();
+    SDL_Quit();
+}
+
+void application_headless_mainloop(void)
+{
+    Log("Running headless main loop...");
+
+    while (headless_running)
+    {
+        Uint64 frame_start = SDL_GetPerformanceCounter();
+
+        emu_update();
+        gui_debug_update();
+        gui_debug_profiler_update_headless();
+        gui_finish_loading_rom();
+
+        if (!emu_mcp_is_running())
+        {
+            Log("No service running, exiting headless mode");
+            break;
+        }
+
+        Uint64 frame_end = SDL_GetPerformanceCounter();
+        float elapsed_ms = (float)(frame_end - frame_start) / (float)SDL_GetPerformanceFrequency() * 1000.0f;
+
+        float target_ms = 16.666f;
+
+        if (elapsed_ms < target_ms)
+            SDL_Delay((Uint32)(target_ms - elapsed_ms));
+    }
+}
