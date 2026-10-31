@@ -1421,7 +1421,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         if ((state_media.hard_disk_attached[i] != image->IsOpen()) ||
             (image->IsOpen() && (state_media.hard_disk_blocks[i] != image->GetBlocks())))
         {
-            Error("Save state is for another hard disk in slot %d", i + 1);
+            Error("Save state is for another hard disk in slot %d", i);
             return false;
         }
     }
