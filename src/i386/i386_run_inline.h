@@ -1,0 +1,299 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#ifndef I386_RUN_INLINE_H
+#define I386_RUN_INLINE_H
+
+#include "../common/profiler.h"
+
+INLINE bool I386::ExecuteOPCode()
+{
+    if (m_state.repeat.active)
+    {
+        m_step.clocks = GetStringClocks(true);
+        return ContinueRepeat();
+    }
+
+    return StartInstruction();
+}
+
+template<bool i486>
+INLINE u32 I386::RunCheckedStep()
+{
+    GDOX_Bus_Access_Context& context = *m_bus_context;
+    StepState& result = m_step;
+
+    result.clocks = 0;
+    result.steps = 0;
+    result.end_batch = false;
+    result.exception = false;
+    result.instruction_completed = true;
+
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    m_step_call = false;
+#endif
+
+    if (m_state.shutdown || m_state.halted)
+        return (u32)result.clocks;
+
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    if (!m_state.repeat.active)
+        DisassembleNextInstruction();
+#endif
+
+    m_debug_step = false;
+    m_checked_valid = m_trace_enabled;
+
+    if (unlikely(m_checked_valid))
+        CaptureCheckedBytes();
+
+    u16 old_task = m_state.task_register.selector;
+    bool debug_active = unlikely((m_state.debug_registers[7] & 0xFF) != 0 ||
+        (m_state.eflags & (I386_FLAG_TF | I386_FLAG_RF)) != 0);
+    I386_State before;
+
+    if (unlikely(m_trace_enabled))
+        TraceStep(before);
+    else if (debug_active)
+        before.eflags = m_state.eflags;
+
+    bool continuation = m_state.repeat.active;
+    bool timed = m_bus_timed;
+
+    if (i486)
+        Capture486Step();
+
+    bool completed = debug_active ? ExecuteOPCodeDebug(before) : ExecuteOPCode();
+
+    if (!completed)
+        CompleteFault(old_task);
+    else if (i486 && (result.instruction_completed || m_state.repeat.active))
+    {
+        Apply486Clocks();
+
+        if (timed && continuation)
+            AddBusStringElement((u32)result.clocks);
+        else if (timed)
+            AddBusTime<true>();
+    }
+    else if (m_bus_timed && (result.instruction_completed || m_state.repeat.active))
+    {
+        if (continuation)
+            AddBusStringElement(m_string.iteration_clocks);
+        else
+            AddBusTime<false>();
+    }
+
+    if (m_state.interrupt_shadow_steps > 0 && result.instruction_completed)
+        CountInterruptShadow();
+
+    result.steps = 1;
+    result.end_batch = result.end_batch || context.end_batch || m_state.halted || m_state.shutdown;
+
+    if (unlikely(m_trace_enabled))
+        RecordTrace(before);
+
+    return (u32)result.clocks;
+}
+
+INLINE u32 I386::RunInstruction(GDOX_Bus_Access_Context& context)
+{
+    if (unlikely(m_i486_timing))
+        return RunInstruction486(context);
+
+    m_io_start_cycles = 0;
+    SetBusContext(context);
+    RunCheckedStep<false>();
+
+    if (m_bus_timed)
+        m_step.clocks += CarryBusTime();
+
+    return (u32)m_step.clocks;
+}
+
+INLINE void I386::CountInterruptShadow()
+{
+    m_state.interrupt_shadow_steps--;
+
+    if (m_state.interrupt_shadow_steps == 0)
+        m_state.interrupt_shadow = I386_SHADOW_NONE;
+}
+
+// A pending INTR only ends the batch where it can be taken
+// so CLI sections still run in batches
+INLINE bool I386::IsInterruptReady(bool nmi_pending, bool intr_pending) const
+{
+    return nmi_pending || (intr_pending && CanAcceptMaskableInterrupt());
+}
+
+// One step of the fast loop, shared by RunFor and RunDynarec. Returns false when the batch must end
+template<int timing>
+INLINE bool I386::RunFastStep(I386_Run_Result& total, GDOX_Bus_Access_Context& context, u64& clocks, u32& steps,
+    bool& completed, bool interrupt_pending, bool nmi_pending, bool intr_pending)
+{
+    m_io_start_cycles = (u32)clocks + context.wait_cycles + ((timing & I386_TIMING_BUS) != 0 ? GetBusPending() : 0);
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    DisassembleNextInstruction();
+#endif
+    u16 old_task = m_state.task_register.selector;
+    m_step.clocks = 0;
+    m_step.instruction_completed = true;
+    m_step.end_batch = false;
+    m_step.exception = false;
+
+    if ((timing & I386_TIMING_486) != 0)
+        Capture486Step();
+
+    if (unlikely(!ExecuteOPCode()))
+        CompleteFault(old_task);
+    else if (timing == I386_TIMING_BUS && likely(m_step.instruction_completed || m_state.repeat.active))
+        AddBusTime<false>();
+    else if ((timing & I386_TIMING_486) != 0 && likely(m_step.instruction_completed || m_state.repeat.active))
+    {
+        Apply486Clocks();
+
+        if ((timing & I386_TIMING_BUS) != 0)
+            AddBusTime<true>();
+    }
+
+    if (unlikely(m_state.interrupt_shadow_steps > 0) && m_step.instruction_completed)
+        CountInterruptShadow();
+
+    clocks += m_step.clocks;
+    steps++;
+    completed = m_step.instruction_completed;
+
+    if (unlikely(m_step.end_batch || context.end_batch || m_state.halted || m_state.shutdown))
+    {
+        // Exceptions and software interrupts always end the batch
+        if (m_step.exception)
+            CopyStepException(total);
+
+        total.end_batch = true;
+        return false;
+    }
+
+    return !(unlikely(interrupt_pending) && IsInterruptReady(nmi_pending, intr_pending));
+}
+
+INLINE void I386::DisassembleNextInstruction()
+{
+    DisassembleInstruction(m_state.eip);
+}
+
+INLINE void I386::DisassembleInstruction(u32 eip)
+{
+    const I386_Segment& code = m_state.segments[I386_SEGMENT_CS];
+    u32 linear = code.base + eip;
+    I386_Disassembler_Record** page = m_disassembler_pages[linear >> 12];
+
+    if (likely(IsValidPointer(page)))
+    {
+        I386_Disassembler_Record* record = page[linear & (k_i386_disassembler_page_size - 1)];
+
+        if (likely(IsValidPointer(record) && record->eip == eip && record->size > 0 &&
+            record->cs == code.selector && record->mode == m_state.execution_mode &&
+            record->default32 == ((code.attributes & I386_SEGMENT_DEFAULT_32) != 0)))
+        {
+            const u8* bytes = GetReadHost(linear, (u32)record->size);
+
+            if (likely(IsValidPointer(bytes)))
+            {
+                int i = 0;
+
+                while (i < record->size && bytes[i] == record->opcodes[i])
+                    i++;
+
+                if (likely(i == record->size))
+                    return;
+            }
+        }
+    }
+
+    DisassembleExecuted(code, eip);
+}
+
+// A task CALL that faults or traps after entering the new task keeps its frame below the exception's
+INLINE bool I386::TrackCall(bool completed, u16 cs, u32 base)
+{
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    bool entered = completed || m_task_call_entered;
+    m_task_call_entered = false;
+
+    if (entered)
+    {
+        int return_size = m_instruction.call_return_size != 0 ? m_instruction.call_return_size :
+            m_instruction.operand_size;
+        PushCallStack(cs, base, m_instruction.start_eip, Truncate(m_instruction.next_eip, return_size * 8), I386_CALL, 0);
+    }
+#else
+    UNUSED(cs);
+    UNUSED(base);
+#endif
+    return completed;
+}
+
+INLINE bool I386::TrackReturn(bool completed)
+{
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    if (completed && !m_disassembler_call_stack.empty())
+        PopCallStack();
+#endif
+    return completed;
+}
+
+// Without a callback machine time can't move, so a port instruction later in the batch waits for the next one,
+// which starts at it
+INLINE bool I386::DeferIO()
+{
+    if (m_io_start_cycles == 0 || IsValidPointer(m_bus_context->synchronize))
+        return false;
+
+    m_step.instruction_completed = false;
+    m_bus_context->end_batch = true;
+    return true;
+}
+
+// Machine time moves to the start of the instruction and then to its port access, on its last clock
+// Events due by the start stop the instruction, so their IRQs come first. Events due by the access run before it,
+// and their IRQs wait for the end of the instruction. Both end the batch. Returns false when the instruction stops
+INLINE bool I386::SynchronizeIOAccess()
+{
+    GDOX_Bus_Access_Context& context = *m_bus_context;
+
+    if (!IsValidPointer(context.synchronize))
+        return true;
+
+    GDOX_Synchronize_Result result = context.synchronize(context.synchronize_context, context, m_io_start_cycles,
+        m_io_start_cycles + (u32)m_step.clocks - 1);
+
+    if (result == GDOX_SYNC_NO_EVENTS)
+        return true;
+
+    context.end_batch = true;
+
+    if (result == GDOX_SYNC_EVENTS_AT_ACCESS)
+        return true;
+
+    m_step.clocks = 0;
+    m_step.instruction_completed = false;
+    return false;
+}
+
+#endif /* I386_RUN_INLINE_H */

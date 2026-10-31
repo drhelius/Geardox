@@ -20,4 +20,27 @@ SOURCES_C   +=  $(DEPS_DIR)/lightning/lib/lightning.c \
 endif
 
 SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
-                $(CORE_DIR)/libretro_vfs_file.cpp
+                $(CORE_DIR)/libretro_vfs_file.cpp \
+                $(SOURCE_DIR)/common/profiler.cpp \
+                $(SOURCE_DIR)/common/trace_logger.cpp \
+                $(SOURCE_DIR)/i386/i386.cpp \
+                $(SOURCE_DIR)/i386/i386_486.cpp \
+                $(SOURCE_DIR)/i386/i386_bus.cpp \
+                $(SOURCE_DIR)/i386/i386_disassembler.cpp \
+                $(SOURCE_DIR)/i386/i386_dynarec.cpp \
+                $(SOURCE_DIR)/i386/i386_dynarec_emit.cpp \
+                $(SOURCE_DIR)/i386/i386_encoding.cpp \
+                $(SOURCE_DIR)/i386/i386_functors.cpp \
+                $(SOURCE_DIR)/i386/i386_memory.cpp \
+                $(SOURCE_DIR)/i386/i386_opcodes.cpp \
+                $(SOURCE_DIR)/i386/i386_opcodes_0f.cpp \
+                $(SOURCE_DIR)/i386/i386_opcodes_groups.cpp \
+                $(SOURCE_DIR)/i386/i386_opcodes_string.cpp \
+                $(SOURCE_DIR)/i386/i386_opcodes_transfer.cpp \
+                $(SOURCE_DIR)/i386/i386_protected.cpp \
+                $(SOURCE_DIR)/i386/i386_protected_transfer.cpp \
+                $(SOURCE_DIR)/i386/i386_task.cpp \
+                $(SOURCE_DIR)/i386/exec_memory.cpp \
+                $(SOURCE_DIR)/i386/x87.cpp \
+                $(SOURCE_DIR)/system/io.cpp \
+                $(SOURCE_DIR)/system/memory.cpp

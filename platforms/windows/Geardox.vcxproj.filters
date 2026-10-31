@@ -4,6 +4,75 @@
     <Manifest Include="Geardox.manifest" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\i386\i386.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_486.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_disassembler.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_dynarec.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_dynarec_emit.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\exec_memory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\x87.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_encoding.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_bus.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_functors.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_memory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_opcodes.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_opcodes_0f.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_opcodes_groups.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_opcodes_string.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_opcodes_transfer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_protected.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_protected_transfer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\i386\i386_task.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\memory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\io.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\profiler.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\trace_logger.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
       <Filter>dependencies\libchdr\src</Filter>
     </ClCompile>
@@ -90,6 +159,30 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\common\bit_ops.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\defines.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_decode_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_memory_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_run_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_bus_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_names.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_opcodes_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\x87.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\x87_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\io.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\io_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\memory.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\memory_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\debug_memory.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\log.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\memory_stream.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\state_serializer.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\types.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\profiler.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\trace_logger.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\shared\dependencies\json\json.hpp">
       <Filter>dependencies</Filter>
     </ClInclude>

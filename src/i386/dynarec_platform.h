@@ -1,0 +1,83 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#ifndef DYNAREC_PLATFORM_H
+#define DYNAREC_PLATFORM_H
+
+// The dynarec needs a GNU lightning backend for the host CPU and a way to get executable memory from the platform.
+// Anything else builds without it, whatever the makefile asks for
+
+#if !defined(GDOX_DISABLE_DYNAREC)
+    #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86) || \
+        defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__) || defined(__mips__) || \
+        defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) || defined(__riscv) || defined(__loongarch__)
+        #define GDOX_DYNAREC_HOST_CPU
+    #endif
+
+    #if defined(__SWITCH__)
+        #define GDOX_DYNAREC_LIBNX
+    #elif defined(VITA) || defined(__vita__)
+        #define GDOX_DYNAREC_VITA
+    #elif defined(WIIU) || defined(__WIIU__)
+        // The codegen area needs the RetroArch package to enable it
+    #elif defined(GEKKO)
+        #define GDOX_DYNAREC_GEKKO
+    #elif defined(_WIN32)
+        #define GDOX_DYNAREC_WINDOWS
+    #elif defined(__APPLE__)
+        #include <TargetConditionals.h>
+        // iOS and tvOS only allow generated code to some processes, and not in a way RetroArch can rely on
+        #if TARGET_OS_OSX
+            #define GDOX_DYNAREC_APPLE
+        #endif
+    #elif defined(__EMSCRIPTEN__) || defined(_3DS) || defined(PSP) || defined(_EE) || defined(__PS3__) || \
+        defined(__PSL1GHT__) || defined(SF2000) || defined(__OpenBSD__)
+        // No executable memory, or no provider yet
+    #elif defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__ANDROID__) || defined(__HAIKU__) || \
+        defined(__QNX__)
+        #define GDOX_DYNAREC_POSIX
+    #endif
+
+    #if !defined(GDOX_DYNAREC_HOST_CPU) || !(defined(GDOX_DYNAREC_LIBNX) || defined(GDOX_DYNAREC_VITA) || \
+        defined(GDOX_DYNAREC_GEKKO) || defined(GDOX_DYNAREC_WINDOWS) || defined(GDOX_DYNAREC_APPLE) || \
+        defined(GDOX_DYNAREC_POSIX))
+        #define GDOX_DISABLE_DYNAREC
+    #endif
+#endif
+
+#if !defined(GDOX_DISABLE_DYNAREC)
+    // Hosts whose loads and stores fault or trap on unaligned addresses use the unaligned lightning operations
+    #if !(defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86) || \
+        defined(__aarch64__) || defined(_M_ARM64) || (defined(__ARM_ARCH) && __ARM_ARCH >= 7))
+        #define GDOX_DYNAREC_UNALIGNED
+    #endif
+
+    // Code cache size and block records: consoles, handhelds and 32-bit hosts get a smaller cache
+    #if defined(GDOX_DYNAREC_LIBNX) || defined(GDOX_DYNAREC_VITA) || defined(GDOX_DYNAREC_GEKKO) || \
+        defined(__ANDROID__) || !(defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || \
+        defined(_M_ARM64) || (defined(__riscv) && __riscv_xlen == 64) || defined(__loongarch64))
+        #define GDOX_DYNAREC_CODE_SIZE (8 * 1024 * 1024)
+        #define GDOX_DYNAREC_MAX_BLOCKS 16384
+    #else
+        #define GDOX_DYNAREC_CODE_SIZE (32 * 1024 * 1024)
+        #define GDOX_DYNAREC_MAX_BLOCKS 65536
+    #endif
+#endif
+
+#endif /* DYNAREC_PLATFORM_H */

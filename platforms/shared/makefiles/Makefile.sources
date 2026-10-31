@@ -34,4 +34,27 @@ SOURCES_CXX := \
     $(DEPS_DIR)/imgui/implot.cpp \
     $(DEPS_DIR)/imgui/implot_items.cpp \
     $(DEPS_DIR)/imgui/implot_demo.cpp \
-    $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp
+    $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
+    $(SRC_DIR)/common/profiler.cpp \
+    $(SRC_DIR)/common/trace_logger.cpp \
+    $(SRC_DIR)/i386/i386.cpp \
+    $(SRC_DIR)/i386/i386_486.cpp \
+    $(SRC_DIR)/i386/i386_bus.cpp \
+    $(SRC_DIR)/i386/i386_disassembler.cpp \
+    $(SRC_DIR)/i386/i386_dynarec.cpp \
+    $(SRC_DIR)/i386/i386_dynarec_emit.cpp \
+    $(SRC_DIR)/i386/i386_encoding.cpp \
+    $(SRC_DIR)/i386/i386_functors.cpp \
+    $(SRC_DIR)/i386/i386_memory.cpp \
+    $(SRC_DIR)/i386/i386_opcodes.cpp \
+    $(SRC_DIR)/i386/i386_opcodes_0f.cpp \
+    $(SRC_DIR)/i386/i386_opcodes_groups.cpp \
+    $(SRC_DIR)/i386/i386_opcodes_string.cpp \
+    $(SRC_DIR)/i386/i386_opcodes_transfer.cpp \
+    $(SRC_DIR)/i386/i386_protected.cpp \
+    $(SRC_DIR)/i386/i386_protected_transfer.cpp \
+    $(SRC_DIR)/i386/i386_task.cpp \
+    $(SRC_DIR)/i386/exec_memory.cpp \
+    $(SRC_DIR)/i386/x87.cpp \
+    $(SRC_DIR)/system/io.cpp \
+    $(SRC_DIR)/system/memory.cpp
