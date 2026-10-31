@@ -1,0 +1,10 @@
+{
+  "toc": [
+    {
+      "uri": "i386_cpu",
+      "title": "Intel 80386 — What MS-DOS PC Software Relies On",
+      "description": "Registers, real, protected and VM86 modes, segmentation, paging, exceptions, IDT and the PC/AT IRQ vectors",
+      "mimeType": "text/markdown"
+    }
+  ]
+}
