@@ -44,6 +44,7 @@
     <ClCompile Include="..\..\src\media\media_file.cpp" />
     <ClCompile Include="..\..\src\media\media_file_native.cpp" />
     <ClCompile Include="..\..\src\media\ogg_vorbis_decoder.cpp" />
+    <ClCompile Include="..\..\src\geardox_core.cpp" />
     <ClCompile Include="..\..\src\common\profiler.cpp" />
     <ClCompile Include="..\..\src\common\trace_logger.cpp" />
     <ClCompile Include="..\..\src\input\input.cpp" />
@@ -225,6 +226,9 @@
     <ClInclude Include="..\..\src\video\video_inline.h" />
     <ClInclude Include="..\..\src\media\firmware_inline.h" />
     <ClInclude Include="..\..\src\media\game_db.h" />
+    <ClInclude Include="..\..\src\geardox.h" />
+    <ClInclude Include="..\..\src\geardox_core.h" />
+    <ClInclude Include="..\..\src\geardox_core_inline.h" />
     <ClInclude Include="..\..\src\input\input.h" />
     <ClInclude Include="..\..\src\input\input_inline.h" />
     <ClInclude Include="..\..\src\system\memory.h" />

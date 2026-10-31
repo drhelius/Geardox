@@ -1,0 +1,2042 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include <fstream>
+#include <sstream>
+#include <time.h>
+#include "geardox_core.h"
+#include "audio/audio.h"
+#include "cdrom/cdrom_audio.h"
+#include "cdrom/cdrom_media.h"
+#include "drive/fdc.h"
+#include "drive/hard_disk_image.h"
+#include "media/firmware.h"
+#include "input/input.h"
+#include "common/memory_stream.h"
+#include "common/profiler.h"
+#include "common/trace_logger.h"
+#include "common/state_serializer.h"
+#include "media/media.h"
+#include "media/game_db.h"
+#include "system/memory.h"
+#include "i386/i386.h"
+#include "i386/x87.h"
+#include "system/io.h"
+#include "system/pic.h"
+#include "system/pit.h"
+#include "system/scheduler.h"
+#include "system/machine_profiles.h"
+#include "video/video.h"
+
+GeardoxCore::GeardoxCore()
+{
+    InitPointer(m_audio);
+    InitPointer(m_firmware);
+    InitPointer(m_input);
+    InitPointer(m_media);
+    InitPointer(m_memory);
+    InitPointer(m_i386);
+    InitPointer(m_x87);
+    InitPointer(m_io);
+    InitPointer(m_pic);
+    InitPointer(m_pit);
+    InitPointer(m_scheduler);
+    InitPointer(m_video);
+    InitPointer(m_cdrom_media);
+    InitPointer(m_cdrom_audio);
+    InitPointer(m_fdc);
+    InitPointer(m_trace_logger);
+    InitPointer(m_profiler);
+    InitPointer(m_frame_buffer);
+
+    m_machine_settings.model = GDOX_MACHINE_386DX_33;
+    m_machine_settings.cpu_mhz = GDOX_MACHINE_AUTO;
+    m_machine_settings.ram_mb = GDOX_MACHINE_AUTO;
+    m_machine_settings.fpu = GDOX_MACHINE_AUTO;
+    m_machine_settings.speed_mode = GDOX_MACHINE_AUTO;
+    InitPointer(m_auto_entry);
+    memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
+
+    for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
+        m_firmware_sources[i].set = -1;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        InitPointer(m_hard_disks[i]);
+        m_hard_disk_write_protected[i] = false;
+        m_hard_disk_pending[i] = false;
+    }
+
+    m_hard_disk_state_changes = 0;
+    m_boot_device = GDOX_BOOT_DEVICE_AUTO;
+    m_ram_size_locked = false;
+    ResolveMachineConfig();
+    m_machine_config = m_pending_machine_config;
+    m_machine_report = m_pending_machine_report;
+    m_powered = false;
+    m_paused = false;
+    m_debug_step = GDOX_DEBUG_STEP_NONE;
+    m_debug_step_resume = false;
+    m_debug_interrupt_deferred = false;
+}
+
+GeardoxCore::~GeardoxCore()
+{
+    SafeDelete(m_audio);
+    SafeDelete(m_input);
+    SafeDelete(m_media);
+    SafeDelete(m_i386);
+    SafeDelete(m_x87);
+    SafeDelete(m_io);
+    SafeDelete(m_pic);
+    SafeDelete(m_pit);
+    SafeDelete(m_scheduler);
+    SafeDelete(m_video);
+    SafeDelete(m_cdrom_audio);
+    SafeDelete(m_fdc);
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        SafeDelete(m_hard_disks[i]);
+
+    SafeDelete(m_trace_logger);
+    SafeDelete(m_profiler);
+    SafeDelete(m_memory);
+    SafeDelete(m_firmware);
+    SafeDelete(m_cdrom_media);
+}
+
+void GeardoxCore::Init()
+{
+    if (!IsValidPointer(m_cdrom_media))
+        m_cdrom_media = new CdRomMedia();
+
+    if (!IsValidPointer(m_cdrom_audio))
+        m_cdrom_audio = new CdRomAudio(m_cdrom_media);
+
+    if (!IsValidPointer(m_audio))
+        m_audio = new Audio();
+
+    if (!IsValidPointer(m_firmware))
+        m_firmware = new Firmware();
+
+    if (!IsValidPointer(m_input))
+        m_input = new Input();
+
+    if (!IsValidPointer(m_media))
+        m_media = new Media(m_cdrom_media);
+
+    if (!IsValidPointer(m_memory))
+        m_memory = new Memory();
+
+    if (!IsValidPointer(m_i386))
+        m_i386 = new I386();
+
+    if (!IsValidPointer(m_x87))
+        m_x87 = new X87();
+
+    if (!IsValidPointer(m_io))
+        m_io = new IO();
+
+    if (!IsValidPointer(m_pic))
+        m_pic = new PIC();
+
+    if (!IsValidPointer(m_pit))
+        m_pit = new PIT();
+
+    if (!IsValidPointer(m_scheduler))
+        m_scheduler = new Scheduler();
+
+    if (!IsValidPointer(m_video))
+        m_video = new Video();
+
+    if (!IsValidPointer(m_fdc))
+        m_fdc = new FDC();
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        if (!IsValidPointer(m_hard_disks[i]))
+            m_hard_disks[i] = new HardDiskImage();
+    }
+
+    if (!IsValidPointer(m_trace_logger))
+        m_trace_logger = new TraceLogger();
+
+    if (!IsValidPointer(m_profiler))
+        m_profiler = new Profiler();
+
+    m_firmware->Init();
+    m_scheduler->Init();
+    m_memory->Init();
+    m_cdrom_media->Init();
+    m_cdrom_audio->Init();
+    m_pic->Init();
+    m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory);
+    m_pit->Init(m_pic, m_scheduler, m_audio);
+    m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
+    m_fdc->Init(m_pic, m_scheduler);
+    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input);
+    m_i386->Init(m_memory, m_io);
+    m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
+    m_input->Init();
+    m_trace_logger->Init(&m_scheduler->GetState()->clocks);
+    m_profiler->Init(&m_scheduler->GetState()->clocks);
+    m_i386->SetTraceLogger(m_trace_logger);
+    m_i386->SetProfiler(m_profiler);
+    m_memory->SetTraceLogger(m_trace_logger);
+    m_pic->SetTraceLogger(m_trace_logger);
+    m_pit->SetTraceLogger(m_trace_logger);
+    m_video->SetTraceLogger(m_trace_logger);
+    m_audio->SetTraceLogger(m_trace_logger);
+    m_fdc->SetTraceLogger(m_trace_logger);
+    m_input->SetTraceLogger(m_trace_logger);
+    m_media->Init();
+    Reset();
+}
+
+GDOX_Run_Result GeardoxCore::RunToFrame(u8* frame_buffer, s16* sample_buffer, int* sample_count, bool render)
+{
+    return RunToFrameTemplate<false>(frame_buffer, sample_buffer, sample_count, NULL, render);
+}
+
+GDOX_Run_Result GeardoxCore::RunToFrame(u8* frame_buffer, s16* sample_buffer, int* sample_count, GDOX_Debug_Run* debug,
+    bool render)
+{
+#if defined(GDOX_DISABLE_DISASSEMBLER)
+    return RunToFrameTemplate<false>(frame_buffer, sample_buffer, sample_count, debug, render);
+#else
+    return RunToFrameTemplate<true>(frame_buffer, sample_buffer, sample_count, debug, render);
+#endif
+}
+
+template<bool debugger>
+GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_buffer, int* sample_count,
+    GDOX_Debug_Run* debug, bool render)
+{
+    m_frame_buffer = frame_buffer;
+
+    if (sample_count != NULL)
+        *sample_count = 0;
+
+    if (m_paused)
+        return GDOX_RUN_PAUSED;
+
+    if (!m_powered || !IsValidPointer(m_firmware) || !m_firmware->IsReady())
+        return GDOX_RUN_NOT_READY;
+
+    u64 frame_start = m_scheduler->GetClocks();
+    m_video->BeginFrame(frame_buffer, render);
+
+    bool debugging = debugger && IsValidPointer(debug);
+    m_trace_logger->SetActive(debugging);
+    m_profiler->SetActive(debugging);
+    m_i386->EnableDebuggerChecks(debugging);
+
+    if (debugging)
+    {
+        RunDebuggerFrame(frame_start, debug);
+
+        if (m_video->IsFrameReady())
+        {
+            m_profiler->CountFrame();
+            m_i386->UpdateVBlankWatch();
+        }
+    }
+    else
+        RunFrame(frame_start);
+
+    EndFrame(frame_start, sample_buffer, sample_count);
+
+    return GDOX_RUN_FRAME_READY;
+}
+
+void GeardoxCore::RunFrame(u64 frame_start)
+{
+    if (unlikely(m_debug_interrupt_deferred))
+    {
+        m_debug_interrupt_deferred = false;
+        GDOX_Bus_Access_Context context = BeginSlice();
+        EnterPendingInterrupt(context);
+    }
+
+    while (!IsFrameDone(frame_start))
+    {
+        u32 slice = m_scheduler->GetSliceClocks(GetFrameLimit(frame_start));
+        u32 cycles = m_scheduler->GetSliceCycles(slice);
+        GDOX_Bus_Access_Context context = BeginSlice();
+
+        I386_Run_Result result = m_i386->RunFor(cycles, context, false, m_pic->IsInterruptPending());
+        CompleteSlice(result, context, slice, false);
+    }
+}
+
+void GeardoxCore::RunDebuggerFrame(u64 frame_start, GDOX_Debug_Run* debug)
+{
+    if (BeginDebuggerFrame(debug))
+        return;
+
+    if (unlikely(m_debug_step != GDOX_DEBUG_STEP_NONE))
+    {
+        RunDebuggerSteps(frame_start, debug);
+        return;
+    }
+
+    bool regular = debug->stop_on_breakpoint;
+    bool run_to = debug->stop_on_run_to_breakpoint;
+
+    while (!IsFrameDone(frame_start))
+    {
+        if (m_i386->CheckDebuggerBreakpoints(regular, run_to))
+        {
+            StopDebugger(debug, true);
+            break;
+        }
+
+        u32 slice = m_scheduler->GetSliceClocks(GetFrameLimit(frame_start));
+        GDOX_Bus_Access_Context context = BeginSlice();
+        m_i386->RunInstruction(context);
+        CompleteSlice(m_i386->GetStepInfo(), context, slice, regular);
+
+        if (unlikely(m_i386->IsDebuggerHitPending()) && AcceptDebuggerHit(debug))
+            break;
+    }
+}
+
+NO_INLINE void GeardoxCore::RunDebuggerSteps(u64 frame_start, GDOX_Debug_Run* debug)
+{
+    bool regular = debug->stop_on_breakpoint;
+    bool run_to = debug->stop_on_run_to_breakpoint;
+
+    while (!IsFrameDone(frame_start))
+    {
+        if (m_i386->CheckDebuggerBreakpoints(regular, run_to) && BreakpointStopsDebugger(debug))
+            break;
+
+        if (m_debug_step == GDOX_DEBUG_STEP_INSTRUCTION)
+        {
+            if (RunDebuggerStep(frame_start, debug))
+                break;
+
+            continue;
+        }
+
+        u32 slice = m_scheduler->GetSliceClocks(GetFrameLimit(frame_start));
+        GDOX_Bus_Access_Context context = BeginSlice();
+        m_i386->RunInstruction(context);
+        CompleteSlice(m_i386->GetStepInfo(), context, slice, regular);
+
+        if (unlikely(m_i386->IsDebuggerHitPending()) && AcceptDebuggerHit(debug))
+            break;
+    }
+}
+
+NO_INLINE bool GeardoxCore::BeginDebuggerFrame(GDOX_Debug_Run* debug)
+{
+    debug->stopped = false;
+    debug->breakpoint_hit = false;
+
+    if (!debug->step_debugger && !debug->step_over)
+        m_debug_step = GDOX_DEBUG_STEP_NONE;
+    else if (debug->step_start || (m_debug_step == GDOX_DEBUG_STEP_NONE))
+    {
+        m_debug_step = GDOX_DEBUG_STEP_INSTRUCTION;
+        m_debug_step_resume = false;
+        m_i386->ClearRunToBreakpoint();
+    }
+
+    if (!m_debug_interrupt_deferred)
+        return false;
+
+    m_debug_interrupt_deferred = false;
+    return RunDeferredInterrupt(debug);
+}
+
+// An IRQ handler that ran in the middle of the stepped instruction returned to it, so the step goes on
+NO_INLINE bool GeardoxCore::BreakpointStopsDebugger(GDOX_Debug_Run* debug)
+{
+    if ((m_debug_step == GDOX_DEBUG_STEP_RETURN) && m_debug_step_resume && m_i386->RunToBreakpointHit())
+    {
+        m_i386->ClearBreakpointHit();
+        m_debug_step = GDOX_DEBUG_STEP_INSTRUCTION;
+        m_debug_step_resume = false;
+        return false;
+    }
+
+    StopDebugger(debug, true);
+    return true;
+}
+
+// One instruction of a step, returns true when the debugger stops
+NO_INLINE bool GeardoxCore::RunDebuggerStep(u64 frame_start, GDOX_Debug_Run* debug)
+{
+    u16 stack_selector = 0;
+    u32 stack_pointer = 0;
+
+    if (debug->step_over)
+        m_i386->GetStackPointer(stack_selector, stack_pointer);
+
+    u32 slice = m_scheduler->GetSliceClocks(GetFrameLimit(frame_start));
+    GDOX_Bus_Access_Context context = BeginSlice();
+    m_i386->RunInstruction(context);
+
+    u32 call_return_linear = 0;
+
+    // Step Over runs a call or a software interrupt until it returns
+    if (debug->step_over && m_i386->GetStepCall(call_return_linear))
+    {
+        m_i386->AddRunToBreakpoint(call_return_linear, stack_selector, stack_pointer);
+        m_debug_step = GDOX_DEBUG_STEP_RETURN;
+        m_debug_step_resume = false;
+        CompleteSlice(m_i386->GetStepInfo(), context, slice, debug->stop_on_breakpoint);
+        return unlikely(m_i386->IsDebuggerHitPending()) && AcceptDebuggerHit(debug);
+    }
+
+    u32 return_linear = m_i386->GetCurrentLinearPC();
+    bool repeat = m_i386->IsRepeatActive();
+
+    m_i386->GetStackPointer(stack_selector, stack_pointer);
+
+    bool interrupted = CompleteSlice(m_i386->GetStepInfo(), context, slice, debug->stop_on_breakpoint);
+
+    if (unlikely(m_i386->IsDebuggerHitPending()) && AcceptDebuggerHit(debug))
+        return true;
+
+    if (interrupted)
+    {
+        if (!StepInterrupt(debug, return_linear, stack_selector, stack_pointer, repeat))
+            return false;
+    }
+    else if (m_i386->IsRepeatActive() || m_i386->Halted())
+        return false;
+
+    StopDebugger(debug, false);
+    return true;
+}
+
+bool GeardoxCore::RunDeferredInterrupt(GDOX_Debug_Run* debug)
+{
+    u32 return_linear = m_i386->GetCurrentLinearPC();
+    u16 stack_selector = 0;
+    u32 stack_pointer = 0;
+
+    m_i386->GetStackPointer(stack_selector, stack_pointer);
+
+    GDOX_Bus_Access_Context context = BeginSlice();
+
+    if (!EnterPendingInterrupt(context))
+        return false;
+
+    if (unlikely(m_i386->IsDebuggerHitPending()) && AcceptDebuggerHit(debug))
+        return true;
+
+    if ((m_debug_step == GDOX_DEBUG_STEP_INSTRUCTION) &&
+        StepInterrupt(debug, return_linear, stack_selector, stack_pointer, true))
+    {
+        StopDebugger(debug, false);
+        return true;
+    }
+
+    return false;
+}
+
+bool GeardoxCore::StepInterrupt(GDOX_Debug_Run* debug, u32 return_linear, u16 stack_selector, u32 stack_pointer,
+    bool resume)
+{
+    if (!debug->step_over && !debug->skip_interrupts_on_step)
+        return true;
+
+    m_i386->AddRunToBreakpoint(return_linear, stack_selector, stack_pointer);
+    m_debug_step = GDOX_DEBUG_STEP_RETURN;
+    m_debug_step_resume = resume;
+    return false;
+}
+
+NO_INLINE bool GeardoxCore::AcceptDebuggerHit(GDOX_Debug_Run* debug)
+{
+    if (!debug->stop_on_breakpoint)
+    {
+        m_i386->DiscardDebuggerHit();
+        return false;
+    }
+
+    if (!m_i386->AcceptDebuggerHit())
+        return false;
+
+    m_debug_interrupt_deferred = true;
+    StopDebugger(debug, true);
+    return true;
+}
+
+void GeardoxCore::StopDebugger(GDOX_Debug_Run* debug, bool breakpoint)
+{
+    debug->stopped = true;
+    debug->breakpoint_hit = breakpoint;
+    m_debug_step = GDOX_DEBUG_STEP_NONE;
+    m_i386->ClearRunToBreakpoint();
+}
+
+void GeardoxCore::EndFrame(u64 frame_start, s16* sample_buffer, int* sample_count)
+{
+    m_video->EndFrame();
+
+    // Debugger memory views refresh once per executed frame or debugger step
+    if (m_scheduler->GetClocks() != frame_start)
+        m_memory->InvalidateDebugSnapshot();
+
+    m_audio->Synchronize(m_scheduler->GetClocks());
+    m_audio->EndFrame(sample_buffer, sample_count);
+}
+
+INLINE bool GeardoxCore::IsFrameDone(u64 frame_start) const
+{
+    return m_video->IsFrameReady() || (m_scheduler->GetClocks() >= GetFrameLimit(frame_start)) || !m_powered;
+}
+
+INLINE u64 GeardoxCore::GetFrameLimit(u64 frame_start) const
+{
+    return frame_start + (m_video->IsRunning() ? GDOX_MACHINE_CLOCKS_PER_FRAME * 4 : GDOX_MACHINE_CLOCKS_PER_FRAME);
+}
+
+INLINE GDOX_Bus_Access_Context GeardoxCore::BeginSlice()
+{
+    GDOX_Bus_Access_Context context = {};
+    context.origin = GDOX_BUS_ORIGIN_CPU;
+    context.clocks = m_scheduler->GetClocks();
+    context.synchronize = &GeardoxCore::SynchronizeIOCallback;
+    context.synchronize_memory = &GeardoxCore::SynchronizeMemoryCallback;
+    context.poll_port = &GeardoxCore::PollPortCallback;
+    context.synchronize_context = this;
+    return context;
+}
+
+void GeardoxCore::DMADebugCallback(void* cpu, u32 address, u32 size, bool write)
+{
+    ((I386*)cpu)->RecordDebuggerDMA(address, size, write);
+}
+
+// A port access moves machine time up to the start of its instruction and then to the access, running the events
+// due on the way. Events due by the start stop the instruction, so the CPU samples INTR before it
+GDOX_Synchronize_Result GeardoxCore::SynchronizeIOCallback(void* core, GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles)
+{
+    GeardoxCore* geardox = (GeardoxCore*)core;
+    Scheduler* scheduler = geardox->m_scheduler;
+    GDOX_Synchronize_Result result = GDOX_SYNC_NO_EVENTS;
+    scheduler->AddCycles(start_cycles - context.synchronized_cycles);
+    context.synchronized_cycles = start_cycles;
+
+    if (scheduler->IsEventDue())
+        result = GDOX_SYNC_EVENTS_AT_START;
+    else
+    {
+        scheduler->AddCycles(access_cycles - start_cycles);
+        context.synchronized_cycles = access_cycles;
+
+        if (scheduler->IsEventDue())
+            result = GDOX_SYNC_EVENTS_AT_ACCESS;
+    }
+
+    if (result != GDOX_SYNC_NO_EVENTS)
+        geardox->DispatchEvents();
+
+    context.clocks = scheduler->GetClocks();
+    return result;
+}
+
+// A memory access that a device must see in time moves machine time up to the start of its instruction
+// Events due by then run before the access, and their IRQs wait for the end of the instruction
+void GeardoxCore::SynchronizeMemoryCallback(void* core, GDOX_Bus_Access_Context& context)
+{
+    GeardoxCore* geardox = (GeardoxCore*)core;
+    Scheduler* scheduler = geardox->m_scheduler;
+    u32 start_cycles = geardox->m_i386->GetStartCycles();
+
+    if (start_cycles <= context.synchronized_cycles)
+        return;
+
+    scheduler->AddCycles(start_cycles - context.synchronized_cycles);
+    context.synchronized_cycles = start_cycles;
+
+    if (scheduler->IsEventDue())
+    {
+        context.end_batch = true;
+        geardox->DispatchEvents();
+    }
+
+    context.clocks = scheduler->GetClocks();
+}
+
+// CPU cycles from the read just synchronized while the port reads the same, without side effects or due events
+u32 GeardoxCore::PollPortCallback(void* core, u16 port, int width)
+{
+    GeardoxCore* geardox = (GeardoxCore*)core;
+    Scheduler* scheduler = geardox->m_scheduler;
+    u64 stable = geardox->m_io->GetReadStableUntil(port, width, scheduler->GetClocks());
+
+    return scheduler->GetCyclesBefore(MIN(stable, scheduler->GetNextEventClocks()));
+}
+
+// A halted CPU idles through the slice
+// Events due by the end of the slice run before the CPU samples INTR at its boundary
+// The debugger holds the IRQ back when the slice hit a breakpoint, so it stops right after the instruction
+// Returns whether an IRQ was entered
+INLINE bool GeardoxCore::CompleteSlice(const I386_Run_Result& result, GDOX_Bus_Access_Context& context, u32 slice,
+    bool hold_on_hit)
+{
+    bool idle = (result.steps == 0) && m_i386->Halted();
+
+    if (idle)
+        m_scheduler->AddClocks(slice);
+    else
+        m_scheduler->AddCycles((u32)(result.cycles + context.wait_cycles - context.synchronized_cycles));
+
+    if (m_scheduler->IsEventDue())
+        DispatchEvents();
+
+    if (hold_on_hit && m_i386->IsDebuggerHitPending())
+        return false;
+
+    return EnterPendingInterrupt(context);
+}
+
+INLINE bool GeardoxCore::EnterPendingInterrupt(GDOX_Bus_Access_Context& context)
+{
+    if (!m_pic->IsInterruptPending() || !m_i386->CanAcceptMaskableInterrupt())
+        return false;
+
+    int line = 0;
+    u8 vector = m_pic->AcknowledgeInterrupt(line);
+    u32 interrupt_cycles = m_i386->EnterExternalInterrupt(vector, context, line);
+    m_scheduler->AddCycles(interrupt_cycles);
+
+    if (m_scheduler->IsEventDue())
+        DispatchEvents();
+
+    return true;
+}
+
+INLINE void GeardoxCore::DispatchEvents()
+{
+    while (m_scheduler->IsEventDue())
+    {
+        u64 clocks = m_scheduler->GetClocks();
+
+        switch (m_scheduler->PopEvent())
+        {
+            case SCHEDULER_EVENT_PIT:
+                m_pit->HandleEvent(clocks);
+                break;
+            case SCHEDULER_EVENT_VIDEO:
+                m_video->HandleEvent(clocks);
+                break;
+            case SCHEDULER_EVENT_AUDIO:
+                m_audio->HandleEvent(clocks);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+bool GeardoxCore::PowerOn()
+{
+    SearchFirmware();
+
+    if (!LoadMachineFirmware(false, true))
+        return false;
+
+    Reset();
+    m_powered = true;
+    return true;
+}
+
+void GeardoxCore::PowerOff()
+{
+    m_powered = false;
+    FlushHardDisks();
+
+    if (IsValidPointer(m_i386))
+        m_i386->ResetDisassembler();
+}
+
+void GeardoxCore::SetMachineSettings(const GDOX_Machine_Settings& settings)
+{
+    m_machine_settings = settings;
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
+
+void GeardoxCore::LatchAutoMedia()
+{
+    const GDOX_DB_Entry* cdrom = IsValidPointer(m_media) ? m_media->GetGameDBEntry() : NULL;
+    const GDOX_DB_Entry* floppy = NULL;
+
+    for (int i = 0; IsValidPointer(m_fdc) && (i < FDC_DRIVES); i++)
+    {
+        FloppyDisk* disk = GetFloppy(i);
+
+        if (!disk->IsInserted())
+            continue;
+
+        if (!IsValidPointer(floppy) && (disk->GetDataCRC() != 0))
+            floppy = Media::FindFloppyEntry(disk->GetDataCRC());
+    }
+
+    bool uses_floppy = !IsValidPointer(cdrom) || ((cdrom->flags & GDOX_GAMEDB_FLOPPY_MASK) != 0);
+    m_auto_entry = (IsValidPointer(floppy) && uses_floppy) ? floppy : cdrom;
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
+
+bool GeardoxCore::IsMachineConfigPending()
+{
+    return (m_pending_machine_config.model != m_machine_config.model) ||
+        (m_pending_machine_config.cpu != m_machine_config.cpu) ||
+        (m_pending_machine_config.ram_size != m_machine_config.ram_size) ||
+        (m_pending_machine_config.floppy_drives != m_machine_config.floppy_drives) ||
+        (m_pending_machine_config.cpu_clock_rate != m_machine_config.cpu_clock_rate) ||
+        (m_pending_machine_config.scsi != m_machine_config.scsi) ||
+        (m_pending_machine_config.fpu != m_machine_config.fpu) ||
+        (m_pending_machine_config.speed_mode != m_machine_config.speed_mode);
+}
+
+bool GeardoxCore::GetFloppyNotice(GDOX_Floppy_Notice& notice)
+{
+    const GDOX_DB_Entry* entry = m_auto_entry;
+    notice.warning = false;
+    notice.line_count = 0;
+
+    if (!IsValidPointer(entry) || ((entry->flags & GDOX_GAMEDB_FLOPPY_MASK) == 0))
+        return false;
+
+    for (int i = 0; i < m_machine_config.floppy_drives; i++)
+    {
+        if (GetFloppy(i)->IsInserted())
+            return false;
+    }
+
+    notice.warning = (entry->flags & (GDOX_GAMEDB_FLOPPY_BOOT | GDOX_GAMEDB_FLOPPY_REQUIRED |
+        GDOX_GAMEDB_FLOPPY_PROTECTED)) != 0;
+
+    if ((entry->flags & GDOX_GAMEDB_FLOPPY_BOOT) != 0)
+        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
+            "%s boots from its floppy disk, insert it in Floppy 1", entry->title);
+    else if ((entry->flags & GDOX_GAMEDB_FLOPPY_REQUIRED) != 0)
+        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
+            "%s needs its floppy disk, insert it in Floppy 1", entry->title);
+    else if ((entry->flags & GDOX_GAMEDB_FLOPPY_OPTIONAL) != 0)
+        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
+            "%s came with an optional floppy disk, it runs without it", entry->title);
+
+    if ((entry->flags & GDOX_GAMEDB_FLOPPY_PROTECTED) != 0)
+        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Its original floppy disk is copy protected");
+
+    return true;
+}
+
+bool GeardoxCore::GetDatabaseController(int port, GDOX_Controller_Type& type) const
+{
+    if (!IsValidPointer(m_auto_entry) || (port < 0) || (port >= GDOX_MAX_GAMEPADS))
+        return false;
+
+    switch ((port == GDOX_CONTROLLER_1) ? m_auto_entry->port_1 : m_auto_entry->port_2)
+    {
+        case GDOX_GAMEDB_PORT_NONE:
+            type = GDOX_CONTROLLER_NONE;
+            return true;
+        case GDOX_GAMEDB_PORT_PAD:
+            type = GDOX_CONTROLLER_GAMEPAD;
+            return true;
+        case GDOX_GAMEDB_PORT_MOUSE:
+            type = GDOX_CONTROLLER_MOUSE;
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool GeardoxCore::LoadBios(const char* directory_path)
+{
+    std::string previous = m_firmware_folder;
+    m_firmware_folder = IsValidPointer(directory_path) ? directory_path : "";
+
+    if (ReloadFirmware())
+        return true;
+
+    m_firmware_folder = previous;
+    SearchFirmware();
+    return false;
+}
+
+void GeardoxCore::UnloadBios()
+{
+    m_powered = false;
+    m_firmware_folder.clear();
+
+    for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
+        m_model_firmware_folders[i].clear();
+
+    SearchFirmware();
+
+    if (IsValidPointer(m_firmware))
+        m_firmware->Unload();
+
+    if (IsValidPointer(m_i386))
+        m_i386->ResetDisassembler();
+}
+
+void GeardoxCore::SetModelFirmwareFolder(GDOX_Machine_Model model, const char* directory_path)
+{
+    m_model_firmware_folders[model] = IsValidPointer(directory_path) ? directory_path : "";
+}
+
+bool GeardoxCore::ReloadFirmware()
+{
+    SearchFirmware();
+
+    if (!LoadMachineFirmware(true, true))
+        return false;
+
+    if (m_powered)
+        Reset();
+
+    return true;
+}
+
+bool GeardoxCore::LoadMedia(const char* file_path)
+{
+    if (!IsValidPointer(m_media))
+        return false;
+
+    return m_media->LoadMedia(file_path);
+}
+
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+bool GeardoxCore::LoadPhysicalCdRom(const char* device_id)
+{
+    if (!IsValidPointer(m_media))
+        return false;
+
+    return m_media->LoadPhysicalCdRom(device_id);
+}
+#endif
+
+void GeardoxCore::EjectMedia()
+{
+    if (!IsValidPointer(m_media))
+        return;
+
+    m_media->Reset();
+}
+
+void GeardoxCore::ResetMedia()
+{
+    Reset();
+}
+
+bool GeardoxCore::InsertFloppy(int drive, const u8* data, u32 size, bool write_protected, u32 base_crc, u32 data_crc, const u8* source, u32 source_size)
+{
+    return IsValidPointer(m_fdc) &&
+        m_fdc->InsertDisk(drive, data, size, write_protected, base_crc, data_crc, source, source_size);
+}
+
+void GeardoxCore::EjectFloppy(int drive)
+{
+    if (IsValidPointer(m_fdc))
+        m_fdc->EjectDisk(drive);
+}
+
+void GeardoxCore::SwapFloppies()
+{
+    if (IsValidPointer(m_fdc))
+        m_fdc->SwapDisks();
+}
+
+FloppyDisk* GeardoxCore::GetFloppy(int drive)
+{
+    return IsValidPointer(m_fdc) ? m_fdc->GetDisk(drive) : NULL;
+}
+
+bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected, const char* working_path)
+{
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(path) || !IsValidPointer(m_hard_disks[id]))
+        return false;
+
+    if (m_powered)
+    {
+        HardDiskImage probe;
+
+        if (!probe.Open(path, true))
+            return false;
+
+        const HardDiskImage* image = m_hard_disks[id];
+        m_hard_disk_paths[id] = path;
+        m_hard_disk_working_paths[id] = IsValidPointer(working_path) ? working_path : "";
+        m_hard_disk_write_protected[id] = write_protected;
+        m_hard_disk_pending[id] = !image->IsOpen() || (strcmp(image->GetPath(), path) != 0) ||
+            (image->IsWriteProtected() != write_protected);
+    }
+    else
+    {
+        m_hard_disk_pending[id] = false;
+
+        if (!m_hard_disks[id]->Open(path, write_protected, working_path))
+            return false;
+    }
+
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+
+    return true;
+}
+
+void GeardoxCore::DetachHardDisk(int id)
+{
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(m_hard_disks[id]))
+        return;
+
+    if (m_powered)
+    {
+        m_hard_disk_paths[id].clear();
+        m_hard_disk_pending[id] = m_hard_disks[id]->IsOpen();
+    }
+    else
+    {
+        m_hard_disk_pending[id] = false;
+        m_hard_disks[id]->Close();
+    }
+
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
+
+bool GeardoxCore::FlushHardDisks()
+{
+    bool ok = true;
+
+    for (int i = 0; (i < GDOX_MAX_HARD_DISKS) && IsValidPointer(m_hard_disks[i]); i++)
+        ok = m_hard_disks[i]->Flush() && ok;
+
+    return ok;
+}
+
+bool GeardoxCore::IsHardDiskPending(int id) const
+{
+    return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) && m_hard_disk_pending[id];
+}
+
+const char* GeardoxCore::GetPendingHardDiskPath(int id) const
+{
+    return IsHardDiskPending(id) ? m_hard_disk_paths[id].c_str() : "";
+}
+
+bool GeardoxCore::IsPendingHardDiskWriteProtected(int id) const
+{
+    return IsHardDiskPending(id) && m_hard_disk_write_protected[id];
+}
+
+u32 GeardoxCore::GetHardDiskStateChanges() const
+{
+    return m_hard_disk_state_changes;
+}
+
+void GeardoxCore::SetBootDevice(GDOX_Boot_Device device)
+{
+    m_boot_device = ((device >= GDOX_BOOT_DEVICE_AUTO) && (device < GDOX_BOOT_DEVICE_COUNT)) ? device : GDOX_BOOT_DEVICE_AUTO;
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
+
+GDOX_Boot_Device GeardoxCore::GetBootDevice() const
+{
+    return m_boot_device;
+}
+
+void GeardoxCore::LockRAMSize(bool locked)
+{
+    m_ram_size_locked = locked;
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
+
+void GeardoxCore::ApplyBootDevice()
+{
+    m_boot_device = GDOX_BOOT_DEVICE_AUTO;
+}
+
+HardDiskImage* GeardoxCore::GetHardDisk(int id)
+{
+    return ((id >= 0) && (id < GDOX_MAX_HARD_DISKS)) ? m_hard_disks[id] : NULL;
+}
+
+bool GeardoxCore::HasHardDisks()
+{
+    for (int i = 0; (i < GDOX_MAX_HARD_DISKS) && IsValidPointer(m_hard_disks[i]); i++)
+    {
+        if (m_hard_disk_pending[i] ? !m_hard_disk_paths[i].empty() : m_hard_disks[i]->IsOpen())
+            return true;
+    }
+
+    return false;
+}
+
+void GeardoxCore::ApplyHardDisks()
+{
+    for (int i = 0; (i < GDOX_MAX_HARD_DISKS) && IsValidPointer(m_hard_disks[i]); i++)
+    {
+        if (!m_hard_disk_pending[i])
+            continue;
+
+        m_hard_disk_pending[i] = false;
+        m_hard_disks[i]->Close();
+
+        if (!m_hard_disk_paths[i].empty())
+            m_hard_disks[i]->Open(m_hard_disk_paths[i].c_str(), m_hard_disk_write_protected[i],
+                m_hard_disk_working_paths[i].c_str());
+    }
+}
+
+void GeardoxCore::KeyPressed(GDOX_Keys key)
+{
+    UNUSED(key);
+}
+
+void GeardoxCore::KeyReleased(GDOX_Keys key)
+{
+    UNUSED(key);
+}
+
+void GeardoxCore::ReleaseAllKeys()
+{
+}
+
+bool GeardoxCore::SaveState(const char* path, int index, bool screenshot)
+{
+    using namespace std;
+
+    if (!m_powered)
+    {
+        Error("Machine is not powered on when trying to save state");
+        return false;
+    }
+
+    string full_path = GetSaveStatePath(path, index);
+    string temp_path = full_path + ".tmp";
+    Debug("Saving state to %s...", full_path.c_str());
+
+    ofstream stream;
+    open_ofstream_utf8(stream, temp_path.c_str(), ios::out | ios::binary);
+
+    if (!stream.is_open())
+    {
+        Error("Failed to open save state file for writing: %s", temp_path.c_str());
+        return false;
+    }
+
+    size_t size = 0;
+
+    if (!SaveState(stream, size, screenshot, true))
+    {
+        stream.close();
+        remove_file_utf8(temp_path.c_str());
+        Error("Failed to save state to file: %s", full_path.c_str());
+        return false;
+    }
+
+    stream.close();
+
+    if (!stream.good() || !rename_file_utf8(temp_path.c_str(), full_path.c_str()))
+    {
+        remove_file_utf8(temp_path.c_str());
+        Error("Failed to write save state file: %s", full_path.c_str());
+        return false;
+    }
+
+    Log("Saved state to %s", full_path.c_str());
+    return true;
+}
+
+bool GeardoxCore::SaveState(u8* buffer, size_t& size, bool screenshot, bool media)
+{
+    using namespace std;
+
+    Debug("Saving state to buffer [%zu bytes]...", size);
+
+    if (!m_powered)
+    {
+        Error("Machine is not powered on when trying to save state");
+        return false;
+    }
+
+    if (!IsValidPointer(buffer))
+    {
+        stringstream stream;
+
+        if (!SaveState(stream, size, screenshot, media))
+        {
+            Error("Failed to save state to stream to calculate size");
+            return false;
+        }
+
+        return true;
+    }
+
+    memory_stream direct_stream(reinterpret_cast<char*>(buffer), size);
+
+    if (!SaveState(direct_stream, size, screenshot, media))
+    {
+        Error("Failed to save state to buffer");
+        return false;
+    }
+
+    if (!direct_stream.good())
+    {
+        Error("Failed to save state to buffer: output buffer is too small");
+        return false;
+    }
+
+    size = direct_stream.size();
+    return true;
+}
+
+bool GeardoxCore::GetMaxSaveStateSize(size_t& size)
+{
+    return SaveState(NULL, size, false);
+}
+
+bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot, bool media)
+{
+    if (!m_powered)
+    {
+        Error("Machine is not powered on when trying to save state");
+        return false;
+    }
+
+    Debug("Serializing save state...");
+
+    StateSerializer serializer(stream);
+    Serialize(serializer, m_machine_config, GDOX_SAVESTATE_VERSION);
+
+    GDOX_SaveState_Media state_media = {};
+
+    for (int i = 0; i < FDC_DRIVES; i++)
+    {
+        state_media.floppy_inserted[i] = m_fdc->GetDisk(i)->IsInserted();
+        state_media.floppy_crc[i] = m_fdc->GetDisk(i)->GetBaseCRC();
+    }
+
+    state_media.cdrom_inserted = m_media->IsReady();
+    state_media.cdrom_crc = m_media->GetCRC();
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        const HardDiskImage* image = m_hard_disks[i];
+        state_media.hard_disk_attached[i] = image->IsOpen();
+        state_media.hard_disk_blocks[i] = image->GetBlocks();
+        state_media.hard_disk_session[i] = image->GetSession();
+        state_media.hard_disk_write[i] = image->GetLastWrite();
+    }
+
+    SerializeMedia(serializer, state_media, GDOX_SAVESTATE_VERSION);
+
+    m_scheduler->SaveState(stream);
+    m_memory->SaveState(stream);
+    m_i386->SaveState(stream);
+    m_audio->SaveState(stream);
+    m_input->SaveState(stream);
+    m_pic->SaveState(stream);
+    m_pit->SaveState(stream);
+    m_video->SaveState(stream);
+    m_cdrom_audio->SaveState(stream);
+    m_fdc->SaveState(stream, media);
+    m_x87->SaveState(stream);
+
+    if (stream.fail())
+    {
+        Error("Failed to serialize save state");
+        return false;
+    }
+
+#if defined(__LIBRETRO__)
+    GDOX_SaveState_Header_Libretro header;
+    header.magic = GDOX_SAVESTATE_MAGIC;
+    header.version = GDOX_SAVESTATE_VERSION;
+    Debug("Save state header magic: 0x%08X", header.magic);
+    Debug("Save state header version: %u", header.version);
+#else
+    GDOX_SaveState_Header header;
+    memset(&header, 0, sizeof(header));
+    header.magic = GDOX_SAVESTATE_MAGIC;
+    header.version = GDOX_SAVESTATE_VERSION;
+    header.timestamp = (s64)time(NULL);
+    strncpy_fit(header.rom_name, m_media->GetFileName(), sizeof(header.rom_name));
+    header.rom_crc = m_media->GetCRC();
+    strncpy_fit(header.emu_build, GDOX_VERSION, sizeof(header.emu_build));
+
+    Debug("Save state header magic: 0x%08X", header.magic);
+    Debug("Save state header version: %u", header.version);
+    Debug("Save state header timestamp: %lld", (long long)header.timestamp);
+    Debug("Save state header rom name: %s", header.rom_name);
+    Debug("Save state header rom crc: 0x%08X", header.rom_crc);
+    Debug("Save state header emu build: %s", header.emu_build);
+
+    if (screenshot && IsValidPointer(m_frame_buffer))
+    {
+        header.screenshot_width = (u16)m_video->GetFrameWidth();
+        header.screenshot_height = (u16)m_video->GetFrameHeight();
+        header.screenshot_size = header.screenshot_width * header.screenshot_height * 4;
+        stream.write(reinterpret_cast<const char*>(m_frame_buffer), header.screenshot_size);
+    }
+    else
+    {
+        header.screenshot_size = 0;
+        header.screenshot_width = 0;
+        header.screenshot_height = 0;
+    }
+
+    Debug("Save state header screenshot size: %u", header.screenshot_size);
+    Debug("Save state header screenshot width: %u", header.screenshot_width);
+    Debug("Save state header screenshot height: %u", header.screenshot_height);
+#endif
+
+    std::streampos position = stream.tellp();
+
+    if (position == std::streampos(-1))
+    {
+        Error("Failed to calculate save state size");
+        return false;
+    }
+
+    size = static_cast<size_t>(position) + sizeof(header);
+
+#if !defined(__LIBRETRO__)
+    header.size = static_cast<u32>(size);
+    Debug("Save state header size: %u", header.size);
+#endif
+
+    stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+
+    if (stream.fail())
+    {
+        Error("Failed to write save state header");
+        return false;
+    }
+
+    return true;
+}
+
+bool GeardoxCore::LoadState(const char* path, int index)
+{
+    using namespace std;
+
+    bool ret = false;
+    string full_path = GetSaveStatePath(path, index);
+    Debug("Loading state from %s...", full_path.c_str());
+
+    ifstream stream;
+    open_ifstream_utf8(stream, full_path.c_str(), ios::in | ios::binary);
+
+    if (!stream.fail())
+    {
+        ret = LoadState(stream);
+
+        if (ret)
+            Log("Loaded state from %s", full_path.c_str());
+        else
+            Error("Failed to load state from %s", full_path.c_str());
+    }
+    else
+        Error("Load state file doesn't exist: %s", full_path.c_str());
+
+    stream.close();
+    return ret;
+}
+
+bool GeardoxCore::LoadState(const u8* buffer, size_t size, GDOX_SaveState_Media* media)
+{
+    Debug("Loading state from buffer [%zu bytes]...", size);
+
+    if (!m_powered)
+    {
+        Error("Machine is not powered on when trying to load state");
+        return false;
+    }
+
+    if (!IsValidPointer(buffer) || size == 0)
+    {
+        Error("Invalid load state buffer");
+        return false;
+    }
+
+    memory_input_stream direct_stream(reinterpret_cast<const char*>(buffer), size);
+    return LoadState(direct_stream, media);
+}
+
+bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
+{
+    using namespace std;
+
+    if (!m_powered)
+    {
+        Error("Machine is not powered on when trying to load state");
+        return false;
+    }
+
+    GDOX_SaveState_Header_Libretro header = {};
+
+    stream.seekg(0, ios::end);
+    size_t size = static_cast<size_t>(stream.tellg());
+
+#if !defined(__LIBRETRO__)
+    bool is_desktop_savestate = false;
+    GDOX_SaveState_Header desktop_header = {};
+
+    if (size >= sizeof(desktop_header))
+    {
+        stream.seekg(size - sizeof(desktop_header), ios::beg);
+        stream.read(reinterpret_cast<char*>(&desktop_header), sizeof(desktop_header));
+
+        if (desktop_header.magic == GDOX_SAVESTATE_MAGIC)
+        {
+            header.magic = desktop_header.magic;
+            header.version = desktop_header.version;
+            is_desktop_savestate = true;
+            Debug("Loading desktop save state");
+        }
+    }
+#endif
+
+    if (header.magic != GDOX_SAVESTATE_MAGIC && size >= sizeof(header))
+    {
+        stream.seekg(size - sizeof(header), ios::beg);
+        stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+    }
+
+    stream.clear();
+    stream.seekg(0, ios::beg);
+
+    Debug("Load state header magic: 0x%08X", header.magic);
+    Debug("Load state header version: %u", header.version);
+
+    if (header.magic != GDOX_SAVESTATE_MAGIC)
+    {
+        Log("Invalid save state: 0x%08X", header.magic);
+        return false;
+    }
+
+    if ((header.version < GDOX_SAVESTATE_MIN_VERSION) || (header.version > GDOX_SAVESTATE_VERSION))
+    {
+        Error("Invalid save state version: %u", header.version);
+        return false;
+    }
+
+#if !defined(__LIBRETRO__)
+    if (is_desktop_savestate)
+    {
+        Debug("Load state header size: %u", desktop_header.size);
+        Debug("Load state header timestamp: %lld", (long long)desktop_header.timestamp);
+        Debug("Load state header rom name: %s", desktop_header.rom_name);
+        Debug("Load state header rom crc: 0x%08X", desktop_header.rom_crc);
+        Debug("Load state header screenshot size: %u", desktop_header.screenshot_size);
+        Debug("Load state header screenshot width: %u", desktop_header.screenshot_width);
+        Debug("Load state header screenshot height: %u", desktop_header.screenshot_height);
+        Debug("Load state header emu build: %s", desktop_header.emu_build);
+
+        if (desktop_header.size != size)
+        {
+            Error("Invalid save state size: %u", desktop_header.size);
+            return false;
+        }
+
+        if (desktop_header.rom_crc != m_media->GetCRC())
+        {
+            Error("Invalid save state media crc: 0x%08X", desktop_header.rom_crc);
+            return false;
+        }
+    }
+#endif
+
+    Debug("Unserializing save state...");
+
+    GDOX_Machine_Config machine_config = m_machine_config;
+    StateSerializer serializer(stream);
+    Serialize(serializer, machine_config, header.version);
+    SanitizeMachineConfig(machine_config);
+
+    // The CPU speed may differ, the hardware may not
+    // The running machine keeps its own configuration either way
+    bool same_machine = (m_machine_config.model == machine_config.model) &&
+        (m_machine_config.cpu == machine_config.cpu) && (m_machine_config.ram_size == machine_config.ram_size) &&
+        (m_machine_config.floppy_drives == machine_config.floppy_drives) &&
+        (m_machine_config.scsi == machine_config.scsi) && (m_machine_config.fpu == machine_config.fpu);
+
+    if (!same_machine)
+    {
+        Error("Save state is for another machine configuration");
+        return false;
+    }
+
+    GDOX_SaveState_Media state_media = {};
+    SerializeMedia(serializer, state_media, header.version);
+
+    if (stream.fail())
+    {
+        Error("Failed to unserialize save state");
+        return false;
+    }
+
+    state_media.valid = true;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        HardDiskImage* image = m_hard_disks[i];
+
+        if ((state_media.hard_disk_attached[i] != image->IsOpen()) ||
+            (image->IsOpen() && (state_media.hard_disk_blocks[i] != image->GetBlocks())))
+        {
+            Error("Save state is for another hard disk in slot %d", i + 1);
+            return false;
+        }
+    }
+
+    bool mount = IsValidPointer(media);
+
+    if (mount)
+        *media = state_media;
+
+    for (int i = 0; i < FDC_DRIVES; i++)
+    {
+        FloppyDisk* disk = m_fdc->GetDisk(i);
+        bool other_disk = state_media.floppy_inserted[i] ?
+            (disk->IsInserted() ? state_media.floppy_crc[i] != disk->GetBaseCRC() : mount) :
+            (mount && disk->IsInserted());
+
+        if (other_disk)
+        {
+            Error("Save state is for another disk in floppy drive %d", i + 1);
+            return false;
+        }
+    }
+
+    bool other_disc = state_media.cdrom_inserted ?
+        (m_media->IsReady() ? state_media.cdrom_crc != m_media->GetCRC() : mount) : (mount && m_media->IsReady());
+
+    if (other_disc)
+    {
+        Error("Save state is for another CD-ROM disc");
+        return false;
+    }
+
+    m_scheduler->LoadState(stream);
+    m_memory->LoadState(stream, header.version);
+    m_i386->LoadState(stream, header.version);
+    m_audio->LoadState(stream, header.version);
+    m_input->LoadState(stream);
+    m_pic->LoadState(stream);
+    m_pit->LoadState(stream, header.version);
+    m_video->LoadState(stream, header.version);
+    m_cdrom_audio->LoadState(stream);
+    m_fdc->LoadState(stream, header.version);
+    m_x87->LoadState(stream);
+
+    if (stream.fail())
+    {
+        Error("Failed to unserialize save state");
+        return false;
+    }
+
+    m_hard_disk_state_changes = 0;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        HardDiskImage* image = m_hard_disks[i];
+
+        if (state_media.hard_disk_attached[i] &&
+            !image->Restore(state_media.hard_disk_session[i], state_media.hard_disk_write[i]))
+            m_hard_disk_state_changes |= 1 << i;
+    }
+
+    ApplyBusTiming();
+    return true;
+}
+
+bool GeardoxCore::GetSaveStateHeader(int index, const char* path, GDOX_SaveState_Header* header)
+{
+    using namespace std;
+
+    if (!IsValidPointer(header))
+        return false;
+
+    string full_path = GetSaveStatePath(path, index);
+    Debug("Loading state header from %s...", full_path.c_str());
+
+    ifstream stream;
+    open_ifstream_utf8(stream, full_path.c_str(), ios::in | ios::binary);
+
+    if (stream.fail())
+    {
+        Debug("Save state file doesn't exist: %s", full_path.c_str());
+        stream.close();
+        return false;
+    }
+
+    stream.seekg(0, ios::end);
+    size_t savestate_size = static_cast<size_t>(stream.tellg());
+
+    if (savestate_size < sizeof(GDOX_SaveState_Header))
+    {
+        Error("Invalid save state file size: %zu", savestate_size);
+        stream.close();
+        return false;
+    }
+
+    stream.seekg(savestate_size - sizeof(GDOX_SaveState_Header), ios::beg);
+    stream.read(reinterpret_cast<char*>(header), sizeof(GDOX_SaveState_Header));
+
+    if (stream.fail())
+    {
+        Error("Failed to read save state header from %s", full_path.c_str());
+        stream.close();
+        return false;
+    }
+
+    stream.close();
+
+    if (header->magic != GDOX_SAVESTATE_MAGIC)
+    {
+        Error("Invalid save state magic: 0x%08X", header->magic);
+        return false;
+    }
+
+    if (header->size != savestate_size)
+    {
+        Error("Invalid save state size: %u", header->size);
+        return false;
+    }
+
+    return true;
+}
+
+bool GeardoxCore::GetSaveStateScreenshot(int index, const char* path, GDOX_SaveState_Screenshot* screenshot)
+{
+    using namespace std;
+
+    if (!IsValidPointer(screenshot) || !IsValidPointer(screenshot->data) || screenshot->size == 0)
+    {
+        Error("Invalid save state screenshot buffer");
+        return false;
+    }
+
+    string full_path = GetSaveStatePath(path, index);
+    Debug("Loading state screenshot from %s...", full_path.c_str());
+
+    ifstream stream;
+    open_ifstream_utf8(stream, full_path.c_str(), ios::in | ios::binary);
+
+    if (stream.fail())
+    {
+        Error("Save state file doesn't exist: %s", full_path.c_str());
+        stream.close();
+        return false;
+    }
+
+    GDOX_SaveState_Header header;
+
+    if (!GetSaveStateHeader(index, path, &header))
+    {
+        Error("Invalid save state header");
+        stream.close();
+        return false;
+    }
+
+    if (header.screenshot_size == 0)
+    {
+        Debug("No screenshot data");
+        stream.close();
+        return false;
+    }
+
+    if ((header.screenshot_width == 0) || (header.screenshot_height == 0) ||
+        (header.screenshot_width > GDOX_MAX_FRAME_BUFFER_WIDTH) || (header.screenshot_height > GDOX_MAX_FRAME_BUFFER_HEIGHT) ||
+        (header.screenshot_size != (u32)header.screenshot_width * header.screenshot_height * 4))
+    {
+        Error("Invalid screenshot dimensions %ux%u for %u bytes", header.screenshot_width, header.screenshot_height, header.screenshot_size);
+        stream.close();
+        return false;
+    }
+
+    if (screenshot->size < header.screenshot_size)
+    {
+        Error("Invalid screenshot buffer size %u < %u", screenshot->size, header.screenshot_size);
+        stream.close();
+        return false;
+    }
+
+    if (header.size < sizeof(header) + header.screenshot_size)
+    {
+        Error("Invalid screenshot offset");
+        stream.close();
+        return false;
+    }
+
+    screenshot->size = header.screenshot_size;
+    screenshot->width = header.screenshot_width;
+    screenshot->height = header.screenshot_height;
+
+    stream.seekg(header.size - sizeof(header) - screenshot->size, ios::beg);
+    stream.read(reinterpret_cast<char*>(screenshot->data), screenshot->size);
+    bool success = !stream.fail();
+    stream.close();
+    return success;
+}
+
+void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& config, int version)
+{
+    UNUSED(version);
+    G_SERIALIZE(serializer, config.model);
+    G_SERIALIZE(serializer, config.cpu);
+    G_SERIALIZE(serializer, config.ram_size);
+    G_SERIALIZE(serializer, config.floppy_drives);
+    G_SERIALIZE(serializer, config.cpu_clock_rate);
+    G_SERIALIZE(serializer, config.scsi);
+    G_SERIALIZE(serializer, config.fpu);
+}
+
+void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
+{
+    UNUSED(version);
+
+    for (int i = 0; i < FDC_DRIVES; i++)
+    {
+        G_SERIALIZE(serializer, media.floppy_inserted[i]);
+        G_SERIALIZE(serializer, media.floppy_crc[i]);
+    }
+
+    G_SERIALIZE(serializer, media.cdrom_inserted);
+    G_SERIALIZE(serializer, media.cdrom_crc);
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        G_SERIALIZE(serializer, media.hard_disk_attached[i]);
+        G_SERIALIZE(serializer, media.hard_disk_blocks[i]);
+        G_SERIALIZE(serializer, media.hard_disk_session[i]);
+        G_SERIALIZE(serializer, media.hard_disk_write[i]);
+    }
+}
+
+void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
+{
+    bool known_model = ((int)config.model >= 0) && ((int)config.model < GDOX_MACHINE_COUNT);
+
+    if (!known_model || !k_machine_profiles[config.model].emulated)
+        config.model = GDOX_MACHINE_386DX_33;
+
+    const GDOX_Machine_Profile& profile = k_machine_profiles[config.model];
+    const u8* sizes = profile.ram_sizes_mb;
+    u64 megabyte = 1024 * 1024;
+    u64 ram_mb = config.ram_size == 0 ? (u64)profile.ram_default_mb : ((u64)config.ram_size + megabyte - 1) / megabyte;
+    int size = 0;
+
+    while ((sizes[size + 1] != 0) && (sizes[size] < ram_mb))
+        size++;
+
+    config.cpu = profile.cpu;
+    config.ram_size = (u32)(sizes[size] * megabyte);
+    config.floppy_drives = profile.floppy_drives;
+    config.fpu = (profile.fpu == GDOX_MACHINE_FPU_INTEGRATED) || (config.fpu && (profile.fpu != GDOX_MACHINE_FPU_NONE));
+    config.scsi = ((profile.features & GDOX_MACHINE_FEATURE_SCSI) != 0) || config.scsi;
+
+    if ((profile.features & GDOX_MACHINE_FEATURE_SPEED_CONTROL) == 0)
+        config.speed_mode = GDOX_MACHINE_AUTO;
+
+    if (config.cpu_clock_rate == 0)
+        config.cpu_clock_rate = profile.cpu_clock_rate;
+}
+
+std::string GeardoxCore::GetSaveStatePath(const char* path, int index)
+{
+    using namespace std;
+
+    if (index < 0)
+    {
+        if (IsValidPointer(path))
+            return path;
+
+        string full_path = m_media->GetFilePath();
+        string::size_type dot_index = full_path.rfind('.');
+
+        if (dot_index != string::npos)
+            full_path.replace(dot_index + 1, full_path.length() - dot_index - 1, "state");
+
+        return full_path;
+    }
+
+    string full_path;
+
+    if (IsValidPointer(path))
+    {
+        full_path = path;
+        append_path_component(full_path, m_media->GetFileName());
+    }
+    else
+        full_path = m_media->GetFilePath();
+
+    string::size_type dot_index = full_path.rfind('.');
+
+    if (dot_index != string::npos)
+        full_path.replace(dot_index + 1, full_path.length() - dot_index - 1, "state");
+
+    stringstream ss;
+    ss << index;
+    full_path += ss.str();
+    return full_path;
+}
+
+void GeardoxCore::GetRuntimeInfo(GDOX_Runtime_Info& runtime_info)
+{
+    runtime_info.screen_width = IsValidPointer(m_video) ? m_video->GetFrameWidth() : GDOX_FRAME_BUFFER_WIDTH;
+    runtime_info.screen_height = IsValidPointer(m_video) ? m_video->GetFrameHeight() : GDOX_FRAME_BUFFER_HEIGHT;
+    runtime_info.display_width = IsValidPointer(m_video) ? m_video->GetDisplayWidth() : GDOX_FRAME_BUFFER_WIDTH;
+    runtime_info.display_height = IsValidPointer(m_video) ? m_video->GetDisplayHeight() : GDOX_FRAME_BUFFER_HEIGHT;
+    runtime_info.frame_time = (float)((GDOX_MACHINE_CLOCKS_PER_FRAME * 1000.0) / GDOX_MACHINE_CLOCK_RATE);
+
+    // A running CRTC paces frames at its VSYNC rate
+    if (IsValidPointer(m_video) && m_video->IsRunning())
+        runtime_info.frame_time = m_video->GetFrameTime();
+
+    runtime_info.sample_rate = GDOX_AUDIO_SAMPLE_RATE;
+    runtime_info.media_ready = IsValidPointer(m_media) && m_media->IsReady();
+    runtime_info.bios_ready = IsValidPointer(m_firmware) && m_firmware->IsReady();
+    runtime_info.paused = m_paused;
+}
+
+void GeardoxCore::Reset()
+{
+    m_paused = false;
+    m_debug_step = GDOX_DEBUG_STEP_NONE;
+    m_debug_step_resume = false;
+    m_debug_interrupt_deferred = false;
+    ApplyHardDisks();
+    LoadMachineFirmware(false, false);
+    ApplyMachineConfig();
+
+    if (IsValidPointer(m_scheduler))
+        m_scheduler->Reset();
+
+    if (IsValidPointer(m_profiler))
+        m_profiler->Reset();
+
+    if (IsValidPointer(m_memory))
+        m_memory->Reset();
+
+    if (IsValidPointer(m_io))
+        m_io->Reset();
+
+    if (IsValidPointer(m_pic))
+        m_pic->Reset();
+
+    if (IsValidPointer(m_pit))
+        m_pit->Reset();
+
+    if (IsValidPointer(m_video))
+        m_video->Reset();
+
+    if (IsValidPointer(m_cdrom_audio))
+        m_cdrom_audio->Reset();
+
+    if (IsValidPointer(m_fdc))
+        m_fdc->Reset();
+
+    ApplyBootDevice();
+    InitMemoryMap();
+
+    if (IsValidPointer(m_i386))
+        m_i386->Reset();
+
+    if (IsValidPointer(m_audio))
+        m_audio->Reset();
+
+    if (IsValidPointer(m_input))
+        m_input->Reset();
+
+    ApplyBusTiming();
+}
+
+// Only the CPU restarts, memory and devices keep their state
+void GeardoxCore::ResetCPU()
+{
+    m_i386->Reset();
+}
+
+void GeardoxCore::ResolveMachineConfig()
+{
+    GDOX_Machine_Config& config = m_pending_machine_config;
+    GDOX_Machine_Report& report = m_pending_machine_report;
+    const GDOX_DB_Entry* entry = m_auto_entry;
+    bool auto_model = m_machine_settings.model < 0;
+    bool auto_cpu = m_machine_settings.cpu_mhz <= 0;
+    bool auto_ram = m_machine_settings.ram_mb <= 0;
+    bool auto_fpu = m_machine_settings.fpu < 0;
+    bool auto_speed = m_machine_settings.speed_mode < 0;
+    bool database = auto_model && IsValidPointer(entry);
+    GDOX_Machine_Model named = database ? (GDOX_Machine_Model)entry->model : GDOX_MACHINE_386DX_33;
+    GDOX_Machine_Model fallback = GDOX_MACHINE_386DX_33;
+    u32 megabyte = 1024 * 1024;
+
+    for (int i = 0; (i < GDOX_MACHINE_RELEASE_ORDER_COUNT) && !CanAutoSelect(fallback); i++)
+    {
+        if (CanAutoSelect(k_machine_release_order[i]))
+            fallback = k_machine_release_order[i];
+    }
+
+    config.model = !auto_model ? (GDOX_Machine_Model)m_machine_settings.model : CanAutoSelect(named) ? named : fallback;
+    config.cpu_clock_rate = auto_cpu ? 0 : (u32)m_machine_settings.cpu_mhz * 1000000;
+    config.ram_size = auto_ram ? 0 : (u32)m_machine_settings.ram_mb * megabyte;
+    config.scsi = HasHardDisks();
+    config.fpu = !auto_fpu && (m_machine_settings.fpu != 0);
+    config.speed_mode = auto_speed ? GDOX_MACHINE_AUTO : m_machine_settings.speed_mode != 0 ? 1 : 0;
+    report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
+    report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
+    report.ram = auto_ram ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
+    report.fpu = auto_fpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
+    report.speed_mode = auto_speed ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
+    report.fallback = auto_model && (config.model != named);
+    report.title = IsValidPointer(entry) ? entry->title : NULL;
+    report.warning_count = 0;
+
+    if (database)
+        report.model = GDOX_MACHINE_SOURCE_DATABASE;
+
+    if (database && auto_cpu && (entry->cpu_mhz > 0))
+    {
+        config.cpu_clock_rate = entry->cpu_mhz * 1000000;
+        report.cpu_clock = GDOX_MACHINE_SOURCE_DATABASE;
+    }
+
+    if (database && auto_ram && (entry->ram_mb > 0))
+    {
+        config.ram_size = entry->ram_mb * megabyte;
+        report.ram = GDOX_MACHINE_SOURCE_DATABASE;
+    }
+
+    if (database && auto_fpu && ((entry->flags & GDOX_GAMEDB_FPU) != 0))
+    {
+        config.fpu = true;
+        report.fpu = GDOX_MACHINE_SOURCE_DATABASE;
+    }
+
+    if ((report.model == GDOX_MACHINE_SOURCE_DATABASE) && auto_speed &&
+        (k_machine_cpus[k_machine_profiles[config.model].cpu].family >= 4))
+    {
+        config.speed_mode = 1;
+        report.speed_mode = GDOX_MACHINE_SOURCE_DATABASE;
+    }
+
+    SanitizeMachineConfig(config);
+
+    if (!auto_fpu && (m_machine_settings.fpu != 0) && !config.fpu)
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "This machine has no socket for an FPU");
+
+    if ((m_machine_settings.speed_mode > 0) &&
+        ((k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_SPEED_CONTROL) == 0))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "This machine has no high-speed mode");
+
+    bool hard_disk_device = (m_boot_device >= GDOX_BOOT_DEVICE_HARD_DISK_0) && (m_boot_device <= GDOX_BOOT_DEVICE_HARD_DISK_3);
+    bool hard_disk_boot = hard_disk_device || (IsValidPointer(entry) && ((entry->flags & GDOX_GAMEDB_HDD) != 0));
+
+    if (auto_ram && config.scsi && HasHardDisks() && (!database || hard_disk_boot) && (config.ram_size < 4 * megabyte))
+    {
+        config.ram_size = 4 * megabyte;
+        report.ram = GDOX_MACHINE_SOURCE_HARD_DISK;
+        SanitizeMachineConfig(config);
+    }
+
+    if (m_ram_size_locked && m_powered && (config.ram_size != m_machine_config.ram_size))
+    {
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Restart the content to change the RAM from %u MB to %u MB", m_machine_config.ram_size / megabyte,
+            config.ram_size / megabyte);
+        config.ram_size = m_machine_config.ram_size;
+        report.ram = m_machine_report.ram;
+    }
+
+    if (database && (config.model != named))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, k_machine_profiles[named].emulated ?
+            "Needs an %s, no firmware found for it" : "Needs an %s, not emulated yet", k_machine_profiles[named].name);
+
+    if (!IsValidPointer(entry))
+        return;
+
+    if (config.ram_size < entry->ram_mb * megabyte)
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Needs %d MB, this machine has %u MB", entry->ram_mb, config.ram_size / megabyte);
+
+    if (config.cpu_clock_rate < entry->cpu_mhz * 1000000u)
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Needs %d MHz, this machine runs at %u MHz", entry->cpu_mhz, config.cpu_clock_rate / 1000000);
+
+    if (((entry->flags & GDOX_GAMEDB_CPU_486) != 0) && (k_machine_cpus[config.cpu].family < 4))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Needs a 486 CPU, this machine has an %s", k_machine_cpus[config.cpu].name);
+
+    if (((entry->flags & GDOX_GAMEDB_FPU) != 0) && !config.fpu)
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Needs an FPU, this machine has none");
+
+    if (((entry->flags & GDOX_GAMEDB_HDD) != 0) && !HasHardDisks())
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "Installs to a hard disk, attach a hard disk image");
+}
+
+bool GeardoxCore::CanAutoSelect(GDOX_Machine_Model model)
+{
+    GDOX_Firmware_Source_Type type = m_firmware_sources[model].type;
+    return k_machine_profiles[model].emulated && (type != GDOX_FIRMWARE_SOURCE_NONE) &&
+        (type != GDOX_FIRMWARE_SOURCE_OTHER_SET);
+}
+
+void GeardoxCore::SearchFirmware()
+{
+    Firmware::FindSources(m_firmware_folder.c_str(), m_model_firmware_folders, m_firmware_sources);
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
+
+bool GeardoxCore::LoadMachineFirmware(bool force, bool report)
+{
+    if (!IsValidPointer(m_firmware))
+        return false;
+
+    GDOX_Machine_Model model = m_pending_machine_config.model;
+    const GDOX_Firmware_Source& source = m_firmware_sources[model];
+    const GDOX_Firmware_Source& loaded = m_firmware->GetSource();
+
+    if (source.type == GDOX_FIRMWARE_SOURCE_NONE)
+    {
+        if (report)
+            Error("No firmware found for %s", k_machine_profiles[model].name);
+
+        return false;
+    }
+
+    if (!force && m_firmware->IsReady() && (loaded.zip == source.zip) && (loaded.crc == source.crc) &&
+        (strcmp(loaded.path, source.path) == 0))
+        return true;
+
+    if (!m_firmware->LoadSource(source))
+        return false;
+
+    if (IsValidPointer(m_i386))
+        m_i386->ResetDisassembler();
+
+    return true;
+}
+
+void GeardoxCore::ApplyMachineConfig()
+{
+    m_machine_config = m_pending_machine_config;
+    m_machine_report = m_pending_machine_report;
+    const GDOX_Machine_Profile& profile = k_machine_profiles[m_machine_config.model];
+
+    if (IsValidPointer(m_scheduler))
+        m_scheduler->SetCPUClockRate(m_machine_config.cpu_clock_rate);
+
+    if (IsValidPointer(m_profiler))
+        m_profiler->SetCPUClockRate(m_machine_config.cpu_clock_rate);
+
+    if (IsValidPointer(m_memory))
+        m_memory->SetMainRAMSize(m_machine_config.ram_size);
+
+    if (IsValidPointer(m_pit))
+        m_pit->SetFeatures(profile.features);
+
+    if (IsValidPointer(m_i386))
+    {
+        const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
+        m_x87->Init(cpu.family >= 4 ? X87_FLAVOR_80486 : X87_FLAVOR_80387);
+        m_i386->SetCPU(cpu);
+        m_i386->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
+    }
+
+    if (IsValidPointer(m_fdc))
+        m_fdc->SetInternalDrives(m_machine_config.floppy_drives);
+
+    if (IsValidPointer(m_io))
+        m_io->UpdateDecodedPorts();
+}
+
+void GeardoxCore::ApplyBusTiming()
+{
+    if (!IsValidPointer(m_i386))
+        return;
+
+    const GDOX_Machine_Profile& profile = k_machine_profiles[m_machine_config.model];
+    const GDOX_Machine_Bus_Timing* timing = profile.bus_timing;
+    const GDOX_Machine_Bus_Waits* waits = IsValidPointer(timing) ? timing->compatible : NULL;
+    u32 cpu_clock_rate = m_machine_config.cpu_clock_rate;
+
+    m_i386->SetBoardCache(true);
+    m_i386->SetBusTiming(timing, waits, k_machine_cpus[m_machine_config.cpu].bus_width, cpu_clock_rate,
+        profile.cpu_clock_rate);
+}
+
+void GeardoxCore::InitMemoryMap()
+{
+    if (!IsValidPointer(m_memory) || !IsValidPointer(m_firmware) || !m_firmware->IsReady())
+        return;
+
+    u32 rom_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_MAPPED;
+    u32 ram_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_EXECUTABLE |
+        GDOX_DEBUG_REGION_MAPPED;
+    const u8* system_rom = m_firmware->GetSystemRom();
+    u8* main_ram = m_memory->GetMainRAM();
+
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SYSTEM_ROM, "System BIOS", system_rom, NULL,
+        GDOX_FIRMWARE_SYSTEM_BIOS_SIZE, 0xFFFF0000U, rom_flags))
+        Error("Unable to map the system BIOS");
+
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SYSTEM_ROM_LOW_ALIAS, "System BIOS Low Alias", system_rom,
+        NULL, GDOX_FIRMWARE_SYSTEM_BIOS_SIZE, 0x000F0000U, rom_flags | GDOX_DEBUG_REGION_OVERLAY))
+        Error("Unable to map the low system BIOS alias");
+
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_MAIN_RAM, "Main RAM", main_ram, main_ram,
+        m_memory->GetMainRAMSize(), 0, ram_flags))
+        Error("Unable to map main RAM");
+
+    u8* cmos = m_memory->GetCMOS();
+
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_CMOS, "CMOS RAM", cmos, cmos, GDOX_CMOS_SIZE, 0,
+        GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE))
+        Error("Unable to register CMOS RAM");
+}

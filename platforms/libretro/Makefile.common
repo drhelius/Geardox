@@ -21,6 +21,7 @@ endif
 
 SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(CORE_DIR)/libretro_vfs_file.cpp \
+                $(SOURCE_DIR)/geardox_core.cpp \
                 $(SOURCE_DIR)/common/profiler.cpp \
                 $(SOURCE_DIR)/common/trace_logger.cpp \
                 $(SOURCE_DIR)/audio/audio.cpp \

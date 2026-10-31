@@ -35,6 +35,7 @@ SOURCES_CXX := \
     $(DEPS_DIR)/imgui/implot_items.cpp \
     $(DEPS_DIR)/imgui/implot_demo.cpp \
     $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
+    $(SRC_DIR)/geardox_core.cpp \
     $(SRC_DIR)/common/profiler.cpp \
     $(SRC_DIR)/common/trace_logger.cpp \
     $(SRC_DIR)/audio/audio.cpp \
