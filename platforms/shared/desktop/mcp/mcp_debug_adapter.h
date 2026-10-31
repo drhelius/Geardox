@@ -215,36 +215,16 @@ public:
     // System hardware
     json GetPICStatus();
     json GetPITStatus();
-    json GetDMAStatus();
-    json GetRTCStatus();
     json GetSystemStatus();
-    json GetKeyboardStatus();
-
-    // Video hardware
-    json GetCRTCStatus();
-    json GetCRTCRegisters();
-    json WriteCRTCRegister(int reg, u16 value);
-    json GetVideoOutputStatus();
-    json GetPalettes(const std::string& palette);
-    json GetFrameBuffer(const std::string& buffer, const json& arguments);
-    json ListSprites(int start, int count, const std::string& filter);
-    json GetSprite(int index, const std::string& format);
 
     // Audio hardware
-    json GetYM3438Status(int channel);
-    json GetYM3438Registers(int part);
-    json GetRF5C68Status();
-    json GetPCM16Status();
-    json GetSoundStatus();
-    json SetAudioMute(const std::string& source, int channel, bool mute);
+    json SetAudioMute(const std::string& source, bool mute);
 
     // Storage
     json GetCDROMStatus();
     json ListCDROMTracks();
     json GetCDROMAudioStatus();
     json ReadCDROMSector(u32 lba, const std::string& mode);
-    json GetFDCStatus();
-    json GetSCSIStatus();
     json ListFloppyDrives();
     json ListFloppySectors(int drive, int cylinder, int head);
     json ReadFloppySector(int drive, int cylinder, int head, int sector);
@@ -253,14 +233,11 @@ public:
     json EjectFloppy(int drive);
     json SwapFloppies();
     json ListHardDisks();
-    json AttachHardDisk(int id, const std::string& file_path, const json& write_protected, const json& create_size_mb,
-        bool formatted);
+    json AttachHardDisk(int id, const std::string& file_path, const json& write_protected, const json& create_size_mb);
     json DetachHardDisk(int id);
     json FlushHardDisks();
     json ReadHardDiskSector(int id, s64 lba);
     json SetFloppyWriteProtect(int drive, bool write_protected);
-    json InsertMemoryCard(const std::string& file_path, const json& write_protected, const json& create_size_kb);
-    json EjectMemoryCard(bool discard_changes);
 
     // Trace and profiler
     json GetTraceLog(s64 start, int count);

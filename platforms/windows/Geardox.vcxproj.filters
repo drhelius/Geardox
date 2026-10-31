@@ -145,6 +145,15 @@
     <ClCompile Include="..\shared\desktop\single_instance.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\mcp\mcp_debug_adapter.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\mcp\mcp_server.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\mcp\mcp_tool_registry.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\audio\audio.cpp">
       <Filter>src</Filter>
     </ClCompile>

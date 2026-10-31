@@ -151,6 +151,9 @@
     <ClCompile Include="..\shared\desktop\emu_floppy.cpp" />
     <ClCompile Include="..\shared\desktop\emu_hard_disk.cpp" />
     <ClCompile Include="..\shared\desktop\single_instance.cpp" />
+    <ClCompile Include="..\shared\desktop\mcp\mcp_debug_adapter.cpp" />
+    <ClCompile Include="..\shared\desktop\mcp\mcp_server.cpp" />
+    <ClCompile Include="..\shared\desktop\mcp\mcp_tool_registry.cpp" />
     <ClCompile Include="..\shared\desktop\gui_actions.cpp" />
     <ClCompile Include="..\shared\desktop\input_macro.cpp" />
     <ClCompile Include="..\shared\desktop\rewind.cpp" />
