@@ -72,6 +72,9 @@ struct config_Emulator
     bool pause_when_inactive;
     bool preload_cdrom;
     bool dynarec;
+    bool bios_boot_menu;
+    bool bios_debug_console;
+    bool bios_log;
     bool ffwd;
     int ffwd_speed;
     int runahead;
@@ -305,6 +308,7 @@ struct config_Debug
     bool show_pic;
     bool show_pit;
     bool show_system_control;
+    bool show_bios_log;
     bool show_game_ports;
     bool show_sound_control;
     bool show_cdrom_toc;

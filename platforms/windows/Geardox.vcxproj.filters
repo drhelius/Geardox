@@ -238,6 +238,18 @@
     <ClCompile Include="..\..\src\system\pit.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\system\mc146818.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\system_control.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\firmware_config.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\debug_console.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\scheduler.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -358,6 +370,9 @@
     <ClCompile Include="..\shared\dependencies\bochs_fpu\bochs_fpu.cpp">
       <Filter>dependencies\bochs_fpu</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\dependencies\seabios\seabios.cpp">
+      <Filter>dependencies\seabios</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\dependencies\miniz\miniz.c">
       <Filter>dependencies\miniz</Filter>
     </ClCompile>
@@ -421,6 +436,11 @@
     <ClInclude Include="..\..\src\system\i8259_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pit.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pit_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\mc146818.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\system_control.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\system_control_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\firmware_config.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\debug_console.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\machine_profiles.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\scheduler.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\scheduler_inline.h"><Filter>src</Filter></ClInclude>
@@ -769,6 +789,9 @@
     </Filter>
     <Filter Include="dependencies\bochs_fpu">
       <UniqueIdentifier>{9856d8c8-f107-4426-94b4-ec402b67d4c4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dependencies\seabios">
+      <UniqueIdentifier>{3c7e2a91-5d84-4b0f-a6e3-8f1d2c9b7e45}</UniqueIdentifier>
     </Filter>
     <Filter Include="dependencies\miniz">
       <UniqueIdentifier>{466b2296-06dc-4afd-a898-3c4ed168681e}</UniqueIdentifier>

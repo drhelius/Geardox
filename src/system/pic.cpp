@@ -84,11 +84,12 @@ void PIC::Reset()
     m_slave.Reset();
 }
 
+// Master at 20h and 21h, slave at A0h and A1h
 u8 PIC::Read(u16 port)
 {
-    int a0 = (port >> 1) & 0x01;
+    int a0 = port & 0x01;
 
-    if ((port & 0x10) == 0)
+    if ((port & 0x80) == 0)
         return m_master.Read(a0);
 
     u8 value = m_slave.Read(a0);
@@ -98,8 +99,8 @@ u8 PIC::Read(u16 port)
 
 void PIC::Write(u16 port, u8 value)
 {
-    int a0 = (port >> 1) & 0x01;
-    int chip = (port >> 4) & 0x01;
+    int a0 = port & 0x01;
+    int chip = (port >> 7) & 0x01;
     I8259::I8259_State* state = chip != 0 ? m_slave.GetState() : m_master.GetState();
     u8 previous_mask = state->imr;
     u8 previous_step = (u8)state->init_step;
@@ -127,11 +128,11 @@ u8 PIC::AcknowledgeInterrupt(int& line)
 {
     line = m_master.Acknowledge();
 
-    // A default IR7 drives cascade address 7, so the slave supplies the vector without any service bit
+    // A spurious request returns the default IR7 vector, from the slave if IR7 were its cascade input
     if (line < 0)
     {
         Debug("PIC: spurious interrupt acknowledge");
-        line = k_pic_cascade_line;
+        line = 7;
 
         if (!m_master.IsCascadeLine(line))
             return m_master.GetVector(line);

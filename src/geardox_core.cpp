@@ -41,6 +41,10 @@
 #include "system/pic.h"
 #include "system/pit.h"
 #include "system/scheduler.h"
+#include "system/system_control.h"
+#include "system/mc146818.h"
+#include "system/firmware_config.h"
+#include "system/debug_console.h"
 #include "system/machine_profiles.h"
 #include "video/video.h"
 
@@ -56,6 +60,10 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_io);
     InitPointer(m_pic);
     InitPointer(m_pit);
+    InitPointer(m_system_control);
+    InitPointer(m_rtc);
+    InitPointer(m_firmware_config);
+    InitPointer(m_debug_console);
     InitPointer(m_scheduler);
     InitPointer(m_video);
     InitPointer(m_cdrom_media);
@@ -86,6 +94,9 @@ GeardoxCore::GeardoxCore()
     m_hard_disk_state_changes = 0;
     m_boot_device = GDOX_BOOT_DEVICE_AUTO;
     m_ram_size_locked = false;
+    m_boot_menu = false;
+    m_debug_console_enabled = true;
+    m_debug_console_log = false;
     ResolveMachineConfig();
     m_machine_config = m_pending_machine_config;
     m_machine_report = m_pending_machine_report;
@@ -106,6 +117,10 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_io);
     SafeDelete(m_pic);
     SafeDelete(m_pit);
+    SafeDelete(m_system_control);
+    SafeDelete(m_rtc);
+    SafeDelete(m_firmware_config);
+    SafeDelete(m_debug_console);
     SafeDelete(m_scheduler);
     SafeDelete(m_video);
     SafeDelete(m_cdrom_audio);
@@ -159,6 +174,18 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_pit))
         m_pit = new PIT();
 
+    if (!IsValidPointer(m_system_control))
+        m_system_control = new SystemControl();
+
+    if (!IsValidPointer(m_rtc))
+        m_rtc = new MC146818();
+
+    if (!IsValidPointer(m_firmware_config))
+        m_firmware_config = new FirmwareConfig();
+
+    if (!IsValidPointer(m_debug_console))
+        m_debug_console = new DebugConsole();
+
     if (!IsValidPointer(m_scheduler))
         m_scheduler = new Scheduler();
 
@@ -188,10 +215,16 @@ void GeardoxCore::Init()
     m_pic->Init();
     m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory);
     m_pit->Init(m_pic, m_scheduler, m_audio);
+    m_system_control->Init(m_memory, m_pic, m_pit);
+    m_rtc->Init();
+    m_firmware_config->Init();
+    m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler);
-    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input);
+    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input, m_system_control, m_rtc,
+        m_firmware_config, m_debug_console);
     m_i386->Init(m_memory, m_io);
+    m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
     m_input->Init();
     m_trace_logger->Init(&m_scheduler->GetState()->clocks);
@@ -201,6 +234,8 @@ void GeardoxCore::Init()
     m_memory->SetTraceLogger(m_trace_logger);
     m_pic->SetTraceLogger(m_trace_logger);
     m_pit->SetTraceLogger(m_trace_logger);
+    m_system_control->SetTraceLogger(m_trace_logger);
+    m_rtc->SetTraceLogger(m_trace_logger);
     m_video->SetTraceLogger(m_trace_logger);
     m_audio->SetTraceLogger(m_trace_logger);
     m_fdc->SetTraceLogger(m_trace_logger);
@@ -529,6 +564,11 @@ void GeardoxCore::DMADebugCallback(void* cpu, u32 address, u32 size, bool write)
     ((I386*)cpu)->RecordDebuggerDMA(address, size, write);
 }
 
+void GeardoxCore::FPUErrorCallback(void* core)
+{
+    ((GeardoxCore*)core)->m_system_control->SetFPUError();
+}
+
 // A port access moves machine time up to the start of its instruction and then to the access, running the events
 // due on the way. Events due by the start stop the instruction, so the CPU samples INTR before it
 GDOX_Synchronize_Result GeardoxCore::SynchronizeIOCallback(void* core, GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles)
@@ -606,6 +646,16 @@ INLINE bool GeardoxCore::CompleteSlice(const I386_Run_Result& result, GDOX_Bus_A
 
     if (m_scheduler->IsEventDue())
         DispatchEvents();
+
+    // The board answers a shutdown cycle by resetting the CPU
+    if (unlikely(m_i386->Shutdown()))
+        m_system_control->RequestCPUReset(k_system_control_reset_shutdown);
+
+    if (unlikely(m_system_control->IsCPUResetPending()))
+    {
+        ResetCPU();
+        return false;
+    }
 
     if (hold_on_hit && m_i386->IsDebuggerHitPending())
         return false;
@@ -986,6 +1036,22 @@ void GeardoxCore::LockRAMSize(bool locked)
         m_machine_report = m_pending_machine_report;
 }
 
+// SeaBIOS shows its boot menu prompt for 2.5 seconds when asked to
+void GeardoxCore::SetBootMenu(bool show)
+{
+    m_boot_menu = show;
+
+    if (IsValidPointer(m_firmware_config))
+        m_firmware_config->SetBootMenu(show, show ? k_boot_menu_wait_ms : 0);
+}
+
+void GeardoxCore::SetDebugConsole(bool enabled, bool log)
+{
+    m_debug_console_enabled = enabled;
+    m_debug_console_log = log;
+    ApplyFirmwareDevices();
+}
+
 void GeardoxCore::ApplyBootDevice()
 {
     m_boot_device = GDOX_BOOT_DEVICE_AUTO;
@@ -1173,6 +1239,9 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_input->SaveState(stream);
     m_pic->SaveState(stream);
     m_pit->SaveState(stream);
+    m_system_control->SaveState(stream);
+    m_rtc->SaveState(stream);
+    m_firmware_config->SaveState(stream);
     m_video->SaveState(stream);
     m_cdrom_audio->SaveState(stream);
     m_fdc->SaveState(stream, media);
@@ -1461,6 +1530,9 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_input->LoadState(stream);
     m_pic->LoadState(stream);
     m_pit->LoadState(stream, header.version);
+    m_system_control->LoadState(stream, header.version);
+    m_rtc->LoadState(stream, header.version);
+    m_firmware_config->LoadState(stream, header.version);
     m_video->LoadState(stream, header.version);
     m_cdrom_audio->LoadState(stream);
     m_fdc->LoadState(stream, header.version);
@@ -1671,10 +1743,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.ram_size = (u32)(sizes[size] * megabyte);
     config.floppy_drives = profile.floppy_drives;
     config.fpu = (profile.fpu == GDOX_MACHINE_FPU_INTEGRATED) || (config.fpu && (profile.fpu != GDOX_MACHINE_FPU_NONE));
-    config.scsi = ((profile.features & GDOX_MACHINE_FEATURE_SCSI) != 0) || config.scsi;
-
-    if ((profile.features & GDOX_MACHINE_FEATURE_SPEED_CONTROL) == 0)
-        config.speed_mode = GDOX_MACHINE_AUTO;
+    config.speed_mode = GDOX_MACHINE_AUTO;
 
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
@@ -1765,6 +1834,18 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_pit))
         m_pit->Reset();
 
+    if (IsValidPointer(m_system_control))
+        m_system_control->Reset();
+
+    if (IsValidPointer(m_rtc))
+        m_rtc->Reset(0);
+
+    if (IsValidPointer(m_firmware_config))
+        m_firmware_config->Reset();
+
+    if (IsValidPointer(m_debug_console))
+        m_debug_console->Reset();
+
     if (IsValidPointer(m_video))
         m_video->Reset();
 
@@ -1774,6 +1855,7 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_fdc))
         m_fdc->Reset();
 
+    InitCMOS();
     ApplyBootDevice();
     InitMemoryMap();
 
@@ -1789,9 +1871,10 @@ void GeardoxCore::Reset()
     ApplyBusTiming();
 }
 
-// Only the CPU restarts, memory and devices keep their state
+// Only the CPU restarts, memory, A20 and devices keep their state
 void GeardoxCore::ResetCPU()
 {
+    m_system_control->AcknowledgeCPUReset();
     m_i386->Reset();
 }
 
@@ -1865,8 +1948,7 @@ void GeardoxCore::ResolveMachineConfig()
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
             "This machine has no socket for an FPU");
 
-    if ((m_machine_settings.speed_mode > 0) &&
-        ((k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_SPEED_CONTROL) == 0))
+    if (m_machine_settings.speed_mode > 0)
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
             "This machine has no high-speed mode");
 
@@ -1976,10 +2058,10 @@ void GeardoxCore::ApplyMachineConfig()
         m_profiler->SetCPUClockRate(m_machine_config.cpu_clock_rate);
 
     if (IsValidPointer(m_memory))
+    {
         m_memory->SetMainRAMSize(m_machine_config.ram_size);
-
-    if (IsValidPointer(m_pit))
-        m_pit->SetFeatures(profile.features);
+        m_memory->SetPhysicalAddressMask(k_machine_memory_maps[profile.map].address_mask);
+    }
 
     if (IsValidPointer(m_i386))
     {
@@ -1992,8 +2074,23 @@ void GeardoxCore::ApplyMachineConfig()
     if (IsValidPointer(m_fdc))
         m_fdc->SetInternalDrives(m_machine_config.floppy_drives);
 
-    if (IsValidPointer(m_io))
-        m_io->UpdateDecodedPorts();
+    ApplyFirmwareDevices();
+}
+
+// SeaBIOS finds the VGA BIOS through the firmware config and prints to the debug console, other BIOSes get neither
+void GeardoxCore::ApplyFirmwareDevices()
+{
+    if (!IsValidPointer(m_firmware) || !IsValidPointer(m_io))
+        return;
+
+    bool seabios = m_firmware->IsReady() && (m_firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS);
+
+    m_firmware_config->SetEnabled(seabios);
+    m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
+    m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
+    m_debug_console->SetEnabled(seabios && m_debug_console_enabled);
+    m_debug_console->SetLogOutput(m_debug_console_log);
+    m_io->UpdateDecodedPorts();
 }
 
 void GeardoxCore::ApplyBusTiming()
@@ -2011,32 +2108,112 @@ void GeardoxCore::ApplyBusTiming()
         profile.cpu_clock_rate);
 }
 
+// The board's DRAM covers the hole below 1 MB too: the BIOS runs from its copy at E0000h or F0000h, with the
+// pristine image at the top of the address space for the reset vector
+// SeaBIOS needs the upper memory and its copy writable, other BIOSes get ROM there and the VGA BIOS at C0000h
 void GeardoxCore::InitMemoryMap()
 {
     if (!IsValidPointer(m_memory) || !IsValidPointer(m_firmware) || !m_firmware->IsReady())
         return;
 
     u32 rom_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_MAPPED;
-    u32 ram_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_EXECUTABLE |
-        GDOX_DEBUG_REGION_MAPPED;
+    u32 ram_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_EXECUTABLE;
+    const GDOX_Machine_Memory_Map& map = k_machine_memory_maps[k_machine_profiles[m_machine_config.model].map];
+    bool seabios = m_firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS;
     const u8* system_rom = m_firmware->GetSystemRom();
+    u32 rom_size = (u32)m_firmware->GetInfo(GDOX_FIRMWARE_SYSTEM_BIOS).size;
+    u32 copy_size = MIN(rom_size, k_bios_copy_size);
+    u32 copy_base = k_bios_copy_end - copy_size;
     u8* main_ram = m_memory->GetMainRAM();
+    u8* bios_copy = main_ram + copy_base;
 
-    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SYSTEM_ROM, "System BIOS", system_rom, NULL,
-        GDOX_FIRMWARE_SYSTEM_BIOS_SIZE, 0xFFFF0000U, rom_flags))
+    memcpy(bios_copy, system_rom + rom_size - copy_size, copy_size);
+
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SYSTEM_ROM, "System BIOS", system_rom, NULL, rom_size,
+        map.address_mask - rom_size + 1, rom_flags))
         Error("Unable to map the system BIOS");
 
-    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SYSTEM_ROM_LOW_ALIAS, "System BIOS Low Alias", system_rom,
-        NULL, GDOX_FIRMWARE_SYSTEM_BIOS_SIZE, 0x000F0000U, rom_flags | GDOX_DEBUG_REGION_OVERLAY))
-        Error("Unable to map the low system BIOS alias");
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "Video Aperture", NULL, NULL,
+        k_video_aperture_size, map.conventional_size, GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY))
+        Error("Unable to map the video aperture");
+
+    if (!seabios)
+    {
+        const u8* vga_rom = m_firmware->GetVGARom();
+        u32 vga_size = (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size;
+
+        if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_BIOS_COPY, "BIOS Copy", bios_copy, NULL, copy_size,
+            copy_base, rom_flags | GDOX_DEBUG_REGION_OVERLAY))
+            Error("Unable to map the BIOS copy");
+
+        if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_VGA_ROM, "VGA BIOS", vga_rom, NULL, vga_size,
+            k_upper_memory_start, rom_flags | GDOX_DEBUG_REGION_OVERLAY))
+            Error("Unable to map the VGA BIOS");
+
+        if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL,
+            copy_base - k_upper_memory_start, k_upper_memory_start, GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY))
+            Error("Unable to map the upper memory");
+    }
 
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_MAIN_RAM, "Main RAM", main_ram, main_ram,
-        m_memory->GetMainRAMSize(), 0, ram_flags))
+        m_memory->GetMainRAMSize(), 0, ram_flags | GDOX_DEBUG_REGION_MAPPED))
         Error("Unable to map main RAM");
 
-    u8* cmos = m_memory->GetCMOS();
+    if (seabios && !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_BIOS_COPY, "BIOS Copy", bios_copy, bios_copy,
+        copy_size, copy_base, ram_flags))
+        Error("Unable to register the BIOS copy");
+
+    u8* cmos = m_rtc->GetCMOS();
 
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_CMOS, "CMOS RAM", cmos, cmos, GDOX_CMOS_SIZE, 0,
         GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE))
         Error("Unable to register CMOS RAM");
+}
+
+// SeaBIOS has no setup screen, so the board writes the memory size, equipment and boot order at power on
+// Other BIOSes keep the CMOS they saved
+void GeardoxCore::InitCMOS()
+{
+    if (!IsValidPointer(m_firmware) || !m_firmware->IsReady() ||
+        (m_firmware->GetStyle() != GDOX_FIRMWARE_STYLE_SEABIOS))
+        return;
+
+    u32 megabyte = 1024 * 1024;
+    u32 ram_size = m_machine_config.ram_size;
+    u32 extended_kb = MIN(ram_size > megabyte ? (ram_size - megabyte) / 1024 : 0, 63U * 1024);
+    u32 high_blocks = ram_size > 16 * megabyte ? (ram_size - 16 * megabyte) / 0x10000 : 0;
+    u8 order[3] = { 1, 2, 3 };
+
+    if ((m_boot_device >= GDOX_BOOT_DEVICE_HARD_DISK_0) && (m_boot_device <= GDOX_BOOT_DEVICE_HARD_DISK_3))
+    {
+        order[0] = 2;
+        order[1] = 1;
+    }
+    else if (m_boot_device == GDOX_BOOT_DEVICE_CDROM)
+    {
+        order[0] = 3;
+        order[1] = 1;
+        order[2] = 2;
+    }
+
+    m_rtc->ResetCMOS();
+    m_rtc->WriteRAM(0x14, m_machine_config.fpu ? 0x02 : 0x00);
+    m_rtc->WriteRAM(0x15, 0x80);
+    m_rtc->WriteRAM(0x16, 0x02);
+    m_rtc->WriteRAM(0x17, (u8)extended_kb);
+    m_rtc->WriteRAM(0x18, (u8)(extended_kb >> 8));
+    m_rtc->WriteRAM(0x30, (u8)extended_kb);
+    m_rtc->WriteRAM(0x31, (u8)(extended_kb >> 8));
+    m_rtc->WriteRAM(0x34, (u8)high_blocks);
+    m_rtc->WriteRAM(0x35, (u8)(high_blocks >> 8));
+    m_rtc->WriteRAM(0x38, (u8)(0x01 | (order[2] << 4)));
+    m_rtc->WriteRAM(0x3D, (u8)(order[0] | (order[1] << 4)));
+
+    u16 checksum = 0;
+
+    for (int i = 0x10; i <= 0x2D; i++)
+        checksum += m_rtc->ReadRAM((u8)i);
+
+    m_rtc->WriteRAM(0x2E, (u8)(checksum >> 8));
+    m_rtc->WriteRAM(0x2F, (u8)checksum);
 }

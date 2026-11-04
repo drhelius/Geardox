@@ -39,6 +39,10 @@ class IO;
 class PIC;
 class PIT;
 class Scheduler;
+class SystemControl;
+class MC146818;
+class FirmwareConfig;
+class DebugConsole;
 class Video;
 class StateSerializer;
 class TraceLogger;
@@ -115,6 +119,8 @@ public:
     void SetBootDevice(GDOX_Boot_Device device);
     GDOX_Boot_Device GetBootDevice() const;
     void LockRAMSize(bool locked);
+    void SetBootMenu(bool show);
+    void SetDebugConsole(bool enabled, bool log);
 
     void KeyPressed(GDOX_Keys key);
     void KeyReleased(GDOX_Keys key);
@@ -143,6 +149,10 @@ public:
     IO* GetIO();
     PIC* GetPIC();
     PIT* GetPIT();
+    SystemControl* GetSystemControl();
+    MC146818* GetRTC();
+    FirmwareConfig* GetFirmwareConfig();
+    DebugConsole* GetDebugConsole();
     Scheduler* GetScheduler();
     Video* GetVideo();
     CdRomMedia* GetCDROMMedia();
@@ -176,6 +186,7 @@ private:
     static void SynchronizeMemoryCallback(void* core, GDOX_Bus_Access_Context& context);
     static u32 PollPortCallback(void* core, u16 port, int width);
     static void DMADebugCallback(void* cpu, u32 address, u32 size, bool write);
+    static void FPUErrorCallback(void* core);
     void DispatchEvents();
     void Reset();
     void ResetCPU();
@@ -188,6 +199,8 @@ private:
     void ApplyBusTiming();
     void ApplyBootDevice();
     void InitMemoryMap();
+    void InitCMOS();
+    void ApplyFirmwareDevices();
 
     bool LoadState(std::istream& stream, GDOX_SaveState_Media* media = NULL);
     void Serialize(StateSerializer& serializer, GDOX_Machine_Config& config, int version);
@@ -206,6 +219,10 @@ private:
     IO* m_io;
     PIC* m_pic;
     PIT* m_pit;
+    SystemControl* m_system_control;
+    MC146818* m_rtc;
+    FirmwareConfig* m_firmware_config;
+    DebugConsole* m_debug_console;
     Scheduler* m_scheduler;
     Video* m_video;
     CdRomMedia* m_cdrom_media;
@@ -231,6 +248,9 @@ private:
     u32 m_hard_disk_state_changes;
     GDOX_Boot_Device m_boot_device;
     bool m_ram_size_locked;
+    bool m_boot_menu;
+    bool m_debug_console_enabled;
+    bool m_debug_console_log;
     bool m_powered;
     bool m_paused;
     GDOX_Debug_Step m_debug_step;
@@ -239,6 +259,12 @@ private:
 
     u8* m_frame_buffer;
 };
+
+static const u32 k_bios_copy_size = 0x20000;
+static const u32 k_bios_copy_end = 0x100000;
+static const u32 k_video_aperture_size = 0x20000;
+static const u32 k_upper_memory_start = 0xC0000;
+static const u16 k_boot_menu_wait_ms = 2500;
 
 #include "geardox_core_inline.h"
 

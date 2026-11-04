@@ -689,6 +689,15 @@ void emu_set_preload_cdrom(bool enabled)
         geardox->GetMedia()->PreloadCdRom(enabled);
 }
 
+void emu_apply_bios_settings(void)
+{
+    if (!IsValidPointer(geardox))
+        return;
+
+    geardox->SetBootMenu(config_emulator.bios_boot_menu);
+    geardox->SetDebugConsole(config_emulator.bios_debug_console, config_emulator.bios_log);
+}
+
 // The dynarec runs while the debugger is off, the debugger always steps the interpreter
 void emu_set_dynarec(bool enabled)
 {
@@ -1572,11 +1581,11 @@ static bool get_cmos_path(int model, char* path, size_t path_size)
 
 static void load_cmos(int model)
 {
-    Memory* memory = geardox->GetMemory();
+    MC146818* rtc = geardox->GetRTC();
     char path[GDOX_MAX_PATH];
     std::ifstream file;
 
-    memory->ResetCMOS();
+    rtc->ResetCMOS();
     cmos_model = model;
 
     if (get_cmos_path(model, path, sizeof(path)))
@@ -1587,13 +1596,13 @@ static void load_cmos(int model)
         u8 data[GDOX_CMOS_FILE_SIZE + 1];
         file.read(reinterpret_cast<char*>(data), sizeof(data));
 
-        if (!memory->LoadCMOSFile(data, (size_t)file.gcount()))
+        if (!rtc->LoadCMOSFile(data, (size_t)file.gcount()))
             Error("Invalid CMOS file: %s", path);
         else
             Log("CMOS loaded from %s", path);
     }
 
-    memcpy(cmos_saved, memory->GetCMOS(), GDOX_CMOS_SIZE);
+    memcpy(cmos_saved, rtc->GetCMOS(), GDOX_CMOS_SIZE);
 }
 
 static void save_cmos(void)
@@ -1601,14 +1610,14 @@ static void save_cmos(void)
     if (cmos_model < 0)
         return;
 
-    const u8* cmos = geardox->GetMemory()->GetCMOS();
+    const u8* cmos = geardox->GetRTC()->GetCMOS();
     char path[GDOX_MAX_PATH];
 
     if (memcmp(cmos, cmos_saved, GDOX_CMOS_SIZE) == 0 || !get_cmos_path(cmos_model, path, sizeof(path)))
         return;
 
     u8 data[GDOX_CMOS_FILE_SIZE];
-    geardox->GetMemory()->SaveCMOSFile(data);
+    geardox->GetRTC()->SaveCMOSFile(data);
     std::string temporary(path);
     temporary += ".tmp";
     std::ofstream file;

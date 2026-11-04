@@ -35,6 +35,7 @@ SOURCES_CXX := \
     $(DEPS_DIR)/imgui/implot_items.cpp \
     $(DEPS_DIR)/imgui/implot_demo.cpp \
     $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
+    $(DEPS_DIR)/seabios/seabios.cpp \
     $(DESKTOP_SRC_DIR)/main.cpp \
     $(DESKTOP_SRC_DIR)/application.cpp \
     $(DESKTOP_SRC_DIR)/application_headless.cpp \
@@ -132,5 +133,9 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/memory.cpp \
     $(SRC_DIR)/system/pic.cpp \
     $(SRC_DIR)/system/pit.cpp \
+    $(SRC_DIR)/system/mc146818.cpp \
     $(SRC_DIR)/system/scheduler.cpp \
+    $(SRC_DIR)/system/system_control.cpp \
+    $(SRC_DIR)/system/firmware_config.cpp \
+    $(SRC_DIR)/system/debug_console.cpp \
     $(SRC_DIR)/video/video.cpp

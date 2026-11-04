@@ -598,7 +598,7 @@ bool DebugMemoryProvider::GetExternalRegion(int index, GDOX_Debug_Memory_Region&
                 memset(&region, 0, sizeof(region));
                 region.id = firmware_region_id(type);
                 strncpy_fit(region.name, Firmware::GetComponentName(type), sizeof(region.name));
-                region.size = (u32)Firmware::GetExpectedSize(type);
+                region.size = (u32)firmware->GetInfo(type).size;
                 region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM;
                 return true;
             }
@@ -667,7 +667,7 @@ bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_
             if (firmware_region_id(type) == id)
             {
                 source = firmware_region_data(firmware, type);
-                source_size = (u32)Firmware::GetExpectedSize(type);
+                source_size = (u32)firmware->GetInfo(type).size;
                 break;
             }
         }

@@ -158,10 +158,17 @@ struct MemorySourceInfo
 static const MemorySourceInfo k_memory_sources[] =
 {
     { GDOX_DEBUG_REGION_MAIN_RAM, MEMORY_GROUP_MEMORY, false, "Main memory with the program code, data and stack" },
-    { GDOX_DEBUG_REGION_CMOS, MEMORY_GROUP_MEMORY, false, "Battery backed CMOS RAM with the BIOS settings" },
-    { GDOX_DEBUG_REGION_SYSTEM_ROM, MEMORY_GROUP_ROM, false, "System BIOS (BIOS.BIN)" },
-    { GDOX_DEBUG_REGION_SYSTEM_ROM_LOW_ALIAS, MEMORY_GROUP_CPU_WINDOW, false,
-        "The System BIOS below 1 MB at F0000, where the CPU runs it in real mode" }
+    { GDOX_DEBUG_REGION_CMOS, MEMORY_GROUP_MEMORY, false, "MC146818 clock registers and battery backed CMOS RAM" },
+    { GDOX_DEBUG_REGION_SYSTEM_ROM, MEMORY_GROUP_ROM, false,
+        "System BIOS (BIOS.BIN) at the top of the address space, where the CPU starts after a reset" },
+    { GDOX_DEBUG_REGION_BIOS_COPY, MEMORY_GROUP_CPU_WINDOW, false,
+        "The copy of the System BIOS in RAM below 1 MB, where the CPU runs it in real mode" },
+    { GDOX_DEBUG_REGION_VIDEO_APERTURE, MEMORY_GROUP_CPU_WINDOW, true,
+        "The A0000-BFFFF window of the video card" },
+    { GDOX_DEBUG_REGION_VGA_ROM, MEMORY_GROUP_CPU_WINDOW, false,
+        "The VGA BIOS at C0000, mapped as a card ROM for BIOSes other than SeaBIOS" },
+    { GDOX_DEBUG_REGION_UPPER_MEMORY, MEMORY_GROUP_CPU_WINDOW, true,
+        "Upper memory without RAM, for BIOSes other than SeaBIOS" }
 };
 
 static DebugMemoryProvider memory_provider;

@@ -31,6 +31,7 @@
 EXTERN void gui_debug_window_pic(void);
 EXTERN void gui_debug_window_pit(void);
 EXTERN void gui_debug_window_system_control(void);
+EXTERN void gui_debug_window_bios_log(void);
 
 #undef GUI_DEBUG_SYSTEM_IMPORT
 #undef EXTERN

@@ -148,6 +148,7 @@ struct GDOX_Firmware_Info
     bool loaded;
     bool recognized;
     bool synthetic;
+    bool builtin;
 };
 
 enum GDOX_Firmware_Source_Type
@@ -157,7 +158,14 @@ enum GDOX_Firmware_Source_Type
     GDOX_FIRMWARE_SOURCE_OWN_SET,
     GDOX_FIRMWARE_SOURCE_COMPATIBLE_SET,
     GDOX_FIRMWARE_SOURCE_UNKNOWN,
-    GDOX_FIRMWARE_SOURCE_OTHER_SET
+    GDOX_FIRMWARE_SOURCE_OTHER_SET,
+    GDOX_FIRMWARE_SOURCE_BUILTIN
+};
+
+enum GDOX_Firmware_Style
+{
+    GDOX_FIRMWARE_STYLE_SEABIOS = 0,
+    GDOX_FIRMWARE_STYLE_AT
 };
 
 struct GDOX_Firmware_Source
@@ -335,7 +343,8 @@ struct GDOX_GamePad_State
 
 enum GDOX_Machine_Model
 {
-    GDOX_MACHINE_386DX_33 = 0,
+    GDOX_MACHINE_386SX_20 = 0,
+    GDOX_MACHINE_386DX_33,
     GDOX_MACHINE_486DX2_66,
     GDOX_MACHINE_COUNT
 };
@@ -361,40 +370,7 @@ enum GDOX_Machine_Map
 {
     GDOX_MACHINE_MAP_32BIT = 0,
     GDOX_MACHINE_MAP_24BIT,
-    GDOX_MACHINE_MAP_MARTY,
     GDOX_MACHINE_MAP_COUNT
-};
-
-enum GDOX_Machine_Feature
-{
-    GDOX_MACHINE_FEATURE_RAM_SIZE        = 0x0001,
-    GDOX_MACHINE_FEATURE_FDD_STATUS      = 0x0002,
-    GDOX_MACHINE_FEATURE_WAIT_1US        = 0x0004,
-    GDOX_MACHINE_FEATURE_INTERVAL_TIMER2 = 0x0008,
-    GDOX_MACHINE_FEATURE_MEMORY_WAIT     = 0x0010,
-    GDOX_MACHINE_FEATURE_NMI_MASK        = 0x0020,
-    GDOX_MACHINE_FEATURE_JEIDA4          = 0x0040,
-    GDOX_MACHINE_FEATURE_LSPEED          = 0x0080,
-    GDOX_MACHINE_FEATURE_POWER_OFF_RESET = 0x0100,
-    GDOX_MACHINE_FEATURE_SPEED_CONTROL   = 0x0200,
-    GDOX_MACHINE_FEATURE_UG_REGISTERS    = 0x0400,
-    GDOX_MACHINE_FEATURE_FREE_RUN_TIMER  = 0x0800,
-    GDOX_MACHINE_FEATURE_CRT_POWER_OFF   = 0x1000,
-    GDOX_MACHINE_FEATURE_RAM_CARD        = 0x2000,
-    GDOX_MACHINE_FEATURE_MARTY_PORTS     = 0x4000,
-    GDOX_MACHINE_FEATURE_FDD_NO_TYPE     = 0x8000,
-    GDOX_MACHINE_FEATURE_TIMER1_LATCHED  = 0x10000,
-    GDOX_MACHINE_FEATURE_SCSI            = 0x20000,
-    GDOX_MACHINE_FEATURE_SCSI_WORD_DMA   = 0x40000,
-    GDOX_MACHINE_FEATURE_SCSI_WORD_PORT  = 0x80000,
-    GDOX_MACHINE_FEATURE_CACHE_CONTROL   = 0x100000,
-    GDOX_MACHINE_FEATURE_CD_CACHE        = 0x200000,
-    GDOX_MACHINE_FEATURE_PCM_BYTE_LANE   = 0x400000,
-    GDOX_MACHINE_FEATURE_DMA_CARRY       = 0x800000,
-    GDOX_MACHINE_FEATURE_RAM_SIZE_127MB  = 0x1000000,
-    GDOX_MACHINE_FEATURE_CD_DOUBLE_SPEED = 0x2000000,
-    GDOX_MACHINE_FEATURE_SERIAL_FIFO     = 0x4000000,
-    GDOX_MACHINE_FEATURE_PCM16           = 0x8000000
 };
 
 enum GDOX_Boot_Device
@@ -433,43 +409,11 @@ struct GDOX_Machine_CPU_Info
     int bus_width;
 };
 
-struct GDOX_Machine_DMA_Window
-{
-    u16 slot;
-    u16 count;
-    u32 base;
-};
-
 struct GDOX_Machine_Memory_Map
 {
     const char* name;
     u32 address_mask;
-    u32 vram_two_page;
-    u32 vram_single_page;
-    u32 sprite_ram;
-    u32 os_rom;
-    u32 dictionary_rom;
-    u32 font_rom;
-    u32 cmos;
-    u32 pcm_window;
-    u32 system_rom;
-    u32 extension_rom;
-    u32 backup_ram;
-    u32 memory_card;
-    u32 memory_card_size;
-    u32 memory_card_bank;
-    const GDOX_Machine_DMA_Window* dma_windows;
-};
-
-struct GDOX_Machine_Video_Timing
-{
-    u16 sprite_clear;
-    u16 sprite_entry;
-    bool ntsc_field;
-    u16 sprite_write_contention;
-    u16 sprite_read_contention;
-    u16 sprite_fetch_low;
-    u16 sprite_fetch_high;
+    u32 conventional_size;
 };
 
 enum GDOX_Bus_Class
@@ -480,7 +424,7 @@ enum GDOX_Bus_Class
     GDOX_BUS_SPRITE,
     GDOX_BUS_ROM,
     GDOX_BUS_CMOS,
-    GDOX_BUS_FMR,
+    GDOX_BUS_ISA8,
     GDOX_BUS_PCM,
     GDOX_BUS_MMIO,
     GDOX_BUS_CLASS_COUNT
@@ -532,8 +476,8 @@ struct GDOX_Machine_Bus_Timing
     u16 misalign;
     u16 string_row;
     u16 string_read;
-    u16 fmr_byte[2];
-    u16 fmr_word[2];
+    u16 isa8_byte[2];
+    u16 isa8_word[2];
     u16 pcm[2];
     u16 mmio[2];
     u16 io[2];
@@ -549,7 +493,6 @@ struct GDOX_Machine_Profile
     const char* models;
     const char* released;
     bool emulated;
-    u16 machine_id;
     GDOX_Machine_CPU cpu;
     GDOX_Machine_FPU fpu;
     u32 cpu_clock_rate;
@@ -558,9 +501,7 @@ struct GDOX_Machine_Profile
     const u8* ram_sizes_mb;
     int ram_default_mb;
     int floppy_drives;
-    bool three_mode_floppy;
     const char* firmware_set;
-    const GDOX_Machine_Video_Timing* video_timing;
     const GDOX_Machine_Bus_Timing* bus_timing;
 };
 

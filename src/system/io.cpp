@@ -18,8 +18,14 @@
  */
 
 #include "io.h"
+#include "debug_console.h"
+#include "firmware_config.h"
+#include "mc146818.h"
+#include "memory.h"
 #include "pic.h"
+#include "pit.h"
 #include "scheduler.h"
+#include "system_control.h"
 
 IO::IO()
 {
@@ -31,6 +37,10 @@ IO::IO()
     InitPointer(m_memory);
     InitPointer(m_fdc);
     InitPointer(m_input);
+    InitPointer(m_system_control);
+    InitPointer(m_rtc);
+    InitPointer(m_firmware_config);
+    InitPointer(m_debug_console);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -39,7 +49,8 @@ IO::~IO()
 }
 
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
-    Input* input)
+    Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
+    DebugConsole* debug_console)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -49,6 +60,10 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_memory = memory;
     m_fdc = fdc;
     m_input = input;
+    m_system_control = system_control;
+    m_rtc = rtc;
+    m_firmware_config = firmware_config;
+    m_debug_console = debug_console;
     Reset();
 }
 
@@ -68,10 +83,55 @@ u8 IO::Read8(u16 port, GDOX_Bus_Access_Context& context)
     return value;
 }
 
+// Board ports decode all 16 address lines, ISA cards only the low 10, so they repeat every 400h
 u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
 {
-    UNUSED(port);
-    UNUSED(context);
+    switch (port)
+    {
+        case 0x0020:
+            // PIC master command
+        case 0x0021:
+            // PIC master data
+        case 0x00A0:
+            // PIC slave command
+        case 0x00A1:
+            // PIC slave data
+            return m_pic->Read(port);
+        case 0x0040:
+            // PIT counter 0
+        case 0x0041:
+            // PIT counter 1
+        case 0x0042:
+            // PIT counter 2
+        case 0x0043:
+            // PIT control
+            return m_pit->Read(port, context.clocks);
+        case 0x0061:
+            // Speaker, refresh toggle and NMI sources
+        case 0x0080:
+            // POST code
+        case 0x0092:
+            // Fast A20 and reset
+            return m_system_control->Read(port, context.clocks);
+        case 0x0070:
+            // CMOS index, write only
+        case 0x0071:
+            // CMOS data
+            return m_rtc->Read(port, context.clocks);
+        case 0x0402:
+            // Debug console
+            if (m_debug_console->Decodes(port))
+                return m_debug_console->Read(port);
+            break;
+        case 0x0511:
+            // Firmware config data
+            if (m_firmware_config->Decodes(port))
+                return m_firmware_config->Read(port);
+            break;
+        default:
+            break;
+    }
+
     Debug("Unknown IO read at %04X", port);
     return 0xFF;
 }
@@ -80,13 +140,42 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
 // Returns false for ports the board does not decode
 bool IO::Peek(u16 port, u64 clocks, u8& value) const
 {
-    UNUSED(port);
-    UNUSED(clocks);
     value = 0xFF;
-    return false;
+
+    switch (port)
+    {
+        case 0x0020:
+        case 0x0021:
+        case 0x00A0:
+        case 0x00A1:
+            value = m_pic->Peek(port);
+            return true;
+        case 0x0040:
+        case 0x0041:
+        case 0x0042:
+        case 0x0043:
+            value = m_pit->Peek(port, clocks);
+            return true;
+        case 0x0070:
+        case 0x0071:
+            value = m_rtc->Peek(port, clocks);
+            return true;
+        case 0x0402:
+            value = m_debug_console->Read(port);
+            return m_debug_console->Decodes(port);
+        case 0x0510:
+        case 0x0511:
+            value = m_firmware_config->Peek(port);
+            return m_firmware_config->Decodes(port);
+        default:
+            if (!m_system_control->Decodes(port))
+                return false;
+
+            value = m_system_control->Peek(port, clocks);
+            return true;
+    }
 }
 
-// Machine clock until which reads of the port repeat the last one without side effects, 0 when unknown
 // One bit per port, from what the board decodes on this model
 void IO::UpdateDecodedPorts()
 {
@@ -106,18 +195,93 @@ const u8* IO::GetDecodedPorts() const
     return m_decoded_ports;
 }
 
+// Machine clock until which reads of the port repeat the last one without side effects, 0 when unknown
 u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
 {
-    UNUSED(port);
-    UNUSED(width);
-    UNUSED(clocks);
-    return 0;
+    if (width != 8)
+        return 0;
+
+    switch (port)
+    {
+        case 0x0061:
+            // Refresh toggle and OUT2
+        case 0x0080:
+            // POST code
+        case 0x0092:
+            // Fast A20 and reset
+            return m_system_control->GetReadStableUntil(port, clocks);
+        case 0x0071:
+            // CMOS data
+            return m_rtc->GetReadStableUntil(port, clocks);
+        case 0x0402:
+            // Debug console readback
+            return m_debug_console->Decodes(port) ? GDOX_NO_EVENT : 0;
+        default:
+            return 0;
+    }
 }
 
+// A20 and the fast reset end the CPU batch after the write
 void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
 {
-    UNUSED(port);
-    UNUSED(value);
-    UNUSED(context);
-    Debug("Unknown IO write at %04X, value=%02X", port, value);
+    u32 generation = m_memory->GetMapGeneration();
+
+    switch (port)
+    {
+        case 0x0020:
+            // PIC master command
+        case 0x0021:
+            // PIC master data
+        case 0x00A0:
+            // PIC slave command
+        case 0x00A1:
+            // PIC slave data
+            m_pic->Write(port, value);
+            break;
+        case 0x0040:
+            // PIT counter 0
+        case 0x0041:
+            // PIT counter 1
+        case 0x0042:
+            // PIT counter 2
+        case 0x0043:
+            // PIT control
+            m_pit->Write(port, value, context.clocks);
+            break;
+        case 0x0070:
+            // NMI mask and CMOS index
+            m_rtc->Write(port, value, context.clocks);
+            m_system_control->Write(port, value, context.clocks);
+            break;
+        case 0x0071:
+            // CMOS data
+            m_rtc->Write(port, value, context.clocks);
+            break;
+        case 0x0402:
+            // Debug console
+            m_debug_console->Write(port, value);
+            break;
+        case 0x0510:
+            // Firmware config selector
+            m_firmware_config->Write(port, value);
+            break;
+        case 0x0061:
+            // Speaker gate and data
+        case 0x0080:
+            // POST code
+        case 0x0092:
+            // Fast A20 and reset
+        case 0x00F0:
+            // FPU error clear
+        case 0x00F1:
+            // Coprocessor reset
+            m_system_control->Write(port, value, context.clocks);
+            break;
+        default:
+            Debug("Unknown IO write at %04X, value=%02X", port, value);
+            break;
+    }
+
+    if ((m_memory->GetMapGeneration() != generation) || m_system_control->IsCPUResetPending())
+        context.end_batch = true;
 }

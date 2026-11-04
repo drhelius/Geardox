@@ -30,6 +30,9 @@
 #include "drive/hard_disk_image.h"
 #include "system/pic.h"
 #include "system/pit.h"
+#include "system/system_control.h"
+#include "system/debug_console.h"
+#include "system/firmware_config.h"
 #include "system/scheduler.h"
 #include "system/io.h"
 #include "audio/audio.h"
@@ -2160,20 +2163,20 @@ json DebugAdapter::GetPITStatus()
     PIT* pit = m_core->GetPIT();
     PIT::PIT_State* state = pit->GetState();
     u64 clocks = m_core->GetScheduler()->GetClocks();
-    u8 board = pit->Peek(0x0060, clocks);
+    I8253* chip = pit->GetPIT();
+    u64 tick = pit->GetTick(clocks);
+    double rate = (double)GDOX_MASTER_CLOCK_RATE / 12.0;
     json counters = json::array();
 
-    for (int channel = 0; channel < 6; channel++)
+    for (int channel = 0; channel < I8253_COUNTER_COUNT; channel++)
     {
-        I8253* chip = pit->GetPIT(channel / 3);
-        const I8253::I8253_Counter& counter = chip->GetState()->counters[channel % 3];
-        u64 tick = pit->GetTick(channel, clocks);
-        double rate = channel == k_pit_serial_channel ? 1228800.0 : 307200.0;
+        const I8253::I8253_Counter& counter = chip->GetState()->counters[channel];
         json item = {
             {"channel", channel},
-            {"port", Hex((channel < 3 ? 0x0040 : 0x0050) + (channel % 3) * 2, 4)},
+            {"port", Hex(0x0040 + channel, 4)},
             {"use", to_lower(k_debug_pit_uses[channel])},
             {"clock_hz", rate},
+            {"gate", counter.gate},
             {"programmed", counter.programmed}
         };
 
@@ -2190,9 +2193,10 @@ json DebugAdapter::GetPITStatus()
             item["access"] = to_lower(k_debug_pit_access_names[counter.access & 3]);
             item["bcd"] = counter.bcd;
             item["reload"] = Hex(counter.reload, 4);
-            item["count"] = Hex(chip->PeekCount(channel % 3, tick), 4);
-            item["out"] = chip->PeekOutput(channel % 3, tick);
+            item["count"] = Hex(chip->PeekCount(channel, tick), 4);
+            item["out"] = chip->PeekOutput(channel, tick);
             item["counting"] = counter.counting;
+            item["null_count"] = tick < counter.null_until;
 
             if (counter.counting && (counter.mode == 2 || counter.mode == 3))
                 item["frequency_hz"] = rate / count;
@@ -2203,49 +2207,18 @@ json DebugAdapter::GetPITStatus()
         counters.push_back(item);
     }
 
-    u8 timer2 = 0;
-    u8 period_low = 0;
-    u8 period_high = 0;
-    u8 free_low = 0;
-    u8 free_high = 0;
-    bool has_timer2 = m_core->GetIO()->Peek(0x0068, clocks, timer2);
-    bool has_free_run = m_core->GetIO()->Peek(0x0026, clocks, free_low) &&
-        m_core->GetIO()->Peek(0x0027, clocks, free_high);
-    m_core->GetIO()->Peek(0x006A, clocks, period_low);
-    m_core->GetIO()->Peek(0x006B, clocks, period_high);
-    bool timer2_irq = has_timer2 && ((timer2 & (k_pit_timer2_disable | k_pit_timer2_pending)) == k_pit_timer2_pending);
+    bool out2 = pit->GetChannel2Output(clocks);
 
-    json result = {
-        {"board", {
-            {"timer0_enable", (state->timer_enable & 0x01) != 0},
-            {"timer1_enable", (state->timer_enable & 0x02) != 0},
-            {"sound", state->sound},
-            {"memory_buzzer", state->sound_memory},
-            {"latch0", (board & 0x01) != 0},
-            {"latch1", (board & 0x02) != 0},
-            {"irq0", ((board & state->timer_enable & 0x03) != 0) || timer2_irq},
-            {"value", Hex(board, 2)}
+    return {
+        {"speaker", {
+            {"gate", state->speaker_gate},
+            {"data", state->speaker_data},
+            {"out2", out2},
+            {"output", state->speaker_data && out2},
+            {"refresh_toggle", pit->GetRefreshToggle(clocks)}
         }},
         {"counters", counters}
     };
-
-    if (has_timer2)
-    {
-        u32 period = (u32)((period_high << 8) | period_low);
-        result["interval_timer2"] = {
-            {"status", Hex(timer2, 2)},
-            {"enabled", (timer2 & k_pit_timer2_disable) == 0},
-            {"pending", (timer2 & k_pit_timer2_pending) != 0},
-            {"overrun", (timer2 & k_pit_timer2_overrun) != 0},
-            {"period", Hex(period, 4)},
-            {"interval_us", period == 0 ? 65536 : period}
-        };
-    }
-
-    if (has_free_run)
-        result["free_running_timer"] = {{"count", Hex((free_high << 8) | free_low, 4)}};
-
-    return result;
 }
 
 json DebugAdapter::GetSystemStatus()
@@ -2259,6 +2232,12 @@ json DebugAdapter::GetSystemStatus()
     json ram_setting = settings.ram_mb <= 0 ? json("auto") : json(settings.ram_mb);
     json fpu_setting = settings.fpu < 0 ? json("auto") : settings.fpu == 0 ? json("none") : json("80387");
     json warnings = json::array();
+    SystemControl* system_control = m_core->GetSystemControl();
+    SystemControl::SystemControl_State* board = system_control->GetState();
+    Firmware* firmware = m_core->GetFirmware();
+    const GDOX_Firmware_Info& bios = firmware->GetInfo(GDOX_FIRMWARE_SYSTEM_BIOS);
+    const GDOX_Firmware_Info& vga = firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS);
+    u64 clocks = m_core->GetScheduler()->GetClocks();
 
     for (int i = 0; i < report.warning_count; i++)
         warnings.push_back(report.warnings[i]);
@@ -2281,7 +2260,48 @@ json DebugAdapter::GetSystemStatus()
             {"game_database", IsValidPointer(report.title) ? json(report.title) : json()},
             {"warnings", warnings},
             {"reset_pending", m_core->IsMachineConfigPending()}
+        }},
+        {"board", {
+            {"a20", system_control->IsA20Enabled()},
+            {"port_92", Hex(board->port_92, 2)},
+            {"port_61", Hex(system_control->Peek(0x0061, clocks), 2)},
+            {"nmi_masked", board->nmi_mask},
+            {"post_code", Hex(board->post_code, 2)},
+            {"fpu_error_irq13", board->fpu_error},
+            {"cpu_resets", board->reset_count},
+            {"last_reset_cause", board->reset_count == 0 ? json() :
+                json((board->last_reset_cause & k_system_control_reset_shutdown) != 0 ? "shutdown" :
+                (board->last_reset_cause & k_system_control_reset_keyboard) != 0 ? "keyboard_controller" : "port_92")},
+            {"memory_map", k_machine_memory_maps[profile.map].name}
+        }},
+        {"bios", {
+            {"source", firmware->GetSource().type == GDOX_FIRMWARE_SOURCE_BUILTIN ? "built-in" : "external"},
+            {"style", firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS ? "seabios" : "at"},
+            {"system_bios", bios.recognized ? json(bios.database_name) : json(bios.path)},
+            {"system_bios_crc", Hex32(bios.crc)},
+            {"system_bios_kb", bios.size / 1024},
+            {"vga_bios", vga.recognized ? json(vga.database_name) : json(vga.path)},
+            {"vga_bios_crc", Hex32(vga.crc)},
+            {"firmware_config", m_core->GetFirmwareConfig()->IsEnabled()},
+            {"debug_console", m_core->GetDebugConsole()->IsEnabled()}
         }}
+    };
+}
+
+json DebugAdapter::GetBiosLog(int max_bytes)
+{
+    DebugConsole* console = m_core->GetDebugConsole();
+    std::vector<char> text(DEBUG_CONSOLE_SIZE + 1);
+    u32 length = console->CopyText(&text[0], (u32)text.size());
+    u32 count = (u32)CLAMP(max_bytes, 1, DEBUG_CONSOLE_SIZE);
+    u32 start = length > count ? length - count : 0;
+
+    return {
+        {"enabled", console->IsEnabled()},
+        {"port", Hex(k_debug_console_port, 4)},
+        {"bytes", length},
+        {"written", console->GetWrittenCount()},
+        {"text", std::string(&text[start], length - start)}
     };
 }
 

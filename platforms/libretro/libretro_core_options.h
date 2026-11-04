@@ -333,6 +333,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "system",
         {
             { "auto",      "Auto" },
+            { "386sx_20",  "386SX-20 (80386SX 20 MHz)" },
             { "386dx_33",  "386DX-33 (80386DX 33 MHz)" },
             { "486dx2_66", "486DX2-66 (80486DX2 66 MHz)" },
             { NULL, NULL },
@@ -428,6 +429,48 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { NULL, NULL },
         },
         "Shared"
+    },
+    {
+        "geardox_bios",
+        "BIOS (restart)",
+        NULL,
+        "'Built-in' runs the SeaBIOS and SeaVGABIOS compiled into the core. 'System folder' looks for BIOS.BIN and VGABIOS.BIN in the system directory, its geardox subfolder and the zips there, and falls back to the built-in BIOS.",
+        NULL,
+        "system",
+        {
+            { "Built-in",      NULL },
+            { "System folder", NULL },
+            { NULL, NULL },
+        },
+        "Built-in"
+    },
+    {
+        "geardox_boot_menu",
+        "BIOS Boot Menu (restart)",
+        NULL,
+        "SeaBIOS offers its boot menu with Esc for 2.5 seconds at each boot.",
+        NULL,
+        "system",
+        {
+            { "Disabled", NULL },
+            { "Enabled",  NULL },
+            { NULL, NULL },
+        },
+        "Disabled"
+    },
+    {
+        "geardox_rtc",
+        "Clock Start (restart)",
+        NULL,
+        "Start the PC clock from the host time or from a fixed date (January 1, 1990). A fixed date makes netplay and replays independent of each computer's clock.",
+        NULL,
+        "system",
+        {
+            { "Host time",  NULL },
+            { "Fixed date", NULL },
+            { NULL, NULL },
+        },
+        "Host time"
     },
 #if !defined(GDOX_DISABLE_DYNAREC)
     {

@@ -30,6 +30,8 @@ Memory::Memory()
     m_cpu_map_generation = 0;
     m_debug_region_count = 0;
     m_physical_address_mask = 0xFFFFFFFF;
+    m_map_address_mask = 0xFFFFFFFF;
+    m_a20_enabled = true;
     m_map_generation = 1;
     m_region_generation = 1;
     m_debug_snapshot_id = 1;
@@ -37,7 +39,6 @@ Memory::Memory()
     m_working_ram_size = 0;
     m_main_ram_size = GDOX_MAIN_RAM_SIZE;
     InitPointer(m_state.main_ram);
-    ResetCMOS();
     InitPointer(m_video_ram);
     m_video_ram_size = 0;
     InitPointer(m_trace_logger);
@@ -84,39 +85,18 @@ void Memory::Reset()
         memset(m_state.main_ram, 0, m_main_ram_size);
 }
 
-void Memory::ResetCMOS()
-{
-    memset(m_state.cmos, 0, sizeof(m_state.cmos));
-}
-
-bool Memory::LoadCMOSFile(const u8* data, size_t size)
-{
-    if (size == GDOX_CMOS_FILE_SIZE)
-    {
-        if ((data[0] | (data[1] << 8)) != GDOX_CMOS_FILE_MAGIC)
-            return false;
-
-        data += GDOX_CMOS_FILE_HEADER_SIZE;
-    }
-    else if (size != GDOX_CMOS_SIZE)
-        return false;
-
-    memcpy(m_state.cmos, data, GDOX_CMOS_SIZE);
-    return true;
-}
-
-void Memory::SaveCMOSFile(u8* data) const
-{
-    data[0] = GDOX_CMOS_FILE_MAGIC & 0xFF;
-    data[1] = GDOX_CMOS_FILE_MAGIC >> 8;
-    data[2] = GDOX_CMOS_FILE_VERSION & 0xFF;
-    data[3] = GDOX_CMOS_FILE_VERSION >> 8;
-    memcpy(data + GDOX_CMOS_FILE_HEADER_SIZE, m_state.cmos, GDOX_CMOS_SIZE);
-}
-
 INLINE bool Memory::IsCanonicalPage(u32 page) const
 {
     return (m_physical_address_mask & 0xFFF) == 0xFFF && ((page << 12) & ~m_physical_address_mask) == 0;
+}
+
+// With A20 off the high memory area keeps host pages that alias the first 64 KB, the only wrap real mode reaches
+INLINE bool Memory::IsCPUPage(u32 page) const
+{
+    if (IsCanonicalPage(page))
+        return true;
+
+    return !m_a20_enabled && (page & ~0xFFU) == 0x100 && ((page << 12) & ~m_map_address_mask) == 0;
 }
 
 INLINE const Memory::DebugRegion* Memory::FindMappedSpan(u32 physical, u32 size) const
@@ -243,11 +223,14 @@ INLINE u8 Memory::ReadRegionBus(const DebugRegion& region, u32 offset, GDOX_Bus_
 }
 
 #if !defined(GDOX_DISABLE_DYNAREC)
-// Writes that reach RAM pages holding translated code outside the CPU fast path
+// Writes that reach RAM pages holding translated code outside the CPU fast path, from main RAM or a view of it
 INLINE void Memory::NotifyCodeWrite(const DebugRegion* region, u32 offset, u32 size)
 {
-    if (region->write_data != m_working_ram || !IsValidPointer(m_code_pages))
+    if (!IsValidPointer(m_code_pages) || !IsValidPointer(m_working_ram) || region->write_data < m_working_ram ||
+        region->write_data >= m_working_ram + m_working_ram_size)
         return;
+
+    offset += (u32)(region->write_data - m_working_ram);
 
     u32 first = offset >> 12;
     u32 last = (offset + size - 1) >> 12;
@@ -884,13 +867,68 @@ bool Memory::DebugTranslateBus(u32 bus_address, GDOX_Debug_Memory_Translation& t
     return true;
 }
 
+// The map's address lines, 24 on a 386SX, A20 masks one of them on top
 void Memory::SetPhysicalAddressMask(u32 mask)
 {
+    m_map_address_mask = mask;
+    ApplyAddressMask();
+}
+
+void Memory::ApplyAddressMask()
+{
+    u32 mask = m_a20_enabled ? m_map_address_mask : m_map_address_mask & ~0x00100000U;
+
     if (m_physical_address_mask != mask)
     {
         m_physical_address_mask = mask;
         m_map_generation++;
         m_debug_snapshot_id++;
+    }
+}
+
+// Only the pages with address bit 20 change, so a toggle never rebuilds the whole CPU map
+void Memory::SetA20(bool enabled)
+{
+    if (m_a20_enabled == enabled)
+        return;
+
+    bool patch = m_cpu_map_generation == m_map_generation && IsValidPointer(m_cpu_read_pages);
+
+    m_a20_enabled = enabled;
+    ApplyAddressMask();
+
+    if (!patch)
+        return;
+
+    RemapA20Pages();
+    m_cpu_map_generation = m_map_generation;
+}
+
+bool Memory::IsA20Enabled() const
+{
+    return m_a20_enabled;
+}
+
+void Memory::RemapA20Pages()
+{
+    for (u32 page = 0x100; page < 0x200; page++)
+        UpdateCPUPage(page);
+
+    for (int i = 0; i < m_debug_region_count; i++)
+    {
+        const DebugRegion& region = m_debug_regions[i];
+
+        if ((region.info.flags & GDOX_DEBUG_REGION_MAPPED) == 0)
+            continue;
+
+        u32 first = region.info.physical_base >> 12;
+        u32 last = (u32)(((u64)region.info.physical_base + region.info.size - 1) >> 12);
+
+        for (u32 page = MAX(first, 0x200U); page <= last; page++)
+        {
+            if ((page & 0x100) != 0)
+                UpdateCPUPage(page);
+        }
     }
 }
 
@@ -927,6 +965,9 @@ void Memory::SetCodePage(u32 page, bool code)
 
     if (IsCanonicalPage(cpu_page))
         UpdateCPUPage(cpu_page);
+
+    if (!m_a20_enabled && cpu_page < 0x100)
+        UpdateCPUPage(cpu_page | 0x100);
 
     m_cpu_map_generation = m_map_generation;
 }
@@ -1201,9 +1242,9 @@ void Memory::PrepareCPUMap()
     memset(m_cpu_page_regions, 0, page_count);
     memset(m_cpu_page_bus, 0, page_count);
 
-    for (u32 page = 0; page <= (m_physical_address_mask >> 12); page++)
+    for (u32 page = 0; page <= (m_map_address_mask >> 12); page++)
     {
-        if (IsCanonicalPage(page))
+        if (IsCPUPage(page))
             UpdateCPUPage(page);
     }
 
@@ -1212,7 +1253,7 @@ void Memory::PrepareCPUMap()
 
 void Memory::UpdateCPUPage(u32 page)
 {
-    UpdateCPUPage(page, FindMappedSpan(page << 12, 0x1000));
+    UpdateCPUPage(page, IsCPUPage(page) ? FindMappedSpan(page << 12, 0x1000) : NULL);
 }
 
 void Memory::UpdateCPUPage(u32 page, const DebugRegion* region)
@@ -1252,9 +1293,11 @@ u8 Memory::GetBusClass(const GDOX_Debug_Memory_Region& info)
         case GDOX_DEBUG_REGION_MAIN_RAM:
             return GDOX_BUS_DRAM;
         case GDOX_DEBUG_REGION_VRAM:
+        case GDOX_DEBUG_REGION_VIDEO_APERTURE:
             return GDOX_BUS_VRAM;
         case GDOX_DEBUG_REGION_SYSTEM_ROM:
-        case GDOX_DEBUG_REGION_SYSTEM_ROM_LOW_ALIAS:
+        case GDOX_DEBUG_REGION_BIOS_COPY:
+        case GDOX_DEBUG_REGION_VGA_ROM:
             return GDOX_BUS_ROM;
         case GDOX_DEBUG_REGION_CMOS:
             return GDOX_BUS_CMOS;
@@ -1279,13 +1322,17 @@ void Memory::RemapRange(u32 base, u32 size)
 
     for (u32 page = base >> 12; page <= last; page++)
     {
-        if (!IsCanonicalPage(page))
+        if (!IsCPUPage(page))
             continue;
 
         if (IsValidPointer(region))
             UpdateCPUPage(page, region);
         else
             UpdateCPUPage(page);
+
+        // The high memory area mirrors what changed below 64 KB
+        if (!m_a20_enabled && page < 0x100)
+            UpdateCPUPage(page | 0x100);
     }
 
     m_cpu_map_generation = m_map_generation;
@@ -1308,7 +1355,6 @@ void Memory::Serialize(StateSerializer& serializer, int version)
 {
     UNUSED(version);
     G_SERIALIZE_ARRAY(serializer, m_state.main_ram, m_main_ram_size);
-    G_SERIALIZE_ARRAY(serializer, m_state.cmos, GDOX_CMOS_SIZE);
 }
 
 void Memory::SanitizeState()

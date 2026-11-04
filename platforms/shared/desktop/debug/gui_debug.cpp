@@ -140,6 +140,9 @@ void gui_debug_windows(void)
         if (config_debug.show_system_control)
             gui_debug_window_system_control();
 
+        if (config_debug.show_bios_log)
+            gui_debug_window_bios_log();
+
         if (config_debug.show_game_ports)
             gui_debug_window_game_ports();
 

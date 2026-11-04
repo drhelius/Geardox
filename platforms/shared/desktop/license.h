@@ -642,4 +642,19 @@ static const char * GPL_LICENSE_STR =
 "\n"
 "\nEND OF TERMS AND CONDITIONS";
 
+static const char * SEABIOS_LICENSE_STR =
+"Geardox includes SeaBIOS and SeaVGABIOS as its built-in BIOS, built from the"
+"\nSeaBIOS commit, patch and configurations in platforms/shared/dependencies/seabios."
+"\n"
+"\nSeaBIOS and SeaVGABIOS are free software: you can redistribute them and/or"
+"\nmodify them under the terms of the GNU Lesser General Public License,"
+"\nversion 3, as published by the Free Software Foundation."
+"\n"
+"\nThey are distributed in the hope that they will be useful, but WITHOUT ANY"
+"\nWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR"
+"\nA PARTICULAR PURPOSE. See the GNU Lesser General Public License for more"
+"\ndetails."
+"\n"
+"\nTheir source code is available at https://www.seabios.org.";
+
 #endif /* LICENSE_H */

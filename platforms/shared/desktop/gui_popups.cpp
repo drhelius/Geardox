@@ -35,6 +35,7 @@
 #include "gamepad.h"
 #include "emu.h"
 #include "license.h"
+#include "seabios.h"
 #include "backers.h"
 #include "ogl_renderer.h"
 #include "keyboard.h"
@@ -279,6 +280,7 @@ void gui_popup_modal_about(void)
                 add_build_info("OpenGL %s\n", ogl_renderer_opengl_version);
                 add_build_info("Dear ImGui %s (%d)\n", IMGUI_VERSION, IMGUI_VERSION_NUM);
                 add_build_info("ImPlot %s (%d)\n", IMPLOT_VERSION, IMPLOT_VERSION_NUM);
+                add_build_info("SeaBIOS %s (built-in)\n", k_seabios_version);
 
                 #if defined(DEBUG)
                 add_build_info("define: DEBUG\n");
@@ -331,6 +333,16 @@ void gui_popup_modal_about(void)
             {
                 ImGui::BeginChild("license", ImVec2(0, 100), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
                 ImGui::TextUnformatted(GPL_LICENSE_STR);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("SeaBIOS"))
+            {
+                ImGui::BeginChild("seabios", ImVec2(0, 100), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+                ImGui::Text("SeaBIOS %s", k_seabios_version);
+                ImGui::NewLine();
+                ImGui::TextUnformatted(SEABIOS_LICENSE_STR);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }

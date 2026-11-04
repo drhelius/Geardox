@@ -26,6 +26,8 @@
 #include "system/pic.h"
 #include "system/pit.h"
 #include "system/scheduler.h"
+#include "system/system_control.h"
+#include "system/debug_console.h"
 #include "../config.h"
 #include "../emu.h"
 #include "../gui.h"
@@ -42,7 +44,6 @@ static const char* const k_pit_mode_short_names[6] =
 static void setup_fixed_columns(const int* widths, int count);
 static void draw_grid_label(const char* label);
 static void draw_flag(const char* label, bool on);
-static void draw_model_flag(const char* label, bool present, bool on, const char* on_text, const char* off_text);
 static void draw_vector_tooltip(u8 vector);
 static void draw_pic_column(const I8259::I8259_State* chip, bool master, int row);
 
@@ -139,7 +140,7 @@ void gui_debug_window_pit(void)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
     ImGui::SetNextWindowPos(ImVec2(253, 111), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(616, 348), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(586, 236), ImGuiCond_FirstUseEver);
     ImGui::Begin("Timers", &config_debug.show_pit);
 
     ImGui::PushFont(gui_default_font);
@@ -148,85 +149,28 @@ void gui_debug_window_pit(void)
     PIT* pit = core->GetPIT();
     PIT::PIT_State* state = pit->GetState();
     u64 clocks = core->GetScheduler()->GetClocks();
-    u8 board = pit->Peek(0x0060, clocks);
     float character = ImGui::CalcTextSize("0").x;
-    u8 timer2 = 0;
-    u8 period_low = 0;
-    u8 period_high = 0;
-    u8 free_low = 0;
-    u8 free_high = 0;
-    bool has_timer2 = core->GetIO()->Peek(0x0068, clocks, timer2);
-    bool has_free_run = core->GetIO()->Peek(0x0026, clocks, free_low) && core->GetIO()->Peek(0x0027, clocks, free_high);
-    core->GetIO()->Peek(0x006A, clocks, period_low);
-    core->GetIO()->Peek(0x006B, clocks, period_high);
-    bool timer2_irq = has_timer2 && ((timer2 & (k_pit_timer2_disable | k_pit_timer2_pending)) == k_pit_timer2_pending);
+    bool out2 = pit->GetChannel2Output(clocks);
 
-    ImGui::TextColored(cyan, "BOARD (0060)"); ImGui::Separator();
+    ImGui::TextColored(cyan, "SPEAKER (0061)"); ImGui::Separator();
 
-    if (ImGui::BeginTable("##pit_board", 6, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
+    if (ImGui::BeginTable("##pit_speaker", 6, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
     {
-        static const int widths[6] = { 10, 4, 10, 4, 5, 4 };
-        bool irq0 = ((board & state->timer_enable & 0x03) != 0) || timer2_irq;
+        static const int widths[6] = { 8, 4, 8, 4, 8, 4 };
 
         setup_fixed_columns(widths, 6);
 
         ImGui::TableNextRow();
-        draw_flag("TM0 ENABLE", (state->timer_enable & 0x01) != 0);
-        draw_flag("TM1 ENABLE", (state->timer_enable & 0x02) != 0);
-        draw_flag("SOUND", state->sound || state->sound_memory);
+        draw_flag("GATE 2", state->speaker_gate);
+        draw_flag("DATA", state->speaker_data);
+        draw_grid_label("SPEAKER");
+        ImGui::TextColored(state->speaker_data && out2 ? yellow : gray, "%s", state->speaker_data && out2 ? "HIGH" : "LOW");
 
         ImGui::TableNextRow();
-        draw_flag("LATCH 0", (board & 0x01) != 0);
-        draw_flag("LATCH 1", (board & 0x02) != 0);
-        draw_grid_label("IRQ0");
-        ImGui::TextColored(irq0 ? yellow : gray, "%s", irq0 ? "HIGH" : "LOW");
-
-        ImGui::EndTable();
-    }
-
-    ImGui::NewLine(); ImGui::TextColored(cyan, "LATER TIMERS (0026, 0068-006B)"); ImGui::Separator();
-
-    if (ImGui::BeginTable("##pit_timer2", 6, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
-    {
-        static const int widths[6] = { 10, 5, 10, 9, 8, 4 };
-        u32 period = (u32)((period_high << 8) | period_low);
-
-        setup_fixed_columns(widths, 6);
-
-        ImGui::TableNextRow();
-        draw_model_flag("TM2 ENABLE", has_timer2, (timer2 & k_pit_timer2_disable) == 0, "ON", "OFF");
-        draw_model_flag("PENDING", has_timer2, (timer2 & k_pit_timer2_pending) != 0, "ON", "OFF");
-        draw_model_flag("OVERRUN", has_timer2, (timer2 & k_pit_timer2_overrun) != 0, "ON", "OFF");
-
-        ImGui::TableNextRow();
-        draw_grid_label("PERIOD");
-
-        if (has_timer2)
-            ImGui::TextColored(white, "$%04X", period);
-        else
-            ImGui::TextColored(gray, "--");
-
-        draw_grid_label("INTERVAL");
-
-        if (has_timer2)
-            ImGui::TextColored(white, "%.3f ms", (period == 0 ? 65536 : period) / 1000.0);
-        else
-            ImGui::TextColored(gray, "--");
-
-        draw_grid_label("STATUS");
-
-        if (has_timer2)
-            ImGui::TextColored(white, "$%02X", timer2);
-        else
-            ImGui::TextColored(gray, "--");
-
-        ImGui::TableNextRow();
-        draw_grid_label("FREE RUN");
-
-        if (has_free_run)
-            ImGui::TextColored(white, "$%04X", (free_high << 8) | free_low);
-        else
-            ImGui::TextColored(gray, "--");
+        draw_grid_label("OUT2");
+        ImGui::TextColored(out2 ? green : gray, "%d", out2 ? 1 : 0);
+        draw_grid_label("REFRESH");
+        ImGui::TextColored(white, "%d", pit->GetRefreshToggle(clocks) ? 1 : 0);
 
         ImGui::EndTable();
     }
@@ -238,21 +182,21 @@ void gui_debug_window_pit(void)
 
     if (ImGui::BeginTable("##counters", 11, flags))
     {
-        static const char* headers[11] = { "CH", "PORT", "USE", "CLOCK", "MODE", "ACCESS", "BCD", "RELOAD", "COUNT", "OUT",
+        static const char* headers[11] = { "CH", "PORT", "USE", "GATE", "MODE", "ACCESS", "BCD", "RELOAD", "COUNT", "OUT",
             "PERIOD" };
-        static const int widths[11] = { 2, 4, 14, 7, 11, 7, 3, 6, 5, 3, 10 };
+        static const int widths[11] = { 2, 4, 12, 4, 11, 7, 3, 6, 5, 3, 10 };
+        double rate = (double)GDOX_MASTER_CLOCK_RATE / 12.0;
+        I8253* chip = pit->GetPIT();
+        u64 tick = pit->GetTick(clocks);
 
         for (int i = 0; i < 11; i++)
             ImGui::TableSetupColumn(headers[i], ImGuiTableColumnFlags_WidthFixed, character * widths[i]);
 
         ImGui::TableHeadersRow();
 
-        for (int channel = 0; channel < 6; channel++)
+        for (int channel = 0; channel < I8253_COUNTER_COUNT; channel++)
         {
-            I8253* chip = pit->GetPIT(channel / 3);
-            const I8253::I8253_Counter& counter = chip->GetState()->counters[channel % 3];
-            u64 tick = pit->GetTick(channel, clocks);
-            double rate = channel == k_pit_serial_channel ? 1228800.0 : 307200.0;
+            const I8253::I8253_Counter& counter = chip->GetState()->counters[channel];
             bool programmed = counter.programmed;
             ImVec4 color = programmed ? white : gray;
 
@@ -260,11 +204,11 @@ void gui_debug_window_pit(void)
             ImGui::TableNextColumn();
             ImGui::TextColored(orange, "%d", channel);
             ImGui::TableNextColumn();
-            ImGui::TextColored(cyan, "%04X", (channel < 3 ? 0x0040 : 0x0050) + (channel % 3) * 2);
+            ImGui::TextColored(cyan, "%04X", 0x0040 + channel);
             ImGui::TableNextColumn();
             ImGui::TextColored(brown, "%s", k_debug_pit_uses[channel]);
             ImGui::TableNextColumn();
-            ImGui::TextColored(orange, "%s", channel == k_pit_serial_channel ? "1.2288M" : "307.2K");
+            ImGui::TextColored(counter.gate ? green : gray, "%s", counter.gate ? "HI" : "LO");
             ImGui::TableNextColumn();
 
             if (programmed)
@@ -286,12 +230,12 @@ void gui_debug_window_pit(void)
             ImGui::TableNextColumn();
 
             if (programmed)
-                ImGui::TextColored(white, "$%04X", chip->PeekCount(channel % 3, tick));
+                ImGui::TextColored(white, "$%04X", chip->PeekCount(channel, tick));
             else
                 ImGui::TextColored(gray, "--");
 
             ImGui::TableNextColumn();
-            bool out = chip->PeekOutput(channel % 3, tick);
+            bool out = chip->PeekOutput(channel, tick);
             ImGui::TextColored(programmed && out ? green : gray, "%d", out ? 1 : 0);
             ImGui::TableNextColumn();
 
@@ -326,7 +270,7 @@ void gui_debug_window_system_control(void)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
     ImGui::SetNextWindowPos(ImVec2(176, 112), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(247, 150), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(247, 300), ImGuiCond_FirstUseEver);
     ImGui::Begin("System Control", &config_debug.show_system_control);
 
     ImGui::PushFont(gui_default_font);
@@ -363,6 +307,97 @@ void gui_debug_window_system_control(void)
         ImGui::EndTable();
     }
 
+    SystemControl* system_control = core->GetSystemControl();
+    SystemControl::SystemControl_State* state = system_control->GetState();
+    u64 clocks = core->GetScheduler()->GetClocks();
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "BOARD"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##system_board", 2, flags))
+    {
+        setup_fixed_columns(widths, 2);
+
+        ImGui::TableNextRow();
+        draw_grid_label("A20");
+        ImGui::TextColored(system_control->IsA20Enabled() ? green : gray, "%s",
+            system_control->IsA20Enabled() ? "ON" : "OFF"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(gray, "(92h:$%02X)", state->port_92);
+
+        ImGui::TableNextRow();
+        draw_grid_label("NMI");
+        ImGui::TextColored(state->nmi_mask ? gray : green, "%s", state->nmi_mask ? "MASKED" : "ENABLED");
+
+        ImGui::TableNextRow();
+        draw_grid_label("PORT 61h");
+        ImGui::TextColored(white, "$%02X", system_control->Peek(0x0061, clocks));
+
+        ImGui::TableNextRow();
+        draw_grid_label("POST CODE");
+        ImGui::TextColored(orange, "$%02X", state->post_code);
+
+        ImGui::TableNextRow();
+        draw_grid_label("FPU ERROR");
+        ImGui::TextColored(state->fpu_error ? yellow : gray, "%s", state->fpu_error ? "IRQ13" : "OFF");
+
+        ImGui::TableNextRow();
+        draw_grid_label("CPU RESETS");
+        ImGui::TextColored(white, "%u", state->reset_count);
+
+        if (state->reset_count != 0)
+        {
+            u8 cause = state->last_reset_cause;
+            ImGui::SameLine(0.0f, space);
+            ImGui::TextColored(gray, "(%s)", (cause & k_system_control_reset_shutdown) != 0 ? "SHUTDOWN" :
+                (cause & k_system_control_reset_keyboard) != 0 ? "8042" : "PORT 92h");
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::PopFont();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+void gui_debug_window_bios_log(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::SetNextWindowPos(ImVec2(180, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(560, 360), ImGuiCond_FirstUseEver);
+    ImGui::Begin("BIOS Log", &config_debug.show_bios_log);
+
+    static char text[DEBUG_CONSOLE_SIZE + 1];
+    static u64 written = (u64)-1;
+    static bool follow = true;
+    DebugConsole* console = emu_get_core()->GetDebugConsole();
+    bool updated = console->GetWrittenCount() != written;
+
+    if (updated)
+    {
+        console->CopyText(text, sizeof(text));
+        written = console->GetWrittenCount();
+    }
+
+    ImGui::TextColored(console->IsEnabled() ? green : gray, "%s", console->IsEnabled() ? "PORT 402h ON" : "PORT 402h OFF");
+    ImGui::SameLine();
+    ImGui::TextColored(gray, "%u bytes", console->GetLength());
+    ImGui::SameLine();
+    ImGui::Checkbox("Follow", &follow);
+    ImGui::SameLine();
+
+    if (ImGui::Button("Copy"))
+        ImGui::SetClipboardText(text);
+
+    ImGui::Separator();
+    ImGui::PushFont(gui_default_font);
+    ImGui::BeginChild("##bios_log", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::TextUnformatted(text);
+
+    if (follow && updated)
+        ImGui::SetScrollHereY(1.0f);
+
+    ImGui::EndChild();
     ImGui::PopFont();
 
     ImGui::End();
@@ -388,16 +423,6 @@ static void draw_flag(const char* label, bool on)
 {
     draw_grid_label(label);
     ImGui::TextColored(on ? green : gray, "%s", on ? "ON" : "OFF");
-}
-
-static void draw_model_flag(const char* label, bool present, bool on, const char* on_text, const char* off_text)
-{
-    draw_grid_label(label);
-
-    if (present)
-        ImGui::TextColored(on ? green : gray, "%s", on ? on_text : off_text);
-    else
-        ImGui::TextColored(gray, "--");
 }
 
 static void draw_vector_tooltip(u8 vector)

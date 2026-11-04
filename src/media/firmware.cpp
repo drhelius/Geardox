@@ -21,6 +21,7 @@
 #include <new>
 #include <string>
 #include "firmware.h"
+#include "seabios.h"
 #include "media_file.h"
 #include "game_db.h"
 #include "crc.h"
@@ -53,10 +54,14 @@ void Firmware::Unload()
     memset(m_system_rom, 0xFF, sizeof(m_system_rom));
     memset(m_vga_rom, 0xFF, sizeof(m_vga_rom));
     m_ready = false;
+    m_style = GDOX_FIRMWARE_STYLE_SEABIOS;
 }
 
 bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
 {
+    if (source.type == GDOX_FIRMWARE_SOURCE_BUILTIN)
+        return LoadBuiltin(source, quiet);
+
     if (source.path[0] == '\0')
     {
         Error("Invalid firmware folder");
@@ -74,7 +79,7 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
     for (int i = 0; success && (i < GDOX_FIRMWARE_COUNT); i++)
     {
         GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
-        pending_data[i] = new (std::nothrow) u8[GetExpectedSize(type)];
+        pending_data[i] = new (std::nothrow) u8[GetMaxSize(type)];
         bool ok = IsValidPointer(pending_data[i]) &&
             ReadComponent(container, type, pending_data[i], m_pending_info[i], true);
 
@@ -89,8 +94,7 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
                 break;
             }
 
-            m_pending_info[i].size = GetExpectedSize(type);
-            m_pending_info[i].synthetic = true;
+            SetBuiltinInfo(type, m_pending_info[i]);
         }
     }
 
@@ -108,27 +112,28 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
     {
         GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
         u8* destination = GetWritableData(type);
-        int expected_size = GetExpectedSize(type);
+        int size = m_pending_info[i].size;
+
+        memset(destination, 0xFF, GetMaxSize(type));
 
         if (IsValidPointer(pending_data[i]))
-            memcpy(destination, pending_data[i], expected_size);
+            memcpy(destination, pending_data[i], size);
         else
-            memset(destination, 0xFF, expected_size);
+            memcpy(destination, k_seabios_vgabios, size);
 
         m_info[i] = m_pending_info[i];
 
-        if (m_info[i].synthetic)
-            m_info[i].crc = CalculateCRC32(0, destination, expected_size);
+        if (!m_info[i].builtin)
+            GatherDatabaseInfo(type, m_info[i]);
 
-        GatherDatabaseInfo(type, m_info[i]);
         SafeDeleteArray(pending_data[i]);
 
         if (quiet)
             continue;
 
-        if (m_info[i].synthetic)
+        if (m_info[i].builtin)
         {
-            Log("Optional firmware not found: %s. Using blank ROM.", GetFileName(type));
+            Log("Optional firmware not found: %s. Using the built-in %s.", GetFileName(type), m_info[i].database_name);
         }
         else if (m_info[i].recognized)
         {
@@ -142,7 +147,62 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
 
     m_source = source;
     m_ready = true;
+    m_style = IsSeaBIOS(m_system_rom, (u32)m_info[GDOX_FIRMWARE_SYSTEM_BIOS].size) ? GDOX_FIRMWARE_STYLE_SEABIOS :
+        GDOX_FIRMWARE_STYLE_AT;
     return true;
+}
+
+// SeaBIOS and SeaVGABIOS built from the pinned SeaBIOS commit, compiled in
+bool Firmware::LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet)
+{
+    Unload();
+
+    for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
+    {
+        GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
+        SetBuiltinInfo(type, m_info[i]);
+        memcpy(GetWritableData(type), type == GDOX_FIRMWARE_SYSTEM_BIOS ? k_seabios_bios :
+            k_seabios_vgabios, m_info[i].size);
+    }
+
+    if (!quiet)
+        Log("Firmware loaded: built-in %s", m_info[GDOX_FIRMWARE_SYSTEM_BIOS].database_name);
+
+    m_source = source;
+    m_ready = true;
+    m_style = GDOX_FIRMWARE_STYLE_SEABIOS;
+    return true;
+}
+
+void Firmware::SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info)
+{
+    bool system = type == GDOX_FIRMWARE_SYSTEM_BIOS;
+    const u8* data = system ? k_seabios_bios : k_seabios_vgabios;
+
+    memset(&info, 0, sizeof(info));
+    strncpy_fit(info.path, "Built-in", sizeof(info.path));
+    snprintf(info.database_name, sizeof(info.database_name), "%s %s", system ? "SeaBIOS" : "SeaVGABIOS",
+        k_seabios_version);
+    info.size = (int)(system ? k_seabios_bios_size : k_seabios_vgabios_size);
+    info.crc = CalculateCRC32(0, data, (u32)info.size);
+    info.loaded = true;
+    info.recognized = true;
+    info.builtin = true;
+}
+
+// Every SeaBIOS image carries its version banner
+bool Firmware::IsSeaBIOS(const u8* data, u32 size)
+{
+    static const char k_banner[] = "SeaBIOS (version ";
+    u32 length = sizeof(k_banner) - 1;
+
+    for (u32 i = 0; i + length <= size; i++)
+    {
+        if (data[i] == 'S' && memcmp(data + i, k_banner, length) == 0)
+            return true;
+    }
+
+    return false;
 }
 
 void Firmware::GatherDatabaseInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info)
@@ -195,22 +255,49 @@ const char* Firmware::GetFileName(GDOX_Firmware_Type type)
     return ((int)type >= 0) && ((int)type < GDOX_FIRMWARE_COUNT) ? k_firmware_file_names[type][0] : "";
 }
 
-int Firmware::GetExpectedSize(GDOX_Firmware_Type type)
+int Firmware::GetMaxSize(GDOX_Firmware_Type type)
 {
     switch (type)
     {
         case GDOX_FIRMWARE_SYSTEM_BIOS:
-            return GDOX_FIRMWARE_SYSTEM_BIOS_SIZE;
+            return GDOX_FIRMWARE_SYSTEM_BIOS_MAX_SIZE;
         case GDOX_FIRMWARE_VGA_BIOS:
-            return GDOX_FIRMWARE_VGA_BIOS_SIZE;
+            return GDOX_FIRMWARE_VGA_BIOS_MAX_SIZE;
         default:
             return 0;
     }
 }
 
+// System BIOS images fill the top 64, 128 or 256 KB, a VGA BIOS is an option ROM in 512-byte blocks
+bool Firmware::IsValidSize(GDOX_Firmware_Type type, u32 size)
+{
+    switch (type)
+    {
+        case GDOX_FIRMWARE_SYSTEM_BIOS:
+            return (size == 64 * 1024) || (size == 128 * 1024) || (size == 256 * 1024);
+        case GDOX_FIRMWARE_VGA_BIOS:
+            return (size >= 2048) && (size <= GDOX_FIRMWARE_VGA_BIOS_MAX_SIZE) && ((size & 0x1FF) == 0);
+        default:
+            return false;
+    }
+}
+
+const char* Firmware::GetSizeText(GDOX_Firmware_Type type)
+{
+    switch (type)
+    {
+        case GDOX_FIRMWARE_SYSTEM_BIOS:
+            return "64, 128 or 256 KB";
+        case GDOX_FIRMWARE_VGA_BIOS:
+            return "up to 64 KB";
+        default:
+            return "";
+    }
+}
+
 bool Firmware::IsRequired(GDOX_Firmware_Type type)
 {
-    return (type == GDOX_FIRMWARE_SYSTEM_BIOS) || (type == GDOX_FIRMWARE_VGA_BIOS);
+    return type == GDOX_FIRMWARE_SYSTEM_BIOS;
 }
 
 u16 Firmware::GetDatabaseFlag(GDOX_Firmware_Type type)
@@ -285,6 +372,13 @@ void Firmware::FindSources(const char* default_folder, const std::string* model_
                 source.type = type;
             }
         }
+
+        // Without a BIOS of its own a model runs the built-in SeaBIOS
+        if (source.type == GDOX_FIRMWARE_SOURCE_NONE)
+        {
+            source.type = GDOX_FIRMWARE_SOURCE_BUILTIN;
+            source.crc = CalculateCRC32(0, k_seabios_bios, k_seabios_bios_size);
+        }
     }
 }
 
@@ -334,16 +428,18 @@ bool Firmware::IdentifySource(GDOX_Firmware_Source& source)
             continue;
 
         for (int part = 0; complete && (part < GetPartCount(type)); part++)
-            complete = ReadPart(container, type, part, NULL, NULL, false);
+            complete = ReadPart(container, type, part, NULL, NULL, false, NULL);
     }
 
     if (complete)
     {
-        u8* system_rom = new (std::nothrow) u8[GDOX_FIRMWARE_SYSTEM_BIOS_SIZE];
-        complete = IsValidPointer(system_rom) && ReadPart(container, GDOX_FIRMWARE_SYSTEM_BIOS, 0, system_rom, NULL, false);
+        u8* system_rom = new (std::nothrow) u8[GDOX_FIRMWARE_SYSTEM_BIOS_MAX_SIZE];
+        u32 size = 0;
+        complete = IsValidPointer(system_rom) &&
+            ReadPart(container, GDOX_FIRMWARE_SYSTEM_BIOS, 0, system_rom, NULL, false, &size);
 
         if (complete)
-            source.crc = CalculateCRC32(0, system_rom, GDOX_FIRMWARE_SYSTEM_BIOS_SIZE);
+            source.crc = CalculateCRC32(0, system_rom, size);
 
         SafeDeleteArray(system_rom);
     }
@@ -397,7 +493,6 @@ bool Firmware::OpenContainer(const char* path, bool zip, Container& container)
     container.path = path;
     InitPointer(container.zip_file);
     container.listed = false;
-    container.packed_entry = -1;
 
     if (zip)
         return OpenZip(path, &container.zip_file, container.archive);
@@ -419,37 +514,31 @@ void Firmware::CloseContainer(Container& container)
 
 bool Firmware::ReadComponent(Container& container, GDOX_Firmware_Type type, u8* destination, GDOX_Firmware_Info& info, bool report)
 {
-    int parts = GetPartCount(type);
-    u32 part_size = (u32)(GetExpectedSize(type) / parts);
     std::string path;
+    u32 size = 0;
 
-    for (int part = 0; part < parts; part++)
-    {
-        if (!ReadPart(container, type, part, destination + part * part_size, part == 0 ? &path : NULL, report))
-            return false;
-    }
+    if (!ReadPart(container, type, 0, destination, &path, report, &size))
+        return false;
 
     strncpy_fit(info.path, path.c_str(), sizeof(info.path));
-    info.size = GetExpectedSize(type);
-    info.crc = CalculateCRC32(0, destination, info.size);
+    info.size = (int)size;
+    info.crc = CalculateCRC32(0, destination, size);
     info.loaded = true;
     return true;
 }
 
-bool Firmware::ReadPart(Container& container, GDOX_Firmware_Type type, int part, u8* destination, std::string* path, bool report)
+bool Firmware::ReadPart(Container& container, GDOX_Firmware_Type type, int part, u8* destination, std::string* path, bool report, u32* size)
 {
-    u32 size = (u32)(GetExpectedSize(type) / GetPartCount(type));
-
     for (int i = 0; IsValidPointer(GetPartName(type, part, i)); i++)
     {
-        if (ReadNamed(container, GetPartName(type, part, i), 0, size, size, destination, path, report))
+        if (ReadNamed(container, type, GetPartName(type, part, i), destination, path, report, size))
             return true;
     }
 
     return false;
 }
 
-bool Firmware::ReadNamed(Container& container, const char* name, u32 offset, u32 size, u32 file_size, u8* destination, std::string* path, bool report)
+bool Firmware::ReadNamed(Container& container, GDOX_Firmware_Type type, const char* name, u8* destination, std::string* path, bool report, u32* size)
 {
     if (container.zip)
     {
@@ -459,40 +548,21 @@ bool Firmware::ReadNamed(Container& container, const char* name, u32 offset, u32
         if ((index < 0) || !mz_zip_reader_file_stat(&container.archive, (mz_uint)index, &stat))
             return false;
 
-        if (stat.m_uncomp_size != (mz_uint64)file_size)
+        if ((stat.m_uncomp_size > 0xFFFFFFFFULL) || !IsValidSize(type, (u32)stat.m_uncomp_size))
         {
             if (report)
-                Error("Incorrect firmware size for %s in %s: %llu bytes, expected %u", stat.m_filename, container.path,
-                    (unsigned long long)stat.m_uncomp_size, file_size);
+                Error("Incorrect firmware size for %s in %s: %llu bytes, expected %s", stat.m_filename, container.path,
+                    (unsigned long long)stat.m_uncomp_size, GetSizeText(type));
             return false;
         }
 
-        if (IsValidPointer(destination) && (size == file_size))
+        u32 file_size = (u32)stat.m_uncomp_size;
+
+        if (IsValidPointer(destination) &&
+            !mz_zip_reader_extract_to_mem(&container.archive, (mz_uint)index, destination, file_size, 0))
         {
-            if (!mz_zip_reader_extract_to_mem(&container.archive, (mz_uint)index, destination, size, 0))
-            {
-                Error("Unable to read firmware %s in %s", stat.m_filename, container.path);
-                return false;
-            }
-        }
-        else if (IsValidPointer(destination))
-        {
-            if (container.packed_entry != index)
-            {
-                container.packed.resize(file_size);
-
-                if (!mz_zip_reader_extract_to_mem(&container.archive, (mz_uint)index, &container.packed[0], file_size,
-                    0))
-                {
-                    Error("Unable to read firmware %s in %s", stat.m_filename, container.path);
-                    container.packed_entry = -1;
-                    return false;
-                }
-
-                container.packed_entry = index;
-            }
-
-            memcpy(destination, &container.packed[offset], size);
+            Error("Unable to read firmware %s in %s", stat.m_filename, container.path);
+            return false;
         }
 
         if (IsValidPointer(path))
@@ -500,6 +570,9 @@ bool Firmware::ReadNamed(Container& container, const char* name, u32 offset, u32
             *path = container.path;
             append_path_component(*path, stat.m_filename);
         }
+
+        if (IsValidPointer(size))
+            *size = file_size;
 
         return true;
     }
@@ -511,15 +584,15 @@ bool Firmware::ReadNamed(Container& container, const char* name, u32 offset, u32
         return false;
 
     s64 actual_size = file->GetSize();
-    bool ok = actual_size == (s64)file_size;
+    bool ok = (actual_size > 0) && (actual_size <= 0xFFFFFFFFLL) && IsValidSize(type, (u32)actual_size);
 
     if (!ok && report)
-        Error("Incorrect firmware size for %s: %lld bytes, expected %u", file_path.c_str(), (long long)actual_size,
-            file_size);
+        Error("Incorrect firmware size for %s: %lld bytes, expected %s", file_path.c_str(), (long long)actual_size,
+            GetSizeText(type));
 
     if (ok && IsValidPointer(destination))
     {
-        ok = file->ReadAt(offset, destination, size);
+        ok = file->ReadAt(0, destination, (u32)actual_size);
 
         if (!ok)
             Error("Unable to read firmware file %s", file_path.c_str());
@@ -529,6 +602,9 @@ bool Firmware::ReadNamed(Container& container, const char* name, u32 offset, u32
 
     if (ok && IsValidPointer(path))
         *path = file_path;
+
+    if (ok && IsValidPointer(size))
+        *size = (u32)actual_size;
 
     return ok;
 }

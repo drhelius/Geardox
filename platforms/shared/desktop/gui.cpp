@@ -169,6 +169,7 @@ void gui_apply_settings(void)
 
     emu_set_preload_cdrom(config_emulator.preload_cdrom);
     emu_set_dynarec(config_emulator.dynarec);
+    emu_apply_bios_settings();
     emu_set_native_resolution(config_video.native_resolution);
     emu_apply_firmware_folders();
     emu_apply_machine_settings();
@@ -422,6 +423,9 @@ void gui_get_firmware_status(GDOX_Machine_Model model, char* text, size_t text_s
             break;
         case GDOX_FIRMWARE_SOURCE_OTHER_SET:
             snprintf(text, text_size, "Ready, %s (for another model)", k_firmware_sets[source.set].description);
+            break;
+        case GDOX_FIRMWARE_SOURCE_BUILTIN:
+            snprintf(text, text_size, "Ready, built-in SeaBIOS");
             break;
         default:
             snprintf(text, text_size, "Not found");

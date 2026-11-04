@@ -22,28 +22,55 @@
 
 #include "../common/common.h"
 
-#define GDOX_MACHINE_RELEASE_ORDER_COUNT 2
+#define GDOX_MACHINE_RELEASE_ORDER_COUNT 3
 #define GDOX_MACHINE_CPU_SPEED_COUNT 8
 #define GDOX_MACHINE_RAM_SIZE_COUNT 7
+#define GDOX_MACHINE_ISA_CLOCK_RATE 8333333
 
+// ISA cycles in BCLKs at the model's clock, less the 2 clocks of a bus cycle, in 1/256 clocks
+#define GDOX_MACHINE_ISA_WAIT(bclks, rate) ((u16)((((u64)(bclks) * (rate) * 256) / GDOX_MACHINE_ISA_CLOCK_RATE) - 512))
+#define GDOX_MACHINE_ISA16(rate) GDOX_MACHINE_ISA_WAIT(3, rate)
+#define GDOX_MACHINE_ISA8(rate) GDOX_MACHINE_ISA_WAIT(6, rate)
+#define GDOX_MACHINE_ISA8_WORD(rate) GDOX_MACHINE_ISA_WAIT(12, rate)
+
+#define GDOX_MACHINE_BUS_WAITS(rate) { { 0, 0 }, { 0, 0 }, { 0, 0 }, 0, 0, { 0, 0 }, \
+    { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { 0, 0 }, GDOX_MACHINE_ISA16(rate), \
+    GDOX_MACHINE_ISA16(rate), { 0, 0 }, 0, 0, 0 }
+
+#define GDOX_MACHINE_BUS_TIMING(waits, rate) { GDOX_MACHINE_BUS_FIXED, &waits, NULL, 0, 0, 0, 0, 0, \
+    { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
+    { GDOX_MACHINE_ISA8_WORD(rate), GDOX_MACHINE_ISA8_WORD(rate) }, { 0, 0 }, \
+    { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, 0, \
+    { 0, 0 }, NULL }
+
+const u8 k_machine_ram_386sx_20[] = { 1, 2, 4, 8, 16, 0 };
 const u8 k_machine_ram_386dx_33[] = { 1, 2, 4, 8, 16, 0 };
 const u8 k_machine_ram_486dx2_66[] = { 4, 8, 16, 32, 64, 0 };
 
-const GDOX_Machine_Bus_Waits k_machine_bus_waits_fixed = { { 0, 0 }, { 0, 0 }, { 0, 0 }, 0, 0, { 0, 0 }, { 0, 0 },
-    { 0, 0 }, 0, 0, { 0, 0 }, 0, 0, 0 };
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_386sx_20 = GDOX_MACHINE_BUS_WAITS(20000000);
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_386dx_33 = GDOX_MACHINE_BUS_WAITS(33000000);
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_486dx2_66 = GDOX_MACHINE_BUS_WAITS(66000000);
 
-const GDOX_Machine_Bus_Timing k_machine_bus_fixed = { GDOX_MACHINE_BUS_FIXED, &k_machine_bus_waits_fixed, NULL,
-    0, 0, 0, 0, 0, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, 0, { 0, 0 }, NULL };
+const GDOX_Machine_Bus_Timing k_machine_bus_386sx_20 = GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386sx_20, 20000000);
+const GDOX_Machine_Bus_Timing k_machine_bus_386dx_33 = GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386dx_33, 33000000);
+const GDOX_Machine_Bus_Timing k_machine_bus_486dx2_66 = GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486dx2_66, 66000000);
+
+const GDOX_Machine_Memory_Map k_machine_memory_maps[GDOX_MACHINE_MAP_COUNT] =
+{
+    { "32-bit", 0xFFFFFFFF, 0xA0000 },
+    { "24-bit", 0x00FFFFFF, 0xA0000 }
+};
 
 const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
 {
-    { "386DX-33", "386dx_33", "Generic 386DX AT", "1989", true, 0, GDOX_MACHINE_CPU_80386DX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_386dx_33, 4, 2, false, NULL, NULL, &k_machine_bus_fixed },
-    { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, 0, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_486dx2_66, 8, 2, false, NULL, NULL, &k_machine_bus_fixed }
+    { "386SX-20", "386sx_20", "Generic 386SX AT", "1989", true, GDOX_MACHINE_CPU_80386SX, GDOX_MACHINE_FPU_SOCKET, 20000000, GDOX_MACHINE_MAP_24BIT, 0, k_machine_ram_386sx_20, 2, 2, NULL, &k_machine_bus_386sx_20 },
+    { "386DX-33", "386dx_33", "Generic 386DX AT", "1989", true, GDOX_MACHINE_CPU_80386DX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_386dx_33, 4, 2, NULL, &k_machine_bus_386dx_33 },
+    { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_486dx2_66, 8, 2, NULL, &k_machine_bus_486dx2_66 }
 };
 
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {
-    GDOX_MACHINE_386DX_33, GDOX_MACHINE_486DX2_66
+    GDOX_MACHINE_386SX_20, GDOX_MACHINE_386DX_33, GDOX_MACHINE_486DX2_66
 };
 
 const int k_machine_cpu_speeds_mhz[GDOX_MACHINE_CPU_SPEED_COUNT] = { 16, 20, 25, 33, 40, 50, 66, 100 };

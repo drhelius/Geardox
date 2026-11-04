@@ -23,13 +23,17 @@
 #include "../common/common.h"
 
 class Audio;
+class DebugConsole;
 class FDC;
+class FirmwareConfig;
+class MC146818;
 class Input;
 class Memory;
 class PIC;
 class PIT;
 class Video;
 class Scheduler;
+class SystemControl;
 
 class IO
 {
@@ -37,7 +41,8 @@ public:
     IO();
     ~IO();
     void Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
-        Input* input);
+        Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
+        DebugConsole* debug_console);
     void Reset();
     u8 Read8(u16 port, GDOX_Bus_Access_Context& context);
     u16 Read16(u16 port, GDOX_Bus_Access_Context& context);
@@ -62,6 +67,10 @@ private:
     Memory* m_memory;
     FDC* m_fdc;
     Input* m_input;
+    SystemControl* m_system_control;
+    MC146818* m_rtc;
+    FirmwareConfig* m_firmware_config;
+    DebugConsole* m_debug_console;
     u8 m_decoded_ports[0x2000];
 };
 

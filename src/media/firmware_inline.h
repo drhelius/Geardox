@@ -57,3 +57,8 @@ INLINE const u8* Firmware::GetVGARom() const
 {
     return m_vga_rom;
 }
+
+INLINE GDOX_Firmware_Style Firmware::GetStyle() const
+{
+    return m_style;
+}

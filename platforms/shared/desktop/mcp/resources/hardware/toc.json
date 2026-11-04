@@ -3,7 +3,13 @@
     {
       "uri": "i386_cpu",
       "title": "Intel 80386 — What MS-DOS PC Software Relies On",
-      "description": "Registers, real, protected and VM86 modes, segmentation, paging, exceptions, IDT and the PC/AT IRQ vectors",
+      "description": "Registers, real, protected and VM86 modes, segmentation, paging, exceptions and the IDT",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "pc_at_board",
+      "title": "PC/AT Board — Memory, I/O, Interrupts, Timers, BIOS and CMOS",
+      "description": "Memory map, A20, board I/O ports, the 8259A pair and IRQ vectors, the 8254, reset paths, the built-in SeaBIOS, firmware config, debug console and the MC146818 CMOS",
       "mimeType": "text/markdown"
     }
   ]

@@ -25,7 +25,7 @@
 #include "../system/pit.h"
 
 // 307.2 kHz PIT clocks in one 44.1 kHz output sample, rounded
-static const int k_audio_buzzer_ticks = 7;
+static const int k_audio_buzzer_ticks = 27;
 static const s32 k_audio_buzzer_level = 4096;
 
 // The analog output is AC coupled
@@ -193,7 +193,7 @@ INLINE s16 Audio::SampleBuzzer()
     if (!m_pit->IsBuzzerEnabled())
         return 0;
 
-    u64 tick = m_pit->GetTick(k_pit_buzzer_channel, m_state.clocks) - k_audio_buzzer_ticks;
+    u64 tick = m_pit->GetTick(m_state.clocks) - k_audio_buzzer_ticks;
     int high = 0;
 
     for (int i = 1; i <= k_audio_buzzer_ticks; i++)

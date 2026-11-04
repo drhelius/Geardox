@@ -49,6 +49,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "Interrupts", config_debug.show_pic, false);
     CONFIG_BOOL("Debug", "Timers", config_debug.show_pit, false);
     CONFIG_BOOL("Debug", "SystemControl", config_debug.show_system_control, false);
+    CONFIG_BOOL("Debug", "BIOSLog", config_debug.show_bios_log, false);
     CONFIG_BOOL("Debug", "GamePorts", config_debug.show_game_ports, false);
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
     CONFIG_BOOL("Debug", "CDROMTOC", config_debug.show_cdrom_toc, false);
@@ -163,6 +164,9 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Emulator", "PauseWhenInactive", config_emulator.pause_when_inactive, true);
     CONFIG_BOOL("Emulator", "PreloadCDROM", config_emulator.preload_cdrom, false);
     CONFIG_BOOL("Emulator", "Dynarec", config_emulator.dynarec, true);
+    CONFIG_BOOL("Emulator", "BIOSBootMenu", config_emulator.bios_boot_menu, false);
+    CONFIG_BOOL("Emulator", "BIOSDebugConsole", config_emulator.bios_debug_console, true);
+    CONFIG_BOOL("Emulator", "BIOSLog", config_emulator.bios_log, false);
 
     // Files and paths
     CONFIG_INT("Emulator", "SaveStatesDirOption", config_emulator.savestates_dir_option, 0);

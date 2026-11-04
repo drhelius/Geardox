@@ -17,37 +17,35 @@
  *
  */
 
+
 #ifndef PIT_INLINE_H
 #define PIT_INLINE_H
 
 #include "pit.h"
+#include "pic.h"
 #include "scheduler.h"
 #include "../common/trace_logger.h"
 
+// IRQ0 follows OUT0: the PIC latches each rising edge
 INLINE void PIT::Synchronize(u64 clocks)
 {
-    if (unlikely(clocks >= m_state.timer2_expiry))
-        SettleTimer2(clocks);
-
-    u64 tick = GetTick(0, clocks);
+    u64 tick = GetTick(clocks);
 
     if (tick <= m_state.settled_tick)
         return;
 
-    u8 latch = m_state.timer_latch;
-
-    m_state.timer_latch = GetTimerLatch(tick);
+    bool edge = m_pit.GetNextRisingEdge(k_pit_irq0_channel, m_state.settled_tick) <= tick;
     m_state.settled_tick = tick;
 
-    if (latch != m_state.timer_latch)
-    {
-        if (unlikely(IsValidPointer(m_trace_logger) &&
-            m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_TIMEOUT)))
-            TraceTimeout(latch);
+    if (!edge)
+        return;
 
-        UpdateIRQ();
-        UpdateNextEvent();
-    }
+    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_TIMEOUT)))
+        TraceTimeout();
+
+    m_pic->SetIRQLine(0, false);
+    m_pic->SetIRQLine(0, true);
+    UpdateNextEvent();
 }
 
 INLINE void PIT::HandleEvent(u64 clocks)
@@ -56,20 +54,20 @@ INLINE void PIT::HandleEvent(u64 clocks)
     UpdateNextEvent();
 }
 
-// The buzzer sounds with either SOUND or the CFF98 enable
+// The speaker sounds OUT2 while port 61h bit 1 lets it through
 INLINE bool PIT::IsBuzzerEnabled() const
 {
-    return m_state.sound || m_state.sound_memory;
+    return m_state.speaker_data;
 }
 
 INLINE bool PIT::GetBuzzerOutput(u64 tick)
 {
-    return m_pit[0].GetOutput(k_pit_buzzer_channel, tick);
+    return m_pit.GetOutput(k_pit_buzzer_channel, tick);
 }
 
-INLINE I8253* PIT::GetPIT(int index)
+INLINE I8253* PIT::GetPIT()
 {
-    return &m_pit[index];
+    return &m_pit;
 }
 
 INLINE PIT::PIT_State* PIT::GetState()
@@ -77,31 +75,14 @@ INLINE PIT::PIT_State* PIT::GetState()
     return &m_state;
 }
 
-INLINE u64 PIT::GetTick(int channel, u64 clocks) const
+INLINE u64 PIT::GetTick(u64 clocks) const
 {
-    u64 ticks = channel == k_pit_serial_channel ? k_pit_fast_ticks : k_pit_base_ticks;
-    return (clocks * ticks) / k_pit_clock_divisor;
-}
-
-// Rising OUT edges latch the timeouts whether their IRQ is enabled or not
-INLINE u8 PIT::GetTimerLatch(u64 tick) const
-{
-    u8 latch = m_state.timer_latch;
-
-    for (int i = 0; i < 2; i++)
-    {
-        u8 mask = (u8)(1 << i);
-
-        if ((latch & mask) == 0 && m_pit[0].GetNextRisingEdge(i, m_state.settled_tick) <= tick)
-            latch |= mask;
-    }
-
-    return latch;
+    return clocks / k_pit_tick_clocks;
 }
 
 INLINE u64 PIT::GetTickClocks(u64 tick) const
 {
-    return (tick * k_pit_clock_divisor + k_pit_base_ticks - 1) / k_pit_base_ticks;
+    return tick * k_pit_tick_clocks;
 }
 
 #endif /* PIT_INLINE_H */

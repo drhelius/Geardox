@@ -55,7 +55,8 @@ private:
     TraceLogger* m_trace_logger;
 };
 
-static const int k_pic_cascade_line = 7;
+static const int k_pic_cascade_line = 2;
+static const int k_pic_redirected_irq = 9;
 
 #include "pic_inline.h"
 

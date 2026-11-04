@@ -1314,8 +1314,8 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_pit_status"},
         {"title", "Get PIT Status"},
-        {"description", "Read the timers: 0060 control, the six 8253 counters with mode, reload, count, OUT and period, "
-            "Interval Timer II (0068-006B) and the 0026 microsecond timer where present."},
+        {"description", "Read the 8254: the three counters with gate, mode, reload, count, OUT, null count and period, "
+            "and the speaker and refresh toggle bits of port 0061."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1328,11 +1328,28 @@ json McpServer::BuildToolList()
         {"name", "get_system_status"},
         {"title", "Get System Status"},
         {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, drives, BIOS set and where each "
-            "setting came from (user, model, Auto, game database) with warnings."},
+            "setting came from (user, model, Auto, game database) with warnings, and the board state: A20, port 0061, "
+            "NMI mask, POST code, coprocessor IRQ13 and CPU resets, and the BIOS: source, SeaBIOS or AT style, images "
+            "and the firmware config and debug console ports."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
             {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_bios_log"},
+        {"title", "Get BIOS Log"},
+        {"description", "Read what the BIOS wrote to the debug console at port 0402: SeaBIOS's POST messages since power "
+            "on, the last bytes when max_bytes is given."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"max_bytes", {{"type", "integer"}, {"description", "Last bytes to return, 1-65536. Default 65536."}}}
+            }},
             {"additionalProperties", false}
         }}
     });
@@ -1730,7 +1747,7 @@ json McpServer::BuildToolList()
         {"name", "load_bios"},
         {"title", "Load BIOS"},
         {"description", "Set the BIOS folder (subfolders and zips included), load the next machine's BIOS, "
-            "reset and stop at the reset vector."},
+            "reset and stop at the reset vector. A machine with no BIOS in the folders runs the built-in SeaBIOS."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", true}}},
         {"inputSchema", {
             {"type", "object"},
@@ -3096,6 +3113,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "get_system_status")
     {
         return m_debugAdapter.GetSystemStatus();
+    }
+    else if (normalizedTool == "get_bios_log")
+    {
+        return m_debugAdapter.GetBiosLog(arguments.value("max_bytes", DEBUG_CONSOLE_SIZE));
     }
     // Audio hardware
     else if (normalizedTool == "set_audio_mute")

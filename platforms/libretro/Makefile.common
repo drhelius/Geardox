@@ -20,6 +20,7 @@ SOURCES_C   +=  $(DEPS_DIR)/lightning/lib/lightning.c \
 endif
 
 SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
+                $(DEPS_DIR)/seabios/seabios.cpp \
                 $(CORE_DIR)/libretro.cpp \
                 $(CORE_DIR)/libretro_vfs_file.cpp \
                 $(SOURCE_DIR)/geardox_core.cpp \
@@ -69,5 +70,9 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/system/memory.cpp \
                 $(SOURCE_DIR)/system/pic.cpp \
                 $(SOURCE_DIR)/system/pit.cpp \
+                $(SOURCE_DIR)/system/mc146818.cpp \
                 $(SOURCE_DIR)/system/scheduler.cpp \
+                $(SOURCE_DIR)/system/system_control.cpp \
+                $(SOURCE_DIR)/system/firmware_config.cpp \
+                $(SOURCE_DIR)/system/debug_console.cpp \
                 $(SOURCE_DIR)/video/video.cpp

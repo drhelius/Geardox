@@ -52,7 +52,7 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "pic.init", TRACE_PIC, TRACE_PIC_EVENT_INIT },
     { "timer.timeouts", TRACE_TIMER, TRACE_TIMER_EVENT_TIMEOUTS },
     { "timer.counters", TRACE_TIMER, TRACE_TIMER_EVENT_COUNTERS },
-    { "timer.interrupt_control", TRACE_TIMER, TRACE_TIMER_EVENT_INTERRUPT },
+    { "timer.speaker", TRACE_TIMER, TRACE_TIMER_EVENT_SPEAKER },
     { "dma.registers", TRACE_DMA, TRACE_DMA_EVENT_REGISTERS },
     { "dma.requests", TRACE_DMA, TRACE_DMA_EVENT_REQUESTS },
     { "dma.ends", TRACE_DMA, TRACE_DMA_EVENT_ENDS },
@@ -93,9 +93,10 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "input.writes", TRACE_INPUT, TRACE_INPUT_EVENT_WRITES },
     { "input.changes", TRACE_INPUT, TRACE_INPUT_EVENT_CHANGES },
     { "system.reset", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_RESET },
-    { "system.memory_map", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_MEMORY },
-    { "system.rtc", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_RTC },
-    { "system.memory_card", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_MEMORY_CARD }
+    { "system.a20", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_MEMORY },
+    { "system.control", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_CONTROL },
+    { "system.post", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_POST },
+    { "system.rtc", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_RTC }
 };
 
 static const int k_mcp_trace_filter_count = sizeof(k_mcp_trace_filters) / sizeof(k_mcp_trace_filters[0]);
@@ -216,6 +217,7 @@ public:
     json GetPICStatus();
     json GetPITStatus();
     json GetSystemStatus();
+    json GetBiosLog(int max_bytes);
 
     // Audio hardware
     json SetAudioMute(const std::string& source, bool mute);

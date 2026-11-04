@@ -2,8 +2,8 @@
 
 ## 1. Overview
 
-The PCs Geardox emulates use an Intel 80386DX, with an optional 80387 coprocessor, or an Intel 80486DX2. The 80386
-has no on-chip cache. The 486 adds an on-chip cache and FPU, BSWAP, XADD, CMPXCHG, INVD, WBINVD and INVLPG,
+The PCs Geardox emulates use an Intel 80386SX or 80386DX, with an optional 80387 coprocessor, or an Intel 80486DX2.
+The 80386 has no on-chip cache. The 486 adds an on-chip cache and FPU, BSWAP, XADD, CMPXCHG, INVD, WBINVD and INVLPG,
 alignment checks and the bits marked 486 below. The BIOS starts in real mode. MS-DOS runs in real mode; 32-bit
 programs run in protected mode through a DOS extender (DPMI or VCPI), and memory managers such as EMM386 keep DOS in
 virtual-8086 mode. This reference covers the system architecture a debugger user needs; it is not an instruction set
@@ -195,30 +195,8 @@ in virtual-8086 mode goes through the IDT to a CPL 0 handler, which also receive
 
 ### 6.4 PC/AT Hardware Interrupts
 
-Hardware IRQs reach the CPU through two 8259A PICs, the slave cascaded on the master's IRQ2. The BIOS programs the
-master base to 08h and the slave to 70h; in protected mode the master's vectors overlap exceptions 8–15, so DOS
-extenders and protected-mode systems move them:
-
-| Vector | IRQ | Source |
-|---:|---:|---|
-| 08h | 0 | Timer |
-| 09h | 1 | Keyboard |
-| 0Ah | 2 | Slave PIC (cascade) |
-| 0Bh | 3 | COM2 |
-| 0Ch | 4 | COM1 |
-| 0Dh | 5 | LPT2, often a sound card |
-| 0Eh | 6 | Floppy disk |
-| 0Fh | 7 | LPT1 |
-| 70h | 8 | Real-time clock |
-| 71h | 9 | Redirected IRQ2 |
-| 72h–73h | 10–11 | Free |
-| 74h | 12 | PS/2 mouse |
-| 75h | 13 | Math coprocessor |
-| 76h | 14 | Primary IDE |
-| 77h | 15 | Secondary IDE |
-
-The PICs run without automatic EOI: a handler sends an EOI to the PIC (to the slave and to the master for
-IRQ8–15) before that line, or one of lower priority, can interrupt again.
+Hardware IRQs arrive through the two 8259A PICs, at vectors 08h–0Fh and 70h–77h after the BIOS. The `pc_at_board`
+resource lists the IRQ sources and vectors.
 
 ---
 

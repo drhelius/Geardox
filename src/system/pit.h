@@ -17,6 +17,7 @@
  *
  */
 
+
 #ifndef PIT_H
 #define PIT_H
 
@@ -35,14 +36,9 @@ class PIT
 public:
     struct PIT_State
     {
-        u8 timer_latch;
-        u8 timer_enable;
-        bool sound;
-        bool sound_memory;
         u64 settled_tick;
-        u8 timer2_control;
-        u16 timer2_period;
-        u64 timer2_expiry;
+        bool speaker_gate;
+        bool speaker_data;
     };
 
 public:
@@ -50,35 +46,31 @@ public:
     ~PIT();
     void Init(PIC* pic, Scheduler* scheduler, Audio* audio);
     void SetTraceLogger(TraceLogger* trace_logger);
-    void SetFeatures(u32 features);
-    bool Decodes(u16 port) const;
     void Reset();
     u8 Read(u16 port, u64 clocks);
     u8 Peek(u16 port, u64 clocks) const;
     void Write(u16 port, u8 value, u64 clocks);
     void Synchronize(u64 clocks);
     void HandleEvent(u64 clocks);
-    void SetMemoryBuzzer(bool enabled);
+    void SetSpeaker(bool gate, bool data, u64 clocks);
+    bool GetChannel2Output(u64 clocks) const;
+    bool GetRefreshToggle(u64 clocks) const;
+    u64 GetSpeakerStableUntil(u64 clocks) const;
     bool IsBuzzerEnabled() const;
     bool GetBuzzerOutput(u64 tick);
-    I8253* GetPIT(int index);
-    u64 GetTick(int channel, u64 clocks) const;
+    I8253* GetPIT();
+    u64 GetTick(u64 clocks) const;
+    u64 GetTickClocks(u64 tick) const;
     PIT_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
 
 private:
-    u8 GetTimerLatch(u64 tick) const;
-    u8 ReadTimer2(u16 port);
-    void WriteTimer2(u16 port, u8 value, u64 clocks);
-    u8 GetTimer2Status(u64 clocks, u64* expiry) const;
-    u64 GetTimer2Clocks() const;
-    void SettleTimer2(u64 clocks);
-    u64 GetTickClocks(u64 tick) const;
-    void UpdateIRQ();
+    u64 GetRefreshEdges(u64 tick) const;
     void UpdateNextEvent();
-    void TraceTimeout(u8 previous_latch);
+    void TraceTimeout();
     void TraceWrite(u16 port, u8 value);
+    void TraceSpeaker();
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 
@@ -87,21 +79,16 @@ private:
     Scheduler* m_scheduler;
     Audio* m_audio;
     TraceLogger* m_trace_logger;
-    I8253 m_pit[2];
+    I8253 m_pit;
     PIT_State m_state;
-    u32 m_features;
 };
 
-// 1,228,800 Hz and 307,200 Hz are 48 and 12 ticks every 625 machine clocks
-static const u64 k_pit_fast_ticks = 48;
-static const u64 k_pit_base_ticks = 12;
-static const u64 k_pit_clock_divisor = 625;
+// 1,193,182 Hz is a twelfth of the 14.31818 MHz oscillator, 24 machine clocks
+static const u64 k_pit_tick_clocks = 24;
+static const int k_pit_irq0_channel = 0;
+static const int k_pit_refresh_channel = 1;
 static const int k_pit_buzzer_channel = 2;
-static const int k_pit_serial_channel = 4;
-static const u64 k_pit_microsecond_clocks = GDOX_MACHINE_CLOCK_RATE / 1000000;
-static const u8 k_pit_timer2_disable = 0x80;
-static const u8 k_pit_timer2_pending = 0x40;
-static const u8 k_pit_timer2_overrun = 0x20;
+static const u64 k_pit_refresh_ticks = 18;
 
 #include "pit_inline.h"
 

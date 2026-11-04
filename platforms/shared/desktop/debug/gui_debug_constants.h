@@ -29,8 +29,29 @@ struct stDebugPortLabel
     const char* description;
 };
 
-static const int k_debug_port_label_count = 0;
-static const stDebugPortLabel k_debug_port_labels[k_debug_port_label_count + 1] = { { 0, NULL, NULL } };
+static const stDebugPortLabel k_debug_port_labels[] =
+{
+    { 0x0020, "PIC_M_CMD", "PIC master ICW1/OCW2/OCW3, IRR/ISR read" },
+    { 0x0021, "PIC_M_DATA", "PIC master ICW2-ICW4, IMR" },
+    { 0x0040, "PIT_CNT0", "PIT counter 0, system timer on IRQ0" },
+    { 0x0041, "PIT_CNT1", "PIT counter 1, DRAM refresh" },
+    { 0x0042, "PIT_CNT2", "PIT counter 2, speaker" },
+    { 0x0043, "PIT_CTRL", "PIT control word and read-back" },
+    { 0x0061, "SYS_CTRL_B", "Speaker gate and data, refresh toggle, OUT2, NMI sources" },
+    { 0x0070, "CMOS_INDEX", "CMOS index, bit 7 masks NMI" },
+    { 0x0071, "CMOS_DATA", "CMOS data" },
+    { 0x0080, "POST_CODE", "POST code latch" },
+    { 0x0092, "SYS_CTRL_A", "Fast A20 gate and fast reset" },
+    { 0x00A0, "PIC_S_CMD", "PIC slave ICW1/OCW2/OCW3, IRR/ISR read" },
+    { 0x00A1, "PIC_S_DATA", "PIC slave ICW2-ICW4, IMR" },
+    { 0x00F0, "FPU_CLEAR", "Clears the coprocessor error and IRQ13" },
+    { 0x00F1, "FPU_RESET", "Resets the coprocessor" },
+    { 0x0402, "DEBUG_CON", "Debug console, SeaBIOS messages" },
+    { 0x0510, "FW_CFG_SEL", "Firmware config selector" },
+    { 0x0511, "FW_CFG_DATA", "Firmware config data" }
+};
+
+static const int k_debug_port_label_count = sizeof(k_debug_port_labels) / sizeof(k_debug_port_labels[0]);
 
 struct stDebugInterruptName
 {
@@ -183,8 +204,8 @@ static const int k_debug_interrupt_function_count =
 
 static const char* const k_debug_irq_sources[16] =
 {
-    "TIMER", "KEYBOARD", "RS-232C", "EXT RS-232C", "I/O EXPANSION", "I/O EXPANSION", "FDC", "SLAVE PIC",
-    "SCSI", "CD-ROM", "EXPANSION", "VSYNC", "PRINTER", "SOUND", "EXPANSION", "RESERVED"
+    "TIMER", "KEYBOARD", "CASCADE", "COM2", "COM1", "LPT2/SOUND", "FLOPPY", "LPT1",
+    "RTC", "ISA IRQ2", "ISA", "ISA", "PS/2 MOUSE", "FPU", "PRIMARY IDE", "SECONDARY IDE"
 };
 
 static const char* const k_debug_dma_devices[4] =
@@ -192,9 +213,9 @@ static const char* const k_debug_dma_devices[4] =
     "FDC", "SCSI", "PRINTER", "CD-ROM"
 };
 
-static const char* const k_debug_pit_uses[6] =
+static const char* const k_debug_pit_uses[3] =
 {
-    "INTERVAL TIMER", "I/O TIMEOUT", "BUZZER", "RESERVED", "RS-232C BAUD", "RESERVED"
+    "SYSTEM TIMER", "DRAM REFRESH", "SPEAKER"
 };
 
 static const char* const k_debug_exception_names[32] =
@@ -237,11 +258,6 @@ static const char* const k_debug_dma_direction_names[4] =
 static const char* const k_debug_dma_service_names[4] =
 {
     "DEMAND", "SINGLE", "BLOCK", "CASCADE"
-};
-
-static const char* const k_debug_rtc_register_names[16] =
-{
-    "S1", "S10", "MI1", "MI10", "H1", "H10", "W", "D1", "D10", "MO1", "MO10", "Y1", "Y10", "RESET", "REF", "REF"
 };
 
 static const char* const k_debug_crtc_register_names[32] =

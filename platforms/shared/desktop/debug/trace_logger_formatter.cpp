@@ -26,7 +26,7 @@
 #include "../emu.h"
 #include "system/i8259.h"
 
-static const char* const k_trace_pit_names[6] = { "CH0", "CH1", "CH2", "CH3", "CH4", "CH5" };
+static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
 static const char* const k_trace_palette_components[3] = { "BLUE", "RED", "GREEN" };
 static const char* const k_trace_pcm_registers[7] = { "ENV", "PAN", "FD LSB", "FD MSB", "LS LSB", "LS MSB", "ST" };
 static const char* const k_trace_controller_names[3] = { "NONE", "PAD", "MOUSE" };
@@ -389,27 +389,21 @@ static void format_pic(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 
 static void format_timer(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    int channel = MIN(entry.timer.chip * 3 + entry.timer.counter, 5);
+    int channel = MIN((int)entry.timer.counter, 2);
     u8 value = entry.timer.value;
 
     switch (entry.event)
     {
         case TRACE_TIMER_TIMEOUT:
-        {
-            bool irq = (value & entry.timer.enable) != 0;
-            const char* source = value == 0x03 ? "CH0+CH1" : (value & 0x01) != 0 ? "CH0" : "CH1";
-
-            format_event(buffer, size, "TIMER", "TIMEOUT", "%s %s  Latch:$%X  Enabled:$%X%s", source,
-                (value & 0x01) != 0 ? k_debug_pit_uses[0] : k_debug_pit_uses[1], entry.timer.latch, entry.timer.enable,
-                irq ? "  IRQ0" : "");
+            format_event(buffer, size, "TIMER", "OUT0", "CH0 %s  Rising edge  IRQ0", k_debug_pit_uses[0]);
             break;
-        }
         case TRACE_TIMER_CONTROL:
         {
             if (entry.timer.counter > 2)
             {
-                format_event(buffer, size, "TIMER", "CONTROL", "PIT%u $%02X  Read-back is not on the 8253",
-                    entry.timer.chip, value);
+                format_event(buffer, size, "TIMER", "READ-BACK", "$%02X %s%s CH0:%u CH1:%u CH2:%u", value,
+                    (value & 0x20) == 0 ? " COUNT" : "", (value & 0x10) == 0 ? " STATUS" : "", (value >> 1) & 0x01,
+                    (value >> 2) & 0x01, (value >> 3) & 0x01);
                 break;
             }
 
@@ -447,16 +441,14 @@ static void format_timer(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
             else if (count == 0)
                 count = 65536;
 
-            double clock = channel == 4 ? 1228800.0 : 307200.0;
+            double clock = (double)GDOX_MASTER_CLOCK_RATE / 12.0;
 
             format_event(buffer, size, "TIMER", "COUNTER", "%s %s  Write:$%02X  Reload:$%04X  %.2f Hz",
                 k_trace_pit_names[channel], k_debug_pit_uses[channel], value, reload, clock / count);
             break;
         }
         default:
-            format_event(buffer, size, "TIMER", "IRQ CTRL", "Write:$%02X  Enable CH0:%u CH1:%u%s  Buzzer:%u  Latch:$%X",
-                value, value & 0x01, (value >> 1) & 0x01, (value & 0x80) != 0 ? "  ACK CH0" : "",
-                (value >> 2) & 0x01, entry.timer.latch);
+            format_event(buffer, size, "TIMER", "SPEAKER", "Gate:%u  Data:%u", value & 0x01, (value >> 1) & 0x01);
             break;
     }
 }
@@ -1056,44 +1048,28 @@ static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t si
     switch (entry.event)
     {
         case TRACE_SYSTEM_RESET:
-            if (entry.system.port == 0x0020)
-                format_event(buffer, size, "SYSTEM", (value & 0x01) != 0 ? "RESET" : "CONTROL",
-                    "$0020 <- $%02X%s%s  Write protect:%s", value, (value & 0x01) != 0 ? "  CPU RESET" : "",
-                    (value & 0x40) != 0 ? "  POWER OFF" : "", (flags & 0x02) != 0 ? "ON" : "OFF");
-            else
-                format_event(buffer, size, "SYSTEM", "POWER", "$0022 <- $%02X%s", value,
-                    (value & 0x40) != 0 ? "  POWER OFF" : "");
+            format_event(buffer, size, "SYSTEM", "CPU RESET", "%s%s%s", (flags & 0x01) != 0 ? " PORT 92h" : "",
+                (flags & 0x02) != 0 ? " SHUTDOWN" : "", (flags & 0x04) != 0 ? " KEYBOARD CONTROLLER" : "");
             break;
         case TRACE_SYSTEM_MEMORY_MAP:
-            if (entry.system.port == 0x0404)
-                format_event(buffer, size, "SYSTEM", "MEMORY MAP", "$0404 <- $%02X  C0000-EFFFF:%s", value,
-                    (flags & 0x01) != 0 ? "RAM" : "FM-R VRAM, ROM AND I/O");
-            else if (entry.system.port == 0x0480)
-                format_event(buffer, size, "SYSTEM", "MEMORY MAP", "$0480 <- $%02X  F8000-FFFFF:%s  Dictionary:%s",
-                    value, (flags & 0x02) != 0 ? "RAM" : "BOOT ROM", (flags & 0x04) != 0 ? "ON " : "OFF");
+            format_event(buffer, size, "SYSTEM", "A20", "$%04X <- $%02X  A20:%s", entry.system.port, value,
+                (flags & 0x01) != 0 ? "ON" : "OFF");
+            break;
+        case TRACE_SYSTEM_POST:
+            format_event(buffer, size, "SYSTEM", "POST", "$%02X", value);
+            break;
+        case TRACE_SYSTEM_CONTROL:
+            if (entry.system.port == 0x0070)
+                format_event(buffer, size, "SYSTEM", "NMI", "$0070 <- $%02X  NMI:%s", value,
+                    (flags & 0x02) != 0 ? "MASKED" : "ENABLED");
             else
-                format_event(buffer, size, "SYSTEM", "MEMORY MAP", "$0484 <- $%02X  Dictionary bank:%u", value,
-                    entry.system.address);
+                format_event(buffer, size, "SYSTEM", "CONTROL", "$%04X <- $%02X", entry.system.port, value);
             break;
         case TRACE_SYSTEM_RTC_READ:
-            format_event(buffer, size, "SYSTEM", "RTC READ", "%-5s -> $%X",
-                k_debug_rtc_register_names[entry.system.address & 0x0F], value);
-            break;
-        case TRACE_SYSTEM_MEMORY_CARD:
-            if (entry.system.port == 0x0490)
-                format_event(buffer, size, "SYSTEM", "IC CARD", "$0490 <- $%02X  Bank:%u", value, entry.system.address);
-            else if (entry.system.port == 0x0491)
-                format_event(buffer, size, "SYSTEM", "IC CARD", "$0491 <- $%02X  Space:%s", value,
-                    (flags & 0x04) != 0 ? "ATTRIBUTE" : "COMMON");
-            else if ((flags & 0x03) != 0)
-                format_event(buffer, size, "SYSTEM", "IC CARD", "%s  $048A:$%02X",
-                    (flags & 0x01) != 0 ? "INSERTED" : "EJECTED", value);
-            else
-                format_event(buffer, size, "SYSTEM", "IC CARD", "$048A -> $%02X  CHANGE", value);
+            format_event(buffer, size, "SYSTEM", "RTC READ", "$%02X -> $%02X", entry.system.address, value);
             break;
         default:
-            format_event(buffer, size, "SYSTEM", "RTC WRITE", "%-5s <- $%X",
-                k_debug_rtc_register_names[entry.system.address & 0x0F], value);
+            format_event(buffer, size, "SYSTEM", "RTC WRITE", "$%02X <- $%02X", entry.system.address, value);
             break;
     }
 }

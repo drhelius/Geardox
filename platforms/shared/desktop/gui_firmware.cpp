@@ -223,18 +223,22 @@ static void draw_source(void)
         static const char* const sources[] =
         {
             "", "Own folder", "Default folder, set made for this model", "Default folder, compatible set",
-            "Default folder, unknown ROMs", "Default folder, set made for another model"
+            "Default folder, unknown ROMs", "Default folder, set made for another model",
+            "Built-in SeaBIOS and SeaVGABIOS, no BIOS in the folders"
         };
 
         ImGui::TableNextRow();
         draw_grid_label("SOURCE");
         ImGui::TextColored(white, "%s", sources[source.type]);
 
-        ImGui::TableNextRow();
-        draw_grid_label(source.zip ? "ZIP" : "FOLDER");
-        ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)white);
-        ImGui::TextWrapped("%s", source.path);
-        ImGui::PopStyleColor();
+        if (source.type != GDOX_FIRMWARE_SOURCE_BUILTIN)
+        {
+            ImGui::TableNextRow();
+            draw_grid_label(source.zip ? "ZIP" : "FOLDER");
+            ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)white);
+            ImGui::TextWrapped("%s", source.path);
+            ImGui::PopStyleColor();
+        }
 
         ImGui::TableNextRow();
         draw_grid_label("SET");
@@ -314,6 +318,8 @@ static void draw_component(GDOX_Firmware_Type type, const GDOX_Firmware_Info& in
         ImGui::TextColored(red, "MISSING");
     else if (info.synthetic)
         ImGui::TextColored(gray, "BLANK");
+    else if (info.builtin)
+        ImGui::TextColored(green, "BUILT-IN");
     else if (info.recognized)
         ImGui::TextColored(green, "RECOGNIZED");
     else if (info.loaded)
@@ -341,7 +347,7 @@ static void draw_component(GDOX_Firmware_Type type, const GDOX_Firmware_Info& in
     if (!hovered)
         return;
 
-    int size = Firmware::GetExpectedSize(type);
+    int size = info.size;
 
     ImGui::BeginTooltip();
     ImGui::Text("%s, %d %s", Firmware::GetComponentName(type), (size >= 1024) ? size / 1024 : size,
@@ -349,6 +355,8 @@ static void draw_component(GDOX_Firmware_Type type, const GDOX_Firmware_Info& in
 
     if (info.synthetic)
         ImGui::Text("Not present, reads return FFh");
+    else if (info.builtin)
+        ImGui::Text("%s, compiled into Geardox", info.database_name);
     else if (info.loaded)
     {
         ImGui::Text("%s", info.recognized ? info.database_name : "Custom or unknown ROM");
@@ -377,9 +385,7 @@ static void draw_expected_files(void)
         draw_grid_label(k_component_labels[type]);
         ImGui::TextColored(white, "%s", Firmware::GetFileName(type));
         ImGui::TableNextColumn();
-        int size = Firmware::GetExpectedSize(type);
-        ImGui::TextColored(gray, "%d %s%s", (size >= 1024) ? size / 1024 : size, (size >= 1024) ? "KB" : "bytes",
-            Firmware::IsRequired(type) ? "" : ", optional");
+        ImGui::TextColored(gray, "%s%s", Firmware::GetSizeText(type), Firmware::IsRequired(type) ? "" : ", optional");
     }
 
     ImGui::EndTable();

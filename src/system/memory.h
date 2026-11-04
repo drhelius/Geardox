@@ -43,7 +43,6 @@ public:
     struct Memory_State
     {
         u8* main_ram;
-        u8 cmos[GDOX_CMOS_SIZE];
     };
 
 public:
@@ -92,6 +91,8 @@ public:
     const u8* GetCPUPageBus() const;
 
     void SetPhysicalAddressMask(u32 mask);
+    void SetA20(bool enabled);
+    bool IsA20Enabled() const;
     u32 GetMapGeneration() const;
     u32 GetRegionGeneration() const;
 #if !defined(GDOX_DISABLE_DYNAREC)
@@ -107,12 +108,6 @@ public:
     u8* GetMainRAM();
     u32 GetMainRAMSize() const;
     void SetMainRAMSize(u32 size);
-    u8* GetCMOS();
-    void ResetCMOS();
-    bool LoadCMOSFile(const u8* data, size_t size);
-    void SaveCMOSFile(u8* data) const;
-    u8 ReadCMOS(u32 index) const;
-    void WriteCMOS(u32 index, u8 value);
     u8* GetVideoRAM();
     size_t GetVideoRAMSize() const;
     Memory_State* GetState();
@@ -156,6 +151,9 @@ private:
     u32 NormalizePhysicalAddress(u32 physical) const;
     static u8 GetBusClass(const GDOX_Debug_Memory_Region& info);
     bool IsCanonicalPage(u32 page) const;
+    bool IsCPUPage(u32 page) const;
+    void ApplyAddressMask();
+    void RemapA20Pages();
     void UpdateRAMRegions();
     void UpdateCPUPage(u32 page);
     void UpdateCPUPage(u32 page, const DebugRegion* region);
@@ -176,6 +174,8 @@ private:
     DebugRegion m_debug_regions[GDOX_DEBUG_MEMORY_MAX_REGIONS];
     int m_debug_region_count;
     u32 m_physical_address_mask;
+    u32 m_map_address_mask;
+    bool m_a20_enabled;
     u32 m_map_generation;
     u32 m_region_generation;
     u64 m_debug_snapshot_id;

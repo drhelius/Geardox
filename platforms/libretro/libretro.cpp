@@ -52,6 +52,7 @@
 #define FLOPPY_IDLE_FRAMES 180
 #define HARD_DISK_IDLE_FRAMES 120
 #define CMOS_SAVE_FRAMES 180
+#define RTC_FIXED_DATE 631152000
 #define PLAYLIST_MAX_SIZE (1024 * 1024)
 #define CONTENT_MAX_SIZE (k_floppy_max_image_size * 4)
 #define INPUT_STATE_SIZE ((sizeof(float) * 2) + (sizeof(u16) * MAX_PADS))
@@ -164,6 +165,7 @@ static bool floppy_multidrive = false;
 static bool save_disk = false;
 static GDOX_Boot_Device boot_device = GDOX_BOOT_DEVICE_AUTO;
 static bool cmos_shared = true;
+static bool bios_builtin = true;
 static bool cmos_shared_active = false;
 static std::string cmos_path;
 static u8 cmos_saved[GDOX_CMOS_SIZE];
@@ -695,7 +697,7 @@ void *retro_get_memory_data(unsigned id)
     switch (id)
     {
         case RETRO_MEMORY_SAVE_RAM:
-            return cmos_shared_active ? NULL : core->GetMemory()->GetCMOS();
+            return cmos_shared_active ? NULL : core->GetRTC()->GetCMOS();
         case RETRO_MEMORY_SYSTEM_RAM:
             return core->GetMemory()->GetWorkingRAM();
         case RETRO_MEMORY_VIDEO_RAM:
@@ -867,8 +869,12 @@ static bool load_bios_folder(const char* folder, bool any_set)
         (core->GetFirmwareSource(core->GetPendingMachineConfig().model).type != GDOX_FIRMWARE_SOURCE_OTHER_SET));
 }
 
+// The system folder falls back to the built-in BIOS for a model without one of its own
 static bool load_bios(void)
 {
+    if (bios_builtin)
+        return core->LoadBios("");
+
     std::string directory(retro_system_directory);
     append_path_component(directory, "geardox");
 
@@ -1885,6 +1891,30 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
         cmos_shared = (strcmp(var.value, "Shared") == 0);
+    }
+
+    var.key = "geardox_bios";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        bios_builtin = (strcmp(var.value, "Built-in") == 0);
+    }
+
+    var.key = "geardox_boot_menu";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        core->SetBootMenu(strcmp(var.value, "Enabled") == 0);
+    }
+
+    var.key = "geardox_rtc";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        core->GetRTC()->SetStartTime(strcmp(var.value, "Fixed date") == 0 ? RTC_FIXED_DATE : 0);
     }
 
 #if !defined(GDOX_DISABLE_DYNAREC)
@@ -3002,12 +3032,12 @@ static void hard_disk_update(void)
 
 static void cmos_load(void)
 {
-    Memory* memory = core->GetMemory();
+    MC146818* rtc = core->GetRTC();
     std::vector<u8> data;
     const GDOX_Machine_Profile& profile = k_machine_profiles[core->GetPendingMachineConfig().model];
     std::string name(profile.key);
 
-    memory->ResetCMOS();
+    rtc->ResetCMOS();
     cmos_shared_active = cmos_shared;
     cmos_frames = 0;
     cmos_save_failed = false;
@@ -3016,7 +3046,7 @@ static void cmos_load(void)
 
     if (cmos_shared_active && read_content_file(cmos_path.c_str(), data, CONTENT_MAX_SIZE))
     {
-        if (memory->LoadCMOSFile(data.data(), data.size()))
+        if (rtc->LoadCMOSFile(data.data(), data.size()))
         {
             log_cb(RETRO_LOG_INFO, "CMOS loaded from %s\n", cmos_path.c_str());
         }
@@ -3026,17 +3056,17 @@ static void cmos_load(void)
         }
     }
 
-    memcpy(cmos_saved, memory->GetCMOS(), GDOX_CMOS_SIZE);
+    memcpy(cmos_saved, rtc->GetCMOS(), GDOX_CMOS_SIZE);
 }
 
 static void cmos_save(void)
 {
-    const u8* cmos = core->GetMemory()->GetCMOS();
+    const u8* cmos = core->GetRTC()->GetCMOS();
 
     if (!cmos_shared_active || memcmp(cmos, cmos_saved, GDOX_CMOS_SIZE) == 0)
         return;
 
-    core->GetMemory()->SaveCMOSFile(cmos_file_data);
+    core->GetRTC()->SaveCMOSFile(cmos_file_data);
     bool saved = write_content_file(cmos_path.c_str(), cmos_file_data, GDOX_CMOS_FILE_SIZE);
 
     if (saved)

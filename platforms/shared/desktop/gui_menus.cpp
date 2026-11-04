@@ -851,6 +851,14 @@ static void menu_machine(void)
 
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("BIOS Boot Menu", "", &config_emulator.bios_boot_menu))
+        emu_apply_bios_settings();
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("SeaBIOS offers its boot menu with Esc for 2.5 seconds at each boot.\nTakes effect at the next reset.");
+
 #if !defined(GDOX_DISABLE_DYNAREC)
 
     ImGui::Separator();
@@ -2044,6 +2052,21 @@ static void menu_debug(void)
             ImGui::MenuItem("Show Interrupts", "", &config_debug.show_pic);
             ImGui::MenuItem("Show Timers", "", &config_debug.show_pit);
             ImGui::MenuItem("Show System Control", "", &config_debug.show_system_control);
+            ImGui::MenuItem("Show BIOS Log", "", &config_debug.show_bios_log);
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("BIOS Debug Console", "", &config_emulator.bios_debug_console))
+                emu_apply_bios_settings();
+
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Port 402h, where SeaBIOS writes its messages.");
+
+            if (ImGui::MenuItem("Log BIOS Messages", "", &config_emulator.bios_log))
+                emu_apply_bios_settings();
+
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Copies each line of the BIOS log to the emulator log.");
+
             ImGui::EndMenu();
         }
 

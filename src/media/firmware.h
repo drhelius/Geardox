@@ -44,15 +44,19 @@ public:
     const GDOX_Firmware_Info& GetInfo(GDOX_Firmware_Type type) const;
     const u8* GetSystemRom() const;
     const u8* GetVGARom() const;
+    GDOX_Firmware_Style GetStyle() const;
 
     static void FindSources(const char* default_folder, const std::string* model_folders, GDOX_Firmware_Source* sources);
     static int FindSet(u32 system_crc);
     static GDOX_Firmware_Source_Type GetSourceType(int set, GDOX_Machine_Model model);
     static const char* GetComponentName(GDOX_Firmware_Type type);
     static const char* GetFileName(GDOX_Firmware_Type type);
-    static int GetExpectedSize(GDOX_Firmware_Type type);
+    static int GetMaxSize(GDOX_Firmware_Type type);
+    static bool IsValidSize(GDOX_Firmware_Type type, u32 size);
+    static const char* GetSizeText(GDOX_Firmware_Type type);
     static bool IsRequired(GDOX_Firmware_Type type);
     static u16 GetDatabaseFlag(GDOX_Firmware_Type type);
+    static bool IsSeaBIOS(const u8* data, u32 size);
 
 private:
     struct Container
@@ -63,19 +67,19 @@ private:
         MediaFile* zip_file;
         bool listed;
         std::vector<std::string> files;
-        int packed_entry;
-        std::vector<u8> packed;
     };
 
     void GatherDatabaseInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info);
+    bool LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet);
+    static void SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info);
     u8* GetWritableData(GDOX_Firmware_Type type);
     static bool IdentifySource(GDOX_Firmware_Source& source);
     static void AddCandidate(std::vector<GDOX_Firmware_Source>& candidates, const char* path, bool zip);
     static bool OpenContainer(const char* path, bool zip, Container& container);
     static void CloseContainer(Container& container);
     static bool ReadComponent(Container& container, GDOX_Firmware_Type type, u8* destination, GDOX_Firmware_Info& info, bool report);
-    static bool ReadPart(Container& container, GDOX_Firmware_Type type, int part, u8* destination, std::string* path, bool report);
-    static bool ReadNamed(Container& container, const char* name, u32 offset, u32 size, u32 file_size, u8* destination, std::string* path, bool report);
+    static bool ReadPart(Container& container, GDOX_Firmware_Type type, int part, u8* destination, std::string* path, bool report, u32* size);
+    static bool ReadNamed(Container& container, GDOX_Firmware_Type type, const char* name, u8* destination, std::string* path, bool report, u32* size);
     static std::string FindFile(const Container& container, const char* name);
     static int FindZipEntry(mz_zip_archive& zip, const char* name);
     static int GetPartCount(GDOX_Firmware_Type type);
@@ -88,8 +92,9 @@ private:
     GDOX_Firmware_Info m_info[GDOX_FIRMWARE_COUNT];
     GDOX_Firmware_Info m_pending_info[GDOX_FIRMWARE_COUNT];
     bool m_ready;
-    u8 m_system_rom[GDOX_FIRMWARE_SYSTEM_BIOS_SIZE];
-    u8 m_vga_rom[GDOX_FIRMWARE_VGA_BIOS_SIZE];
+    GDOX_Firmware_Style m_style;
+    u8 m_system_rom[GDOX_FIRMWARE_SYSTEM_BIOS_MAX_SIZE];
+    u8 m_vga_rom[GDOX_FIRMWARE_VGA_BIOS_MAX_SIZE];
 };
 
 static const GDOX_Firmware_Set k_firmware_sets[FIRMWARE_SET_COUNT + 1] =

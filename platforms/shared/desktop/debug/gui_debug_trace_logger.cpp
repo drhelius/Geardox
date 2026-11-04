@@ -623,8 +623,7 @@ static void trace_logger_menu_filters(void)
         ImGui::BeginDisabled(!config_debug.trace_timer);
         trace_logger_menu_event_filter("Timeouts", &config_debug.trace_timer_events, TRACE_TIMER_EVENT_TIMEOUTS);
         trace_logger_menu_event_filter("Counter Writes", &config_debug.trace_timer_events, TRACE_TIMER_EVENT_COUNTERS);
-        trace_logger_menu_event_filter("Interrupt Control", &config_debug.trace_timer_events,
-            TRACE_TIMER_EVENT_INTERRUPT);
+        trace_logger_menu_event_filter("Speaker Control", &config_debug.trace_timer_events, TRACE_TIMER_EVENT_SPEAKER);
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }
@@ -785,10 +784,11 @@ static void trace_logger_menu_filters(void)
         ImGui::MenuItem("Enabled", "", &config_debug.trace_system);
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_system);
-        trace_logger_menu_event_filter("Reset / Power", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_RESET);
-        trace_logger_menu_event_filter("Memory Mapping", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_MEMORY);
+        trace_logger_menu_event_filter("CPU Reset", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_RESET);
+        trace_logger_menu_event_filter("A20 Gate", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_MEMORY);
+        trace_logger_menu_event_filter("Board Ports", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_CONTROL);
+        trace_logger_menu_event_filter("POST Codes", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_POST);
         trace_logger_menu_event_filter("RTC", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_RTC);
-        trace_logger_menu_event_filter("IC Memory Card", &config_debug.trace_system_events, TRACE_SYSTEM_EVENT_MEMORY_CARD);
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }

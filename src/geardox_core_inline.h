@@ -117,6 +117,26 @@ INLINE PIT* GeardoxCore::GetPIT()
     return m_pit;
 }
 
+INLINE SystemControl* GeardoxCore::GetSystemControl()
+{
+    return m_system_control;
+}
+
+INLINE MC146818* GeardoxCore::GetRTC()
+{
+    return m_rtc;
+}
+
+INLINE FirmwareConfig* GeardoxCore::GetFirmwareConfig()
+{
+    return m_firmware_config;
+}
+
+INLINE DebugConsole* GeardoxCore::GetDebugConsole()
+{
+    return m_debug_console;
+}
+
 INLINE Scheduler* GeardoxCore::GetScheduler()
 {
     return m_scheduler;

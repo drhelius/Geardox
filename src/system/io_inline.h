@@ -21,6 +21,7 @@
 #define IO_INLINE_H
 
 #include "io.h"
+#include "firmware_config.h"
 
 INLINE u16 IO::Read16(u16 port, GDOX_Bus_Access_Context& context)
 {
@@ -36,8 +37,15 @@ INLINE u32 IO::Read32(u16 port, GDOX_Bus_Access_Context& context)
     return value;
 }
 
+// The firmware config selector is a 16-bit register
 INLINE void IO::Write16(u16 port, u16 value, GDOX_Bus_Access_Context& context)
 {
+    if (port == k_firmware_config_selector_port && m_firmware_config->Decodes(port))
+    {
+        m_firmware_config->WriteSelector(value);
+        return;
+    }
+
     Write8(port, (u8)value, context);
     Write8((u16)(port + 1), (u8)(value >> 8), context);
 }

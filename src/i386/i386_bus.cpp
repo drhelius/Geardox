@@ -107,10 +107,10 @@ void I386::SetBusTiming(const GDOX_Machine_Bus_Timing* timing, const GDOX_Machin
             bus.cycle[GDOX_BUS_VRAM][k] = ScaleBusWait(waits->vram_cycle[k], cpu, model);
             bus.cycle[GDOX_BUS_SPRITE][k] = ScaleBusWait(waits->sprite_cycle[k], cpu, model);
             bus.cycle[GDOX_BUS_CMOS][k] = ScaleBusWait(waits->cmos_cycle[k], cpu, model);
-            bus.slow[GDOX_BUS_FMR][k] = ScaleBusWait(timing->fmr_byte[k], cpu, model);
+            bus.slow[GDOX_BUS_ISA8][k] = ScaleBusWait(timing->isa8_byte[k], cpu, model);
             bus.slow[GDOX_BUS_PCM][k] = ScaleBusWait(timing->pcm[k], cpu, model);
             bus.slow[GDOX_BUS_MMIO][k] = ScaleBusWait(timing->mmio[k], cpu, model);
-            bus.fmr_word[k] = ScaleBusWait(timing->fmr_word[k], cpu, model);
+            bus.isa8_word[k] = ScaleBusWait(timing->isa8_word[k], cpu, model);
             bus.io[k] = ScaleBusWait(timing->io[k], cpu, model);
         }
 
@@ -718,8 +718,8 @@ void I386::AddBusSlowAccess(u32 physical, u32 size, bool write)
     u8 bus_class = m_bus_page_class[physical >> 12];
     int k = write ? 1 : 0;
 
-    if (bus_class == GDOX_BUS_FMR && size > 1)
-        m_bus_fraction += (s32)(m_bus.fmr_word[k] * (size >> 1));
+    if (bus_class == GDOX_BUS_ISA8 && size > 1)
+        m_bus_fraction += (s32)(m_bus.isa8_word[k] * (size >> 1));
     else
         m_bus_fraction += (s32)(m_bus.slow[bus_class][k] * (bus_class == GDOX_BUS_PCM ? size : 1));
 }

@@ -201,7 +201,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"cpu", "CPU", "Inspect Intel 80386 registers, flags, mode, segments, descriptor tables, control and debug registers, and write register values."},
     {"disassembly", "Disassembly", "Decode Intel 80386 code, inspect the call stack, and manage disassembly bookmarks."},
     {"symbols", "Symbols", "Add, remove, load, list and look up user symbols and automatic labels."},
-    {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, 8253 timers and the machine configuration."},
+    {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, the 8254 timer, the board ports and the machine configuration."},
     {"hardware_audio", "Audio Hardware", "Mute audio sources in the debugger."},
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
     {"hardware_floppy", "Floppy Hardware", "Inspect the floppy drives, list a track's sectors, and read sector data."},
@@ -253,7 +253,7 @@ static const char* const kMcpSymbolTools[] =
 
 static const char* const kMcpSystemTools[] =
 {
-    "get_pic_status", "get_pit_status", "get_system_status"
+    "get_pic_status", "get_pit_status", "get_system_status", "get_bios_log"
 };
 
 static const char* const kMcpAudioTools[] =
