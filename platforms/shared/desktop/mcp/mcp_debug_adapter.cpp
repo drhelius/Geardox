@@ -31,6 +31,8 @@
 #include "system/pic.h"
 #include "system/pit.h"
 #include "system/system_control.h"
+#include "input/i8042.h"
+#include "input/keyboard.h"
 #include "system/debug_console.h"
 #include "system/firmware_config.h"
 #include "system/scheduler.h"
@@ -2218,6 +2220,63 @@ json DebugAdapter::GetPITStatus()
             {"refresh_toggle", pit->GetRefreshToggle(clocks)}
         }},
         {"counters", counters}
+    };
+}
+
+json DebugAdapter::GetKeyboardStatus()
+{
+    I8042* controller = m_core->GetI8042();
+    I8042::I8042_State* state = controller->GetState();
+    Keyboard* keyboard = m_core->GetKeyboard();
+    Keyboard::Keyboard_State* keys = keyboard->GetState();
+    SystemControl* system_control = m_core->GetSystemControl();
+    json buffer = json::array();
+    json held = json::array();
+
+    for (int i = 0; i < keys->buffer_count; i++)
+        buffer.push_back(Hex(keys->buffer[(keys->buffer_read + i) & (KEYBOARD_BUFFER_CAPACITY - 1)], 2));
+
+    for (int i = GDOX_KEY_NONE + 1; i < GDOX_KEY_COUNT; i++)
+    {
+        if (keys->keys[i] != 0)
+            held.push_back(gui_debug_key_name(i));
+    }
+
+    return {
+        {"controller", {
+            {"status", Hex(controller->GetStatus(), 2)},
+            {"command_byte", Hex(state->ram[0], 2)},
+            {"input_port", Hex(k_i8042_input_port, 2)},
+            {"output_port", Hex(controller->GetOutputPort(), 2)},
+            {"output_buffer", Hex(state->output_buffer, 2)},
+            {"output_full", state->output_full},
+            {"output_source", state->output_aux ? "aux" : "keyboard"},
+            {"input_full", state->input_full},
+            {"pending_command", state->pending_command != 0 ? json(Hex(state->pending_command, 2)) : json()},
+            {"translate", (state->ram[0] & k_i8042_translate_enabled) != 0},
+            {"keyboard_enabled", (state->ram[0] & k_i8042_keyboard_disabled) == 0},
+            {"aux_enabled", (state->ram[0] & k_i8042_aux_disabled) == 0},
+            {"timeout", state->timeout}
+        }},
+        {"a20", {
+            {"enabled", system_control->IsA20Enabled()},
+            {"keyboard_controller", system_control->IsKeyboardA20Enabled()},
+            {"port_92", (system_control->GetState()->port_92 & 0x02) != 0},
+            {"held_open_by_reset", system_control->GetState()->reset_a20}
+        }},
+        {"keyboard", {
+            {"scanning", keys->scanning},
+            {"self_test", keys->self_test_clocks != GDOX_NO_EVENT},
+            {"scan_set", keys->scan_set},
+            {"leds", {{"scroll", (keys->leds & 0x01) != 0}, {"num", (keys->leds & 0x02) != 0},
+                {"caps", (keys->leds & 0x04) != 0}}},
+            {"typematic_delay_ms", keyboard->GetTypematicDelay()},
+            {"typematic_period_us", keyboard->GetTypematicPeriod()},
+            {"repeat_key", keys->repeat_key != GDOX_KEY_NONE ? json(gui_debug_key_name(keys->repeat_key)) : json()},
+            {"buffer", buffer},
+            {"overrun", keys->overrun},
+            {"held_keys", held}
+        }}
     };
 }
 

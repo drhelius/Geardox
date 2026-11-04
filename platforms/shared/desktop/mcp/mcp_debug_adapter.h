@@ -217,6 +217,7 @@ public:
     json GetPICStatus();
     json GetPITStatus();
     json GetSystemStatus();
+    json GetKeyboardStatus();
     json GetBiosLog(int max_bytes);
 
     // Audio hardware

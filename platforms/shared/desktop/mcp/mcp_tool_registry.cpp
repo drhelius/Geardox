@@ -253,7 +253,7 @@ static const char* const kMcpSymbolTools[] =
 
 static const char* const kMcpSystemTools[] =
 {
-    "get_pic_status", "get_pit_status", "get_system_status", "get_bios_log"
+    "get_pic_status", "get_pit_status", "get_system_status", "get_keyboard_status", "get_bios_log"
 };
 
 static const char* const kMcpAudioTools[] =

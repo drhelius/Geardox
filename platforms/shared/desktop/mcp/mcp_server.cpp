@@ -1340,6 +1340,20 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_keyboard_status"},
+        {"title", "Get Keyboard Status"},
+        {"description", "Read the 8042 keyboard controller and the MF2 keyboard: status, command byte, input and output "
+            "ports, output buffer and its source, A20 sources, scan code set, translation, LEDs, typematic, queued bytes "
+            "and held keys."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "get_bios_log"},
         {"title", "Get BIOS Log"},
         {"description", "Read what the BIOS wrote to the debug console at port 0402: SeaBIOS's POST messages since power "
@@ -3113,6 +3127,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "get_system_status")
     {
         return m_debugAdapter.GetSystemStatus();
+    }
+    else if (normalizedTool == "get_keyboard_status")
+    {
+        return m_debugAdapter.GetKeyboardStatus();
     }
     else if (normalizedTool == "get_bios_log")
     {

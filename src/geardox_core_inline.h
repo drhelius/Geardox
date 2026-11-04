@@ -122,6 +122,16 @@ INLINE SystemControl* GeardoxCore::GetSystemControl()
     return m_system_control;
 }
 
+INLINE I8042* GeardoxCore::GetI8042()
+{
+    return m_i8042;
+}
+
+INLINE Keyboard* GeardoxCore::GetKeyboard()
+{
+    return m_keyboard;
+}
+
 INLINE MC146818* GeardoxCore::GetRTC()
 {
     return m_rtc;

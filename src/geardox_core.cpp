@@ -28,6 +28,8 @@
 #include "drive/hard_disk_image.h"
 #include "media/firmware.h"
 #include "input/input.h"
+#include "input/i8042.h"
+#include "input/keyboard.h"
 #include "common/memory_stream.h"
 #include "common/profiler.h"
 #include "common/trace_logger.h"
@@ -61,6 +63,8 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_pic);
     InitPointer(m_pit);
     InitPointer(m_system_control);
+    InitPointer(m_i8042);
+    InitPointer(m_keyboard);
     InitPointer(m_rtc);
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
@@ -118,6 +122,8 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_pic);
     SafeDelete(m_pit);
     SafeDelete(m_system_control);
+    SafeDelete(m_i8042);
+    SafeDelete(m_keyboard);
     SafeDelete(m_rtc);
     SafeDelete(m_firmware_config);
     SafeDelete(m_debug_console);
@@ -177,6 +183,12 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_system_control))
         m_system_control = new SystemControl();
 
+    if (!IsValidPointer(m_i8042))
+        m_i8042 = new I8042();
+
+    if (!IsValidPointer(m_keyboard))
+        m_keyboard = new Keyboard();
+
     if (!IsValidPointer(m_rtc))
         m_rtc = new MC146818();
 
@@ -216,13 +228,15 @@ void GeardoxCore::Init()
     m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory);
     m_pit->Init(m_pic, m_scheduler, m_audio);
     m_system_control->Init(m_memory, m_pic, m_pit);
+    m_keyboard->Init();
+    m_i8042->Init(m_pic, m_scheduler, m_system_control, m_keyboard);
     m_rtc->Init();
     m_firmware_config->Init();
     m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input, m_system_control, m_rtc,
-        m_firmware_config, m_debug_console);
+        m_firmware_config, m_debug_console, m_i8042);
     m_i386->Init(m_memory, m_io);
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
@@ -235,6 +249,8 @@ void GeardoxCore::Init()
     m_pic->SetTraceLogger(m_trace_logger);
     m_pit->SetTraceLogger(m_trace_logger);
     m_system_control->SetTraceLogger(m_trace_logger);
+    m_keyboard->SetTraceLogger(m_trace_logger);
+    m_i8042->SetTraceLogger(m_trace_logger);
     m_rtc->SetTraceLogger(m_trace_logger);
     m_video->SetTraceLogger(m_trace_logger);
     m_audio->SetTraceLogger(m_trace_logger);
@@ -693,6 +709,9 @@ INLINE void GeardoxCore::DispatchEvents()
             case SCHEDULER_EVENT_VIDEO:
                 m_video->HandleEvent(clocks);
                 break;
+            case SCHEDULER_EVENT_KEYBOARD:
+                m_i8042->HandleEvent(clocks);
+                break;
             case SCHEDULER_EVENT_AUDIO:
                 m_audio->HandleEvent(clocks);
                 break;
@@ -1091,16 +1110,17 @@ void GeardoxCore::ApplyHardDisks()
 
 void GeardoxCore::KeyPressed(GDOX_Keys key)
 {
-    UNUSED(key);
+    m_i8042->KeyPressed(key);
 }
 
 void GeardoxCore::KeyReleased(GDOX_Keys key)
 {
-    UNUSED(key);
+    m_i8042->KeyReleased(key);
 }
 
 void GeardoxCore::ReleaseAllKeys()
 {
+    m_i8042->ReleaseAllKeys();
 }
 
 bool GeardoxCore::SaveState(const char* path, int index, bool screenshot)
@@ -1242,6 +1262,8 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_system_control->SaveState(stream);
     m_rtc->SaveState(stream);
     m_firmware_config->SaveState(stream);
+    m_keyboard->SaveState(stream);
+    m_i8042->SaveState(stream);
     m_video->SaveState(stream);
     m_cdrom_audio->SaveState(stream);
     m_fdc->SaveState(stream, media);
@@ -1533,6 +1555,8 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_system_control->LoadState(stream, header.version);
     m_rtc->LoadState(stream, header.version);
     m_firmware_config->LoadState(stream, header.version);
+    m_keyboard->LoadState(stream, header.version);
+    m_i8042->LoadState(stream, header.version);
     m_video->LoadState(stream, header.version);
     m_cdrom_audio->LoadState(stream);
     m_fdc->LoadState(stream, header.version);
@@ -1837,6 +1861,12 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_system_control))
         m_system_control->Reset();
 
+    if (IsValidPointer(m_keyboard))
+        m_keyboard->Reset(0);
+
+    if (IsValidPointer(m_i8042))
+        m_i8042->Reset();
+
     if (IsValidPointer(m_rtc))
         m_rtc->Reset(0);
 
@@ -2085,6 +2115,7 @@ void GeardoxCore::ApplyFirmwareDevices()
 
     bool seabios = m_firmware->IsReady() && (m_firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS);
 
+    m_system_control->SetPowerOnA20(seabios);
     m_firmware_config->SetEnabled(seabios);
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);

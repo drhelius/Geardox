@@ -310,6 +310,7 @@ struct config_Debug
     bool show_system_control;
     bool show_bios_log;
     bool show_game_ports;
+    bool show_keyboard;
     bool show_sound_control;
     bool show_cdrom_toc;
     bool show_cdrom_audio;

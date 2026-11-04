@@ -146,6 +146,9 @@ void gui_debug_windows(void)
         if (config_debug.show_game_ports)
             gui_debug_window_game_ports();
 
+        if (config_debug.show_keyboard)
+            gui_debug_window_keyboard();
+
         if (config_debug.show_sound_control)
             gui_debug_window_sound_control();
 

@@ -31,6 +31,7 @@ SystemControl::SystemControl()
     InitPointer(m_pit);
     InitPointer(m_trace_logger);
     memset(&m_state, 0, sizeof(m_state));
+    m_power_on_a20_port_92 = true;
 }
 
 SystemControl::~SystemControl()
@@ -50,12 +51,19 @@ void SystemControl::SetTraceLogger(TraceLogger* trace_logger)
     m_trace_logger = trace_logger;
 }
 
-// A20 is on at power on, the BIOS sets the state it wants
+// SeaBIOS gates A20 through port 92h only and other BIOSes through the 8042. As the two OR together,
+// the one the BIOS drives holds the gate open at power on and the other starts low
+void SystemControl::SetPowerOnA20(bool port_92)
+{
+    m_power_on_a20_port_92 = port_92;
+}
+
 void SystemControl::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
     m_state.nmi_mask = true;
-    m_state.port_92 = 0x02;
+    m_state.port_92 = m_power_on_a20_port_92 ? 0x02 : 0x00;
+    m_state.keyboard_a20 = !m_power_on_a20_port_92;
     UpdateA20();
 }
 
@@ -118,6 +126,7 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
         case 0x0092:
             previous = m_state.port_92;
             m_state.port_92 = value & 0x03;
+            m_state.reset_a20 = false;
             UpdateA20();
 
             // The fast reset pulses on a rising bit 0
@@ -178,6 +187,8 @@ void SystemControl::AcknowledgeCPUReset()
     m_state.reset_cause = 0;
     m_state.reset_pending = false;
     m_state.reset_count++;
+    m_state.reset_a20 = true;
+    UpdateA20();
 }
 
 // The coprocessor's ERROR# latches IRQ13 until a write to port F0h
@@ -188,6 +199,13 @@ void SystemControl::SetFPUError()
 
     m_state.fpu_error = true;
     m_pic->SetIRQLine(k_system_control_fpu_irq, true);
+}
+
+void SystemControl::SetKeyboardA20(bool enabled)
+{
+    m_state.keyboard_a20 = enabled;
+    m_state.reset_a20 = false;
+    UpdateA20();
 }
 
 void SystemControl::UpdateA20()
@@ -240,6 +258,8 @@ void SystemControl::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.port_92);
     G_SERIALIZE(serializer, m_state.post_code);
     G_SERIALIZE(serializer, m_state.fpu_error);
+    G_SERIALIZE(serializer, m_state.keyboard_a20);
+    G_SERIALIZE(serializer, m_state.reset_a20);
 }
 
 void SystemControl::SanitizeState()

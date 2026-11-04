@@ -26,6 +26,7 @@ class Audio;
 class DebugConsole;
 class FDC;
 class FirmwareConfig;
+class I8042;
 class MC146818;
 class Input;
 class Memory;
@@ -42,7 +43,7 @@ public:
     ~IO();
     void Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
         Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
-        DebugConsole* debug_console);
+        DebugConsole* debug_console, I8042* i8042);
     void Reset();
     u8 Read8(u16 port, GDOX_Bus_Access_Context& context);
     u16 Read16(u16 port, GDOX_Bus_Access_Context& context);
@@ -71,6 +72,7 @@ private:
     MC146818* m_rtc;
     FirmwareConfig* m_firmware_config;
     DebugConsole* m_debug_console;
+    I8042* m_i8042;
     u8 m_decoded_ports[0x2000];
 };
 

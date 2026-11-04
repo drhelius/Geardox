@@ -2073,6 +2073,7 @@ static void menu_debug(void)
         if (ImGui::BeginMenu("Input", config_debug.debug))
         {
             ImGui::MenuItem("Show Game Ports", "", &config_debug.show_game_ports);
+            ImGui::MenuItem("Show Keyboard", "", &config_debug.show_keyboard);
             ImGui::EndMenu();
         }
 

@@ -57,6 +57,8 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/i386/exec_memory.cpp \
                 $(SOURCE_DIR)/i386/x87.cpp \
                 $(SOURCE_DIR)/input/input.cpp \
+                $(SOURCE_DIR)/input/i8042.cpp \
+                $(SOURCE_DIR)/input/keyboard.cpp \
                 $(SOURCE_DIR)/media/chd_file_adapter.cpp \
                 $(SOURCE_DIR)/media/firmware.cpp \
                 $(SOURCE_DIR)/media/media.cpp \

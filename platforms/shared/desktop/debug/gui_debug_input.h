@@ -27,6 +27,7 @@
 #endif
 
 EXTERN void gui_debug_window_game_ports(void);
+EXTERN void gui_debug_window_keyboard(void);
 
 #undef GUI_DEBUG_INPUT_IMPORT
 #undef EXTERN

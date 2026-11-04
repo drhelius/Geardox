@@ -44,6 +44,8 @@ public:
         u8 port_92;
         u8 post_code;
         bool fpu_error;
+        bool keyboard_a20;
+        bool reset_a20;
     };
 
 public:
@@ -51,6 +53,7 @@ public:
     ~SystemControl();
     void Init(Memory* memory, PIC* pic, PIT* pit);
     void SetTraceLogger(TraceLogger* trace_logger);
+    void SetPowerOnA20(bool port_92);
     void Reset();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -61,6 +64,8 @@ public:
     bool IsCPUResetPending() const;
     void AcknowledgeCPUReset();
     void SetFPUError();
+    void SetKeyboardA20(bool enabled);
+    bool IsKeyboardA20Enabled() const;
     bool IsNMIMasked() const;
     bool IsA20Enabled() const;
     u8 GetPOSTCode() const;
@@ -80,6 +85,7 @@ private:
     PIC* m_pic;
     PIT* m_pit;
     TraceLogger* m_trace_logger;
+    bool m_power_on_a20_port_92;
 };
 
 static const u8 k_system_control_reset_fast = 0x01;

@@ -21,6 +21,7 @@
 #include "debug_console.h"
 #include "firmware_config.h"
 #include "mc146818.h"
+#include "../input/i8042.h"
 #include "memory.h"
 #include "pic.h"
 #include "pit.h"
@@ -41,6 +42,7 @@ IO::IO()
     InitPointer(m_rtc);
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
+    InitPointer(m_i8042);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -50,7 +52,7 @@ IO::~IO()
 
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
     Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
-    DebugConsole* debug_console)
+    DebugConsole* debug_console, I8042* i8042)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -64,6 +66,7 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_rtc = rtc;
     m_firmware_config = firmware_config;
     m_debug_console = debug_console;
+    m_i8042 = i8042;
     Reset();
 }
 
@@ -106,6 +109,11 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
         case 0x0043:
             // PIT control
             return m_pit->Read(port, context.clocks);
+        case 0x0060:
+            // Keyboard controller data
+        case 0x0064:
+            // Keyboard controller status
+            return m_i8042->Read(port, context.clocks);
         case 0x0061:
             // Speaker, refresh toggle and NMI sources
         case 0x0080:
@@ -156,6 +164,10 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
         case 0x0043:
             value = m_pit->Peek(port, clocks);
             return true;
+        case 0x0060:
+        case 0x0064:
+            value = m_i8042->Peek(port);
+            return true;
         case 0x0070:
         case 0x0071:
             value = m_rtc->Peek(port, clocks);
@@ -203,6 +215,9 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
 
     switch (port)
     {
+        case 0x0064:
+            // Keyboard controller status
+            return m_i8042->GetReadStableUntil(port);
         case 0x0061:
             // Refresh toggle and OUT2
         case 0x0080:
@@ -247,6 +262,13 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
         case 0x0043:
             // PIT control
             m_pit->Write(port, value, context.clocks);
+            break;
+        case 0x0060:
+            // Keyboard controller data
+        case 0x0064:
+            // Keyboard controller command
+            m_i8042->Write(port, value, context.clocks);
+            context.end_batch = true;
             break;
         case 0x0070:
             // NMI mask and CMOS index

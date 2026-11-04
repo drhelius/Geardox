@@ -40,6 +40,8 @@ class PIC;
 class PIT;
 class Scheduler;
 class SystemControl;
+class I8042;
+class Keyboard;
 class MC146818;
 class FirmwareConfig;
 class DebugConsole;
@@ -150,6 +152,8 @@ public:
     PIC* GetPIC();
     PIT* GetPIT();
     SystemControl* GetSystemControl();
+    I8042* GetI8042();
+    Keyboard* GetKeyboard();
     MC146818* GetRTC();
     FirmwareConfig* GetFirmwareConfig();
     DebugConsole* GetDebugConsole();
@@ -220,6 +224,8 @@ private:
     PIC* m_pic;
     PIT* m_pit;
     SystemControl* m_system_control;
+    I8042* m_i8042;
+    Keyboard* m_keyboard;
     MC146818* m_rtc;
     FirmwareConfig* m_firmware_config;
     DebugConsole* m_debug_console;

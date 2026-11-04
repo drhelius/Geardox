@@ -33,10 +33,16 @@ INLINE bool SystemControl::IsNMIMasked() const
     return m_state.nmi_mask;
 }
 
-// Port 92h bit 1, the 8042 output port joins in with the keyboard controller
+// The gate is open when port 92h or the 8042 ask for it. The CPU fetches its reset vector through it, so a CPU reset
+// opens it until one of them is written again
 INLINE bool SystemControl::IsA20Enabled() const
 {
-    return (m_state.port_92 & 0x02) != 0;
+    return (m_state.port_92 & 0x02) != 0 || m_state.keyboard_a20 || m_state.reset_a20;
+}
+
+INLINE bool SystemControl::IsKeyboardA20Enabled() const
+{
+    return m_state.keyboard_a20;
 }
 
 INLINE u8 SystemControl::GetPOSTCode() const

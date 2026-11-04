@@ -609,7 +609,7 @@ private:
 
         if (untypeable >= 0)
         {
-            result["error"] = "Character " + std::to_string(untypeable) + " cannot be typed on the JIS keyboard";
+            result["error"] = "Character " + std::to_string(untypeable) + " cannot be typed on the PC keyboard";
             return result;
         }
 

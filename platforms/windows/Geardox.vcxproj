@@ -48,6 +48,8 @@
     <ClCompile Include="..\..\src\common\profiler.cpp" />
     <ClCompile Include="..\..\src\common\trace_logger.cpp" />
     <ClCompile Include="..\..\src\input\input.cpp" />
+    <ClCompile Include="..\..\src\input\i8042.cpp" />
+    <ClCompile Include="..\..\src\input\keyboard.cpp" />
     <ClCompile Include="..\..\src\system\memory.cpp" />
     <ClCompile Include="..\..\src\system\io.cpp" />
     <ClCompile Include="..\..\src\system\pic.cpp" />
@@ -292,6 +294,10 @@
     <ClInclude Include="..\..\src\geardox_core_inline.h" />
     <ClInclude Include="..\..\src\input\input.h" />
     <ClInclude Include="..\..\src\input\input_inline.h" />
+    <ClInclude Include="..\..\src\input\i8042.h" />
+    <ClInclude Include="..\..\src\input\i8042_inline.h" />
+    <ClInclude Include="..\..\src\input\keyboard.h" />
+    <ClInclude Include="..\..\src\input\keyboard_inline.h" />
     <ClInclude Include="..\..\src\system\memory.h" />
     <ClInclude Include="..\..\src\system\memory_inline.h" />
     <ClInclude Include="..\..\src\audio\vgm_recorder.h" />

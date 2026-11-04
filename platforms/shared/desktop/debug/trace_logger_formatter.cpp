@@ -954,51 +954,93 @@ static void format_fdc(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
     }
 }
 
+static const char* keyboard_command_name(u8 value, u8 flags)
+{
+    if (flags == 0x02)
+    {
+        switch (value)
+        {
+            case 0xED: return "SET LEDS";
+            case 0xEE: return "ECHO";
+            case 0xF0: return "SCAN CODE SET";
+            case 0xF2: return "IDENTIFY";
+            case 0xF3: return "TYPEMATIC";
+            case 0xF4: return "ENABLE";
+            case 0xF5: return "DISABLE";
+            case 0xF6: return "DEFAULTS";
+            case 0xFE: return "RESEND";
+            case 0xFF: return "RESET";
+            default: return "";
+        }
+    }
+
+    if ((value & 0xE0) == 0x20)
+        return "READ RAM";
+
+    if ((value & 0xE0) == 0x60)
+        return "WRITE RAM";
+
+    if ((value & 0xF0) == 0xF0)
+        return (value & 0x01) == 0 ? "PULSE RESET" : "PULSE";
+
+    switch (value)
+    {
+        case 0xA7: return "AUX DISABLE";
+        case 0xA8: return "AUX ENABLE";
+        case 0xA9: return "AUX TEST";
+        case 0xAA: return "SELF TEST";
+        case 0xAB: return "KEYBOARD TEST";
+        case 0xAD: return "KEYBOARD DISABLE";
+        case 0xAE: return "KEYBOARD ENABLE";
+        case 0xC0: return "READ INPUT PORT";
+        case 0xD0: return "READ OUTPUT PORT";
+        case 0xD1: return "WRITE OUTPUT PORT";
+        case 0xD2: return "WRITE KEYBOARD BUFFER";
+        case 0xD3: return "WRITE AUX BUFFER";
+        case 0xD4: return "WRITE AUX";
+        case 0xE0: return "READ TEST INPUTS";
+        default: return "";
+    }
+}
+
 static void format_keyboard(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
     u8 value = entry.keyboard.value;
+    u8 flags = entry.keyboard.flags;
 
     switch (entry.event)
     {
         case TRACE_KEYBOARD_KEY:
         {
-            u8 flags = entry.keyboard.flags;
             const char* name = gui_debug_key_name(entry.keyboard.key);
-            const char* kind = (flags & 0xF0) == 0xA0 ? "MAKE  " : (flags & 0xF0) == 0xB0 ? "BREAK " : "REPEAT";
+            const char* kind = flags == 0x01 ? "MAKE  " : flags == 0x02 ? "REPEAT" : "BREAK ";
 
-            format_event(buffer, size, "KEYBRD", "KEY", "%s %s  Code:$%02X  Message:%02X %02X%s%s  Queued:%u", kind,
-                IsValidPointer(name) ? name : "?", entry.keyboard.key, flags, entry.keyboard.key,
-                (flags & 0x08) != 0 ? "  CTRL" : "", (flags & 0x04) != 0 ? "  SHIFT" : "", entry.keyboard.pending);
+            format_event(buffer, size, "KEYBRD", "KEY", "%s %s  Code:$%02X  Bytes:%u  Queued:%u", kind,
+                IsValidPointer(name) ? name : "?", entry.keyboard.key, value, entry.keyboard.pending);
             break;
         }
         case TRACE_KEYBOARD_READ:
-            format_event(buffer, size, "KEYBRD", "READ", "$0600 -> $%02X  Left:%u", value, entry.keyboard.pending);
+            format_event(buffer, size, "KEYBRD", "READ", "$0060 -> $%02X  %s  Queued:%u", value,
+                flags != 0 ? "AUX" : "KBD", entry.keyboard.pending);
             break;
         case TRACE_KEYBOARD_COMMAND:
         {
-            const char* name = "";
+            const char* target = flags == 0x00 ? "8042 CMD" : flags == 0x01 ? "8042 PARAM" : "KEYBOARD";
 
-            switch (value)
-            {
-                case 0xA0:
-                case 0xA1:
-                case 0xA2: name = "RESET"; break;
-                case 0xA9: name = "REPEAT DELAY 400 MS"; break;
-                case 0xAA: name = "REPEAT DELAY 500 MS"; break;
-                case 0xAB: name = "REPEAT DELAY 300 MS"; break;
-                case 0xAC: name = "REPEAT EVERY 50 MS"; break;
-                case 0xAD: name = "REPEAT EVERY 30 MS"; break;
-                case 0xAE: name = "REPEAT EVERY 20 MS"; break;
-                default: break;
-            }
-
-            format_event(buffer, size, "KEYBRD", "COMMAND", "$%04X <- $%02X  %s", 0x0600 + entry.keyboard.flags, value,
-                name);
+            if (flags == 0x00)
+                format_event(buffer, size, "KEYBRD", "COMMAND", "%s $%02X  %s", target, value,
+                    keyboard_command_name(value, flags));
+            else if (entry.keyboard.key != 0)
+                format_event(buffer, size, "KEYBRD", "COMMAND", "%s $%02X  %s", target, value,
+                    keyboard_command_name(entry.keyboard.key, flags));
+            else
+                format_event(buffer, size, "KEYBRD", "COMMAND", "%s $%02X  %s", target, value,
+                    keyboard_command_name(value, flags));
             break;
         }
         default:
-            format_event(buffer, size, "KEYBRD", "IRQ", "$0604 <- $%02X  IRQ1:%s", value,
-                (value & 0x01) != 0 ? "ON " : "OFF");
+            format_event(buffer, size, "KEYBRD", "PORT", "Output $%02X -> $%02X  A20:%s%s", entry.keyboard.key, value,
+                (value & 0x02) != 0 ? "ON " : "OFF", (value & 0x01) == 0 ? "  RESET" : "");
             break;
     }
 }
