@@ -10,3 +10,86 @@
  }
  static inline u64 __swab64(u64 val) {
      union u64_u32_u i, o;
+--- seabios-28aa463/vgasrc/stdvgaio.c
++++ seabios/vgasrc/stdvgaio.c
+@@ -106,14 +106,21 @@
+ }
+ 
+ 
++// Input status 1 of the block in use, a VGA in mono mode doesn't answer at 3DAh
++static void
++stdvga_attr_reset(void)
++{
++    inb(stdvga_misc_read() & 1 ? VGAREG_ACTL_RESET : 0x3ba);
++}
++
+ u8
+ stdvga_attr_read(u8 index)
+ {
+-    inb(VGAREG_ACTL_RESET);
++    stdvga_attr_reset();
+     u8 orig = inb(VGAREG_ACTL_ADDRESS);
+     outb(index, VGAREG_ACTL_ADDRESS);
+     u8 v = inb(VGAREG_ACTL_READ_DATA);
+-    inb(VGAREG_ACTL_RESET);
++    stdvga_attr_reset();
+     outb(orig, VGAREG_ACTL_ADDRESS);
+     return v;
+ }
+@@ -121,7 +128,7 @@
+ void
+ stdvga_attr_write(u8 index, u8 value)
+ {
+-    inb(VGAREG_ACTL_RESET);
++    stdvga_attr_reset();
+     u8 orig = inb(VGAREG_ACTL_ADDRESS);
+     outb(index, VGAREG_ACTL_ADDRESS);
+     outb(value, VGAREG_ACTL_WRITE_DATA);
+@@ -131,7 +138,7 @@
+ void
+ stdvga_attr_mask(u8 index, u8 off, u8 on)
+ {
+-    inb(VGAREG_ACTL_RESET);
++    stdvga_attr_reset();
+     u8 orig = inb(VGAREG_ACTL_ADDRESS);
+     outb(index, VGAREG_ACTL_ADDRESS);
+     u8 v = inb(VGAREG_ACTL_READ_DATA);
+@@ -142,14 +149,14 @@
+ u8
+ stdvga_attrindex_read(void)
+ {
+-    inb(VGAREG_ACTL_RESET);
++    stdvga_attr_reset();
+     return inb(VGAREG_ACTL_ADDRESS);
+ }
+ 
+ void
+ stdvga_attrindex_write(u8 value)
+ {
+-    inb(VGAREG_ACTL_RESET);
++    stdvga_attr_reset();
+     outb(value, VGAREG_ACTL_ADDRESS);
+ }
+ 
+--- seabios-28aa463/vgasrc/stdvgamodes.c
++++ seabios/vgasrc/stdvgamodes.c
+@@ -505,6 +505,9 @@
+     u16 crtc_addr = VGAREG_VGA_CRTC_ADDRESS;
+     if (!(miscreg & 1))
+         crtc_addr = VGAREG_MDA_CRTC_ADDRESS;
++
++    // The CRTC only answers at the block the misc register selects
++    stdvga_misc_write(miscreg);
+ 
+     // Disable CRTC write protection
+     stdvga_crtc_write(crtc_addr, 0x11, 0x00);
+@@ -513,9 +516,6 @@
+     for (i = 0; i <= 0x18; i++)
+         stdvga_crtc_write(crtc_addr, i, GET_GLOBAL(regs[i]));
+ 
+-    // Set the misc register
+-    stdvga_misc_write(miscreg);
+-
+     // Enable video
+     stdvga_attrindex_write(0x20);
+ 

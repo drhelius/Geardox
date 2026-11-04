@@ -2164,9 +2164,8 @@ void GeardoxCore::InitMemoryMap()
         map.address_mask - rom_size + 1, rom_flags))
         Error("Unable to map the system BIOS");
 
-    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "Video Aperture", NULL, NULL,
-        k_video_aperture_size, map.conventional_size, GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY))
-        Error("Unable to map the video aperture");
+    if (!m_video->RegisterMemoryRegions(map.conventional_size))
+        Error("Unable to map the video memory");
 
     if (!seabios)
     {

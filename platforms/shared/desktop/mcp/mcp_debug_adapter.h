@@ -59,9 +59,7 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "video.crtc", TRACE_VIDEO, TRACE_VIDEO_EVENT_CRTC },
     { "video.output", TRACE_VIDEO, TRACE_VIDEO_EVENT_OUTPUT },
     { "video.palette", TRACE_VIDEO, TRACE_VIDEO_EVENT_PALETTE },
-    { "video.vram_mask", TRACE_VIDEO, TRACE_VIDEO_EVENT_MASK },
     { "video.vsync", TRACE_VIDEO, TRACE_VIDEO_EVENT_VSYNC },
-    { "video.fmr", TRACE_VIDEO, TRACE_VIDEO_EVENT_FMR },
     { "video.missed_vblank", TRACE_VIDEO, TRACE_VIDEO_EVENT_MISSED_VBLANK },
     { "fm.key", TRACE_FM, TRACE_FM_EVENT_KEY },
     { "fm.frequency", TRACE_FM, TRACE_FM_EVENT_FREQUENCY },
@@ -218,6 +216,15 @@ public:
     json GetPITStatus();
     json GetSystemStatus();
     json GetKeyboardStatus();
+    json GetCRTCStatus();
+    json GetCRTCRegisters();
+    json WriteCRTCRegister(int reg, u8 value);
+    json GetVideoOutputStatus();
+    json GetVGARegisters();
+    json GetPalettes(const std::string& palette);
+    json GetFrameBuffer(const std::string& buffer, int pitch);
+    json GetTextScreen(bool attributes);
+    json VideoRegisterArray(const u8* values, int count);
     json GetBiosLog(int max_bytes);
 
     // Audio hardware

@@ -268,7 +268,6 @@ private:
 
 static const u32 k_bios_copy_size = 0x20000;
 static const u32 k_bios_copy_end = 0x100000;
-static const u32 k_video_aperture_size = 0x20000;
 static const u32 k_upper_memory_start = 0xC0000;
 static const u16 k_boot_menu_wait_ms = 2500;
 

@@ -1340,6 +1340,138 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_crtc_status"},
+        {"title", "Get CRTC Status"},
+        {"description", "Read the VGA CRTC: mode, timing, frame size, beam position, scanout counters, cursor and vertical "
+            "interrupt."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_crtc_registers"},
+        {"title", "Get CRTC Registers"},
+        {"description", "Read the 25 CRTC registers with their names, the index and the CR00-CR07 write protection."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "write_crtc_register"},
+        {"title", "Write CRTC Register"},
+        {"description", "Write a CRTC register like the CPU, so the write protection, timing and trace logger see it."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"register", {
+                    {"type", "integer"},
+                    {"description", "CR00-CR18."},
+                    {"minimum", 0},
+                    {"maximum", 24}
+                }},
+                {"value", {
+                    {"type", "string"},
+                    {"description", "8-bit hex value."}
+                }}
+            }},
+            {"required", json::array({"register", "value"})}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_video_output_status"},
+        {"title", "Get Video Output Status"},
+        {"description", "Read the VGA paths around the CRTC: memory window, chain-4, odd/even, direct writes, write pipeline, "
+            "attribute controller and DAC state."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_vga_registers"},
+        {"title", "Get VGA Registers"},
+        {"description", "Read the miscellaneous, feature, sequencer, graphics, CRTC and attribute registers as hex arrays."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_palettes"},
+        {"title", "Get Palettes"},
+        {"description", "Read the palettes with RGB888 colors: the 16 attribute colors as they reach the screen and the 256 "
+            "DAC entries with their 6-bit components."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"palette", {
+                    {"type", "string"},
+                    {"enum", json::array({"all", "attribute", "dac"})},
+                    {"description", "Default all."}
+                }}
+            }}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_frame_buffer"},
+        {"title", "Get Frame Buffer"},
+        {"description", "Decode the whole video memory as PNG from CRTC address 0: one plane, planar, 256 colors or text, "
+            "to find off-screen graphics."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"buffer", {
+                    {"type", "string"},
+                    {"enum", json::array({"plane0", "plane1", "plane2", "plane3", "planar", "256", "text"})}
+                }},
+                {"pitch", {
+                    {"type", "integer"},
+                    {"description", "CRTC addresses per row, 0 or missing follows the offset register."},
+                    {"minimum", 0},
+                    {"maximum", 512}
+                }}
+            }},
+            {"required", json::array({"buffer"})}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_text_screen"},
+        {"title", "Get Text Screen"},
+        {"description", "Read a VGA text mode screen as characters, with the cursor position and optionally the attribute "
+            "bytes in hex. Use it instead of a screenshot to know what the screen says."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"attributes", {
+                    {"type", "boolean"},
+                    {"description", "Add one hex string of attributes per row. Default false."}
+                }}
+            }}
+        }}
+    });
+
+    tools.push_back({
         {"name", "get_keyboard_status"},
         {"title", "Get Keyboard Status"},
         {"description", "Read the 8042 keyboard controller and the MF2 keyboard: status, command byte, input and output "
@@ -3127,6 +3259,47 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "get_system_status")
     {
         return m_debugAdapter.GetSystemStatus();
+    }
+    else if (normalizedTool == "get_crtc_status")
+    {
+        return m_debugAdapter.GetCRTCStatus();
+    }
+    else if (normalizedTool == "get_crtc_registers")
+    {
+        return m_debugAdapter.GetCRTCRegisters();
+    }
+    else if (normalizedTool == "write_crtc_register")
+    {
+        u8 value = 0;
+
+        if (!arguments.contains("register") || !arguments["register"].is_number_integer())
+            return {{"error", "register must be an integer 0-24"}};
+
+        if (!arguments.contains("value") || !arguments["value"].is_string() ||
+            !parse_hex_with_prefix(arguments["value"].get<std::string>(), &value))
+            return {{"error", "Invalid value format"}};
+
+        return m_debugAdapter.WriteCRTCRegister(arguments["register"].get<int>(), value);
+    }
+    else if (normalizedTool == "get_video_output_status")
+    {
+        return m_debugAdapter.GetVideoOutputStatus();
+    }
+    else if (normalizedTool == "get_vga_registers")
+    {
+        return m_debugAdapter.GetVGARegisters();
+    }
+    else if (normalizedTool == "get_palettes")
+    {
+        return m_debugAdapter.GetPalettes(arguments.value("palette", "all"));
+    }
+    else if (normalizedTool == "get_frame_buffer")
+    {
+        return m_debugAdapter.GetFrameBuffer(arguments.value("buffer", ""), arguments.value("pitch", 0));
+    }
+    else if (normalizedTool == "get_text_screen")
+    {
+        return m_debugAdapter.GetTextScreen(arguments.value("attributes", false));
     }
     else if (normalizedTool == "get_keyboard_status")
     {

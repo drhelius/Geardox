@@ -38,6 +38,7 @@
 #include "system/scheduler.h"
 #include "system/io.h"
 #include "audio/audio.h"
+#include "video/video.h"
 #include "cdrom/cdrom_audio.h"
 #include "cdrom/cdrom_media.h"
 #include "drive/fdc.h"
@@ -2221,6 +2222,344 @@ json DebugAdapter::GetPITStatus()
         }},
         {"counters", counters}
     };
+}
+
+static const char* video_mode_name(Video* video)
+{
+    if (video->IsTextMode())
+        return "text";
+
+    switch (video->GetShiftFormat())
+    {
+        case Video::VIDEO_FORMAT_PLANAR:
+            return video->IsPacked() ? "planar_8bit" : "planar";
+        case Video::VIDEO_FORMAT_CGA:
+            return video->IsPacked() ? "cga_8bit" : "cga";
+        default:
+            return video->IsPacked() ? "256_colors" : "256_shift_4bit";
+    }
+}
+
+json DebugAdapter::VideoRegisterArray(const u8* values, int count)
+{
+    json result = json::array();
+
+    for (int i = 0; i < count; i++)
+        result.push_back(Hex(values[i], 2));
+
+    return result;
+}
+
+json DebugAdapter::GetCRTCStatus()
+{
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
+    u64 clocks = m_core->GetScheduler()->GetClocks();
+    u8 status = video->GetSyncStatus(clocks);
+    const u8* crtc = state->crtc;
+
+    return {
+        {"running", state->running},
+        {"mode", video_mode_name(video)},
+        {"block", (state->misc & 0x01) != 0 ? "color" : "mono"},
+        {"blank", video->IsScreenBlank()},
+        {"timing", {
+            {"dot_clock_hz", state->frame_dot_clock},
+            {"line_dots", state->frame_line_dots},
+            {"display_dots", state->frame_display_dots},
+            {"lines", state->frame_lines},
+            {"display_lines", state->display_lines},
+            {"retrace_start", state->retrace_start},
+            {"retrace_end", state->retrace_end},
+            {"frame_ms", video->GetFrameTime()},
+            {"frame_count", state->frame_count}
+        }},
+        {"size", {
+            {"frame_width", video->GetFrameWidth()},
+            {"frame_height", video->GetFrameHeight()},
+            {"display_width", video->GetDisplayWidth()},
+            {"display_height", video->GetDisplayHeight()}
+        }},
+        {"beam", {
+            {"line", video->GetBeamLine(clocks)},
+            {"dot", video->GetBeamDot(clocks)},
+            {"display_enable", (status & 0x01) == 0},
+            {"vertical_retrace", (status & 0x08) != 0}
+        }},
+        {"scanout", {
+            {"start_address", Hex(video->GetStartAddress(), 4)},
+            {"latched_start", Hex(state->start_address, 4)},
+            {"row_address", Hex(state->row_address & 0xFFFF, 4)},
+            {"row_scan", state->row_scan},
+            {"offset", crtc[k_video_cr_offset]},
+            {"line_compare", video->GetLineCompare()},
+            {"pixel_pan", state->attribute[k_video_ar_panning]},
+            {"byte_pan", (crtc[k_video_cr_preset_row] >> 5) & 0x03}
+        }},
+        {"cursor", {
+            {"address", Hex(video->GetCursorAddress(), 4)},
+            {"start", crtc[k_video_cr_cursor_start] & 0x1F},
+            {"end", crtc[k_video_cr_cursor_end] & 0x1F},
+            {"disabled", (crtc[k_video_cr_cursor_start] & 0x20) != 0}
+        }},
+        {"vertical_interrupt", {
+            {"pending", state->vertical_interrupt},
+            {"enabled", (crtc[k_video_cr_retrace_end] & 0x20) == 0}
+        }}
+    };
+}
+
+json DebugAdapter::GetCRTCRegisters()
+{
+    Video::Video_State* state = m_core->GetVideo()->GetState();
+    json registers = json::array();
+
+    for (int i = 0; i < VIDEO_CRTC_COUNT; i++)
+    {
+        registers.push_back({
+            {"index", i},
+            {"name", k_debug_crtc_register_names[i]},
+            {"value", Hex(state->crtc[i], 2)}
+        });
+    }
+
+    return {
+        {"index", Hex(state->crtc_index, 2)},
+        {"protected", (state->crtc[k_video_cr_retrace_end] & 0x80) != 0},
+        {"registers", registers}
+    };
+}
+
+json DebugAdapter::WriteCRTCRegister(int reg, u8 value)
+{
+    if (reg < 0 || reg >= VIDEO_CRTC_COUNT)
+        return {{"error", "register must be 0-24"}};
+
+    Video* video = m_core->GetVideo();
+    video->WriteRegister(Video::VIDEO_REGISTERS_CRTC, (u8)reg, value, m_core->GetScheduler()->GetClocks());
+
+    return {
+        {"register", reg},
+        {"value", Hex(video->GetState()->crtc[reg], 2)}
+    };
+}
+
+json DebugAdapter::GetVideoOutputStatus()
+{
+    static const char* const k_windows[4] = { "A0000-BFFFF", "A0000-AFFFF", "B0000-B7FFF", "B8000-BFFFF" };
+
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
+    u8 graphics_mode = state->graphics[k_video_gr_mode];
+    u8 memory_mode = state->sequencer[k_video_sr_memory_mode];
+    u8 attribute_mode = state->attribute[k_video_ar_mode];
+
+    return {
+        {"misc", Hex(state->misc, 2)},
+        {"memory", {
+            {"enabled", (state->misc & 0x02) != 0},
+            {"window", k_windows[(state->graphics[k_video_gr_misc] >> 2) & 0x03]},
+            {"chain4", (memory_mode & 0x08) != 0},
+            {"odd_even_write", (memory_mode & 0x04) == 0},
+            {"odd_even_read", (graphics_mode & 0x10) != 0},
+            {"map_mask", Hex(state->sequencer[k_video_sr_map_mask], 2)},
+            {"direct_writes", video->IsDirectMapped()},
+            {"latch", Hex(state->latch, 8)}
+        }},
+        {"pipeline", {
+            {"write_mode", graphics_mode & 0x03},
+            {"read_mode", (graphics_mode >> 3) & 0x01},
+            {"rotate", state->graphics[k_video_gr_rotate] & 0x07},
+            {"logic_op", (state->graphics[k_video_gr_rotate] >> 3) & 0x03},
+            {"set_reset", Hex(state->graphics[k_video_gr_set_reset], 2)},
+            {"enable_set_reset", Hex(state->graphics[k_video_gr_enable_set_reset], 2)},
+            {"bit_mask", Hex(state->graphics[k_video_gr_bit_mask], 2)},
+            {"read_map", state->graphics[k_video_gr_read_map] & 0x03},
+            {"color_compare", Hex(state->graphics[k_video_gr_color_compare], 2)},
+            {"color_dont_care", Hex(state->graphics[k_video_gr_color_dont_care], 2)}
+        }},
+        {"attribute", {
+            {"index", Hex(state->attribute_index, 2)},
+            {"flip_flop_data", state->attribute_data},
+            {"palette_access", (state->attribute_index & 0x20) == 0},
+            {"graphics", (attribute_mode & 0x01) != 0},
+            {"mono", (attribute_mode & 0x02) != 0},
+            {"line_graphics", (attribute_mode & 0x04) != 0},
+            {"blink", (attribute_mode & 0x08) != 0},
+            {"pan_reset_at_split", (attribute_mode & 0x20) != 0},
+            {"packed", (attribute_mode & 0x40) != 0},
+            {"plane_enable", Hex(state->attribute[k_video_ar_plane_enable], 2)},
+            {"overscan", Hex(state->attribute[k_video_ar_overscan], 2)},
+            {"color_select", Hex(state->attribute[k_video_ar_color_select], 2)}
+        }},
+        {"dac", {
+            {"pel_mask", Hex(state->pel_mask, 2)},
+            {"read_index", Hex(state->dac_read_index, 2)},
+            {"write_index", Hex(state->dac_write_index, 2)},
+            {"component", state->dac_component},
+            {"state", state->dac_state}
+        }}
+    };
+}
+
+json DebugAdapter::GetVGARegisters()
+{
+    Video::Video_State* state = m_core->GetVideo()->GetState();
+
+    return {
+        {"misc", Hex(state->misc, 2)},
+        {"feature", Hex(state->feature, 2)},
+        {"sequencer", VideoRegisterArray(state->sequencer, VIDEO_SEQUENCER_COUNT)},
+        {"graphics", VideoRegisterArray(state->graphics, VIDEO_GRAPHICS_COUNT)},
+        {"crtc", VideoRegisterArray(state->crtc, VIDEO_CRTC_COUNT)},
+        {"attribute", VideoRegisterArray(state->attribute, VIDEO_ATTRIBUTE_COUNT)}
+    };
+}
+
+json DebugAdapter::GetPalettes(const std::string& palette)
+{
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
+    json result;
+    char color[8];
+
+    if (palette != "all" && palette != "attribute" && palette != "dac")
+        return {{"error", "palette must be all, attribute or dac"}};
+
+    if (palette != "dac")
+    {
+        json entries = json::array();
+
+        for (int i = 0; i < 16; i++)
+        {
+            snprintf(color, sizeof(color), "#%06X", video->GetAttributeColor(i) & 0xFFFFFF);
+            entries.push_back({
+                {"index", i},
+                {"value", Hex(state->attribute[i], 2)},
+                {"rgb", color}
+            });
+        }
+
+        result["attribute"] = entries;
+    }
+
+    if (palette != "attribute")
+    {
+        json entries = json::array();
+
+        for (int i = 0; i < VIDEO_DAC_COUNT; i++)
+        {
+            snprintf(color, sizeof(color), "#%06X", video->GetDACColor(i) & 0xFFFFFF);
+            entries.push_back({
+                {"index", i},
+                {"red", state->dac[i][0]},
+                {"green", state->dac[i][1]},
+                {"blue", state->dac[i][2]},
+                {"rgb", color}
+            });
+        }
+
+        result["dac"] = entries;
+        result["pel_mask"] = Hex(state->pel_mask, 2);
+    }
+
+    return result;
+}
+
+json DebugAdapter::GetFrameBuffer(const std::string& buffer, int pitch)
+{
+    static const char* const k_buffers[Emu_Debug_Buffer_Count] = { "plane0", "plane1", "plane2", "plane3", "planar", "256",
+        "text" };
+
+    int index = -1;
+
+    for (int i = 0; i < Emu_Debug_Buffer_Count; i++)
+    {
+        if (buffer == k_buffers[i])
+            index = i;
+    }
+
+    if (index < 0)
+        return {{"error", "buffer must be plane0, plane1, plane2, plane3, planar, 256 or text"}};
+
+    if (pitch < 0 || pitch > 512)
+        return {{"error", "pitch must be 0-512"}};
+
+    unsigned char* png = NULL;
+    Emu_Debug_Buffer_Info info;
+    int size = emu_get_debug_buffer_png(index, pitch, &png, info);
+
+    if (size <= 0 || !png)
+        return {{"error", "Failed to decode video memory"}};
+
+    std::string base64_png = base64_encode(png, size);
+    free(png);
+
+    json result;
+    result["__mcp_image"] = true;
+    result["data"] = base64_png;
+    result["mimeType"] = "image/png";
+    result["width"] = info.width;
+    result["height"] = info.height;
+    return result;
+}
+
+json DebugAdapter::GetTextScreen(bool attributes)
+{
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
+
+    if (!state->running || !video->IsTextMode())
+        return {{"error", "The VGA is not in a text mode"}};
+
+    const u8* crtc = state->crtc;
+    int columns = crtc[k_video_cr_horizontal_display] + 1;
+    int scans = ((crtc[k_video_cr_max_scan] & 0x1F) + 1) << ((crtc[k_video_cr_max_scan] >> 7) & 0x01);
+    int rows = (int)state->display_lines / scans;
+    int pitch = crtc[k_video_cr_offset] * 2;
+    u32 start = video->GetStartAddress();
+    u32 cursor = video->GetCursorAddress();
+    json lines = json::array();
+    json colors = json::array();
+
+    for (int row = 0; row < rows; row++)
+    {
+        std::string line;
+        std::string attribute_line;
+
+        for (int column = 0; column < columns; column++)
+        {
+            u32 offset = video->GetCRTCOffset(start + (u32)(row * pitch + column), 0);
+            u8 character = video->PeekPlane(0, offset);
+
+            line += character >= 0x20 && character < 0x7F ? (char)character : (character == 0 ? ' ' : '.');
+
+            if (attributes)
+                attribute_line += Hex(video->PeekPlane(1, offset), 2);
+        }
+
+        line.erase(line.find_last_not_of(' ') + 1);
+        lines.push_back(line);
+
+        if (attributes)
+            colors.push_back(attribute_line);
+    }
+
+    json result = {
+        {"columns", columns},
+        {"rows", rows},
+        {"cursor", {
+            {"disabled", (crtc[k_video_cr_cursor_start] & 0x20) != 0},
+            {"column", pitch != 0 ? (int)((cursor - start) & 0xFFFF) % pitch : 0},
+            {"row", pitch != 0 ? (int)((cursor - start) & 0xFFFF) / pitch : 0}
+        }},
+        {"lines", lines}
+    };
+
+    if (attributes)
+        result["attributes"] = colors;
+
+    return result;
 }
 
 json DebugAdapter::GetKeyboardStatus()

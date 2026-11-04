@@ -73,6 +73,7 @@ static void render_quad(uint32_t program, uint32_t texture, int viewport_width, 
 static void render_quad_preset(int pass_index, uint32_t program, uint32_t texture, int input_width, int input_height, int viewport_width, int viewport_height);
 static void update_system_texture(void);
 static void update_savestates_texture(void);
+static void update_debug_texture(void);
 static void load_configured_shader_preset(void);
 static void apply_shader_parameter_config(void);
 static bool get_active_shader_preset_file(char* preset_file, size_t preset_file_size);
@@ -131,6 +132,7 @@ void ogl_renderer_destroy(void)
 {
     glDeleteTextures(1, &ogl_renderer_emu_texture);
     glDeleteTextures(1, &ogl_renderer_emu_savestates);
+    glDeleteTextures(1, &ogl_renderer_emu_debug_framebuffer);
     ogl_shader_chain_destroy();
 
     if (quad_shader_program)
@@ -164,6 +166,7 @@ void ogl_renderer_render(bool new_frame)
 {
     emu_get_runtime(current_runtime);
     update_savestates_texture();
+    update_debug_texture();
 
     bool use_internal_shader_chain = should_use_internal_shader_chain();
     bool shader_rendered = false;
@@ -330,6 +333,8 @@ static void init_ogl_savestates(void)
 {
     create_texture_2d(&ogl_renderer_emu_savestates, SYSTEM_TEXTURE_WIDTH,
         SYSTEM_TEXTURE_HEIGHT, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, NULL, false);
+    create_texture_2d(&ogl_renderer_emu_debug_framebuffer, EMU_DEBUG_FRAMEBUFFER_WIDTH, EMU_DEBUG_FRAMEBUFFER_HEIGHT,
+        GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid*)emu_debug_framebuffer, false);
     savestates_texture_slot = -1;
     savestates_texture_generation = 0;
 }
@@ -525,6 +530,17 @@ static void update_system_texture(void)
     glBindTexture(GL_TEXTURE_2D, ogl_renderer_emu_texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, current_runtime.screen_width, current_runtime.screen_height,
             GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, (GLvoid*) emu_frame_buffer);
+}
+
+static void update_debug_texture(void)
+{
+    if (!config_debug.debug || !config_debug.show_vram_viewer)
+        return;
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, ogl_renderer_emu_debug_framebuffer);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, EMU_DEBUG_FRAMEBUFFER_WIDTH, EMU_DEBUG_FRAMEBUFFER_HEIGHT, GL_RGBA,
+        GL_UNSIGNED_BYTE, (GLvoid*)emu_debug_framebuffer);
 }
 
 static void update_savestates_texture(void)

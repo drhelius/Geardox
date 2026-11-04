@@ -311,6 +311,14 @@ struct config_Debug
     bool show_bios_log;
     bool show_game_ports;
     bool show_keyboard;
+    bool show_vga;
+    bool show_vga_registers;
+    bool show_palettes;
+    bool show_vram_viewer;
+    int vram_viewer_tab;
+    int vram_viewer_zoom;
+    bool vram_viewer_show_window;
+    int vram_viewer_pitch;
     bool show_sound_control;
     bool show_cdrom_toc;
     bool show_cdrom_audio;

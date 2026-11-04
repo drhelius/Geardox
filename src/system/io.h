@@ -76,6 +76,8 @@ private:
     u8 m_decoded_ports[0x2000];
 };
 
+static const u16 k_io_isa_mask = 0x03FF;
+
 #include "io_inline.h"
 
 #endif /* IO_H */

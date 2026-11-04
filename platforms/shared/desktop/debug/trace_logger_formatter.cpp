@@ -27,7 +27,7 @@
 #include "system/i8259.h"
 
 static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
-static const char* const k_trace_palette_components[3] = { "BLUE", "RED", "GREEN" };
+static const char* const k_trace_palette_components[3] = { "RED", "GREEN", "BLUE" };
 static const char* const k_trace_pcm_registers[7] = { "ENV", "PAN", "FD LSB", "FD MSB", "LS LSB", "LS MSB", "ST" };
 static const char* const k_trace_controller_names[3] = { "NONE", "PAD", "MOUSE" };
 
@@ -524,6 +524,8 @@ static void format_dma(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 
 static void format_video(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
+    static const char* const k_files[4] = { "SR", "GR", "AR", "MISC" };
+
     char beam[32] = "CRTC stopped";
     u8 raw = entry.video.raw;
 
@@ -533,69 +535,25 @@ static void format_video(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
     switch (entry.event)
     {
         case TRACE_VIDEO_CRTC:
-            format_event(buffer, size, "VIDEO", "CRTC", "R%02X %-4s <- $%04X  %s:$%02X  %s", entry.video.reg,
-                k_debug_crtc_register_names[entry.video.reg & 0x1F], entry.video.value, entry.video.bank ? "MSB" : "LSB",
-                raw, beam);
+            format_event(buffer, size, "VIDEO", "CRTC", "CR%02X %-12s <- $%02X  %s", entry.video.reg,
+                k_debug_crtc_register_names[entry.video.reg % 25], raw, beam);
             break;
         case TRACE_VIDEO_OUTPUT:
-            if (entry.video.reg == 0)
-                format_event(buffer, size, "VIDEO", "OUTPUT", "R0 <- $%02X  %s  %s", raw,
-                    (raw & 0x10) != 0 ? "TWO PAGE" : "SINGLE PAGE", beam);
-            else if (entry.video.reg == 1)
-            {
-                int palette = (raw >> 4) & 0x03;
-                format_event(buffer, size, "VIDEO", "OUTPUT", "R1 <- $%02X  Front:LAYER %u  Palette:%s  %s", raw,
-                    raw & 0x01, palette == 0 ? "LAYER 0" : palette == 2 ? "LAYER 1" : "256", beam);
-            }
+            if (entry.video.bank == 3)
+                format_event(buffer, size, "VIDEO", "OUTPUT", "MISC <- $%02X  %s", raw, beam);
             else
-                format_event(buffer, size, "VIDEO", "OUTPUT", "R%u <- $%02X  %s", entry.video.reg, raw, beam);
-            break;
-        case TRACE_VIDEO_DISPLAY:
-            format_event(buffer, size, "VIDEO", "DISPLAY", "Write:$%02X  Layer 0:%s  Layer 1:%s  %s", raw,
-                (raw & 0x0C) != 0 ? "ON " : "OFF", (raw & 0x03) != 0 ? "ON " : "OFF", beam);
+                format_event(buffer, size, "VIDEO", "OUTPUT", "%s%02X <- $%02X  %s", k_files[entry.video.bank & 3],
+                    entry.video.reg, raw, beam);
             break;
         case TRACE_VIDEO_PALETTE:
-        {
-            u8 bank = entry.video.bank;
-            const char* name = bank == 0 ? "LAYER 0" : bank == 2 ? "LAYER 1" : "256";
-            u8 index = bank == 0 || bank == 2 ? (entry.video.reg & 0x0F) : entry.video.reg;
-
-            format_event(buffer, size, "VIDEO", "PALETTE", "%s[$%02X] %s <- $%02X  RGB:$%06X  %s", name, index,
+            format_event(buffer, size, "VIDEO", "PALETTE", "DAC[$%02X] %s <- $%02X  RGB:$%06X  %s", entry.video.reg,
                 k_trace_palette_components[MIN(entry.video.value, (u16)2)], raw, entry.video.param, beam);
             break;
-        }
-        case TRACE_VIDEO_DIGITAL_PALETTE:
-            format_event(buffer, size, "VIDEO", "DPALETTE", "[%u] <- $%X  %s", entry.video.reg, raw & 0x0F, beam);
-            break;
-        case TRACE_VIDEO_MASK:
-            format_event(buffer, size, "VIDEO", "VRAM MASK", "Write:$%02X  Mask:$%08X  %s", raw, entry.video.param,
-                beam);
-            break;
         case TRACE_VIDEO_VSYNC:
-            format_event(buffer, size, "VIDEO", "VSYNC", "IRQ11  Frame:%u", entry.video.param);
+            format_event(buffer, size, "VIDEO", "VSYNC", "Retrace  Frame:%u", entry.video.param);
             break;
         case TRACE_VIDEO_VSYNC_CLEAR:
-            format_event(buffer, size, "VIDEO", "VSYNC ACK", "IRQ11 cleared  %s", beam);
-            break;
-        case TRACE_VIDEO_FMR:
-            switch (entry.video.reg)
-            {
-                case 0x81:
-                    format_event(buffer, size, "VIDEO", "FM-R", "PLANE MASK <- $%02X  %s", raw, beam);
-                    break;
-                case 0x82:
-                    format_event(buffer, size, "VIDEO", "FM-R", "DISPLAY <- $%02X  Planes:$%X  Page:%u  %s", raw,
-                        (raw & 0x07) | ((raw >> 2) & 0x08), (raw >> 4) & 0x01, beam);
-                    break;
-                case 0x83:
-                    format_event(buffer, size, "VIDEO", "FM-R", "ACCESS PAGE <- $%02X  Page:%u  %s", raw,
-                        (raw >> 4) & 0x01, beam);
-                    break;
-                default:
-                    format_event(buffer, size, "VIDEO", "FM-R", "ANK FONT <- $%02X  %s  %s", raw,
-                        (raw & 0x01) != 0 ? "ON " : "OFF", beam);
-                    break;
-            }
+            format_event(buffer, size, "VIDEO", "VSYNC ACK", "IRQ2 cleared  %s", beam);
             break;
         default:
         {

@@ -202,6 +202,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"disassembly", "Disassembly", "Decode Intel 80386 code, inspect the call stack, and manage disassembly bookmarks."},
     {"symbols", "Symbols", "Add, remove, load, list and look up user symbols and automatic labels."},
     {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, the 8254 timer, the board ports and the machine configuration."},
+    {"hardware_video", "Video Hardware", "Inspect the VGA: CRTC, registers, palettes, video memory and text screens."},
     {"hardware_audio", "Audio Hardware", "Mute audio sources in the debugger."},
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
     {"hardware_floppy", "Floppy Hardware", "Inspect the floppy drives, list a track's sectors, and read sector data."},
@@ -254,6 +255,12 @@ static const char* const kMcpSymbolTools[] =
 static const char* const kMcpSystemTools[] =
 {
     "get_pic_status", "get_pit_status", "get_system_status", "get_keyboard_status", "get_bios_log"
+};
+
+static const char* const kMcpVideoTools[] =
+{
+    "get_crtc_status", "get_crtc_registers", "write_crtc_register", "get_video_output_status", "get_vga_registers",
+    "get_palettes", "get_frame_buffer", "get_text_screen"
 };
 
 static const char* const kMcpAudioTools[] =
@@ -323,6 +330,7 @@ static const McpToolCategoryTools kMcpToolCategoryTools[] =
     {"disassembly", kMcpDisassemblyTools, MCP_ARRAY_COUNT(kMcpDisassemblyTools)},
     {"symbols", kMcpSymbolTools, MCP_ARRAY_COUNT(kMcpSymbolTools)},
     {"hardware_system", kMcpSystemTools, MCP_ARRAY_COUNT(kMcpSystemTools)},
+    {"hardware_video", kMcpVideoTools, MCP_ARRAY_COUNT(kMcpVideoTools)},
     {"hardware_audio", kMcpAudioTools, MCP_ARRAY_COUNT(kMcpAudioTools)},
     {"hardware_cdrom", kMcpCdromTools, MCP_ARRAY_COUNT(kMcpCdromTools)},
     {"hardware_floppy", kMcpFloppyTools, MCP_ARRAY_COUNT(kMcpFloppyTools)},
@@ -680,6 +688,7 @@ bool McpToolRegistry::IsDirectToolName(const std::string& tool_name) const
         (name == "get_disassembly") ||
         (name == "set_breakpoint") ||
         (name == "get_screenshot") ||
+        (name == "get_text_screen") ||
         (name == "controller_button");
 }
 

@@ -28,6 +28,34 @@
     #define EXTERN extern
 #endif
 
+#define EMU_DEBUG_FRAMEBUFFER_WIDTH 1024
+#define EMU_DEBUG_FRAMEBUFFER_HEIGHT 1024
+
+enum Emu_Debug_Buffer
+{
+    Emu_Debug_Buffer_Plane0 = 0,
+    Emu_Debug_Buffer_Plane1,
+    Emu_Debug_Buffer_Plane2,
+    Emu_Debug_Buffer_Plane3,
+    Emu_Debug_Buffer_Planar,
+    Emu_Debug_Buffer_256,
+    Emu_Debug_Buffer_Text,
+    Emu_Debug_Buffer_Count
+};
+
+struct Emu_Debug_Buffer_Info
+{
+    int width;
+    int height;
+    int pitch;
+    int cell_width;
+    int cell_height;
+    int window_x;
+    int window_y;
+    int window_width;
+    int window_height;
+};
+
 enum Debug_Command
 {
     Debug_Command_Continue,
@@ -59,6 +87,8 @@ EXTERN u32 emu_savestates_generation;
 EXTERN Debug_Command emu_debug_command;
 EXTERN bool emu_debug_pc_changed;
 EXTERN int emu_debug_step_frames_pending;
+EXTERN u8* emu_debug_framebuffer;
+EXTERN Emu_Debug_Buffer_Info emu_debug_framebuffer_info;
 EXTERN bool emu_debug_disable_breakpoints;
 EXTERN u64 emu_frame_counter;
 EXTERN bool emu_frame_stale;
@@ -139,6 +169,9 @@ EXTERN void emu_debug_step_frames(int frames);
 EXTERN void emu_debug_break(void);
 EXTERN void emu_debug_continue(void);
 EXTERN void emu_debug_state_restored(void);
+EXTERN void emu_debug_update(void);
+EXTERN void emu_debug_decode_buffer(int buffer, int pitch, u8* output, Emu_Debug_Buffer_Info& info);
+EXTERN int emu_get_debug_buffer_png(int buffer, int pitch, unsigned char** out_buffer, Emu_Debug_Buffer_Info& info);
 
 EXTERN void emu_set_pad_type(GDOX_Controllers controller, GDOX_Controller_Type type);
 EXTERN GDOX_Controller_Type emu_get_pad_type(GDOX_Controllers controller);

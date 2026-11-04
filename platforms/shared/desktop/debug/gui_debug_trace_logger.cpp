@@ -646,11 +646,10 @@ static void trace_logger_menu_filters(void)
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_video);
         trace_logger_menu_event_filter("CRTC Registers", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_CRTC);
-        trace_logger_menu_event_filter("Video Output", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_OUTPUT);
-        trace_logger_menu_event_filter("Palette", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_PALETTE);
-        trace_logger_menu_event_filter("VRAM Mask", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_MASK);
-        trace_logger_menu_event_filter("VSYNC IRQ", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_VSYNC);
-        trace_logger_menu_event_filter("FM-R Registers", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_FMR);
+        trace_logger_menu_event_filter("Sequencer, Graphics, Attribute", &config_debug.trace_video_events,
+            TRACE_VIDEO_EVENT_OUTPUT);
+        trace_logger_menu_event_filter("DAC", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_PALETTE);
+        trace_logger_menu_event_filter("Vertical Retrace", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_VSYNC);
 
         if (ImGui::BeginMenu("Missed VBlank"))
         {

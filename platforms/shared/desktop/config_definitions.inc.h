@@ -52,6 +52,14 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "BIOSLog", config_debug.show_bios_log, false);
     CONFIG_BOOL("Debug", "GamePorts", config_debug.show_game_ports, false);
     CONFIG_BOOL("Debug", "Keyboard", config_debug.show_keyboard, false);
+    CONFIG_BOOL("Debug", "VGA", config_debug.show_vga, false);
+    CONFIG_BOOL("Debug", "VGARegisters", config_debug.show_vga_registers, false);
+    CONFIG_BOOL("Debug", "Palettes", config_debug.show_palettes, false);
+    CONFIG_BOOL("Debug", "VRAMViewer", config_debug.show_vram_viewer, false);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerTab", config_debug.vram_viewer_tab, 0, 0, 6);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerZoom", config_debug.vram_viewer_zoom, 0, 0, 2);
+    CONFIG_BOOL("Debug", "VRAMViewerWindow", config_debug.vram_viewer_show_window, true);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerPitch", config_debug.vram_viewer_pitch, 0, 0, 512);
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
     CONFIG_BOOL("Debug", "CDROMTOC", config_debug.show_cdrom_toc, false);
     CONFIG_BOOL("Debug", "CDROMAudio", config_debug.show_cdrom_audio, false);

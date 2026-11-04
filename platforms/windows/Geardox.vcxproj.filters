@@ -67,6 +67,12 @@
     <ClCompile Include="..\shared\desktop\debug\gui_debug_i386_tables.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\debug\gui_debug_framebuffers.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\debug\gui_debug_video.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\desktop\debug\gui_debug_input.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
@@ -296,6 +302,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\video\video.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\video_memory.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\video_render.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\media\media.cpp">
@@ -582,6 +594,12 @@
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\debug\gui_debug_constants.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_framebuffers.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_video.h">
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\debug\gui_debug_input.h">

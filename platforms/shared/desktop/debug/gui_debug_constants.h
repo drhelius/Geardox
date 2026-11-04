@@ -48,6 +48,26 @@ static const stDebugPortLabel k_debug_port_labels[] =
     { 0x00A1, "PIC_S_DATA", "PIC slave ICW2-ICW4, IMR" },
     { 0x00F0, "FPU_CLEAR", "Clears the coprocessor error and IRQ13" },
     { 0x00F1, "FPU_RESET", "Resets the coprocessor" },
+    { 0x03B4, "CRTC_M_IDX", "VGA CRTC index, monochrome block" },
+    { 0x03B5, "CRTC_M_DATA", "VGA CRTC data, monochrome block" },
+    { 0x03BA, "VGA_STAT_M", "VGA input status 1 and feature control, monochrome block" },
+    { 0x03C0, "ATTR_INDEX", "VGA attribute index and data, by flip-flop" },
+    { 0x03C1, "ATTR_DATA", "VGA attribute data read" },
+    { 0x03C2, "VGA_MISC_W", "VGA input status 0 and miscellaneous output" },
+    { 0x03C3, "VGA_ENABLE", "VGA enable" },
+    { 0x03C4, "SEQ_INDEX", "VGA sequencer index" },
+    { 0x03C5, "SEQ_DATA", "VGA sequencer data" },
+    { 0x03C6, "DAC_MASK", "VGA pel mask" },
+    { 0x03C7, "DAC_READ", "VGA DAC state and read index" },
+    { 0x03C8, "DAC_WRITE", "VGA DAC write index" },
+    { 0x03C9, "DAC_DATA", "VGA DAC data" },
+    { 0x03CA, "VGA_FEATURE", "VGA feature control read" },
+    { 0x03CC, "VGA_MISC_R", "VGA miscellaneous output read" },
+    { 0x03CE, "GFX_INDEX", "VGA graphics controller index" },
+    { 0x03CF, "GFX_DATA", "VGA graphics controller data" },
+    { 0x03D4, "CRTC_C_IDX", "VGA CRTC index, color block" },
+    { 0x03D5, "CRTC_C_DATA", "VGA CRTC data, color block" },
+    { 0x03DA, "VGA_STAT_C", "VGA input status 1 and feature control, color block" },
     { 0x0402, "DEBUG_CON", "Debug console, SeaBIOS messages" },
     { 0x0510, "FW_CFG_SEL", "Firmware config selector" },
     { 0x0511, "FW_CFG_DATA", "Firmware config data" }
@@ -262,10 +282,27 @@ static const char* const k_debug_dma_service_names[4] =
     "DEMAND", "SINGLE", "BLOCK", "CASCADE"
 };
 
-static const char* const k_debug_crtc_register_names[32] =
+static const char* const k_debug_sequencer_register_names[5] =
 {
-    "HSW1", "HSW2", "--", "--", "HST", "VST1", "VST2", "EET", "VST", "HDS0", "HDE0", "HDS1", "HDE1", "VDS0", "VDE0", "VDS1",
-    "VDE1", "FA0", "HAJ0", "FO0", "LO0", "FA1", "HAJ1", "FO1", "LO1", "EHAJ", "EVAJ", "ZOOM", "CR0", "CR1", "FR", "CR2"
+    "RESET", "CLOCKING", "MAP MASK", "CHAR MAP", "MEM MODE"
+};
+
+static const char* const k_debug_graphics_register_names[9] =
+{
+    "SET/RESET", "ENABLE S/R", "COLOR CMP", "ROTATE/OP", "READ MAP", "MODE", "MISC", "DONT CARE", "BIT MASK"
+};
+
+static const char* const k_debug_crtc_register_names[25] =
+{
+    "H TOTAL", "H DISP END", "H BLANK ST", "H BLANK END", "H SYNC ST", "H SYNC END", "V TOTAL", "OVERFLOW", "PRESET ROW",
+    "MAX SCAN", "CURSOR ST", "CURSOR END", "START HI", "START LO", "CURSOR HI", "CURSOR LO", "V SYNC ST", "V SYNC END",
+    "V DISP END", "OFFSET", "UNDERLINE", "V BLANK ST", "V BLANK END", "MODE", "LINE CMP"
+};
+
+static const char* const k_debug_attribute_register_names[21] =
+{
+    "PAL 0", "PAL 1", "PAL 2", "PAL 3", "PAL 4", "PAL 5", "PAL 6", "PAL 7", "PAL 8", "PAL 9", "PAL A", "PAL B", "PAL C",
+    "PAL D", "PAL E", "PAL F", "MODE", "OVERSCAN", "PLANE EN", "PAN", "COLOR SEL"
 };
 
 struct stDebugKeyName

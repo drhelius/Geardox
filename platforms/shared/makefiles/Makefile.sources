@@ -75,6 +75,7 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_i386.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_x87.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_i386_tables.cpp \
+    $(DESKTOP_SRC_DIR)/debug/gui_debug_framebuffers.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_input.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_memory_provider.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_memeditor.cpp \
@@ -82,6 +83,7 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_profiler.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_rewind.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_system.cpp \
+    $(DESKTOP_SRC_DIR)/debug/gui_debug_video.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_trace_logger.cpp \
     $(DESKTOP_SRC_DIR)/debug/trace_logger_formatter.cpp \
     $(DESKTOP_SRC_DIR)/mcp/mcp_debug_adapter.cpp \
@@ -140,4 +142,6 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/system_control.cpp \
     $(SRC_DIR)/system/firmware_config.cpp \
     $(SRC_DIR)/system/debug_console.cpp \
-    $(SRC_DIR)/video/video.cpp
+    $(SRC_DIR)/video/video.cpp \
+    $(SRC_DIR)/video/video_memory.cpp \
+    $(SRC_DIR)/video/video_render.cpp

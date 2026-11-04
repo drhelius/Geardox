@@ -27,6 +27,7 @@
 #include "pit.h"
 #include "scheduler.h"
 #include "system_control.h"
+#include "../video/video.h"
 
 IO::IO()
 {
@@ -137,6 +138,8 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
                 return m_firmware_config->Read(port);
             break;
         default:
+            if (m_video->Decodes(port & k_io_isa_mask))
+                return m_video->Read(port & k_io_isa_mask, context.clocks);
             break;
     }
 
@@ -180,6 +183,12 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
             value = m_firmware_config->Peek(port);
             return m_firmware_config->Decodes(port);
         default:
+            if (m_video->Decodes(port & k_io_isa_mask))
+            {
+                value = m_video->Peek(port & k_io_isa_mask, clocks);
+                return true;
+            }
+
             if (!m_system_control->Decodes(port))
                 return false;
 
@@ -231,6 +240,11 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
         case 0x0402:
             // Debug console readback
             return m_debug_console->Decodes(port) ? GDOX_NO_EVENT : 0;
+        case 0x03BA:
+            // VGA input status 1, monochrome block
+        case 0x03DA:
+            // VGA input status 1, color block
+            return m_video->GetSyncStableUntil(clocks);
         default:
             return 0;
     }
@@ -300,7 +314,10 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             m_system_control->Write(port, value, context.clocks);
             break;
         default:
-            Debug("Unknown IO write at %04X, value=%02X", port, value);
+            if (m_video->Decodes(port & k_io_isa_mask))
+                m_video->Write(port & k_io_isa_mask, value, context.clocks);
+            else
+                Debug("Unknown IO write at %04X, value=%02X", port, value);
             break;
     }
 

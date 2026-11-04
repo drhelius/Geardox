@@ -113,16 +113,19 @@ bool emu_init(void)
 {
     size_t frame_buffer_size = (size_t)GDOX_MAX_FRAME_BUFFER_WIDTH * GDOX_MAX_FRAME_BUFFER_HEIGHT * 4;
     emu_frame_buffer = new (std::nothrow) u8[frame_buffer_size];
+    emu_debug_framebuffer = new (std::nothrow) u8[(size_t)EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT * 4];
     audio_buffer = new (std::nothrow) s16[GDOX_AUDIO_BUFFER_SIZE];
 
-    if (!IsValidPointer(emu_frame_buffer) || !IsValidPointer(audio_buffer))
+    if (!IsValidPointer(emu_frame_buffer) || !IsValidPointer(emu_debug_framebuffer) || !IsValidPointer(audio_buffer))
     {
         Error("Unable to allocate emulator buffers");
         SafeDeleteArray(emu_frame_buffer);
+        SafeDeleteArray(emu_debug_framebuffer);
         SafeDeleteArray(audio_buffer);
         return false;
     }
 
+    memset(emu_debug_framebuffer, 0, (size_t)EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT * 4);
     reset_buffers();
 
     geardox = new (std::nothrow) GeardoxCore();
@@ -131,6 +134,7 @@ bool emu_init(void)
     {
         Error("Unable to allocate Geardox core");
         SafeDeleteArray(emu_frame_buffer);
+        SafeDeleteArray(emu_debug_framebuffer);
         SafeDeleteArray(audio_buffer);
         return false;
     }
@@ -163,6 +167,7 @@ bool emu_init(void)
         SafeDelete(geardox);
         SafeDeleteArray(audio_buffer);
         SafeDeleteArray(emu_frame_buffer);
+        SafeDeleteArray(emu_debug_framebuffer);
         return false;
     }
 
@@ -201,6 +206,7 @@ void emu_destroy(void)
     SafeDelete(geardox);
     SafeDeleteArray(audio_buffer);
     SafeDeleteArray(emu_frame_buffer);
+    SafeDeleteArray(emu_debug_framebuffer);
     SafeDeleteArray(rgba_frame_buffer);
 
     for (int i = 0; i < 5; i++)
@@ -318,6 +324,8 @@ void emu_update(void)
         frame_executed = result != GDOX_RUN_NOT_READY;
         frame_completed = result == GDOX_RUN_FRAME_READY;
     }
+
+    emu_debug_update();
 
     if (frame_executed)
     {
@@ -1201,6 +1209,177 @@ bool emu_save_screenshot(const char* file_path)
         Error("Unable to save screenshot to %s", file_path);
 
     return result != 0;
+}
+
+static u32 debug_rgba(u32 color)
+{
+    return 0xFF000000U | ((color & 0xFF) << 16) | (color & 0xFF00) | ((color >> 16) & 0xFF);
+}
+
+// One row per pitch of CRTC addresses from address 0, in the rotation the CRTC uses now. The plane views are plain offsets
+static void debug_buffer_info(int buffer, int pitch, Emu_Debug_Buffer_Info& info)
+{
+    Video* video = geardox->GetVideo();
+    Video::Video_State* state = video->GetState();
+    const u8* crtc = state->crtc;
+    int row_scans = (crtc[k_video_cr_max_scan] & 0x1F) + 1;
+    u32 addresses = 0x10000;
+
+    if ((crtc[k_video_cr_underline] & 0x40) != 0)
+        addresses = 0x4000;
+    else if ((crtc[k_video_cr_mode] & 0x40) == 0)
+        addresses = 0x8000;
+
+    memset(&info, 0, sizeof(info));
+    info.pitch = pitch > 0 ? pitch : crtc[k_video_cr_offset] * 2;
+
+    if (info.pitch == 0)
+        info.pitch = 80;
+
+    info.cell_width = buffer == Emu_Debug_Buffer_256 ? 4 : 8;
+    info.cell_height = buffer == Emu_Debug_Buffer_Text ? row_scans : 1;
+    info.width = MIN(info.pitch * info.cell_width, EMU_DEBUG_FRAMEBUFFER_WIDTH);
+
+    if (buffer <= Emu_Debug_Buffer_Plane3)
+        addresses = VIDEO_PLANE_SIZE;
+
+    info.height = MIN((int)(addresses / (u32)info.pitch) * info.cell_height, EMU_DEBUG_FRAMEBUFFER_HEIGHT);
+
+    u32 start = video->GetStartAddress();
+    int rows = (int)state->display_lines / (row_scans << ((crtc[k_video_cr_max_scan] >> 7) & 0x01));
+
+    info.window_x = (int)(start % (u32)info.pitch) * info.cell_width;
+    info.window_y = (int)(start / (u32)info.pitch) * info.cell_height;
+    info.window_width = ((int)crtc[k_video_cr_horizontal_display] + 1) * info.cell_width;
+    info.window_height = rows * info.cell_height;
+}
+
+static void debug_decode_text(u32* pixels, const Emu_Debug_Buffer_Info& info)
+{
+    Video* video = geardox->GetVideo();
+    Video::Video_State* state = video->GetState();
+    u8 map = state->sequencer[k_video_sr_character_map];
+    u32 font_a = ((map >> 2) & 0x03) * 0x4000 + ((map & 0x20) != 0 ? 0x2000 : 0);
+    u32 font_b = (map & 0x03) * 0x4000 + ((map & 0x10) != 0 ? 0x2000 : 0);
+    int columns = info.width / info.cell_width;
+    int rows = info.height / info.cell_height;
+
+    for (int row = 0; row < rows; row++)
+    {
+        for (int column = 0; column < columns; column++)
+        {
+            u32 offset = video->GetCRTCOffset((u32)row * (u32)info.pitch + (u32)column, 0);
+            u8 character = video->PeekPlane(0, offset);
+            u8 attribute = video->PeekPlane(1, offset);
+            u32 foreground = debug_rgba(video->GetAttributeColor(attribute & 0x0F));
+            u32 background = debug_rgba(video->GetAttributeColor(attribute >> 4));
+            u32 font = ((attribute & 0x08) != 0 ? font_a : font_b) + (u32)character * 32;
+
+            for (int y = 0; y < info.cell_height; y++)
+            {
+                u8 bits = video->PeekPlane(2, font + (u32)y);
+                u32* line = pixels + (row * info.cell_height + y) * EMU_DEBUG_FRAMEBUFFER_WIDTH + column * 8;
+
+                for (int x = 0; x < 8; x++)
+                    line[x] = ((bits >> (7 - x)) & 0x01) != 0 ? foreground : background;
+            }
+        }
+    }
+}
+
+void emu_debug_decode_buffer(int buffer, int pitch, u8* output, Emu_Debug_Buffer_Info& info)
+{
+    debug_buffer_info(buffer, pitch, info);
+
+    u32* pixels = (u32*)output;
+
+    if (buffer == Emu_Debug_Buffer_Text)
+    {
+        debug_decode_text(pixels, info);
+        return;
+    }
+
+    Video* video = geardox->GetVideo();
+    int columns = info.width / info.cell_width;
+
+    for (int y = 0; y < info.height; y++)
+    {
+        u32* line = pixels + y * EMU_DEBUG_FRAMEBUFFER_WIDTH;
+
+        for (int column = 0; column < columns; column++)
+        {
+            u32 address = (u32)y * (u32)info.pitch + (u32)column;
+            u32 offset = buffer <= Emu_Debug_Buffer_Plane3 ? address & 0xFFFF : video->GetCRTCOffset(address, 0);
+            u8 planes[VIDEO_PLANE_COUNT];
+
+            for (int plane = 0; plane < VIDEO_PLANE_COUNT; plane++)
+                planes[plane] = video->PeekPlane(plane, offset);
+
+            if (buffer == Emu_Debug_Buffer_256)
+            {
+                for (int x = 0; x < 4; x++)
+                    line[column * 4 + x] = debug_rgba(video->GetDACColor(planes[x]));
+            }
+            else if (buffer == Emu_Debug_Buffer_Planar)
+            {
+                for (int x = 0; x < 8; x++)
+                {
+                    int bit = 7 - x;
+                    int value = ((planes[0] >> bit) & 1) | (((planes[1] >> bit) & 1) << 1) |
+                        (((planes[2] >> bit) & 1) << 2) | (((planes[3] >> bit) & 1) << 3);
+                    line[column * 8 + x] = debug_rgba(video->GetAttributeColor(value));
+                }
+            }
+            else
+            {
+                for (int x = 0; x < 8; x++)
+                    line[column * 8 + x] = ((planes[buffer] >> (7 - x)) & 0x01) != 0 ? 0xFFFFFFFFU : 0xFF000000U;
+            }
+        }
+    }
+}
+
+void emu_debug_update(void)
+{
+    static u64 last_key = 0;
+
+    if (!config_debug.show_vram_viewer || emu_is_empty())
+    {
+        last_key = 0;
+        return;
+    }
+
+    u64 key = geardox->GetMemory()->GetDebugSnapshotId() * 1099511628211ULL;
+    key = (key ^ geardox->GetScheduler()->GetClocks()) * 1099511628211ULL;
+    key = (key ^ (u64)config_debug.vram_viewer_tab) * 1099511628211ULL;
+    key = (key ^ (u64)config_debug.vram_viewer_pitch) * 1099511628211ULL;
+
+    if (key == last_key)
+        return;
+
+    last_key = key;
+    emu_debug_decode_buffer(config_debug.vram_viewer_tab, config_debug.vram_viewer_pitch, emu_debug_framebuffer,
+        emu_debug_framebuffer_info);
+}
+
+int emu_get_debug_buffer_png(int buffer, int pitch, unsigned char** out_buffer, Emu_Debug_Buffer_Info& info)
+{
+    if (!IsValidPointer(out_buffer) || emu_is_empty())
+        return 0;
+
+    *out_buffer = NULL;
+
+    u8* pixels = new (std::nothrow) u8[(size_t)EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT * 4];
+
+    if (!IsValidPointer(pixels))
+        return 0;
+
+    emu_debug_decode_buffer(buffer, pitch, pixels, info);
+
+    int size = 0;
+    *out_buffer = stbi_write_png_to_mem(pixels, EMU_DEBUG_FRAMEBUFFER_WIDTH * 4, info.width, info.height, 4, &size);
+    SafeDeleteArray(pixels);
+    return size;
 }
 
 int emu_get_screenshot_png(unsigned char** out_buffer)

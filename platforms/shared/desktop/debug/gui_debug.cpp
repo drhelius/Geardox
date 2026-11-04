@@ -33,12 +33,14 @@
 #include "gui_debug_i386.h"
 #include "gui_debug_x87.h"
 #include "gui_debug_i386_tables.h"
+#include "gui_debug_framebuffers.h"
 #include "gui_debug_input.h"
 #include "gui_debug_memory.h"
 #include "gui_debug_profiler.h"
 #include "gui_debug_rewind.h"
 #include "gui_debug_system.h"
 #include "gui_debug_trace_logger.h"
+#include "gui_debug_video.h"
 
 static const char* GDOXDEBUG_MAGIC = "GDOXDBG1";
 static const int GDOXDEBUG_MAGIC_SIZE = 8;
@@ -148,6 +150,18 @@ void gui_debug_windows(void)
 
         if (config_debug.show_keyboard)
             gui_debug_window_keyboard();
+
+        if (config_debug.show_vga)
+            gui_debug_window_vga();
+
+        if (config_debug.show_vga_registers)
+            gui_debug_window_vga_registers();
+
+        if (config_debug.show_palettes)
+            gui_debug_window_palettes();
+
+        if (config_debug.show_vram_viewer)
+            gui_debug_window_vram_viewer();
 
         if (config_debug.show_sound_control)
             gui_debug_window_sound_control();

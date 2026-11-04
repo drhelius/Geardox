@@ -2070,6 +2070,15 @@ static void menu_debug(void)
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Video", config_debug.debug))
+        {
+            ImGui::MenuItem("Show VGA", "", &config_debug.show_vga);
+            ImGui::MenuItem("Show VGA Registers", "", &config_debug.show_vga_registers);
+            ImGui::MenuItem("Show Palettes", "", &config_debug.show_palettes);
+            ImGui::MenuItem("Show VRAM Viewer", "", &config_debug.show_vram_viewer);
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Input", config_debug.debug))
         {
             ImGui::MenuItem("Show Game Ports", "", &config_debug.show_game_ports);
