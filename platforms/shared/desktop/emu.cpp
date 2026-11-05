@@ -104,6 +104,8 @@ static void load_cmos(int model);
 static void save_cmos(void);
 static void sync_cmos(void);
 static void notify_machine(void);
+static bool init_debug(void);
+static void destroy_debug(void);
 static Emu_Pad_Source pad_sources[GDOX_MAX_GAMEPADS];
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
 static void stop_physical_cdrom_after_error(void);
@@ -113,28 +115,33 @@ bool emu_init(void)
 {
     size_t frame_buffer_size = (size_t)GDOX_MAX_FRAME_BUFFER_WIDTH * GDOX_MAX_FRAME_BUFFER_HEIGHT * 4;
     emu_frame_buffer = new (std::nothrow) u8[frame_buffer_size];
-    emu_debug_framebuffer = new (std::nothrow) u8[(size_t)EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT * 4];
     audio_buffer = new (std::nothrow) s16[GDOX_AUDIO_BUFFER_SIZE];
 
-    if (!IsValidPointer(emu_frame_buffer) || !IsValidPointer(emu_debug_framebuffer) || !IsValidPointer(audio_buffer))
+    if (!IsValidPointer(emu_frame_buffer) || !IsValidPointer(audio_buffer))
     {
         Error("Unable to allocate emulator buffers");
         SafeDeleteArray(emu_frame_buffer);
-        SafeDeleteArray(emu_debug_framebuffer);
         SafeDeleteArray(audio_buffer);
         return false;
     }
 
-    memset(emu_debug_framebuffer, 0, (size_t)EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT * 4);
     reset_buffers();
+
+    if (!init_debug())
+    {
+        Error("Unable to allocate debugger buffers");
+        SafeDeleteArray(emu_frame_buffer);
+        SafeDeleteArray(audio_buffer);
+        return false;
+    }
 
     geardox = new (std::nothrow) GeardoxCore();
 
     if (!IsValidPointer(geardox))
     {
         Error("Unable to allocate Geardox core");
+        destroy_debug();
         SafeDeleteArray(emu_frame_buffer);
-        SafeDeleteArray(emu_debug_framebuffer);
         SafeDeleteArray(audio_buffer);
         return false;
     }
@@ -165,9 +172,9 @@ bool emu_init(void)
         rewind_destroy();
         sound_queue_destroy();
         SafeDelete(geardox);
+        destroy_debug();
         SafeDeleteArray(audio_buffer);
         SafeDeleteArray(emu_frame_buffer);
-        SafeDeleteArray(emu_debug_framebuffer);
         return false;
     }
 
@@ -204,9 +211,9 @@ void emu_destroy(void)
     SafeDelete(mcp_manager);
     sound_queue_destroy();
     SafeDelete(geardox);
+    destroy_debug();
     SafeDeleteArray(audio_buffer);
     SafeDeleteArray(emu_frame_buffer);
-    SafeDeleteArray(emu_debug_framebuffer);
     SafeDeleteArray(rgba_frame_buffer);
 
     for (int i = 0; i < 5; i++)
@@ -1211,6 +1218,23 @@ bool emu_save_screenshot(const char* file_path)
     return result != 0;
 }
 
+static bool init_debug(void)
+{
+    size_t size = (size_t)EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT * 4;
+    emu_debug_framebuffer = new (std::nothrow) u8[size];
+
+    if (!IsValidPointer(emu_debug_framebuffer))
+        return false;
+
+    memset(emu_debug_framebuffer, 0, size);
+    return true;
+}
+
+static void destroy_debug(void)
+{
+    SafeDeleteArray(emu_debug_framebuffer);
+}
+
 static u32 debug_rgba(u32 color)
 {
     return 0xFF000000U | ((color & 0xFF) << 16) | (color & 0xFF00) | ((color >> 16) & 0xFF);
@@ -1792,7 +1816,10 @@ static void save_cmos(void)
     const u8* cmos = geardox->GetRTC()->GetCMOS();
     char path[GDOX_MAX_PATH];
 
-    if (memcmp(cmos, cmos_saved, GDOX_CMOS_SIZE) == 0 || !get_cmos_path(cmos_model, path, sizeof(path)))
+    u32 size = GDOX_CMOS_SIZE - k_mc146818_ram_start;
+
+    if (memcmp(cmos + k_mc146818_ram_start, cmos_saved + k_mc146818_ram_start, size) == 0 ||
+        !get_cmos_path(cmos_model, path, sizeof(path)))
         return;
 
     u8 data[GDOX_CMOS_FILE_SIZE];

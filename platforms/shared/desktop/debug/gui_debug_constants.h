@@ -282,6 +282,17 @@ static const char* const k_debug_dma_service_names[4] =
     "DEMAND", "SINGLE", "BLOCK", "CASCADE"
 };
 
+static const char* const k_debug_rtc_register_names[14] =
+{
+    "SEC", "SEC ALARM", "MIN", "MIN ALARM", "HOUR", "HOUR ALARM", "WEEKDAY", "DAY", "MONTH", "YEAR", "STATUS A", "STATUS B",
+    "STATUS C", "STATUS D"
+};
+
+static const char* const k_debug_weekday_names[7] =
+{
+    "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
+};
+
 static const char* const k_debug_sequencer_register_names[5] =
 {
     "RESET", "CLOCKING", "MAP MASK", "CHAR MAP", "MEM MODE"

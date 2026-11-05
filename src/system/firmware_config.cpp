@@ -58,16 +58,6 @@ void FirmwareConfig::Reset()
     m_state.offset = 0;
 }
 
-void FirmwareConfig::SetEnabled(bool enabled)
-{
-    m_enabled = enabled;
-}
-
-bool FirmwareConfig::IsEnabled() const
-{
-    return m_enabled;
-}
-
 void FirmwareConfig::SetVGABIOS(const u8* data, u32 size)
 {
     m_vga_bios = data;
@@ -82,11 +72,6 @@ void FirmwareConfig::SetBootMenu(bool show, u16 wait_ms)
     m_menu_wait[0] = (u8)wait_ms;
     m_menu_wait[1] = (u8)(wait_ms >> 8);
     BuildDirectory();
-}
-
-bool FirmwareConfig::Decodes(u16 port) const
-{
-    return m_enabled && (port == k_firmware_config_selector_port || port == k_firmware_config_data_port);
 }
 
 u8 FirmwareConfig::Read(u16 port)
@@ -125,11 +110,6 @@ void FirmwareConfig::WriteSelector(u16 selector)
 {
     m_state.selector = selector;
     m_state.offset = 0;
-}
-
-FirmwareConfig::FirmwareConfig_State* FirmwareConfig::GetState()
-{
-    return &m_state;
 }
 
 bool FirmwareConfig::GetEntry(u16 selector, const u8*& data, u32& size) const

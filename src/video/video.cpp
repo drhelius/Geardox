@@ -209,6 +209,8 @@ u8 Video::Peek(u16 port, u64 clocks) const
 
 u8 Video::Read(u16 port, u64 clocks)
 {
+    Synchronize(clocks);
+
     switch (port)
     {
         case 0x3C9:
@@ -238,13 +240,15 @@ u64 Video::GetSyncStableUntil(u64 clocks) const
 
 void Video::Write(u16 port, u8 value, u64 clocks)
 {
+    Synchronize(clocks);
+
     switch (port)
     {
         case 0x3C0:
             WriteAttribute(value, clocks);
             break;
         case 0x3C2:
-            WriteMisc(value, clocks);
+            WriteMisc(value);
             break;
         case 0x3C3:
             m_state.vga_enable = value & 0x01;
@@ -300,48 +304,9 @@ void Video::Write(u16 port, u8 value, u64 clocks)
         default:
             break;
     }
-}
 
-// A write from the debugger: it takes the path of a CPU write and leaves the indexes as the program had them
-void Video::WriteRegister(Video_Register_File file, u8 index, u8 value, u64 clocks)
-{
-    u8 saved;
-
-    switch (file)
-    {
-        case VIDEO_REGISTERS_SEQUENCER:
-            saved = m_state.sequencer_index;
-            m_state.sequencer_index = index;
-            WriteSequencer(value, clocks);
-            m_state.sequencer_index = saved;
-            break;
-        case VIDEO_REGISTERS_GRAPHICS:
-            saved = m_state.graphics_index;
-            m_state.graphics_index = index;
-            WriteGraphics(value, clocks);
-            m_state.graphics_index = saved;
-            break;
-        case VIDEO_REGISTERS_ATTRIBUTE:
-        {
-            bool data = m_state.attribute_data;
-            saved = m_state.attribute_index;
-            m_state.attribute_index = (saved & 0x20) | (index & 0x1F);
-            m_state.attribute_data = true;
-            WriteAttribute(value, clocks);
-            m_state.attribute_index = saved;
-            m_state.attribute_data = data;
-            break;
-        }
-        case VIDEO_REGISTERS_CRTC:
-            saved = m_state.crtc_index;
-            m_state.crtc_index = index;
-            WriteCRTC(value, clocks);
-            m_state.crtc_index = saved;
-            break;
-        default:
-            WriteMisc(value, clocks);
-            break;
-    }
+    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_VIDEO)))
+        TraceWrite(port, value, clocks);
 }
 
 // A second write with the flip-flop in data state is data, the index keeps its palette access bit
@@ -388,7 +353,6 @@ void Video::WriteAttribute(u8 value, u64 clocks)
 
     RenderLineToBeam(clocks);
     m_state.attribute[index] = value;
-    TraceRegister(TRACE_VIDEO_OUTPUT, 2, index, value, clocks);
 
     if (index != k_video_ar_panning && index != k_video_ar_overscan)
         UpdateAttributeColors();
@@ -408,7 +372,6 @@ void Video::WriteSequencer(u8 value, u64 clocks)
 
     RenderLineToBeam(clocks);
     m_state.sequencer[index] = value;
-    TraceRegister(TRACE_VIDEO_OUTPUT, 0, index, value, clocks);
 
     if (index == k_video_sr_clocking)
         UpdateRunning(clocks);
@@ -432,7 +395,6 @@ void Video::WriteGraphics(u8 value, u64 clocks)
         RenderLineToBeam(clocks);
 
     m_state.graphics[index] = value;
-    TraceRegister(TRACE_VIDEO_OUTPUT, 1, index, value, clocks);
     UpdateMemoryAccess();
 }
 
@@ -458,7 +420,6 @@ void Video::WriteCRTC(u8 value, u64 clocks)
 
     RenderLineToBeam(clocks);
     m_state.crtc[index] = value;
-    TraceRegister(TRACE_VIDEO_CRTC, 0, index, value, clocks);
 
     switch (index)
     {
@@ -471,7 +432,10 @@ void Video::WriteCRTC(u8 value, u64 clocks)
             if ((value & 0x10) == 0 && m_state.vertical_interrupt)
             {
                 m_state.vertical_interrupt = false;
-                TraceEvent(TRACE_VIDEO_VSYNC_CLEAR, 0, 0, 0, 0, m_state.frame_count, clocks);
+
+                if (unlikely(IsValidPointer(m_trace_logger) &&
+                    m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_VSYNC_CLEAR)))
+                    TraceEvent(TRACE_VIDEO_VSYNC_CLEAR, 0, 0, 0, 0, m_state.frame_count, clocks);
             }
 
             UpdateIRQ();
@@ -481,13 +445,12 @@ void Video::WriteCRTC(u8 value, u64 clocks)
     }
 }
 
-void Video::WriteMisc(u8 value, u64 clocks)
+void Video::WriteMisc(u8 value)
 {
     if (value == m_state.misc)
         return;
 
     m_state.misc = value;
-    TraceRegister(TRACE_VIDEO_OUTPUT, 3, 0, value, clocks);
     UpdateMemoryAccess();
 }
 
@@ -498,8 +461,6 @@ void Video::WriteDAC(u8 value, u64 clocks)
     u8 index = m_state.dac_write_index;
 
     m_state.dac_cache[component] = value & 0x3F;
-    TraceEvent(TRACE_VIDEO_PALETTE, index, component, value & 0x3F, 0, ((u32)m_state.dac_cache[0] << 16) |
-        ((u32)m_state.dac_cache[1] << 8) | m_state.dac_cache[2], clocks);
 
     if (component < 2)
     {
@@ -550,7 +511,8 @@ void Video::RunNextEvent()
             UpdateIRQ();
         }
 
-        TraceEvent(TRACE_VIDEO_VSYNC, 0, 0, 0, 0, m_state.frame_count, clocks);
+        if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_VSYNC)))
+            TraceEvent(TRACE_VIDEO_VSYNC, 0, 0, 0, 0, m_state.frame_count, clocks);
     }
 
     if (line == m_state.ready_line)
@@ -808,14 +770,46 @@ void Video::UpdateColorCaches()
     UpdateAttributeColors();
 }
 
-void Video::TraceRegister(u8 event, u8 bank, u8 reg, u8 value, u64 clocks)
+// Index writes only select, so the events are the data writes with what the register holds afterwards
+void Video::TraceWrite(u16 port, u8 value, u64 clocks)
 {
-    TraceEvent(event, reg, value, value, bank, 0, clocks);
+    switch (port)
+    {
+        case 0x3C0:
+            if (!m_state.attribute_data)
+                TraceEvent(TRACE_VIDEO_OUTPUT, m_state.attribute_index & 0x1F, value, value, 2, 0, clocks);
+            break;
+        case 0x3C2:
+            TraceEvent(TRACE_VIDEO_OUTPUT, 0, value, value, 3, 0, clocks);
+            break;
+        case 0x3C5:
+            TraceEvent(TRACE_VIDEO_OUTPUT, m_state.sequencer_index, value, value, 0, 0, clocks);
+            break;
+        case 0x3C9:
+        {
+            const u8* color = m_state.dac_cache;
+            u8 component = (m_state.dac_component + 2) % 3;
+            u8 index = m_state.dac_write_index - (component == 2 ? 1 : 0);
+            u32 rgb = ((u32)color[0] << 16) | ((u32)color[1] << 8) | color[2];
+            TraceEvent(TRACE_VIDEO_PALETTE, index, component, value, 0, rgb, clocks);
+            break;
+        }
+        case 0x3CF:
+            TraceEvent(TRACE_VIDEO_OUTPUT, m_state.graphics_index, value, value, 1, 0, clocks);
+            break;
+        case 0x3B5:
+        case 0x3D5:
+            if (IsCRTCBlockSelected(port))
+                TraceEvent(TRACE_VIDEO_CRTC, m_state.crtc_index, value, value, 0, 0, clocks);
+            break;
+        default:
+            break;
+    }
 }
 
 void Video::TraceEvent(u8 event, u8 reg, u16 value, u8 raw, u8 bank, u32 param, u64 clocks)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_VIDEO, event))
+    if (!m_trace_logger->IsEventEnabled(TRACE_VIDEO, event))
         return;
 
     GDOX_Trace_Entry entry = {};
@@ -916,4 +910,5 @@ void Video::SanitizeState()
     UpdateNextEvent();
     UpdateIRQ();
     UpdateMemoryAccess();
+    UpdateVRAMMapping();
 }

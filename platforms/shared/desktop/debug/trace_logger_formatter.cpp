@@ -1068,6 +1068,11 @@ static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t si
         case TRACE_SYSTEM_RTC_READ:
             format_event(buffer, size, "SYSTEM", "RTC READ", "$%02X -> $%02X", entry.system.address, value);
             break;
+        case TRACE_SYSTEM_RTC_IRQ:
+            format_event(buffer, size, "SYSTEM", "RTC IRQ", "IRQ8  C:$%02X %s%s%s", value,
+                (value & 0x40) != 0 ? "PERIODIC " : "", (value & 0x20) != 0 ? "ALARM " : "",
+                (value & 0x10) != 0 ? "UPDATE" : "");
+            break;
         default:
             format_event(buffer, size, "SYSTEM", "RTC WRITE", "$%02X <- $%02X", entry.system.address, value);
             break;

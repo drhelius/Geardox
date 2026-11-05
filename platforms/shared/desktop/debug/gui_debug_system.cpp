@@ -23,6 +23,7 @@
 #include "imgui.h"
 #include "geardox.h"
 #include "system/io.h"
+#include "system/mc146818.h"
 #include "system/pic.h"
 #include "system/pit.h"
 #include "system/scheduler.h"
@@ -35,6 +36,7 @@
 #include "../utils.h"
 #include "gui_debug_constants.h"
 #include "gui_debug_i386_tables.h"
+#include "gui_debug_widgets.h"
 
 static const char* const k_pit_mode_short_names[6] =
 {
@@ -46,6 +48,8 @@ static void draw_grid_label(const char* label);
 static void draw_flag(const char* label, bool on);
 static void draw_vector_tooltip(u8 vector);
 static void draw_pic_column(const I8259::I8259_State* chip, bool master, int row);
+static void draw_alarm_byte(u8 value);
+static void rtc_write_callback(u16 address, u8 value, void* user_data);
 
 void gui_debug_window_pic(void)
 {
@@ -360,6 +364,127 @@ void gui_debug_window_system_control(void)
     ImGui::PopStyleVar();
 }
 
+void gui_debug_window_rtc(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::SetNextWindowPos(ImVec2(135, 245), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(340, 470), ImGuiCond_FirstUseEver);
+    ImGui::Begin("RTC", &config_debug.show_rtc);
+
+    ImGui::PushFont(gui_default_font);
+
+    GeardoxCore* core = emu_get_core();
+    u64 clocks = core->GetScheduler()->GetClocks();
+    MC146818 rtc(*core->GetRTC());
+    rtc.Synchronize(clocks);
+    MC146818::MC146818_State* state = rtc.GetState();
+    const u8* ram = state->ram;
+    u8 status_b = ram[k_mc146818_status_b];
+    u8 status_c = rtc.GetStatusC();
+    u32 period = rtc.GetPeriodTicks();
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+    static const int widths[2] = { 9, 26 };
+    float space = ImGui::CalcTextSize(" ").x;
+
+    ImGui::TextColored(cyan, "DATE AND TIME"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##rtc_date", 2, flags))
+    {
+        setup_fixed_columns(widths, 2);
+
+        ImGui::TableNextRow();
+        draw_grid_label("DATE");
+        ImGui::TextColored(white, "%02d%02d-%02d-%02d", state->century, state->year, state->month, state->day);
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(blue, "%s", k_debug_weekday_names[(state->weekday + 6) % 7]);
+
+        ImGui::TableNextRow();
+        draw_grid_label("TIME");
+        ImGui::TextColored(white, "%02d:%02d:%02d", state->hours, state->minutes, state->seconds);
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(blue, "%s", (status_b & k_mc146818_b_24_hour) != 0 ? "24H" : "12H");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(blue, "%s", (status_b & k_mc146818_b_binary) != 0 ? "BINARY" : "BCD");
+
+        ImGui::TableNextRow();
+        draw_grid_label("ALARM");
+        draw_alarm_byte(ram[k_mc146818_hours_alarm]);
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::TextColored(gray, ":");
+        ImGui::SameLine(0.0f, 0.0f);
+        draw_alarm_byte(ram[k_mc146818_minutes_alarm]);
+        ImGui::SameLine(0.0f, 0.0f);
+        ImGui::TextColored(gray, ":");
+        ImGui::SameLine(0.0f, 0.0f);
+        draw_alarm_byte(ram[k_mc146818_seconds_alarm]);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "STATUS"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##rtc_status", 2, flags))
+    {
+        setup_fixed_columns(widths, 2);
+
+        ImGui::TableNextRow();
+        draw_grid_label("DIVIDER");
+        bool running = rtc.IsDividerRunning();
+        ImGui::TextColored(running ? green : gray, "%s", running ? "RUNNING" : "STOPPED");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(rtc.IsUpdating(clocks) ? yellow : gray, "UIP");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status_b & k_mc146818_b_set) != 0 ? yellow : gray, "SET");
+
+        ImGui::TableNextRow();
+        draw_grid_label("PERIODIC");
+
+        if (period != 0)
+            ImGui::TextColored(orange, "%.2f Hz", (double)k_mc146818_chain_rate / period);
+        else
+            ImGui::TextColored(gray, "OFF");
+
+        ImGui::TableNextRow();
+        draw_grid_label("ENABLED");
+        ImGui::TextColored((status_b & k_mc146818_b_periodic) != 0 ? green : gray, "PIE");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status_b & k_mc146818_b_alarm) != 0 ? green : gray, "AIE");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status_b & k_mc146818_b_update) != 0 ? green : gray, "UIE");
+
+        ImGui::TableNextRow();
+        draw_grid_label("FLAGS");
+        ImGui::TextColored((status_c & k_mc146818_c_periodic) != 0 ? yellow : gray, "PF ");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status_c & k_mc146818_c_alarm) != 0 ? yellow : gray, "AF ");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status_c & k_mc146818_c_update) != 0 ? yellow : gray, "UF ");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status_c & k_mc146818_c_irq) != 0 ? yellow : gray, "IRQ8");
+
+        ImGui::TableNextRow();
+        draw_grid_label("INDEX");
+        ImGui::TextColored(white, "$%02X", state->index);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "REGISTERS"); ImGui::Separator();
+
+    for (int i = 0; i <= k_mc146818_status_d; i++)
+    {
+        ImGui::TextColored(cyan, "%02X", i); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(violet, "%-10s", k_debug_rtc_register_names[i]); ImGui::SameLine(0.0f, space);
+        EditableRegister8(NULL, NULL, (u16)i, i == k_mc146818_status_c ? status_c : ram[i], rtc_write_callback,
+            core->GetRTC(), EditableRegisterFlags_ShowBinary);
+    }
+
+    ImGui::PopFont();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
 void gui_debug_window_bios_log(void)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
@@ -402,6 +527,25 @@ void gui_debug_window_bios_log(void)
 
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+static void draw_alarm_byte(u8 value)
+{
+    if ((value & k_mc146818_alarm_any) == k_mc146818_alarm_any)
+        ImGui::TextColored(gray, "**");
+    else
+        ImGui::TextColored(white, "%02X", value);
+}
+
+static void rtc_write_callback(u16 address, u8 value, void* user_data)
+{
+    MC146818* rtc = (MC146818*)user_data;
+    u64 clocks = emu_get_core()->GetScheduler()->GetClocks();
+    u8 saved = rtc->GetIndex();
+
+    rtc->Write(0x0070, (u8)address, clocks);
+    rtc->Write(0x0071, value, clocks);
+    rtc->Write(0x0070, saved, clocks);
 }
 
 static void setup_fixed_columns(const int* widths, int count)

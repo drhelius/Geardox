@@ -75,4 +75,6 @@ private:
 static const u16 k_firmware_config_selector_port = 0x0510;
 static const u16 k_firmware_config_data_port = 0x0511;
 
+#include "firmware_config_inline.h"
+
 #endif /* FIRMWARE_CONFIG_H */

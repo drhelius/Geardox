@@ -1340,6 +1340,49 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_rtc_status"},
+        {"title", "Get RTC Status"},
+        {"description", "Read the MC146818 clock: date, time, modes, alarm, periodic rate, interrupt enables and flags, "
+            "and the registers."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_keyboard_status"},
+        {"title", "Get Keyboard Status"},
+        {"description", "Read the 8042 keyboard controller and the MF2 keyboard: status, command byte, input and output "
+            "ports, output buffer and its source, A20 sources, scan code set, translation, LEDs, typematic, queued bytes "
+            "and held keys."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_bios_log"},
+        {"title", "Get BIOS Log"},
+        {"description", "Read what the BIOS wrote to the debug console at port 0402: SeaBIOS's POST messages since power "
+            "on, the last bytes when max_bytes is given."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"max_bytes", {{"type", "integer"}, {"description", "Last bytes to return, 1-65536. Default 65536."}}}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    // Video tools
+    tools.push_back({
         {"name", "get_crtc_status"},
         {"title", "Get CRTC Status"},
         {"description", "Read the VGA CRTC: mode, timing, frame size, beam position, scanout counters, cursor and vertical "
@@ -1471,36 +1514,6 @@ json McpServer::BuildToolList()
         }}
     });
 
-    tools.push_back({
-        {"name", "get_keyboard_status"},
-        {"title", "Get Keyboard Status"},
-        {"description", "Read the 8042 keyboard controller and the MF2 keyboard: status, command byte, input and output "
-            "ports, output buffer and its source, A20 sources, scan code set, translation, LEDs, typematic, queued bytes "
-            "and held keys."},
-        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
-        {"inputSchema", {
-            {"type", "object"},
-            {"properties", json::object()},
-            {"additionalProperties", false}
-        }}
-    });
-
-    tools.push_back({
-        {"name", "get_bios_log"},
-        {"title", "Get BIOS Log"},
-        {"description", "Read what the BIOS wrote to the debug console at port 0402: SeaBIOS's POST messages since power "
-            "on, the last bytes when max_bytes is given."},
-        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
-        {"inputSchema", {
-            {"type", "object"},
-            {"properties", {
-                {"max_bytes", {{"type", "integer"}, {"description", "Last bytes to return, 1-65536. Default 65536."}}}
-            }},
-            {"additionalProperties", false}
-        }}
-    });
-
-    // Video tools
     // Audio tools
     tools.push_back({
         {"name", "set_audio_mute"},
@@ -3260,6 +3273,19 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetSystemStatus();
     }
+    else if (normalizedTool == "get_rtc_status")
+    {
+        return m_debugAdapter.GetRTCStatus();
+    }
+    else if (normalizedTool == "get_keyboard_status")
+    {
+        return m_debugAdapter.GetKeyboardStatus();
+    }
+    else if (normalizedTool == "get_bios_log")
+    {
+        return m_debugAdapter.GetBiosLog(arguments.value("max_bytes", DEBUG_CONSOLE_SIZE));
+    }
+    // Video hardware
     else if (normalizedTool == "get_crtc_status")
     {
         return m_debugAdapter.GetCRTCStatus();
@@ -3300,14 +3326,6 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "get_text_screen")
     {
         return m_debugAdapter.GetTextScreen(arguments.value("attributes", false));
-    }
-    else if (normalizedTool == "get_keyboard_status")
-    {
-        return m_debugAdapter.GetKeyboardStatus();
-    }
-    else if (normalizedTool == "get_bios_log")
-    {
-        return m_debugAdapter.GetBiosLog(arguments.value("max_bytes", DEBUG_CONSOLE_SIZE));
     }
     // Audio hardware
     else if (normalizedTool == "set_audio_mute")

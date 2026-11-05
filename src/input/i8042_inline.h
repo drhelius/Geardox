@@ -23,6 +23,12 @@
 
 #include "i8042.h"
 
+INLINE void I8042::HandleEvent(u64 clocks)
+{
+    Synchronize(clocks);
+    UpdateNextEvent();
+}
+
 INLINE u8 I8042::Peek(u16 port) const
 {
     return port == 0x0064 ? GetStatus() : m_state.output_buffer;

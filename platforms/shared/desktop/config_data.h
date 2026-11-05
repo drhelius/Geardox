@@ -308,6 +308,7 @@ struct config_Debug
     bool show_pic;
     bool show_pit;
     bool show_system_control;
+    bool show_rtc;
     bool show_bios_log;
     bool show_game_ports;
     bool show_keyboard;

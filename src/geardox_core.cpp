@@ -230,7 +230,7 @@ void GeardoxCore::Init()
     m_system_control->Init(m_memory, m_pic, m_pit);
     m_keyboard->Init();
     m_i8042->Init(m_pic, m_scheduler, m_system_control, m_keyboard);
-    m_rtc->Init();
+    m_rtc->Init(m_pic, m_scheduler);
     m_firmware_config->Init();
     m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
@@ -708,6 +708,9 @@ INLINE void GeardoxCore::DispatchEvents()
                 break;
             case SCHEDULER_EVENT_VIDEO:
                 m_video->HandleEvent(clocks);
+                break;
+            case SCHEDULER_EVENT_RTC:
+                m_rtc->HandleEvent(clocks);
                 break;
             case SCHEDULER_EVENT_KEYBOARD:
                 m_i8042->HandleEvent(clocks);
@@ -1862,13 +1865,13 @@ void GeardoxCore::Reset()
         m_system_control->Reset();
 
     if (IsValidPointer(m_keyboard))
-        m_keyboard->Reset(0);
+        m_keyboard->Reset(m_scheduler->GetClocks());
 
     if (IsValidPointer(m_i8042))
         m_i8042->Reset();
 
     if (IsValidPointer(m_rtc))
-        m_rtc->Reset(0);
+        m_rtc->Reset(m_scheduler->GetClocks());
 
     if (IsValidPointer(m_firmware_config))
         m_firmware_config->Reset();
@@ -2164,8 +2167,27 @@ void GeardoxCore::InitMemoryMap()
         map.address_mask - rom_size + 1, rom_flags))
         Error("Unable to map the system BIOS");
 
-    if (!m_video->RegisterMemoryRegions(map.conventional_size))
-        Error("Unable to map the video memory");
+    u32 video_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_VIDEO;
+
+    if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "VGA Window", k_video_max_window_size,
+        map.conventional_size, video_flags | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_MAPPED |
+        GDOX_DEBUG_REGION_OVERLAY, m_video, Video::ReadWindowCallback, Video::WriteWindowCallback,
+        Video::PeekWindowCallback) ||
+        !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::WriteWindow16Callback,
+        Video::WriteWindow32Callback) ||
+        !m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::ReadWindow16Callback,
+        Video::ReadWindow32Callback))
+        Error("Unable to map the VGA window");
+
+    if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_0, "VGA Plane 0", VIDEO_PLANE_SIZE, 0, video_flags,
+        m_video, Video::PeekPlane0Callback, Video::PokePlane0Callback, Video::PeekPlane0Callback) ||
+        !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_1, "VGA Plane 1", VIDEO_PLANE_SIZE, 0, video_flags,
+        m_video, Video::PeekPlane1Callback, Video::PokePlane1Callback, Video::PeekPlane1Callback) ||
+        !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_2, "VGA Plane 2", VIDEO_PLANE_SIZE, 0, video_flags,
+        m_video, Video::PeekPlane2Callback, Video::PokePlane2Callback, Video::PeekPlane2Callback) ||
+        !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_3, "VGA Plane 3", VIDEO_PLANE_SIZE, 0, video_flags,
+        m_video, Video::PeekPlane3Callback, Video::PokePlane3Callback, Video::PeekPlane3Callback))
+        Error("Unable to register the VGA planes");
 
     if (!seabios)
     {
@@ -2198,10 +2220,12 @@ void GeardoxCore::InitMemoryMap()
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_CMOS, "CMOS RAM", cmos, cmos, GDOX_CMOS_SIZE, 0,
         GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE))
         Error("Unable to register CMOS RAM");
+
+    m_video->UpdateVRAMMapping();
 }
 
 // SeaBIOS has no setup screen, so the board writes the memory size, equipment and boot order at power on
-// Other BIOSes keep the CMOS they saved
+// The rest of the CMOS stays as programs left it, other BIOSes keep all of it
 void GeardoxCore::InitCMOS()
 {
     if (!IsValidPointer(m_firmware) || !m_firmware->IsReady() ||
@@ -2226,7 +2250,6 @@ void GeardoxCore::InitCMOS()
         order[2] = 2;
     }
 
-    m_rtc->ResetCMOS();
     m_rtc->WriteRAM(0x14, m_machine_config.fpu ? 0x02 : 0x00);
     m_rtc->WriteRAM(0x15, 0x80);
     m_rtc->WriteRAM(0x16, 0x02);

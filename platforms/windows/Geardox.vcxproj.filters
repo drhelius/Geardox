@@ -455,10 +455,13 @@
     <ClInclude Include="..\..\src\system\pit.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pit_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\mc146818.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\mc146818_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\firmware_config.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\firmware_config_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\debug_console.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\debug_console_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\machine_profiles.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\scheduler.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\scheduler_inline.h"><Filter>src</Filter></ClInclude>

@@ -20,6 +20,8 @@
 
 #include <time.h>
 #include "mc146818.h"
+#include "pic.h"
+#include "scheduler.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
 
@@ -27,6 +29,8 @@ static const u8 k_mc146818_days[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 
 
 MC146818::MC146818()
 {
+    InitPointer(m_pic);
+    InitPointer(m_scheduler);
     InitPointer(m_trace_logger);
     m_start_time = 0;
     memset(&m_state, 0, sizeof(m_state));
@@ -36,9 +40,11 @@ MC146818::~MC146818()
 {
 }
 
-void MC146818::Init()
+void MC146818::Init(PIC* pic, Scheduler* scheduler)
 {
-    Reset(0);
+    m_pic = pic;
+    m_scheduler = scheduler;
+    Reset(m_scheduler->GetClocks());
 }
 
 void MC146818::SetTraceLogger(TraceLogger* trace_logger)
@@ -60,7 +66,11 @@ void MC146818::Reset(u64 clocks)
     m_state.ram[k_mc146818_status_b] = k_mc146818_b_24_hour;
     m_state.ram[k_mc146818_status_c] = 0x00;
     m_state.ram[k_mc146818_status_d] = k_mc146818_d_vrt;
+    m_state.irq = false;
+    m_state.divider_clocks = clocks;
     m_state.update_clocks = clocks + k_mc146818_second_clocks;
+    m_state.update_end_clocks = GDOX_NO_EVENT;
+    UpdatePeriodic(clocks);
 
     time_t now = m_start_time != 0 ? (time_t)m_start_time : time(NULL);
     struct tm local;
@@ -89,11 +99,8 @@ void MC146818::Reset(u64 clocks)
     }
 
     UpdateClockRegisters();
-}
-
-bool MC146818::Decodes(u16 port) const
-{
-    return port == 0x0070 || port == 0x0071;
+    UpdateIRQ();
+    UpdateNextEvent();
 }
 
 u8 MC146818::Read(u16 port, u64 clocks)
@@ -104,9 +111,13 @@ u8 MC146818::Read(u16 port, u64 clocks)
     Synchronize(clocks);
     u8 value = Peek(port, clocks);
 
-    // Reading status C clears its flags
+    // Reading status C clears its flags and drops the line
     if (m_state.index == k_mc146818_status_c)
+    {
         m_state.ram[k_mc146818_status_c] = 0x00;
+        UpdateIRQ();
+        UpdateNextEvent();
+    }
 
     if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_READ)))
         TraceEvent(TRACE_SYSTEM_RTC_READ, value);
@@ -120,21 +131,21 @@ u8 MC146818::Peek(u16 port, u64 clocks) const
     if (port != 0x0071)
         return 0xFF;
 
-    if (m_state.index > k_mc146818_status_d || clocks < m_state.update_clocks || !IsCounting())
+    if (clocks >= GetNextChange())
     {
-        u8 value = m_state.ram[m_state.index];
-
-        if (m_state.index == k_mc146818_status_a && IsCounting() &&
-            clocks + k_mc146818_uip_clocks >= m_state.update_clocks)
-            value |= k_mc146818_a_uip;
-
-        return value;
+        MC146818 synchronized(*this);
+        InitPointer(synchronized.m_trace_logger);
+        synchronized.Synchronize(clocks);
+        return synchronized.Peek(port, clocks);
     }
 
-    MC146818 synchronized(*this);
-    InitPointer(synchronized.m_trace_logger);
-    synchronized.Synchronize(clocks);
-    return synchronized.Peek(port, clocks);
+    if (m_state.index == k_mc146818_status_c)
+        return GetStatusC();
+
+    if (m_state.index == k_mc146818_status_a && IsUpdating(clocks))
+        return m_state.ram[k_mc146818_status_a] | k_mc146818_a_uip;
+
+    return m_state.ram[m_state.index];
 }
 
 void MC146818::Write(u16 port, u8 value, u64 clocks)
@@ -152,71 +163,86 @@ void MC146818::Write(u16 port, u8 value, u64 clocks)
 
     WriteRegister(m_state.index, value, clocks);
 
+    if (m_state.index == k_mc146818_status_a || m_state.index == k_mc146818_status_b)
+    {
+        UpdateIRQ();
+        UpdateNextEvent();
+    }
+
     if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_WRITE)))
         TraceEvent(TRACE_SYSTEM_RTC_WRITE, value);
 }
 
-// The clock registers change at each update, status A at the update in progress window, the RAM only with writes
+// The clock registers change at each update, status A at the edges of update in progress, the RAM only with writes
+// Status C changes with a read until its flags are clear, and then at the next flag
 u64 MC146818::GetReadStableUntil(u16 port, u64 clocks) const
 {
-    if (port != 0x0071 || m_state.index == k_mc146818_status_c)
+    if (port != 0x0071)
         return 0;
+
+    if (m_state.index == k_mc146818_status_c)
+        return m_state.ram[k_mc146818_status_c] == 0x00 ? GetNextChange() : 0;
 
     if (m_state.index > k_mc146818_status_d || !IsCounting())
         return GDOX_NO_EVENT;
 
-    if (m_state.index == k_mc146818_status_a && clocks + k_mc146818_uip_clocks < m_state.update_clocks)
-        return m_state.update_clocks - k_mc146818_uip_clocks;
+    if (m_state.index == k_mc146818_status_a)
+    {
+        if (m_state.update_end_clocks != GDOX_NO_EVENT)
+            return m_state.update_end_clocks;
+
+        if (clocks + k_mc146818_uip_clocks < m_state.update_clocks)
+            return m_state.update_clocks - k_mc146818_uip_clocks;
+    }
 
     return m_state.update_clocks;
 }
 
-// One update per second while the divider runs and SET is clear
+// Only the chip's own state moves here, so the debugger can run it on a copy
+// The chain free runs while the divider does: SET only holds the updates
 void MC146818::Synchronize(u64 clocks)
 {
-    if (!IsCounting())
-    {
-        if (clocks >= m_state.update_clocks)
-            m_state.update_clocks = clocks + k_mc146818_second_clocks;
-
+    if (!IsDividerRunning())
         return;
+
+    if (clocks >= m_state.periodic_clocks)
+    {
+        m_state.ram[k_mc146818_status_c] |= k_mc146818_c_periodic;
+        m_state.periodic_clocks = GetNextPeriodic(clocks);
     }
 
-    if (clocks < m_state.update_clocks)
+    if (clocks < MIN(m_state.update_clocks, m_state.update_end_clocks))
         return;
 
-    while (clocks >= m_state.update_clocks)
+    bool ticked = false;
+
+    while (clocks >= MIN(m_state.update_clocks, m_state.update_end_clocks))
     {
-        Tick();
+        if (m_state.update_end_clocks <= m_state.update_clocks)
+        {
+            m_state.ram[k_mc146818_status_c] |= k_mc146818_c_update;
+            m_state.update_end_clocks = GDOX_NO_EVENT;
+            continue;
+        }
+
+        if (IsCounting())
+        {
+            Tick();
+            CheckAlarm();
+            m_state.update_end_clocks = m_state.update_clocks + k_mc146818_update_clocks;
+            ticked = true;
+        }
+
         m_state.update_clocks += k_mc146818_second_clocks;
     }
 
-    UpdateClockRegisters();
-}
-
-u8 MC146818::GetIndex() const
-{
-    return m_state.index;
-}
-
-u8* MC146818::GetCMOS()
-{
-    return m_state.ram;
-}
-
-u8 MC146818::ReadRAM(u8 index) const
-{
-    return m_state.ram[index & 0x7F];
-}
-
-void MC146818::WriteRAM(u8 index, u8 value)
-{
-    m_state.ram[index & 0x7F] = value;
+    if (ticked)
+        UpdateClockRegisters();
 }
 
 void MC146818::ResetCMOS()
 {
-    memset(m_state.ram + 0x0E, 0, GDOX_CMOS_SIZE - 0x0E);
+    memset(m_state.ram + k_mc146818_ram_start, 0, GDOX_CMOS_SIZE - k_mc146818_ram_start);
     UpdateClockRegisters();
 }
 
@@ -232,7 +258,7 @@ bool MC146818::LoadCMOSFile(const u8* data, size_t size)
     else if (size != GDOX_CMOS_SIZE)
         return false;
 
-    memcpy(m_state.ram + 0x0E, data + 0x0E, GDOX_CMOS_SIZE - 0x0E);
+    memcpy(m_state.ram + k_mc146818_ram_start, data + k_mc146818_ram_start, GDOX_CMOS_SIZE - k_mc146818_ram_start);
     return true;
 }
 
@@ -243,17 +269,6 @@ void MC146818::SaveCMOSFile(u8* data) const
     data[2] = GDOX_CMOS_FILE_VERSION & 0xFF;
     data[3] = GDOX_CMOS_FILE_VERSION >> 8;
     memcpy(data + GDOX_CMOS_FILE_HEADER_SIZE, m_state.ram, GDOX_CMOS_SIZE);
-}
-
-MC146818::MC146818_State* MC146818::GetState()
-{
-    return &m_state;
-}
-
-bool MC146818::IsCounting() const
-{
-    return (m_state.ram[k_mc146818_status_a] & k_mc146818_a_divider) == k_mc146818_a_divider_normal &&
-        (m_state.ram[k_mc146818_status_b] & k_mc146818_b_set) == 0;
 }
 
 void MC146818::Tick()
@@ -296,6 +311,88 @@ void MC146818::Tick()
     m_state.century++;
 }
 
+void MC146818::CheckAlarm()
+{
+    const u8* ram = m_state.ram;
+
+    if (MatchesAlarm(ram[k_mc146818_seconds_alarm], Encode(m_state.seconds)) &&
+        MatchesAlarm(ram[k_mc146818_minutes_alarm], Encode(m_state.minutes)) &&
+        MatchesAlarm(ram[k_mc146818_hours_alarm], EncodeHours(m_state.hours)))
+        m_state.ram[k_mc146818_status_c] |= k_mc146818_c_alarm;
+}
+
+// The first periodic edge after a clock, taps on the chain so rates keep their phase
+u64 MC146818::GetNextPeriodic(u64 clocks) const
+{
+    u32 period = GetPeriodTicks();
+
+    if (period == 0 || !IsDividerRunning())
+        return GDOX_NO_EVENT;
+
+    u64 elapsed = clocks > m_state.divider_clocks ? clocks - m_state.divider_clocks : 0;
+    u64 ticks = (elapsed / GDOX_MACHINE_CLOCK_RATE) * k_mc146818_chain_rate +
+        ((elapsed % GDOX_MACHINE_CLOCK_RATE) * k_mc146818_chain_rate) / GDOX_MACHINE_CLOCK_RATE;
+    u64 edge = (ticks / period + 1) * period;
+
+    if (GetTickClocks(edge) <= clocks)
+        edge += period;
+
+    return GetTickClocks(edge);
+}
+
+// The next clock anything in the chip moves
+u64 MC146818::GetNextChange() const
+{
+    if (!IsDividerRunning())
+        return GDOX_NO_EVENT;
+
+    return MIN(MIN(m_state.update_clocks, m_state.update_end_clocks), m_state.periodic_clocks);
+}
+
+// The chain leaves reset with its last stage set, so the first update comes half a second later
+void MC146818::StartDivider(u64 clocks)
+{
+    m_state.divider_clocks = clocks - MIN(clocks, k_mc146818_second_clocks / 2);
+    m_state.update_clocks = clocks + k_mc146818_second_clocks / 2;
+    m_state.update_end_clocks = GDOX_NO_EVENT;
+}
+
+void MC146818::UpdatePeriodic(u64 clocks)
+{
+    m_state.periodic_clocks = GetNextPeriodic(clocks);
+}
+
+void MC146818::UpdateIRQ()
+{
+    bool irq = (GetStatusC() & k_mc146818_c_irq) != 0;
+
+    if (irq && !m_state.irq && unlikely(IsValidPointer(m_trace_logger) &&
+        m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_IRQ)))
+        TraceEvent(TRACE_SYSTEM_RTC_IRQ, GetStatusC());
+
+    m_state.irq = irq;
+    m_pic->SetIRQLine(k_mc146818_irq, irq);
+}
+
+// A source only needs an event while it can move the line: enabled, with its flag clear
+void MC146818::UpdateNextEvent()
+{
+    u64 next = GDOX_NO_EVENT;
+
+    if (IsDividerRunning())
+    {
+        u8 pending = m_state.ram[k_mc146818_status_b] & (u8)~m_state.ram[k_mc146818_status_c];
+
+        if ((pending & k_mc146818_b_periodic) != 0)
+            next = m_state.periodic_clocks;
+
+        if ((pending & (k_mc146818_b_alarm | k_mc146818_b_update)) != 0)
+            next = MIN(next, MIN(m_state.update_clocks, m_state.update_end_clocks));
+    }
+
+    m_scheduler->Schedule(SCHEDULER_EVENT_RTC, next);
+}
+
 void MC146818::UpdateClockRegisters()
 {
     m_state.ram[k_mc146818_seconds] = Encode(m_state.seconds);
@@ -306,22 +403,6 @@ void MC146818::UpdateClockRegisters()
     m_state.ram[k_mc146818_month] = Encode(m_state.month);
     m_state.ram[k_mc146818_year] = Encode(m_state.year);
     m_state.ram[k_mc146818_century] = (u8)(((m_state.century / 10) << 4) | (m_state.century % 10));
-}
-
-u8 MC146818::Encode(u8 value) const
-{
-    if ((m_state.ram[k_mc146818_status_b] & k_mc146818_b_binary) != 0)
-        return value;
-
-    return (u8)(((value / 10) << 4) | (value % 10));
-}
-
-u8 MC146818::Decode(u8 value) const
-{
-    if ((m_state.ram[k_mc146818_status_b] & k_mc146818_b_binary) != 0)
-        return value;
-
-    return (u8)(((value >> 4) & 0x0F) * 10 + (value & 0x0F));
 }
 
 // In 12 hour mode bit 7 marks PM and hours run 12, 1 to 11
@@ -348,7 +429,7 @@ void MC146818::WriteRegister(u8 index, u8 value, u64 clocks)
     switch (index)
     {
         case k_mc146818_seconds:
-            m_state.seconds = (u8)(Decode(value) % 60);
+            m_state.seconds = (u8)(Decode(value & 0x7F) % 60);
             break;
         case k_mc146818_minutes:
             m_state.minutes = (u8)(Decode(value) % 60);
@@ -373,24 +454,25 @@ void MC146818::WriteRegister(u8 index, u8 value, u64 clocks)
             break;
         case k_mc146818_status_a:
         {
-            bool counting = IsCounting();
+            bool running = IsDividerRunning();
             m_state.ram[index] = value & 0x7F;
 
-            // A divider restart runs half a second before the first update
-            if (!counting && IsCounting())
-                m_state.update_clocks = clocks + k_mc146818_second_clocks / 2;
+            if (!running && IsDividerRunning())
+                StartDivider(clocks);
 
+            UpdatePeriodic(clocks);
             return;
         }
         case k_mc146818_status_b:
         {
-            bool counting = IsCounting();
+            // SET going high stops an update under way and turns update ended off
+            if ((value & (u8)~m_state.ram[index] & k_mc146818_b_set) != 0)
+            {
+                value &= (u8)~k_mc146818_b_update;
+                m_state.update_end_clocks = GDOX_NO_EVENT;
+            }
+
             m_state.ram[index] = value;
-
-            // Clearing SET starts a new second
-            if (!counting && IsCounting())
-                m_state.update_clocks = clocks + k_mc146818_second_clocks;
-
             UpdateClockRegisters();
             return;
         }
@@ -447,7 +529,11 @@ void MC146818::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.month);
     G_SERIALIZE(serializer, m_state.year);
     G_SERIALIZE(serializer, m_state.century);
+    G_SERIALIZE(serializer, m_state.irq);
+    G_SERIALIZE(serializer, m_state.divider_clocks);
     G_SERIALIZE(serializer, m_state.update_clocks);
+    G_SERIALIZE(serializer, m_state.update_end_clocks);
+    G_SERIALIZE(serializer, m_state.periodic_clocks);
 }
 
 void MC146818::SanitizeState()
@@ -459,4 +545,6 @@ void MC146818::SanitizeState()
     m_state.year %= 100;
     m_state.month = (u8)CLAMP((int)m_state.month, 1, 12);
     m_state.day = (u8)CLAMP((int)m_state.day, 1, 31);
+    UpdateIRQ();
+    UpdateNextEvent();
 }

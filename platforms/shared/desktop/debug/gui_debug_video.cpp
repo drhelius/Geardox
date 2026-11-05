@@ -34,14 +34,13 @@
 static void setup_grid_columns(void);
 static void draw_grid_label(const char* label);
 static void draw_flag(bool on);
-static void write_register(Video::Video_Register_File file, u16 address, u8 value);
 static void sequencer_write_callback(u16 address, u8 value, void* user_data);
 static void graphics_write_callback(u16 address, u8 value, void* user_data);
 static void attribute_write_callback(u16 address, u8 value, void* user_data);
 static void crtc_write_callback(u16 address, u8 value, void* user_data);
 static void misc_write_callback(u16 address, u8 value, void* user_data);
 static void draw_register_file(const char* title, const char* prefix, const char* const* names, const u8* values, int count,
-    RegisterWriteCallback8 callback);
+    RegisterWriteCallback8 callback, Video* video);
 static void draw_palette_indices(void);
 static void draw_color(int index, u32 color, const u8* components);
 static ImVec4 to_imgui_color(u32 color);
@@ -264,10 +263,11 @@ void gui_debug_window_vga_registers(void)
 
     ImGui::PushFont(gui_default_font);
 
-    Video::Video_State* state = emu_get_core()->GetVideo()->GetState();
+    Video* video = emu_get_core()->GetVideo();
+    Video::Video_State* state = video->GetState();
 
     ImGui::TextColored(violet, "MISC"); ImGui::SameLine();
-    EditableRegister8(NULL, NULL, 0, state->misc, misc_write_callback, NULL, EditableRegisterFlags_ShowBinary);
+    EditableRegister8(NULL, NULL, 0, state->misc, misc_write_callback, video, EditableRegisterFlags_ShowBinary);
     ImGui::TextColored(violet, "INDEX"); ImGui::SameLine();
     ImGui::TextColored(gray, "SR"); ImGui::SameLine();
     ImGui::TextColored(white, "$%02X", state->sequencer_index); ImGui::SameLine();
@@ -285,15 +285,16 @@ void gui_debug_window_vga_registers(void)
         ImGui::TableNextRow();
         ImGui::TableNextColumn();
         draw_register_file("SEQUENCER", "SR", k_debug_sequencer_register_names, state->sequencer, VIDEO_SEQUENCER_COUNT,
-            sequencer_write_callback);
+            sequencer_write_callback, video);
         ImGui::NewLine();
         draw_register_file("GRAPHICS", "GR", k_debug_graphics_register_names, state->graphics, VIDEO_GRAPHICS_COUNT,
-            graphics_write_callback);
+            graphics_write_callback, video);
         ImGui::TableNextColumn();
-        draw_register_file("CRTC", "CR", k_debug_crtc_register_names, state->crtc, VIDEO_CRTC_COUNT, crtc_write_callback);
+        draw_register_file("CRTC", "CR", k_debug_crtc_register_names, state->crtc, VIDEO_CRTC_COUNT, crtc_write_callback,
+            video);
         ImGui::TableNextColumn();
         draw_register_file("ATTRIBUTE", "AR", k_debug_attribute_register_names, state->attribute, VIDEO_ATTRIBUTE_COUNT,
-            attribute_write_callback);
+            attribute_write_callback, video);
         ImGui::EndTable();
     }
 
@@ -433,44 +434,65 @@ static void draw_flag(bool on)
     ImGui::TextColored(on ? green : gray, "%s", on ? "ON" : "OFF");
 }
 
-static void write_register(Video::Video_Register_File file, u16 address, u8 value)
-{
-    GeardoxCore* core = emu_get_core();
-    core->GetVideo()->WriteRegister(file, (u8)address, value, core->GetScheduler()->GetClocks());
-}
-
 static void sequencer_write_callback(u16 address, u8 value, void* user_data)
 {
-    UNUSED(user_data);
-    write_register(Video::VIDEO_REGISTERS_SEQUENCER, address, value);
+    Video* video = (Video*)user_data;
+    u64 clocks = emu_get_core()->GetScheduler()->GetClocks();
+    u8 saved = video->GetState()->sequencer_index;
+
+    video->Write(0x3C4, (u8)address, clocks);
+    video->Write(0x3C5, value, clocks);
+    video->Write(0x3C4, saved, clocks);
 }
 
 static void graphics_write_callback(u16 address, u8 value, void* user_data)
 {
-    UNUSED(user_data);
-    write_register(Video::VIDEO_REGISTERS_GRAPHICS, address, value);
+    Video* video = (Video*)user_data;
+    u64 clocks = emu_get_core()->GetScheduler()->GetClocks();
+    u8 saved = video->GetState()->graphics_index;
+
+    video->Write(0x3CE, (u8)address, clocks);
+    video->Write(0x3CF, value, clocks);
+    video->Write(0x3CE, saved, clocks);
 }
 
+// The flip-flop and the palette access bit stay as the program left them
 static void attribute_write_callback(u16 address, u8 value, void* user_data)
 {
-    UNUSED(user_data);
-    write_register(Video::VIDEO_REGISTERS_ATTRIBUTE, address, value);
+    Video* video = (Video*)user_data;
+    Video::Video_State* state = video->GetState();
+    u64 clocks = emu_get_core()->GetScheduler()->GetClocks();
+    u8 saved = state->attribute_index;
+    bool data = state->attribute_data;
+
+    state->attribute_data = false;
+    video->Write(0x3C0, (u8)((saved & 0x20) | address), clocks);
+    video->Write(0x3C0, value, clocks);
+    video->Write(0x3C0, saved, clocks);
+    state->attribute_data = data;
 }
 
 static void crtc_write_callback(u16 address, u8 value, void* user_data)
 {
-    UNUSED(user_data);
-    write_register(Video::VIDEO_REGISTERS_CRTC, address, value);
+    Video* video = (Video*)user_data;
+    Video::Video_State* state = video->GetState();
+    u64 clocks = emu_get_core()->GetScheduler()->GetClocks();
+    u16 port = (state->misc & 0x01) != 0 ? 0x3D4 : 0x3B4;
+    u8 saved = state->crtc_index;
+
+    video->Write(port, (u8)address, clocks);
+    video->Write((u16)(port + 1), value, clocks);
+    video->Write(port, saved, clocks);
 }
 
 static void misc_write_callback(u16 address, u8 value, void* user_data)
 {
-    UNUSED(user_data);
-    write_register(Video::VIDEO_REGISTERS_MISC, address, value);
+    UNUSED(address);
+    ((Video*)user_data)->Write(0x3C2, value, emu_get_core()->GetScheduler()->GetClocks());
 }
 
 static void draw_register_file(const char* title, const char* prefix, const char* const* names, const u8* values, int count,
-    RegisterWriteCallback8 callback)
+    RegisterWriteCallback8 callback, Video* video)
 {
     ImGui::TextColored(cyan, "%s", title);
 
@@ -479,7 +501,7 @@ static void draw_register_file(const char* title, const char* prefix, const char
         ImGui::PushID(title);
         ImGui::TextColored(cyan, "%s%02X", prefix, i); ImGui::SameLine();
         ImGui::TextColored(violet, "%-11s", names[i]); ImGui::SameLine();
-        EditableRegister8(NULL, NULL, (u16)i, values[i], callback, NULL, EditableRegisterFlags_None);
+        EditableRegister8(NULL, NULL, (u16)i, values[i], callback, video, EditableRegisterFlags_None);
         ImGui::PopID();
     }
 }

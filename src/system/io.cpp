@@ -130,7 +130,7 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
         case 0x0402:
             // Debug console
             if (m_debug_console->Decodes(port))
-                return m_debug_console->Read(port);
+                return m_debug_console->Read();
             break;
         case 0x0511:
             // Firmware config data
@@ -176,7 +176,7 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
             value = m_rtc->Peek(port, clocks);
             return true;
         case 0x0402:
-            value = m_debug_console->Read(port);
+            value = m_debug_console->Read();
             return m_debug_console->Decodes(port);
         case 0x0510:
         case 0x0511:
@@ -295,7 +295,8 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             break;
         case 0x0402:
             // Debug console
-            m_debug_console->Write(port, value);
+            if (m_debug_console->Decodes(port))
+                m_debug_console->Write(value);
             break;
         case 0x0510:
             // Firmware config selector

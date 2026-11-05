@@ -215,6 +215,7 @@ public:
     json GetPICStatus();
     json GetPITStatus();
     json GetSystemStatus();
+    json GetRTCStatus();
     json GetKeyboardStatus();
     json GetCRTCStatus();
     json GetCRTCRegisters();
@@ -224,7 +225,6 @@ public:
     json GetPalettes(const std::string& palette);
     json GetFrameBuffer(const std::string& buffer, int pitch);
     json GetTextScreen(bool attributes);
-    json VideoRegisterArray(const u8* values, int count);
     json GetBiosLog(int max_bytes);
 
     // Audio hardware
@@ -310,6 +310,7 @@ private:
     u16 ButtonMask(const std::string& button) const;
     void ApplyControllerState(int player);
     std::string Hex(u32 value, int digits) const;
+    json VideoRegisterArray(const u8* values, int count) const;
     std::string Hex32(u32 value) const;
     std::string FormatAreaOffset(const GuiDebugMemoryArea& area, u32 offset) const;
     bool ParseAreaOffset(const GuiDebugMemoryArea& area, const std::string& text, u32& offset, std::string& error);

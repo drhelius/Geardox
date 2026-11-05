@@ -22,9 +22,12 @@
 
 DebugConsole::DebugConsole()
 {
+    m_head = 0;
+    m_length = 0;
+    m_written = 0;
+    m_line_length = 0;
     m_enabled = true;
     m_log = false;
-    Reset();
 }
 
 DebugConsole::~DebugConsole()
@@ -44,37 +47,9 @@ void DebugConsole::Reset()
     m_line_length = 0;
 }
 
-void DebugConsole::SetEnabled(bool enabled)
-{
-    m_enabled = enabled;
-}
-
-bool DebugConsole::IsEnabled() const
-{
-    return m_enabled;
-}
-
-void DebugConsole::SetLogOutput(bool log)
-{
-    m_log = log;
-}
-
-bool DebugConsole::Decodes(u16 port) const
-{
-    return m_enabled && port == k_debug_console_port;
-}
-
-u8 DebugConsole::Read(u16 port) const
-{
-    return Decodes(port) ? k_debug_console_readback : 0xFF;
-}
-
 // The oldest text drops out once the buffer is full
-void DebugConsole::Write(u16 port, u8 value)
+void DebugConsole::Write(u8 value)
 {
-    if (!Decodes(port))
-        return;
-
     m_buffer[(m_head + m_length) % DEBUG_CONSOLE_SIZE] = (char)value;
 
     if (m_length < DEBUG_CONSOLE_SIZE)
@@ -108,16 +83,6 @@ u32 DebugConsole::CopyText(char* buffer, u32 size) const
 
     buffer[count] = 0;
     return count;
-}
-
-u32 DebugConsole::GetLength() const
-{
-    return m_length;
-}
-
-u64 DebugConsole::GetWrittenCount() const
-{
-    return m_written;
 }
 
 void DebugConsole::FlushLine()

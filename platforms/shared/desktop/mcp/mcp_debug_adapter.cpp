@@ -35,6 +35,7 @@
 #include "input/keyboard.h"
 #include "system/debug_console.h"
 #include "system/firmware_config.h"
+#include "system/mc146818.h"
 #include "system/scheduler.h"
 #include "system/io.h"
 #include "audio/audio.h"
@@ -2240,7 +2241,7 @@ static const char* video_mode_name(Video* video)
     }
 }
 
-json DebugAdapter::VideoRegisterArray(const u8* values, int count)
+json DebugAdapter::VideoRegisterArray(const u8* values, int count) const
 {
     json result = json::array();
 
@@ -2315,13 +2316,7 @@ json DebugAdapter::GetCRTCRegisters()
     json registers = json::array();
 
     for (int i = 0; i < VIDEO_CRTC_COUNT; i++)
-    {
-        registers.push_back({
-            {"index", i},
-            {"name", k_debug_crtc_register_names[i]},
-            {"value", Hex(state->crtc[i], 2)}
-        });
-    }
+        registers.push_back({{"index", Hex(i, 2)}, {"name", k_debug_crtc_register_names[i]}, {"value", Hex(state->crtc[i], 2)}});
 
     return {
         {"index", Hex(state->crtc_index, 2)},
@@ -2333,14 +2328,23 @@ json DebugAdapter::GetCRTCRegisters()
 json DebugAdapter::WriteCRTCRegister(int reg, u8 value)
 {
     if (reg < 0 || reg >= VIDEO_CRTC_COUNT)
-        return {{"error", "register must be 0-24"}};
+        return {{"error", "Register must be 0-24"}};
 
     Video* video = m_core->GetVideo();
-    video->WriteRegister(Video::VIDEO_REGISTERS_CRTC, (u8)reg, value, m_core->GetScheduler()->GetClocks());
+    Video::Video_State* state = video->GetState();
+    u64 clocks = m_core->GetScheduler()->GetClocks();
+    u16 port = (state->misc & 0x01) != 0 ? 0x3D4 : 0x3B4;
+    u8 saved = state->crtc_index;
+
+    video->Write(port, (u8)reg, clocks);
+    video->Write((u16)(port + 1), value, clocks);
+    video->Write(port, saved, clocks);
 
     return {
-        {"register", reg},
-        {"value", Hex(video->GetState()->crtc[reg], 2)}
+        {"success", true},
+        {"register", Hex(reg, 2)},
+        {"name", k_debug_crtc_register_names[reg]},
+        {"value", Hex(state->crtc[reg], 2)}
     };
 }
 
@@ -2471,6 +2475,9 @@ json DebugAdapter::GetFrameBuffer(const std::string& buffer, int pitch)
     static const char* const k_buffers[Emu_Debug_Buffer_Count] = { "plane0", "plane1", "plane2", "plane3", "planar", "256",
         "text" };
 
+    if (emu_is_empty())
+        return {{"error", "Emulator is powered off"}};
+
     int index = -1;
 
     for (int i = 0; i < Emu_Debug_Buffer_Count; i++)
@@ -2560,6 +2567,58 @@ json DebugAdapter::GetTextScreen(bool attributes)
         result["attributes"] = colors;
 
     return result;
+}
+
+json DebugAdapter::GetRTCStatus()
+{
+    u64 clocks = m_core->GetScheduler()->GetClocks();
+    MC146818 rtc(*m_core->GetRTC());
+    rtc.Synchronize(clocks);
+    MC146818::MC146818_State* state = rtc.GetState();
+    const u8* ram = state->ram;
+    u8 status_b = ram[k_mc146818_status_b];
+    u8 status_c = rtc.GetStatusC();
+    u32 period = rtc.GetPeriodTicks();
+    char date[16];
+    char time[16];
+    json registers = json::array();
+
+    snprintf(date, sizeof(date), "%02d%02d-%02d-%02d", state->century, state->year, state->month, state->day);
+    snprintf(time, sizeof(time), "%02d:%02d:%02d", state->hours, state->minutes, state->seconds);
+
+    for (int i = 0; i <= k_mc146818_status_d; i++)
+    {
+        registers.push_back({{"index", Hex(i, 2)}, {"name", k_debug_rtc_register_names[i]},
+            {"value", Hex(i == k_mc146818_status_c ? status_c : ram[i], 2)}});
+    }
+
+    return {
+        {"date", date},
+        {"time", time},
+        {"weekday", k_debug_weekday_names[(state->weekday + 6) % 7]},
+        {"hour_24", (status_b & k_mc146818_b_24_hour) != 0},
+        {"binary", (status_b & k_mc146818_b_binary) != 0},
+        {"set", (status_b & k_mc146818_b_set) != 0},
+        {"divider_running", rtc.IsDividerRunning()},
+        {"update_in_progress", rtc.IsUpdating(clocks)},
+        {"periodic_hz", period != 0 ? (double)k_mc146818_chain_rate / period : 0.0},
+        {"alarm", {
+            {"hours", Hex(ram[k_mc146818_hours_alarm], 2)},
+            {"minutes", Hex(ram[k_mc146818_minutes_alarm], 2)},
+            {"seconds", Hex(ram[k_mc146818_seconds_alarm], 2)}
+        }},
+        {"interrupts", {
+            {"periodic_enabled", (status_b & k_mc146818_b_periodic) != 0},
+            {"alarm_enabled", (status_b & k_mc146818_b_alarm) != 0},
+            {"update_enabled", (status_b & k_mc146818_b_update) != 0},
+            {"periodic_flag", (status_c & k_mc146818_c_periodic) != 0},
+            {"alarm_flag", (status_c & k_mc146818_c_alarm) != 0},
+            {"update_flag", (status_c & k_mc146818_c_update) != 0},
+            {"irq", (status_c & k_mc146818_c_irq) != 0}
+        }},
+        {"index", Hex(state->index, 2)},
+        {"registers", registers}
+    };
 }
 
 json DebugAdapter::GetKeyboardStatus()

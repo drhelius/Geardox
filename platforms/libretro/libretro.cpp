@@ -3063,7 +3063,9 @@ static void cmos_save(void)
 {
     const u8* cmos = core->GetRTC()->GetCMOS();
 
-    if (!cmos_shared_active || memcmp(cmos, cmos_saved, GDOX_CMOS_SIZE) == 0)
+    u32 size = GDOX_CMOS_SIZE - k_mc146818_ram_start;
+
+    if (!cmos_shared_active || memcmp(cmos + k_mc146818_ram_start, cmos_saved + k_mc146818_ram_start, size) == 0)
         return;
 
     core->GetRTC()->SaveCMOSFile(cmos_file_data);

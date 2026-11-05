@@ -2052,6 +2052,7 @@ static void menu_debug(void)
             ImGui::MenuItem("Show Interrupts", "", &config_debug.show_pic);
             ImGui::MenuItem("Show Timers", "", &config_debug.show_pit);
             ImGui::MenuItem("Show System Control", "", &config_debug.show_system_control);
+            ImGui::MenuItem("Show RTC", "", &config_debug.show_rtc);
             ImGui::MenuItem("Show BIOS Log", "", &config_debug.show_bios_log);
             ImGui::Separator();
 

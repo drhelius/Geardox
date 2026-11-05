@@ -123,12 +123,6 @@ void I8042::Write(u16 port, u8 value, u64 clocks)
     UpdateNextEvent();
 }
 
-void I8042::HandleEvent(u64 clocks)
-{
-    Synchronize(clocks);
-    UpdateNextEvent();
-}
-
 void I8042::KeyPressed(GDOX_Keys key)
 {
     u64 clocks = m_scheduler->GetClocks();

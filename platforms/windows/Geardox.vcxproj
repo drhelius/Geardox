@@ -263,10 +263,13 @@
     <ClInclude Include="..\..\src\system\pit.h" />
     <ClInclude Include="..\..\src\system\pit_inline.h" />
     <ClInclude Include="..\..\src\system\mc146818.h" />
+    <ClInclude Include="..\..\src\system\mc146818_inline.h" />
     <ClInclude Include="..\..\src\system\system_control.h" />
     <ClInclude Include="..\..\src\system\system_control_inline.h" />
     <ClInclude Include="..\..\src\system\firmware_config.h" />
+    <ClInclude Include="..\..\src\system\firmware_config_inline.h" />
     <ClInclude Include="..\..\src\system\debug_console.h" />
+    <ClInclude Include="..\..\src\system\debug_console_inline.h" />
     <ClInclude Include="..\..\src\system\machine_profiles.h" />
     <ClInclude Include="..\..\src\system\scheduler.h" />
     <ClInclude Include="..\..\src\system\scheduler_inline.h" />

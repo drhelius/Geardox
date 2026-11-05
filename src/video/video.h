@@ -42,15 +42,6 @@ class StateSerializer;
 class Video
 {
 public:
-    enum Video_Register_File
-    {
-        VIDEO_REGISTERS_SEQUENCER = 0,
-        VIDEO_REGISTERS_GRAPHICS,
-        VIDEO_REGISTERS_ATTRIBUTE,
-        VIDEO_REGISTERS_CRTC,
-        VIDEO_REGISTERS_MISC
-    };
-
     enum Video_Format
     {
         VIDEO_FORMAT_PLANAR = 0,
@@ -107,12 +98,10 @@ public:
     void Init(PIC* pic, PIT* pit, Scheduler* scheduler, Memory* memory);
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
-    bool RegisterMemoryRegions(u32 window_base);
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
     u8 Peek(u16 port, u64 clocks) const;
     void Write(u16 port, u8 value, u64 clocks);
-    void WriteRegister(Video_Register_File file, u8 index, u8 value, u64 clocks);
     u64 GetSyncStableUntil(u64 clocks) const;
     void Synchronize(u64 clocks);
     void HandleEvent(u64 clocks);
@@ -151,6 +140,7 @@ public:
     u32 GetBeamDot(u64 clocks) const;
     u8 GetSyncStatus(u64 clocks) const;
     bool IsDirectMapped() const;
+    void UpdateVRAMMapping();
     Video_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
@@ -176,7 +166,7 @@ private:
     void WriteSequencer(u8 value, u64 clocks);
     void WriteGraphics(u8 value, u64 clocks);
     void WriteCRTC(u8 value, u64 clocks);
-    void WriteMisc(u8 value, u64 clocks);
+    void WriteMisc(u8 value);
     void WriteDAC(u8 value, u64 clocks);
     u8 ReadDAC();
     void RunNextEvent();
@@ -199,7 +189,7 @@ private:
     u32 GetWriteData(u8 value) const;
     u8 CompareLatches() const;
     void UpdateMemoryAccess();
-    void UpdateVRAMMapping();
+    u32 GetDirectWriteSize() const;
     void RenderLineToBeam(u64 clocks);
     void RenderRow(u32 line);
     void RenderRowPart(int row, int x, int end);
@@ -214,7 +204,7 @@ private:
     bool GetBlinkPhase() const;
     bool GetCursorPhase() const;
     u32 ToXRGB(u8 red, u8 green, u8 blue) const;
-    void TraceRegister(u8 event, u8 bank, u8 reg, u8 value, u64 clocks);
+    void TraceWrite(u16 port, u8 value, u64 clocks);
     void TraceEvent(u8 event, u8 reg, u16 value, u8 raw, u8 bank, u32 param, u64 clocks);
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();

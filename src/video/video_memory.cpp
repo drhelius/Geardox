@@ -110,37 +110,6 @@ void Video::PokePlane3Callback(void* device, u32 offset, u8 value)
     ((Video*)device)->PokePlane(3, offset, value);
 }
 
-// The window takes the place of the RAM under it and the four planes show in their real addressing for the debugger
-bool Video::RegisterMemoryRegions(u32 window_base)
-{
-    static const char* const k_names[VIDEO_PLANE_COUNT] = { "VGA Plane 0", "VGA Plane 1", "VGA Plane 2", "VGA Plane 3" };
-    static const GDOX_Memory_Read8_Fn k_peek[VIDEO_PLANE_COUNT] = { PeekPlane0Callback, PeekPlane1Callback,
-        PeekPlane2Callback, PeekPlane3Callback };
-    static const GDOX_Memory_Write8_Fn k_poke[VIDEO_PLANE_COUNT] = { PokePlane0Callback, PokePlane1Callback,
-        PokePlane2Callback, PokePlane3Callback };
-
-    u32 access = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_VIDEO;
-
-    if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "VGA Window", k_video_max_window_size,
-        window_base, access | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY, this,
-        ReadWindowCallback, WriteWindowCallback, PeekWindowCallback))
-        return false;
-
-    m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, WriteWindow16Callback, WriteWindow32Callback);
-    m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, ReadWindow16Callback, ReadWindow32Callback);
-
-    for (int plane = 0; plane < VIDEO_PLANE_COUNT; plane++)
-    {
-        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_0 + plane, k_names[plane], VIDEO_PLANE_SIZE, 0,
-            access, this, k_peek[plane], k_poke[plane], k_peek[plane]))
-            return false;
-    }
-
-    m_mapped_size = 0;
-    UpdateVRAMMapping();
-    return true;
-}
-
 u8 Video::CompareLatches() const
 {
     u32 difference = (m_state.latch ^ m_plane_masks[m_state.graphics[k_video_gr_color_compare] & 0x0F]) &
@@ -304,26 +273,22 @@ void Video::UpdateMemoryAccess()
     m_plain_write = (graphics[k_video_gr_mode] & 0x03) == 0 && (graphics[k_video_gr_rotate] & 0x1F) == 0 &&
         graphics[k_video_gr_enable_set_reset] == 0 && graphics[k_video_gr_bit_mask] == 0xFF;
 
-    UpdateVRAMMapping();
+    if (GetDirectWriteSize() != m_mapped_size)
+        UpdateVRAMMapping();
 }
 
 // Plain mode 13h writes go straight to host memory, as chain-4 is linear there
 // Reads stay on the handlers for the latches
+u32 Video::GetDirectWriteSize() const
+{
+    bool plain = m_chain4 && m_plain_write && (m_state.sequencer[k_video_sr_map_mask] & 0x0F) == 0x0F;
+    return plain && m_window_start == 0 ? m_window_size : 0;
+}
+
 void Video::UpdateVRAMMapping()
 {
-    u32 size = 0;
-
-    if (m_chain4 && m_plain_write && m_window_start == 0 && m_window_size != 0 &&
-        (m_state.sequencer[k_video_sr_map_mask] & 0x0F) == 0x0F)
-        size = m_window_size;
-
-    if (size == m_mapped_size || !IsValidPointer(m_memory))
-        return;
-
-    m_mapped_size = size;
-
-    int id = GDOX_DEBUG_REGION_VIDEO_APERTURE;
-
-    m_memory->SetRegionHandlerRange(id, size, k_video_max_window_size - size, false);
-    m_memory->SetRegionData(id, NULL, size != 0 ? m_state.vram : NULL);
+    m_mapped_size = GetDirectWriteSize();
+    m_memory->SetRegionHandlerRange(GDOX_DEBUG_REGION_VIDEO_APERTURE, m_mapped_size,
+        k_video_max_window_size - m_mapped_size, false);
+    m_memory->SetRegionData(GDOX_DEBUG_REGION_VIDEO_APERTURE, NULL, m_mapped_size != 0 ? m_state.vram : NULL);
 }

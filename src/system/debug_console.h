@@ -37,8 +37,8 @@ public:
     bool IsEnabled() const;
     void SetLogOutput(bool log);
     bool Decodes(u16 port) const;
-    u8 Read(u16 port) const;
-    void Write(u16 port, u8 value);
+    u8 Read() const;
+    void Write(u8 value);
     u32 CopyText(char* buffer, u32 size) const;
     u32 GetLength() const;
     u64 GetWrittenCount() const;
@@ -60,5 +60,7 @@ private:
 // The debug port SeaBIOS writes its log to, which reads back E9h so firmware knows it is there
 static const u16 k_debug_console_port = 0x0402;
 static const u8 k_debug_console_readback = 0xE9;
+
+#include "debug_console_inline.h"
 
 #endif /* DEBUG_CONSOLE_H */
