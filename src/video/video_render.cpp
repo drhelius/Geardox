@@ -125,10 +125,7 @@ void Video::RenderPixels(u32* destination, int x, int end)
 // and 8-bit pixels take two dots
 int Video::GetPixelPan(bool text, bool packed) const
 {
-    if (m_state.pan_reset)
-        return 0;
-
-    u8 pan = m_state.attribute[k_video_ar_panning] & 0x0F;
+    u8 pan = m_state.pan_reset ? 0 : m_state.attribute[k_video_ar_panning] & 0x0F;
 
     if (text && (m_state.sequencer[k_video_sr_clocking] & 0x01) == 0)
         return pan >= 8 ? 0 : pan + 1;
@@ -143,7 +140,8 @@ int Video::GetPixelPan(bool text, bool packed) const
 void Video::RenderText(u32* destination, int x, int end)
 {
     const u8* vram = m_state.vram;
-    u8 map = m_state.sequencer[k_video_sr_character_map];
+    bool extended = (m_state.sequencer[k_video_sr_memory_mode] & 0x02) != 0;
+    u8 map = extended ? m_state.character_map : m_state.character_map & 0x30;
     u8 mode = m_state.attribute[k_video_ar_mode];
     u8 cursor_start = m_state.crtc[k_video_cr_cursor_start];
     u8 cursor_end = m_state.crtc[k_video_cr_cursor_end] & 0x1F;
@@ -157,14 +155,15 @@ void Video::RenderText(u32* destination, int x, int end)
         row <= cursor_end;
     bool blink = (mode & 0x08) != 0;
     bool blink_phase = GetBlinkPhase();
-    bool mono = (mode & 0x02) != 0;
     bool line_graphics = (mode & 0x04) != 0;
+    u32 count_shift = GetCountShift();
     int shifted = x + GetPixelPan(true, false);
     int bit = shifted % width;
-    u32 address = m_state.row_address + (u32)(shifted / width);
+    u32 column = (u32)(shifted / width);
 
     while (x < end)
     {
+        u32 address = m_state.row_address + (column >> count_shift);
         u32 base = GetPlaneBase(GetCRTCOffset(address, row));
         u8 character = vram[base];
         u8 attribute = vram[base + 1];
@@ -173,14 +172,16 @@ void Video::RenderText(u32* destination, int x, int end)
         u32 foreground = m_attribute_colors[attribute & 0x0F];
         u32 background = m_attribute_colors[blink ? (attribute >> 4) & 0x07 : attribute >> 4];
 
-        if (line_graphics && (character & 0xE0) == 0xC0)
+        bool line_character = line_graphics && (character & 0xE0) == 0xC0;
+
+        if (line_character)
             bits |= (bits >> 1) & 0x01;
 
         if (blink && (attribute & 0x80) != 0 && blink_phase)
             foreground = background;
 
-        if (mono && row == underline && (attribute & 0x77) == 0x01)
-            bits = 0x1FF;
+        if (row == underline && (attribute & 0x77) == 0x01)
+            bits = line_character ? 0x1FF : 0x1FE;
 
         if (cursor_on && (address & 0xFFFF) == cursor)
         {
@@ -195,7 +196,7 @@ void Video::RenderText(u32* destination, int x, int end)
 
         x += count;
         bit = 0;
-        address++;
+        column++;
     }
 }
 
@@ -208,8 +209,7 @@ void Video::RenderGraphics(u32* destination, int x, int end)
     const int pixels = packed ? 4 : 8;
     u8 clocking = m_state.sequencer[k_video_sr_clocking];
     u32 load_mask = (clocking & 0x10) != 0 ? 0x03 : ((clocking & 0x04) != 0 ? 0x01 : 0x00);
-    u32 count_shift = (m_state.crtc[k_video_cr_mode] & 0x08) != 0 ? 1 :
-        ((m_state.crtc[k_video_cr_underline] & 0x20) != 0 ? 2 : 0);
+    u32 count_shift = GetCountShift();
     u32 row = m_state.row_scan;
     int shifted = x + GetPixelPan(false, packed);
     int skip = shifted % pixels;

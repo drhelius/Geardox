@@ -121,8 +121,7 @@ u8 Video::CompareLatches() const
     return (u8)~(planes[0] | planes[1] | planes[2] | planes[3]);
 }
 
-// Odd/even sends address bit 0 to the plane pair, and address bit 16 takes its place in the offset,
-// which is what the CRTC's word mode rotation undoes
+// Odd/even sends address bit 0 to the plane pair
 u8 Video::ReadVRAM(u32 offset)
 {
     u32 address = offset - m_window_start;
@@ -138,13 +137,13 @@ u8 Video::ReadVRAM(u32 offset)
         base = address & 0x3FFFC;
         plane = address & 0x03;
     }
-    else if (m_odd_even_read)
-    {
-        base = GetPlaneBase((address & 0xFFFE) | ((address >> 16) & 0x01));
-        plane = (plane & 0x02) | (address & 0x01);
-    }
     else
-        base = GetPlaneBase(address);
+    {
+        base = GetPlaneBase(GetHostOffset(address));
+
+        if (m_odd_even_read)
+            plane = (plane & 0x02) | (address & 0x01);
+    }
 
     memcpy(&m_state.latch, m_state.vram + base, sizeof(m_state.latch));
 
@@ -168,12 +167,9 @@ u8 Video::PeekVRAM(u32 offset) const
         return m_state.vram[address];
 
     if (m_odd_even_read)
-    {
         plane = (plane & 0x02) | (address & 0x01);
-        return m_state.vram[GetPlaneBase((address & 0xFFFE) | ((address >> 16) & 0x01)) + plane];
-    }
 
-    return m_state.vram[GetPlaneBase(address) + plane];
+    return m_state.vram[GetPlaneBase(GetHostOffset(address)) + plane];
 }
 
 u32 Video::GetWriteData(u8 value) const
@@ -234,13 +230,13 @@ void Video::WriteVRAM(u32 offset, u8 value)
         base = address & 0x3FFFC;
         planes &= m_plane_masks[1 << (address & 0x03)];
     }
-    else if (m_odd_even_write)
-    {
-        base = GetPlaneBase((address & 0xFFFE) | ((address >> 16) & 0x01));
-        planes &= m_plane_masks[0x05 << (address & 0x01)];
-    }
     else
-        base = GetPlaneBase(address);
+    {
+        base = GetPlaneBase(GetHostOffset(address));
+
+        if (m_odd_even_write)
+            planes &= m_plane_masks[0x05 << (address & 0x01)];
+    }
 
     u32 data = m_plain_write ? value * 0x01010101U : GetWriteData(value);
     u8* memory = m_state.vram + base;
@@ -266,6 +262,7 @@ void Video::UpdateMemoryAccess()
     m_chain4 = (memory_mode & 0x08) != 0;
     m_odd_even_write = (memory_mode & 0x04) == 0;
     m_odd_even_read = (graphics[k_video_gr_mode] & 0x10) != 0;
+    m_odd_even_address = (graphics[k_video_gr_misc] & 0x02) != 0;
     m_write_planes = m_plane_masks[m_state.sequencer[k_video_sr_map_mask] & 0x0F];
     m_set_reset = m_plane_masks[graphics[k_video_gr_set_reset] & 0x0F];
     m_set_reset_enable = m_plane_masks[graphics[k_video_gr_enable_set_reset] & 0x0F];

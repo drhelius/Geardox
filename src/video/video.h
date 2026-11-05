@@ -66,8 +66,8 @@ public:
         u8 vga_enable;
         u8 dac[VIDEO_DAC_COUNT][3];
         u8 dac_cache[3];
-        u8 dac_read_index;
-        u8 dac_write_index;
+        u8 dac_address;
+        u8 dac_index;
         u8 dac_component;
         u8 dac_state;
         u8 pel_mask;
@@ -90,6 +90,7 @@ public:
         u32 row_scan;
         bool row_repeat;
         bool pan_reset;
+        u8 character_map;
     };
 
 public:
@@ -169,6 +170,7 @@ private:
     void WriteMisc(u8 value);
     void WriteDAC(u8 value, u64 clocks);
     u8 ReadDAC();
+    u8 PeekCRTC() const;
     void RunNextEvent();
     void LatchFrameTiming();
     void StartFrame(u64 clocks);
@@ -186,6 +188,8 @@ private:
     u8 PeekVRAM(u32 offset) const;
     void WriteVRAM(u32 offset, u8 value);
     u32 GetPlaneBase(u32 offset) const;
+    u32 GetHostOffset(u32 address) const;
+    u32 GetCountShift() const;
     u32 GetWriteData(u8 value) const;
     u8 CompareLatches() const;
     void UpdateMemoryAccess();
@@ -242,6 +246,7 @@ private:
     bool m_chain4;
     bool m_odd_even_read;
     bool m_odd_even_write;
+    bool m_odd_even_address;
     bool m_plain_write;
     u32 m_write_planes;
     u32 m_set_reset;
@@ -303,6 +308,9 @@ static const int k_video_cr_offset = 0x13;
 static const int k_video_cr_underline = 0x14;
 static const int k_video_cr_mode = 0x17;
 static const int k_video_cr_line_compare = 0x18;
+static const int k_video_cr_latch_readback = 0x22;
+static const int k_video_cr_toggle_readback = 0x24;
+static const int k_video_cr_index_readback = 0x26;
 
 static const int k_video_ar_mode = 0x10;
 static const int k_video_ar_overscan = 0x11;

@@ -2398,8 +2398,8 @@ json DebugAdapter::GetVideoOutputStatus()
         }},
         {"dac", {
             {"pel_mask", Hex(state->pel_mask, 2)},
-            {"read_index", Hex(state->dac_read_index, 2)},
-            {"write_index", Hex(state->dac_write_index, 2)},
+            {"address", Hex(state->dac_address, 2)},
+            {"index", Hex(state->dac_index, 2)},
             {"component", state->dac_component},
             {"state", state->dac_state}
         }}

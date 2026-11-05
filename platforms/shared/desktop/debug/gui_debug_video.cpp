@@ -319,10 +319,10 @@ void gui_debug_window_palettes(void)
 
     ImGui::TextColored(violet, "PEL MASK"); ImGui::SameLine();
     ImGui::TextColored(white, "$%02X", state->pel_mask); ImGui::SameLine();
-    ImGui::TextColored(violet, " WRITE"); ImGui::SameLine();
-    ImGui::TextColored(white, "$%02X", state->dac_write_index); ImGui::SameLine();
-    ImGui::TextColored(violet, " READ"); ImGui::SameLine();
-    ImGui::TextColored(white, "$%02X", state->dac_read_index);
+    ImGui::TextColored(violet, " ADDRESS"); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->dac_address); ImGui::SameLine();
+    ImGui::TextColored(violet, " INDEX"); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->dac_index);
 
     ImGui::PopFont();
 
@@ -466,7 +466,7 @@ static void attribute_write_callback(u16 address, u8 value, void* user_data)
     bool data = state->attribute_data;
 
     state->attribute_data = false;
-    video->Write(0x3C0, (u8)((saved & 0x20) | address), clocks);
+    video->Write(0x3C0, (u8)address, clocks);
     video->Write(0x3C0, value, clocks);
     video->Write(0x3C0, saved, clocks);
     state->attribute_data = data;

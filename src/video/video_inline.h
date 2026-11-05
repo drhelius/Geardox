@@ -111,6 +111,12 @@ INLINE u32 Video::GetPlaneBase(u32 offset) const
     return (offset & 0xFFFC) | ((offset & 0x03) << 16);
 }
 
+// GR06 bit 1 puts address bit 16 in the place of bit 0, which is what the CRTC's word mode rotation undoes
+INLINE u32 Video::GetHostOffset(u32 address) const
+{
+    return m_odd_even_address ? (address & 0xFFFE) | ((address >> 16) & 0x01) : address;
+}
+
 INLINE u8 Video::PeekPlane(int plane, u32 offset) const
 {
     return m_state.vram[GetPlaneBase(offset) + (plane & 0x03)];
@@ -205,6 +211,15 @@ INLINE u32 Video::GetCursorAddress() const
     return (address + ((m_state.crtc[k_video_cr_cursor_end] >> 5) & 0x03)) & 0xFFFF;
 }
 
+// The address counter moves on every one, two or four character clocks
+INLINE u32 Video::GetCountShift() const
+{
+    if ((m_state.crtc[k_video_cr_mode] & 0x08) != 0)
+        return 1;
+
+    return (m_state.crtc[k_video_cr_underline] & 0x20) != 0 ? 2 : 0;
+}
+
 // Plane offset of a CRTC address: byte, word or doubleword rotation, then the CGA and Hercules row substitution
 INLINE u32 Video::GetCRTCOffset(u32 address, u32 row) const
 {
@@ -214,7 +229,7 @@ INLINE u32 Video::GetCRTCOffset(u32 address, u32 row) const
     address &= 0xFFFF;
 
     if ((m_state.crtc[k_video_cr_underline] & 0x40) != 0)
-        offset = (address << 2) | ((address >> 14) & 0x03);
+        offset = address << 2;
     else if ((mode & 0x40) != 0)
         offset = address;
     else

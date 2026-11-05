@@ -56,6 +56,7 @@ Video::Video()
     m_chain4 = false;
     m_odd_even_read = false;
     m_odd_even_write = false;
+    m_odd_even_address = false;
     m_plain_write = false;
     m_write_planes = 0;
     m_set_reset = 0;
@@ -179,9 +180,9 @@ u8 Video::Peek(u16 port, u64 clocks) const
         case 0x3C7:
             return m_state.dac_state;
         case 0x3C8:
-            return m_state.dac_write_index;
+            return m_state.dac_index;
         case 0x3C9:
-            return m_state.dac[m_state.dac_read_index][m_state.dac_component];
+            return m_state.dac[m_state.dac_address][m_state.dac_component];
         case 0x3CA:
             return m_state.feature;
         case 0x3CC:
@@ -198,7 +199,7 @@ u8 Video::Peek(u16 port, u64 clocks) const
             if (!IsCRTCBlockSelected(port))
                 return 0xFF;
 
-            return m_state.crtc_index < VIDEO_CRTC_COUNT ? m_state.crtc[m_state.crtc_index] : 0x00;
+            return PeekCRTC();
         case 0x3BA:
         case 0x3DA:
             return IsCRTCBlockSelected(port) ? GetSyncStatus(clocks) : 0xFF;
@@ -268,12 +269,14 @@ void Video::Write(u16 port, u8 value, u64 clocks)
             }
             break;
         case 0x3C7:
-            m_state.dac_read_index = value;
+            m_state.dac_address = value;
+            m_state.dac_index = value + 1;
             m_state.dac_component = 0;
             m_state.dac_state = 0x03;
             break;
         case 0x3C8:
-            m_state.dac_write_index = value;
+            m_state.dac_address = value;
+            m_state.dac_index = value;
             m_state.dac_component = 0;
             m_state.dac_state = 0x00;
             break;
@@ -289,7 +292,7 @@ void Video::Write(u16 port, u8 value, u64 clocks)
         case 0x3B4:
         case 0x3D4:
             if (IsCRTCBlockSelected(port))
-                m_state.crtc_index = value & 0x1F;
+                m_state.crtc_index = value & 0x3F;
             break;
         case 0x3B5:
         case 0x3D5:
@@ -327,6 +330,9 @@ void Video::WriteAttribute(u8 value, u64 clocks)
     u8 index = m_state.attribute_index & 0x1F;
 
     if (index >= VIDEO_ATTRIBUTE_COUNT)
+        return;
+
+    if (index < k_video_ar_mode && (m_state.attribute_index & 0x20) != 0)
         return;
 
     switch (index)
@@ -458,7 +464,7 @@ void Video::WriteMisc(u8 value)
 void Video::WriteDAC(u8 value, u64 clocks)
 {
     u8 component = m_state.dac_component;
-    u8 index = m_state.dac_write_index;
+    u8 index = m_state.dac_address;
 
     m_state.dac_cache[component] = value & 0x3F;
 
@@ -469,7 +475,8 @@ void Video::WriteDAC(u8 value, u64 clocks)
     }
 
     m_state.dac_component = 0;
-    m_state.dac_write_index = index + 1;
+    m_state.dac_address = index + 1;
+    m_state.dac_index++;
 
     if (memcmp(m_state.dac[index], m_state.dac_cache, 3) == 0)
         return;
@@ -481,15 +488,35 @@ void Video::WriteDAC(u8 value, u64 clocks)
 
 u8 Video::ReadDAC()
 {
-    u8 value = m_state.dac[m_state.dac_read_index][m_state.dac_component];
+    u8 value = m_state.dac[m_state.dac_address][m_state.dac_component];
 
     if (++m_state.dac_component == 3)
     {
         m_state.dac_component = 0;
-        m_state.dac_read_index++;
+        m_state.dac_address++;
+        m_state.dac_index++;
     }
 
     return value;
+}
+
+// Past the register file sit the readbacks IBM never documented, all read only
+u8 Video::PeekCRTC() const
+{
+    u8 latches[4];
+
+    switch (m_state.crtc_index)
+    {
+        case k_video_cr_latch_readback:
+            memcpy(latches, &m_state.latch, sizeof(latches));
+            return latches[m_state.graphics[k_video_gr_read_map] & 0x03];
+        case k_video_cr_toggle_readback:
+            return (m_state.attribute_data ? 0x80 : 0x00) | m_state.attribute_index;
+        case k_video_cr_index_readback:
+            return m_state.attribute_index;
+        default:
+            return m_state.crtc_index < VIDEO_CRTC_COUNT ? m_state.crtc[m_state.crtc_index] : 0x00;
+    }
 }
 
 // One event per display line, and the edges of the rest of the frame
@@ -552,10 +579,15 @@ void Video::FinishLine()
     {
         m_state.row_address = 0;
         m_state.row_scan = 0;
+        m_state.row_repeat = false;
 
         if ((m_state.attribute[k_video_ar_mode] & 0x20) != 0)
             m_state.pan_reset = true;
     }
+
+    // A font change waits for the next whole character row
+    if (m_state.row_scan == 0 && !m_state.row_repeat)
+        m_state.character_map = m_state.sequencer[k_video_sr_character_map];
 }
 
 void Video::LatchFrameTiming()
@@ -586,6 +618,7 @@ void Video::StartFrame(u64 clocks)
         m_state.row_scan = m_state.crtc[k_video_cr_preset_row] & 0x1F;
         m_state.row_repeat = false;
         m_state.pan_reset = false;
+        m_state.character_map = m_state.sequencer[k_video_sr_character_map];
     }
 
     m_partial_row = -1;
@@ -789,7 +822,7 @@ void Video::TraceWrite(u16 port, u8 value, u64 clocks)
         {
             const u8* color = m_state.dac_cache;
             u8 component = (m_state.dac_component + 2) % 3;
-            u8 index = m_state.dac_write_index - (component == 2 ? 1 : 0);
+            u8 index = m_state.dac_address - (component == 2 ? 1 : 0);
             u32 rgb = ((u32)color[0] << 16) | ((u32)color[1] << 8) | color[2];
             TraceEvent(TRACE_VIDEO_PALETTE, index, component, value, 0, rgb, clocks);
             break;
@@ -862,8 +895,8 @@ void Video::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.vga_enable);
     G_SERIALIZE_ARRAY(serializer, &m_state.dac[0][0], sizeof(m_state.dac));
     G_SERIALIZE_ARRAY(serializer, m_state.dac_cache, 3);
-    G_SERIALIZE(serializer, m_state.dac_read_index);
-    G_SERIALIZE(serializer, m_state.dac_write_index);
+    G_SERIALIZE(serializer, m_state.dac_address);
+    G_SERIALIZE(serializer, m_state.dac_index);
     G_SERIALIZE(serializer, m_state.dac_component);
     G_SERIALIZE(serializer, m_state.dac_state);
     G_SERIALIZE(serializer, m_state.pel_mask);
@@ -886,13 +919,14 @@ void Video::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.row_scan);
     G_SERIALIZE(serializer, m_state.row_repeat);
     G_SERIALIZE(serializer, m_state.pan_reset);
+    G_SERIALIZE(serializer, m_state.character_map);
 }
 
 void Video::SanitizeState()
 {
     m_state.sequencer_index &= 0x07;
     m_state.graphics_index &= 0x0F;
-    m_state.crtc_index &= 0x1F;
+    m_state.crtc_index &= 0x3F;
     m_state.attribute_index &= 0x3F;
     m_state.dac_component = m_state.dac_component % 3;
     m_state.frame_line_dots = MAX(m_state.frame_line_dots, k_video_min_line_dots);
