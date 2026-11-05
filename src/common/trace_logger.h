@@ -476,6 +476,7 @@ public:
     bool SetCapacity(u32 capacity);
     void SetActive(bool active);
     INLINE bool IsEnabled(GDOX_Trace_Type type) const;
+    INLINE bool IsAnyEnabled() const;
     INLINE bool IsEventEnabled(GDOX_Trace_Type type, u8 event) const;
     INLINE void TraceLog(const GDOX_Trace_Entry& entry);
     void SetEnabledFlags(u32 flags);
@@ -512,6 +513,15 @@ INLINE bool TraceLogger::IsEnabled(GDOX_Trace_Type type) const
     return (m_active_flags & (1U << type)) != 0;
 #else
     UNUSED(type);
+    return false;
+#endif
+}
+
+INLINE bool TraceLogger::IsAnyEnabled() const
+{
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+    return m_active_flags != 0;
+#else
     return false;
 #endif
 }

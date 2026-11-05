@@ -713,7 +713,7 @@ void emu_apply_bios_settings(void)
     geardox->SetDebugConsole(config_emulator.bios_debug_console, config_emulator.bios_log);
 }
 
-// The dynarec runs while the debugger is off, the debugger always steps the interpreter
+// The debugger only steps the interpreter while a breakpoint, a trace, the profiler or a step needs it
 void emu_set_dynarec(bool enabled)
 {
     if (!IsValidPointer(geardox))

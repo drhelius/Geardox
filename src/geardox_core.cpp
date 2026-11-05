@@ -356,6 +356,12 @@ void GeardoxCore::RunDebuggerFrame(u64 frame_start, GDOX_Debug_Run* debug)
         return;
     }
 
+    if (!m_i386->NeedsDebuggerSteps())
+    {
+        RunFrame(frame_start);
+        return;
+    }
+
     bool regular = debug->stop_on_breakpoint;
     bool run_to = debug->stop_on_run_to_breakpoint;
 
