@@ -373,15 +373,11 @@ u16 I8253::GetCount(I8253_Counter& counter, u64 tick) const
                 u32 position = (u32)(elapsed % count);
                 u32 high = (count + 1) / 2;
 
-                // Odd counts drop one on the first high clock and three on the first low clock
-                if (position < high)
-                    value = position == 0 ? count : count + (count & 1) - (position * 2);
-                else
-                {
+                // Odd counts load the count minus one in both halves
+                if (position >= high)
                     position -= high;
-                    value = position == 0 ? count : count - (count & 1) - (position * 2);
-                }
 
+                value = count - (count & 1) - (position * 2);
                 break;
             }
             default:

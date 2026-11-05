@@ -54,6 +54,7 @@ public:
         bool timeout;
         u64 input_clocks;
         u64 timeout_clocks;
+        u64 result_clocks;
     };
 
 public:
@@ -103,7 +104,7 @@ private:
 };
 
 static const u64 k_i8042_command_clocks = GDOX_MACHINE_CLOCK_RATE / 50000;
-static const u64 k_i8042_timeout_clocks = GDOX_MACHINE_CLOCK_RATE / 500;
+static const u64 k_i8042_timeout_clocks = ((u64)GDOX_MACHINE_CLOCK_RATE * 15) / 1000;
 static const int k_i8042_keyboard_irq = 1;
 static const int k_i8042_aux_irq = 12;
 static const u8 k_i8042_input_port = 0xB0;

@@ -40,8 +40,8 @@
 #define GDOX_MACHINE_BUS_TIMING(waits, rate) { GDOX_MACHINE_BUS_FIXED, &waits, NULL, 0, 0, 0, 0, 0, \
     { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
     { GDOX_MACHINE_ISA8_WORD(rate), GDOX_MACHINE_ISA8_WORD(rate) }, { 0, 0 }, \
-    { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, 0, \
-    { 0, 0 }, NULL }
+    { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
+    GDOX_MACHINE_ISA8(rate), { 0, 0 }, NULL }
 
 const u8 k_machine_ram_386sx_20[] = { 1, 2, 4, 8, 16, 0 };
 const u8 k_machine_ram_386dx_33[] = { 1, 2, 4, 8, 16, 0 };

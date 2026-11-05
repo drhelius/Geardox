@@ -81,6 +81,7 @@ void I8042::Reset()
     m_state.output_port = (u8)(k_i8042_output_port | (m_system_control->IsKeyboardA20Enabled() ? 0x02 : 0x00));
     m_state.input_clocks = GDOX_NO_EVENT;
     m_state.timeout_clocks = GDOX_NO_EVENT;
+    m_state.result_clocks = GDOX_NO_EVENT;
     UpdateKeyboardClock(m_scheduler->GetClocks());
     UpdateIRQ();
     UpdateNextEvent();
@@ -99,7 +100,11 @@ u8 I8042::Read(u16 port, u64 clocks)
     m_state.output_full = false;
     m_state.output_aux = false;
     m_state.timeout = false;
-    FlushResult();
+
+    // The controller reloads the buffer a moment later, so the next byte is a new IRQ edge
+    if (m_state.result_pending && m_state.result_clocks == GDOX_NO_EVENT)
+        m_state.result_clocks = clocks + k_i8042_command_clocks;
+
     UpdateKeyboardClock(clocks);
     UpdateIRQ();
     UpdateNextEvent();
@@ -167,6 +172,12 @@ void I8042::Synchronize(u64 clocks)
             m_state.timeout = true;
             PutOutput(0xFE, true);
         }
+        else if (next == m_state.result_clocks)
+        {
+            m_state.result_clocks = GDOX_NO_EVENT;
+            FlushResult();
+            UpdateIRQ();
+        }
         else
         {
             u8 value = 0;
@@ -184,7 +195,8 @@ void I8042::Synchronize(u64 clocks)
 
 u64 I8042::GetNextClocks() const
 {
-    return MIN(MIN(m_state.input_clocks, m_state.timeout_clocks), m_keyboard->GetNextEventClocks());
+    return MIN(MIN(MIN(m_state.input_clocks, m_state.timeout_clocks), m_state.result_clocks),
+        m_keyboard->GetNextEventClocks());
 }
 
 // The cable carries one byte at a time, so a byte for the keyboard waits for the one before it
@@ -351,7 +363,7 @@ void I8042::PutOutput(u8 value, bool aux)
 
 void I8042::FlushResult()
 {
-    if (!m_state.result_pending || m_state.output_full)
+    if (!m_state.result_pending || m_state.output_full || m_state.result_clocks != GDOX_NO_EVENT)
         return;
 
     m_state.output_buffer = m_state.result;
@@ -429,12 +441,16 @@ void I8042::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.timeout);
     G_SERIALIZE(serializer, m_state.input_clocks);
     G_SERIALIZE(serializer, m_state.timeout_clocks);
+    G_SERIALIZE(serializer, m_state.result_clocks);
 }
 
 void I8042::SanitizeState()
 {
     if (!m_state.input_full)
         m_state.input_clocks = GDOX_NO_EVENT;
+
+    if (!m_state.result_pending)
+        m_state.result_clocks = GDOX_NO_EVENT;
 
     UpdateIRQ();
     UpdateNextEvent();

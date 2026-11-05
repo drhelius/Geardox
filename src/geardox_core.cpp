@@ -2102,6 +2102,7 @@ void GeardoxCore::ApplyMachineConfig()
         m_x87->Init(cpu.family >= 4 ? X87_FLAVOR_80486 : X87_FLAVOR_80387);
         m_i386->SetCPU(cpu);
         m_i386->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
+        m_system_control->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
     }
 
     if (IsValidPointer(m_fdc))

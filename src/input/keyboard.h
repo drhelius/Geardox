@@ -113,6 +113,7 @@ private:
 
 static const u64 k_keyboard_byte_clocks = ((u64)GDOX_MACHINE_CLOCK_RATE * 11) / 12000;
 static const u64 k_keyboard_self_test_clocks = ((u64)GDOX_MACHINE_CLOCK_RATE * 3) / 10;
+static const u64 k_keyboard_power_on_clocks = ((u64)GDOX_MACHINE_CLOCK_RATE * 45) / 100;
 static const u8 k_keyboard_typematic_default = 0x2B;
 static const u8 k_keyboard_ack = 0xFA;
 static const u8 k_keyboard_resend = 0xFE;

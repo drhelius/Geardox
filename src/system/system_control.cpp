@@ -23,12 +23,14 @@
 #include "pic.h"
 #include "pit.h"
 #include "../common/state_serializer.h"
+#include "../i386/x87.h"
 
 SystemControl::SystemControl()
 {
     InitPointer(m_memory);
     InitPointer(m_pic);
     InitPointer(m_pit);
+    InitPointer(m_x87);
     InitPointer(m_trace_logger);
     memset(&m_state, 0, sizeof(m_state));
     m_power_on_a20_port_92 = true;
@@ -49,6 +51,11 @@ void SystemControl::Init(Memory* memory, PIC* pic, PIT* pit)
 void SystemControl::SetTraceLogger(TraceLogger* trace_logger)
 {
     m_trace_logger = trace_logger;
+}
+
+void SystemControl::SetFPU(X87* fpu)
+{
+    m_x87 = fpu;
 }
 
 // SeaBIOS gates A20 through port 92h only and other BIOSes through the 8042. As the two OR together,
@@ -142,6 +149,8 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
             }
             break;
         case 0x00F1:
+            if (IsValidPointer(m_x87))
+                m_x87->Reset();
             break;
         default:
             return;

@@ -98,7 +98,17 @@ void PIT::Write(u16 port, u8 value, u64 clocks)
         m_audio->Synchronize(clocks);
 
     if (index == 3)
+    {
+        bool low = counter == k_pit_irq0_channel && !m_pit.GetOutput(k_pit_irq0_channel, tick);
         m_pit.WriteControl(value, tick);
+
+        // A control word sets OUT to its initial state at once, so a low OUT0 can rise here
+        if (low && m_pit.GetOutput(k_pit_irq0_channel, tick))
+        {
+            m_pic->SetIRQLine(0, false);
+            m_pic->SetIRQLine(0, true);
+        }
+    }
     else
         m_pit.WriteCounter(index, value, tick);
 

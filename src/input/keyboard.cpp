@@ -61,7 +61,7 @@ void Keyboard::Reset(u64 clocks)
     memset(&m_state, 0, sizeof(m_state));
     m_state.receive_clocks = GDOX_NO_EVENT;
     m_state.send_clocks = GDOX_NO_EVENT;
-    m_state.self_test_clocks = clocks + k_keyboard_self_test_clocks;
+    m_state.self_test_clocks = clocks + k_keyboard_power_on_clocks;
     SetDefaults();
 }
 
@@ -156,8 +156,6 @@ void Keyboard::KeyReleased(GDOX_Keys key, u64 clocks)
     u8 flags = m_state.keys[key];
     u8 count = m_state.buffer_count;
     m_state.keys[key] = 0;
-    QueueBreak(key, flags);
-    TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x00, (u8)key);
 
     if (m_state.repeat_key == key)
     {
@@ -165,6 +163,11 @@ void Keyboard::KeyReleased(GDOX_Keys key, u64 clocks)
         m_state.repeat_clocks = GDOX_NO_EVENT;
     }
 
+    if (!m_state.scanning)
+        return;
+
+    QueueBreak(key, flags);
+    TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x00, (u8)key);
     UpdateSend(clocks);
 }
 
@@ -219,6 +222,11 @@ void Keyboard::ProcessByte(u8 value, u64 clocks)
         case 0xF3:
             m_state.typematic = value;
             break;
+        case 0xFB:
+        case 0xFC:
+        case 0xFD:
+            m_state.command = command;
+            break;
         default:
             break;
     }
@@ -260,9 +268,14 @@ void Keyboard::ProcessCommand(u8 value, u64 clocks)
         case 0xF8:
         case 0xF9:
         case 0xFA:
+            ClearBuffer();
+            QueueReply(k_keyboard_ack);
+            break;
         case 0xFB:
         case 0xFC:
         case 0xFD:
+            ClearBuffer();
+            m_state.command = value;
             QueueReply(k_keyboard_ack);
             break;
         case 0xFE:
@@ -270,6 +283,9 @@ void Keyboard::ProcessCommand(u8 value, u64 clocks)
             break;
         case 0xFF:
             SetDefaults();
+            memset(m_state.keys, 0, sizeof(m_state.keys));
+            m_state.leds = 0;
+            m_state.num_lock = false;
             m_state.scanning = false;
             m_state.self_test_clocks = clocks + k_keyboard_self_test_clocks;
             QueueReply(k_keyboard_ack);
@@ -280,14 +296,12 @@ void Keyboard::ProcessCommand(u8 value, u64 clocks)
     }
 }
 
+// The lamps and the keys held down stay as they are
 void Keyboard::SetDefaults()
 {
     ClearBuffer();
-    memset(m_state.keys, 0, sizeof(m_state.keys));
     m_state.scan_set = 2;
     m_state.typematic = k_keyboard_typematic_default;
-    m_state.leds = 0;
-    m_state.num_lock = false;
 }
 
 void Keyboard::ClearBuffer()
@@ -405,18 +419,21 @@ void Keyboard::QueueOverrun()
     QueueByte(m_state.scan_set == 1 ? 0xFF : 0x00);
 }
 
-// Only the key itself repeats, without its fake shifts
+// Only the key itself repeats, without its fake shifts, and an inhibited interface stores no repeats
 void Keyboard::RepeatKey(u64 clocks)
 {
     GDOX_Keys key = (GDOX_Keys)m_state.repeat_key;
     u8 count = m_state.buffer_count;
 
-    QueueKey(key, m_state.keys[key], true);
+    if (m_state.clock_enabled)
+    {
+        QueueKey(key, m_state.keys[key], true);
 
-    if (m_state.buffer_count > KEYBOARD_BUFFER_SIZE)
-        m_state.buffer_count = count;
-    else
-        TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x02, (u8)key);
+        if (m_state.buffer_count > KEYBOARD_BUFFER_SIZE)
+            m_state.buffer_count = count;
+        else
+            TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x02, (u8)key);
+    }
 
     m_state.repeat_clocks = clocks + (((u64)GetTypematicPeriod() * GDOX_MACHINE_CLOCK_RATE) / 1000000);
 }

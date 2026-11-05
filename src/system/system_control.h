@@ -29,6 +29,7 @@ class PIC;
 class PIT;
 class StateSerializer;
 class TraceLogger;
+class X87;
 
 class SystemControl
 {
@@ -54,6 +55,7 @@ public:
     void Init(Memory* memory, PIC* pic, PIT* pit);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetPowerOnA20(bool port_92);
+    void SetFPU(X87* fpu);
     void Reset();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -84,6 +86,7 @@ private:
     Memory* m_memory;
     PIC* m_pic;
     PIT* m_pit;
+    X87* m_x87;
     TraceLogger* m_trace_logger;
     bool m_power_on_a20_port_92;
 };

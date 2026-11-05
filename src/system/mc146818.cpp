@@ -34,6 +34,8 @@ MC146818::MC146818()
     InitPointer(m_trace_logger);
     m_start_time = 0;
     memset(&m_state, 0, sizeof(m_state));
+    m_state.ram[k_mc146818_status_a] = k_mc146818_a_divider_normal | 0x06;
+    m_state.ram[k_mc146818_status_b] = k_mc146818_b_24_hour;
 }
 
 MC146818::~MC146818()
@@ -57,13 +59,12 @@ void MC146818::SetStartTime(s64 start_time)
     m_start_time = start_time;
 }
 
-// Power on starts from the host local time, or the fixed start time in UTC, in 24 hour BCD mode
-// The battery backed RAM above the clock keeps its contents
+// Power on starts from the host local time, or the fixed start time in UTC
+// RESET clears the interrupt enables and flags, the rest of the battery backed chip keeps its contents
 void MC146818::Reset(u64 clocks)
 {
     m_state.index = 0;
-    m_state.ram[k_mc146818_status_a] = k_mc146818_a_divider_normal | 0x06;
-    m_state.ram[k_mc146818_status_b] = k_mc146818_b_24_hour;
+    m_state.ram[k_mc146818_status_b] &= (u8)~k_mc146818_b_reset_mask;
     m_state.ram[k_mc146818_status_c] = 0x00;
     m_state.ram[k_mc146818_status_d] = k_mc146818_d_vrt;
     m_state.irq = false;

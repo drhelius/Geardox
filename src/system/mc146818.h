@@ -134,8 +134,11 @@ static const u8 k_mc146818_b_set = 0x80;
 static const u8 k_mc146818_b_periodic = 0x40;
 static const u8 k_mc146818_b_alarm = 0x20;
 static const u8 k_mc146818_b_update = 0x10;
+static const u8 k_mc146818_b_square_wave = 0x08;
 static const u8 k_mc146818_b_binary = 0x04;
 static const u8 k_mc146818_b_24_hour = 0x02;
+static const u8 k_mc146818_b_reset_mask = k_mc146818_b_periodic | k_mc146818_b_alarm | k_mc146818_b_update |
+    k_mc146818_b_square_wave;
 static const u8 k_mc146818_c_irq = 0x80;
 static const u8 k_mc146818_c_periodic = 0x40;
 static const u8 k_mc146818_c_alarm = 0x20;

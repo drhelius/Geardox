@@ -48,9 +48,12 @@ INLINE u8 I8042::GetStatus() const
 }
 
 // Bits 4 and 5 are the IRQ1 and IRQ12 lines, wired to the output buffer
+// Bits 6 and 3 are the clock lines, held low while the port is disabled
 INLINE u8 I8042::GetOutputPort() const
 {
-    return (u8)((m_state.output_port & 0xCF) | (m_state.output_full && !m_state.output_aux ? 0x10 : 0x00) |
+    return (u8)((m_state.output_port & 0x87) | ((m_state.ram[0] & k_i8042_keyboard_disabled) == 0 ? 0x40 : 0x00) |
+        ((m_state.ram[0] & k_i8042_aux_disabled) == 0 ? 0x08 : 0x00) |
+        (m_state.output_full && !m_state.output_aux ? 0x10 : 0x00) |
         (m_state.output_full && m_state.output_aux ? 0x20 : 0x00));
 }
 
