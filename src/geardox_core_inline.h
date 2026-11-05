@@ -117,6 +117,11 @@ INLINE PIT* GeardoxCore::GetPIT()
     return m_pit;
 }
 
+INLINE DMA* GeardoxCore::GetDMA()
+{
+    return m_dma;
+}
+
 INLINE SystemControl* GeardoxCore::GetSystemControl()
 {
     return m_system_control;

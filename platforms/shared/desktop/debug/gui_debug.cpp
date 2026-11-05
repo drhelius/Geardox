@@ -139,6 +139,9 @@ void gui_debug_windows(void)
         if (config_debug.show_pit)
             gui_debug_window_pit();
 
+        if (config_debug.show_dma)
+            gui_debug_window_dma();
+
         if (config_debug.show_system_control)
             gui_debug_window_system_control();
 

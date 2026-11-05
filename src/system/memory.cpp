@@ -246,6 +246,44 @@ INLINE void Memory::NotifyCodeWrite(const DebugRegion* region, u32 offset, u32 s
 }
 #endif
 
+// What a write needs once the address has found its region, from the CPU's view of the bus or the DMA's
+INLINE void Memory::WriteRegionBus(const DebugRegion* region, u32 bus_address, u8 value, GDOX_Bus_Access_Context& context)
+{
+    if (!IsValidPointer(region) ||
+        (!IsValidPointer(region->write_data) && !IsValidPointer(region->write8)) ||
+        (region->info.flags & GDOX_DEBUG_REGION_WRITABLE) == 0)
+        return;
+
+    if ((region->info.flags & GDOX_DEBUG_REGION_MMIO) != 0)
+        SynchronizeRegister(context);
+
+    u32 offset = bus_address - region->info.physical_base;
+
+    if (IsValidPointer(context.observe_memory_write))
+    {
+        u8 previous = 0;
+        ReadRegion(*region, offset, previous);
+        context.observe_memory_write(context.memory_write_context, bus_address, previous, value);
+    }
+
+    if (IsValidPointer(region->write8))
+    {
+        GDOX_Bus_Access_Context* outer = m_access_context;
+        m_access_context = &context;
+        region->write8(region->device, offset, value);
+        m_access_context = outer;
+    }
+    else
+    {
+        region->write_data[offset] = value;
+#if !defined(GDOX_DISABLE_DYNAREC)
+        NotifyCodeWrite(region, offset, 1);
+#endif
+    }
+
+    m_debug_snapshot_id++;
+}
+
 u8 Memory::Read8Physical(u32 physical, GDOX_Bus_Access_Context& context)
 {
     if (m_cpu_map_generation == m_map_generation && IsValidPointer(m_cpu_read_pages[physical >> 12]))
@@ -1153,41 +1191,24 @@ u8 Memory::ReadBus(u32 bus_address, GDOX_Bus_Access_Context& context)
 
 void Memory::WriteBus(u32 bus_address, u8 value, GDOX_Bus_Access_Context& context)
 {
-    const DebugRegion* region = FindPageSpan(bus_address, 1);
+    WriteRegionBus(FindPageSpan(bus_address, 1), bus_address, value, context);
+}
 
-    if (!IsValidPointer(region) ||
-        (!IsValidPointer(region->write_data) && !IsValidPointer(region->write8)) ||
-        (region->info.flags & GDOX_DEBUG_REGION_WRITABLE) == 0)
-        return;
+// The A20 gate sits on the CPU's address lines, so the DMA reaches the bus without the CPU's view of it
+u8 Memory::Read8DMA(u32 address, GDOX_Bus_Access_Context& context)
+{
+    const DebugRegion* region = FindMappedRegion(address);
 
-    if ((region->info.flags & GDOX_DEBUG_REGION_MMIO) != 0)
-        SynchronizeRegister(context);
+    if (IsValidPointer(region))
+        return ReadRegionBus(*region, address - region->info.physical_base, context);
 
-    u32 offset = bus_address - region->info.physical_base;
+    return 0xFF;
+}
 
-    if (IsValidPointer(context.observe_memory_write))
-    {
-        u8 previous = 0;
-        ReadRegion(*region, offset, previous);
-        context.observe_memory_write(context.memory_write_context, bus_address, previous, value);
-    }
-
-    if (IsValidPointer(region->write8))
-    {
-        GDOX_Bus_Access_Context* outer = m_access_context;
-        m_access_context = &context;
-        region->write8(region->device, offset, value);
-        m_access_context = outer;
-    }
-    else
-    {
-        region->write_data[offset] = value;
-#if !defined(GDOX_DISABLE_DYNAREC)
-        NotifyCodeWrite(region, offset, 1);
-#endif
-    }
-
-    m_debug_snapshot_id++;
+void Memory::Write8DMA(u32 address, u8 value, GDOX_Bus_Access_Context& context)
+{
+    const DebugRegion* region = FindMappedRegion(address);
+    WriteRegionBus(region, address, value, context);
 }
 
 u32 Memory::NormalizePhysicalAddress(u32 physical) const

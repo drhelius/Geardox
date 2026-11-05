@@ -307,6 +307,7 @@ struct config_Debug
     bool show_rewind;
     bool show_pic;
     bool show_pit;
+    bool show_dma;
     bool show_system_control;
     bool show_rtc;
     bool show_bios_log;

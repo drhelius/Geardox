@@ -30,6 +30,7 @@
 
 EXTERN void gui_debug_window_pic(void);
 EXTERN void gui_debug_window_pit(void);
+EXTERN void gui_debug_window_dma(void);
 EXTERN void gui_debug_window_system_control(void);
 EXTERN void gui_debug_window_rtc(void);
 EXTERN void gui_debug_window_bios_log(void);

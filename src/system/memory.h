@@ -53,9 +53,11 @@ public:
     void Reset();
 
     u8 Read8Physical(u32 physical, GDOX_Bus_Access_Context& context);
+    u8 Read8DMA(u32 address, GDOX_Bus_Access_Context& context);
     u16 Read16Physical(u32 physical, GDOX_Bus_Access_Context& context);
     u32 Read32Physical(u32 physical, GDOX_Bus_Access_Context& context);
     void Write8Physical(u32 physical, u8 value, GDOX_Bus_Access_Context& context);
+    void Write8DMA(u32 address, u8 value, GDOX_Bus_Access_Context& context);
     void Write16Physical(u32 physical, u16 value, GDOX_Bus_Access_Context& context);
     void Write32Physical(u32 physical, u32 value, GDOX_Bus_Access_Context& context);
 
@@ -147,6 +149,7 @@ private:
     u8 ReadBus(u32 bus_address, GDOX_Bus_Access_Context& context);
     u8 ReadRegionBus(const DebugRegion& region, u32 offset, GDOX_Bus_Access_Context& context);
     void WriteBus(u32 bus_address, u8 value, GDOX_Bus_Access_Context& context);
+    void WriteRegionBus(const DebugRegion* region, u32 bus_address, u8 value, GDOX_Bus_Access_Context& context);
     void SynchronizeRegister(GDOX_Bus_Access_Context& context);
     u32 NormalizePhysicalAddress(u32 physical) const;
     static u8 GetBusClass(const GDOX_Debug_Memory_Region& info);

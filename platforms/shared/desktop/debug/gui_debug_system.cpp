@@ -22,6 +22,7 @@
 
 #include "imgui.h"
 #include "geardox.h"
+#include "system/dma.h"
 #include "system/io.h"
 #include "system/mc146818.h"
 #include "system/pic.h"
@@ -36,6 +37,7 @@
 #include "../utils.h"
 #include "gui_debug_constants.h"
 #include "gui_debug_i386_tables.h"
+#include "gui_debug_memory.h"
 #include "gui_debug_widgets.h"
 
 static const char* const k_pit_mode_short_names[6] =
@@ -46,6 +48,9 @@ static const char* const k_pit_mode_short_names[6] =
 static void setup_fixed_columns(const int* widths, int count);
 static void draw_grid_label(const char* label);
 static void draw_flag(const char* label, bool on);
+static void draw_bits4(u8 value);
+static void draw_dma_chip(const I8237::I8237_State* chip, const char* title, const char* id);
+static void goto_physical(u32 address);
 static void draw_vector_tooltip(u8 vector);
 static void draw_pic_column(const I8259::I8259_State* chip, bool master, int row);
 static void draw_alarm_byte(u8 value);
@@ -259,6 +264,103 @@ void gui_debug_window_pit(void)
                 ImGui::TextColored(white, "%.2f Hz", frequency);
             else
                 ImGui::TextColored(white, "%.3f ms", (count * 1000.0) / rate);
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::PopFont();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+void gui_debug_window_dma(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::SetNextWindowPos(ImVec2(294, 178), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(620, 432), ImGuiCond_FirstUseEver);
+    ImGui::Begin("DMA", &config_debug.show_dma);
+
+    ImGui::PushFont(gui_default_font);
+
+    DMA* dma = emu_get_core()->GetDMA();
+    float character = ImGui::CalcTextSize("0").x;
+
+    draw_dma_chip(dma->GetController(0)->GetState(), "CHIP 1 (0000-000F)", "##dma_chip1");
+    ImGui::NewLine();
+    draw_dma_chip(dma->GetController(1)->GetState(), "CHIP 2 (00C0-00DF)", "##dma_chip2");
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "CHANNELS"); ImGui::Separator();
+
+    ImGuiTableFlags flags = ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit |
+        ImGuiTableFlags_NoHostExtendX;
+
+    if (ImGui::BeginTable("##dma_channels", 8, flags))
+    {
+        static const char* headers[8] = { "CH", "DEVICE", "MODE", "ADDRESS", "COUNT", "MASK", "REQ", "TC" };
+        static const int widths[8] = { 2, 8, 24, 7, 11, 4, 3, 2 };
+
+        for (int i = 0; i < 8; i++)
+            ImGui::TableSetupColumn(headers[i], ImGuiTableColumnFlags_WidthFixed, character * widths[i]);
+
+        ImGui::TableHeadersRow();
+
+        for (int channel = 0; channel < DMA_CHANNELS; channel++)
+        {
+            const I8237::I8237_State* chip = dma->GetController(channel >> 2)->GetState();
+            const I8237::I8237_Channel& item = chip->channels[channel & 0x03];
+            u8 bit = (u8)(1 << (channel & 0x03));
+            u8 mode = item.mode;
+            bool masked = (chip->mask & bit) != 0;
+            bool request = ((chip->request_levels | chip->software_requests) & bit) != 0;
+            bool terminal = (chip->status_tc & bit) != 0;
+            u32 address = dma->GetPhysicalAddress(channel);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(orange, "%d", channel);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(brown, "%s", k_debug_dma_devices[channel]);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(white, "%-7s %-7s %-4s %s", k_debug_dma_direction_names[(mode >> 2) & 3],
+                k_debug_dma_service_names[(mode >> 6) & 3], (mode & 0x10) ? "AUTO" : "", (mode & 0x20) ? "DEC" : "INC");
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::TextColored(cyan, "MODE $%02X", mode);
+                ImGui::TextColored(violet, "DIRECTION"); ImGui::SameLine();
+                ImGui::TextColored(white, "%s", k_debug_dma_direction_names[(mode >> 2) & 3]);
+                ImGui::TextColored(violet, "UNIT     "); ImGui::SameLine();
+                ImGui::TextColored(white, "%s", channel >= 4 ? "WORD" : "BYTE");
+                ImGui::TextColored(violet, "SERVICE  "); ImGui::SameLine();
+                ImGui::TextColored(white, "%s", k_debug_dma_service_names[(mode >> 6) & 3]);
+                ImGui::TextColored(violet, "AUTO INIT"); ImGui::SameLine();
+                ImGui::TextColored((mode & 0x10) ? green : gray, "%s", (mode & 0x10) ? "ON" : "OFF");
+                ImGui::TextColored(violet, "ADDRESS  "); ImGui::SameLine();
+                ImGui::TextColored(white, "%s", (mode & 0x20) ? "DECREMENT" : "INCREMENT");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::TableNextColumn();
+            ImGui::TextColored(cyan, "$%06X", address);
+
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("PAGE $%02X\nCURRENT $%04X\nBASE    $%04X",
+                    dma->GetState()->pages[k_dma_channel_pages[channel]], item.current_address, item.base_address);
+
+            if (ImGui::IsItemClicked())
+                goto_physical(address);
+
+            ImGui::TableNextColumn();
+            ImGui::TextColored(white, "$%04X/$%04X", item.current_count, item.base_count);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(masked ? red : gray, "%d", masked ? 1 : 0);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(request ? yellow : gray, "%d", request ? 1 : 0);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(terminal ? green : gray, "%d", terminal ? 1 : 0);
         }
 
         ImGui::EndTable();
@@ -567,6 +669,73 @@ static void draw_flag(const char* label, bool on)
 {
     draw_grid_label(label);
     ImGui::TextColored(on ? green : gray, "%s", on ? "ON" : "OFF");
+}
+
+static void draw_bits4(u8 value)
+{
+    ImGui::TextColored(white, "$%X", value & 0x0F); ImGui::SameLine(0.0f, ImGui::CalcTextSize(" ").x);
+    ImGui::TextColored(gray, "(%d%d%d%d)", (value >> 3) & 1, (value >> 2) & 1, (value >> 1) & 1, value & 1);
+}
+
+static void draw_dma_chip(const I8237::I8237_State* chip, const char* title, const char* id)
+{
+    ImGuiTableFlags grid = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+    float space = ImGui::CalcTextSize(" ").x;
+    bool disabled = (chip->command & k_i8237_command_disable) != 0;
+
+    ImGui::TextColored(cyan, "%s", title); ImGui::Separator();
+
+    if (ImGui::BeginTable(id, 4, grid))
+    {
+        static const int widths[4] = { 14, 14, 12, 12 };
+
+        setup_fixed_columns(widths, 4);
+
+        ImGui::TableNextRow();
+        draw_grid_label("COMMAND");
+        ImGui::TextColored(white, "$%02X", chip->command);
+        draw_grid_label("STATE");
+        ImGui::TextColored(disabled ? red : green, "%s", disabled ? "DISABLED" : "ENABLED");
+
+        ImGui::TableNextRow();
+        draw_grid_label("MASK");
+        draw_bits4(chip->mask);
+        draw_grid_label("SOFTWARE REQ");
+        draw_bits4(chip->software_requests);
+
+        ImGui::TableNextRow();
+        draw_grid_label("REQUEST LEVELS");
+        draw_bits4(chip->request_levels);
+        draw_grid_label("TERMINAL CNT");
+        draw_bits4(chip->status_tc);
+
+        ImGui::TableNextRow();
+        draw_grid_label("FLIP-FLOP");
+        ImGui::TextColored(chip->flip_flop ? yellow : gray, "%s", chip->flip_flop ? "HIGH" : "LOW");
+
+        ImGui::EndTable();
+    }
+
+    for (int i = 0, shown = 0; i < 8; i++)
+    {
+        if ((chip->command & (1 << i)) == 0)
+            continue;
+
+        if (shown++ > 0)
+            ImGui::SameLine(0.0f, space);
+
+        ImGui::TextColored(i == 2 ? red : yellow, "%s", k_debug_dma_command_names[i]);
+    }
+}
+
+static void goto_physical(u32 address)
+{
+    GDOX_Debug_Memory_Address target = { };
+    target.space = GDOX_DEBUG_MEMORY_PHYSICAL;
+    target.address = address;
+    target.segment_register = -1;
+    target.region = -1;
+    gui_debug_memory_goto(target);
 }
 
 static void draw_vector_tooltip(u8 vector)

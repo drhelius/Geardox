@@ -39,6 +39,7 @@
 #include "system/memory.h"
 #include "i386/i386.h"
 #include "i386/x87.h"
+#include "system/dma.h"
 #include "system/io.h"
 #include "system/pic.h"
 #include "system/pit.h"
@@ -62,6 +63,7 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_io);
     InitPointer(m_pic);
     InitPointer(m_pit);
+    InitPointer(m_dma);
     InitPointer(m_system_control);
     InitPointer(m_i8042);
     InitPointer(m_keyboard);
@@ -121,6 +123,7 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_io);
     SafeDelete(m_pic);
     SafeDelete(m_pit);
+    SafeDelete(m_dma);
     SafeDelete(m_system_control);
     SafeDelete(m_i8042);
     SafeDelete(m_keyboard);
@@ -180,6 +183,9 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_pit))
         m_pit = new PIT();
 
+    if (!IsValidPointer(m_dma))
+        m_dma = new DMA();
+
     if (!IsValidPointer(m_system_control))
         m_system_control = new SystemControl();
 
@@ -227,6 +233,7 @@ void GeardoxCore::Init()
     m_pic->Init();
     m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory);
     m_pit->Init(m_pic, m_scheduler, m_audio);
+    m_dma->Init(m_memory, m_scheduler);
     m_system_control->Init(m_memory, m_pic, m_pit);
     m_keyboard->Init();
     m_i8042->Init(m_pic, m_scheduler, m_system_control, m_keyboard);
@@ -236,7 +243,7 @@ void GeardoxCore::Init()
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input, m_system_control, m_rtc,
-        m_firmware_config, m_debug_console, m_i8042);
+        m_firmware_config, m_debug_console, m_i8042, m_dma);
     m_i386->Init(m_memory, m_io);
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
@@ -248,6 +255,7 @@ void GeardoxCore::Init()
     m_memory->SetTraceLogger(m_trace_logger);
     m_pic->SetTraceLogger(m_trace_logger);
     m_pit->SetTraceLogger(m_trace_logger);
+    m_dma->SetTraceLogger(m_trace_logger);
     m_system_control->SetTraceLogger(m_trace_logger);
     m_keyboard->SetTraceLogger(m_trace_logger);
     m_i8042->SetTraceLogger(m_trace_logger);
@@ -297,6 +305,7 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
     m_trace_logger->SetActive(debugging);
     m_profiler->SetActive(debugging);
     m_i386->EnableDebuggerChecks(debugging);
+    m_dma->SetDebugCallback(debugging ? &GeardoxCore::DMADebugCallback : NULL, m_i386);
 
     if (debugging)
     {
@@ -714,6 +723,15 @@ INLINE void GeardoxCore::DispatchEvents()
                 break;
             case SCHEDULER_EVENT_KEYBOARD:
                 m_i8042->HandleEvent(clocks);
+                break;
+            case SCHEDULER_EVENT_DMA:
+                // The DMA owns the bus for each unit it moves, so the CPU loses that time
+                m_scheduler->AddClocks(m_dma->HandleEvent(clocks));
+
+                // A block can outlast several frames, and the frame loop only looks between slices
+                if (m_video->IsFrameReady())
+                    return;
+
                 break;
             case SCHEDULER_EVENT_AUDIO:
                 m_audio->HandleEvent(clocks);
@@ -1262,6 +1280,7 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_input->SaveState(stream);
     m_pic->SaveState(stream);
     m_pit->SaveState(stream);
+    m_dma->SaveState(stream);
     m_system_control->SaveState(stream);
     m_rtc->SaveState(stream);
     m_firmware_config->SaveState(stream);
@@ -1555,6 +1574,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_input->LoadState(stream);
     m_pic->LoadState(stream);
     m_pit->LoadState(stream, header.version);
+    m_dma->LoadState(stream, header.version);
     m_system_control->LoadState(stream, header.version);
     m_rtc->LoadState(stream, header.version);
     m_firmware_config->LoadState(stream, header.version);
@@ -1860,6 +1880,9 @@ void GeardoxCore::Reset()
 
     if (IsValidPointer(m_pit))
         m_pit->Reset();
+
+    if (IsValidPointer(m_dma))
+        m_dma->Reset();
 
     if (IsValidPointer(m_system_control))
         m_system_control->Reset();

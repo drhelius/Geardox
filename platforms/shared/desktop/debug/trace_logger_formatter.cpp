@@ -455,65 +455,71 @@ static void format_timer(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
 
 static void format_dma(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    u8 channel = entry.dma.channel & 0x03;
+    u8 channel = entry.dma.channel & 0x07;
     const char* device = k_debug_dma_devices[channel];
+    u32 chip = (channel >> 2) + 1;
 
     switch (entry.event)
     {
         case TRACE_DMA_REQUEST:
-            format_event(buffer, size, "DMA", "REQUEST", "CH%u %s  Address:$%08X  Count:$%04X  Mode:$%02X%s", channel,
+            format_event(buffer, size, "DMA", "REQUEST", "CH%u %s  Address:$%06X  Count:$%04X  Mode:$%02X%s", channel,
                 device, entry.dma.address, entry.dma.count, entry.dma.mode,
                 ((entry.dma.mask >> channel) & 0x01) != 0 ? "  MASKED" : "");
             break;
         case TRACE_DMA_END:
-            format_event(buffer, size, "DMA", "END", "CH%u %s  %s  Address:$%08X  Count:$%04X", channel, device,
-                entry.dma.terminal ? "TERMINAL COUNT" : "DEVICE END", entry.dma.address, entry.dma.count);
+            format_event(buffer, size, "DMA", "END", "CH%u %s  TERMINAL COUNT  Address:$%06X  Count:$%04X", channel, device,
+                entry.dma.address, entry.dma.count);
             break;
         default:
         {
             u8 value = entry.dma.value;
 
+            if (entry.dma.reg >= 0x10)
+            {
+                format_event(buffer, size, "DMA", "PAGE", "Port:$%02X  CH%u %s  Write:$%02X  Address:$%06X",
+                    0x80 | (entry.dma.reg & 0x0F), channel, device, value, entry.dma.address);
+                break;
+            }
+
+            if (entry.dma.reg < 0x08)
+            {
+                format_event(buffer, size, "DMA", (entry.dma.reg & 0x01) != 0 ? "COUNT" : "ADDRESS",
+                    "CH%u %s  Write:$%02X  Address:$%06X  Count:$%04X", channel, device, value, entry.dma.address,
+                    entry.dma.count);
+                break;
+            }
+
             switch (entry.dma.reg)
             {
-                case 0x00:
-                    format_event(buffer, size, "DMA", "INIT", "Write:$%02X  Bus:%s%s", value,
-                        (value & 0x02) != 0 ? "16-BIT" : "8-BIT", (value & 0x01) != 0 ? "  RESET" : "");
-                    break;
-                case 0x01:
-                    format_event(buffer, size, "DMA", "SELECT", "CH%u %s  %s", channel, device,
-                        (value & 0x04) != 0 ? "BASE" : "BASE+CURRENT");
-                    break;
-                case 0x02:
-                case 0x03:
-                    format_event(buffer, size, "DMA", "COUNT", "CH%u %s  Write:$%02X  Count:$%04X", channel, device,
-                        value, entry.dma.count);
-                    break;
-                case 0x04:
-                case 0x05:
-                case 0x06:
-                case 0x07:
-                    format_event(buffer, size, "DMA", "ADDRESS", "CH%u %s  Write:$%02X  Address:$%08X", channel,
-                        device, value, entry.dma.address);
-                    break;
                 case 0x08:
+                    format_event(buffer, size, "DMA", "COMMAND", "Chip %u  Write:$%02X%s", chip, value,
+                        (value & 0x04) != 0 ? "  DISABLED" : "");
+                    break;
                 case 0x09:
-                    format_event(buffer, size, "DMA", "DEVICE", "Write:$%02X  Control:$%03X%s", value, entry.dma.count,
-                        (entry.dma.count & 0x0004) != 0 ? "  DISABLED" : "");
+                    format_event(buffer, size, "DMA", "SOFTWARE", "CH%u %s  %s", channel, device,
+                        (value & 0x04) != 0 ? "SET" : "CLEAR");
                     break;
                 case 0x0A:
-                    format_event(buffer, size, "DMA", "MODE", "CH%u %s  $%02X  %s %s %s%s%s", channel, device, value,
-                        k_debug_dma_direction_names[(value >> 2) & 0x03], k_debug_dma_service_names[(value >> 6) & 0x03],
-                        (value & 0x01) != 0 ? "WORD" : "BYTE", (value & 0x10) != 0 ? " AUTO-INIT" : "",
-                        (value & 0x20) != 0 ? " DECREMENT" : "");
+                    format_event(buffer, size, "DMA", "MASK", "CH%u %s  %s", channel, device,
+                        (value & 0x04) != 0 ? "MASKED" : "UNMASKED");
                     break;
-                case 0x0E:
-                    format_event(buffer, size, "DMA", "REQUEST", "Software requests:$%X", value & 0x0F);
+                case 0x0B:
+                    format_event(buffer, size, "DMA", "MODE", "CH%u %s  $%02X  %s %s%s%s", channel, device, value,
+                        k_debug_dma_direction_names[(value >> 2) & 0x03], k_debug_dma_service_names[(value >> 6) & 0x03],
+                        (value & 0x10) != 0 ? " AUTO-INIT" : "", (value & 0x20) != 0 ? " DECREMENT" : "");
+                    break;
+                case 0x0C:
+                    format_event(buffer, size, "DMA", "FLIP-FLOP", "Chip %u  Cleared", chip);
+                    break;
+                case 0x0D:
+                    format_event(buffer, size, "DMA", "CLEAR", "Chip %u  Master clear", chip);
                     break;
                 default:
                 {
                     char masked[24];
-                    format_bit_list(value & 0x0F, 0, masked, sizeof(masked));
-                    format_event(buffer, size, "DMA", "MASK", "$%X  Masked channels:%s", value & 0x0F, masked);
+                    u8 mask = (entry.dma.mask >> ((chip - 1) * 4)) & 0x0F;
+                    format_bit_list(mask, 0, masked, sizeof(masked));
+                    format_event(buffer, size, "DMA", "MASK", "Chip %u  $%X  Masked channels:%s", chip, mask, masked);
                     break;
                 }
             }

@@ -28,6 +28,7 @@
 #include "common/log.h"
 #include "drive/floppy_disk.h"
 #include "drive/hard_disk_image.h"
+#include "system/dma.h"
 #include "system/pic.h"
 #include "system/pit.h"
 #include "system/system_control.h"
@@ -2567,6 +2568,73 @@ json DebugAdapter::GetTextScreen(bool attributes)
         result["attributes"] = colors;
 
     return result;
+}
+
+json DebugAdapter::GetDMAStatus()
+{
+    DMA* dma = m_core->GetDMA();
+    json controllers = json::array();
+    json channels = json::array();
+
+    for (int i = 0; i < DMA_CHIPS; i++)
+    {
+        const I8237::I8237_State* chip = dma->GetController(i)->GetState();
+        json command = json::array();
+
+        for (int bit = 0; bit < 8; bit++)
+        {
+            if ((chip->command & (1 << bit)) != 0)
+                command.push_back(k_debug_dma_command_names[bit]);
+        }
+
+        controllers.push_back({
+            {"chip", i + 1},
+            {"command", Hex(chip->command, 2)},
+            {"command_bits", command},
+            {"disabled", (chip->command & k_i8237_command_disable) != 0},
+            {"status", Hex(dma->Peek(i == 0 ? 0x0008 : 0x00D0), 2)},
+            {"mask", Hex(chip->mask & 0x0F, 1)},
+            {"software_requests", Hex(chip->software_requests & 0x0F, 1)},
+            {"request_levels", Hex(chip->request_levels & 0x0F, 1)},
+            {"terminal_count", Hex(chip->status_tc & 0x0F, 1)},
+            {"flip_flop", chip->flip_flop}
+        });
+    }
+
+    for (int channel = 0; channel < DMA_CHANNELS; channel++)
+    {
+        const I8237::I8237_State* chip = dma->GetController(channel >> 2)->GetState();
+        const I8237::I8237_Channel& item = chip->channels[channel & 0x03];
+        u8 bit = (u8)(1 << (channel & 0x03));
+        u8 mode = item.mode;
+
+        channels.push_back({
+            {"channel", channel},
+            {"device", k_debug_dma_devices[channel]},
+            {"mode", Hex(mode, 2)},
+            {"direction", k_debug_dma_direction_names[(mode >> 2) & 3]},
+            {"unit", channel >= 4 ? "word" : "byte"},
+            {"service", to_lower(k_debug_dma_service_names[(mode >> 6) & 3])},
+            {"auto_initialize", (mode & 0x10) != 0},
+            {"decrement", (mode & 0x20) != 0},
+            {"page", Hex(dma->GetState()->pages[k_dma_channel_pages[channel]], 2)},
+            {"physical_address", Hex32(dma->GetPhysicalAddress(channel))},
+            {"current_address", Hex(item.current_address, 4)},
+            {"base_address", Hex(item.base_address, 4)},
+            {"current_count", Hex(item.current_count, 4)},
+            {"base_count", Hex(item.base_count, 4)},
+            {"masked", (chip->mask & bit) != 0},
+            {"request", ((chip->request_levels | chip->software_requests) & bit) != 0},
+            {"terminal_count", (chip->status_tc & bit) != 0}
+        });
+    }
+
+    return {
+        {"controllers", controllers},
+        {"active_channel", dma->GetState()->active_channel},
+        {"stalled", Hex(dma->GetState()->stalled, 2)},
+        {"channels", channels}
+    };
 }
 
 json DebugAdapter::GetRTCStatus()

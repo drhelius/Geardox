@@ -238,6 +238,12 @@
     <ClCompile Include="..\..\src\system\pic.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\system\dma.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\i8237.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\i8259.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -450,6 +456,10 @@
     <ClInclude Include="..\..\src\system\io_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pic.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pic_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\dma.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\dma_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8237.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8237_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\i8259.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\i8259_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pit.h"><Filter>src</Filter></ClInclude>

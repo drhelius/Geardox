@@ -53,6 +53,8 @@
     <ClCompile Include="..\..\src\system\memory.cpp" />
     <ClCompile Include="..\..\src\system\io.cpp" />
     <ClCompile Include="..\..\src\system\pic.cpp" />
+    <ClCompile Include="..\..\src\system\dma.cpp" />
+    <ClCompile Include="..\..\src\system\i8237.cpp" />
     <ClCompile Include="..\..\src\system\i8259.cpp" />
     <ClCompile Include="..\..\src\system\pit.cpp" />
     <ClCompile Include="..\..\src\system\mc146818.cpp" />
@@ -258,6 +260,10 @@
     <ClInclude Include="..\..\src\system\io_inline.h" />
     <ClInclude Include="..\..\src\system\pic.h" />
     <ClInclude Include="..\..\src\system\pic_inline.h" />
+    <ClInclude Include="..\..\src\system\dma.h" />
+    <ClInclude Include="..\..\src\system\dma_inline.h" />
+    <ClInclude Include="..\..\src\system\i8237.h" />
+    <ClInclude Include="..\..\src\system\i8237_inline.h" />
     <ClInclude Include="..\..\src\system\i8259.h" />
     <ClInclude Include="..\..\src\system\i8259_inline.h" />
     <ClInclude Include="..\..\src\system\pit.h" />

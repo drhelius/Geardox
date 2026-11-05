@@ -19,6 +19,7 @@
 
 #include "io.h"
 #include "debug_console.h"
+#include "dma.h"
 #include "firmware_config.h"
 #include "mc146818.h"
 #include "../input/i8042.h"
@@ -44,6 +45,7 @@ IO::IO()
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
     InitPointer(m_i8042);
+    InitPointer(m_dma);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -53,7 +55,7 @@ IO::~IO()
 
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
     Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
-    DebugConsole* debug_console, I8042* i8042)
+    DebugConsole* debug_console, I8042* i8042, DMA* dma)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -68,6 +70,7 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_firmware_config = firmware_config;
     m_debug_console = debug_console;
     m_i8042 = i8042;
+    m_dma = dma;
     Reset();
 }
 
@@ -140,6 +143,9 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
         default:
             if (m_video->Decodes(port & k_io_isa_mask))
                 return m_video->Read(port & k_io_isa_mask, context.clocks);
+
+            if (m_dma->Decodes(port))
+                return m_dma->Read(port);
             break;
     }
 
@@ -186,6 +192,12 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
             if (m_video->Decodes(port & k_io_isa_mask))
             {
                 value = m_video->Peek(port & k_io_isa_mask, clocks);
+                return true;
+            }
+
+            if (m_dma->Decodes(port))
+            {
+                value = m_dma->Peek(port);
                 return true;
             }
 
@@ -246,11 +258,11 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
             // VGA input status 1, color block
             return m_video->GetSyncStableUntil(clocks);
         default:
-            return 0;
+            return m_dma->Decodes(port) ? m_dma->GetReadStableUntil(port) : 0;
     }
 }
 
-// A20 and the fast reset end the CPU batch after the write
+// A20, the fast reset and the DMA end the CPU batch after the write, a new transfer shouldn't wait for the slice
 void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
 {
     u32 generation = m_memory->GetMapGeneration();
@@ -317,6 +329,11 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
         default:
             if (m_video->Decodes(port & k_io_isa_mask))
                 m_video->Write(port & k_io_isa_mask, value, context.clocks);
+            else if (m_dma->Decodes(port))
+            {
+                m_dma->Write(port, value);
+                context.end_batch = true;
+            }
             else
                 Debug("Unknown IO write at %04X, value=%02X", port, value);
             break;

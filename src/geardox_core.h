@@ -36,6 +36,7 @@ class Input;
 class Media;
 class Memory;
 class IO;
+class DMA;
 class PIC;
 class PIT;
 class Scheduler;
@@ -151,6 +152,7 @@ public:
     IO* GetIO();
     PIC* GetPIC();
     PIT* GetPIT();
+    DMA* GetDMA();
     SystemControl* GetSystemControl();
     I8042* GetI8042();
     Keyboard* GetKeyboard();
@@ -223,6 +225,7 @@ private:
     IO* m_io;
     PIC* m_pic;
     PIT* m_pit;
+    DMA* m_dma;
     SystemControl* m_system_control;
     I8042* m_i8042;
     Keyboard* m_keyboard;

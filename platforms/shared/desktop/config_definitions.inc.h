@@ -48,6 +48,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "Rewind", config_debug.show_rewind, false);
     CONFIG_BOOL("Debug", "Interrupts", config_debug.show_pic, false);
     CONFIG_BOOL("Debug", "Timers", config_debug.show_pit, false);
+    CONFIG_BOOL("Debug", "DMA", config_debug.show_dma, false);
     CONFIG_BOOL("Debug", "SystemControl", config_debug.show_system_control, false);
     CONFIG_BOOL("Debug", "RTC", config_debug.show_rtc, false);
     CONFIG_BOOL("Debug", "BIOSLog", config_debug.show_bios_log, false);

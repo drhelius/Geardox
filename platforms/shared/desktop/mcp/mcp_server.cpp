@@ -1325,6 +1325,19 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_dma_status"},
+        {"title", "Get DMA Status"},
+        {"description", "Read the two 8237 DMA controllers: command, status, mask, requests and flip-flop per chip, and "
+            "the eight channels' device, mode, page, physical address, base and current registers and counts."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "get_system_status"},
         {"title", "Get System Status"},
         {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, drives, BIOS set and where each "
@@ -3268,6 +3281,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "get_pit_status")
     {
         return m_debugAdapter.GetPITStatus();
+    }
+    else if (normalizedTool == "get_dma_status")
+    {
+        return m_debugAdapter.GetDMAStatus();
     }
     else if (normalizedTool == "get_system_status")
     {

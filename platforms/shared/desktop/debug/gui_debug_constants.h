@@ -31,6 +31,22 @@ struct stDebugPortLabel
 
 static const stDebugPortLabel k_debug_port_labels[] =
 {
+    { 0x0000, "DMA1_ADDR0", "DMA channel 0 current address" },
+    { 0x0001, "DMA1_CNT0", "DMA channel 0 current count" },
+    { 0x0002, "DMA1_ADDR1", "DMA channel 1 current address" },
+    { 0x0003, "DMA1_CNT1", "DMA channel 1 current count" },
+    { 0x0004, "DMA1_ADDR2", "DMA channel 2 current address" },
+    { 0x0005, "DMA1_CNT2", "DMA channel 2 current count" },
+    { 0x0006, "DMA1_ADDR3", "DMA channel 3 current address" },
+    { 0x0007, "DMA1_CNT3", "DMA channel 3 current count" },
+    { 0x0008, "DMA1_STATUS", "DMA chip 1 status, terminal count and requests, command on write" },
+    { 0x0009, "DMA1_REQUEST", "DMA chip 1 software request" },
+    { 0x000A, "DMA1_MASK", "DMA chip 1 single mask bit" },
+    { 0x000B, "DMA1_MODE", "DMA chip 1 mode" },
+    { 0x000C, "DMA1_FLIPFLOP", "DMA chip 1 clear byte flip-flop" },
+    { 0x000D, "DMA1_CLEAR", "DMA chip 1 temporary, master clear on write" },
+    { 0x000E, "DMA1_UNMASK", "DMA chip 1 clear all masks" },
+    { 0x000F, "DMA1_ALLMASK", "DMA chip 1 all mask bits" },
     { 0x0020, "PIC_M_CMD", "PIC master ICW1/OCW2/OCW3, IRR/ISR read" },
     { 0x0021, "PIC_M_DATA", "PIC master ICW2-ICW4, IMR" },
     { 0x0040, "PIT_CNT0", "PIT counter 0, system timer on IRQ0" },
@@ -43,9 +59,33 @@ static const stDebugPortLabel k_debug_port_labels[] =
     { 0x0070, "CMOS_INDEX", "CMOS index, bit 7 masks NMI" },
     { 0x0071, "CMOS_DATA", "CMOS data" },
     { 0x0080, "POST_CODE", "POST code latch" },
+    { 0x0081, "DMA_PAGE2", "DMA page, channel 2" },
+    { 0x0082, "DMA_PAGE3", "DMA page, channel 3" },
+    { 0x0083, "DMA_PAGE1", "DMA page, channel 1" },
+    { 0x0087, "DMA_PAGE0", "DMA page, channel 0" },
+    { 0x0089, "DMA_PAGE6", "DMA page, channel 6" },
+    { 0x008A, "DMA_PAGE7", "DMA page, channel 7" },
+    { 0x008B, "DMA_PAGE5", "DMA page, channel 5" },
+    { 0x008F, "DMA_REFRESH", "DMA page, refresh on the AT" },
     { 0x0092, "SYS_CTRL_A", "Fast A20 gate and fast reset" },
     { 0x00A0, "PIC_S_CMD", "PIC slave ICW1/OCW2/OCW3, IRR/ISR read" },
     { 0x00A1, "PIC_S_DATA", "PIC slave ICW2-ICW4, IMR" },
+    { 0x00C0, "DMA2_ADDR4", "DMA channel 4 current address" },
+    { 0x00C2, "DMA2_CNT4", "DMA channel 4 current count" },
+    { 0x00C4, "DMA2_ADDR5", "DMA channel 5 current address" },
+    { 0x00C6, "DMA2_CNT5", "DMA channel 5 current count" },
+    { 0x00C8, "DMA2_ADDR6", "DMA channel 6 current address" },
+    { 0x00CA, "DMA2_CNT6", "DMA channel 6 current count" },
+    { 0x00CC, "DMA2_ADDR7", "DMA channel 7 current address" },
+    { 0x00CE, "DMA2_CNT7", "DMA channel 7 current count" },
+    { 0x00D0, "DMA2_STATUS", "DMA chip 2 status, terminal count and requests, command on write" },
+    { 0x00D2, "DMA2_REQUEST", "DMA chip 2 software request" },
+    { 0x00D4, "DMA2_MASK", "DMA chip 2 single mask bit" },
+    { 0x00D6, "DMA2_MODE", "DMA chip 2 mode" },
+    { 0x00D8, "DMA2_FLIPFLOP", "DMA chip 2 clear byte flip-flop" },
+    { 0x00DA, "DMA2_CLEAR", "DMA chip 2 temporary, master clear on write" },
+    { 0x00DC, "DMA2_UNMASK", "DMA chip 2 clear all masks" },
+    { 0x00DE, "DMA2_ALLMASK", "DMA chip 2 all mask bits" },
     { 0x00F0, "FPU_CLEAR", "Clears the coprocessor error and IRQ13" },
     { 0x00F1, "FPU_RESET", "Resets the coprocessor" },
     { 0x03B4, "CRTC_M_IDX", "VGA CRTC index, monochrome block" },
@@ -230,9 +270,9 @@ static const char* const k_debug_irq_sources[16] =
     "RTC", "ISA IRQ2", "ISA", "ISA", "PS/2 MOUSE", "FPU", "PRIMARY IDE", "SECONDARY IDE"
 };
 
-static const char* const k_debug_dma_devices[4] =
+static const char* const k_debug_dma_devices[8] =
 {
-    "FDC", "SCSI", "PRINTER", "CD-ROM"
+    "SPARE", "SOUND", "FLOPPY", "SPARE", "CASCADE", "SOUND 16", "SPARE", "SPARE"
 };
 
 static const char* const k_debug_pit_uses[3] =
@@ -280,6 +320,11 @@ static const char* const k_debug_dma_direction_names[4] =
 static const char* const k_debug_dma_service_names[4] =
 {
     "DEMAND", "SINGLE", "BLOCK", "CASCADE"
+};
+
+static const char* const k_debug_dma_command_names[8] =
+{
+    "MEM-MEM", "HOLD", "DISABLE", "COMPRESS", "ROTATE", "EXTENDED", "DREQ LOW", "DACK HIGH"
 };
 
 static const char* const k_debug_rtc_register_names[14] =

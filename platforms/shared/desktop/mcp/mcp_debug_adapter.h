@@ -214,6 +214,7 @@ public:
     // System hardware
     json GetPICStatus();
     json GetPITStatus();
+    json GetDMAStatus();
     json GetSystemStatus();
     json GetRTCStatus();
     json GetKeyboardStatus();
