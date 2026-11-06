@@ -1,3 +1,14 @@
+--- seabios-28aa463/src/block.h
++++ seabios/src/block.h
+@@ -32,6 +32,8 @@ struct disk_op_s {
+ #define CMD_SEEK    0x07
+ #define CMD_ISREADY 0x10
+ #define CMD_SCSI    0x20
++#define CMD_CHANGELINE 0x40
++#define CMD_SETMEDIA   0x41
+ 
+ 
+ /****************************************************************
 --- seabios-28aa463/src/byteorder.h
 +++ seabios/src/byteorder.h
 @@ -13,8 +13,7 @@ static inline u64 __swab64_constant(u64 val) {
@@ -10,9 +21,356 @@
  }
  static inline u64 __swab64(u64 val) {
      union u64_u32_u i, o;
+--- seabios-28aa463/src/disk.c
++++ seabios/src/disk.c
+@@ -378,6 +378,8 @@ disk_1315(struct bregs *regs, struct drive_s *drive_fl)
+     if (regs->dl < EXTSTART_HD || regs->dl >= EXTSTART_CD) {
+         // Floppy or cdrom
+         regs->ah = 1;
++        if (GET_FLATPTR(drive_fl->type) == DTYPE_FLOPPY)
++            regs->ah = floppy_dasd_type(drive_fl);
+         return;
+     }
+     // Hard drive
+@@ -401,9 +403,63 @@ disk_1316(struct bregs *regs, struct drive_s *drive_fl)
+         disk_ret(regs, DISK_RET_EPARAM);
+         return;
+     }
++    if (GET_FLATPTR(drive_fl->type) == DTYPE_FLOPPY) {
++        struct disk_op_s dop;
++        dop.drive_fl = drive_fl;
++        dop.command = CMD_CHANGELINE;
++        dop.lba = 0;
++        dop.count = 0;
++        dop.buf_fl = NULL;
++        disk_ret(regs, send_disk_op(&dop));
++        return;
++    }
+     disk_ret(regs, DISK_RET_ECHANGED);
+ }
+ 
++static void
++disk_set_media(struct bregs *regs, struct drive_s *drive_fl, int stype, u8 rate)
++{
++    struct disk_op_s dop;
++    dop.drive_fl = drive_fl;
++    dop.command = CMD_SETMEDIA;
++    dop.lba = stype | (rate << 8);
++    dop.count = 0;
++    dop.buf_fl = NULL;
++    int status = send_disk_op(&dop);
++    if (!status && regs->ah == 0x18) {
++        regs->es = SEG_BIOS;
++        regs->di = (u32)&diskette_param_table2;
++    }
++    disk_ret(regs, status);
++}
++
++// IBM S68X-2341-00 p2-55: set DASD type for format
++static void noinline
++disk_1317(struct bregs *regs, struct drive_s *drive_fl)
++{
++    u8 rate = 0;
++    int stype = floppy_find_type(drive_fl, regs->al, &rate);
++    if (!stype) {
++        disk_ret(regs, DISK_RET_EPARAM);
++        return;
++    }
++    disk_set_media(regs, drive_fl, stype, rate);
++}
++
++// IBM S68X-2341-00 p2-56: set media type for format
++static void noinline
++disk_1318(struct bregs *regs, struct drive_s *drive_fl)
++{
++    u16 cylinders = (regs->ch | ((regs->cl & 0xc0) << 2)) + 1;
++    u8 rate = 0;
++    int stype = floppy_find_media(drive_fl, cylinders, regs->cl & 0x3f, &rate);
++    if (!stype) {
++        disk_ret(regs, DISK_RET_EBADTRACK);
++        return;
++    }
++    disk_set_media(regs, drive_fl, stype, rate);
++}
++
+ // IBM/MS installation check
+ static void
+ disk_1341(struct bregs *regs, struct drive_s *drive_fl)
+@@ -671,6 +727,8 @@ floppy_13(struct bregs *regs, struct drive_s *drive_fl)
+     case 0x16:
+         disk_13(regs, drive_fl);
+         break;
++    case 0x17: disk_1317(regs, drive_fl); break;
++    case 0x18: disk_1318(regs, drive_fl); break;
+     default:   disk_13XX(regs, drive_fl); break;
+     }
+ }
+--- seabios-28aa463/src/hw/floppy.c
++++ seabios/src/hw/floppy.c
+@@ -426,6 +426,8 @@ floppy_drive_seek(u8 floppyid, u8 cylinder)
+     u8 param[2];
+     param[0] = floppyid;
+     param[1] = cylinder;
++    if (GET_BDA(floppy_media_state[floppyid]) & FMS_DOUBLE_STEPPING)
++        param[1] = cylinder * 2;
+     int ret = floppy_drive_pio(floppyid, FC_SEEK, param);
+     if (ret)
+         return ret;
+@@ -503,6 +505,19 @@ floppy_check_media(struct drive_s *drive_gf, u8 floppyid)
+     return floppy_drive_seek(floppyid, 0);
+ }
+ 
++static void
++floppy_set_state(u8 floppyid, u8 ftype, u8 stype, u8 data_rate)
++{
++    u8 old_data_rate = GET_BDA(floppy_media_state[floppyid]) >> 6;
++    SET_BDA(floppy_last_data_rate, (old_data_rate<<2) | (data_rate<<6));
++    u8 media = (stype == 1 ? 0x04 : (stype == 2 ? 0x05 : 0x07));
++    u8 fms = (data_rate<<6) | FMS_MEDIA_DRIVE_ESTABLISHED | media;
++    if (GET_GLOBAL(FloppyInfo[stype].chs.cylinder)
++        < GET_GLOBAL(FloppyInfo[ftype].chs.cylinder))
++        fms |= FMS_DOUBLE_STEPPING;
++    SET_BDA(floppy_media_state[floppyid], fms);
++}
++
+ static int
+ floppy_media_sense(struct drive_s *drive_gf)
+ {
+@@ -535,14 +550,7 @@ floppy_media_sense(struct drive_s *drive_gf)
+     dprintf(2, "Floppy_media_sense on drive %d found rate %d\n"
+             , floppyid, data_rate);
+ 
+-    u8 old_data_rate = GET_BDA(floppy_media_state[floppyid]) >> 6;
+-    SET_BDA(floppy_last_data_rate, (old_data_rate<<2) | (data_rate<<6));
+-    u8 media = (stype == 1 ? 0x04 : (stype == 2 ? 0x05 : 0x07));
+-    u8 fms = (data_rate<<6) | FMS_MEDIA_DRIVE_ESTABLISHED | media;
+-    if (GET_GLOBAL(FloppyInfo[stype].chs.cylinder)
+-        < GET_GLOBAL(FloppyInfo[ftype].chs.cylinder))
+-        fms |= FMS_DOUBLE_STEPPING;
+-    SET_BDA(floppy_media_state[floppyid], fms);
++    floppy_set_state(floppyid, ftype, stype, data_rate);
+ 
+     return DISK_RET_SUCCESS;
+ }
+@@ -559,17 +567,25 @@ floppy_prep(struct drive_s *drive_gf, u8 cylinder)
+         if (ret)
+             return ret;
+ 
+-        // An empty drive gives no index pulses, so the READ ID that
+-        // floppy_media_sense() issues would never complete and would wait out
+-        // its timeout once per data rate.  Ask the disk change line instead.
+-        ret = floppy_check_media(drive_gf, floppyid);
+-        if (ret)
+-            return ret;
+-
+-        // Sense media.
+-        ret = floppy_media_sense(drive_gf);
+-        if (ret)
+-            return ret;
++        // A reset only asks for a recalibration: the media stays known until
++        // the change line says otherwise.
++        u8 known = GET_BDA(floppy_media_state[floppyid]);
++        u8 ftype = GET_GLOBALFLAT(drive_gf->floppy_type);
++        if (!(known & FMS_MEDIA_DRIVE_ESTABLISHED)
++            || (floppy_has_changeline(ftype)
++                && (inb(PORT_FD_DIR) & FLOPPY_DIR_DSKCHG))) {
++            // An empty drive gives no index pulses, so the READ ID that
++            // floppy_media_sense() issues would never complete and would wait
++            // out its timeout once per data rate.  Ask the disk change line.
++            ret = floppy_check_media(drive_gf, floppyid);
++            if (ret)
++                return ret;
++
++            // Sense media.
++            ret = floppy_media_sense(drive_gf);
++            if (ret)
++                return ret;
++        }
+ 
+         // Execute a SPECIFY command (sets the Step Rate Time,
+         // Head Load Time, Head Unload Time and the DMA enable/disable bit).
+@@ -578,6 +594,10 @@ floppy_prep(struct drive_s *drive_gf, u8 cylinder)
+             return ret;
+     }
+ 
++    // The rate belongs to the controller, and the last access may have been
++    // to the other drive.
++    outb(GET_BDA(floppy_media_state[floppyid]) >> 6, PORT_FD_DIR);
++
+     // Seek to cylinder if needed.
+     if (cylinder != GET_BDA(floppy_track[floppyid])) {
+         int ret = floppy_drive_seek(floppyid, cylinder);
+@@ -655,8 +675,6 @@ static int
+ floppy_reset(struct disk_op_s *op)
+ {
+     SET_BDA(floppy_recalibration_status, 0);
+-    SET_BDA(floppy_media_state[0], 0);
+-    SET_BDA(floppy_media_state[1], 0);
+     SET_BDA(floppy_track[0], 0);
+     SET_BDA(floppy_track[1], 0);
+     SET_BDA(floppy_last_data_rate, 0);
+@@ -723,12 +741,134 @@ floppy_verify(struct disk_op_s *op)
+     return DISK_RET_SUCCESS;
+ }
+ 
++// INT 13h AH=16h: the change line of the drive, selected with its motor on
++static int
++floppy_changeline(struct disk_op_s *op)
++{
++    u8 ftype = GET_GLOBALFLAT(op->drive_fl->floppy_type);
++    u8 floppyid = GET_GLOBALFLAT(op->drive_fl->cntl_id);
++    if (!floppy_has_changeline(ftype))
++        return DISK_RET_ECHANGED;
++    if (!(floppy_dor_read() & FLOPPY_DOR_RESET)) {
++        int ret = floppy_enable_controller();
++        if (ret)
++            return ret;
++    }
++    SET_BDA(floppy_motor_counter, 255);
++    floppy_dor_write((FLOPPY_DOR_MOTOR_A << floppyid) | FLOPPY_DOR_IRQ
++                     | FLOPPY_DOR_RESET | floppyid);
++    u8 changed = inb(PORT_FD_DIR) & FLOPPY_DIR_DSKCHG;
++    SET_BDA(floppy_motor_counter, FLOPPY_MOTOR_TICKS);
++    if (!changed)
++        return DISK_RET_SUCCESS;
++    SET_BDA(floppy_media_state[floppyid], 0);
++    return DISK_RET_ECHANGED;
++}
++
++// The media to format is known, so no sensing is needed
++static int
++floppy_establish(struct drive_s *drive_gf, u8 stype, u8 data_rate)
++{
++    u8 ftype = GET_GLOBALFLAT(drive_gf->floppy_type);
++    u8 floppyid = GET_GLOBALFLAT(drive_gf->cntl_id);
++    int ret = floppy_drive_recal(floppyid);
++    if (ret)
++        return ret;
++    ret = floppy_check_media(drive_gf, floppyid);
++    if (ret)
++        return ret;
++    ret = floppy_drive_specify();
++    if (ret)
++        return ret;
++    outb(data_rate, PORT_FD_DIR);
++    floppy_set_state(floppyid, ftype, stype, data_rate);
++    return DISK_RET_SUCCESS;
++}
++
++// INT 13h AH=17h and 18h
++static int
++floppy_set_media(struct disk_op_s *op)
++{
++    return floppy_establish(op->drive_fl, op->lba & 0xff
++                            , (op->lba >> 8) & 0xff);
++}
++
++// The FloppyInfo row and rate for a size asked by AH=18h, 0 when the drive can't
++int
++floppy_find_media(struct drive_s *drive_gf, u16 cylinders, u8 sectors, u8 *rate)
++{
++    u8 ftype = GET_GLOBALFLAT(drive_gf->floppy_type);
++    int stype;
++    for (stype=1; stype<ARRAY_SIZE(FloppyInfo); stype++) {
++        if (GET_GLOBAL(FloppyInfo[stype].chs.cylinder) != cylinders
++            || GET_GLOBAL(FloppyInfo[stype].chs.sector) != sectors
++            || GET_GLOBAL(FloppyInfo[stype].floppy_size)
++               != GET_GLOBAL(FloppyInfo[ftype].floppy_size)
++            || cylinders > GET_GLOBAL(FloppyInfo[ftype].chs.cylinder)
++            || sectors > GET_GLOBAL(FloppyInfo[ftype].chs.sector)
++            || GET_GLOBAL(FloppyInfo[stype].chs.head) != 2)
++            continue;
++        *rate = GET_GLOBAL(FloppyInfo[stype].data_rate);
++        if (ftype == 1)
++            *rate = FLOPPY_RATE_250K;
++        return stype;
++    }
++    return 0;
++}
++
++// The FloppyInfo row and rate for a type asked by AH=17h, 0 when it's invalid
++int
++floppy_find_type(struct drive_s *drive_gf, u8 type, u8 *rate)
++{
++    switch (type) {
++    case 1:
++        *rate = FLOPPY_RATE_250K;
++        return 1;
++    case 2:
++        *rate = FLOPPY_RATE_300K;
++        return 1;
++    case 3:
++        *rate = FLOPPY_RATE_500K;
++        return 2;
++    case 4:
++        *rate = GET_GLOBALFLAT(drive_gf->floppy_type) == 2
++            ? FLOPPY_RATE_300K : FLOPPY_RATE_250K;
++        return 3;
++    }
++    return 0;
++}
++
++int
++floppy_dasd_type(struct drive_s *drive_gf)
++{
++    return floppy_has_changeline(GET_GLOBALFLAT(drive_gf->floppy_type)) ? 2 : 1;
++}
++
++// An unformatted disk can't be sensed, so with the media unknown a format
++// goes by the drive's own type.
++static int
++floppy_format_init(struct disk_op_s *op)
++{
++    floppy_changeline(op);
++    struct drive_s *drive_gf = op->drive_fl;
++    u8 floppyid = GET_GLOBALFLAT(drive_gf->cntl_id);
++    if (GET_BDA(floppy_media_state[floppyid]) & FMS_MEDIA_DRIVE_ESTABLISHED)
++        return DISK_RET_SUCCESS;
++    u8 ftype = GET_GLOBALFLAT(drive_gf->floppy_type);
++    u8 data_rate = ftype == 1 ? FLOPPY_RATE_250K
++        : GET_GLOBAL(FloppyInfo[ftype].data_rate);
++    return floppy_establish(drive_gf, ftype, data_rate);
++}
++
+ // format diskette track
+ static int
+ floppy_format(struct disk_op_s *op)
+ {
+     struct chs_s chs = lba2chs(op);
+-    int ret = floppy_prep(op->drive_fl, chs.cylinder);
++    int ret = floppy_format_init(op);
++    if (ret)
++        return ret;
++    ret = floppy_prep(op->drive_fl, chs.cylinder);
+     if (ret)
+         return ret;
+ 
+@@ -760,6 +900,10 @@ floppy_process_op(struct disk_op_s *op)
+         return floppy_verify(op);
+     case CMD_FORMAT:
+         return floppy_format(op);
++    case CMD_CHANGELINE:
++        return floppy_changeline(op);
++    case CMD_SETMEDIA:
++        return floppy_set_media(op);
+     default:
+         return DISK_RET_EPARAM;
+     }
+--- seabios-28aa463/src/util.h
++++ seabios/src/util.h
+@@ -170,6 +170,9 @@ void floppy_setup(void);
+ struct drive_s *init_floppy(int floppyid, int ftype);
+ int find_floppy_type(u32 size);
+ int floppy_process_op(struct disk_op_s *op);
++int floppy_dasd_type(struct drive_s *drive_gf);
++int floppy_find_media(struct drive_s *drive_gf, u16 cylinders, u8 sectors, u8 *rate);
++int floppy_find_type(struct drive_s *drive_gf, u8 type, u8 *rate);
+ void floppy_tick(void);
+ 
+ // hw/ramdisk.c
 --- seabios-28aa463/vgasrc/stdvgaio.c
 +++ seabios/vgasrc/stdvgaio.c
-@@ -106,14 +106,21 @@
+@@ -106,14 +106,21 @@ stdvga_crtc_mask(u16 crtc_addr, u8 index, u8 off, u8 on)
  }
  
  
@@ -36,7 +394,7 @@
      outb(orig, VGAREG_ACTL_ADDRESS);
      return v;
  }
-@@ -121,7 +128,7 @@
+@@ -121,7 +128,7 @@ stdvga_attr_read(u8 index)
  void
  stdvga_attr_write(u8 index, u8 value)
  {
@@ -45,7 +403,7 @@
      u8 orig = inb(VGAREG_ACTL_ADDRESS);
      outb(index, VGAREG_ACTL_ADDRESS);
      outb(value, VGAREG_ACTL_WRITE_DATA);
-@@ -131,7 +138,7 @@
+@@ -131,7 +138,7 @@ stdvga_attr_write(u8 index, u8 value)
  void
  stdvga_attr_mask(u8 index, u8 off, u8 on)
  {
@@ -54,7 +412,7 @@
      u8 orig = inb(VGAREG_ACTL_ADDRESS);
      outb(index, VGAREG_ACTL_ADDRESS);
      u8 v = inb(VGAREG_ACTL_READ_DATA);
-@@ -142,14 +149,14 @@
+@@ -142,14 +149,14 @@ stdvga_attr_mask(u8 index, u8 off, u8 on)
  u8
  stdvga_attrindex_read(void)
  {
@@ -73,17 +431,17 @@
  
 --- seabios-28aa463/vgasrc/stdvgamodes.c
 +++ seabios/vgasrc/stdvgamodes.c
-@@ -505,6 +505,9 @@
-     u16 crtc_addr = VGAREG_VGA_CRTC_ADDRESS;
+@@ -506,6 +506,9 @@ stdvga_set_mode(struct vgamode_s *vmode_g, int flags)
      if (!(miscreg & 1))
          crtc_addr = VGAREG_MDA_CRTC_ADDRESS;
-+
+ 
 +    // The CRTC only answers at the block the misc register selects
 +    stdvga_misc_write(miscreg);
- 
++
      // Disable CRTC write protection
      stdvga_crtc_write(crtc_addr, 0x11, 0x00);
-@@ -513,9 +516,6 @@
+     // Set CRTC regs
+@@ -513,9 +516,6 @@ stdvga_set_mode(struct vgamode_s *vmode_g, int flags)
      for (i = 0; i <= 0x18; i++)
          stdvga_crtc_write(crtc_addr, i, GET_GLOBAL(regs[i]));
  
@@ -93,16 +451,3 @@
      // Enable video
      stdvga_attrindex_write(0x20);
  
-diff --git a/src/hw/floppy.c b/src/hw/floppy.c
-index a51711a1..8338b40f 100644
---- a/src/hw/floppy.c
-+++ b/src/hw/floppy.c
-@@ -426,6 +426,8 @@ floppy_drive_seek(u8 floppyid, u8 cylinder)
-     u8 param[2];
-     param[0] = floppyid;
-     param[1] = cylinder;
-+    if (GET_BDA(floppy_media_state[floppyid]) & FMS_DOUBLE_STEPPING)
-+        param[1] = cylinder * 2;
-     int ret = floppy_drive_pio(floppyid, FC_SEEK, param);
-     if (ret)
-         return ret;

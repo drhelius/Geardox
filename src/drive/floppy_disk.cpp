@@ -223,10 +223,29 @@ bool FloppyDisk::ReplaceTrack(int track, const u8* sectors, u32 size, u32 rpm)
 
     m_weak_count = kept;
 
-    if (m_state.media == FLOPPY_MEDIA_2HD)
+    if (m_state.media == FLOPPY_MEDIA_2HD || m_state.media == FLOPPY_MEDIA_ED)
+    {
+        FloppyDisk_Sector formatted[k_floppy_max_sectors];
+        int formatted_count = GetSectors(track, formatted);
+
+        m_state.media = GetTrackCells(formatted, formatted_count) > k_floppy_cells_2hd_300 ?
+            FLOPPY_MEDIA_ED : FLOPPY_MEDIA_2HD;
         m_state.rpm = (u16)rpm;
+    }
 
     return true;
+}
+
+u32 FloppyDisk::GetTrackCells(const FloppyDisk_Sector* sectors, int count) const
+{
+    u32 cells = 146;
+
+    for (int i = 0; i < count; i++)
+    {
+        cells += 62 + (128U << (sectors[i].id[3] & 3));
+    }
+
+    return cells;
 }
 
 void FloppyDisk::Identify()
@@ -240,12 +259,7 @@ void FloppyDisk::Identify()
     for (int track = 0; track < k_floppy_tracks; track++)
     {
         int count = GetSectors(track, sectors);
-        u32 cells = 146;
-
-        for (int i = 0; i < count; i++)
-        {
-            cells += 62 + (128U << (sectors[i].id[3] & 3));
-        }
+        u32 cells = GetTrackCells(sectors, count);
 
         if (count > 0)
         {
@@ -269,7 +283,7 @@ void FloppyDisk::Identify()
     else if (largest > k_floppy_cells_2dd || media == k_floppy_media_2hd)
     {
         m_state.media = FLOPPY_MEDIA_2HD;
-        m_state.rpm = overflowing * 2 > formatted ? 300 : 360;
+        m_state.rpm = (formatted == 0 || overflowing * 2 > formatted) ? 300 : 360;
     }
     else
     {

@@ -1955,7 +1955,7 @@ u8 GeardoxCore::GetAutoFloppyType(int drive)
     FloppyDisk* disk = GetFloppy(drive);
 
     if (!IsValidPointer(disk) || !disk->IsInserted())
-        return drive == 0 ? GDOX_FLOPPY_1440K : GDOX_FLOPPY_1200K;
+        return GDOX_FLOPPY_1440K;
 
     FloppyDisk_Sector sectors[k_floppy_max_sectors];
 

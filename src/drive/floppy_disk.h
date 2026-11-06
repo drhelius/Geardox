@@ -90,6 +90,7 @@ public:
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
 
 private:
+    u32 GetTrackCells(const FloppyDisk_Sector* sectors, int count) const;
     void Identify();
     u32 FindWeakByte(u32 offset) const;
     void RemoveWeakByte(u32 offset);

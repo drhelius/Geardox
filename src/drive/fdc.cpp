@@ -335,7 +335,7 @@ void FDC::WriteTrack(int side, const u8* ids, int count, u8 size_code, u8 filler
         memset(header + k_floppy_sector_header_size, filler, sector_size);
     }
 
-    m_disks[drive].ReplaceTrack(track, run, size, m_disks[drive].GetRPM());
+    m_disks[drive].ReplaceTrack(track, run, size, GetRPM(drive));
     m_write_count[drive]++;
     SafeDeleteArray(run);
 }
