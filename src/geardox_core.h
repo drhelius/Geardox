@@ -27,6 +27,7 @@ class Audio;
 class CdRomAudio;
 class CdRomMedia;
 class FDC;
+class IdeController;
 class FloppyDisk;
 class HardDiskImage;
 class Firmware;
@@ -164,8 +165,10 @@ public:
     CdRomMedia* GetCDROMMedia();
     CdRomAudio* GetCDROMAudio();
     FDC* GetFDC();
+    IdeController* GetIDE();
     FloppyDisk* GetFloppy(int drive);
     HardDiskImage* GetHardDisk(int id);
+    bool HasHardDisks();
     TraceLogger* GetTraceLogger();
     Profiler* GetProfiler();
 
@@ -198,7 +201,6 @@ private:
     void ResetCPU();
     u8 GetAutoFloppyType(int drive);
     void ResolveMachineConfig();
-    bool HasHardDisks();
     void ApplyHardDisks();
     bool CanAutoSelect(GDOX_Machine_Model model);
     bool LoadMachineFirmware(bool force, bool report);
@@ -238,7 +240,7 @@ private:
     CdRomMedia* m_cdrom_media;
     CdRomAudio* m_cdrom_audio;
     FDC* m_fdc;
-    HardDiskImage* m_hard_disks[GDOX_MAX_HARD_DISKS];
+    IdeController* m_ide;
     TraceLogger* m_trace_logger;
     Profiler* m_profiler;
 

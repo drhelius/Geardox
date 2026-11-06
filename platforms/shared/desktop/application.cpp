@@ -30,6 +30,7 @@
 #include "emu.h"
 #include "emu_floppy.h"
 #include "emu_hard_disk.h"
+#include "gui_actions.h"
 #include "gui_hard_disks.h"
 #include "display.h"
 #include "utils.h"
@@ -346,6 +347,10 @@ void application_load_media(const ApplicationParams& params)
         Log("CD-ROM argument: %s", params.cd_file);
         gui_load_rom(params.cd_file);
     }
+
+    // The machine powers on before this, and a hard disk only attaches at a reset
+    if (gui_hard_disks_is_pending())
+        gui_action_reset();
 
     if ((params.state_slot > 0) || IsValidPointer(params.state_file))
         gui_load_state_after_media(params.state_slot, params.state_file);

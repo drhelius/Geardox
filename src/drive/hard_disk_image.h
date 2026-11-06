@@ -46,6 +46,7 @@ public:
     const char* GetPath() const;
     const char* GetFileName() const;
     u32 GetBlocks() const;
+    bool GetGeometry(u32* heads, u32* sectors) const;
     bool IsWriteProtected() const;
     bool ReadBlock(u32 lba, u8* buffer);
     bool WriteBlock(u32 lba, const u8* buffer);
@@ -55,7 +56,7 @@ public:
     u64 GetSession() const;
     u64 GetLastWrite() const;
     bool Restore(u64 session, u64 write);
-    static bool Create(const char* path, u64 size, bool formatted);
+    static bool Create(const char* path, u64 size);
     static bool IsImage(const char* path);
     static int GetImageId(const char* path);
     static bool GetChdHash(const char* path, u32* hash);
@@ -64,6 +65,7 @@ public:
 private:
     bool OpenChd(const char* path);
     void CloseChd();
+    void ReadChdGeometry(const char* path);
     bool ReadImage(u32 lba, u8* buffer, u32 count);
     void StoreBlock(u32 lba, const u8* buffer);
     bool CreateWorkingCopy();
@@ -82,6 +84,8 @@ private:
     std::string m_file_name;
     std::string m_working_path;
     u32 m_blocks;
+    u32 m_heads;
+    u32 m_sectors;
     bool m_write_protected;
     std::vector<u32> m_overlay_index;
     std::vector<u8> m_overlay;

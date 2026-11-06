@@ -31,8 +31,9 @@
 #include "emu.h"
 #include "geardox.h"
 #include "drive/fdc.h"
+#include "drive/ide_controller.h"
 
-#define GUI_DRIVE_ACTIVITY_SLOTS GDOX_MAX_FLOPPY_DRIVES
+#define GUI_DRIVE_ACTIVITY_SLOTS (1 + GDOX_MAX_FLOPPY_DRIVES)
 
 struct Drive_Slot
 {
@@ -56,8 +57,9 @@ static const float k_drive_activity_icon_size = 16.0f;
 static const float k_drive_activity_label_size = 11.0f;
 static const float k_drive_activity_label_spacing = 1.0f;
 static const float k_drive_activity_background = 0.85f;
-static const char* const k_drive_activity_icons[GUI_DRIVE_ACTIVITY_SLOTS] = { ICON_MD_SAVE, ICON_MD_SAVE };
-static const char* const k_drive_activity_labels[GUI_DRIVE_ACTIVITY_SLOTS] = { "1", "2" };
+static const char* const k_drive_activity_icons[GUI_DRIVE_ACTIVITY_SLOTS] = { ICON_MD_SAVE, ICON_MD_SAVE,
+    ICON_MD_STORAGE };
+static const char* const k_drive_activity_labels[GUI_DRIVE_ACTIVITY_SLOTS] = { "1", "2", NULL };
 
 static Drive_Slot slots[GUI_DRIVE_ACTIVITY_SLOTS];
 static int sample_frame = -1;
@@ -119,10 +121,22 @@ void gui_drive_activity_render_output(const ImVec2& min, const ImVec2& max)
 
 static void sample(Uint64 now, bool resync)
 {
-    FDC* fdc = emu_get_core()->GetFDC();
+    GeardoxCore* core = emu_get_core();
+    FDC* fdc = core->GetFDC();
+    IdeController* ide = core->GetIDE();
+    u32 reads = 0;
+    u32 writes = 0;
 
     for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
         update_slot(&slots[i], fdc->GetAccessCount(i), fdc->GetWriteCount(i), false, now, resync);
+
+    for (int i = 0; i < IDE_DISKS; i++)
+    {
+        reads += ide->GetDisk(i)->GetAccessCount();
+        writes += ide->GetDisk(i)->GetImage()->GetWriteCount();
+    }
+
+    update_slot(&slots[GDOX_MAX_FLOPPY_DRIVES], reads + writes, writes, false, now, resync);
 }
 
 static void update_slot(Drive_Slot* slot, u32 access_count, u32 write_count, bool busy, Uint64 now, bool resync)

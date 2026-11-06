@@ -509,7 +509,7 @@ void retro_get_system_info(struct retro_system_info *info)
     info->library_version  = GDOX_VERSION;
     info->need_fullpath    = true;
     info->block_extract    = true;
-    info->valid_extensions = "cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|h0|h1|h2|h3";
+    info->valid_extensions = "cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -1896,8 +1896,7 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        static const char* const devices[GDOX_BOOT_DEVICE_COUNT] = { "auto", "floppy1", "floppy2", "hdd0", "hdd1",
-            "hdd2", "hdd3", "cdrom" };
+        static const char* const devices[GDOX_BOOT_DEVICE_COUNT] = { "auto", "floppy1", "floppy2", "hdd", "cdrom" };
         boot_device = GDOX_BOOT_DEVICE_AUTO;
 
         for (int i = 0; i < GDOX_BOOT_DEVICE_COUNT; i++)

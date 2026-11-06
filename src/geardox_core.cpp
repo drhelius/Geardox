@@ -27,6 +27,7 @@
 #include "drive/fdc.h"
 #include "drive/floppy_image.h"
 #include "drive/hard_disk_image.h"
+#include "drive/ide_controller.h"
 #include "media/firmware.h"
 #include "input/input.h"
 #include "input/i8042.h"
@@ -76,6 +77,7 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_cdrom_media);
     InitPointer(m_cdrom_audio);
     InitPointer(m_fdc);
+    InitPointer(m_ide);
     InitPointer(m_trace_logger);
     InitPointer(m_profiler);
     InitPointer(m_frame_buffer);
@@ -97,7 +99,6 @@ GeardoxCore::GeardoxCore()
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        InitPointer(m_hard_disks[i]);
         m_hard_disk_write_protected[i] = false;
         m_hard_disk_pending[i] = false;
     }
@@ -139,9 +140,8 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_video);
     SafeDelete(m_cdrom_audio);
     SafeDelete(m_fdc);
+    SafeDelete(m_ide);
 
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
-        SafeDelete(m_hard_disks[i]);
 
     SafeDelete(m_trace_logger);
     SafeDelete(m_profiler);
@@ -218,11 +218,8 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_fdc))
         m_fdc = new FDC();
 
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
-    {
-        if (!IsValidPointer(m_hard_disks[i]))
-            m_hard_disks[i] = new HardDiskImage();
-    }
+    if (!IsValidPointer(m_ide))
+        m_ide = new IdeController();
 
     if (!IsValidPointer(m_trace_logger))
         m_trace_logger = new TraceLogger();
@@ -247,7 +244,8 @@ void GeardoxCore::Init()
     m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler, m_dma);
-    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input, m_system_control, m_rtc,
+    m_ide->Init(m_pic, m_scheduler);
+    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_input, m_system_control, m_rtc,
         m_firmware_config, m_debug_console, m_i8042, m_dma);
     m_i386->Init(m_memory, m_io);
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
@@ -268,6 +266,7 @@ void GeardoxCore::Init()
     m_video->SetTraceLogger(m_trace_logger);
     m_audio->SetTraceLogger(m_trace_logger);
     m_fdc->SetTraceLogger(m_trace_logger);
+    m_ide->SetTraceLogger(m_trace_logger);
     m_input->SetTraceLogger(m_trace_logger);
     m_media->Init();
     Reset();
@@ -735,6 +734,9 @@ INLINE void GeardoxCore::DispatchEvents()
             case SCHEDULER_EVENT_FDC:
                 m_fdc->HandleEvent(clocks);
                 break;
+            case SCHEDULER_EVENT_IDE:
+                m_ide->HandleEvent(clocks);
+                break;
             case SCHEDULER_EVENT_KEYBOARD:
                 m_i8042->HandleEvent(clocks);
                 break;
@@ -817,7 +819,7 @@ bool GeardoxCore::IsMachineConfigPending()
         (m_pending_machine_config.ram_size != m_machine_config.ram_size) ||
         (m_pending_machine_config.floppy_drives != m_machine_config.floppy_drives) ||
         (m_pending_machine_config.cpu_clock_rate != m_machine_config.cpu_clock_rate) ||
-        (m_pending_machine_config.scsi != m_machine_config.scsi) ||
+        (m_pending_machine_config.ide != m_machine_config.ide) ||
         (m_pending_machine_config.fpu != m_machine_config.fpu) ||
         (m_pending_machine_config.speed_mode != m_machine_config.speed_mode);
 }
@@ -982,7 +984,7 @@ FloppyDisk* GeardoxCore::GetFloppy(int drive)
 
 bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected, const char* working_path)
 {
-    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(path) || !IsValidPointer(m_hard_disks[id]))
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(path) || !IsValidPointer(m_ide))
         return false;
 
     if (m_powered)
@@ -992,7 +994,7 @@ bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected,
         if (!probe.Open(path, true))
             return false;
 
-        const HardDiskImage* image = m_hard_disks[id];
+        const HardDiskImage* image = m_ide->GetDisk(id)->GetImage();
         m_hard_disk_paths[id] = path;
         m_hard_disk_working_paths[id] = IsValidPointer(working_path) ? working_path : "";
         m_hard_disk_write_protected[id] = write_protected;
@@ -1003,7 +1005,7 @@ bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected,
     {
         m_hard_disk_pending[id] = false;
 
-        if (!m_hard_disks[id]->Open(path, write_protected, working_path))
+        if (!m_ide->GetDisk(id)->Attach(path, write_protected, working_path))
             return false;
     }
 
@@ -1017,18 +1019,18 @@ bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected,
 
 void GeardoxCore::DetachHardDisk(int id)
 {
-    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(m_hard_disks[id]))
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(m_ide))
         return;
 
     if (m_powered)
     {
         m_hard_disk_paths[id].clear();
-        m_hard_disk_pending[id] = m_hard_disks[id]->IsOpen();
+        m_hard_disk_pending[id] = m_ide->GetDisk(id)->IsAttached();
     }
     else
     {
         m_hard_disk_pending[id] = false;
-        m_hard_disks[id]->Close();
+        m_ide->GetDisk(id)->Detach();
     }
 
     ResolveMachineConfig();
@@ -1041,8 +1043,8 @@ bool GeardoxCore::FlushHardDisks()
 {
     bool ok = true;
 
-    for (int i = 0; (i < GDOX_MAX_HARD_DISKS) && IsValidPointer(m_hard_disks[i]); i++)
-        ok = m_hard_disks[i]->Flush() && ok;
+    for (int i = 0; IsValidPointer(m_ide) && (i < GDOX_MAX_HARD_DISKS); i++)
+        ok = m_ide->GetDisk(i)->GetImage()->Flush() && ok;
 
     return ok;
 }
@@ -1113,14 +1115,14 @@ void GeardoxCore::ApplyBootDevice()
 
 HardDiskImage* GeardoxCore::GetHardDisk(int id)
 {
-    return ((id >= 0) && (id < GDOX_MAX_HARD_DISKS)) ? m_hard_disks[id] : NULL;
+    return (IsValidPointer(m_ide) && (id >= 0) && (id < GDOX_MAX_HARD_DISKS)) ? m_ide->GetDisk(id)->GetImage() : NULL;
 }
 
 bool GeardoxCore::HasHardDisks()
 {
-    for (int i = 0; (i < GDOX_MAX_HARD_DISKS) && IsValidPointer(m_hard_disks[i]); i++)
+    for (int i = 0; IsValidPointer(m_ide) && (i < GDOX_MAX_HARD_DISKS); i++)
     {
-        if (m_hard_disk_pending[i] ? !m_hard_disk_paths[i].empty() : m_hard_disks[i]->IsOpen())
+        if (m_hard_disk_pending[i] ? !m_hard_disk_paths[i].empty() : m_ide->GetDisk(i)->IsAttached())
             return true;
     }
 
@@ -1129,16 +1131,16 @@ bool GeardoxCore::HasHardDisks()
 
 void GeardoxCore::ApplyHardDisks()
 {
-    for (int i = 0; (i < GDOX_MAX_HARD_DISKS) && IsValidPointer(m_hard_disks[i]); i++)
+    for (int i = 0; IsValidPointer(m_ide) && (i < GDOX_MAX_HARD_DISKS); i++)
     {
         if (!m_hard_disk_pending[i])
             continue;
 
         m_hard_disk_pending[i] = false;
-        m_hard_disks[i]->Close();
+        m_ide->GetDisk(i)->Detach();
 
         if (!m_hard_disk_paths[i].empty())
-            m_hard_disks[i]->Open(m_hard_disk_paths[i].c_str(), m_hard_disk_write_protected[i],
+            m_ide->GetDisk(i)->Attach(m_hard_disk_paths[i].c_str(), m_hard_disk_write_protected[i],
                 m_hard_disk_working_paths[i].c_str());
     }
 }
@@ -1278,8 +1280,8 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        const HardDiskImage* image = m_hard_disks[i];
-        state_media.hard_disk_attached[i] = image->IsOpen();
+        const HardDiskImage* image = m_ide->GetDisk(i)->GetImage();
+        state_media.hard_disk_attached[i] = m_ide->GetDisk(i)->IsAttached();
         state_media.hard_disk_blocks[i] = image->GetBlocks();
         state_media.hard_disk_session[i] = image->GetSession();
         state_media.hard_disk_write[i] = image->GetLastWrite();
@@ -1303,6 +1305,7 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_video->SaveState(stream);
     m_cdrom_audio->SaveState(stream);
     m_fdc->SaveState(stream, media);
+    m_ide->SaveState(stream);
     m_x87->SaveState(stream);
 
     if (stream.fail())
@@ -1522,7 +1525,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     bool same_machine = (m_machine_config.model == machine_config.model) &&
         (m_machine_config.cpu == machine_config.cpu) && (m_machine_config.ram_size == machine_config.ram_size) &&
         (m_machine_config.floppy_drives == machine_config.floppy_drives) &&
-        (m_machine_config.scsi == machine_config.scsi) && (m_machine_config.fpu == machine_config.fpu);
+        (m_machine_config.ide == machine_config.ide) && (m_machine_config.fpu == machine_config.fpu);
 
     if (!same_machine)
     {
@@ -1543,7 +1546,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        HardDiskImage* image = m_hard_disks[i];
+        HardDiskImage* image = m_ide->GetDisk(i)->GetImage();
 
         if ((state_media.hard_disk_attached[i] != image->IsOpen()) ||
             (image->IsOpen() && (state_media.hard_disk_blocks[i] != image->GetBlocks())))
@@ -1597,6 +1600,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_video->LoadState(stream, header.version);
     m_cdrom_audio->LoadState(stream);
     m_fdc->LoadState(stream, header.version);
+    m_ide->LoadState(stream, header.version);
     m_x87->LoadState(stream);
 
     if (stream.fail())
@@ -1609,7 +1613,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        HardDiskImage* image = m_hard_disks[i];
+        HardDiskImage* image = m_ide->GetDisk(i)->GetImage();
 
         if (state_media.hard_disk_attached[i] &&
             !image->Restore(state_media.hard_disk_session[i], state_media.hard_disk_write[i]))
@@ -1759,7 +1763,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.floppy_drives);
     G_SERIALIZE_ARRAY(serializer, config.floppy_type, GDOX_MAX_FLOPPY_DRIVES);
     G_SERIALIZE(serializer, config.cpu_clock_rate);
-    G_SERIALIZE(serializer, config.scsi);
+    G_SERIALIZE(serializer, config.ide);
     G_SERIALIZE(serializer, config.fpu);
 }
 
@@ -1926,6 +1930,9 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_fdc))
         m_fdc->Reset();
 
+    if (IsValidPointer(m_ide))
+        m_ide->Reset();
+
     InitCMOS();
     ApplyBootDevice();
     InitMemoryMap();
@@ -2000,7 +2007,7 @@ void GeardoxCore::ResolveMachineConfig()
     config.model = !auto_model ? (GDOX_Machine_Model)m_machine_settings.model : CanAutoSelect(named) ? named : fallback;
     config.cpu_clock_rate = auto_cpu ? 0 : (u32)m_machine_settings.cpu_mhz * 1000000;
     config.ram_size = auto_ram ? 0 : (u32)m_machine_settings.ram_mb * megabyte;
-    config.scsi = HasHardDisks();
+    config.ide = HasHardDisks();
     config.fpu = !auto_fpu && (m_machine_settings.fpu != 0);
     config.speed_mode = auto_speed ? GDOX_MACHINE_AUTO : m_machine_settings.speed_mode != 0 ? 1 : 0;
 
@@ -2057,10 +2064,10 @@ void GeardoxCore::ResolveMachineConfig()
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
             "This machine has no high-speed mode");
 
-    bool hard_disk_device = (m_boot_device >= GDOX_BOOT_DEVICE_HARD_DISK_0) && (m_boot_device <= GDOX_BOOT_DEVICE_HARD_DISK_3);
-    bool hard_disk_boot = hard_disk_device || (IsValidPointer(entry) && ((entry->flags & GDOX_GAMEDB_HDD) != 0));
+    bool hard_disk_boot = (m_boot_device == GDOX_BOOT_DEVICE_HARD_DISK) ||
+        (IsValidPointer(entry) && ((entry->flags & GDOX_GAMEDB_HDD) != 0));
 
-    if (auto_ram && config.scsi && HasHardDisks() && (!database || hard_disk_boot) && (config.ram_size < 4 * megabyte))
+    if (auto_ram && config.ide && HasHardDisks() && (!database || hard_disk_boot) && (config.ram_size < 4 * megabyte))
     {
         config.ram_size = 4 * megabyte;
         report.ram = GDOX_MACHINE_SOURCE_HARD_DISK;
@@ -2322,7 +2329,7 @@ void GeardoxCore::InitCMOS()
     u32 high_blocks = ram_size > 16 * megabyte ? (ram_size - 16 * megabyte) / 0x10000 : 0;
     u8 order[3] = { 1, 2, 3 };
 
-    if ((m_boot_device >= GDOX_BOOT_DEVICE_HARD_DISK_0) && (m_boot_device <= GDOX_BOOT_DEVICE_HARD_DISK_3))
+    if (m_boot_device == GDOX_BOOT_DEVICE_HARD_DISK)
     {
         order[0] = 2;
         order[1] = 1;
@@ -2339,17 +2346,29 @@ void GeardoxCore::InitCMOS()
     for (int i = 0; i < m_machine_config.floppy_drives; i++)
         drives += m_machine_config.floppy_type[i] != GDOX_FLOPPY_NONE ? 1 : 0;
 
+    u8 translation = 0;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        translation |= (u8)(m_ide->GetDisk(i)->GetTranslation() << (i * 2));
+
+    bool hard_disk_0 = m_ide->GetDisk(0)->IsAttached();
+    bool hard_disk_1 = m_ide->GetDisk(1)->IsAttached();
+
     m_rtc->WriteRAM(0x10, (u8)((m_machine_config.floppy_type[0] << 4) | m_machine_config.floppy_type[1]));
+    m_rtc->WriteRAM(0x12, (u8)((hard_disk_0 ? 0xF0 : 0x00) | (hard_disk_1 ? 0x0F : 0x00)));
     m_rtc->WriteRAM(0x14, (u8)((m_machine_config.fpu ? 0x02 : 0x00) | (drives > 0 ? 0x01 | ((drives - 1) << 6) : 0x00)));
     m_rtc->WriteRAM(0x15, 0x80);
     m_rtc->WriteRAM(0x16, 0x02);
     m_rtc->WriteRAM(0x17, (u8)extended_kb);
     m_rtc->WriteRAM(0x18, (u8)(extended_kb >> 8));
+    m_rtc->WriteRAM(0x19, hard_disk_0 ? 47 : 0);
+    m_rtc->WriteRAM(0x1A, hard_disk_1 ? 47 : 0);
     m_rtc->WriteRAM(0x30, (u8)extended_kb);
     m_rtc->WriteRAM(0x31, (u8)(extended_kb >> 8));
     m_rtc->WriteRAM(0x34, (u8)high_blocks);
     m_rtc->WriteRAM(0x35, (u8)(high_blocks >> 8));
     m_rtc->WriteRAM(0x38, (u8)(0x01 | (order[2] << 4)));
+    m_rtc->WriteRAM(0x39, translation);
     m_rtc->WriteRAM(0x3D, (u8)(order[0] | (order[1] << 4)));
 
     u16 checksum = 0;

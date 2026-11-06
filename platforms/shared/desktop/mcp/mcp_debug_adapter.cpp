@@ -44,6 +44,7 @@
 #include "cdrom/cdrom_audio.h"
 #include "cdrom/cdrom_media.h"
 #include "drive/fdc.h"
+#include "drive/ide_controller.h"
 #include "drive/floppy_image.h"
 #include "../config.h"
 #include "../emu.h"
@@ -255,8 +256,7 @@ void DebugAdapter::StepFrames(int frames)
 
 json DebugAdapter::Reset(const std::string& boot)
 {
-    static const char* const devices[GDOX_BOOT_DEVICE_COUNT] = { "", "floppy1", "floppy2", "hard_disk0",
-        "hard_disk1", "hard_disk2", "hard_disk3", "cdrom" };
+    static const char* const devices[GDOX_BOOT_DEVICE_COUNT] = { "", "floppy1", "floppy2", "hard_disk", "cdrom" };
     int device = GDOX_BOOT_DEVICE_AUTO;
 
     for (int i = 1; boot.size() && (i < GDOX_BOOT_DEVICE_COUNT); i++)
@@ -2620,6 +2620,85 @@ json DebugAdapter::GetFDCStatus()
     };
 }
 
+json DebugAdapter::GetIDEStatus()
+{
+    static const char* const status_names[8] = { "err", NULL, NULL, "drq", "dsc", NULL, "drdy", "bsy" };
+    static const char* const control_names[8] = { NULL, "nien", "srst", NULL, NULL, NULL, NULL, NULL };
+
+    IdeController* ide = m_core->GetIDE();
+    IdeController::IdeController_State* state = ide->GetState();
+    json channels = json::array();
+
+    for (int i = 0; i < IDE_CHANNELS; i++)
+    {
+        json disks = json::array();
+        json control_bits = json::array();
+
+        for (int bit = 7; bit >= 0; bit--)
+        {
+            if (IsValidPointer(control_names[bit]) && ((state->control[i] >> bit) & 1))
+                control_bits.push_back(control_names[bit]);
+        }
+
+        for (int j = 0; j < IDE_CHANNEL_DISKS; j++)
+        {
+            int id = (i * IDE_CHANNEL_DISKS) + j;
+            IdeDisk* disk = ide->GetDisk(id);
+
+            if (!disk->IsAttached())
+                continue;
+
+            IdeDisk::IdeDisk_State* d = disk->GetState();
+            json status_bits = json::array();
+
+            for (int bit = 7; bit >= 0; bit--)
+            {
+                if (IsValidPointer(status_names[bit]) && ((d->status >> bit) & 1))
+                    status_bits.push_back(status_names[bit]);
+            }
+
+            disks.push_back({
+                {"id", id},
+                {"status", Hex(d->status, 2)},
+                {"status_bits", status_bits},
+                {"error", Hex(d->error, 2)},
+                {"sector_count", Hex(d->sector_count, 2)},
+                {"sector_number", Hex(d->sector_number, 2)},
+                {"cylinder_low", Hex(d->cylinder_low, 2)},
+                {"cylinder_high", Hex(d->cylinder_high, 2)},
+                {"device_head", Hex(d->device_head, 2)},
+                {"interrupt_pending", d->interrupt},
+                {"command", Hex(d->command, 2)},
+                {"command_name", gui_debug_ide_command_name(d->command)},
+                {"phase", k_debug_ide_phase_names[d->phase % IDE_PHASE_COUNT]},
+                {"lba", d->lba},
+                {"remaining", d->remaining},
+                {"position", d->position},
+                {"length", d->length},
+                {"current_geometry", {{"cylinders", d->current_cylinders}, {"heads", d->current_heads},
+                    {"sectors", d->current_sectors}}},
+                {"multiple", d->multiple},
+                {"head_cylinder", d->head_cylinder},
+                {"read_ahead_first", d->ahead_lba},
+                {"read_ahead_end", d->ahead_end}
+            });
+        }
+
+        channels.push_back({
+            {"channel", i},
+            {"irq", k_ide_irq[i]},
+            {"irq_out", ide->IsInterruptOut(i)},
+            {"control", Hex(state->control[i], 2)},
+            {"control_bits", control_bits},
+            {"features", Hex(state->features[i], 2)},
+            {"selected", state->selected[i]},
+            {"disks", disks}
+        });
+    }
+
+    return {{"channels", channels}};
+}
+
 json DebugAdapter::GetDMAStatus()
 {
     DMA* dma = m_core->GetDMA();
@@ -3319,6 +3398,12 @@ static json hard_disk_json(int id)
         disk["size_mb"] = (double)info.blocks / 2048.0;
         disk["write_protected"] = info.write_protected;
         disk["unwritten_blocks"] = info.unflushed;
+
+        IdeDisk* ide_disk = emu_get_core()->GetIDE()->GetDisk(id);
+        IdeDisk::IdeDisk_State* state = ide_disk->GetState();
+        disk["position"] = k_debug_ide_slot_names[id];
+        disk["geometry"] = {{"cylinders", state->cylinders}, {"heads", state->heads}, {"sectors", state->sectors}};
+        disk["bios_translation"] = ide_disk->GetTranslation() != 0 ? "LBA" : "NONE";
     }
 
     if (info.pending)
@@ -3361,7 +3446,7 @@ json DebugAdapter::AttachHardDisk(int id, const std::string& file_path, const js
         if (path_exists(path))
             return {{"error", "A file already exists at " + file_path}};
 
-        if (!emu_hard_disk_create(id, path, size_mb, false, protect))
+        if (!emu_hard_disk_create(id, path, size_mb, protect))
             return {{"error", "Failed to create the hard disk image"}};
     }
     else if (!emu_hard_disk_attach(id, path, protect))

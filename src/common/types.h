@@ -378,10 +378,7 @@ enum GDOX_Boot_Device
     GDOX_BOOT_DEVICE_AUTO = 0,
     GDOX_BOOT_DEVICE_FLOPPY_0,
     GDOX_BOOT_DEVICE_FLOPPY_1,
-    GDOX_BOOT_DEVICE_HARD_DISK_0,
-    GDOX_BOOT_DEVICE_HARD_DISK_1,
-    GDOX_BOOT_DEVICE_HARD_DISK_2,
-    GDOX_BOOT_DEVICE_HARD_DISK_3,
+    GDOX_BOOT_DEVICE_HARD_DISK,
     GDOX_BOOT_DEVICE_CDROM,
     GDOX_BOOT_DEVICE_COUNT
 };
@@ -513,7 +510,7 @@ struct GDOX_Machine_Config
     int floppy_drives;
     u8 floppy_type[GDOX_MAX_FLOPPY_DRIVES];
     u32 cpu_clock_rate;
-    bool scsi;
+    bool ide;
     bool fpu;
     int speed_mode;
 };

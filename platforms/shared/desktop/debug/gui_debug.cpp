@@ -30,6 +30,7 @@
 #include "gui_debug_cdrom.h"
 #include "gui_debug_disassembler.h"
 #include "gui_debug_floppy.h"
+#include "gui_debug_ide.h"
 #include "gui_debug_i386.h"
 #include "gui_debug_x87.h"
 #include "gui_debug_i386_tables.h"
@@ -183,6 +184,12 @@ void gui_debug_windows(void)
 
         if (config_debug.show_disk_viewer)
             gui_debug_window_disk_viewer();
+
+        if (config_debug.show_ide)
+            gui_debug_window_ide();
+
+        if (config_debug.show_ide_disks)
+            gui_debug_window_ide_disks();
 
         gui_debug_memory_auxiliary_windows();
     }

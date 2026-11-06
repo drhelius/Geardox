@@ -88,6 +88,9 @@
     <ClCompile Include="..\shared\desktop\debug\gui_debug_floppy.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\debug\gui_debug_ide.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\desktop\debug\gui_debug_trace_logger.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
@@ -295,6 +298,12 @@
     <ClCompile Include="..\..\src\drive\fdc.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\ide_controller.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\ide_disk.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\drive\i82077.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -490,9 +499,13 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fdc.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\ide_controller.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\ide_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\i82077.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\i82077_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fdc_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\ide_controller_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\ide_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\hard_disk_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
@@ -633,6 +646,9 @@
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\debug\gui_debug_floppy.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_ide.h">
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\debug\gui_debug_trace_logger.h">

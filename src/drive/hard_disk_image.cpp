@@ -24,39 +24,13 @@
 #include "../media/media_file.h"
 #include "../media/chd_file_adapter.h"
 
-struct HardDiskImage_Format
-{
-    u16 sector_size;
-    u8 sectors_per_cluster;
-    u16 root_entries;
-    u16 fat_sectors;
-    u8 fat_bits;
-    u8 media_descriptor;
-    u8 fat_id;
-};
-
-static const int k_hard_disk_formats = 7;
-static const HardDiskImage_Format k_hard_disk_format[k_hard_disk_formats] =
-{
-    { 1024, 1, 256, 3, 12, 0xFD, 0xF9 },
-    { 1024, 1, 256, 6, 12, 0xFD, 0xF9 },
-    { 2048, 1, 512, 3, 12, 0xFD, 0xF9 },
-    { 2048, 2, 512, 3, 12, 0xFD, 0xF9 },
-    { 2048, 4, 512, 3, 12, 0xFD, 0xF9 },
-    { 2048, 8, 512, 3, 12, 0xFD, 0xF9 },
-    { 2048, 2, 1024, 32, 16, 0xFE, 0xFA }
-};
-
 static u64 s_sessions = 0;
 static const u32 k_no_hunk = 0xFFFFFFFF;
-static const u32 k_hard_disk_reserved_blocks = 3;
-static const u32 k_hard_disk_partition_blocks = 127 * 2048;
-static const int k_hard_disk_partitions = 10;
-static const u8 k_hard_disk_signature[6] = { 0x95, 0x78, 0x8E, 0x6D, 0x92, 0xCA };
-static const u8 k_hard_disk_boot_header[11] = { 'I', 'P', 'L', '4', 0xEB, 0x4D, 0x06, ' ', ' ', ' ', ' ' };
-static const char k_hard_disk_label[] = "USERDISK";
+static const u32 k_vhd_type_fixed = 2;
+static const char k_vhd_cookie[] = "conectix";
 
-static chd_file* OpenHardDiskChd(const char* path, ChdFileAdapter* adapter, u32* blocks, chd_error* error)
+static chd_file* OpenHardDiskChd(const char* path, ChdFileAdapter* adapter, u32* blocks, chd_error* error,
+    u32* geometry_heads = NULL, u32* geometry_sectors = NULL)
 {
     chd_file* chd = NULL;
     *error = adapter->Open(path) ? chd_open_core_file(adapter->GetCoreFile(), CHD_OPEN_READ, NULL, &chd) :
@@ -82,6 +56,13 @@ static chd_file* OpenHardDiskChd(const char* path, ChdFileAdapter* adapter, u32*
         if ((total != 0) && (total <= 0xFFFFFFFF))
         {
             *blocks = (u32)total;
+
+            if (IsValidPointer(geometry_heads) && IsValidPointer(geometry_sectors))
+            {
+                *geometry_heads = (u32)heads;
+                *geometry_sectors = (u32)sectors;
+            }
+
             return chd;
         }
     }
@@ -91,87 +72,32 @@ static chd_file* OpenHardDiskChd(const char* path, ChdFileAdapter* adapter, u32*
     return NULL;
 }
 
-static bool FormatPartition(FILE* file, u32 start, u32 blocks)
+// A fixed VHD is the raw disk with a 512 byte footer after it, big endian
+static bool ReadVhdFooter(const char* path, u32* blocks, u32* heads, u32* sectors)
 {
-    u32 megabytes = (blocks + 2047) / 2048;
-    int index = 0;
+    MediaFile* file = MediaFile::OpenFile(path);
+    s64 size = IsValidPointer(file) ? file->GetSize() : 0;
+    u8 footer[k_hard_disk_block_size];
+    bool read = (size >= (s64)(2 * k_hard_disk_block_size)) &&
+        file->ReadAt((u64)size - k_hard_disk_block_size, footer, k_hard_disk_block_size);
+    SafeDelete(file);
 
-    while ((index < (k_hard_disk_formats - 1)) && (megabytes >= (2U << index)))
-        index++;
-
-    const HardDiskImage_Format& format = k_hard_disk_format[index];
-    u32 sector_blocks = format.sector_size / k_hard_disk_block_size;
-    u32 root_sector = 1 + (2 * format.fat_sectors);
-    u32 data_sector = root_sector + ((format.root_entries * 32) / format.sector_size);
-    u8 fat_id[4] = { format.fat_id, 0xFF, 0xFF, 0xFF };
-    size_t fat_id_size = (format.fat_bits == 16) ? 4 : 3;
-    std::vector<u8> sectors((size_t)data_sector * format.sector_size, 0);
-    u8* boot = &sectors[0];
-
-    memcpy(boot, k_hard_disk_boot_header, sizeof(k_hard_disk_boot_header));
-    write_u16_le(boot + 0x0B, format.sector_size);
-    boot[0x0D] = format.sectors_per_cluster;
-    write_u16_le(boot + 0x0E, 1);
-    boot[0x10] = 2;
-    write_u16_le(boot + 0x11, format.root_entries);
-    write_u16_le(boot + 0x13, (u16)(blocks / sector_blocks));
-    boot[0x15] = format.media_descriptor;
-    write_u16_le(boot + 0x16, format.fat_sectors);
-    write_u16_le(boot + 0x1E, (u16)data_sector);
-    write_u32_le(boot + 0x20, data_sector * sector_blocks);
-    write_u32_le(boot + 0x24, blocks);
-    FloppyImage::CopyBootLoader(boot);
-    memcpy(boot + 0x200, fat_id, fat_id_size);
-
-    for (u32 fat = 0; fat < 2; fat++)
-        memcpy(&sectors[(1 + (fat * format.fat_sectors)) * format.sector_size], fat_id, fat_id_size);
-
-    u8* root = &sectors[(size_t)root_sector * format.sector_size];
-    FloppyImage::WriteVolumeLabel(root);
-
-    for (u32 i = 1; i < format.root_entries; i++)
-        memset(root + (i * 32) + 1, 0xF6, 31);
-
-    return (fseek(file, (long)(start * k_hard_disk_block_size), SEEK_SET) == 0) &&
-        (fwrite(&sectors[0], 1, sectors.size(), file) == sectors.size());
-}
-
-static bool FormatImage(FILE* file, u32 blocks)
-{
-    u8 sectors[2 * k_hard_disk_block_size] = { };
-    u8* table = sectors;
-    u8* info = sectors + k_hard_disk_block_size;
-    memcpy(table, k_hard_disk_signature, sizeof(k_hard_disk_signature));
-    write_u16_le(table + 0x06, k_hard_disk_reserved_blocks);
-    write_u32_le(table + 0x0A, blocks - k_hard_disk_reserved_blocks);
-    write_u16_le(table + 0x0E, k_hard_disk_block_size);
-    write_u32_le(info + 0x10, blocks);
-    write_u32_le(info + 0x14, k_hard_disk_reserved_blocks);
-    write_u16_le(info + 0x18, k_hard_disk_block_size);
-
-    u32 start = k_hard_disk_reserved_blocks;
-    bool ok = true;
-
-    for (int i = 0; i < k_hard_disk_partitions; i++)
+    if (!read || (memcmp(footer, k_vhd_cookie, strlen(k_vhd_cookie)) != 0))
     {
-        u8* entry = table + 0x20 + (i * 0x30);
-        u32 size = MIN(blocks - start, k_hard_disk_partition_blocks);
-        memset(entry + 0x10, ' ', 0x20);
-
-        if (size == 0)
-            continue;
-
-        entry[0x01] = 1;
-        write_u32_le(entry + 0x02, start);
-        write_u32_le(entry + 0x06, size);
-        memcpy(entry + 0x10, "MS-DOS", 6);
-        memcpy(entry + 0x20, k_hard_disk_label, strlen(k_hard_disk_label));
-        ok = ok && FormatPartition(file, start, size);
-        start += size;
+        Error("Invalid VHD image %s", path);
+        return false;
     }
 
-    return ok && (fseek(file, (long)k_hard_disk_block_size, SEEK_SET) == 0) &&
-        (fwrite(sectors, 1, sizeof(sectors), file) == sizeof(sectors));
+    if (read_u32_be(footer + 60) != k_vhd_type_fixed)
+    {
+        Error("Only fixed VHD images are supported: %s", path);
+        return false;
+    }
+
+    *blocks = (u32)MIN(((u64)size / k_hard_disk_block_size) - 1, (u64)0xFFFFFFFF);
+    *heads = footer[58];
+    *sectors = footer[59];
+    return true;
 }
 
 HardDiskImage::HardDiskImage()
@@ -181,6 +107,8 @@ HardDiskImage::HardDiskImage()
     InitPointer(m_chd);
     m_hunk_index = k_no_hunk;
     m_blocks = 0;
+    m_heads = 0;
+    m_sectors = 0;
     m_write_protected = false;
     m_overlay_blocks = 0;
     m_write_count = 0;
@@ -269,6 +197,15 @@ bool HardDiskImage::Open(const char* path, bool write_protected, const char* wor
         return false;
     }
 
+    if (ends_with_no_case(path, ".vhd") && !ReadVhdFooter(path, &m_blocks, &m_heads, &m_sectors))
+    {
+        Close();
+        return false;
+    }
+
+    if (ends_with_no_case(path, ".chd"))
+        ReadChdGeometry(path);
+
     m_write_protected = write_protected;
     m_path = path;
     m_session = ((u64)time(NULL) << 20) + ++s_sessions;
@@ -289,6 +226,8 @@ void HardDiskImage::Close()
     m_file_name.clear();
     m_working_path.clear();
     m_blocks = 0;
+    m_heads = 0;
+    m_sectors = 0;
     m_write_protected = false;
     m_overlay_index.clear();
     m_overlay.clear();
@@ -320,6 +259,13 @@ const char* HardDiskImage::GetFileName() const
 u32 HardDiskImage::GetBlocks() const
 {
     return m_blocks;
+}
+
+bool HardDiskImage::GetGeometry(u32* heads, u32* sectors) const
+{
+    *heads = m_heads;
+    *sectors = m_sectors;
+    return (m_heads != 0) && (m_sectors != 0);
 }
 
 bool HardDiskImage::IsWriteProtected() const
@@ -491,6 +437,18 @@ bool HardDiskImage::OpenChd(const char* path)
     return true;
 }
 
+// A working copy is a raw file, so this comes from the CHD whichever of them is open
+void HardDiskImage::ReadChdGeometry(const char* path)
+{
+    ChdFileAdapter adapter;
+    chd_error error = CHDERR_NONE;
+    u32 blocks = 0;
+    chd_file* chd = OpenHardDiskChd(path, &adapter, &blocks, &error, &m_heads, &m_sectors);
+
+    if (IsValidPointer(chd))
+        chd_close(chd);
+}
+
 void HardDiskImage::CloseChd()
 {
     if (IsValidPointer(m_chd))
@@ -644,13 +602,13 @@ bool HardDiskImage::IsImage(const char* path)
     if (!IsValidPointer(path))
         return false;
 
-    if (ends_with_no_case(path, ".hdd") || (GetImageId(path) >= 0))
+    if (ends_with_no_case(path, ".hdd") || ends_with_no_case(path, ".vhd") || (GetImageId(path) >= 0))
         return true;
 
     if (ends_with_no_case(path, ".chd"))
         return GetChdHash(path, NULL);
 
-    if (!ends_with_no_case(path, ".hdm"))
+    if (!ends_with_no_case(path, ".hdm") && !ends_with_no_case(path, ".img"))
         return false;
 
     MediaFile* file = MediaFile::OpenFile(path);
@@ -685,6 +643,13 @@ bool HardDiskImage::GetImageBlocks(const char* path, u32* blocks)
         return true;
     }
 
+    if (ends_with_no_case(path, ".vhd"))
+    {
+        u32 heads = 0;
+        u32 sectors = 0;
+        return ReadVhdFooter(path, blocks, &heads, &sectors);
+    }
+
     MediaFile* file = MediaFile::OpenFile(path);
     s64 size = IsValidPointer(file) ? file->GetSize() : -1;
     SafeDelete(file);
@@ -716,11 +681,9 @@ bool HardDiskImage::GetChdHash(const char* path, u32* hash)
     return true;
 }
 
-bool HardDiskImage::Create(const char* path, u64 size, bool formatted)
+bool HardDiskImage::Create(const char* path, u64 size)
 {
-    u64 min_size = formatted ? (1024 * 1024) : k_hard_disk_block_size;
-
-    if (!IsValidPointer(path) || (size < min_size) || (size > 0x7FFFFFFF))
+    if (!IsValidPointer(path) || (size < k_hard_disk_block_size) || (size > 0x7FFFFFFF))
         return false;
 
     FILE* file = fopen_utf8(path, "wb");
@@ -733,7 +696,6 @@ bool HardDiskImage::Create(const char* path, u64 size, bool formatted)
 
     u8 zero = 0;
     bool ok = (fseek(file, (long)(size - 1), SEEK_SET) == 0) && (fwrite(&zero, 1, 1, file) == 1);
-    ok = ok && (!formatted || FormatImage(file, (u32)(size / k_hard_disk_block_size)));
     ok = (fclose(file) == 0) && ok;
 
     if (!ok)

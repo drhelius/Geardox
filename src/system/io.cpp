@@ -40,6 +40,7 @@ IO::IO()
     InitPointer(m_video);
     InitPointer(m_memory);
     InitPointer(m_fdc);
+    InitPointer(m_ide);
     InitPointer(m_input);
     InitPointer(m_system_control);
     InitPointer(m_rtc);
@@ -55,7 +56,7 @@ IO::~IO()
 }
 
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
-    Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
+    IdeController* ide, Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
     DebugConsole* debug_console, I8042* i8042, DMA* dma)
 {
     m_scheduler = scheduler;
@@ -65,6 +66,7 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_video = video;
     m_memory = memory;
     m_fdc = fdc;
+    m_ide = ide;
     m_input = input;
     m_system_control = system_control;
     m_rtc = rtc;
@@ -89,6 +91,28 @@ u8 IO::Read8(u16 port, GDOX_Bus_Access_Context& context)
         context.end_batch = true;
 
     return value;
+}
+
+u16 IO::ReadIDEData(u16 port, GDOX_Bus_Access_Context& context)
+{
+    u64 next_event = m_scheduler->GetNextEventClocks();
+    bool interrupt = m_pic->IsInterruptPending();
+    u16 value = m_ide->ReadData(port, context.clocks);
+
+    if (m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+        context.end_batch = true;
+
+    return value;
+}
+
+void IO::WriteIDEData(u16 port, u16 value, GDOX_Bus_Access_Context& context)
+{
+    u64 next_event = m_scheduler->GetNextEventClocks();
+    bool interrupt = m_pic->IsInterruptPending();
+    m_ide->WriteData(port, value, context.clocks);
+
+    if (m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+        context.end_batch = true;
 }
 
 // Board ports decode all 16 address lines, ISA cards only the low 10, so they repeat every 400h
@@ -148,6 +172,9 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
             if (m_fdc->Decodes(port & k_io_isa_mask))
                 return m_fdc->Read(port & k_io_isa_mask, context.clocks);
 
+            if (m_ide->Decodes(port & k_io_isa_mask))
+                return m_ide->Read(port & k_io_isa_mask, context.clocks);
+
             if (m_dma->Decodes(port))
                 return m_dma->Read(port);
             break;
@@ -202,6 +229,12 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
             if (m_fdc->Decodes(port & k_io_isa_mask))
             {
                 value = m_fdc->Peek(port & k_io_isa_mask);
+                return true;
+            }
+
+            if (m_ide->Decodes(port & k_io_isa_mask))
+            {
+                value = m_ide->Peek(port & k_io_isa_mask);
                 return true;
             }
 
@@ -270,6 +303,9 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
         default:
             if (m_fdc->Decodes(port & k_io_isa_mask))
                 return m_fdc->GetReadStableUntil(port & k_io_isa_mask);
+
+            if (m_ide->Decodes(port & k_io_isa_mask))
+                return m_ide->GetReadStableUntil(port & k_io_isa_mask);
 
             return m_dma->Decodes(port) ? m_dma->GetReadStableUntil(port) : 0;
     }
@@ -345,6 +381,11 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             else if (m_fdc->Decodes(port & k_io_isa_mask))
             {
                 m_fdc->Write(port & k_io_isa_mask, value, context.clocks);
+                context.end_batch = true;
+            }
+            else if (m_ide->Decodes(port & k_io_isa_mask))
+            {
+                m_ide->Write(port & k_io_isa_mask, value, context.clocks);
                 context.end_batch = true;
             }
             else if (m_dma->Decodes(port))

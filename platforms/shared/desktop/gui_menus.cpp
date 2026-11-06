@@ -1295,8 +1295,7 @@ static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
 
 static void menu_boot_device(void)
 {
-    static const char* const names[GDOX_BOOT_DEVICE_COUNT] = { "", "Floppy 1", "Floppy 2", "Hard Disk 0", "Hard Disk 1",
-        "Hard Disk 2", "Hard Disk 3", "CD-ROM" };
+    static const char* const names[GDOX_BOOT_DEVICE_COUNT] = { "", "Floppy 1", "Floppy 2", "Hard Disk", "CD-ROM" };
     GeardoxCore* core = emu_get_core();
     const GDOX_Machine_Config& config = core->GetPendingMachineConfig();
 
@@ -1306,14 +1305,10 @@ static void menu_boot_device(void)
 
         if ((i == GDOX_BOOT_DEVICE_FLOPPY_0) || (i == GDOX_BOOT_DEVICE_FLOPPY_1))
             enabled = (i - GDOX_BOOT_DEVICE_FLOPPY_0) < config.floppy_drives;
-        else if ((i >= GDOX_BOOT_DEVICE_HARD_DISK_0) && (i <= GDOX_BOOT_DEVICE_HARD_DISK_3))
-        {
-            int id = i - GDOX_BOOT_DEVICE_HARD_DISK_0;
-            enabled = core->IsHardDiskPending(id) ? (core->GetPendingHardDiskPath(id)[0] != 0) :
-                core->GetHardDisk(id)->IsOpen();
-        }
+        else if (i == GDOX_BOOT_DEVICE_HARD_DISK)
+            enabled = core->HasHardDisks();
 
-        if ((i == GDOX_BOOT_DEVICE_HARD_DISK_0) || (i == GDOX_BOOT_DEVICE_CDROM))
+        if ((i == GDOX_BOOT_DEVICE_HARD_DISK) || (i == GDOX_BOOT_DEVICE_CDROM))
             ImGui::Separator();
 
         if (ImGui::MenuItem(names[i], NULL, false, enabled))
@@ -2109,6 +2104,13 @@ static void menu_debug(void)
         {
             ImGui::MenuItem("Show Drives", "", &config_debug.show_floppy_drives);
             ImGui::MenuItem("Show Disk Viewer", "", &config_debug.show_disk_viewer);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("IDE", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Controller", "", &config_debug.show_ide);
+            ImGui::MenuItem("Show Disks", "", &config_debug.show_ide_disks);
             ImGui::EndMenu();
         }
 

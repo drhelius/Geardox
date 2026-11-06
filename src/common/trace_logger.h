@@ -38,6 +38,7 @@ enum GDOX_Trace_Type : u8
     TRACE_MIXER,
     TRACE_CDROM,
     TRACE_FDC,
+    TRACE_IDE,
     TRACE_KEYBOARD,
     TRACE_INPUT,
     TRACE_SYSTEM,
@@ -58,6 +59,7 @@ static_assert(TRACE_TYPE_COUNT < 32, "Trace category flags exceed 32 bits");
 #define TRACE_FLAG_MIXER            (1U << TRACE_MIXER)
 #define TRACE_FLAG_CDROM            (1U << TRACE_CDROM)
 #define TRACE_FLAG_FDC              (1U << TRACE_FDC)
+#define TRACE_FLAG_IDE              (1U << TRACE_IDE)
 #define TRACE_FLAG_KEYBOARD         (1U << TRACE_KEYBOARD)
 #define TRACE_FLAG_INPUT            (1U << TRACE_INPUT)
 #define TRACE_FLAG_SYSTEM           (1U << TRACE_SYSTEM)
@@ -238,6 +240,18 @@ enum GDOX_Trace_FDC_Event : u8
 #define TRACE_FDC_EVENT_RESULTS  (1U << TRACE_FDC_END)
 #define TRACE_FDC_EVENT_DRIVES   ((1U << TRACE_FDC_DRIVE_CONTROL) | (1U << TRACE_FDC_DRIVE_SELECT))
 #define TRACE_FDC_EVENT_ALL      (TRACE_FDC_EVENT_COMMANDS | TRACE_FDC_EVENT_RESULTS | TRACE_FDC_EVENT_DRIVES)
+
+enum GDOX_Trace_IDE_Event : u8
+{
+    TRACE_IDE_COMMAND = 0,
+    TRACE_IDE_END,
+    TRACE_IDE_RESET
+};
+
+#define TRACE_IDE_EVENT_COMMANDS (1U << TRACE_IDE_COMMAND)
+#define TRACE_IDE_EVENT_RESULTS  (1U << TRACE_IDE_END)
+#define TRACE_IDE_EVENT_RESETS   (1U << TRACE_IDE_RESET)
+#define TRACE_IDE_EVENT_ALL      (TRACE_IDE_EVENT_COMMANDS | TRACE_IDE_EVENT_RESULTS | TRACE_IDE_EVENT_RESETS)
 
 enum GDOX_Trace_Keyboard_Event : u8
 {
@@ -435,6 +449,18 @@ struct GDOX_Trace_Entry
             s8 drive;
             u8 cylinder;
         } fdc;
+
+        struct
+        {
+            u8 id;
+            u8 command;
+            u8 status;
+            u8 error;
+            u8 count;
+            u8 sector;
+            u8 head;
+            u16 cylinder;
+        } ide;
 
         struct
         {

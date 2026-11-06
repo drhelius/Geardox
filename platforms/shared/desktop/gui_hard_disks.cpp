@@ -34,8 +34,10 @@
 #include "emu_hard_disk.h"
 #include "utils.h"
 
-static const int k_create_sizes_mb[5] = { 40, 100, 127, 250, 500 };
-static const char* create_sizes = "40 MB\0" "100 MB\0" "127 MB\0" "250 MB\0" "500 MB\0" "Custom\0\0";
+static const int k_create_sizes_mb[5] = { 40, 100, 250, 500, 2000 };
+static const char* create_sizes = "40 MB\0" "100 MB\0" "250 MB\0" "500 MB\0" "2000 MB\0" "Custom\0\0";
+static const char* const k_slot_names[GDOX_MAX_HARD_DISKS] = { "Primary Master", "Primary Slave", "Secondary Master",
+    "Secondary Slave" };
 
 static bool open_create = false;
 static bool open_quit = false;
@@ -49,6 +51,7 @@ static void attach(int id, const char* path);
 static void draw_create_popup(void);
 static void draw_quit_popup(void);
 static void notify_attached(int id, const char* path, const char* message);
+static void attach_error(const char* path);
 
 void gui_hard_disks_menu(void)
 {
@@ -101,8 +104,8 @@ void gui_hard_disks_update(void)
         if ((changes & (1 << i)) == 0)
             continue;
 
-        ids += ids.empty() ? "Slot " : ", ";
-        ids += (char)('0' + i);
+        ids += ids.empty() ? "" : ", ";
+        ids += k_slot_names[i];
     }
 
     gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "The hard disk changed since this state", ids.c_str());
@@ -120,9 +123,7 @@ bool gui_hard_disks_load(const char* path)
 
     if (!emu_hard_disk_attach(id, path, config_emulator.hard_disk_write_protected[id] != 0))
     {
-        std::string message("Unable to attach the hard disk image:\n");
-        message += path;
-        gui_set_error_message(message.c_str());
+        attach_error(path);
         return false;
     }
 
@@ -155,8 +156,7 @@ void gui_hard_disks_dialog_attach(int id, const char* path)
 
 void gui_hard_disks_dialog_create(int id, const char* path)
 {
-    if (emu_hard_disk_create(id, path, create_size_mb, false,
-        config_emulator.hard_disk_write_protected[id] != 0))
+    if (emu_hard_disk_create(id, path, create_size_mb, config_emulator.hard_disk_write_protected[id] != 0))
         notify_attached(id, path, "Hard disk created");
     else
     {
@@ -179,7 +179,8 @@ static void disk_menu(int id)
     bool present = path[0] != 0;
     const char* name = present ? get_filename(path) : "Empty";
     char label[64];
-    snprintf(label, sizeof(label), "Slot %d: %.32s%s###hard_disk_%d", id, name, strlen(name) > 32 ? "..." : "", id);
+    snprintf(label, sizeof(label), "%s: %.32s%s###hard_disk_%d", k_slot_names[id], name,
+        strlen(name) > 32 ? "..." : "", id);
 
     if (!ImGui::BeginMenu(label))
         return;
@@ -268,11 +269,18 @@ static void attach(int id, const char* path)
     if (emu_hard_disk_attach(id, path, config_emulator.hard_disk_write_protected[id] != 0))
         notify_attached(id, path, "Hard disk attached");
     else
-    {
-        std::string message("Unable to attach the hard disk image:\n");
-        message += path;
-        gui_set_error_message(message.c_str());
-    }
+        attach_error(path);
+}
+
+static void attach_error(const char* path)
+{
+    std::string message("Unable to attach the hard disk image:\n");
+    message += path;
+
+    if (ends_with_no_case(path, ".vhd"))
+        message += "\nOnly fixed VHD images are supported.";
+
+    gui_set_error_message(message.c_str());
 }
 
 static void draw_create_popup(void)
@@ -282,7 +290,7 @@ static void draw_create_popup(void)
     if (!ImGui::BeginPopupModal("New Blank Hard Disk", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 
-    ImGui::Text("Create a blank hard disk in slot %d.\n\n", dialog_id);
+    ImGui::Text("Create a blank hard disk as %s.\n\n", k_slot_names[dialog_id]);
 
     ImGui::Text("Size:");
     ImGui::PushItemWidth(248.0f);
@@ -336,7 +344,7 @@ static void draw_quit_popup(void)
         emu_hard_disk_get_info(i, &info);
 
         if (info.unflushed != 0)
-            ImGui::Text("Slot %d: %s", i, get_filename(info.path));
+            ImGui::Text("%s: %s", k_slot_names[i], get_filename(info.path));
     }
 
     ImGui::Separator();
@@ -378,6 +386,6 @@ static void notify_attached(int id, const char* path, const char* message)
     Emu_HardDiskInfo info;
     emu_hard_disk_get_info(id, &info);
     char text[64];
-    snprintf(text, sizeof(text), "%s in slot %d", message, id);
+    snprintf(text, sizeof(text), "%s as %s", message, k_slot_names[id]);
     gui_notify(gui_NotificationSuccess, ICON_MD_STORAGE, text, info.pending ? "At the next reset" : get_filename(path));
 }

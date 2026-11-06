@@ -37,11 +37,17 @@
     { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { 0, 0 }, GDOX_MACHINE_ISA16(rate), \
     GDOX_MACHINE_ISA16(rate), { 0, 0 }, 0, 0, 0 }
 
-#define GDOX_MACHINE_BUS_TIMING(waits, rate) { GDOX_MACHINE_BUS_FIXED, &waits, NULL, 0, 0, 0, 0, 0, \
+// The IDE data ports run a 16-bit cycle on a bus where every other port takes an 8-bit one
+#define GDOX_MACHINE_IDE_DATA_WAIT(rate) ((s16)(GDOX_MACHINE_ISA16(rate) - GDOX_MACHINE_ISA8(rate)))
+#define GDOX_MACHINE_PORT_WAITS(rate) { \
+    { 0x0170, 0x0170, { GDOX_MACHINE_IDE_DATA_WAIT(rate), GDOX_MACHINE_IDE_DATA_WAIT(rate) } }, \
+    { 0x01F0, 0x01F0, { GDOX_MACHINE_IDE_DATA_WAIT(rate), GDOX_MACHINE_IDE_DATA_WAIT(rate) } } }
+
+#define GDOX_MACHINE_BUS_TIMING(waits, ports, rate) { GDOX_MACHINE_BUS_FIXED, &waits, NULL, 0, 0, 0, 0, 0, \
     { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
     { GDOX_MACHINE_ISA8_WORD(rate), GDOX_MACHINE_ISA8_WORD(rate) }, { 0, 0 }, \
     { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
-    GDOX_MACHINE_ISA8(rate), { 0, 0 }, NULL }
+    GDOX_MACHINE_ISA8(rate), { 0, 0 }, ports }
 
 const u8 k_machine_ram_386sx_20[] = { 1, 2, 4, 8, 16, 0 };
 const u8 k_machine_ram_386dx_33[] = { 1, 2, 4, 8, 16, 0 };
@@ -51,9 +57,16 @@ const GDOX_Machine_Bus_Waits k_machine_bus_waits_386sx_20 = GDOX_MACHINE_BUS_WAI
 const GDOX_Machine_Bus_Waits k_machine_bus_waits_386dx_33 = GDOX_MACHINE_BUS_WAITS(33000000);
 const GDOX_Machine_Bus_Waits k_machine_bus_waits_486dx2_66 = GDOX_MACHINE_BUS_WAITS(66000000);
 
-const GDOX_Machine_Bus_Timing k_machine_bus_386sx_20 = GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386sx_20, 20000000);
-const GDOX_Machine_Bus_Timing k_machine_bus_386dx_33 = GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386dx_33, 33000000);
-const GDOX_Machine_Bus_Timing k_machine_bus_486dx2_66 = GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486dx2_66, 66000000);
+const GDOX_Machine_Port_Wait k_machine_port_waits_386sx_20[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(20000000);
+const GDOX_Machine_Port_Wait k_machine_port_waits_386dx_33[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(33000000);
+const GDOX_Machine_Port_Wait k_machine_port_waits_486dx2_66[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(66000000);
+
+const GDOX_Machine_Bus_Timing k_machine_bus_386sx_20 =
+    GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386sx_20, k_machine_port_waits_386sx_20, 20000000);
+const GDOX_Machine_Bus_Timing k_machine_bus_386dx_33 =
+    GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386dx_33, k_machine_port_waits_386dx_33, 33000000);
+const GDOX_Machine_Bus_Timing k_machine_bus_486dx2_66 =
+    GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486dx2_66, k_machine_port_waits_486dx2_66, 66000000);
 
 const GDOX_Machine_Memory_Map k_machine_memory_maps[GDOX_MACHINE_MAP_COUNT] =
 {

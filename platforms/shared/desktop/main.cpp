@@ -506,7 +506,7 @@ static void print_usage(const char* program)
     printf("Usage: %s [options] [media_file] [symbol_file]\n", name ? name + 1 : program);
     printf("\nArguments:\n");
     print_wrapped("  media_file", "CD-ROM (.cue .chd .iso), floppy (.img .ima .vfd .flp .dsk .d77 .d88 .hdm .xdf .mfm), .m3u playlist, "
-        ".zip, or hard disk (.hdd .h0-.h3, hard disk .chd, .hdm over 8 MB)");
+        ".zip, or hard disk (.hdd .h0-.h3, .img and .hdm over 8 MB, fixed .vhd, hard disk .chd)");
     print_wrapped("  symbol_file", "Symbol file for debugging");
     printf("\nMedia:\n");
     print_wrapped("      --cd FILE", "CD-ROM image or .m3u playlist");

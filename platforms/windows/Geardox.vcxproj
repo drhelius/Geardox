@@ -72,6 +72,8 @@
     <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp" />
     <ClCompile Include="..\..\src\drive\fdc.cpp" />
+    <ClCompile Include="..\..\src\drive\ide_controller.cpp" />
+    <ClCompile Include="..\..\src\drive\ide_disk.cpp" />
     <ClCompile Include="..\..\src\drive\i82077.cpp" />
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
@@ -187,6 +189,7 @@
     <ClCompile Include="..\shared\desktop\debug\gui_debug_audio.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_cdrom.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_floppy.cpp" />
+    <ClCompile Include="..\shared\desktop\debug\gui_debug_ide.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_trace_logger.cpp" />
     <ClCompile Include="..\shared\desktop\debug\trace_logger_formatter.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_profiler.cpp" />
@@ -292,9 +295,13 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h" />
     <ClInclude Include="..\..\src\drive\fdc.h" />
+    <ClInclude Include="..\..\src\drive\ide_controller.h" />
+    <ClInclude Include="..\..\src\drive\ide_disk.h" />
     <ClInclude Include="..\..\src\drive\i82077.h" />
     <ClInclude Include="..\..\src\drive\i82077_inline.h" />
     <ClInclude Include="..\..\src\drive\fdc_inline.h" />
+    <ClInclude Include="..\..\src\drive\ide_controller_inline.h" />
+    <ClInclude Include="..\..\src\drive\ide_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
@@ -388,6 +395,7 @@
     <ClInclude Include="..\shared\desktop\debug\gui_debug_audio.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_cdrom.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_floppy.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_ide.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_trace_logger.h" />
     <ClInclude Include="..\shared\desktop\debug\trace_logger_formatter.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_profiler.h" />

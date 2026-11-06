@@ -22,9 +22,14 @@
 
 #include "io.h"
 #include "firmware_config.h"
+#include "../drive/ide_controller.h"
 
+// The IDE data port answers with -I/O CS16, every other port is 8 bits wide
 INLINE u16 IO::Read16(u16 port, GDOX_Bus_Access_Context& context)
 {
+    if (m_ide->IsDataPort(port & k_io_isa_mask))
+        return ReadIDEData(port & k_io_isa_mask, context);
+
     u16 value = Read8(port, context);
     value |= (u16)Read8((u16)(port + 1), context) << 8;
     return value;
@@ -37,12 +42,18 @@ INLINE u32 IO::Read32(u16 port, GDOX_Bus_Access_Context& context)
     return value;
 }
 
-// The firmware config selector is a 16-bit register
+// The firmware config selector is a 16-bit register, as the IDE data port
 INLINE void IO::Write16(u16 port, u16 value, GDOX_Bus_Access_Context& context)
 {
     if (port == k_firmware_config_selector_port && m_firmware_config->Decodes(port))
     {
         m_firmware_config->WriteSelector(value);
+        return;
+    }
+
+    if (m_ide->IsDataPort(port & k_io_isa_mask))
+    {
+        WriteIDEData(port & k_io_isa_mask, value, context);
         return;
     }
 

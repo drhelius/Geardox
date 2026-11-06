@@ -177,6 +177,11 @@ INLINE FDC* GeardoxCore::GetFDC()
     return m_fdc;
 }
 
+INLINE IdeController* GeardoxCore::GetIDE()
+{
+    return m_ide;
+}
+
 INLINE TraceLogger* GeardoxCore::GetTraceLogger()
 {
     return m_trace_logger;

@@ -28,6 +28,7 @@ class DMA;
 class FDC;
 class FirmwareConfig;
 class I8042;
+class IdeController;
 class MC146818;
 class Input;
 class Memory;
@@ -43,7 +44,7 @@ public:
     IO();
     ~IO();
     void Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
-        Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
+        IdeController* ide, Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
         DebugConsole* debug_console, I8042* i8042, DMA* dma);
     void Reset();
     u8 Read8(u16 port, GDOX_Bus_Access_Context& context);
@@ -59,6 +60,8 @@ public:
 
 private:
     u8 ReadPort(u16 port, GDOX_Bus_Access_Context& context);
+    u16 ReadIDEData(u16 port, GDOX_Bus_Access_Context& context);
+    void WriteIDEData(u16 port, u16 value, GDOX_Bus_Access_Context& context);
 
 private:
     Scheduler* m_scheduler;
@@ -68,6 +71,7 @@ private:
     Video* m_video;
     Memory* m_memory;
     FDC* m_fdc;
+    IdeController* m_ide;
     Input* m_input;
     SystemControl* m_system_control;
     MC146818* m_rtc;

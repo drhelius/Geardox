@@ -45,6 +45,7 @@ static void format_pcm(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 static void format_mixer(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_fdc(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_ide(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_keyboard(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_input(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
@@ -152,6 +153,9 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
             break;
         case TRACE_CDROM:
             format_cdrom(entry, buffer, buffer_size);
+            break;
+        case TRACE_IDE:
+            format_ide(entry, buffer, buffer_size);
             break;
         case TRACE_FDC:
             format_fdc(entry, buffer, buffer_size);
@@ -897,6 +901,33 @@ static void format_fdc(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
         default:
             format_event(buffer, size, "FDC", "DRIVE SEL", "DOR:$%02X  Drive:%s  Cylinder:%u", entry.fdc.value, drive,
                 entry.fdc.cylinder);
+            break;
+    }
+}
+
+static void format_ide(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    const char* command = gui_debug_ide_command_name(entry.ide.command);
+    char address[48];
+
+    if ((entry.ide.head & 0x40) != 0)
+        snprintf(address, sizeof(address), "LBA:%u", ((u32)(entry.ide.head & 0x0F) << 24) |
+            ((u32)entry.ide.cylinder << 8) | entry.ide.sector);
+    else
+        snprintf(address, sizeof(address), "C:%u H:%u S:%u", entry.ide.cylinder, entry.ide.head & 0x0F, entry.ide.sector);
+
+    switch (entry.event)
+    {
+        case TRACE_IDE_COMMAND:
+            format_event(buffer, size, "IDE", "COMMAND", "$%02X %s  ID %u  %s Count:%u", entry.ide.command, command,
+                entry.ide.id, address, entry.ide.count);
+            break;
+        case TRACE_IDE_END:
+            format_event(buffer, size, "IDE", "END", "%s  ID %u  Status:$%02X Error:$%02X %s Count:%u", command,
+                entry.ide.id, entry.ide.status, entry.ide.error, address, entry.ide.count);
+            break;
+        default:
+            format_event(buffer, size, "IDE", "RESET", "ID %u", entry.ide.id);
             break;
     }
 }

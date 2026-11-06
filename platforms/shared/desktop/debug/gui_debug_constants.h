@@ -111,6 +111,24 @@ static const stDebugPortLabel k_debug_port_labels[] =
     { 0x0402, "DEBUG_CON", "Debug console, SeaBIOS messages" },
     { 0x0510, "FW_CFG_SEL", "Firmware config selector" },
     { 0x0511, "FW_CFG_DATA", "Firmware config data" },
+    { 0x0170, "IDE1_DATA", "Secondary IDE data, 16 bits" },
+    { 0x0171, "IDE1_ERROR", "Secondary IDE error, features on write" },
+    { 0x0172, "IDE1_COUNT", "Secondary IDE sector count" },
+    { 0x0173, "IDE1_SECTOR", "Secondary IDE sector number, LBA 7-0" },
+    { 0x0174, "IDE1_CYL_LO", "Secondary IDE cylinder low, LBA 15-8" },
+    { 0x0175, "IDE1_CYL_HI", "Secondary IDE cylinder high, LBA 23-16" },
+    { 0x0176, "IDE1_HEAD", "Secondary IDE device, head and LBA 27-24" },
+    { 0x0177, "IDE1_STATUS", "Secondary IDE status, command on write" },
+    { 0x01F0, "IDE0_DATA", "Primary IDE data, 16 bits" },
+    { 0x01F1, "IDE0_ERROR", "Primary IDE error, features on write" },
+    { 0x01F2, "IDE0_COUNT", "Primary IDE sector count" },
+    { 0x01F3, "IDE0_SECTOR", "Primary IDE sector number, LBA 7-0" },
+    { 0x01F4, "IDE0_CYL_LO", "Primary IDE cylinder low, LBA 15-8" },
+    { 0x01F5, "IDE0_CYL_HI", "Primary IDE cylinder high, LBA 23-16" },
+    { 0x01F6, "IDE0_HEAD", "Primary IDE device, head and LBA 27-24" },
+    { 0x01F7, "IDE0_STATUS", "Primary IDE status, command on write" },
+    { 0x0376, "IDE1_CONTROL", "Secondary IDE alternate status, device control on write" },
+    { 0x03F6, "IDE0_CONTROL", "Primary IDE alternate status, device control on write" },
     { 0x03F2, "FDC_DOR", "Floppy digital output: motors, DMA gate, reset, drive" },
     { 0x03F4, "FDC_MSR", "Floppy main status, data rate select on write" },
     { 0x03F5, "FDC_DATA", "Floppy commands, results and data" },
@@ -530,6 +548,46 @@ static const char* const k_debug_fdc_command_names[21] =
 };
 
 static const char* const k_debug_fdc_phase_names[4] = { "RESET", "COMMAND", "EXECUTION", "RESULT" };
+static const char* const k_debug_ide_phase_names[11] =
+{
+    "IDLE", "READ", "DATA IN", "WRITE WAIT", "DATA OUT", "WRITE", "FORMAT", "COMPLETE", "DIAGNOSTIC", "RESET HELD",
+    "RESET"
+};
+
+static const char* const k_debug_ide_slot_names[4] = { "primary master", "primary slave", "secondary master",
+    "secondary slave" };
+
+static inline const char* gui_debug_ide_command_name(u8 command)
+{
+    switch (command & 0xF0)
+    {
+        case 0x10: return "RECALIBRATE";
+        case 0x70: return "SEEK";
+        default: break;
+    }
+
+    switch (command)
+    {
+        case 0x20: case 0x21: return "READ SECTORS";
+        case 0x30: case 0x31: return "WRITE SECTORS";
+        case 0x40: case 0x41: return "READ VERIFY";
+        case 0x50: return "FORMAT TRACK";
+        case 0x90: return "DIAGNOSTIC";
+        case 0x91: return "INIT PARAMETERS";
+        case 0xC4: return "READ MULTIPLE";
+        case 0xC5: return "WRITE MULTIPLE";
+        case 0xC6: return "SET MULTIPLE";
+        case 0xE0: return "STANDBY IMMEDIATE";
+        case 0xE1: return "IDLE IMMEDIATE";
+        case 0xE2: return "STANDBY";
+        case 0xE3: return "IDLE";
+        case 0xE5: return "CHECK POWER";
+        case 0xE6: return "SLEEP";
+        case 0xEC: return "IDENTIFY";
+        case 0xEF: return "SET FEATURES";
+        default: return "UNKNOWN";
+    }
+}
 static const char* const k_debug_fdc_rate_names[4] = { "500 KBPS", "300 KBPS", "250 KBPS", "1 MBPS" };
 
 static inline const char* gui_debug_floppy_status_name(u8 status)

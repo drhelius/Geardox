@@ -271,7 +271,7 @@ void gui_file_dialog_attach_hard_disk(int id)
 
     dialog_hard_disk_id = id;
     SDL_DialogFileFilter filters[] = {
-        { "Hard Disk Images", "hdd;hdm;chd;h0;h1;h2;h3;h4;h5;h6" },
+        { "Hard Disk Images", "hdd;img;vhd;hdm;chd;h0;h1;h2;h3" },
         { "All Files", "*" }
     };
     show_open_file_dialog(FileDialog_AttachHardDisk, filters, 2);
@@ -284,7 +284,7 @@ void gui_file_dialog_create_hard_disk(int id)
 
     dialog_hard_disk_id = id;
     SDL_DialogFileFilter filters[] = {
-        { "Hard Disk Images", "hdd;h0;h1;h2;h3;h4;h5;h6" }
+        { "Hard Disk Images", "hdd;h0;h1;h2;h3" }
     };
     show_save_file_dialog(FileDialog_CreateHardDisk, filters, 1);
 }

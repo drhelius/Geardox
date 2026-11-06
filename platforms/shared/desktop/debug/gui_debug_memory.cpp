@@ -2337,6 +2337,9 @@ const char* gui_debug_memory_region_description(int region_id)
     if (region_id == GDOX_DEBUG_REGION_MEDIA_IMAGE)
         return "The loaded media image, as stored in the file";
 
+    if (region_id >= GDOX_DEBUG_REGION_IDE_BUFFER)
+        return "The sector buffer of the IDE disk";
+
     if (region_id >= GDOX_DEBUG_REGION_FLOPPY_IMAGE)
         return "The floppy disk image in the drive, in D77 layout";
 

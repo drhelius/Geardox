@@ -72,6 +72,7 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_cdrom.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_disassembler.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_floppy.cpp \
+    $(DESKTOP_SRC_DIR)/debug/gui_debug_ide.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_i386.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_x87.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_i386_tables.cpp \
@@ -100,6 +101,8 @@ SOURCES_CXX := \
     $(SRC_DIR)/cdrom/cdrom_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_media.cpp \
     $(SRC_DIR)/drive/fdc.cpp \
+    $(SRC_DIR)/drive/ide_controller.cpp \
+    $(SRC_DIR)/drive/ide_disk.cpp \
     $(SRC_DIR)/drive/i82077.cpp \
     $(SRC_DIR)/drive/hard_disk_image.cpp \
     $(SRC_DIR)/drive/floppy_disk.cpp \

@@ -22,6 +22,7 @@
 #include "../emu.h"
 #include "media/firmware.h"
 #include "drive/fdc.h"
+#include "drive/ide_controller.h"
 #include "drive/floppy_disk.h"
 #include "geardox.h"
 #include "system/io.h"
@@ -197,6 +198,12 @@ int DebugMemoryProvider::GetRegionCount() const
     for (int drive = 0; drive < FDC_DRIVES; drive++)
     {
         if (core->GetFDC()->GetDisk(drive)->IsInserted())
+            count++;
+    }
+
+    for (int id = 0; id < IDE_DISKS; id++)
+    {
+        if (core->GetIDE()->GetDisk(id)->IsAttached())
             count++;
     }
 
@@ -644,6 +651,24 @@ bool DebugMemoryProvider::GetExternalRegion(int index, GDOX_Debug_Memory_Region&
         index--;
     }
 
+    for (int id = 0; id < IDE_DISKS; id++)
+    {
+        if (!core->GetIDE()->GetDisk(id)->IsAttached())
+            continue;
+
+        if (index == 0)
+        {
+            memset(&region, 0, sizeof(region));
+            region.id = GDOX_DEBUG_REGION_IDE_BUFFER + id;
+            snprintf(region.name, sizeof(region.name), "IDE Disk %d Buffer", id);
+            region.size = IDE_DISK_BUFFER_SIZE;
+            region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_ROM;
+            return true;
+        }
+
+        index--;
+    }
+
     return false;
 }
 
@@ -693,6 +718,12 @@ bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_
             source = disk->GetImage();
             source_size = disk->GetImageSize();
         }
+    }
+
+    if (id >= GDOX_DEBUG_REGION_IDE_BUFFER && id < GDOX_DEBUG_REGION_IDE_BUFFER + IDE_DISKS)
+    {
+        source = core->GetIDE()->GetDisk(id - GDOX_DEBUG_REGION_IDE_BUFFER)->GetState()->buffer;
+        source_size = IDE_DISK_BUFFER_SIZE;
     }
 
     for (u32 i = 0; i < size; i++)

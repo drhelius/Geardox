@@ -84,6 +84,9 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "fdc.commands", TRACE_FDC, TRACE_FDC_EVENT_COMMANDS },
     { "fdc.results", TRACE_FDC, TRACE_FDC_EVENT_RESULTS },
     { "fdc.drives", TRACE_FDC, TRACE_FDC_EVENT_DRIVES },
+    { "ide.commands", TRACE_IDE, TRACE_IDE_EVENT_COMMANDS },
+    { "ide.results", TRACE_IDE, TRACE_IDE_EVENT_RESULTS },
+    { "ide.resets", TRACE_IDE, TRACE_IDE_EVENT_RESETS },
     { "keyboard.keys", TRACE_KEYBOARD, TRACE_KEYBOARD_EVENT_KEYS },
     { "keyboard.reads", TRACE_KEYBOARD, TRACE_KEYBOARD_EVENT_READS },
     { "keyboard.commands", TRACE_KEYBOARD, TRACE_KEYBOARD_EVENT_COMMANDS },
@@ -216,6 +219,7 @@ public:
     json GetPITStatus();
     json GetDMAStatus();
     json GetFDCStatus();
+    json GetIDEStatus();
     json GetSystemStatus();
     json GetRTCStatus();
     json GetKeyboardStatus();

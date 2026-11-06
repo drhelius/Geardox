@@ -280,6 +280,7 @@ struct config_Debug
     bool trace_mixer;
     bool trace_cdrom;
     bool trace_fdc;
+    bool trace_ide;
     bool trace_keyboard;
     bool trace_input;
     bool trace_system;
@@ -294,6 +295,7 @@ struct config_Debug
     int trace_mixer_events;
     int trace_cdrom_events;
     int trace_fdc_events;
+    int trace_ide_events;
     int trace_keyboard_events;
     int trace_input_events;
     int trace_system_events;
@@ -327,6 +329,8 @@ struct config_Debug
     bool show_cdrom_toc;
     bool show_cdrom_audio;
     bool show_floppy_drives;
+    bool show_ide;
+    bool show_ide_disks;
     bool show_disk_viewer;
     int disk_viewer_drive;
     int disk_viewer_cylinder;

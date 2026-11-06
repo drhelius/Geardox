@@ -754,6 +754,18 @@ static void trace_logger_menu_filters(void)
         ImGui::EndMenu();
     }
 
+    if (ImGui::BeginMenu("IDE Controller"))
+    {
+        ImGui::MenuItem("Enabled", "", &config_debug.trace_ide);
+        ImGui::Separator();
+        ImGui::BeginDisabled(!config_debug.trace_ide);
+        trace_logger_menu_event_filter("Commands", &config_debug.trace_ide_events, TRACE_IDE_EVENT_COMMANDS);
+        trace_logger_menu_event_filter("Results", &config_debug.trace_ide_events, TRACE_IDE_EVENT_RESULTS);
+        trace_logger_menu_event_filter("Resets", &config_debug.trace_ide_events, TRACE_IDE_EVENT_RESETS);
+        ImGui::EndDisabled();
+        ImGui::EndMenu();
+    }
+
     if (ImGui::BeginMenu("Keyboard"))
     {
         ImGui::MenuItem("Enabled", "", &config_debug.trace_keyboard);
@@ -1134,6 +1146,7 @@ static u32 trace_logger_get_config_flags(void)
     if (config_debug.trace_mixer) flags |= TRACE_FLAG_MIXER;
     if (config_debug.trace_cdrom) flags |= TRACE_FLAG_CDROM;
     if (config_debug.trace_fdc) flags |= TRACE_FLAG_FDC;
+    if (config_debug.trace_ide) flags |= TRACE_FLAG_IDE;
     if (config_debug.trace_keyboard) flags |= TRACE_FLAG_KEYBOARD;
     if (config_debug.trace_input) flags |= TRACE_FLAG_INPUT;
     if (config_debug.trace_system) flags |= TRACE_FLAG_SYSTEM;
@@ -1161,6 +1174,7 @@ static void trace_logger_set_config_flags(u32 flags)
     config_debug.trace_mixer = (flags & TRACE_FLAG_MIXER) != 0;
     config_debug.trace_cdrom = (flags & TRACE_FLAG_CDROM) != 0;
     config_debug.trace_fdc = (flags & TRACE_FLAG_FDC) != 0;
+    config_debug.trace_ide = (flags & TRACE_FLAG_IDE) != 0;
     config_debug.trace_keyboard = (flags & TRACE_FLAG_KEYBOARD) != 0;
     config_debug.trace_input = (flags & TRACE_FLAG_INPUT) != 0;
     config_debug.trace_system = (flags & TRACE_FLAG_SYSTEM) != 0;
@@ -1181,6 +1195,7 @@ static int* trace_logger_get_config_event_filter(GDOX_Trace_Type type)
         case TRACE_MIXER: return &config_debug.trace_mixer_events;
         case TRACE_CDROM: return &config_debug.trace_cdrom_events;
         case TRACE_FDC: return &config_debug.trace_fdc_events;
+        case TRACE_IDE: return &config_debug.trace_ide_events;
         case TRACE_KEYBOARD: return &config_debug.trace_keyboard_events;
         case TRACE_INPUT: return &config_debug.trace_input_events;
         case TRACE_SYSTEM: return &config_debug.trace_system_events;
@@ -1338,6 +1353,7 @@ static void render_entry_colored(const GDOX_Trace_Entry& entry, u64 index, bool 
         case TRACE_MIXER: ImGui::TextColored(violet, "%s", buf); break;
         case TRACE_CDROM: ImGui::TextColored(cyan, "%s", buf); break;
         case TRACE_FDC: ImGui::TextColored(cornflower, "%s", buf); break;
+        case TRACE_IDE: ImGui::TextColored(cornflower, "%s", buf); break;
         case TRACE_KEYBOARD: ImGui::TextColored(yellow, "%s", buf); break;
         case TRACE_INPUT: ImGui::TextColored(yellow, "%s", buf); break;
         default: ImGui::TextColored(white, "%s", buf); break;

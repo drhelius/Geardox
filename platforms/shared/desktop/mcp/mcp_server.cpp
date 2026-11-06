@@ -477,9 +477,8 @@ json McpServer::BuildToolList()
             {"properties", {
                 {"boot", {
                     {"type", "string"},
-                    {"description", "Boot device: a floppy drive, a hard disk slot or the CD-ROM."},
-                    {"enum", json::array({"floppy1", "floppy2", "hard_disk0", "hard_disk1", "hard_disk2", "hard_disk3",
-                        "cdrom"})}
+                    {"description", "Boot device: a floppy drive, the hard disks or the CD-ROM."},
+                    {"enum", json::array({"floppy1", "floppy2", "hard_disk", "cdrom"})}
                 }}
             }},
             {"additionalProperties", false}
@@ -1621,6 +1620,19 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_ide_status"},
+        {"title", "Get IDE Status"},
+        {"description", "Read both IDE channels: task file registers, device control, command, phase, transfer position, "
+            "and per device status, error, pending interrupt, geometry, translation, head position and read-ahead."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "list_floppy_drives"},
         {"title", "List Floppy Drives"},
         {"description", "List the floppy drives: image, media, geometry, RPM, write protect, modified, head cylinder, "
@@ -1693,7 +1705,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "load_media"},
         {"title", "Load Media"},
-        {"description", "Load media from a local file; a hard disk image (.hdd, .h0-.h3, .hdm over 8 MB, hard disk .chd) "
+        {"description", "Load media from a local file; a hard disk image (.hdd, .h0-.h3, .img or .hdm over 8 MB, fixed .vhd, hard disk .chd) "
             "attaches to its slot or the first free one, powering on an empty machine."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", true}}},
         {"inputSchema", {
@@ -1813,8 +1825,8 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "list_hard_disks"},
         {"title", "List Hard Disks"},
-        {"description", "List hard disk slots 0-3: image, size, write protect, blocks not yet written to the file, and "
-            "changes waiting for the next reset."},
+        {"description", "List hard disk slots 0-3: position on the IDE channels, image, size, geometry, BIOS translation, "
+            "write protect, blocks not yet written to the file, and changes waiting for the next reset."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1835,7 +1847,7 @@ json McpServer::BuildToolList()
                 {"id", hard_disk_id},
                 {"file_path", {
                     {"type", "string"},
-                    {"description", "Absolute path, usually .hdd, .h0-.h3, .hdm or a hard disk .chd."}
+                    {"description", "Absolute path, usually .hdd, .h0-.h3, .img over 8 MB, a fixed .vhd or a hard disk .chd."}
                 }},
                 {"write_protected", {
                     {"type", "boolean"},
@@ -3299,6 +3311,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetFDCStatus();
     }
+    else if (normalizedTool == "get_ide_status")
+    {
+        return m_debugAdapter.GetIDEStatus();
+    }
     else if (normalizedTool == "get_dma_status")
     {
         return m_debugAdapter.GetDMAStatus();
@@ -3495,6 +3511,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         event_filters[TRACE_MIXER] = TRACE_MIXER_EVENT_ALL;
         event_filters[TRACE_CDROM] = TRACE_CDROM_EVENT_ALL;
         event_filters[TRACE_FDC] = TRACE_FDC_EVENT_ALL;
+        event_filters[TRACE_IDE] = TRACE_IDE_EVENT_ALL;
         event_filters[TRACE_KEYBOARD] = TRACE_KEYBOARD_EVENT_ALL;
         event_filters[TRACE_INPUT] = TRACE_INPUT_EVENT_DEFAULT;
         event_filters[TRACE_SYSTEM] = TRACE_SYSTEM_EVENT_DEFAULT;

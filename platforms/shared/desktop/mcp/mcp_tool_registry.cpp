@@ -206,13 +206,13 @@ static const McpToolCategory kMcpToolCategories[] =
     {"hardware_audio", "Audio Hardware", "Mute audio sources in the debugger."},
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
     {"hardware_floppy", "Floppy Hardware", "Inspect the 82077 controller and the floppy drives, list a track's sectors, and read sector data."},
-    {"hardware_hard_disk", "Hard Disk Hardware", "List the hard disks in slots 0-3 and read their sectors."},
+    {"hardware_hard_disk", "Hard Disk Hardware", "Inspect the IDE channels, list the hard disks in slots 0-3 and read their sectors."},
     {"media", "Media", "Load firmware or CD images, insert, eject and swap floppies, attach, detach and flush hard disks, list recent media, and inspect loaded media, firmware and floppy drives."},
     {"capture", "Capture", "Capture current screenshots and record AVI video."},
     {"state", "Save States", "List save slots, and save or load emulator state in a slot or a file."},
     {"rewind", "Rewind", "Inspect rewind buffer status and seek to rewind snapshots for time-travel debugging."},
     {"input", "Input", "Press pad buttons, move and click the mouse, set each game port's device, inspect pressed buttons and held keys, and control the PC keyboard."},
-    {"trace", "Trace Logger", "Record executed instructions and hardware events (interrupts, I/O, PIC, timers, DMA, video, sound, CD-ROM, FDC, keyboard, game ports, system) and read the trace."},
+    {"trace", "Trace Logger", "Record executed instructions and hardware events (interrupts, I/O, PIC, timers, DMA, video, sound, CD-ROM, FDC, IDE, keyboard, game ports, system) and read the trace."},
     {"profiler", "Profiler", "Profile CPU cycles and call counts per function and interrupt vector."},
     {"tools", "Other Tools", "Additional emulator/debugger tools that do not fit another category."}
 };
@@ -281,7 +281,7 @@ static const char* const kMcpFloppyTools[] =
 
 static const char* const kMcpHardDiskTools[] =
 {
-    "list_hard_disks", "read_hard_disk_sector"
+    "get_ide_status", "list_hard_disks", "read_hard_disk_sector"
 };
 
 static const char* const kMcpMediaTools[] =
