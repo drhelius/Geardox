@@ -43,7 +43,6 @@ void PIT::Init(PIC* pic, Scheduler* scheduler, Audio* audio)
     m_scheduler = scheduler;
     m_audio = audio;
     m_pit.Init();
-    m_pit.SetReadBack(true);
     Reset();
 }
 
@@ -148,7 +147,7 @@ bool PIT::GetRefreshToggle(u64 clocks) const
 // Refresh requests from channel 1 once programmed as a rate or square wave, at the BIOS's 15 us before that
 u64 PIT::GetRefreshEdges(u64 tick) const
 {
-    const I8253::I8253_Counter& counter = m_pit.GetState()->counters[k_pit_refresh_channel];
+    const I8254::I8254_Counter& counter = m_pit.GetState()->counters[k_pit_refresh_channel];
 
     if (counter.counting && (counter.mode == 2 || counter.mode == 3) && counter.count >= 2 && tick >= counter.load)
         return (tick - counter.load + counter.phase) / counter.count;
@@ -160,13 +159,13 @@ u64 PIT::GetRefreshEdges(u64 tick) const
 u64 PIT::GetSpeakerStableUntil(u64 clocks) const
 {
     u64 tick = GetTick(clocks);
-    const I8253::I8253_Counter& speaker = m_pit.GetState()->counters[k_pit_buzzer_channel];
+    const I8254::I8254_Counter& speaker = m_pit.GetState()->counters[k_pit_buzzer_channel];
     bool fixed = !speaker.counting || (!speaker.gate && speaker.mode != 1 && speaker.mode != 5);
 
     if (!fixed)
         return GetTickClocks(tick + 1);
 
-    const I8253::I8253_Counter& counter = m_pit.GetState()->counters[k_pit_refresh_channel];
+    const I8254::I8254_Counter& counter = m_pit.GetState()->counters[k_pit_refresh_channel];
     u64 next = (tick / k_pit_refresh_ticks + 1) * k_pit_refresh_ticks;
 
     if (counter.counting && (counter.mode == 2 || counter.mode == 3) && counter.count >= 2)
@@ -183,7 +182,7 @@ u64 PIT::GetSpeakerStableUntil(u64 clocks) const
 void PIT::UpdateNextEvent()
 {
     u64 edge = m_pit.GetNextRisingEdge(k_pit_irq0_channel, m_state.settled_tick);
-    m_scheduler->Schedule(SCHEDULER_EVENT_PIT, edge == k_i8253_no_edge ? GDOX_NO_EVENT : GetTickClocks(edge));
+    m_scheduler->Schedule(SCHEDULER_EVENT_PIT, edge == k_i8254_no_edge ? GDOX_NO_EVENT : GetTickClocks(edge));
 }
 
 void PIT::TraceTimeout()
@@ -215,9 +214,9 @@ void PIT::TraceWrite(u16 port, u8 value)
     entry.timer.enable = m_state.speaker_gate ? 1 : 0;
     entry.timer.sound = m_state.speaker_data ? 1 : 0;
 
-    if (counter < I8253_COUNTER_COUNT)
+    if (counter < I8254_COUNTER_COUNT)
     {
-        const I8253::I8253_Counter& state = m_pit.GetState()->counters[counter];
+        const I8254::I8254_Counter& state = m_pit.GetState()->counters[counter];
         entry.timer.reload = state.reload;
         entry.timer.access = state.access;
         entry.timer.mode = state.mode;

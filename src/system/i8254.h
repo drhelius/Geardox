@@ -17,20 +17,20 @@
  *
  */
 
-#ifndef I8253_H
-#define I8253_H
+#ifndef I8254_H
+#define I8254_H
 
 #include <iostream>
 #include "../common/common.h"
 
-#define I8253_COUNTER_COUNT 3
+#define I8254_COUNTER_COUNT 3
 
 class StateSerializer;
 
-class I8253
+class I8254
 {
 public:
-    struct I8253_Counter
+    struct I8254_Counter
     {
         u16 reload;
         u16 count_latch;
@@ -58,16 +58,15 @@ public:
         bool status_latched;
     };
 
-    struct I8253_State
+    struct I8254_State
     {
-        I8253_Counter counters[I8253_COUNTER_COUNT];
+        I8254_Counter counters[I8254_COUNTER_COUNT];
     };
 
 public:
-    I8253();
-    ~I8253();
+    I8254();
+    ~I8254();
     void Init();
-    void SetReadBack(bool enabled);
     void Reset();
     u8 ReadCounter(int index, u64 tick);
     u8 PeekCounter(int index, u64 tick) const;
@@ -78,18 +77,18 @@ public:
     bool GetOutput(int index, u64 tick);
     bool PeekOutput(int index, u64 tick) const;
     u64 GetNextRisingEdge(int index, u64 tick) const;
-    I8253_State* GetState();
-    const I8253_State* GetState() const;
+    I8254_State* GetState();
+    const I8254_State* GetState() const;
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
 
 private:
-    void LoadCount(I8253_Counter& counter, u16 raw, u64 tick);
+    void LoadCount(I8254_Counter& counter, u16 raw, u64 tick);
     void ReadBack(u8 value, u64 tick);
-    u64 GetGateTick(const I8253_Counter& counter, u64 tick) const;
-    void CommitReload(I8253_Counter& counter, u64 tick) const;
-    bool GetCounterOutput(I8253_Counter& counter, u64 tick) const;
-    u16 GetCount(I8253_Counter& counter, u64 tick) const;
+    u64 GetGateTick(const I8254_Counter& counter, u64 tick) const;
+    void CommitReload(I8254_Counter& counter, u64 tick) const;
+    bool GetCounterOutput(I8254_Counter& counter, u64 tick) const;
+    u16 GetCount(I8254_Counter& counter, u64 tick) const;
     u32 GetEffectiveCount(u16 raw, bool bcd) const;
     u16 EncodeBCD(u32 value) const;
     u64 GetEdgeAfter(u8 mode, u64 load, u32 count, u32 phase, u64 tick) const;
@@ -97,12 +96,11 @@ private:
     void SanitizeState();
 
 private:
-    I8253_State m_state;
-    bool m_read_back;
+    I8254_State m_state;
 };
 
-static const u64 k_i8253_no_edge = 0xFFFFFFFFFFFFFFFFULL;
+static const u64 k_i8254_no_edge = 0xFFFFFFFFFFFFFFFFULL;
 
-#include "i8253_inline.h"
+#include "i8254_inline.h"
 
-#endif /* I8253_H */
+#endif /* I8254_H */

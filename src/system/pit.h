@@ -23,7 +23,7 @@
 
 #include <iostream>
 #include "../common/common.h"
-#include "i8253.h"
+#include "i8254.h"
 
 class Audio;
 class PIC;
@@ -58,7 +58,7 @@ public:
     u64 GetSpeakerStableUntil(u64 clocks) const;
     bool IsBuzzerEnabled() const;
     bool GetBuzzerOutput(u64 tick);
-    I8253* GetPIT();
+    I8254* GetPIT();
     u64 GetTick(u64 clocks) const;
     u64 GetTickClocks(u64 tick) const;
     PIT_State* GetState();
@@ -79,7 +79,7 @@ private:
     Scheduler* m_scheduler;
     Audio* m_audio;
     TraceLogger* m_trace_logger;
-    I8253 m_pit;
+    I8254 m_pit;
     PIT_State m_state;
 };
 

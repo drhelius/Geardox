@@ -65,7 +65,7 @@ INLINE bool PIT::GetBuzzerOutput(u64 tick)
     return m_pit.GetOutput(k_pit_buzzer_channel, tick);
 }
 
-INLINE I8253* PIT::GetPIT()
+INLINE I8254* PIT::GetPIT()
 {
     return &m_pit;
 }

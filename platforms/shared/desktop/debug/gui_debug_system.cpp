@@ -195,7 +195,7 @@ void gui_debug_window_pit(void)
             "PERIOD" };
         static const int widths[11] = { 2, 4, 12, 4, 11, 7, 3, 6, 5, 3, 10 };
         double rate = (double)GDOX_MASTER_CLOCK_RATE / 12.0;
-        I8253* chip = pit->GetPIT();
+        I8254* chip = pit->GetPIT();
         u64 tick = pit->GetTick(clocks);
 
         for (int i = 0; i < 11; i++)
@@ -203,9 +203,9 @@ void gui_debug_window_pit(void)
 
         ImGui::TableHeadersRow();
 
-        for (int channel = 0; channel < I8253_COUNTER_COUNT; channel++)
+        for (int channel = 0; channel < I8254_COUNTER_COUNT; channel++)
         {
-            const I8253::I8253_Counter& counter = chip->GetState()->counters[channel];
+            const I8254::I8254_Counter& counter = chip->GetState()->counters[channel];
             bool programmed = counter.programmed;
             ImVec4 color = programmed ? white : gray;
 

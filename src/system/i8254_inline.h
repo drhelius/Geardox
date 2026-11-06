@@ -17,23 +17,23 @@
  *
  */
 
-#ifndef I8253_INLINE_H
-#define I8253_INLINE_H
+#ifndef I8254_INLINE_H
+#define I8254_INLINE_H
 
-#include "i8253.h"
+#include "i8254.h"
 
-INLINE bool I8253::GetOutput(int index, u64 tick)
+INLINE bool I8254::GetOutput(int index, u64 tick)
 {
     return GetCounterOutput(m_state.counters[index], tick);
 }
 
-INLINE bool I8253::PeekOutput(int index, u64 tick) const
+INLINE bool I8254::PeekOutput(int index, u64 tick) const
 {
-    I8253_Counter counter = m_state.counters[index];
+    I8254_Counter counter = m_state.counters[index];
     return GetCounterOutput(counter, tick);
 }
 
-INLINE bool I8253::GetCounterOutput(I8253_Counter& counter, u64 tick) const
+INLINE bool I8254::GetCounterOutput(I8254_Counter& counter, u64 tick) const
 {
     if (!counter.counting)
         return !counter.programmed || counter.mode != 0;
@@ -67,12 +67,12 @@ INLINE bool I8253::GetCounterOutput(I8253_Counter& counter, u64 tick) const
     }
 }
 
-INLINE u64 I8253::GetNextRisingEdge(int index, u64 tick) const
+INLINE u64 I8254::GetNextRisingEdge(int index, u64 tick) const
 {
-    const I8253_Counter& counter = m_state.counters[index];
+    const I8254_Counter& counter = m_state.counters[index];
 
     if (!counter.counting || (!counter.gate && counter.mode != 1 && counter.mode != 5))
-        return k_i8253_no_edge;
+        return k_i8254_no_edge;
 
     u64 edge = GetEdgeAfter(counter.mode, counter.load, counter.count, counter.phase, tick);
 
@@ -84,17 +84,17 @@ INLINE u64 I8253::GetNextRisingEdge(int index, u64 tick) const
     return edge;
 }
 
-INLINE I8253::I8253_State* I8253::GetState()
+INLINE I8254::I8254_State* I8254::GetState()
 {
     return &m_state;
 }
 
-INLINE const I8253::I8253_State* I8253::GetState() const
+INLINE const I8254::I8254_State* I8254::GetState() const
 {
     return &m_state;
 }
 
-INLINE void I8253::CommitReload(I8253_Counter& counter, u64 tick) const
+INLINE void I8254::CommitReload(I8254_Counter& counter, u64 tick) const
 {
     if (!counter.reload_pending || tick < counter.pending_load)
         return;
@@ -105,22 +105,22 @@ INLINE void I8253::CommitReload(I8253_Counter& counter, u64 tick) const
     counter.reload_pending = false;
 }
 
-INLINE u64 I8253::GetEdgeAfter(u8 mode, u64 load, u32 count, u32 phase, u64 tick) const
+INLINE u64 I8254::GetEdgeAfter(u8 mode, u64 load, u32 count, u32 phase, u64 tick) const
 {
     switch (mode)
     {
         case 0:
         case 1:
-            return load + count > tick ? load + count : k_i8253_no_edge;
+            return load + count > tick ? load + count : k_i8254_no_edge;
         case 4:
         case 5:
-            return load + count + 1 > tick ? load + count + 1 : k_i8253_no_edge;
+            return load + count + 1 > tick ? load + count + 1 : k_i8254_no_edge;
         case 2:
         case 3:
         {
             // A divisor of one never lets OUT change
             if (count < 2)
-                return k_i8253_no_edge;
+                return k_i8254_no_edge;
 
             if (tick < load)
                 return load + count - phase;
@@ -129,8 +129,8 @@ INLINE u64 I8253::GetEdgeAfter(u8 mode, u64 load, u32 count, u32 phase, u64 tick
             return load + periods * count - phase;
         }
         default:
-            return k_i8253_no_edge;
+            return k_i8254_no_edge;
     }
 }
 
-#endif /* I8253_INLINE_H */
+#endif /* I8254_INLINE_H */

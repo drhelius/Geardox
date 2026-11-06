@@ -307,7 +307,7 @@
     <ClCompile Include="..\..\src\drive\floppy_image.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\system\i8253.cpp">
+    <ClCompile Include="..\..\src\system\i8254.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\video\video.cpp">
@@ -497,8 +497,8 @@
     <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_image.h"><Filter>src</Filter></ClInclude>
-    <ClInclude Include="..\..\src\system\i8253.h"><Filter>src</Filter></ClInclude>
-    <ClInclude Include="..\..\src\system\i8253_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8254.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i8254_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory.h"><Filter>src</Filter></ClInclude>

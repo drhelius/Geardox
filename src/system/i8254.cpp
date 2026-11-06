@@ -17,46 +17,39 @@
  *
  */
 
-#include "i8253.h"
+#include "i8254.h"
 #include "../common/state_serializer.h"
 
-I8253::I8253()
-{
-    m_read_back = false;
-    Reset();
-}
-
-I8253::~I8253()
-{
-}
-
-void I8253::Init()
+I8254::I8254()
 {
     Reset();
 }
 
-// The 8254 adds the read-back command to the 8253
-void I8253::SetReadBack(bool enabled)
+I8254::~I8254()
 {
-    m_read_back = enabled;
 }
 
-void I8253::Reset()
+void I8254::Init()
+{
+    Reset();
+}
+
+void I8254::Reset()
 {
     memset(m_state.counters, 0, sizeof(m_state.counters));
 
-    for (int i = 0; i < I8253_COUNTER_COUNT; i++)
+    for (int i = 0; i < I8254_COUNTER_COUNT; i++)
     {
         m_state.counters[i].count = 1;
         m_state.counters[i].pending_count = 1;
         m_state.counters[i].gate = true;
-        m_state.counters[i].null_until = k_i8253_no_edge;
+        m_state.counters[i].null_until = k_i8254_no_edge;
     }
 }
 
-u8 I8253::ReadCounter(int index, u64 tick)
+u8 I8254::ReadCounter(int index, u64 tick)
 {
-    I8253_Counter& counter = m_state.counters[index];
+    I8254_Counter& counter = m_state.counters[index];
 
     if (!counter.programmed)
         return 0x00;
@@ -97,9 +90,9 @@ u8 I8253::ReadCounter(int index, u64 tick)
 }
 
 // The byte the next read returns, without toggling the read flip-flops
-u8 I8253::PeekCounter(int index, u64 tick) const
+u8 I8254::PeekCounter(int index, u64 tick) const
 {
-    const I8253_Counter& counter = m_state.counters[index];
+    const I8254_Counter& counter = m_state.counters[index];
 
     if (!counter.programmed)
         return 0x00;
@@ -129,15 +122,15 @@ u8 I8253::PeekCounter(int index, u64 tick) const
 }
 
 // The live count of the counting element, ignoring any latched value
-u16 I8253::PeekCount(int index, u64 tick) const
+u16 I8254::PeekCount(int index, u64 tick) const
 {
-    I8253_Counter counter = m_state.counters[index];
+    I8254_Counter counter = m_state.counters[index];
     return GetCount(counter, tick);
 }
 
-void I8253::WriteCounter(int index, u8 value, u64 tick)
+void I8254::WriteCounter(int index, u8 value, u64 tick)
 {
-    I8253_Counter& counter = m_state.counters[index];
+    I8254_Counter& counter = m_state.counters[index];
 
     if (!counter.programmed)
         return;
@@ -171,20 +164,17 @@ void I8253::WriteCounter(int index, u8 value, u64 tick)
     }
 }
 
-void I8253::WriteControl(u8 value, u64 tick)
+void I8254::WriteControl(u8 value, u64 tick)
 {
     int index = value >> 6;
 
-    // SC=3 is the 8254 read-back command, not present on the 8253
-    if (index >= I8253_COUNTER_COUNT)
+    if (index >= I8254_COUNTER_COUNT)
     {
-        if (m_read_back)
-            ReadBack(value, tick);
-
+        ReadBack(value, tick);
         return;
     }
 
-    I8253_Counter& counter = m_state.counters[index];
+    I8254_Counter& counter = m_state.counters[index];
     u8 access = (value >> 4) & 0x03;
 
     if (access == 0)
@@ -213,15 +203,15 @@ void I8253::WriteControl(u8 value, u64 tick)
     counter.latch_high = false;
     counter.reload_pending = false;
     counter.status_latched = false;
-    counter.null_until = k_i8253_no_edge;
+    counter.null_until = k_i8254_no_edge;
 }
 
 // Bit 5 low latches the counts, bit 4 low the status bytes, of the counters in bits 1 to 3
-void I8253::ReadBack(u8 value, u64 tick)
+void I8254::ReadBack(u8 value, u64 tick)
 {
-    for (int i = 0; i < I8253_COUNTER_COUNT; i++)
+    for (int i = 0; i < I8254_COUNTER_COUNT; i++)
     {
-        I8253_Counter& counter = m_state.counters[i];
+        I8254_Counter& counter = m_state.counters[i];
 
         if ((value & (2 << i)) == 0 || !counter.programmed)
             continue;
@@ -244,9 +234,9 @@ void I8253::ReadBack(u8 value, u64 tick)
 }
 
 // A low gate holds modes 0, 2, 3 and 4, a rising gate reloads modes 2 and 3 and triggers modes 1 and 5
-void I8253::SetGate(int index, bool gate, u64 tick)
+void I8254::SetGate(int index, bool gate, u64 tick)
 {
-    I8253_Counter& counter = m_state.counters[index];
+    I8254_Counter& counter = m_state.counters[index];
 
     if (counter.gate == gate)
         return;
@@ -290,7 +280,7 @@ void I8253::SetGate(int index, bool gate, u64 tick)
     }
 }
 
-void I8253::LoadCount(I8253_Counter& counter, u16 raw, u64 tick)
+void I8254::LoadCount(I8254_Counter& counter, u16 raw, u64 tick)
 {
     u32 count = GetEffectiveCount(raw, counter.bcd);
     counter.reload = raw;
@@ -308,7 +298,7 @@ void I8253::LoadCount(I8253_Counter& counter, u16 raw, u64 tick)
         counter.phase = 0;
         counter.reload_pending = false;
         counter.hold = tick + 1;
-        counter.null_until = k_i8253_no_edge;
+        counter.null_until = k_i8254_no_edge;
         return;
     }
 
@@ -348,7 +338,7 @@ void I8253::LoadCount(I8253_Counter& counter, u16 raw, u64 tick)
         counter.hold = tick + 1;
 }
 
-u16 I8253::GetCount(I8253_Counter& counter, u64 tick) const
+u16 I8254::GetCount(I8254_Counter& counter, u64 tick) const
 {
     if (!counter.counting)
         return counter.reload;
@@ -394,7 +384,7 @@ u16 I8253::GetCount(I8253_Counter& counter, u64 tick) const
 }
 
 // Counting stops at the falling gate in the modes a low gate holds
-u64 I8253::GetGateTick(const I8253_Counter& counter, u64 tick) const
+u64 I8254::GetGateTick(const I8254_Counter& counter, u64 tick) const
 {
     if (counter.gate || counter.mode == 1 || counter.mode == 5)
         return tick;
@@ -402,7 +392,7 @@ u64 I8253::GetGateTick(const I8253_Counter& counter, u64 tick) const
     return MIN(tick, counter.hold);
 }
 
-u32 I8253::GetEffectiveCount(u16 raw, bool bcd) const
+u32 I8254::GetEffectiveCount(u16 raw, bool bcd) const
 {
     if (!bcd)
         return raw == 0 ? 0x10000 : raw;
@@ -411,19 +401,19 @@ u32 I8253::GetEffectiveCount(u16 raw, bool bcd) const
     return count == 0 ? 10000 : count;
 }
 
-u16 I8253::EncodeBCD(u32 value) const
+u16 I8254::EncodeBCD(u32 value) const
 {
     value %= 10000;
     return (u16)(((value / 1000) << 12) | (((value / 100) % 10) << 8) | (((value / 10) % 10) << 4) | (value % 10));
 }
 
-void I8253::SaveState(std::ostream& stream)
+void I8254::SaveState(std::ostream& stream)
 {
     StateSerializer serializer(stream);
     Serialize(serializer, GDOX_SAVESTATE_VERSION);
 }
 
-void I8253::LoadState(std::istream& stream, int version)
+void I8254::LoadState(std::istream& stream, int version)
 {
     StateSerializer serializer(stream);
     Serialize(serializer, version);
@@ -431,9 +421,9 @@ void I8253::LoadState(std::istream& stream, int version)
 }
 
 // States from before the gates and read-back load with the gates high and no count or status pending
-void I8253::Serialize(StateSerializer& serializer, int version)
+void I8254::Serialize(StateSerializer& serializer, int version)
 {
-    for (int i = 0; i < I8253_COUNTER_COUNT; i++)
+    for (int i = 0; i < I8254_COUNTER_COUNT; i++)
     {
         G_SERIALIZE(serializer, m_state.counters[i].reload);
         G_SERIALIZE(serializer, m_state.counters[i].count_latch);
@@ -473,11 +463,11 @@ void I8253::Serialize(StateSerializer& serializer, int version)
     }
 }
 
-void I8253::SanitizeState()
+void I8254::SanitizeState()
 {
-    for (int i = 0; i < I8253_COUNTER_COUNT; i++)
+    for (int i = 0; i < I8254_COUNTER_COUNT; i++)
     {
-        I8253_Counter& counter = m_state.counters[i];
+        I8254_Counter& counter = m_state.counters[i];
 
         counter.access &= 0x03;
 
