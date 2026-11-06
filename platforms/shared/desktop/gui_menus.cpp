@@ -1622,8 +1622,8 @@ static void menu_input(void)
             if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
-                ImGui::Text("When enabled, keys type on the PC keyboard and only");
-                ImGui::Text("the Quit, Fullscreen and Capture Keyboard hotkeys work.");
+                ImGui::Text("When enabled, keys type on the PC keyboard and only the");
+                ImGui::Text("Quit, Fullscreen, Capture Mouse and Capture Keyboard hotkeys work.");
                 ImGui::Text("When disabled, all hotkeys work and other keys still type.");
                 ImGui::Text("Press %s to toggle it.", config_hotkeys[config_HotkeyIndex_CaptureKeyboard].str);
                 ImGui::EndTooltip();
