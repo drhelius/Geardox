@@ -24,12 +24,15 @@
 
 enum FloppyImage_Blank
 {
-    FLOPPY_BLANK_2HD_1232 = 0,
-    FLOPPY_BLANK_2DD_640,
-    FLOPPY_BLANK_2DD_720,
-    FLOPPY_BLANK_2HD_1440,
+    FLOPPY_BLANK_360K = 0,
+    FLOPPY_BLANK_720K,
+    FLOPPY_BLANK_1200K,
+    FLOPPY_BLANK_1440K,
+    FLOPPY_BLANK_2880K,
     FLOPPY_BLANK_COUNT
 };
+
+struct FloppyImage_Geometry;
 
 struct FloppyImage_Weak
 {
@@ -67,10 +70,11 @@ public:
     static FloppyImage_Weak* GetWeakBytes(const u8* source, u32 source_size, const u8* image, u32 image_size, u32* count);
 
 private:
-    static int GetRawGeometry(const u8* data, u32 size);
+    static bool GetRawGeometry(const u8* data, u32 size, FloppyImage_Geometry* geometry);
+    static bool GetRawLayout(const u8* image, u32 size, int* cylinders, int* heads, int* sectors, u8* n);
     static u32 GetHeaderSize(const u8* data, u32 size);
     static u32 GetTrackRun(const u8* data, u32 size, u32 header_size, int track, u32* run_size);
-    static bool IsRawLayout(const u8* image, u32 size, u32 header_size, int cylinders, int sectors, u8 n);
+    static bool IsRawLayout(const u8* image, u32 size, u32 header_size, int cylinders, int heads, int sectors, u8 n);
     static u8* Build(const u8* header, const u8* data, u32 size, int track, const u8* sectors, u32 sectors_size, u32* image_size);
     static u8* CreateFromRaw(const u8* data, u32 size, u32* image_size);
     static u8* CreateFromMFM(const u8* data, u32 size, u32* image_size, FloppyImage_Weak* weak = NULL, u32* weak_count = NULL);
@@ -87,6 +91,11 @@ static const int k_floppy_tracks = 164;
 static const int k_floppy_max_sectors = 64;
 static const u32 k_floppy_max_image_size = 8 * 1024 * 1024;
 static const u32 k_floppy_max_weak_bytes = 4096;
+
+// Bytes a track holds at each data rate and speed
+static const u32 k_floppy_cells_2dd = 6250;
+static const u32 k_floppy_cells_2hd_360 = 10416;
+static const u32 k_floppy_cells_2hd_300 = 12500;
 
 static const u8 k_floppy_media_2d = 0x00;
 static const u8 k_floppy_media_2dd = 0x10;

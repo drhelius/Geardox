@@ -205,7 +205,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"hardware_video", "Video Hardware", "Inspect the VGA: CRTC, registers, palettes, video memory and text screens."},
     {"hardware_audio", "Audio Hardware", "Mute audio sources in the debugger."},
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
-    {"hardware_floppy", "Floppy Hardware", "Inspect the floppy drives, list a track's sectors, and read sector data."},
+    {"hardware_floppy", "Floppy Hardware", "Inspect the 82077 controller and the floppy drives, list a track's sectors, and read sector data."},
     {"hardware_hard_disk", "Hard Disk Hardware", "List the hard disks in slots 0-3 and read their sectors."},
     {"media", "Media", "Load firmware or CD images, insert, eject and swap floppies, attach, detach and flush hard disks, list recent media, and inspect loaded media, firmware and floppy drives."},
     {"capture", "Capture", "Capture current screenshots and record AVI video."},
@@ -276,7 +276,7 @@ static const char* const kMcpCdromTools[] =
 
 static const char* const kMcpFloppyTools[] =
 {
-    "list_floppy_drives", "read_floppy_sector"
+    "get_fdc_status", "list_floppy_drives", "read_floppy_sector"
 };
 
 static const char* const kMcpHardDiskTools[] =

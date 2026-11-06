@@ -93,3 +93,16 @@
      // Enable video
      stdvga_attrindex_write(0x20);
  
+diff --git a/src/hw/floppy.c b/src/hw/floppy.c
+index a51711a1..8338b40f 100644
+--- a/src/hw/floppy.c
++++ b/src/hw/floppy.c
+@@ -426,6 +426,8 @@ floppy_drive_seek(u8 floppyid, u8 cylinder)
+     u8 param[2];
+     param[0] = floppyid;
+     param[1] = cylinder;
++    if (GET_BDA(floppy_media_state[floppyid]) & FMS_DOUBLE_STEPPING)
++        param[1] = cylinder * 2;
+     int ret = floppy_drive_pio(floppyid, FC_SEEK, param);
+     if (ret)
+         return ret;

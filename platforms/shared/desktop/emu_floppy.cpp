@@ -749,7 +749,8 @@ static std::string make_working_path(const char* source_path, u32 base_crc, int 
 static bool is_raw_name(const char* path)
 {
     return ends_with_no_case(path, ".hdm") || ends_with_no_case(path, ".xdf") || ends_with_no_case(path, ".img") ||
-        ends_with_no_case(path, ".bin");
+        ends_with_no_case(path, ".ima") || ends_with_no_case(path, ".vfd") || ends_with_no_case(path, ".flp") ||
+        ends_with_no_case(path, ".dsk") || ends_with_no_case(path, ".bin");
 }
 
 // Raw names get a raw image when every track has the standard layout, anything else is written as D77

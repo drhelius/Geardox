@@ -397,6 +397,42 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "auto"
     },
     {
+        "geardox_floppy_a",
+        "Floppy A Drive (restart)",
+        NULL,
+        "The drive type of floppy A. Auto fits the smallest drive that holds the disk at power on.",
+        NULL,
+        "system",
+        {
+            { "auto",  "Auto" },
+            { "360k",  "360 KB 5.25" },
+            { "1200k", "1.2 MB 5.25" },
+            { "720k",  "720 KB 3.5" },
+            { "1440k", "1.44 MB 3.5" },
+            { "2880k", "2.88 MB 3.5" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
+        "geardox_floppy_b",
+        "Floppy B Drive (restart)",
+        NULL,
+        "The drive type of floppy B. Auto fits the smallest drive that holds the disk at power on.",
+        NULL,
+        "system",
+        {
+            { "auto",  "Auto" },
+            { "360k",  "360 KB 5.25" },
+            { "1200k", "1.2 MB 5.25" },
+            { "720k",  "720 KB 3.5" },
+            { "1440k", "1.44 MB 3.5" },
+            { "2880k", "2.88 MB 3.5" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
         "geardox_boot_device",
         "Boot Device (restart)",
         NULL,

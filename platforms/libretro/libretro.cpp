@@ -431,6 +431,8 @@ void retro_deinit(void)
     machine_settings.ram_mb = GDOX_MACHINE_AUTO;
     machine_settings.fpu = GDOX_MACHINE_AUTO;
     machine_settings.speed_mode = GDOX_MACHINE_AUTO;
+    machine_settings.floppy_type[0] = GDOX_MACHINE_AUTO;
+    machine_settings.floppy_type[1] = GDOX_MACHINE_AUTO;
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
 #endif
@@ -507,7 +509,7 @@ void retro_get_system_info(struct retro_system_info *info)
     info->library_version  = GDOX_VERSION;
     info->need_fullpath    = true;
     info->block_extract    = true;
-    info->valid_extensions = "cue|chd|iso|zip|d77|d88|hdm|xdf|img|mfm|bin|m3u|hdd|h0|h1|h2|h3";
+    info->valid_extensions = "cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|h0|h1|h2|h3";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -1869,6 +1871,26 @@ static void check_variables(void)
         machine_settings.fpu = strcmp(var.value, "none") == 0 ? 0 : strcmp(var.value, "80387") == 0 ? 1 : GDOX_MACHINE_AUTO;
     }
 
+    static const char* const floppy_keys[GDOX_MAX_FLOPPY_DRIVES] = { "geardox_floppy_a", "geardox_floppy_b" };
+    static const char* const floppy_types[GDOX_FLOPPY_TYPE_COUNT] = { "auto", "360k", "1200k", "720k", "1440k", "2880k" };
+
+    for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
+    {
+        var.key = floppy_keys[i];
+        var.value = NULL;
+
+        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        {
+            machine_settings.floppy_type[i] = 0;
+
+            for (int t = 1; t < GDOX_FLOPPY_TYPE_COUNT; t++)
+            {
+                if (strcmp(var.value, floppy_types[t]) == 0)
+                    machine_settings.floppy_type[i] = t;
+            }
+        }
+    }
+
     var.key = "geardox_boot_device";
     var.value = NULL;
 
@@ -2200,7 +2222,7 @@ static bool disk_add_save_disk(const std::string& name, const char* label, const
     if (!content_file_exists(path.c_str()))
     {
         u32 size = 0;
-        u8* blank = FloppyImage::CreateBlank(FLOPPY_BLANK_2HD_1232, true, &size);
+        u8* blank = FloppyImage::CreateBlank(FLOPPY_BLANK_1440K, true, &size);
 
         if (IsValidPointer(blank))
             FloppyImage::SetDiskName(blank, size, volume);

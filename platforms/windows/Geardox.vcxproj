@@ -72,6 +72,7 @@
     <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp" />
     <ClCompile Include="..\..\src\drive\fdc.cpp" />
+    <ClCompile Include="..\..\src\drive\i82077.cpp" />
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
@@ -291,6 +292,8 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h" />
     <ClInclude Include="..\..\src\drive\fdc.h" />
+    <ClInclude Include="..\..\src\drive\i82077.h" />
+    <ClInclude Include="..\..\src\drive\i82077_inline.h" />
     <ClInclude Include="..\..\src\drive\fdc_inline.h" />
     <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk.h" />

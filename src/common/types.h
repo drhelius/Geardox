@@ -511,10 +511,22 @@ struct GDOX_Machine_Config
     GDOX_Machine_CPU cpu;
     u32 ram_size;
     int floppy_drives;
+    u8 floppy_type[GDOX_MAX_FLOPPY_DRIVES];
     u32 cpu_clock_rate;
     bool scsi;
     bool fpu;
     int speed_mode;
+};
+
+enum GDOX_Floppy_Type
+{
+    GDOX_FLOPPY_NONE = 0,
+    GDOX_FLOPPY_360K,
+    GDOX_FLOPPY_1200K,
+    GDOX_FLOPPY_720K,
+    GDOX_FLOPPY_1440K,
+    GDOX_FLOPPY_2880K,
+    GDOX_FLOPPY_TYPE_COUNT
 };
 
 struct GDOX_Machine_Settings
@@ -524,6 +536,7 @@ struct GDOX_Machine_Settings
     int ram_mb;
     int fpu;
     int speed_mode;
+    int floppy_type[GDOX_MAX_FLOPPY_DRIVES];
 };
 
 struct GDOX_Machine_Report

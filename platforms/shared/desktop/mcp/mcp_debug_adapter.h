@@ -215,6 +215,7 @@ public:
     json GetPICStatus();
     json GetPITStatus();
     json GetDMAStatus();
+    json GetFDCStatus();
     json GetSystemStatus();
     json GetRTCStatus();
     json GetKeyboardStatus();

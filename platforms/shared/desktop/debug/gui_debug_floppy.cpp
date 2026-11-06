@@ -37,6 +37,7 @@
 static int selected_sector = -1;
 
 static void draw_drive_column(int drive, int row);
+static void draw_controller(void);
 static ImVec4 get_track_color(FloppyDisk* disk, int track);
 static void goto_floppy_image(int drive, u32 offset);
 
@@ -60,12 +61,12 @@ void gui_debug_window_floppy_drives(void)
         ImGui::TableSetupColumn("DRIVE 1", ImGuiTableColumnFlags_WidthFixed, character * 20);
         ImGui::TableHeadersRow();
 
-        static const char* rows[8] =
+        static const char* rows[10] =
         {
-            "IMAGE", "DISK NAME", "MEDIA", "GEOMETRY", "RPM", "PROTECT", "MODIFIED", "HEAD"
+            "IMAGE", "DISK NAME", "MEDIA", "GEOMETRY", "RPM", "PROTECT", "MODIFIED", "HEAD", "DRIVE", "CHANGE LINE"
         };
 
-        for (int row = 0; row < 8; row++)
+        for (int row = 0; row < 10; row++)
         {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
@@ -80,6 +81,8 @@ void gui_debug_window_floppy_drives(void)
 
         ImGui::EndTable();
     }
+
+    draw_controller();
 
     ImGui::PopFont();
 
@@ -323,6 +326,57 @@ void gui_debug_window_disk_viewer(void)
     ImGui::PopStyleVar();
 }
 
+static void draw_controller(void)
+{
+    I82077* chip = emu_get_core()->GetFDC()->GetController();
+    I82077::I82077_State* state = chip->GetState();
+    u8 msr = chip->GetMSR();
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "82077 (03F0-03F7)"); ImGui::Separator();
+
+    ImGui::TextColored(violet, "DOR  "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->dor); ImGui::SameLine();
+    ImGui::TextColored(violet, " MSR "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", msr); ImGui::SameLine();
+    ImGui::TextColored(violet, " RATE "); ImGui::SameLine();
+    ImGui::TextColored(white, "%s", k_debug_fdc_rate_names[state->rate & 3]);
+
+    ImGui::TextColored(violet, "PHASE"); ImGui::SameLine();
+    ImGui::TextColored(white, "%s", k_debug_fdc_phase_names[state->phase & 3]); ImGui::SameLine();
+    ImGui::TextColored(violet, " COMMAND "); ImGui::SameLine();
+    ImGui::TextColored(white, "%s", k_debug_fdc_command_names[MIN(state->command, (u8)20)]);
+
+    ImGui::TextColored(violet, "PCN  "); ImGui::SameLine();
+    ImGui::TextColored(white, "%d %d %d %d", state->pcn[0], state->pcn[1], state->pcn[2], state->pcn[3]); ImGui::SameLine();
+    ImGui::TextColored(violet, " SENSE "); ImGui::SameLine();
+    ImGui::TextColored(white, "%d", state->sense_count);
+
+    ImGui::TextColored(violet, "SRT  "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%X", state->srt); ImGui::SameLine();
+    ImGui::TextColored(violet, " HUT "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%X", state->hut); ImGui::SameLine();
+    ImGui::TextColored(violet, " HLT "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->hlt); ImGui::SameLine();
+    ImGui::TextColored(state->non_dma ? yellow : gray, " %s", state->non_dma ? "NON-DMA" : "DMA");
+
+    ImGui::TextColored(violet, "FIFO "); ImGui::SameLine();
+    ImGui::TextColored(white, "%d", state->fifo_count); ImGui::SameLine();
+    ImGui::TextColored(state->fifo_disabled ? gray : green, "%s", state->fifo_disabled ? "OFF" : "ON"); ImGui::SameLine();
+    ImGui::TextColored(violet, " THRESHOLD "); ImGui::SameLine();
+    ImGui::TextColored(white, "%d", state->fifo_threshold + 1);
+
+    ImGui::TextColored(violet, "ST0  "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->st0); ImGui::SameLine();
+    ImGui::TextColored(violet, " ST1 "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->st1); ImGui::SameLine();
+    ImGui::TextColored(violet, " ST2 "); ImGui::SameLine();
+    ImGui::TextColored(white, "$%02X", state->st2);
+
+    ImGui::TextColored(violet, "LINES"); ImGui::SameLine();
+    ImGui::TextColored(chip->IsInterruptOut() ? yellow : gray, "INT"); ImGui::SameLine();
+    ImGui::TextColored(chip->IsRequestOut() ? yellow : gray, "DRQ");
+}
+
 static void draw_drive_column(int drive, int row)
 {
     GeardoxCore* core = emu_get_core();
@@ -373,7 +427,7 @@ static void draw_drive_column(int drive, int row)
         }
         case 2:
             if (inserted)
-                ImGui::TextColored(blue, "%s", k_debug_floppy_media_names[disk->GetMedia() % 3]);
+                ImGui::TextColored(blue, "%s", k_debug_floppy_media_names[disk->GetMedia() % 4]);
             else
                 ImGui::TextColored(gray, "--");
 
@@ -423,6 +477,13 @@ static void draw_drive_column(int drive, int row)
             break;
         case 7:
             ImGui::TextColored(white, "CYLINDER %d", fdc->GetState()->cylinders[drive]);
+            break;
+        case 8:
+            ImGui::TextColored(brown, "%s", k_debug_floppy_type_names[fdc->GetDriveType(drive)]);
+            break;
+        case 9:
+            ImGui::TextColored(fdc->GetState()->disk_changed[drive] ? yellow : gray, "%s",
+                fdc->GetState()->disk_changed[drive] ? "CHANGED" : "--");
             break;
     }
 }

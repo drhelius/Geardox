@@ -1608,6 +1608,19 @@ json McpServer::BuildToolList()
     };
 
     tools.push_back({
+        {"name", "get_fdc_status"},
+        {"title", "Get FDC Status"},
+        {"description", "Read the 82077 floppy controller: DOR, MSR, the change line, data rate, phase, command and result "
+            "bytes, PCN per drive, the Sense Interrupt Status queue, Specify and Configure values, and the INT and DRQ lines."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "list_floppy_drives"},
         {"title", "List Floppy Drives"},
         {"description", "List the floppy drives: image, media, geometry, RPM, write protect, modified, head cylinder, "
@@ -1759,12 +1772,12 @@ json McpServer::BuildToolList()
                 {"drive", floppy_drive},
                 {"file_path", {
                     {"type", "string"},
-                    {"description", "Absolute path: .d77, or .hdm, .img or .xdf for a raw image."}
+                    {"description", "Absolute path: .d77, .img or .ima."}
                 }},
                 {"type", {
                     {"type", "string"},
-                    {"enum", json::array({"2hd_1232kb", "2dd_640kb", "2dd_720kb", "2hd_1440kb"})},
-                    {"description", "Default 2hd_1232kb."}
+                    {"enum", json::array({"360kb", "720kb", "1200kb", "1440kb", "2880kb"})},
+                    {"description", "Default 1440kb."}
                 }},
                 {"formatted", {
                     {"type", "boolean"},
@@ -3282,6 +3295,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetPITStatus();
     }
+    else if (normalizedTool == "get_fdc_status")
+    {
+        return m_debugAdapter.GetFDCStatus();
+    }
     else if (normalizedTool == "get_dma_status")
     {
         return m_debugAdapter.GetDMAStatus();
@@ -3392,7 +3409,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "create_blank_floppy")
     {
         return m_debugAdapter.CreateBlankFloppy(arguments.value("drive", -1), arguments.value("file_path", ""),
-            arguments.value("type", "2hd_1232kb"), arguments.value("formatted", true));
+            arguments.value("type", "1440kb"), arguments.value("formatted", true));
     }
     else if (normalizedTool == "eject_floppy")
     {

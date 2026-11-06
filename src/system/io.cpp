@@ -21,6 +21,7 @@
 #include "debug_console.h"
 #include "dma.h"
 #include "firmware_config.h"
+#include "../drive/fdc.h"
 #include "mc146818.h"
 #include "../input/i8042.h"
 #include "memory.h"
@@ -144,6 +145,9 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
             if (m_video->Decodes(port & k_io_isa_mask))
                 return m_video->Read(port & k_io_isa_mask, context.clocks);
 
+            if (m_fdc->Decodes(port & k_io_isa_mask))
+                return m_fdc->Read(port & k_io_isa_mask, context.clocks);
+
             if (m_dma->Decodes(port))
                 return m_dma->Read(port);
             break;
@@ -192,6 +196,12 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
             if (m_video->Decodes(port & k_io_isa_mask))
             {
                 value = m_video->Peek(port & k_io_isa_mask, clocks);
+                return true;
+            }
+
+            if (m_fdc->Decodes(port & k_io_isa_mask))
+            {
+                value = m_fdc->Peek(port & k_io_isa_mask);
                 return true;
             }
 
@@ -258,6 +268,9 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
             // VGA input status 1, color block
             return m_video->GetSyncStableUntil(clocks);
         default:
+            if (m_fdc->Decodes(port & k_io_isa_mask))
+                return m_fdc->GetReadStableUntil(port & k_io_isa_mask);
+
             return m_dma->Decodes(port) ? m_dma->GetReadStableUntil(port) : 0;
     }
 }
@@ -329,6 +342,11 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
         default:
             if (m_video->Decodes(port & k_io_isa_mask))
                 m_video->Write(port & k_io_isa_mask, value, context.clocks);
+            else if (m_fdc->Decodes(port & k_io_isa_mask))
+            {
+                m_fdc->Write(port & k_io_isa_mask, value, context.clocks);
+                context.end_batch = true;
+            }
             else if (m_dma->Decodes(port))
             {
                 m_dma->Write(port, value);

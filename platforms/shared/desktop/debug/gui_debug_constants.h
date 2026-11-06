@@ -110,7 +110,11 @@ static const stDebugPortLabel k_debug_port_labels[] =
     { 0x03DA, "VGA_STAT_C", "VGA input status 1 and feature control, color block" },
     { 0x0402, "DEBUG_CON", "Debug console, SeaBIOS messages" },
     { 0x0510, "FW_CFG_SEL", "Firmware config selector" },
-    { 0x0511, "FW_CFG_DATA", "Firmware config data" }
+    { 0x0511, "FW_CFG_DATA", "Firmware config data" },
+    { 0x03F2, "FDC_DOR", "Floppy digital output: motors, DMA gate, reset, drive" },
+    { 0x03F4, "FDC_MSR", "Floppy main status, data rate select on write" },
+    { 0x03F5, "FDC_DATA", "Floppy commands, results and data" },
+    { 0x03F7, "FDC_DIR", "Floppy disk change, configuration control on write" },
 };
 
 static const int k_debug_port_label_count = sizeof(k_debug_port_labels) / sizeof(k_debug_port_labels[0]);
@@ -511,65 +515,22 @@ static inline const char* gui_debug_key_name(int key)
     return NULL;
 }
 
-static const char* const k_debug_mb8877_type1_status[8] =
+static const char* const k_debug_floppy_media_names[4] = { "2D", "2DD", "2HD", "ED" };
+
+static const char* const k_debug_floppy_type_names[6] =
 {
-    "BUSY", "INDEX", "TRACK 00", "CRC ERROR", "SEEK ERROR", "HEAD LOADED", "WRITE PROTECT", "NOT READY"
+    "NONE", "360K 5.25", "1.2M 5.25", "720K 3.5", "1.44M 3.5", "2.88M 3.5"
 };
 
-static const char* const k_debug_mb8877_type2_status[8] =
+static const char* const k_debug_fdc_command_names[21] =
 {
-    "BUSY", "DRQ", "LOST DATA", "CRC ERROR", "RECORD NOT FOUND", "RECORD TYPE", "WRITE PROTECT", "NOT READY"
+    "NONE", "READ DATA", "READ DELETED", "WRITE DATA", "WRITE DELETED", "READ TRACK", "VERIFY", "FORMAT TRACK", "READ ID",
+    "RECALIBRATE", "SEEK", "RELATIVE SEEK", "SENSE INTERRUPT", "SENSE DRIVE", "SPECIFY", "CONFIGURE", "VERSION", "DUMPREG",
+    "PERPENDICULAR", "LOCK", "INVALID"
 };
 
-static const char* const k_debug_floppy_media_names[3] = { "2D", "2DD", "2HD" };
-
-static inline void gui_debug_mb8877_command(u8 command, char* text, size_t size)
-{
-    static const char* const k_rates[4] = { "6MS", "12MS", "20MS", "30MS" };
-
-    switch (command >> 4)
-    {
-        case 0x0:
-        case 0x1:
-            snprintf(text, size, "%s h=%d V=%d r=%s", (command >> 4) == 0 ? "RESTORE" : "SEEK", (command >> 3) & 1,
-                (command >> 2) & 1, k_rates[command & 3]);
-            break;
-        case 0x2:
-        case 0x3:
-        case 0x4:
-        case 0x5:
-        case 0x6:
-        case 0x7:
-        {
-            const char* name = (command >> 5) == 1 ? "STEP" : (command >> 5) == 2 ? "STEP IN" : "STEP OUT";
-            snprintf(text, size, "%s u=%d h=%d V=%d r=%s", name, (command >> 4) & 1, (command >> 3) & 1,
-                (command >> 2) & 1, k_rates[command & 3]);
-            break;
-        }
-        case 0x8:
-        case 0x9:
-            snprintf(text, size, "READ SECTOR m=%d S=%d E=%d C=%d", (command >> 4) & 1, (command >> 3) & 1,
-                (command >> 2) & 1, (command >> 1) & 1);
-            break;
-        case 0xA:
-        case 0xB:
-            snprintf(text, size, "WRITE SECTOR m=%d S=%d E=%d C=%d a0=%d", (command >> 4) & 1, (command >> 3) & 1,
-                (command >> 2) & 1, (command >> 1) & 1, command & 1);
-            break;
-        case 0xC:
-            snprintf(text, size, "READ ADDRESS E=%d", (command >> 2) & 1);
-            break;
-        case 0xD:
-            snprintf(text, size, "FORCE INTERRUPT I=%X", command & 0x0F);
-            break;
-        case 0xE:
-            snprintf(text, size, "READ TRACK E=%d", (command >> 2) & 1);
-            break;
-        default:
-            snprintf(text, size, "WRITE TRACK E=%d", (command >> 2) & 1);
-            break;
-    }
-}
+static const char* const k_debug_fdc_phase_names[4] = { "RESET", "COMMAND", "EXECUTION", "RESULT" };
+static const char* const k_debug_fdc_rate_names[4] = { "500 KBPS", "300 KBPS", "250 KBPS", "1 MBPS" };
 
 static inline const char* gui_debug_floppy_status_name(u8 status)
 {

@@ -227,6 +227,8 @@ static inline void process(config_Operation operation)
     process_machine_value(operation, "CPUSpeed", &config_machine.cpu_mhz, k_machine_cpu_speeds_mhz, GDOX_MACHINE_CPU_SPEED_COUNT);
     process_machine_value(operation, "RAM", &config_machine.ram_mb, k_machine_ram_sizes_mb, GDOX_MACHINE_RAM_SIZE_COUNT);
     process_machine_fpu(operation, &config_machine.fpu);
+    CONFIG_INT_RANGE("Machine", "FloppyTypeA", config_machine.floppy_type[0], 0, 0, GDOX_FLOPPY_TYPE_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "FloppyTypeB", config_machine.floppy_type[1], 0, 0, GDOX_FLOPPY_TYPE_COUNT - 1);
 
     //**************************************
     // Video

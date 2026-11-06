@@ -124,6 +124,7 @@ struct config_Machine
     int cpu_mhz;
     int ram_mb;
     int fpu;
+    int floppy_type[config_floppy_drives];
     std::string firmware_paths[GDOX_MACHINE_COUNT];
 };
 

@@ -240,12 +240,10 @@ void FloppyDisk::Identify()
     for (int track = 0; track < k_floppy_tracks; track++)
     {
         int count = GetSectors(track, sectors);
-        u32 bytes = 0;
         u32 cells = 146;
 
         for (int i = 0; i < count; i++)
         {
-            bytes += 128U << (sectors[i].id[3] & 3);
             cells += 62 + (128U << (sectors[i].id[3] & 3));
         }
 
@@ -254,16 +252,21 @@ void FloppyDisk::Identify()
             last_track = track;
             formatted++;
 
-            if (cells > 10416)
+            if (cells > k_floppy_cells_2hd_360)
                 overflowing++;
         }
 
-        largest = MAX(largest, bytes);
+        largest = MAX(largest, cells);
     }
 
     u8 media = m_image[0x1B];
 
-    if (largest > 4608 || media == k_floppy_media_2hd)
+    if (largest > k_floppy_cells_2hd_300)
+    {
+        m_state.media = FLOPPY_MEDIA_ED;
+        m_state.rpm = 300;
+    }
+    else if (largest > k_floppy_cells_2dd || media == k_floppy_media_2hd)
     {
         m_state.media = FLOPPY_MEDIA_2HD;
         m_state.rpm = overflowing * 2 > formatted ? 300 : 360;

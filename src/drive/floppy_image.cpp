@@ -26,6 +26,7 @@ struct FloppyImage_Geometry
 {
     u32 size;
     u8 cylinders;
+    u8 heads;
     u8 sectors;
     u8 n;
     u8 media;
@@ -38,34 +39,44 @@ struct FloppyImage_Format
     u16 root_entries;
     u8 media_descriptor;
     u16 fat_sectors;
-    bool ipl;
-    u8 loader_sector;
-    u8 loader_head;
-    u16 empty_root_sector;
 };
 
-static const int k_floppy_raw_geometries = 5;
-static const u32 k_floppy_raw_2dd_max_size = 737280;
+static const int k_floppy_raw_geometries = 9;
 
 static const FloppyImage_Geometry k_floppy_raw_geometry[k_floppy_raw_geometries] =
 {
-    { 1261568, 77, 8, 3, k_floppy_media_2hd },
-    { 1310720, 80, 8, 3, k_floppy_media_2hd },
-    { 655360, 80, 8, 2, k_floppy_media_2dd },
-    { 737280, 80, 9, 2, k_floppy_media_2dd },
-    { 1474560, 80, 18, 2, k_floppy_media_2hd }
+    { 163840, 40, 1, 8, 2, k_floppy_media_2d },
+    { 184320, 40, 1, 9, 2, k_floppy_media_2d },
+    { 327680, 40, 2, 8, 2, k_floppy_media_2d },
+    { 368640, 40, 2, 9, 2, k_floppy_media_2d },
+    { 737280, 80, 2, 9, 2, k_floppy_media_2dd },
+    { 1228800, 80, 2, 15, 2, k_floppy_media_2hd },
+    { 1474560, 80, 2, 18, 2, k_floppy_media_2hd },
+    { 1720320, 80, 2, 21, 2, k_floppy_media_2hd },
+    { 2949120, 80, 2, 36, 2, k_floppy_media_2hd }
 };
 
-// Towns OS FORMAT's 1.44 MB entry reuses the 720 KB data position and writes the empty root at sector 35
 static const FloppyImage_Format k_floppy_blank_format[FLOPPY_BLANK_COUNT] =
 {
-    { { 1261568, 77, 8, 3, k_floppy_media_2hd }, 1, 192, 0xFE, 2, true, 4, 1, 5 },
-    { { 655360, 80, 8, 2, k_floppy_media_2dd }, 2, 112, 0xFB, 2, false, 5, 1, 5 },
-    { { 737280, 80, 9, 2, k_floppy_media_2dd }, 2, 112, 0xF9, 3, false, 6, 1, 7 },
-    { { 1474560, 80, 18, 2, k_floppy_media_2hd }, 1, 224, 0xF0, 9, false, 6, 1, 35 }
+    { { 368640, 40, 2, 9, 2, k_floppy_media_2d }, 2, 112, 0xFD, 2 },
+    { { 737280, 80, 2, 9, 2, k_floppy_media_2dd }, 2, 112, 0xF9, 3 },
+    { { 1228800, 80, 2, 15, 2, k_floppy_media_2hd }, 1, 224, 0xF9, 7 },
+    { { 1474560, 80, 2, 18, 2, k_floppy_media_2hd }, 1, 224, 0xF0, 9 },
+    { { 2949120, 80, 2, 36, 2, k_floppy_media_2hd }, 2, 240, 0xF0, 9 }
 };
 
-static const u8 k_floppy_boot_header[11] = { 'I', 'P', 'L', '4', 0xEB, 0x4D, 0x06, ' ', ' ', ' ', ' ' };
+static const u8 k_floppy_pc_boot_jump[3] = { 0xEB, 0x3C, 0x90 };
+static const char k_floppy_pc_oem[] = "GEARDOX ";
+static const char k_floppy_pc_label[] = "NO NAME    FAT12   ";
+static const u32 k_floppy_pc_code_offset = 0x3E;
+static const u8 k_floppy_data_filler = 0xF6;
+
+// Prints that the disk has no system, waits for a key and goes on to the next boot device
+static const u8 k_floppy_pc_boot_code[] =
+{
+
+};
+
 static const char k_floppy_volume_label[] = "USERDISK";
 static const u32 k_floppy_boot_loader_offset = 0x35;
 static const u8 k_floppy_boot_loader[459] =
@@ -221,7 +232,8 @@ bool FloppyImage::IsCanonical(const u8* data, u32 size)
 
 bool FloppyImage::IsRaw(const u8* data, u32 size)
 {
-    return GetRawGeometry(data, size) >= 0;
+    FloppyImage_Geometry geometry;
+    return GetRawGeometry(data, size, &geometry);
 }
 
 bool FloppyImage::IsMFM(const u8* data, u32 size)
@@ -241,7 +253,9 @@ bool FloppyImage::IsImageName(const char* name)
         return false;
 
     return ends_with_no_case(name, ".d77") || ends_with_no_case(name, ".d88") || ends_with_no_case(name, ".hdm") ||
-        ends_with_no_case(name, ".xdf") || ends_with_no_case(name, ".img") || ends_with_no_case(name, ".mfm");
+        ends_with_no_case(name, ".xdf") || ends_with_no_case(name, ".img") || ends_with_no_case(name, ".ima") ||
+        ends_with_no_case(name, ".vfd") || ends_with_no_case(name, ".flp") || ends_with_no_case(name, ".dsk") ||
+        ends_with_no_case(name, ".mfm");
 }
 
 int FloppyImage::GetDiskCount(const u8* data, u32 size)
@@ -337,9 +351,8 @@ bool FloppyImage::IsBootDisk(const u8* data, u32 size, int index)
         if (header == 0)
             break;
 
-        boot = (image[header + 2] == 1) && ((image[header + 6] & k_floppy_density_fm) == 0) &&
-            (read_u16_le(image + header + 14) >= 4) &&
-            (memcmp(image + header + k_floppy_sector_header_size, "IPL4", 4) == 0);
+        boot = (image[header + 2] == 1) && (read_u16_le(image + header + 14) >= 512) &&
+            (read_u16_le(image + header + k_floppy_sector_header_size + 510) == 0xAA55);
     }
 
     SafeDeleteArray(image);
@@ -426,56 +439,35 @@ u8* FloppyImage::CreateBlank(FloppyImage_Blank type, bool formatted, u32* image_
         return NULL;
 
     u32 sector_size = 128U << geometry.n;
-    u32 total_sectors = geometry.size / sector_size;
     u32 root_sector = 1 + (2 * format.fat_sectors);
     u32 data_sector = root_sector + ((format.root_entries * 32) / sector_size);
-    memset(raw, 0xE5, geometry.size);
-    memset(raw, 0, sector_size);
-    memcpy(raw, k_floppy_boot_header, sizeof(k_floppy_boot_header));
-
-    if (!format.ipl)
-    {
-        raw[0] = 0xEB;
-        raw[1] = 0xFE;
-        raw[2] = 0x90;
-    }
-
+    memset(raw, k_floppy_data_filler, geometry.size);
+    memset(raw, 0, data_sector * sector_size);
+    memcpy(raw, k_floppy_pc_boot_jump, sizeof(k_floppy_pc_boot_jump));
+    memcpy(raw + 3, k_floppy_pc_oem, 8);
     write_u16_le(raw + 11, (u16)sector_size);
     raw[13] = format.sectors_per_cluster;
     write_u16_le(raw + 14, 1);
     raw[16] = 2;
     write_u16_le(raw + 17, format.root_entries);
-    write_u16_le(raw + 19, (u16)total_sectors);
+    write_u16_le(raw + 19, (u16)(geometry.size / sector_size));
     raw[21] = format.media_descriptor;
     write_u16_le(raw + 22, format.fat_sectors);
     write_u16_le(raw + 24, geometry.sectors);
-    write_u16_le(raw + 26, 2);
-    write_u16_le(raw + 30, (u16)data_sector);
-    raw[32] = format.loader_sector;
-    raw[33] = format.loader_head;
-    raw[36] = geometry.sectors;
-    raw[37] = 2;
-    write_u16_le(raw + 38, geometry.cylinders);
-    CopyBootLoader(raw);
+    write_u16_le(raw + 26, geometry.heads);
+    raw[38] = 0x29;
+    memcpy(raw + 43, k_floppy_pc_label, 19);
+    memcpy(raw + k_floppy_pc_code_offset, k_floppy_pc_boot_code, sizeof(k_floppy_pc_boot_code));
+    raw[510] = 0x55;
+    raw[511] = 0xAA;
 
     for (int fat = 0; fat < 2; fat++)
     {
         u8* table = raw + (1 + fat * format.fat_sectors) * sector_size;
-        memset(table, 0, (size_t)format.fat_sectors * sector_size);
         table[0] = format.media_descriptor;
         table[1] = 0xFF;
         table[2] = 0xFF;
     }
-
-    u8* empty_root = raw + (format.empty_root_sector * sector_size);
-
-    for (u32 i = 0; i < format.root_entries; i++)
-    {
-        empty_root[i * 32] = 0;
-        memset(empty_root + (i * 32) + 1, 0xF6, 31);
-    }
-
-    WriteVolumeLabel(raw + (root_sector * sector_size));
 
     u8* image = CreateFromRaw(raw, geometry.size, image_size);
     SafeDeleteArray(raw);
@@ -508,28 +500,48 @@ u8* FloppyImage::ReplaceTrack(const u8* image, u32 size, int track, const u8* se
     return Build(image, image, size, track, sectors, sectors_size, image_size);
 }
 
-u32 FloppyImage::GetRawSize(const u8* image, u32 size)
+// Sides and cylinders come from which tracks hold sectors, and every one of them must have the standard layout
+bool FloppyImage::GetRawLayout(const u8* image, u32 size, int* cylinders, int* heads, int* sectors, u8* n)
 {
     u32 header_size = GetHeaderSize(image, size);
     u32 run_size = 0;
     u32 first = GetTrackRun(image, size, header_size, 0, &run_size);
 
     if (first == 0 || first == 0xFFFFFFFF)
-        return 0;
+        return false;
 
-    int count = read_u16_le(image + first + 4);
-    u8 n = image[first + 3];
+    u32 second = GetTrackRun(image, size, header_size, 1, &run_size);
 
-    for (int i = 0; i < k_floppy_raw_geometries; i++)
+    *heads = (second != 0 && second != 0xFFFFFFFF) ? 2 : 1;
+    *sectors = read_u16_le(image + first + 4);
+    *n = image[first + 3];
+    *cylinders = 0;
+
+    while (*cylinders < k_floppy_tracks / 2)
     {
-        const FloppyImage_Geometry& geometry = k_floppy_raw_geometry[i];
+        u32 offset = GetTrackRun(image, size, header_size, *cylinders * 2, &run_size);
 
-        if (geometry.sectors == count && geometry.n == n &&
-            IsRawLayout(image, size, header_size, geometry.cylinders, geometry.sectors, geometry.n))
-            return geometry.size;
+        if (offset == 0 || offset == 0xFFFFFFFF)
+            break;
+
+        (*cylinders)++;
     }
 
-    return 0;
+    return *sectors > 0 && *sectors <= k_floppy_max_sectors &&
+        IsRawLayout(image, size, header_size, *cylinders, *heads, *sectors, *n);
+}
+
+u32 FloppyImage::GetRawSize(const u8* image, u32 size)
+{
+    int cylinders = 0;
+    int heads = 0;
+    int sectors = 0;
+    u8 n = 0;
+
+    if (!GetRawLayout(image, size, &cylinders, &heads, &sectors, &n))
+        return 0;
+
+    return (u32)cylinders * heads * sectors * (128U << n);
 }
 
 bool FloppyImage::ExportRaw(const u8* image, u32 size, u8* raw, u32 raw_size)
@@ -537,23 +549,30 @@ bool FloppyImage::ExportRaw(const u8* image, u32 size, u8* raw, u32 raw_size)
     if (GetRawSize(image, size) != raw_size)
         return false;
 
+    int cylinders = 0;
+    int heads = 0;
+    int sectors = 0;
+    u8 n = 0;
+
+    GetRawLayout(image, size, &cylinders, &heads, &sectors, &n);
+
     u32 header_size = GetHeaderSize(image, size);
+    u32 sector_size = 128U << n;
     u32 run_size = 0;
-    u32 first = GetTrackRun(image, size, header_size, 0, &run_size);
-    int count = read_u16_le(image + first + 4);
-    u32 sector_size = read_u16_le(image + first + 14);
-    u32 tracks = raw_size / (count * sector_size);
 
-    for (u32 track = 0; track < tracks; track++)
+    for (int cylinder = 0; cylinder < cylinders; cylinder++)
     {
-        u32 offset = GetTrackRun(image, size, header_size, track, &run_size);
-
-        for (int i = 0; i < count; i++)
+        for (int head = 0; head < heads; head++)
         {
-            u8 r = image[offset + 2];
-            memcpy(raw + (track * count + r - 1) * sector_size, image + offset + k_floppy_sector_header_size,
-                sector_size);
-            offset += k_floppy_sector_header_size + sector_size;
+            u32 offset = GetTrackRun(image, size, header_size, cylinder * 2 + head, &run_size);
+            u32 start = (u32)(cylinder * heads + head) * sectors;
+
+            for (int i = 0; i < sectors; i++)
+            {
+                u8 r = image[offset + 2];
+                memcpy(raw + (start + r - 1) * sector_size, image + offset + k_floppy_sector_header_size, sector_size);
+                offset += k_floppy_sector_header_size + sector_size;
+            }
         }
     }
 
@@ -854,10 +873,11 @@ u32 FloppyImage::GetSectorHeader(const u8* image, u32 size, int track, int index
     return header;
 }
 
-int FloppyImage::GetRawGeometry(const u8* data, u32 size)
+// The size first, then padding with E5h, then the boot sector for images that were cut short
+bool FloppyImage::GetRawGeometry(const u8* data, u32 size, FloppyImage_Geometry* geometry)
 {
     if (!IsValidPointer(data))
-        return -1;
+        return false;
 
     int padded = -1;
 
@@ -866,7 +886,10 @@ int FloppyImage::GetRawGeometry(const u8* data, u32 size)
         u32 raw_size = k_floppy_raw_geometry[i].size;
 
         if (raw_size == size)
-            return i;
+        {
+            *geometry = k_floppy_raw_geometry[i];
+            return true;
+        }
 
         if (raw_size > size || (padded >= 0 && k_floppy_raw_geometry[padded].size > raw_size))
             continue;
@@ -881,16 +904,35 @@ int FloppyImage::GetRawGeometry(const u8* data, u32 size)
     }
 
     if (padded >= 0)
-        return padded;
+    {
+        *geometry = k_floppy_raw_geometry[padded];
+        return true;
+    }
 
-    const FloppyImage_Geometry& hd = k_floppy_raw_geometry[0];
-    u32 sector_size = 128U << hd.n;
+    if (size < 512 || read_u16_le(data + 11) != 512 || data[21] < 0xF0)
+        return false;
 
-    if (size > k_floppy_raw_2dd_max_size && size < hd.size && (size % (hd.sectors * sector_size)) == 0 &&
-        read_u16_le(data + 11) == sector_size)
-        return 0;
+    u32 total = read_u16_le(data + 19);
+    u32 sectors = read_u16_le(data + 24);
+    u32 heads = read_u16_le(data + 26);
 
-    return -1;
+    if (sectors < 8 || sectors > 36 || heads < 1 || heads > 2 || total == 0 || size > total * 512)
+        return false;
+
+    u32 cylinders = (total + (sectors * heads) - 1) / (sectors * heads);
+
+    if (cylinders > (u32)k_floppy_tracks / 2)
+        return false;
+
+    u32 cells = 146 + sectors * 574;
+
+    geometry->size = total * 512;
+    geometry->cylinders = (u8)cylinders;
+    geometry->heads = (u8)heads;
+    geometry->sectors = (u8)sectors;
+    geometry->n = 2;
+    geometry->media = cells > 6250 ? k_floppy_media_2hd : (cylinders > 42 ? k_floppy_media_2dd : k_floppy_media_2d);
+    return true;
 }
 
 u32 FloppyImage::GetHeaderSize(const u8* data, u32 size)
@@ -953,7 +995,7 @@ u32 FloppyImage::GetTrackRun(const u8* data, u32 size, u32 header_size, int trac
     return offset;
 }
 
-bool FloppyImage::IsRawLayout(const u8* image, u32 size, u32 header_size, int cylinders, int sectors, u8 n)
+bool FloppyImage::IsRawLayout(const u8* image, u32 size, u32 header_size, int cylinders, int heads, int sectors, u8 n)
 {
     u32 sector_size = 128U << n;
     u32 run_size = 0;
@@ -962,7 +1004,7 @@ bool FloppyImage::IsRawLayout(const u8* image, u32 size, u32 header_size, int cy
     {
         u32 offset = GetTrackRun(image, size, header_size, track, &run_size);
 
-        if (track >= cylinders * 2)
+        if (track >= cylinders * 2 || (track & 1) >= heads)
         {
             if (offset != 0)
                 return false;
@@ -973,7 +1015,7 @@ bool FloppyImage::IsRawLayout(const u8* image, u32 size, u32 header_size, int cy
         if (offset == 0 || offset == 0xFFFFFFFF || read_u16_le(image + offset + 4) != sectors)
             return false;
 
-        u32 found = 0;
+        u64 found = 0;
 
         for (int i = 0; i < sectors; i++)
         {
@@ -984,11 +1026,11 @@ bool FloppyImage::IsRawLayout(const u8* image, u32 size, u32 header_size, int cy
                 read_u16_le(header + 14) != sector_size || (header[6] & k_floppy_density_fm) != 0)
                 return false;
 
-            found |= 1U << (r - 1);
+            found |= 1ULL << (r - 1);
             offset += k_floppy_sector_header_size + sector_size;
         }
 
-        if (found != (1U << sectors) - 1)
+        if (found != (sectors == 64 ? ~0ULL : (1ULL << sectors) - 1))
             return false;
     }
 
@@ -1066,41 +1108,42 @@ u8* FloppyImage::Build(const u8* header, const u8* data, u32 size, int track, co
 
 u8* FloppyImage::CreateFromRaw(const u8* data, u32 size, u32* image_size)
 {
-    int index = GetRawGeometry(data, size);
+    FloppyImage_Geometry geometry;
 
-    if (index < 0)
+    if (!GetRawGeometry(data, size, &geometry))
         return NULL;
 
-    const FloppyImage_Geometry* geometry = &k_floppy_raw_geometry[index];
-
-    u32 sector_size = 128U << geometry->n;
-    u32 tracks = geometry->cylinders * 2;
-    u32 total = k_floppy_header_size + tracks * geometry->sectors * (k_floppy_sector_header_size + sector_size);
+    u32 sector_size = 128U << geometry.n;
+    u32 tracks = (u32)geometry.cylinders * geometry.heads;
+    u32 total = k_floppy_header_size + tracks * geometry.sectors * (k_floppy_sector_header_size + sector_size);
     u8* image = new (std::nothrow) u8[total];
 
     if (!IsValidPointer(image))
         return NULL;
 
     memset(image, 0, total);
-    image[0x1B] = geometry->media;
+    image[0x1B] = geometry.media;
     write_u32_le(image + 0x1C, total);
 
     u32 position = k_floppy_header_size;
 
     for (u32 track = 0; track < tracks; track++)
     {
-        write_u32_le(image + 0x20 + track * 4, position);
+        u32 cylinder = track / geometry.heads;
+        u32 head = track % geometry.heads;
 
-        for (int r = 1; r <= geometry->sectors; r++)
+        write_u32_le(image + 0x20 + (cylinder * 2 + head) * 4, position);
+
+        for (int r = 1; r <= geometry.sectors; r++)
         {
             u8* header = image + position;
-            header[0] = (u8)(track / 2);
-            header[1] = (u8)(track & 1);
+            header[0] = (u8)cylinder;
+            header[1] = (u8)head;
             header[2] = (u8)r;
-            header[3] = geometry->n;
-            write_u16_le(header + 4, geometry->sectors);
+            header[3] = geometry.n;
+            write_u16_le(header + 4, geometry.sectors);
             write_u16_le(header + 14, (u16)sector_size);
-            u32 source = (track * geometry->sectors + r - 1) * sector_size;
+            u32 source = (track * geometry.sectors + r - 1) * sector_size;
 
             if (source + sector_size <= size)
                 memcpy(header + k_floppy_sector_header_size, data + source, sector_size);

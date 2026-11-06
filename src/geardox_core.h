@@ -196,6 +196,7 @@ private:
     void DispatchEvents();
     void Reset();
     void ResetCPU();
+    u8 GetAutoFloppyType(int drive);
     void ResolveMachineConfig();
     bool HasHardDisks();
     void ApplyHardDisks();

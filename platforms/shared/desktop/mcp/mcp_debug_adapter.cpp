@@ -2570,6 +2570,56 @@ json DebugAdapter::GetTextScreen(bool attributes)
     return result;
 }
 
+json DebugAdapter::GetFDCStatus()
+{
+    FDC* fdc = m_core->GetFDC();
+    I82077* chip = fdc->GetController();
+    I82077::I82077_State* state = chip->GetState();
+    json results = json::array();
+    json pcn = json::array();
+    json sense = json::array();
+
+    for (int i = 0; i < state->result_count; i++)
+        results.push_back(Hex(state->results[i], 2));
+
+    for (int i = 0; i < I82077_DRIVES; i++)
+        pcn.push_back(state->pcn[i]);
+
+    for (int i = 0; i < state->sense_count; i++)
+        sense.push_back({{"st0", Hex(state->sense_st0[i], 2)}, {"pcn", state->sense_pcn[i]}});
+
+    return {
+        {"dor", Hex(state->dor, 2)},
+        {"msr", Hex(chip->GetMSR(), 2)},
+        {"dir", Hex(fdc->Peek(0x03F7), 2)},
+        {"selected_drive", fdc->GetSelectedDrive()},
+        {"rate", k_debug_fdc_rate_names[state->rate & 3]},
+        {"phase", k_debug_fdc_phase_names[state->phase & 3]},
+        {"command", k_debug_fdc_command_names[MIN(state->command, (u8)20)]},
+        {"results", results},
+        {"pcn", pcn},
+        {"sense_queue", sense},
+        {"st0", Hex(state->st0, 2)},
+        {"st1", Hex(state->st1, 2)},
+        {"st2", Hex(state->st2, 2)},
+        {"interrupt", chip->IsInterruptOut()},
+        {"dma_request", chip->IsRequestOut()},
+        {"non_dma", state->non_dma},
+        {"srt", state->srt},
+        {"hut", state->hut},
+        {"hlt", state->hlt},
+        {"implied_seek", state->implied_seek},
+        {"fifo_enabled", !state->fifo_disabled},
+        {"fifo_threshold", state->fifo_threshold + 1},
+        {"fifo_count", state->fifo_count},
+        {"polling_disabled", state->poll_disabled},
+        {"lock", state->lock},
+        {"cylinder", state->cylinder},
+        {"head", state->head},
+        {"sector", state->sector}
+    };
+}
+
 json DebugAdapter::GetDMAStatus()
 {
     DMA* dma = m_core->GetDMA();
@@ -3053,8 +3103,10 @@ json DebugAdapter::ListFloppyDrives()
             continue;
         }
 
+        entry["drive_type"] = k_debug_floppy_type_names[fdc->GetDriveType(drive)];
         entry["inserted"] = disk->IsInserted();
         entry["head_cylinder"] = fdc->GetState()->cylinders[drive];
+        entry["disk_changed"] = fdc->GetState()->disk_changed[drive];
 
         if (disk->IsInserted())
         {
@@ -3073,7 +3125,7 @@ json DebugAdapter::ListFloppyDrives()
             if (emu_floppy_get_info(drive, &info))
                 entry["image"] = info.path;
 
-            entry["media"] = k_debug_floppy_media_names[disk->GetMedia() % 3];
+            entry["media"] = k_debug_floppy_media_names[disk->GetMedia() % 4];
             entry["rpm"] = disk->GetRPM();
             entry["write_protected"] = disk->IsWriteProtected();
             entry["modified"] = disk->IsDirty();
@@ -3200,7 +3252,7 @@ json DebugAdapter::InsertFloppy(int drive, const std::string& file_path, const j
         {"write_protected", m_core->GetFDC()->GetDisk(drive)->IsWriteProtected()}};
 }
 
-static const char* const k_blank_floppy_types[FLOPPY_BLANK_COUNT] = { "2hd_1232kb", "2dd_640kb", "2dd_720kb", "2hd_1440kb" };
+static const char* const k_blank_floppy_types[FLOPPY_BLANK_COUNT] = { "360kb", "720kb", "1200kb", "1440kb", "2880kb" };
 
 json DebugAdapter::CreateBlankFloppy(int drive, const std::string& file_path, const std::string& type, bool formatted)
 {
@@ -3213,8 +3265,8 @@ json DebugAdapter::CreateBlankFloppy(int drive, const std::string& file_path, co
     if (!is_absolute_path(path))
         return {{"error", "file_path must be an absolute path"}};
 
-    if (!d77 && !ends_with_no_case(path, ".hdm") && !ends_with_no_case(path, ".img") && !ends_with_no_case(path, ".xdf"))
-        return {{"error", "file_path must end in .d77, .hdm, .img or .xdf"}};
+    if (!d77 && !ends_with_no_case(path, ".img") && !ends_with_no_case(path, ".ima"))
+        return {{"error", "file_path must end in .d77, .img or .ima"}};
 
     if (!formatted && !d77)
         return {{"error", "An unformatted disk can only be saved as .d77"}};
@@ -4055,7 +4107,7 @@ json DebugAdapter::GetMediaInfo()
     result["firmware_folder"] = config_emulator.bios_path;
     result["firmware_sources"] = sources;
 
-    static const char* media_names[] = { "2D", "2DD", "2HD" };
+    static const char* media_names[] = { "2D", "2DD", "2HD", "ED" };
     json drives = json::array();
 
     for (int i = 0; i < config_floppy_drives; i++)
@@ -4072,7 +4124,7 @@ json DebugAdapter::GetMediaInfo()
                 emu_floppy_get_disk_name(i, info.disk_index) : "";
             drive["disk_index"] = info.disk_index;
             drive["disk_count"] = info.disk_count;
-            drive["media"] = IsValidPointer(disk) ? media_names[disk->GetMedia() % 3] : "";
+            drive["media"] = IsValidPointer(disk) ? media_names[disk->GetMedia() % 4] : "";
             drive["write_protected"] = info.write_protected;
             drive["modified"] = info.dirty;
         }

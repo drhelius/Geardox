@@ -30,7 +30,8 @@ enum FloppyDisk_Media
 {
     FLOPPY_MEDIA_2D = 0,
     FLOPPY_MEDIA_2DD,
-    FLOPPY_MEDIA_2HD
+    FLOPPY_MEDIA_2HD,
+    FLOPPY_MEDIA_ED
 };
 
 struct FloppyDisk_Sector

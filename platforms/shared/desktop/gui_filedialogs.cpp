@@ -233,7 +233,7 @@ void gui_file_dialog_open_floppy(int drive)
 
     dialog_floppy_drive = drive;
     SDL_DialogFileFilter filters[] = {
-        { "Floppy Images", "d77;d88;hdm;xdf;img;mfm;bin;zip;m3u" }
+        { "Floppy Images", "img;ima;vfd;flp;dsk;d77;d88;hdm;xdf;mfm;bin;zip;m3u" }
     };
     show_open_file_dialog(FileDialog_OpenFloppy, filters, 1);
 }
@@ -246,7 +246,7 @@ void gui_file_dialog_save_floppy(int drive)
     dialog_floppy_drive = drive;
     SDL_DialogFileFilter filters[] = {
         { "D77 Images", "d77;d88" },
-        { "Raw Images", "hdm;img;xdf" }
+        { "Raw Images", "img;ima;vfd;flp;dsk" }
     };
     show_save_file_dialog(FileDialog_SaveFloppy, filters, 2);
 }
@@ -259,7 +259,7 @@ void gui_file_dialog_new_floppy(int drive)
     dialog_floppy_drive = drive;
     SDL_DialogFileFilter filters[] = {
         { "D77 Images", "d77" },
-        { "Raw Images", "hdm;img;xdf" }
+        { "Raw Images", "img;ima;vfd;flp;dsk" }
     };
     show_save_file_dialog(FileDialog_NewFloppy, filters, 2);
 }
@@ -521,10 +521,12 @@ static void SDLCALL file_dialog_callback(void* userdata, const char* const* file
     {
         const char* path = pending_dialog_path.c_str();
         bool named = ends_with_no_case(path, ".d77") || ends_with_no_case(path, ".d88") ||
-            ends_with_no_case(path, ".hdm") || ends_with_no_case(path, ".img") || ends_with_no_case(path, ".xdf");
+            ends_with_no_case(path, ".hdm") || ends_with_no_case(path, ".img") || ends_with_no_case(path, ".xdf") ||
+            ends_with_no_case(path, ".ima") || ends_with_no_case(path, ".vfd") || ends_with_no_case(path, ".flp") ||
+            ends_with_no_case(path, ".dsk");
 
         if (!named)
-            pending_dialog_path += filter == 1 ? ".hdm" : ".d77";
+            pending_dialog_path += filter == 1 ? ".img" : ".d77";
     }
 }
 

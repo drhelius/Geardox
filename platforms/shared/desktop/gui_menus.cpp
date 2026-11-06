@@ -75,6 +75,7 @@ static bool menu_machine_model(void);
 static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile);
 static bool menu_machine_ram(const GDOX_Machine_Profile& profile);
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
+static bool menu_machine_floppy(int drive);
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
 static void menu_machine_hardware(GDOX_Machine_Model model);
 static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t text_size);
@@ -849,6 +850,12 @@ static void menu_machine(void)
     if (menu_machine_fpu(profile))
         changed = true;
 
+    if (menu_machine_floppy(0))
+        changed = true;
+
+    if (menu_machine_floppy(1))
+        changed = true;
+
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
     ImGui::Separator();
@@ -1094,6 +1101,51 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
         ImGui::Text("It is recommended to leave this option on Auto.");
         ImGui::Text("Auto picks the RAM from game database");
         ImGui::Text("or model's original RAM if not detected.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_floppy(int drive)
+{
+    static const char* const labels[GDOX_FLOPPY_TYPE_COUNT] =
+    {
+        "Auto", "360 KB 5.25", "1.2 MB 5.25", "720 KB 3.5", "1.44 MB 3.5", "2.88 MB 3.5"
+    };
+
+    if (!ImGui::BeginMenu(drive == 0 ? "Floppy A" : "Floppy B"))
+        return false;
+
+    bool changed = false;
+    int& type = config_machine.floppy_type[drive];
+
+    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(labels[2]).x));
+
+    if (ImGui::BeginCombo(drive == 0 ? "##machine_floppy_a" : "##machine_floppy_b", labels[type]))
+    {
+        for (int i = 0; i < GDOX_FLOPPY_TYPE_COUNT; i++)
+        {
+            if (ImGui::Selectable(labels[i], type == i))
+            {
+                type = i;
+                changed = true;
+            }
+
+            if (i == 0)
+                ImGui::Separator();
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Auto fits the smallest drive that holds the disk at power on.");
+        ImGui::Text("A 720 KB disk gets a 1.44 MB drive, which reads both.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }

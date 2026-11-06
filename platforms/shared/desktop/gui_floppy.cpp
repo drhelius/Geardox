@@ -43,7 +43,7 @@ enum Floppy_Action
     Floppy_Action_Eject
 };
 
-static const char* blank_types = "2DD 720 KB\0" "2HD 1.44 MB\0\0";
+static const char* blank_types = "360 KB 5.25\0" "720 KB 3.5\0" "1.2 MB 5.25\0" "1.44 MB 3.5\0" "2.88 MB 3.5\0\0";
 
 static Floppy_Action pending_action = Floppy_Action_None;
 static int pending_drive = -1;
@@ -53,7 +53,7 @@ static bool pending_open = false;
 static bool pending_symbols = false;
 static std::string pending_symbol_path;
 static int dialog_drive = 0;
-static int blank_type = 1;
+static int blank_type = FLOPPY_BLANK_1440K;
 static bool blank_formatted = true;
 static bool open_dirty = false;
 static bool open_discard = false;
@@ -362,7 +362,7 @@ static bool perform(bool discard_changes)
             done = emu_floppy_select_disk(pending_drive, pending_index, discard_changes);
             break;
         case Floppy_Action_Blank:
-            done = emu_floppy_create_blank(pending_drive, pending_path.c_str(), FLOPPY_BLANK_2DD_720 + blank_type, blank_formatted,
+            done = emu_floppy_create_blank(pending_drive, pending_path.c_str(), blank_type, blank_formatted,
                 discard_changes);
             error = "Unable to create the blank disk.";
             break;

@@ -25,6 +25,7 @@
 #include "cdrom/cdrom_audio.h"
 #include "cdrom/cdrom_media.h"
 #include "drive/fdc.h"
+#include "drive/floppy_image.h"
 #include "drive/hard_disk_image.h"
 #include "media/firmware.h"
 #include "input/input.h"
@@ -84,6 +85,10 @@ GeardoxCore::GeardoxCore()
     m_machine_settings.ram_mb = GDOX_MACHINE_AUTO;
     m_machine_settings.fpu = GDOX_MACHINE_AUTO;
     m_machine_settings.speed_mode = GDOX_MACHINE_AUTO;
+
+    for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
+        m_machine_settings.floppy_type[i] = GDOX_MACHINE_AUTO;
+
     InitPointer(m_auto_entry);
     memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
 
@@ -241,7 +246,7 @@ void GeardoxCore::Init()
     m_firmware_config->Init();
     m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
-    m_fdc->Init(m_pic, m_scheduler);
+    m_fdc->Init(m_pic, m_scheduler, m_dma);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_input, m_system_control, m_rtc,
         m_firmware_config, m_debug_console, m_i8042, m_dma);
     m_i386->Init(m_memory, m_io);
@@ -726,6 +731,9 @@ INLINE void GeardoxCore::DispatchEvents()
                 break;
             case SCHEDULER_EVENT_RTC:
                 m_rtc->HandleEvent(clocks);
+                break;
+            case SCHEDULER_EVENT_FDC:
+                m_fdc->HandleEvent(clocks);
                 break;
             case SCHEDULER_EVENT_KEYBOARD:
                 m_i8042->HandleEvent(clocks);
@@ -1749,6 +1757,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.cpu);
     G_SERIALIZE(serializer, config.ram_size);
     G_SERIALIZE(serializer, config.floppy_drives);
+    G_SERIALIZE_ARRAY(serializer, config.floppy_type, GDOX_MAX_FLOPPY_DRIVES);
     G_SERIALIZE(serializer, config.cpu_clock_rate);
     G_SERIALIZE(serializer, config.scsi);
     G_SERIALIZE(serializer, config.fpu);
@@ -1940,6 +1949,33 @@ void GeardoxCore::ResetCPU()
     m_i386->Reset();
 }
 
+// The smallest drive that holds the disk, and a 720K disk goes to a 1.44M drive as those read both
+u8 GeardoxCore::GetAutoFloppyType(int drive)
+{
+    FloppyDisk* disk = GetFloppy(drive);
+
+    if (!IsValidPointer(disk) || !disk->IsInserted())
+        return drive == 0 ? GDOX_FLOPPY_1440K : GDOX_FLOPPY_1200K;
+
+    FloppyDisk_Sector sectors[k_floppy_max_sectors];
+
+    switch (disk->GetMedia())
+    {
+        case FLOPPY_MEDIA_2D:
+            return GDOX_FLOPPY_360K;
+        case FLOPPY_MEDIA_2HD:
+            // SeaBIOS checks sector numbers against the drive, and only the 2.88M drive allows DMF's
+            if (disk->GetSectors(0, sectors) > 18)
+                return GDOX_FLOPPY_2880K;
+
+            return disk->GetRPM() == 360 ? GDOX_FLOPPY_1200K : GDOX_FLOPPY_1440K;
+        case FLOPPY_MEDIA_ED:
+            return GDOX_FLOPPY_2880K;
+        default:
+            return GDOX_FLOPPY_1440K;
+    }
+}
+
 void GeardoxCore::ResolveMachineConfig()
 {
     GDOX_Machine_Config& config = m_pending_machine_config;
@@ -1967,6 +2003,13 @@ void GeardoxCore::ResolveMachineConfig()
     config.scsi = HasHardDisks();
     config.fpu = !auto_fpu && (m_machine_settings.fpu != 0);
     config.speed_mode = auto_speed ? GDOX_MACHINE_AUTO : m_machine_settings.speed_mode != 0 ? 1 : 0;
+
+    for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
+    {
+        int type = m_machine_settings.floppy_type[i];
+        config.floppy_type[i] = (type > 0 && type < GDOX_FLOPPY_TYPE_COUNT) ? (u8)type : GetAutoFloppyType(i);
+    }
+
     report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
     report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
     report.ram = auto_ram ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
@@ -2135,7 +2178,18 @@ void GeardoxCore::ApplyMachineConfig()
     }
 
     if (IsValidPointer(m_fdc))
+    {
         m_fdc->SetInternalDrives(m_machine_config.floppy_drives);
+
+        // Auto looks at the disks in the drives at every reset, they can change after the last resolve
+        for (int i = 0; i < FDC_DRIVES; i++)
+        {
+            if (m_machine_settings.floppy_type[i] <= 0)
+                m_machine_config.floppy_type[i] = GetAutoFloppyType(i);
+
+            m_fdc->SetDriveType(i, m_machine_config.floppy_type[i]);
+        }
+    }
 
     ApplyFirmwareDevices();
 }
@@ -2280,7 +2334,13 @@ void GeardoxCore::InitCMOS()
         order[2] = 2;
     }
 
-    m_rtc->WriteRAM(0x14, m_machine_config.fpu ? 0x02 : 0x00);
+    u8 drives = 0;
+
+    for (int i = 0; i < m_machine_config.floppy_drives; i++)
+        drives += m_machine_config.floppy_type[i] != GDOX_FLOPPY_NONE ? 1 : 0;
+
+    m_rtc->WriteRAM(0x10, (u8)((m_machine_config.floppy_type[0] << 4) | m_machine_config.floppy_type[1]));
+    m_rtc->WriteRAM(0x14, (u8)((m_machine_config.fpu ? 0x02 : 0x00) | (drives > 0 ? 0x01 | ((drives - 1) << 6) : 0x00)));
     m_rtc->WriteRAM(0x15, 0x80);
     m_rtc->WriteRAM(0x16, 0x02);
     m_rtc->WriteRAM(0x17, (u8)extended_kb);

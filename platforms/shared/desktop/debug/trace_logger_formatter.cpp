@@ -24,6 +24,7 @@
 #include "gui_debug_constants.h"
 #include "gui_debug_i386_tables.h"
 #include "../emu.h"
+#include "drive/i82077.h"
 #include "system/i8259.h"
 
 static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
@@ -871,49 +872,31 @@ static void format_fdc(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
     if (entry.fdc.drive >= 0)
         snprintf(drive, sizeof(drive), "%d", entry.fdc.drive);
 
+    const char* command = k_debug_fdc_command_names[MIN(entry.fdc.command, (u8)20)];
+
     switch (entry.event)
     {
         case TRACE_FDC_COMMAND:
-        {
-            char command[48];
-            gui_debug_mb8877_command(entry.fdc.command, command, sizeof(command));
-            format_event(buffer, size, "FDC", "COMMAND", "$%02X %s  Drive:%s Cylinder:%u  Track:%u Sector:%u Data:$%02X",
-                entry.fdc.command, command, drive, entry.fdc.cylinder, entry.fdc.track, entry.fdc.sector,
-                entry.fdc.data);
+            if (entry.fdc.command >= I82077::I82077_COMMAND_READ && entry.fdc.command <= I82077::I82077_COMMAND_VERIFY)
+                format_event(buffer, size, "FDC", "COMMAND", "$%02X %s  Drive:%s C:%u H:%u R:%u N:%u", entry.fdc.value, command,
+                    drive, entry.fdc.cylinder, entry.fdc.track, entry.fdc.sector, entry.fdc.data);
+            else if (entry.fdc.command == I82077::I82077_COMMAND_SEEK || entry.fdc.command == I82077::I82077_COMMAND_RELATIVE_SEEK)
+                format_event(buffer, size, "FDC", "COMMAND", "$%02X %s  Drive:%s To:%u", entry.fdc.value, command, drive,
+                    entry.fdc.cylinder);
+            else
+                format_event(buffer, size, "FDC", "COMMAND", "$%02X %s", entry.fdc.value, command);
             break;
-        }
         case TRACE_FDC_END:
-        {
-            char command[48];
-            char status[96] = "";
-            u8 value = entry.fdc.status;
-            bool type1 = (entry.fdc.command & 0x80) == 0 || (entry.fdc.command & 0xF0) == 0xD0;
-            const char* const* names = type1 ? k_debug_mb8877_type1_status : k_debug_mb8877_type2_status;
-
-            gui_debug_mb8877_command(entry.fdc.command, command, sizeof(command));
-
-            for (int i = 7; i >= 0; i--)
-            {
-                if ((value & (1 << i)) == 0 || i == 0)
-                    continue;
-
-                strncat(status, " ", sizeof(status) - strlen(status) - 1);
-                strncat(status, names[i], sizeof(status) - strlen(status) - 1);
-            }
-
-            format_event(buffer, size, "FDC", "END", "%s  Status:$%02X%s  Drive:%s Track:%u Sector:%u", command, value,
-                status[0] != 0 ? status : " OK", drive, entry.fdc.track, entry.fdc.sector);
+            format_event(buffer, size, "FDC", "END", "%s  ST0:$%02X ST1:$%02X ST2:$%02X  Drive:%s C:%u H:%u R:%u", command,
+                entry.fdc.status, entry.fdc.value, entry.fdc.data, drive, entry.fdc.cylinder, entry.fdc.track,
+                entry.fdc.sector);
             break;
-        }
         case TRACE_FDC_DRIVE_CONTROL:
-        {
-            u8 value = entry.fdc.value;
-            format_event(buffer, size, "FDC", "DRIVE CTRL", "$0208 <- $%02X  Drive:%s", value, drive);
+            format_event(buffer, size, "FDC", "DOR", "$%02X  Drive:%s", entry.fdc.value, drive);
             break;
-        }
         default:
-            format_event(buffer, size, "FDC", "DRIVE SEL", "Select:$%02X  Switch:%u  Drive:%s  Cylinder:%u",
-                entry.fdc.data, entry.fdc.status & 0x01, drive, entry.fdc.cylinder);
+            format_event(buffer, size, "FDC", "DRIVE SEL", "DOR:$%02X  Drive:%s  Cylinder:%u", entry.fdc.value, drive,
+                entry.fdc.cylinder);
             break;
     }
 }

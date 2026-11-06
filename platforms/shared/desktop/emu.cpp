@@ -746,6 +746,8 @@ void emu_apply_machine_settings(void)
     settings.cpu_mhz = config_machine.cpu_mhz;
     settings.ram_mb = config_machine.ram_mb;
     settings.fpu = config_machine.fpu;
+    settings.floppy_type[0] = config_machine.floppy_type[0];
+    settings.floppy_type[1] = config_machine.floppy_type[1];
     settings.speed_mode = GDOX_MACHINE_AUTO;
     geardox->SetMachineSettings(settings);
 }
