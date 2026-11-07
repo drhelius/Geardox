@@ -21,12 +21,14 @@
 #define AUDIO_INLINE_H
 
 #include "audio.h"
+#include "opl.h"
+#include "sound_blaster.h"
+#include "mpu401.h"
 #include "../cdrom/cdrom_audio.h"
 #include "../system/pit.h"
 
-// 307.2 kHz PIT clocks in one 44.1 kHz output sample, rounded
-static const int k_audio_buzzer_ticks = 27;
 static const s32 k_audio_buzzer_level = 4096;
+static const u64 k_audio_buzzer_max_ticks = 64;
 
 // The analog output is AC coupled
 // One pole at 44.1 kHz / (2 * pi * 2^10), about 6.9 Hz
@@ -34,6 +36,7 @@ static const int k_audio_dc_shift = 10;
 static const int k_audio_dc_fraction = 12;
 static const s32 k_audio_dc_round = 1 << (k_audio_dc_fraction - 1);
 static const s32 k_audio_dc_limit = 1 << 30;
+static const u16 k_audio_fm_port = 0x0388;
 
 INLINE void Audio::Mute(bool mute)
 {
@@ -65,6 +68,26 @@ INLINE void Audio::SetBuzzerVolume(float volume)
     m_buzzer_volume = volume;
 }
 
+INLINE OPL* Audio::GetOPL(int chip)
+{
+    return m_opl[chip];
+}
+
+INLINE int Audio::GetOPLChips() const
+{
+    return m_opl_chips;
+}
+
+INLINE SoundBlaster* Audio::GetSoundBlaster()
+{
+    return m_sound_blaster;
+}
+
+INLINE MPU401* Audio::GetMPU401()
+{
+    return m_mpu401;
+}
+
 INLINE Audio::Audio_State* Audio::GetState()
 {
     return &m_state;
@@ -78,6 +101,11 @@ INLINE void Audio::SetSourceMute(int source, bool mute)
 INLINE bool Audio::IsSourceMuted(int source) const
 {
     return m_source_mute[source];
+}
+
+INLINE void Audio::EnableChannelScopes(bool enable)
+{
+    m_channel_scopes = enable;
 }
 
 // Stereo values in the last completed frame
@@ -101,15 +129,72 @@ INLINE const s16* Audio::GetSourceBuffer(int source) const
     }
 }
 
+INLINE const s16* Audio::GetFMChannelBuffer(int channel) const
+{
+    return m_fm_channel_buffer[channel];
+}
+
 INLINE void Audio::Synchronize(u64 clocks)
 {
     while (clocks > m_state.clocks)
         Clock((u32)MIN(clocks - m_state.clocks, 0x10000000ULL));
 }
 
+// The speaker plays what it was playing up to this moment, ahead of a change to it
+INLINE void Audio::SynchronizeBuzzer(u64 clocks)
+{
+    Synchronize(clocks);
+    AccumulateBuzzer(m_pit->GetTick(clocks));
+}
+
 INLINE void Audio::HandleEvent(u64 clocks)
 {
     Synchronize(clocks);
+    UpdateEvent();
+}
+
+INLINE bool Audio::IsFMPort(u16 port) const
+{
+    u16 offset = port & 0x0F;
+
+    if ((port & 0x03FC) == k_audio_fm_port)
+        return (m_opl_chips != 0) && (m_opl3 || ((port & 0x02) == 0));
+
+    if ((port & 0x03F0) != k_sound_blaster_port)
+        return false;
+
+    return (m_dsp && ((offset == 0x08) || (offset == 0x09))) || (m_mixer && (offset <= 0x03));
+}
+
+INLINE bool Audio::IsMPUPort(u16 port) const
+{
+    return m_mpu && ((port & 0x03FE) == k_mpu401_port);
+}
+
+// The DSP's ports, the mixer's on the cards that have one, and 2xFh from 4.xx on
+INLINE bool Audio::Decodes(u16 port) const
+{
+    if (IsFMPort(port) || IsMPUPort(port))
+        return true;
+
+    if ((port & 0x03F0) != k_sound_blaster_port)
+        return false;
+
+    switch (port & 0x0F)
+    {
+        case 0x04:
+        case 0x05:
+            return m_mixer;
+        case 0x06:
+        case 0x0A:
+        case 0x0C:
+        case 0x0E:
+            return m_dsp;
+        case 0x0F:
+            return m_mpu;
+        default:
+            return false;
+    }
 }
 
 INLINE void Audio::Clock(u32 clocks)
@@ -121,6 +206,7 @@ INLINE void Audio::Clock(u32 clocks)
 
     if (sample_clock_counter < GDOX_MACHINE_CLOCK_RATE)
     {
+        ClockSources(clocks);
         m_state.sample_clock_counter = sample_clock_counter;
         m_state.clocks += clocks;
         return;
@@ -135,6 +221,8 @@ INLINE void Audio::Clock(u32 clocks)
         if ((clocks_to_sample > 0) && (clocks_to_sample < step))
             step = (u32)clocks_to_sample;
 
+        ClockSources(step);
+
         m_state.sample_clock_counter += (u64)step * GDOX_AUDIO_SAMPLE_RATE;
         m_state.clocks += step;
         clocks -= step;
@@ -147,6 +235,15 @@ INLINE void Audio::Clock(u32 clocks)
     }
 }
 
+INLINE void Audio::ClockSources(u32 clocks)
+{
+    for (int i = 0; i < m_opl_chips; i++)
+        m_opl[i]->Clock(clocks);
+
+    if (m_dsp)
+        m_sound_blaster->Clock(clocks);
+}
+
 INLINE void Audio::SampleSources()
 {
     s16 fm_left = 0;
@@ -156,8 +253,25 @@ INLINE void Audio::SampleSources()
     s16 cdda_left = 0;
     s16 cdda_right = 0;
 
+    if (m_opl_chips != 0)
+        m_opl[0]->Sample(fm_left, fm_right);
+
+    // The first Pro has one OPL2 on each side
+    if (m_opl_chips > 1)
+    {
+        s16 other = 0;
+        m_opl[1]->Sample(fm_right, other);
+    }
+
+    if (m_dsp)
+        m_sound_blaster->Sample(pcm_left, pcm_right);
+
     // CD-DA advances one disc sample per output sample since both run at 44.1 kHz
     m_cdrom_audio->Sample(cdda_left, cdda_right);
+
+    // The card's filter sits between the DAC and the mixer, FM doesn't go through it
+    m_state.pcm_lowpass_left += (s32)(((s64)m_pcm_lowpass_alpha_q15 * (pcm_left - m_state.pcm_lowpass_left)) >> 15);
+    m_state.pcm_lowpass_right += (s32)(((s64)m_pcm_lowpass_alpha_q15 * (pcm_right - m_state.pcm_lowpass_right)) >> 15);
 
 #ifndef GDOX_DISABLE_VGMRECORDER
     if (m_vgm_recording_enabled)
@@ -176,10 +290,13 @@ INLINE void Audio::SampleSources()
         return;
     }
 
-    m_fm_buffer[m_buffer_index + 0] = fm_left;
-    m_fm_buffer[m_buffer_index + 1] = fm_right;
-    m_pcm_buffer[m_buffer_index + 0] = pcm_left;
-    m_pcm_buffer[m_buffer_index + 1] = pcm_right;
+    if (m_channel_scopes)
+        CaptureChannels(m_buffer_index >> 1);
+
+    m_fm_buffer[m_buffer_index + 0] = (s16)((fm_left * m_fm_gain_left) >> 15);
+    m_fm_buffer[m_buffer_index + 1] = (s16)((fm_right * m_fm_gain_right) >> 15);
+    m_pcm_buffer[m_buffer_index + 0] = (s16)((m_state.pcm_lowpass_left * m_pcm_gain_left) >> 15);
+    m_pcm_buffer[m_buffer_index + 1] = (s16)((m_state.pcm_lowpass_right * m_pcm_gain_right) >> 15);
     m_cdda_buffer[m_buffer_index + 0] = cdda_left;
     m_cdda_buffer[m_buffer_index + 1] = cdda_right;
     m_buzzer_buffer[m_buffer_index + 0] = buzzer;
@@ -187,19 +304,44 @@ INLINE void Audio::SampleSources()
     m_buffer_index += 2;
 }
 
-// The buzzer plays channel 2's OUT, averaged over the PIT clocks before the sample so high tones don't alias
+// Port 61h bit 1 gates OUT2 and the driver only pulls one way, so the speaker sits at zero with no current through it
+// Both are averaged over the PIT ticks of the output sample, so PWM through either survives and high tones don't alias
 INLINE s16 Audio::SampleBuzzer()
 {
+    AccumulateBuzzer(m_pit->GetTick(m_state.clocks));
+
+    u32 ticks = m_state.buzzer_ticks;
+    u32 level = m_state.buzzer_level;
+
+    m_state.buzzer_ticks = 0;
+    m_state.buzzer_level = 0;
+
+    return ticks != 0 ? (s16)((k_audio_buzzer_level * level) / ticks) : 0;
+}
+
+// Level counts half ticks. A square wave past Nyquist can't be reproduced and would fold back as a tone a real speaker
+// doesn't make, so it plays as its 50% average
+INLINE void Audio::AccumulateBuzzer(u64 tick)
+{
+    u64 first = m_state.buzzer_tick;
+
+    if (tick <= first)
+        return;
+
+    m_state.buzzer_tick = tick;
+    m_state.buzzer_ticks += (u32)(tick - first);
+
     if (!m_pit->IsBuzzerEnabled())
-        return 0;
+        return;
 
-    u64 tick = m_pit->GetTick(m_state.clocks) - k_audio_buzzer_ticks;
-    int high = 0;
+    if (m_pit->IsBuzzerUltrasonic())
+    {
+        m_state.buzzer_level += (u32)(tick - first);
+        return;
+    }
 
-    for (int i = 1; i <= k_audio_buzzer_ticks; i++)
-        high += m_pit->GetBuzzerOutput(tick + i) ? 1 : 0;
-
-    return (s16)(k_audio_buzzer_level * (2 * high - k_audio_buzzer_ticks) / k_audio_buzzer_ticks);
+    for (u64 i = first + 1; i <= tick; i++)
+        m_state.buzzer_level += m_pit->GetBuzzerOutput(i) ? 2 : 0;
 }
 
 INLINE s32 Audio::HighPass(s32& dc, s32 sample)

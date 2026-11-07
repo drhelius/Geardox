@@ -513,6 +513,33 @@ struct GDOX_Machine_Config
     bool ide;
     bool fpu;
     int speed_mode;
+    u8 sound_card;
+    u8 sound_irq;
+    u8 sound_dma;
+};
+
+enum GDOX_Sound_Card
+{
+    GDOX_SOUND_CARD_NONE = 0,
+    GDOX_SOUND_CARD_ADLIB,
+    GDOX_SOUND_CARD_SB15,
+    GDOX_SOUND_CARD_SB20,
+    GDOX_SOUND_CARD_SBPRO,
+    GDOX_SOUND_CARD_SBPRO2,
+    GDOX_SOUND_CARD_SB16,
+    GDOX_SOUND_CARD_COUNT
+};
+
+struct GDOX_Sound_Card_Info
+{
+    const char* name;
+    const char* id;
+    u8 dsp_major;
+    u8 dsp_minor;
+    u8 opl_chips;
+    bool opl3;
+    u8 mixer;
+    bool mpu;
 };
 
 enum GDOX_Floppy_Type
@@ -534,6 +561,9 @@ struct GDOX_Machine_Settings
     int fpu;
     int speed_mode;
     int floppy_type[GDOX_MAX_FLOPPY_DRIVES];
+    int sound_card;
+    int sound_irq;
+    int sound_dma;
 };
 
 struct GDOX_Machine_Report

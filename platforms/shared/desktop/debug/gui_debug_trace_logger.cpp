@@ -686,7 +686,7 @@ static void trace_logger_menu_filters(void)
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("YM3438 (FM)"))
+    if (ImGui::BeginMenu("OPL (FM)"))
     {
         ImGui::MenuItem("Enabled", "", &config_debug.trace_fm);
         ImGui::Separator();
@@ -695,22 +695,19 @@ static void trace_logger_menu_filters(void)
         trace_logger_menu_event_filter("Frequency", &config_debug.trace_fm_events, TRACE_FM_EVENT_FREQUENCY);
         trace_logger_menu_event_filter("Operators", &config_debug.trace_fm_events, TRACE_FM_EVENT_OPERATORS);
         trace_logger_menu_event_filter("Channel Control", &config_debug.trace_fm_events, TRACE_FM_EVENT_CHANNELS);
-        trace_logger_menu_event_filter("Global / LFO", &config_debug.trace_fm_events, TRACE_FM_EVENT_GLOBAL);
-        trace_logger_menu_event_filter("DAC Data", &config_debug.trace_fm_events, TRACE_FM_EVENT_DAC);
+        trace_logger_menu_event_filter("Global / Rhythm", &config_debug.trace_fm_events, TRACE_FM_EVENT_GLOBAL);
         trace_logger_menu_event_filter("Timers", &config_debug.trace_fm_events, TRACE_FM_EVENT_TIMERS);
-        trace_logger_menu_event_filter("IRQs", &config_debug.trace_fm_events, TRACE_FM_EVENT_IRQS);
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("RF5C68 (PCM)"))
+    if (ImGui::BeginMenu("DSP (PCM)"))
     {
         ImGui::MenuItem("Enabled", "", &config_debug.trace_pcm);
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_pcm);
-        trace_logger_menu_event_filter("Channel Registers", &config_debug.trace_pcm_events, TRACE_PCM_EVENT_CHANNELS);
-        trace_logger_menu_event_filter("Key On / Off", &config_debug.trace_pcm_events, TRACE_PCM_EVENT_KEY);
-        trace_logger_menu_event_filter("Control", &config_debug.trace_pcm_events, TRACE_PCM_EVENT_CONTROL);
+        trace_logger_menu_event_filter("Commands", &config_debug.trace_pcm_events, TRACE_PCM_EVENT_COMMANDS);
+        trace_logger_menu_event_filter("Transfers", &config_debug.trace_pcm_events, TRACE_PCM_EVENT_TRANSFERS);
         trace_logger_menu_event_filter("IRQs", &config_debug.trace_pcm_events, TRACE_PCM_EVENT_IRQS);
         ImGui::EndDisabled();
         ImGui::EndMenu();
@@ -721,8 +718,19 @@ static void trace_logger_menu_filters(void)
         ImGui::MenuItem("Enabled", "", &config_debug.trace_mixer);
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_mixer);
-        trace_logger_menu_event_filter("Electronic Volume", &config_debug.trace_mixer_events, TRACE_MIXER_EVENT_VOLUME);
-        trace_logger_menu_event_filter("Mute", &config_debug.trace_mixer_events, TRACE_MIXER_EVENT_MUTE);
+        trace_logger_menu_event_filter("Volumes", &config_debug.trace_mixer_events, TRACE_MIXER_EVENT_VOLUME);
+        trace_logger_menu_event_filter("Control", &config_debug.trace_mixer_events, TRACE_MIXER_EVENT_CONTROL);
+        ImGui::EndDisabled();
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("MIDI"))
+    {
+        ImGui::MenuItem("Enabled", "", &config_debug.trace_midi);
+        ImGui::Separator();
+        ImGui::BeginDisabled(!config_debug.trace_midi);
+        trace_logger_menu_event_filter("Data", &config_debug.trace_midi_events, TRACE_MIDI_EVENT_DATA);
+        trace_logger_menu_event_filter("Commands", &config_debug.trace_midi_events, TRACE_MIDI_EVENT_COMMANDS);
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }
@@ -1144,6 +1152,7 @@ static u32 trace_logger_get_config_flags(void)
     if (config_debug.trace_fm) flags |= TRACE_FLAG_FM;
     if (config_debug.trace_pcm) flags |= TRACE_FLAG_PCM;
     if (config_debug.trace_mixer) flags |= TRACE_FLAG_MIXER;
+    if (config_debug.trace_midi) flags |= TRACE_FLAG_MIDI;
     if (config_debug.trace_cdrom) flags |= TRACE_FLAG_CDROM;
     if (config_debug.trace_fdc) flags |= TRACE_FLAG_FDC;
     if (config_debug.trace_ide) flags |= TRACE_FLAG_IDE;
@@ -1172,6 +1181,7 @@ static void trace_logger_set_config_flags(u32 flags)
     config_debug.trace_fm = (flags & TRACE_FLAG_FM) != 0;
     config_debug.trace_pcm = (flags & TRACE_FLAG_PCM) != 0;
     config_debug.trace_mixer = (flags & TRACE_FLAG_MIXER) != 0;
+    config_debug.trace_midi = (flags & TRACE_FLAG_MIDI) != 0;
     config_debug.trace_cdrom = (flags & TRACE_FLAG_CDROM) != 0;
     config_debug.trace_fdc = (flags & TRACE_FLAG_FDC) != 0;
     config_debug.trace_ide = (flags & TRACE_FLAG_IDE) != 0;
@@ -1193,6 +1203,7 @@ static int* trace_logger_get_config_event_filter(GDOX_Trace_Type type)
         case TRACE_FM: return &config_debug.trace_fm_events;
         case TRACE_PCM: return &config_debug.trace_pcm_events;
         case TRACE_MIXER: return &config_debug.trace_mixer_events;
+        case TRACE_MIDI: return &config_debug.trace_midi_events;
         case TRACE_CDROM: return &config_debug.trace_cdrom_events;
         case TRACE_FDC: return &config_debug.trace_fdc_events;
         case TRACE_IDE: return &config_debug.trace_ide_events;
@@ -1351,6 +1362,7 @@ static void render_entry_colored(const GDOX_Trace_Entry& entry, u64 index, bool 
         case TRACE_FM: ImGui::TextColored(blue, "%s", buf); break;
         case TRACE_PCM: ImGui::TextColored(magenta, "%s", buf); break;
         case TRACE_MIXER: ImGui::TextColored(violet, "%s", buf); break;
+        case TRACE_MIDI: ImGui::TextColored(violet, "%s", buf); break;
         case TRACE_CDROM: ImGui::TextColored(cyan, "%s", buf); break;
         case TRACE_FDC: ImGui::TextColored(cornflower, "%s", buf); break;
         case TRACE_IDE: ImGui::TextColored(cornflower, "%s", buf); break;

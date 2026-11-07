@@ -433,6 +433,53 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "auto"
     },
     {
+        "geardox_sound_card",
+        "Sound Card (restart)",
+        NULL,
+        "The card in the machine. Games ask it what it is and choose, so a Sound Blaster 16 suits nearly all of them.",
+        NULL,
+        "system",
+        {
+            { "none",   "None" },
+            { "adlib",  "AdLib" },
+            { "sb15",   "Sound Blaster 1.5" },
+            { "sb20",   "Sound Blaster 2.0" },
+            { "sbpro",  "Sound Blaster Pro" },
+            { "sbpro2", "Sound Blaster Pro 2" },
+            { "sb16",   "Sound Blaster 16" },
+            { NULL, NULL },
+        },
+        "sb16"
+    },
+    {
+        "geardox_sound_irq",
+        "Sound Card IRQ (restart)",
+        NULL,
+        "The card's interrupt. Some old games only work with a fixed one.",
+        NULL,
+        "system",
+        {
+            { "5", NULL },
+            { "7", NULL },
+            { NULL, NULL },
+        },
+        "5"
+    },
+    {
+        "geardox_sound_dma",
+        "Sound Card DMA (restart)",
+        NULL,
+        "The card's 8-bit DMA channel. Some old games only work with a fixed one.",
+        NULL,
+        "system",
+        {
+            { "1", NULL },
+            { "3", NULL },
+            { NULL, NULL },
+        },
+        "1"
+    },
+    {
         "geardox_freedos",
         "FreeDOS Disk (restart)",
         NULL,

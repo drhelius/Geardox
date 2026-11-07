@@ -95,6 +95,9 @@ SOURCES_CXX := \
     $(SRC_DIR)/common/profiler.cpp \
     $(SRC_DIR)/common/trace_logger.cpp \
     $(SRC_DIR)/audio/audio.cpp \
+    $(SRC_DIR)/audio/mpu401.cpp \
+    $(SRC_DIR)/audio/opl.cpp \
+    $(SRC_DIR)/audio/sound_blaster.cpp \
     $(SRC_DIR)/audio/vgm_recorder.cpp \
     $(SRC_DIR)/cdrom/cdrom_audio.cpp \
     $(SRC_DIR)/cdrom/cdrom_chd_image.cpp \

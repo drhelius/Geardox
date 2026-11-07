@@ -241,6 +241,8 @@ void emu_update(void)
     if (emu_is_empty())
         return;
 
+    geardox->GetAudio()->EnableChannelScopes(config_debug.debug && config_debug.show_opl);
+
     int sample_count = 0;
     bool frame_executed = false;
     bool frame_completed = false;
@@ -774,6 +776,9 @@ void emu_apply_machine_settings(void)
     settings.fpu = config_machine.fpu;
     settings.floppy_type[0] = config_machine.floppy_type[0];
     settings.floppy_type[1] = config_machine.floppy_type[1];
+    settings.sound_card = config_machine.sound_card;
+    settings.sound_irq = config_machine.sound_irq;
+    settings.sound_dma = config_machine.sound_dma;
     settings.speed_mode = GDOX_MACHINE_AUTO;
     geardox->SetMachineSettings(settings);
 }

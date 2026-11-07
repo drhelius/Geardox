@@ -203,7 +203,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"symbols", "Symbols", "Add, remove, load, list and look up user symbols and automatic labels."},
     {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, the 8254 timer, the board ports and the machine configuration."},
     {"hardware_video", "Video Hardware", "Inspect the VGA: CRTC, registers, palettes, video memory and text screens."},
-    {"hardware_audio", "Audio Hardware", "Mute audio sources in the debugger."},
+    {"hardware_audio", "Audio Hardware", "Inspect the sound card and mute audio sources in the debugger."},
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
     {"hardware_floppy", "Floppy Hardware", "Inspect the 82077 controller and the floppy drives, list a track's sectors, and read sector data."},
     {"hardware_hard_disk", "Hard Disk Hardware", "Inspect the IDE channels, list the hard disks in slots 0-3 and read their sectors."},
@@ -266,7 +266,7 @@ static const char* const kMcpVideoTools[] =
 
 static const char* const kMcpAudioTools[] =
 {
-    "set_audio_mute"
+    "get_sound_status", "set_audio_mute"
 };
 
 static const char* const kMcpCdromTools[] =

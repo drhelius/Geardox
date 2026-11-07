@@ -70,6 +70,10 @@ u8 PIT::Read(u16 port, u64 clocks)
     if (index == 3)
         return 0xFF;
 
+    // Reading a counter can bring in a reload, and the speaker plays the old count up to here
+    if (index == k_pit_buzzer_channel)
+        m_audio->SynchronizeBuzzer(clocks);
+
     Synchronize(clocks);
     return m_pit.ReadCounter(index, GetTick(clocks));
 }
@@ -94,7 +98,7 @@ void PIT::Write(u16 port, u8 value, u64 clocks)
 
     // The speaker plays the previous count up to this write
     if (counter == k_pit_buzzer_channel || counter == 3)
-        m_audio->Synchronize(clocks);
+        m_audio->SynchronizeBuzzer(clocks);
 
     if (index == 3)
     {
@@ -124,7 +128,7 @@ void PIT::SetSpeaker(bool gate, bool data, u64 clocks)
         return;
 
     Synchronize(clocks);
-    m_audio->Synchronize(clocks);
+    m_audio->SynchronizeBuzzer(clocks);
     m_state.speaker_gate = gate;
     m_state.speaker_data = data;
     m_pit.SetGate(k_pit_buzzer_channel, gate, GetTick(clocks));

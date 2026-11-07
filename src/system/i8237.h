@@ -60,6 +60,7 @@ public:
     void SetRequestLine(int channel, bool active);
     bool IsEnabled() const;
     bool IsRequesting(int channel) const;
+    bool IsMasked(int channel) const;
     int GetServiceChannel(u8 excluded) const;
     u8 GetCascadeChannels() const;
     u8 GetTransfer(int channel) const;

@@ -170,6 +170,12 @@ void gui_debug_windows(void)
         if (config_debug.show_vram_viewer)
             gui_debug_window_vram_viewer();
 
+        if (config_debug.show_opl)
+            gui_debug_window_opl();
+
+        if (config_debug.show_sound_blaster)
+            gui_debug_window_sound_blaster();
+
         if (config_debug.show_sound_control)
             gui_debug_window_sound_control();
 

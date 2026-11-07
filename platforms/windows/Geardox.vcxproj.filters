@@ -169,6 +169,15 @@
     <ClCompile Include="..\..\src\audio\audio.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\audio\mpu401.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\audio\opl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\audio\sound_blaster.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\media\firmware.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -454,6 +463,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\audio\audio.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\mpu401.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\opl.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\opl_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\sound_blaster.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\sound_blaster_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\audio_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\bit_ops.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>

@@ -2959,6 +2959,74 @@ json DebugAdapter::GetBiosLog(int max_bytes)
     };
 }
 
+json DebugAdapter::GetSoundStatus()
+{
+    Audio* audio = m_core->GetAudio();
+    const GDOX_Machine_Config& machine = m_core->GetMachineConfig();
+    SoundBlaster* blaster = audio->GetSoundBlaster();
+    SoundBlaster::SoundBlaster_State* dsp = blaster->GetState();
+    SoundBlaster::SoundBlaster_Transfer& transfer = dsp->transfer;
+    MPU401::MPU401_State* mpu = audio->GetMPU401()->GetState();
+    static const char* const formats[6] = { "pcm8", "pcm16", "adpcm2", "adpcm3", "adpcm4", "silence" };
+    json chips = json::array();
+
+    for (int chip = 0; chip < audio->GetOPLChips(); chip++)
+    {
+        OPL* opl = audio->GetOPL(chip);
+        OPL::OPL_State* state = opl->GetState();
+        bool opl3 = opl->GetModel() == OPL::OPL_MODEL_OPL3;
+        int count = opl3 ? OPL_CHANNEL_COUNT : OPL2_CHANNEL_COUNT;
+        json channels = json::array();
+
+        for (int i = 0; i < count; i++)
+        {
+            OPL::OPL_Channel& channel = state->channels[i];
+            OPL::OPL_Operator& carrier = state->operators[channel.operators[1]];
+
+            channels.push_back({{"channel", i}, {"f_number", channel.f_number}, {"block", channel.block},
+                {"key", carrier.key != 0}, {"connection", channel.connection}, {"feedback", channel.feedback},
+                {"type", channel.type}, {"envelope", carrier.envelope}, {"output", opl->GetChannelOutput(i)}});
+        }
+
+        chips.push_back({{"model", opl3 ? "YMF262" : "YM3812"}, {"status", Hex(opl->Peek(0), 2)},
+            {"new_mode", state->new_mode != 0}, {"rhythm", Hex(state->rhythm, 2)},
+            {"timer_1", {{"reload", state->timer_reload[0]}, {"running", state->timer_start[0] != 0},
+                {"masked", state->timer_mask[0] != 0}, {"flag", state->timer_flag[0] != 0}}},
+            {"timer_2", {{"reload", state->timer_reload[1]}, {"running", state->timer_start[1] != 0},
+                {"masked", state->timer_mask[1] != 0}, {"flag", state->timer_flag[1] != 0}}},
+            {"channels", channels}});
+    }
+
+    json result = {{"card", k_sound_cards[machine.sound_card].name}, {"opl", chips}};
+
+    if (blaster->HasDSP())
+    {
+        result["dsp"] = {
+            {"version", std::to_string(blaster->GetVersionMajor()) + "." +
+                (blaster->GetVersionMinor() < 10 ? "0" : "") + std::to_string(blaster->GetVersionMinor())},
+            {"irq", dsp->irq_line}, {"dma_8", dsp->dma_8}, {"dma_16", dsp->dma_16},
+            {"speaker", dsp->speaker}, {"rate_hz", blaster->GetSampleRate()},
+            {"irq_status", Hex(blaster->GetInterruptStatus(), 2)}, {"filter_hz", blaster->GetFilterCutoff()},
+            {"midi_uart", dsp->midi_uart}, {"last_command", Hex(dsp->command, 2)},
+            {"transfer", {{"active", transfer.active}, {"paused", transfer.paused},
+                {"format", formats[MIN(transfer.format, (u8)5)]}, {"auto_init", transfer.auto_init},
+                {"input", transfer.input}, {"high_speed", transfer.high_speed}, {"stereo", blaster->IsStereo()},
+                {"signed", transfer.is_signed}, {"block", transfer.length}, {"remaining", transfer.remaining}}}};
+    }
+
+    if (blaster->HasMixer())
+        result["mixer"] = {
+            {"voice", {blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, false) / 32768.0,
+                blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, true) / 32768.0}},
+            {"fm", {blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, false) / 32768.0,
+                blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true) / 32768.0}}};
+
+    if (k_sound_cards[machine.sound_card].mpu)
+        result["mpu401"] = {{"uart", mpu->uart}, {"pending", mpu->count}};
+
+    return result;
+}
+
 json DebugAdapter::SetAudioMute(const std::string& source, bool mute)
 {
     Audio* audio = m_core->GetAudio();

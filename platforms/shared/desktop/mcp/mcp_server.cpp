@@ -1528,6 +1528,18 @@ json McpServer::BuildToolList()
 
     // Audio tools
     tools.push_back({
+        {"name", "get_sound_status"},
+        {"title", "Get Sound Status"},
+        {"description", "Report the sound card: OPL status, timers and channels, the DSP's transfer, IRQ and DMA, "
+            "the mixer's levels and the MPU-401."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()}
+        }}
+    });
+
+    tools.push_back({
         {"name", "set_audio_mute"},
         {"title", "Set Audio Mute"},
         {"description", "Mute or unmute a source in the debugger; emulation is unchanged."},
@@ -3384,6 +3396,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         return m_debugAdapter.GetTextScreen(arguments.value("attributes", false));
     }
     // Audio hardware
+    else if (normalizedTool == "get_sound_status")
+    {
+        return m_debugAdapter.GetSoundStatus();
+    }
     else if (normalizedTool == "set_audio_mute")
     {
         if (!arguments.contains("mute") || !arguments["mute"].is_boolean())
@@ -3515,6 +3531,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         event_filters[TRACE_FM] = TRACE_FM_EVENT_DEFAULT;
         event_filters[TRACE_PCM] = TRACE_PCM_EVENT_ALL;
         event_filters[TRACE_MIXER] = TRACE_MIXER_EVENT_ALL;
+        event_filters[TRACE_MIDI] = TRACE_MIDI_EVENT_ALL;
         event_filters[TRACE_CDROM] = TRACE_CDROM_EVENT_ALL;
         event_filters[TRACE_FDC] = TRACE_FDC_EVENT_ALL;
         event_filters[TRACE_IDE] = TRACE_IDE_EVENT_ALL;

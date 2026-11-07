@@ -37,12 +37,10 @@ class VgmRecorder
 public:
     VgmRecorder();
     ~VgmRecorder();
-    void Start(const char* file_path, int clock_rate, const GDOX_VGM_Metadata& metadata);
+    void Start(const char* file_path, int clock_rate, const GDOX_VGM_Metadata& metadata, bool opl3, bool dual);
     void Stop();
     bool IsRecording() const;
-    void WriteYM3438(u16 address, u8 data);
-    void WriteRF5C68(u8 reg, u8 data);
-    void WriteRF5C68Memory(u16 address, const u8* data, u32 size);
+    void WriteOPL(int chip, u16 address, u8 data);
     void UpdateTiming();
 
 private:
@@ -63,8 +61,8 @@ private:
     int m_pending_wait;
     int m_total_samples;
     int m_clock_rate;
-    u32 m_memory_block_address;
-    u32 m_memory_block_size;
+    bool m_opl3;
+    bool m_dual;
 };
 
 INLINE bool VgmRecorder::IsRecording() const

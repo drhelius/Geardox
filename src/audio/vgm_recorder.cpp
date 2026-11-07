@@ -29,8 +29,8 @@ VgmRecorder::VgmRecorder()
     m_pending_wait = 0;
     m_total_samples = 0;
     m_clock_rate = 0;
-    m_memory_block_address = 0;
-    m_memory_block_size = 0;
+    m_opl3 = false;
+    m_dual = false;
 }
 
 VgmRecorder::~VgmRecorder()
@@ -39,7 +39,7 @@ VgmRecorder::~VgmRecorder()
         Stop();
 }
 
-void VgmRecorder::Start(const char* file_path, int clock_rate, const GDOX_VGM_Metadata& metadata)
+void VgmRecorder::Start(const char* file_path, int clock_rate, const GDOX_VGM_Metadata& metadata, bool opl3, bool dual)
 {
     if (m_recording)
         return;
@@ -54,11 +54,11 @@ void VgmRecorder::Start(const char* file_path, int clock_rate, const GDOX_VGM_Me
 
     m_metadata = metadata;
     m_clock_rate = clock_rate;
+    m_opl3 = opl3;
+    m_dual = dual;
     m_recording = true;
     m_pending_wait = 0;
     m_total_samples = 0;
-    m_memory_block_address = 0;
-    m_memory_block_size = 0;
     m_command_buffer.clear();
 }
 
@@ -88,9 +88,10 @@ void VgmRecorder::Stop()
     write_u32_le(header + 0x14, gd3_offset - 0x14);
     write_u32_le(header + 0x18, (u32)m_total_samples);
     write_u32_le(header + 0x24, k_vgm_rate);
-    write_u32_le(header + 0x2C, (u32)m_clock_rate);
     write_u32_le(header + 0x34, k_vgm_header_size - 0x34);
-    write_u32_le(header + 0x40, (u32)m_clock_rate);
+
+    // Bit 30 is a second chip and bit 31 pans the pair hard, as the first Pro wires them
+    write_u32_le(header + (m_opl3 ? 0x5C : 0x50), (u32)m_clock_rate | (m_dual ? 0xC0000000 : 0));
 
     m_file.write((const char*)header, sizeof(header));
     m_file.write((const char*)&m_command_buffer[0], m_command_buffer.size());
@@ -101,53 +102,23 @@ void VgmRecorder::Stop()
     m_command_buffer.clear();
 }
 
-void VgmRecorder::WriteYM3438(u16 address, u8 data)
-{
-    if (!m_recording)
-        return;
-
-    FlushPendingWait();
-    WriteCommand((u8)(0x52 + ((address >> 8) & 0x01)), (u8)address, data);
-}
-
-void VgmRecorder::WriteRF5C68(u8 reg, u8 data)
-{
-    if (!m_recording)
-        return;
-
-    FlushPendingWait();
-    WriteCommand(0xB0, reg, data);
-}
-
-// Wave RAM writes go in RAM data blocks at the address within the selected bank
-// Writes that follow each other within the same sample extend the open block
-void VgmRecorder::WriteRF5C68Memory(u16 address, const u8* data, u32 size)
+// 5Ah is a YM3812 and AAh the second one, 5Eh and 5Fh a YMF262's two arrays
+void VgmRecorder::WriteOPL(int chip, u16 address, u8 data)
 {
     if (!m_recording)
         return;
 
     FlushPendingWait();
 
-    if ((m_memory_block_size == 0) || (address != m_memory_block_address + m_memory_block_size))
-    {
-        WriteCommand(0x67);
-        m_command_buffer.push_back(0x66);
-        m_command_buffer.push_back(0xC0);
-        AppendUint32(m_command_buffer, 0);
-        m_command_buffer.push_back((u8)address);
-        m_command_buffer.push_back((u8)(address >> 8));
-        m_memory_block_address = address;
-    }
-
-    m_command_buffer.insert(m_command_buffer.end(), data, data + size);
-    m_memory_block_size += size;
-    write_u32_le(&m_command_buffer[m_command_buffer.size() - m_memory_block_size - 6], m_memory_block_size + 2);
+    if (m_opl3)
+        WriteCommand((u8)(0x5E + ((address >> 8) & 0x01)), (u8)address, data);
+    else
+        WriteCommand(chip != 0 ? 0xAA : 0x5A, (u8)address, data);
 }
 
 void VgmRecorder::WriteCommand(u8 command)
 {
     m_command_buffer.push_back(command);
-    m_memory_block_size = 0;
 }
 
 void VgmRecorder::WriteCommand(u8 command, u8 data1, u8 data2)

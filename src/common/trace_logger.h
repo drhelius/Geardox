@@ -36,6 +36,7 @@ enum GDOX_Trace_Type : u8
     TRACE_FM,
     TRACE_PCM,
     TRACE_MIXER,
+    TRACE_MIDI,
     TRACE_CDROM,
     TRACE_FDC,
     TRACE_IDE,
@@ -57,6 +58,7 @@ static_assert(TRACE_TYPE_COUNT < 32, "Trace category flags exceed 32 bits");
 #define TRACE_FLAG_FM               (1U << TRACE_FM)
 #define TRACE_FLAG_PCM              (1U << TRACE_PCM)
 #define TRACE_FLAG_MIXER            (1U << TRACE_MIXER)
+#define TRACE_FLAG_MIDI             (1U << TRACE_MIDI)
 #define TRACE_FLAG_CDROM            (1U << TRACE_CDROM)
 #define TRACE_FLAG_FDC              (1U << TRACE_FDC)
 #define TRACE_FLAG_IDE              (1U << TRACE_IDE)
@@ -154,9 +156,7 @@ enum GDOX_Trace_FM_Event : u8
     TRACE_FM_OPERATOR,
     TRACE_FM_CHANNEL,
     TRACE_FM_GLOBAL,
-    TRACE_FM_DAC,
-    TRACE_FM_TIMER,
-    TRACE_FM_IRQ
+    TRACE_FM_TIMER
 };
 
 #define TRACE_FM_EVENT_KEY       (1U << TRACE_FM_KEY)
@@ -164,39 +164,49 @@ enum GDOX_Trace_FM_Event : u8
 #define TRACE_FM_EVENT_OPERATORS (1U << TRACE_FM_OPERATOR)
 #define TRACE_FM_EVENT_CHANNELS  (1U << TRACE_FM_CHANNEL)
 #define TRACE_FM_EVENT_GLOBAL    (1U << TRACE_FM_GLOBAL)
-#define TRACE_FM_EVENT_DAC       (1U << TRACE_FM_DAC)
 #define TRACE_FM_EVENT_TIMERS    (1U << TRACE_FM_TIMER)
-#define TRACE_FM_EVENT_IRQS      (1U << TRACE_FM_IRQ)
-#define TRACE_FM_EVENT_DEFAULT   (TRACE_FM_EVENT_KEY | TRACE_FM_EVENT_FREQUENCY | TRACE_FM_EVENT_OPERATORS | \
-    TRACE_FM_EVENT_CHANNELS | TRACE_FM_EVENT_GLOBAL | TRACE_FM_EVENT_TIMERS | TRACE_FM_EVENT_IRQS)
-#define TRACE_FM_EVENT_ALL       (TRACE_FM_EVENT_DEFAULT | TRACE_FM_EVENT_DAC)
+#define TRACE_FM_EVENT_DEFAULT   (TRACE_FM_EVENT_KEY | TRACE_FM_EVENT_FREQUENCY | TRACE_FM_EVENT_CHANNELS | \
+    TRACE_FM_EVENT_GLOBAL | TRACE_FM_EVENT_TIMERS)
+#define TRACE_FM_EVENT_ALL       (TRACE_FM_EVENT_DEFAULT | TRACE_FM_EVENT_OPERATORS)
 
 enum GDOX_Trace_PCM_Event : u8
 {
-    TRACE_PCM_CHANNEL = 0,
-    TRACE_PCM_KEY,
-    TRACE_PCM_CONTROL,
-    TRACE_PCM_IRQ_MASK,
+    TRACE_PCM_COMMAND = 0,
+    TRACE_PCM_TRANSFER,
     TRACE_PCM_IRQ,
-    TRACE_PCM_IRQ_READ
+    TRACE_PCM_ACK
 };
 
-#define TRACE_PCM_EVENT_CHANNELS (1U << TRACE_PCM_CHANNEL)
-#define TRACE_PCM_EVENT_KEY      (1U << TRACE_PCM_KEY)
-#define TRACE_PCM_EVENT_CONTROL  (1U << TRACE_PCM_CONTROL)
-#define TRACE_PCM_EVENT_IRQS     ((1U << TRACE_PCM_IRQ_MASK) | (1U << TRACE_PCM_IRQ) | (1U << TRACE_PCM_IRQ_READ))
-#define TRACE_PCM_EVENT_ALL      (TRACE_PCM_EVENT_CHANNELS | TRACE_PCM_EVENT_KEY | TRACE_PCM_EVENT_CONTROL | \
-    TRACE_PCM_EVENT_IRQS)
+#define TRACE_PCM_EVENT_COMMANDS  (1U << TRACE_PCM_COMMAND)
+#define TRACE_PCM_EVENT_TRANSFERS (1U << TRACE_PCM_TRANSFER)
+#define TRACE_PCM_EVENT_IRQS      ((1U << TRACE_PCM_IRQ) | (1U << TRACE_PCM_ACK))
+#define TRACE_PCM_EVENT_ALL       (TRACE_PCM_EVENT_COMMANDS | TRACE_PCM_EVENT_TRANSFERS | TRACE_PCM_EVENT_IRQS)
 
 enum GDOX_Trace_Mixer_Event : u8
 {
     TRACE_MIXER_VOLUME = 0,
-    TRACE_MIXER_MUTE
+    TRACE_MIXER_CONTROL
 };
 
-#define TRACE_MIXER_EVENT_VOLUME (1U << TRACE_MIXER_VOLUME)
-#define TRACE_MIXER_EVENT_MUTE   (1U << TRACE_MIXER_MUTE)
-#define TRACE_MIXER_EVENT_ALL    (TRACE_MIXER_EVENT_VOLUME | TRACE_MIXER_EVENT_MUTE)
+#define TRACE_MIXER_EVENT_VOLUME  (1U << TRACE_MIXER_VOLUME)
+#define TRACE_MIXER_EVENT_CONTROL (1U << TRACE_MIXER_CONTROL)
+#define TRACE_MIXER_EVENT_ALL     (TRACE_MIXER_EVENT_VOLUME | TRACE_MIXER_EVENT_CONTROL)
+
+enum GDOX_Trace_MIDI_Event : u8
+{
+    TRACE_MIDI_DATA = 0,
+    TRACE_MIDI_COMMAND
+};
+
+enum GDOX_Trace_MIDI_Source : u8
+{
+    TRACE_MIDI_SOURCE_DSP = 0,
+    TRACE_MIDI_SOURCE_MPU
+};
+
+#define TRACE_MIDI_EVENT_DATA     (1U << TRACE_MIDI_DATA)
+#define TRACE_MIDI_EVENT_COMMANDS (1U << TRACE_MIDI_COMMAND)
+#define TRACE_MIDI_EVENT_ALL      (TRACE_MIDI_EVENT_DATA | TRACE_MIDI_EVENT_COMMANDS)
 
 enum GDOX_Trace_CDROM_Event : u8
 {
@@ -409,23 +419,26 @@ struct GDOX_Trace_Entry
 
         struct
         {
-            u8 reg;
-            u8 value;
-            u8 channel;
-            u8 enabled;
+            u32 length;
+            u32 rate;
+            u8 command;
+            u8 operands[3];
+            u8 operand_count;
+            u8 format;
             u8 flags;
-            u8 mask;
         } pcm;
 
         struct
         {
-            u16 port;
+            u8 index;
             u8 value;
-            u8 chip;
-            u8 channel;
-            u8 data;
-            u8 control;
         } mixer;
+
+        struct
+        {
+            u8 value;
+            u8 source;
+        } midi;
 
         struct
         {

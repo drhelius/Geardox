@@ -43,6 +43,11 @@ INLINE bool I8237::IsRequesting(int channel) const
     return (((m_state.request_levels & ~m_state.mask) | m_state.software_requests) & (1 << channel)) != 0;
 }
 
+INLINE bool I8237::IsMasked(int channel) const
+{
+    return (m_state.mask & (1 << channel)) != 0;
+}
+
 INLINE u8 I8237::GetTransfer(int channel) const
 {
     return (m_state.channels[channel].mode >> 2) & 0x03;

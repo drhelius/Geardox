@@ -88,7 +88,7 @@ static s16 audio_buf[GDOX_AUDIO_BUFFER_SIZE];
 static int audio_sample_count = 0;
 static size_t savestate_size = 0;
 static GDOX_Machine_Settings machine_settings = { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MACHINE_AUTO };
+    GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
 #if !defined(GDOX_DISABLE_DYNAREC)
 static int dynarec_option = -1;
 #endif
@@ -438,6 +438,9 @@ void retro_deinit(void)
     machine_settings.speed_mode = GDOX_MACHINE_AUTO;
     machine_settings.floppy_type[0] = GDOX_MACHINE_AUTO;
     machine_settings.floppy_type[1] = GDOX_MACHINE_AUTO;
+    machine_settings.sound_card = GDOX_SOUND_CARD_SB16;
+    machine_settings.sound_irq = GDOX_MACHINE_AUTO;
+    machine_settings.sound_dma = GDOX_MACHINE_AUTO;
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
 #endif
@@ -1897,6 +1900,30 @@ static void check_variables(void)
             }
         }
     }
+
+    var.key = "geardox_sound_card";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
+        {
+            if (strcmp(var.value, k_sound_cards[i].id) == 0)
+                machine_settings.sound_card = i;
+        }
+    }
+
+    var.key = "geardox_sound_irq";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        machine_settings.sound_irq = atoi(var.value);
+
+    var.key = "geardox_sound_dma";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        machine_settings.sound_dma = atoi(var.value);
 
     var.key = "geardox_freedos";
     var.value = NULL;

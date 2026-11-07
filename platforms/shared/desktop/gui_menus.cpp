@@ -75,6 +75,7 @@ static bool menu_machine_model(void);
 static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile);
 static bool menu_machine_ram(const GDOX_Machine_Profile& profile);
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
+static bool menu_machine_sound(void);
 static bool menu_machine_floppy(int drive);
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
 static void menu_machine_hardware(GDOX_Machine_Model model);
@@ -856,6 +857,9 @@ static void menu_machine(void)
     if (menu_machine_floppy(1))
         changed = true;
 
+    if (menu_machine_sound())
+        changed = true;
+
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
     ImGui::Separator();
@@ -1151,6 +1155,77 @@ static bool menu_machine_floppy(int drive)
     }
 
     ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_sound(void)
+{
+    if (!ImGui::BeginMenu("Sound Card"))
+        return false;
+
+    bool changed = false;
+    int& card = config_machine.sound_card;
+
+    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(k_sound_cards[GDOX_SOUND_CARD_SBPRO2].name).x));
+
+    if (ImGui::BeginCombo("##machine_sound_card", k_sound_cards[card].name))
+    {
+        for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
+        {
+            if (ImGui::Selectable(k_sound_cards[i].name, card == i))
+            {
+                card = i;
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Games ask the card what it is and choose, so the Sound Blaster 16 suits nearly all of them.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::Separator();
+    ImGui::BeginDisabled(k_sound_cards[card].dsp_major == 0);
+    ImGui::TextDisabled("IRQ");
+
+    for (int i = 0; i < 2; i++)
+    {
+        char label[16];
+        snprintf(label, sizeof(label), "IRQ %d", k_sound_card_irqs[i]);
+
+        if (ImGui::MenuItem(label, "", config_machine.sound_irq == k_sound_card_irqs[i]))
+        {
+            config_machine.sound_irq = k_sound_card_irqs[i];
+            changed = true;
+        }
+    }
+
+    ImGui::TextDisabled("DMA");
+
+    for (int i = 0; i < 2; i++)
+    {
+        char label[16];
+        snprintf(label, sizeof(label), "DMA %d", k_sound_card_dmas[i]);
+
+        if (ImGui::MenuItem(label, "", config_machine.sound_dma == k_sound_card_dmas[i]))
+        {
+            config_machine.sound_dma = k_sound_card_dmas[i];
+            changed = true;
+        }
+    }
+
+    ImGui::EndDisabled();
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Some old games only work with a fixed IRQ or DMA.\nOn the FreeDOS disk, BLASTER in FDAUTO.BAT doesn't follow this.");
+
     ImGui::EndMenu();
     return changed;
 }
@@ -2089,6 +2164,8 @@ static void menu_debug(void)
 
         if (ImGui::BeginMenu("Audio", config_debug.debug))
         {
+            ImGui::MenuItem("Show OPL", "", &config_debug.show_opl);
+            ImGui::MenuItem("Show Sound Blaster", "", &config_debug.show_sound_blaster);
             ImGui::MenuItem("Show Sound Control", "", &config_debug.show_sound_control);
             ImGui::EndMenu();
         }

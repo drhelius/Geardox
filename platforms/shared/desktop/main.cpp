@@ -42,11 +42,13 @@ static Machine_Override model_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHIN
 static Machine_Override cpu_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
 static Machine_Override ram_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
 static Machine_Override fpu_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
+static Machine_Override sound_override = { false, GDOX_SOUND_CARD_SB16, GDOX_SOUND_CARD_SB16 };
 
 static bool option_has_value(const char* option);
 static const char* option_value(int argc, char* argv[], int* i);
 static bool parse_model(const char* text, int* model);
 static bool parse_fpu(const char* text, int* fpu);
+static bool parse_sound(const char* text, int* card);
 static bool parse_number(const char* text, const int* values, int count, int* value);
 static void apply_override(Machine_Override& override, int* setting);
 static void restore_override(const Machine_Override& override, int* setting);
@@ -144,7 +146,8 @@ int main(int argc, char* argv[])
                     app_params.state_file = value;
             }
             else if ((strcmp(argv[i], "--model") == 0) || (strcmp(argv[i], "--cpu-mhz") == 0) ||
-                (strcmp(argv[i], "--ram") == 0) || (strcmp(argv[i], "--fpu") == 0))
+                (strcmp(argv[i], "--ram") == 0) || (strcmp(argv[i], "--fpu") == 0) ||
+                (strcmp(argv[i], "--sound") == 0))
             {
                 const char* option = argv[i];
                 const char* value = option_value(argc, argv, &i);
@@ -163,6 +166,11 @@ int main(int argc, char* argv[])
                 {
                     override = &cpu_override;
                     valid = parse_number(value, k_machine_cpu_speeds_mhz, GDOX_MACHINE_CPU_SPEED_COUNT, &override->value);
+                }
+                else if (strcmp(option, "--sound") == 0)
+                {
+                    override = &sound_override;
+                    valid = parse_sound(value, &override->value);
                 }
                 else if (strcmp(option, "--fpu") == 0)
                 {
@@ -328,7 +336,7 @@ int main(int argc, char* argv[])
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
-        "--load-state", "--model", "--cpu-mhz", "--ram", "--fpu" };
+        "--load-state", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
     {
@@ -365,6 +373,20 @@ static bool parse_model(const char* text, int* model)
         if (k_machine_profiles[candidate].emulated && (strcmp(k_machine_profiles[candidate].key, text) == 0))
         {
             *model = candidate;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool parse_sound(const char* text, int* card)
+{
+    for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
+    {
+        if (strcmp(text, k_sound_cards[i].id) == 0)
+        {
+            *card = i;
             return true;
         }
     }
@@ -433,6 +455,7 @@ static void apply_machine_overrides(void)
     apply_override(cpu_override, &config_machine.cpu_mhz);
     apply_override(ram_override, &config_machine.ram_mb);
     apply_override(fpu_override, &config_machine.fpu);
+    apply_override(sound_override, &config_machine.sound_card);
 }
 
 static void restore_machine_settings(void)
@@ -441,6 +464,7 @@ static void restore_machine_settings(void)
     restore_override(cpu_override, &config_machine.cpu_mhz);
     restore_override(ram_override, &config_machine.ram_mb);
     restore_override(fpu_override, &config_machine.fpu);
+    restore_override(sound_override, &config_machine.sound_card);
 }
 
 static void print_wrapped(const char* label, const std::string& text)
@@ -518,6 +542,7 @@ static void print_usage(const char* program)
     print_wrapped("      --cpu-mhz MHZ", speeds);
     print_wrapped("      --ram MB", sizes);
     print_wrapped("      --fpu FPU", "auto, none, 80387");
+    print_wrapped("      --sound CARD", "none, adlib, sb15, sb20, sbpro, sbpro2, sb16");
     printf("\nOptions:\n");
     print_wrapped("  -f, --fullscreen", "Start in fullscreen mode");
     print_wrapped("  -w, --windowed", "Start in windowed mode with menu visible");

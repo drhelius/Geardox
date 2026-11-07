@@ -81,6 +81,20 @@ const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
     { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_486dx2_66, 8, 2, NULL, &k_machine_bus_486dx2_66 }
 };
 
+const GDOX_Sound_Card_Info k_sound_cards[GDOX_SOUND_CARD_COUNT] =
+{
+    { "None", "none", 0, 0, 0, false, 0, false },
+    { "AdLib", "adlib", 0, 0, 1, false, 0, false },
+    { "Sound Blaster 1.5", "sb15", 1, 5, 1, false, 0, false },
+    { "Sound Blaster 2.0", "sb20", 2, 1, 1, false, 0, false },
+    { "Sound Blaster Pro", "sbpro", 3, 0, 2, false, 1, false },
+    { "Sound Blaster Pro 2", "sbpro2", 3, 2, 1, true, 1, false },
+    { "Sound Blaster 16", "sb16", 4, 5, 1, true, 2, true }
+};
+
+const u8 k_sound_card_irqs[2] = { 5, 7 };
+const u8 k_sound_card_dmas[2] = { 1, 3 };
+
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {
     GDOX_MACHINE_386SX_20, GDOX_MACHINE_386DX_33, GDOX_MACHINE_486DX2_66

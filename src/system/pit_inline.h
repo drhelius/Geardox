@@ -60,6 +60,13 @@ INLINE bool PIT::IsBuzzerEnabled() const
     return m_state.speaker_data;
 }
 
+INLINE bool PIT::IsBuzzerUltrasonic() const
+{
+    const I8254::I8254_Counter& counter = m_pit.GetState()->counters[k_pit_buzzer_channel];
+
+    return counter.counting && counter.gate && (counter.mode == 3) && (counter.count < k_pit_buzzer_ultrasonic_count);
+}
+
 INLINE bool PIT::GetBuzzerOutput(u64 tick)
 {
     return m_pit.GetOutput(k_pit_buzzer_channel, tick);

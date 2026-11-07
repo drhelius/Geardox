@@ -21,6 +21,7 @@
 #include "debug_console.h"
 #include "dma.h"
 #include "firmware_config.h"
+#include "../audio/audio.h"
 #include "../drive/fdc.h"
 #include "mc146818.h"
 #include "../input/i8042.h"
@@ -177,6 +178,9 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
 
             if (m_dma->Decodes(port))
                 return m_dma->Read(port);
+
+            if (m_audio->Decodes(port & k_io_isa_mask))
+                return m_audio->Read(port & k_io_isa_mask, context.clocks);
             break;
     }
 
@@ -244,6 +248,12 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
                 return true;
             }
 
+            if (m_audio->Decodes(port & k_io_isa_mask))
+            {
+                value = m_audio->Peek(port & k_io_isa_mask, clocks);
+                return true;
+            }
+
             if (!m_system_control->Decodes(port))
                 return false;
 
@@ -306,6 +316,9 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
 
             if (m_ide->Decodes(port & k_io_isa_mask))
                 return m_ide->GetReadStableUntil(port & k_io_isa_mask);
+
+            if (m_audio->Decodes(port & k_io_isa_mask))
+                return m_audio->GetReadStableUntil(port & k_io_isa_mask);
 
             return m_dma->Decodes(port) ? m_dma->GetReadStableUntil(port) : 0;
     }
@@ -391,6 +404,11 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             else if (m_dma->Decodes(port))
             {
                 m_dma->Write(port, value);
+                context.end_batch = true;
+            }
+            else if (m_audio->Decodes(port & k_io_isa_mask))
+            {
+                m_audio->Write(port & k_io_isa_mask, value, context.clocks);
                 context.end_batch = true;
             }
             else

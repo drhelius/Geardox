@@ -126,6 +126,9 @@ struct config_Machine
     int ram_mb;
     int fpu;
     int floppy_type[config_floppy_drives];
+    int sound_card;
+    int sound_irq;
+    int sound_dma;
     std::string firmware_paths[GDOX_MACHINE_COUNT];
 };
 
@@ -279,6 +282,7 @@ struct config_Debug
     bool trace_fm;
     bool trace_pcm;
     bool trace_mixer;
+    bool trace_midi;
     bool trace_cdrom;
     bool trace_fdc;
     bool trace_ide;
@@ -294,6 +298,7 @@ struct config_Debug
     int trace_fm_events;
     int trace_pcm_events;
     int trace_mixer_events;
+    int trace_midi_events;
     int trace_cdrom_events;
     int trace_fdc_events;
     int trace_ide_events;
@@ -326,6 +331,8 @@ struct config_Debug
     int vram_viewer_zoom;
     bool vram_viewer_show_window;
     int vram_viewer_pitch;
+    bool show_opl;
+    bool show_sound_blaster;
     bool show_sound_control;
     bool show_cdrom_toc;
     bool show_cdrom_audio;

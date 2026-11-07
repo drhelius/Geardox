@@ -91,6 +91,10 @@ GeardoxCore::GeardoxCore()
     for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
         m_machine_settings.floppy_type[i] = GDOX_MACHINE_AUTO;
 
+    m_machine_settings.sound_card = GDOX_MACHINE_AUTO;
+    m_machine_settings.sound_irq = GDOX_MACHINE_AUTO;
+    m_machine_settings.sound_dma = GDOX_MACHINE_AUTO;
+
     InitPointer(m_auto_entry);
     memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
 
@@ -233,9 +237,9 @@ void GeardoxCore::Init()
     m_cdrom_media->Init();
     m_cdrom_audio->Init();
     m_pic->Init();
-    m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory);
-    m_pit->Init(m_pic, m_scheduler, m_audio);
     m_dma->Init(m_memory, m_scheduler);
+    m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory, m_dma);
+    m_pit->Init(m_pic, m_scheduler, m_audio);
     m_system_control->Init(m_memory, m_pic, m_pit);
     m_keyboard->Init();
     m_i8042->Init(m_pic, m_scheduler, m_system_control, m_keyboard);
@@ -1525,7 +1529,10 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     bool same_machine = (m_machine_config.model == machine_config.model) &&
         (m_machine_config.cpu == machine_config.cpu) && (m_machine_config.ram_size == machine_config.ram_size) &&
         (m_machine_config.floppy_drives == machine_config.floppy_drives) &&
-        (m_machine_config.ide == machine_config.ide) && (m_machine_config.fpu == machine_config.fpu);
+        (m_machine_config.ide == machine_config.ide) && (m_machine_config.fpu == machine_config.fpu) &&
+        (m_machine_config.sound_card == machine_config.sound_card) &&
+        (m_machine_config.sound_irq == machine_config.sound_irq) &&
+        (m_machine_config.sound_dma == machine_config.sound_dma);
 
     if (!same_machine)
     {
@@ -1765,6 +1772,9 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.cpu_clock_rate);
     G_SERIALIZE(serializer, config.ide);
     G_SERIALIZE(serializer, config.fpu);
+    G_SERIALIZE(serializer, config.sound_card);
+    G_SERIALIZE(serializer, config.sound_irq);
+    G_SERIALIZE(serializer, config.sound_dma);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -1810,6 +1820,9 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.floppy_drives = profile.floppy_drives;
     config.fpu = (profile.fpu == GDOX_MACHINE_FPU_INTEGRATED) || (config.fpu && (profile.fpu != GDOX_MACHINE_FPU_NONE));
     config.speed_mode = GDOX_MACHINE_AUTO;
+    config.sound_card = config.sound_card < GDOX_SOUND_CARD_COUNT ? config.sound_card : (u8)GDOX_SOUND_CARD_SB16;
+    config.sound_irq = config.sound_irq == k_sound_card_irqs[1] ? k_sound_card_irqs[1] : k_sound_card_irqs[0];
+    config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
 
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
@@ -2017,6 +2030,13 @@ void GeardoxCore::ResolveMachineConfig()
         config.floppy_type[i] = (type > 0 && type < GDOX_FLOPPY_TYPE_COUNT) ? (u8)type : GetAutoFloppyType(i);
     }
 
+    int sound_card = m_machine_settings.sound_card;
+
+    config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card :
+        (u8)GDOX_SOUND_CARD_SB16;
+    config.sound_irq = (u8)m_machine_settings.sound_irq;
+    config.sound_dma = (u8)m_machine_settings.sound_dma;
+
     report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
     report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
     report.ram = auto_ram ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
@@ -2183,6 +2203,9 @@ void GeardoxCore::ApplyMachineConfig()
         m_i386->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
         m_system_control->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
     }
+
+    if (IsValidPointer(m_audio))
+        m_audio->SetCard(m_machine_config.sound_card, m_machine_config.sound_irq, m_machine_config.sound_dma);
 
     if (IsValidPointer(m_fdc))
     {

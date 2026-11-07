@@ -66,15 +66,14 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "fm.operators", TRACE_FM, TRACE_FM_EVENT_OPERATORS },
     { "fm.channels", TRACE_FM, TRACE_FM_EVENT_CHANNELS },
     { "fm.global", TRACE_FM, TRACE_FM_EVENT_GLOBAL },
-    { "fm.dac", TRACE_FM, TRACE_FM_EVENT_DAC },
     { "fm.timers", TRACE_FM, TRACE_FM_EVENT_TIMERS },
-    { "fm.irqs", TRACE_FM, TRACE_FM_EVENT_IRQS },
-    { "pcm.channels", TRACE_PCM, TRACE_PCM_EVENT_CHANNELS },
-    { "pcm.key", TRACE_PCM, TRACE_PCM_EVENT_KEY },
-    { "pcm.control", TRACE_PCM, TRACE_PCM_EVENT_CONTROL },
+    { "pcm.commands", TRACE_PCM, TRACE_PCM_EVENT_COMMANDS },
+    { "pcm.transfers", TRACE_PCM, TRACE_PCM_EVENT_TRANSFERS },
     { "pcm.irqs", TRACE_PCM, TRACE_PCM_EVENT_IRQS },
     { "mixer.volume", TRACE_MIXER, TRACE_MIXER_EVENT_VOLUME },
-    { "mixer.mute", TRACE_MIXER, TRACE_MIXER_EVENT_MUTE },
+    { "mixer.control", TRACE_MIXER, TRACE_MIXER_EVENT_CONTROL },
+    { "midi.data", TRACE_MIDI, TRACE_MIDI_EVENT_DATA },
+    { "midi.commands", TRACE_MIDI, TRACE_MIDI_EVENT_COMMANDS },
     { "cdrom.commands", TRACE_CDROM, TRACE_CDROM_EVENT_COMMANDS },
     { "cdrom.status", TRACE_CDROM, TRACE_CDROM_EVENT_STATUS },
     { "cdrom.irqs", TRACE_CDROM, TRACE_CDROM_EVENT_IRQS },
@@ -234,6 +233,7 @@ public:
     json GetBiosLog(int max_bytes);
 
     // Audio hardware
+    json GetSoundStatus();
     json SetAudioMute(const std::string& source, bool mute);
 
     // Storage

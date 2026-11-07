@@ -62,6 +62,8 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Debug", "VRAMViewerZoom", config_debug.vram_viewer_zoom, 0, 0, 2);
     CONFIG_BOOL("Debug", "VRAMViewerWindow", config_debug.vram_viewer_show_window, true);
     CONFIG_INT_RANGE("Debug", "VRAMViewerPitch", config_debug.vram_viewer_pitch, 0, 0, 512);
+    CONFIG_BOOL("Debug", "OPL", config_debug.show_opl, false);
+    CONFIG_BOOL("Debug", "SoundBlaster", config_debug.show_sound_blaster, false);
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
     CONFIG_BOOL("Debug", "CDROMTOC", config_debug.show_cdrom_toc, false);
     CONFIG_BOOL("Debug", "CDROMAudio", config_debug.show_cdrom_audio, false);
@@ -92,6 +94,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "TraceFm", config_debug.trace_fm, false);
     CONFIG_BOOL("Debug", "TracePcm", config_debug.trace_pcm, false);
     CONFIG_BOOL("Debug", "TraceMixer", config_debug.trace_mixer, false);
+    CONFIG_BOOL("Debug", "TraceMidi", config_debug.trace_midi, false);
     CONFIG_BOOL("Debug", "TraceCdrom", config_debug.trace_cdrom, false);
     CONFIG_BOOL("Debug", "TraceFdc", config_debug.trace_fdc, false);
     CONFIG_BOOL("Debug", "TraceIde", config_debug.trace_ide, false);
@@ -115,6 +118,8 @@ static inline void process(config_Operation operation)
         TRACE_PCM_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceMixerEvents", config_debug.trace_mixer_events, TRACE_MIXER_EVENT_ALL, 0,
         TRACE_MIXER_EVENT_ALL);
+    CONFIG_INT_RANGE("Debug", "TraceMidiEvents", config_debug.trace_midi_events, TRACE_MIDI_EVENT_ALL, 0,
+        TRACE_MIDI_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceCdromEvents", config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_ALL, 0,
         TRACE_CDROM_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceFdcEvents", config_debug.trace_fdc_events, TRACE_FDC_EVENT_ALL, 0,
@@ -235,6 +240,12 @@ static inline void process(config_Operation operation)
     process_machine_fpu(operation, &config_machine.fpu);
     CONFIG_INT_RANGE("Machine", "FloppyTypeA", config_machine.floppy_type[0], 0, 0, GDOX_FLOPPY_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "FloppyTypeB", config_machine.floppy_type[1], 0, 0, GDOX_FLOPPY_TYPE_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "SoundCard", config_machine.sound_card, GDOX_SOUND_CARD_SB16, 0,
+        GDOX_SOUND_CARD_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "SoundIRQ", config_machine.sound_irq, k_sound_card_irqs[0], k_sound_card_irqs[0],
+        k_sound_card_irqs[1]);
+    CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
+        k_sound_card_dmas[1]);
 
     //**************************************
     // Video

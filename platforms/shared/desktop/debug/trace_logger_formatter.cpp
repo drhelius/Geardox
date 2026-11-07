@@ -29,7 +29,7 @@
 
 static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
 static const char* const k_trace_palette_components[3] = { "RED", "GREEN", "BLUE" };
-static const char* const k_trace_pcm_registers[7] = { "ENV", "PAN", "FD LSB", "FD MSB", "LS LSB", "LS MSB", "ST" };
+static const char* const k_trace_pcm_formats[6] = { "PCM8", "PCM16", "ADPCM2", "ADPCM3", "ADPCM4", "SILENCE" };
 static const char* const k_trace_controller_names[3] = { "NONE", "PAD", "MOUSE" };
 
 static void format_event(char* buffer, size_t size, const char* tag, const char* name, const char* format, ...);
@@ -43,6 +43,7 @@ static void format_video(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
 static void format_fm(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_pcm(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_mixer(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_midi(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_fdc(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_ide(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
@@ -150,6 +151,9 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
             break;
         case TRACE_MIXER:
             format_mixer(entry, buffer, buffer_size);
+            break;
+        case TRACE_MIDI:
+            format_midi(entry, buffer, buffer_size);
             break;
         case TRACE_CDROM:
             format_cdrom(entry, buffer, buffer_size);
@@ -579,185 +583,111 @@ static void format_video(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
 static void format_fm(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
     u16 address = entry.fm.address;
-    int part = (address >> 8) & 0x01;
     u8 reg = (u8)address;
     u8 value = entry.fm.value;
     u8 channel = entry.fm.channel + 1;
+    int chip = entry.fm.flags;
+    u16 frequency = entry.fm.frequency;
 
     switch (entry.event)
     {
         case TRACE_FM_KEY:
-        {
-            u8 slots = value >> 4;
-            format_event(buffer, size, "FM", "KEY", "CH%u %s  Slots:%c%c%c%c  Write:$%02X", channel,
-                slots != 0 ? "ON " : "OFF", (slots & 0x01) ? '1' : '-', (slots & 0x02) ? '2' : '-',
-                (slots & 0x04) ? '3' : '-', (slots & 0x08) ? '4' : '-', value);
+            format_event(buffer, size, "FM", "KEY", "OPL%d CH%u %s  Block:%u FNum:$%03X", chip, channel,
+                (value & 0x20) != 0 ? "ON " : "OFF", (frequency >> 10) & 0x07, frequency & 0x3FF);
             break;
-        }
         case TRACE_FM_FREQUENCY:
-        {
-            u16 frequency = entry.fm.frequency;
-            const char* latched = (reg & 0x04) != 0 ? "  (latched until LSB)" : "";
-
-            if (reg >= 0xA8)
-            {
-                static const int k_special_operator[3] = { 3, 1, 2 };
-                format_event(buffer, size, "FM", "FREQ", "CH3 OP%d  $%02X <- $%02X  Block:%u FNum:$%03X%s",
-                    k_special_operator[(reg & 0x03) % 3], reg, value, (frequency >> 11) & 0x07, frequency & 0x7FF,
-                    latched);
-            }
-            else
-                format_event(buffer, size, "FM", "FREQ", "CH%u  $%02X <- $%02X  Block:%u FNum:$%03X%s", channel, reg,
-                    value, (frequency >> 11) & 0x07, frequency & 0x7FF, latched);
+            format_event(buffer, size, "FM", "FREQ", "OPL%d CH%u  $%03X <- $%02X  Block:%u FNum:$%03X", chip, channel,
+                address, value, (frequency >> 10) & 0x07, frequency & 0x3FF);
             break;
-        }
         case TRACE_FM_OPERATOR:
         {
-            char name[48];
-            char fields[32];
+            char fields[40];
 
-            if (!gui_debug_ym3438_register_name(part, reg, name, sizeof(name)))
-                snprintf(name, sizeof(name), "$%02X", reg);
-
-            switch (reg & 0xF0)
+            switch (reg & 0xE0)
             {
-                case 0x30: snprintf(fields, sizeof(fields), "DT:%u MUL:%u", (value >> 4) & 0x07, value & 0x0F); break;
-                case 0x40: snprintf(fields, sizeof(fields), "TL:$%02X", value & 0x7F); break;
-                case 0x50: snprintf(fields, sizeof(fields), "KS:%u AR:%u", value >> 6, value & 0x1F); break;
-                case 0x60: snprintf(fields, sizeof(fields), "AM:%u D1R:%u", value >> 7, value & 0x1F); break;
-                case 0x70: snprintf(fields, sizeof(fields), "D2R:%u", value & 0x1F); break;
-                case 0x80: snprintf(fields, sizeof(fields), "D1L:%u RR:%u", value >> 4, value & 0x0F); break;
-                default: snprintf(fields, sizeof(fields), "SSG-EG:$%X", value & 0x0F); break;
+                case 0x20: snprintf(fields, sizeof(fields), "AM:%u VIB:%u EG:%u KSR:%u MUL:%u", value >> 7,
+                    (value >> 6) & 0x01, (value >> 5) & 0x01, (value >> 4) & 0x01, value & 0x0F); break;
+                case 0x40: snprintf(fields, sizeof(fields), "KSL:%u TL:$%02X", value >> 6, value & 0x3F); break;
+                case 0x60: snprintf(fields, sizeof(fields), "AR:%u DR:%u", value >> 4, value & 0x0F); break;
+                case 0x80: snprintf(fields, sizeof(fields), "SL:%u RR:%u", value >> 4, value & 0x0F); break;
+                default: snprintf(fields, sizeof(fields), "WS:%u", value & 0x07); break;
             }
 
-            format_event(buffer, size, "FM", "OPERATOR", "%s <- $%02X  %s", name, value, fields);
+            format_event(buffer, size, "FM", "OPERATOR", "OPL%d $%03X <- $%02X  %s", chip, address, value, fields);
             break;
         }
         case TRACE_FM_CHANNEL:
-            if (reg < 0xB4)
-                format_event(buffer, size, "FM", "CHANNEL", "CH%u  $%02X <- $%02X  ALG:%u FB:%u", channel, reg, value,
-                    value & 0x07, (value >> 3) & 0x07);
-            else
-                format_event(buffer, size, "FM", "CHANNEL", "CH%u  $%02X <- $%02X  L:%u R:%u AMS:%u PMS:%u", channel,
-                    reg, value, value >> 7, (value >> 6) & 0x01, (value >> 4) & 0x03, value & 0x07);
-            break;
-        case TRACE_FM_DAC:
-            format_event(buffer, size, "FM", "DAC", "Data:$%02X", value);
+            format_event(buffer, size, "FM", "CHANNEL", "OPL%d CH%u  $%03X <- $%02X  CNT:%u FB:%u A:%u B:%u", chip,
+                channel, address, value, value & 0x01, (value >> 1) & 0x07, (value >> 4) & 0x01, (value >> 5) & 0x01);
             break;
         case TRACE_FM_TIMER:
-        {
-            u16 timer = entry.fm.frequency;
-
-            if (reg == 0x24 || reg == 0x25)
-                format_event(buffer, size, "FM", "TIMER", "A $%02X <- $%02X  Timer A:%u", reg, value, timer);
-            else if (reg == 0x26)
-                format_event(buffer, size, "FM", "TIMER", "B $%02X <- $%02X  Timer B:%u", reg, value, timer);
-            else
+            if (reg == 0x04)
                 format_event(buffer, size, "FM", "TIMER",
-                    "CONTROL <- $%02X  Load A:%u B:%u  Enable A:%u B:%u  Reset A:%u B:%u  CH3:%s", value, value & 0x01,
-                    (value >> 1) & 0x01, (value >> 2) & 0x01, (value >> 3) & 0x01, (value >> 4) & 0x01,
-                    (value >> 5) & 0x01, k_debug_ym3438_ch3_mode_names[value >> 6]);
-            break;
-        }
-        case TRACE_FM_IRQ:
-        {
-            u8 flags = entry.fm.flags;
-            const char* source = (flags & 0x03) == 0x03 ? "TIMER A+B" : (flags & 0x01) != 0 ? "TIMER A" : "TIMER B";
-
-            format_event(buffer, size, "FM", "IRQ", "IRQ13 %s  Flags A:%u B:%u", source, flags & 0x01,
-                (flags >> 1) & 0x01);
-            break;
-        }
-        default:
-        {
-            char name[48];
-
-            if (part != 0 && reg < 0x30)
-                format_event(buffer, size, "FM", "GLOBAL", "Part 1 $%02X <- $%02X  ignored", reg, value);
-            else if (reg == 0x22)
-                format_event(buffer, size, "FM", "GLOBAL", "LFO <- $%02X  %s  Freq:%u", value,
-                    (value & 0x08) != 0 ? "ON " : "OFF", value & 0x07);
-            else if (reg == 0x2B)
-                format_event(buffer, size, "FM", "GLOBAL", "DAC ENABLE <- $%02X  %s", value,
-                    (value & 0x80) != 0 ? "ON " : "OFF");
-            else if (gui_debug_ym3438_register_name(part, reg, name, sizeof(name)))
-                format_event(buffer, size, "FM", "GLOBAL", "%s <- $%02X", name, value);
+                    "OPL%d CONTROL <- $%02X  Reset:%u Mask 1:%u 2:%u  Start 1:%u 2:%u", chip, value, value >> 7,
+                    (value >> 6) & 0x01, (value >> 5) & 0x01, value & 0x01, (value >> 1) & 0x01);
             else
-                format_event(buffer, size, "FM", "GLOBAL", "Part %d $%02X <- $%02X", part, reg, value);
+                format_event(buffer, size, "FM", "TIMER", "OPL%d Timer %u <- $%02X", chip, reg - 1, value);
             break;
-        }
+        default:
+            if (reg == 0xBD)
+                format_event(buffer, size, "FM", "GLOBAL", "OPL%d $BD <- $%02X  AM:%u VIB:%u Rhythm:%u Drums:$%02X", chip,
+                    value, value >> 7, (value >> 6) & 0x01, (value >> 5) & 0x01, value & 0x1F);
+            else
+                format_event(buffer, size, "FM", "GLOBAL", "OPL%d $%03X <- $%02X", chip, address, value);
+            break;
     }
 }
 
 static void format_pcm(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    u8 value = entry.pcm.value;
-    u8 channel = entry.pcm.channel + 1;
-
     switch (entry.event)
     {
-        case TRACE_PCM_CHANNEL:
+        case TRACE_PCM_COMMAND:
         {
-            u8 reg = MIN(entry.pcm.reg, (u8)6);
+            const u8* o = entry.pcm.operands;
 
-            if (reg == 1)
-                format_event(buffer, size, "PCM", "CHANNEL", "CH%u %s <- $%02X  L:%u R:%u", channel,
-                    k_trace_pcm_registers[reg], value, value & 0x0F, value >> 4);
+            if (entry.pcm.operand_count == 0)
+                format_event(buffer, size, "DSP", "COMMAND", "$%02X", entry.pcm.command);
+            else if (entry.pcm.operand_count == 1)
+                format_event(buffer, size, "DSP", "COMMAND", "$%02X $%02X", entry.pcm.command, o[0]);
+            else if (entry.pcm.operand_count == 2)
+                format_event(buffer, size, "DSP", "COMMAND", "$%02X $%02X $%02X", entry.pcm.command, o[0], o[1]);
             else
-                format_event(buffer, size, "PCM", "CHANNEL", "CH%u %s <- $%02X", channel, k_trace_pcm_registers[reg],
-                    value);
+                format_event(buffer, size, "DSP", "COMMAND", "$%02X $%02X $%02X $%02X", entry.pcm.command, o[0], o[1],
+                    o[2]);
             break;
         }
-        case TRACE_PCM_KEY:
+        case TRACE_PCM_TRANSFER:
         {
-            char on[32];
-            format_bit_list((u8)~value, 1, on, sizeof(on));
-            format_event(buffer, size, "PCM", "KEY", "Write:$%02X  On:%s", value, on);
+            u8 flags = entry.pcm.flags;
+            format_event(buffer, size, "DSP", "TRANSFER", "%s %s  %s%s%s%s%u Hz  Length:%u",
+                k_trace_pcm_formats[MIN(entry.pcm.format, (u8)5)], (flags & 0x02) != 0 ? "IN " : "OUT",
+                (flags & 0x01) != 0 ? "AUTO " : "SINGLE ", (flags & 0x04) != 0 ? "HIGH SPEED " : "",
+                (flags & 0x08) != 0 ? "STEREO " : "", (flags & 0x10) != 0 ? "SIGNED " : "", entry.pcm.rate,
+                entry.pcm.length);
             break;
         }
-        case TRACE_PCM_CONTROL:
-            if ((value & 0x40) != 0)
-                format_event(buffer, size, "PCM", "CONTROL", "Write:$%02X  Sound:%s  Channel:%u", value,
-                    (value & 0x80) != 0 ? "ON " : "OFF", (value & 0x07) + 1);
-            else
-                format_event(buffer, size, "PCM", "CONTROL", "Write:$%02X  Sound:%s  Wave bank:%u", value,
-                    (value & 0x80) != 0 ? "ON " : "OFF", value & 0x0F);
-            break;
-        case TRACE_PCM_IRQ_MASK:
-            format_event(buffer, size, "PCM", "IRQ MASK", "Write:$%02X", value);
-            break;
         case TRACE_PCM_IRQ:
-            format_event(buffer, size, "PCM", "IRQ", "IRQ13 Causes:$%02X  Mask:$%02X", value, entry.pcm.mask);
+            format_event(buffer, size, "DSP", "IRQ", "%u-bit block end  Status:$%02X", entry.pcm.command, entry.pcm.flags);
             break;
         default:
-            format_event(buffer, size, "PCM", "IRQ READ", "Causes:$%02X read and cleared", value);
+            format_event(buffer, size, "DSP", "ACK", "%u-bit  Status:$%02X", entry.pcm.command, entry.pcm.flags);
             break;
     }
 }
 
 static void format_mixer(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    u8 value = entry.mixer.value;
+    format_event(buffer, size, "MIXER", entry.event == TRACE_MIXER_VOLUME ? "VOLUME" : "CONTROL", "$%02X <- $%02X",
+        entry.mixer.index, entry.mixer.value);
+}
 
-    if (entry.event == TRACE_MIXER_MUTE)
-    {
-        if (entry.mixer.port == 0x04D5)
-            format_event(buffer, size, "MIXER", "MUTE", "$04D5 <- $%02X  FM:%s  PCM:%s", value,
-                (value & 0x02) != 0 ? "ON " : "OFF", (value & 0x01) != 0 ? "ON " : "OFF");
-        else
-            format_event(buffer, size, "MIXER", "MUTE", "$04EC <- $%02X  Output:%s  LED:%s", value,
-                (value & 0x40) != 0 ? "ON " : "OFF", (value & 0x80) != 0 ? "OFF" : "ON ");
-        return;
-    }
+static void format_midi(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    const char* source = entry.midi.source == TRACE_MIDI_SOURCE_MPU ? "MPU" : "DSP";
 
-    u8 control = entry.mixer.control;
-    const char* level = (control & 0x04) == 0 ? "MUTED" : (control & 0x10) != 0 ? "-32 dB" :
-        (control & 0x08) != 0 ? "0 dB" : "DATA";
-
-    format_event(buffer, size, "MIXER", "VOLUME", "$%04X <- $%02X  Volume %u CH%u%s  Data:$%02X  Level:%s",
-        entry.mixer.port, value, entry.mixer.chip + 1, entry.mixer.channel,
-        entry.mixer.chip == 1 && entry.mixer.channel < 2 ? (entry.mixer.channel == 0 ? " CD L" : " CD R") : "",
-        entry.mixer.data, level);
+    format_event(buffer, size, "MIDI", entry.event == TRACE_MIDI_DATA ? "DATA" : "COMMAND", "%s  $%02X", source,
+        entry.midi.value);
 }
 
 static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t size)

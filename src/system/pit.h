@@ -57,6 +57,7 @@ public:
     bool GetRefreshToggle(u64 clocks) const;
     u64 GetSpeakerStableUntil(u64 clocks) const;
     bool IsBuzzerEnabled() const;
+    bool IsBuzzerUltrasonic() const;
     bool GetBuzzerOutput(u64 tick);
     I8254* GetPIT();
     u64 GetTick(u64 clocks) const;
@@ -89,6 +90,9 @@ static const int k_pit_irq0_channel = 0;
 static const int k_pit_refresh_channel = 1;
 static const int k_pit_buzzer_channel = 2;
 static const u64 k_pit_refresh_ticks = 18;
+
+// Below this count a square wave is past 22.05 kHz, half the output rate
+static const u32 k_pit_buzzer_ultrasonic_count = 54;
 
 #include "pit_inline.h"
 
