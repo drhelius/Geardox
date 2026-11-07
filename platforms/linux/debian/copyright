@@ -43,6 +43,11 @@ Files: platforms/shared/dependencies/glad/*
 Copyright: glad contributors
 License: (WTFPL or CC0-1.0) and Apache-2.0
 
+Files: platforms/shared/dependencies/freedos/*
+Copyright: The FreeDOS Project and the respective program authors
+License: GPL-2+ and GPL-2 and Artistic and public-domain
+Comment: Each package in packages/ holds its own notices and source code
+
 Files: platforms/libretro/libretro.h
 Copyright: 2010-2024 The RetroArch team
 License: MIT

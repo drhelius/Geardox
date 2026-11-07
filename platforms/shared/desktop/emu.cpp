@@ -65,7 +65,8 @@ enum Loading_State
 enum Loading_Request_Type
 {
     Loading_Request_File = 0,
-    Loading_Request_PhysicalCdRom
+    Loading_Request_PhysicalCdRom,
+    Loading_Request_HardDiskSource
 };
 
 static GeardoxCore* geardox = NULL;
@@ -84,6 +85,7 @@ static bool loading_thread_active = false;
 static bool loading_result = false;
 static char loading_file_path[GDOX_MAX_PATH] = { };
 static Loading_Request_Type loading_request_type = Loading_Request_File;
+static bool loading_rebuild = false;
 static std::vector<std::string> cdrom_playlist;
 static int cdrom_playlist_index = -1;
 static int cmos_model = -1;
@@ -406,6 +408,26 @@ void emu_load_media_async(const char* file_path)
     loading_thread_active = true;
 }
 
+void emu_load_hard_disk_source_async(const char* path, bool rebuild)
+{
+    if (!IsValidPointer(path) || path[0] == '\0' || loading_state.load() != Loading_State_None)
+        return;
+
+    if (loading_thread_active)
+    {
+        loading_thread.join();
+        loading_thread_active = false;
+    }
+
+    strncpy_fit(loading_file_path, path, sizeof(loading_file_path));
+    loading_request_type = Loading_Request_HardDiskSource;
+    loading_rebuild = rebuild;
+    loading_result = false;
+    loading_state.store(Loading_State_Loading);
+    loading_thread = std::thread(load_media_thread_func);
+    loading_thread_active = true;
+}
+
 void emu_load_physical_cdrom_async(const char* device_id)
 {
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
@@ -451,6 +473,9 @@ bool emu_finish_media_loading(void)
     }
 
     loading_state.store(Loading_State_None);
+
+    if (loading_request_type == Loading_Request_HardDiskSource)
+        return loading_result;
 
     if (!loading_result)
     {
@@ -548,6 +573,7 @@ bool emu_power_on(void)
 
     gui_debug_trace_logger_reset("power");
     sync_cmos();
+    emu_hard_disk_boot_freedos();
 
     if (!geardox->PowerOn())
         return false;
@@ -1625,6 +1651,14 @@ void emu_reset_rewind_timing(void)
 
 static void load_media_thread_func(void)
 {
+    if (loading_request_type == Loading_Request_HardDiskSource)
+    {
+        emu_hard_disk_prepare_source(loading_file_path, loading_rebuild);
+        loading_result = emu_hard_disk_get_prepared_source()->report.result != FAT_IMAGE_ERROR;
+        loading_state.store(Loading_State_Finished);
+        return;
+    }
+
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     if (loading_request_type == Loading_Request_PhysicalCdRom)
         loading_result = geardox->LoadPhysicalCdRom(loading_file_path);

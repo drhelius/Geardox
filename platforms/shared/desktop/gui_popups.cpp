@@ -36,6 +36,7 @@
 #include "emu.h"
 #include "license.h"
 #include "seabios.h"
+#include "freedos.h"
 #include "backers.h"
 #include "ogl_renderer.h"
 #include "keyboard.h"
@@ -343,6 +344,16 @@ void gui_popup_modal_about(void)
                 ImGui::Text("SeaBIOS %s", k_seabios_version);
                 ImGui::NewLine();
                 ImGui::TextUnformatted(SEABIOS_LICENSE_STR);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("FreeDOS"))
+            {
+                ImGui::BeginChild("freedos", ImVec2(0, 100), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+                ImGui::Text("%s", k_freedos_version);
+                ImGui::NewLine();
+                ImGui::TextUnformatted(FREEDOS_LICENSE_STR);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }

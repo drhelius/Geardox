@@ -642,6 +642,24 @@ static const char * GPL_LICENSE_STR =
 "\n"
 "\nEND OF TERMS AND CONDITIONS";
 
+static const char * FREEDOS_LICENSE_STR =
+"Geardox includes programs from FreeDOS, which it copies to the disk it makes as C:."
+"\nThey run on the emulated PC. They are separate programs, not part of Geardox, and"
+"\neach keeps its own license and copyright notices."
+"\n"
+"\nThe kernel, FreeCOM and nearly all the others are under the GNU General Public"
+"\nLicense, version 2 or, for most of them, any later version. XCOPY is under version 2."
+"\nThe text is on that disk as \\FREEDOS\\COPYING.TXT."
+"\n"
+"\nHIMEMX is under the GPL and/or the Artistic License, with changes in the public domain."
+"\nJEMM is partly under the Artistic License, in \\FREEDOS\\ARTISTIC.TXT, and otherwise in"
+"\nthe public domain."
+"\n"
+"\nThe unmodified packages, with their source code and full notices, are in"
+"\nplatforms/shared/dependencies/freedos in the Geardox source code."
+"\n"
+"\nFreeDOS is a trademark of Jim Hall. https://www.freedos.org";
+
 static const char * SEABIOS_LICENSE_STR =
 "Geardox includes SeaBIOS and SeaVGABIOS as its built-in BIOS, built from the"
 "\nSeaBIOS commit, patch and configurations in platforms/shared/dependencies/seabios."

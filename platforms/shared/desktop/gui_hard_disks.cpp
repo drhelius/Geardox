@@ -39,16 +39,29 @@ static const char* create_sizes = "40 MB\0" "100 MB\0" "250 MB\0" "500 MB\0" "20
 static const char* const k_slot_names[GDOX_MAX_HARD_DISKS] = { "Primary Master", "Primary Slave", "Secondary Master",
     "Secondary Slave" };
 
+static const int k_recreate_freedos = -1;
+
 static bool open_create = false;
 static bool open_quit = false;
+static bool open_confirm = false;
 static int dialog_id = 0;
+static int confirm_id = 0;
 static int create_choice = 1;
 static int create_custom_mb = 100;
 static int create_size_mb = 100;
+static bool create_formatted = true;
+static int source_id = 0;
+static bool source_loading = false;
+static bool source_reset = false;
+static bool source_rebuild = false;
 
+static void freedos_menu(void);
 static void disk_menu(int id);
+static bool load_source(int id, const char* path, bool rebuild);
+static void confirm_erase(void);
 static void attach(int id, const char* path);
 static void draw_create_popup(void);
+static void draw_confirm_popup(void);
 static void draw_quit_popup(void);
 static void notify_attached(int id, const char* path, const char* message);
 static void attach_error(const char* path);
@@ -60,6 +73,9 @@ void gui_hard_disks_menu(void)
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         disk_menu(i);
+
+    ImGui::Separator();
+    freedos_menu();
 
     if (!emu_is_empty() && gui_hard_disks_is_pending() && ImGui::MenuItem("Reset to Apply Changes"))
         gui_action_reset();
@@ -83,7 +99,15 @@ void gui_hard_disks_popups(void)
         ImGui::OpenPopup("Unsaved Hard Disk Changes on Quit");
     }
 
+    if (open_confirm)
+    {
+        open_confirm = false;
+        gui_dialog_in_use = true;
+        ImGui::OpenPopup("Erase Hard Disk");
+    }
+
     draw_create_popup();
+    draw_confirm_popup();
     draw_quit_popup();
 }
 
@@ -135,6 +159,81 @@ bool gui_hard_disks_load(const char* path)
     return true;
 }
 
+bool gui_hard_disks_load_source(const char* path)
+{
+    emu_hard_disk_boot_freedos();
+    int id = emu_hard_disk_get_free_id();
+
+    if (id < 0)
+    {
+        gui_set_error_message("Every hard disk slot is in use.");
+        return false;
+    }
+
+    return load_source(id, path, false);
+}
+
+void gui_hard_disks_source_loaded(void)
+{
+    const Emu_HardDiskSource* source = emu_hard_disk_get_prepared_source();
+    bool protect = config_emulator.hard_disk_write_protected[source_id] != 0;
+    bool built = (source->report.result != FAT_IMAGE_ERROR) && (source->report.result != FAT_IMAGE_TOO_BIG);
+    bool reset = source_reset;
+    bool rebuild = source_rebuild;
+    source_loading = false;
+    source_reset = false;
+    source_rebuild = false;
+
+    if (source->report.result == FAT_IMAGE_TOO_BIG)
+    {
+        char message[GDOX_MAX_PATH + 128];
+        snprintf(message, sizeof(message), "This needs %u MB, and a FAT16 disk holds 2015 MB:\n%s",
+            (u32)(source->report.content_size / (1024 * 1024)), source->path);
+        gui_set_error_message(message);
+    }
+    else if (!built || !emu_hard_disk_attach_prepared_source(source_id, protect))
+    {
+        std::string message("Unable to make a hard disk from:\n");
+        message += source->path;
+        gui_set_error_message(message.c_str());
+        built = false;
+    }
+
+    if (!built && !rebuild)
+        return;
+
+    if (built)
+        notify_attached(source_id, source->path, "Hard disk attached");
+    else
+        emu_hard_disk_attach_prepared_source(source_id, protect);
+
+    if (source->report.result == FAT_IMAGE_CHANGED)
+        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "This folder changed since its disk was made",
+            "Rebuild From Folder picks that up, and drops what DOS wrote to the disk");
+
+    if (source->report.left_out != 0)
+    {
+        char message[64];
+        snprintf(message, sizeof(message), "%u items are too deep for DOS to reach", source->report.left_out);
+        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Part of this folder was left out", message);
+    }
+
+    if (emu_is_empty() && emu_get_core()->GetFirmware()->IsReady())
+        gui_action_power_on();
+    else if (reset)
+        gui_action_reset();
+}
+
+bool gui_hard_disks_is_loading_source(void)
+{
+    return source_loading;
+}
+
+void gui_hard_disks_reset_when_loaded(void)
+{
+    source_reset = true;
+}
+
 bool gui_hard_disks_is_pending(void)
 {
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
@@ -156,7 +255,8 @@ void gui_hard_disks_dialog_attach(int id, const char* path)
 
 void gui_hard_disks_dialog_create(int id, const char* path)
 {
-    if (emu_hard_disk_create(id, path, create_size_mb, config_emulator.hard_disk_write_protected[id] != 0))
+    if (emu_hard_disk_create(id, path, create_size_mb, create_formatted,
+        config_emulator.hard_disk_write_protected[id] != 0))
         notify_attached(id, path, "Hard disk created");
     else
     {
@@ -175,7 +275,7 @@ static void disk_menu(int id)
 {
     Emu_HardDiskInfo info;
     emu_hard_disk_get_info(id, &info);
-    const char* path = info.pending ? info.pending_path : info.path;
+    const char* path = info.source[0] != 0 ? info.source : (info.pending ? info.pending_path : info.path);
     bool present = path[0] != 0;
     const char* name = present ? get_filename(path) : "Empty";
     char label[64];
@@ -190,10 +290,19 @@ static void disk_menu(int id)
     if (ImGui::MenuItem("Attach...", NULL, false, !loading))
         gui_file_dialog_attach_hard_disk(id);
 
+    if (ImGui::MenuItem("Attach Folder...", NULL, false, !loading))
+        gui_file_dialog_attach_folder(id);
+
     if (ImGui::MenuItem("New Blank Disk...", NULL, false, !loading))
     {
         dialog_id = id;
         open_create = true;
+    }
+
+    if (ImGui::MenuItem("Rebuild From Folder...", NULL, false, !loading && (info.source[0] != 0)))
+    {
+        confirm_id = id;
+        open_confirm = true;
     }
 
     if (ImGui::MenuItem("Detach", NULL, false, present))
@@ -264,8 +373,92 @@ static void disk_menu(int id)
     ImGui::EndMenu();
 }
 
+static void freedos_menu(void)
+{
+    bool loading = gui_is_rom_loading() || emu_is_media_loading();
+    bool attached = false;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        Emu_HardDiskInfo info;
+        emu_hard_disk_get_info(i, &info);
+        attached = attached || info.builtin;
+    }
+
+    if (ImGui::MenuItem("Attach FreeDOS Disk", NULL, false, !loading && !attached))
+    {
+        int id = emu_hard_disk_get_free_id();
+
+        if (id < 0)
+            gui_set_error_message("Every hard disk slot is in use.");
+        else if (emu_hard_disk_attach_freedos(id))
+            notify_attached(id, "FreeDOS", "Hard disk attached");
+        else
+            gui_set_error_message("Unable to make the FreeDOS disk.");
+    }
+
+    ImGui::MenuItem("Boot FreeDOS With No Disks", NULL, &config_emulator.hard_disk_freedos);
+
+    if (ImGui::MenuItem("Recreate FreeDOS Disk...", NULL, false, !loading))
+    {
+        confirm_id = k_recreate_freedos;
+        open_confirm = true;
+    }
+}
+
+static bool load_source(int id, const char* path, bool rebuild)
+{
+    if (gui_is_rom_loading() || emu_is_media_loading())
+        return false;
+
+    if (emu_hard_disk_is_source_attached(path))
+    {
+        gui_set_error_message("This folder is attached already.");
+        return false;
+    }
+
+    source_id = id;
+    source_rebuild = rebuild;
+    source_loading = gui_load_hard_disk_source(path, rebuild);
+    return source_loading;
+}
+
+static void confirm_erase(void)
+{
+    if (gui_is_rom_loading() || emu_is_media_loading())
+        return;
+
+    bool powered = !emu_is_empty();
+
+    if (powered)
+        gui_action_power_off();
+
+    if (confirm_id == k_recreate_freedos)
+    {
+        if (!emu_hard_disk_recreate_freedos())
+            gui_set_error_message("Unable to make a new FreeDOS disk. The old one is untouched.");
+
+        if (powered)
+            gui_action_power_on();
+
+        return;
+    }
+
+    Emu_HardDiskInfo info;
+    emu_hard_disk_get_info(confirm_id, &info);
+    std::string source = info.source;
+    emu_get_core()->DetachHardDisk(confirm_id);
+    load_source(confirm_id, source.c_str(), true);
+}
+
 static void attach(int id, const char* path)
 {
+    if (emu_hard_disk_is_source(path))
+    {
+        load_source(id, path, false);
+        return;
+    }
+
     if (emu_hard_disk_attach(id, path, config_emulator.hard_disk_write_protected[id] != 0))
         notify_attached(id, path, "Hard disk attached");
     else
@@ -299,10 +492,14 @@ static void draw_create_popup(void)
     if (create_choice == 5)
     {
         ImGui::InputInt("MB##create_custom", &create_custom_mb);
-        create_custom_mb = CLAMP(create_custom_mb, 1, 2047);
+        create_custom_mb = CLAMP(create_custom_mb, create_formatted ? 33 : 1, 2047);
     }
 
     ImGui::PopItemWidth();
+    ImGui::Checkbox("Formatted", &create_formatted);
+
+    if (!create_formatted)
+        ImGui::Text("Unformatted disks need FDISK and FORMAT before use.");
 
     ImGui::NewLine();
     ImGui::Separator();
@@ -324,6 +521,41 @@ static void draw_create_popup(void)
         gui_dialog_in_use = false;
     }
 
+    ImGui::EndPopup();
+}
+
+static void draw_confirm_popup(void)
+{
+    gui_center_next_window();
+
+    if (!ImGui::BeginPopupModal("Erase Hard Disk", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    if (confirm_id == k_recreate_freedos)
+        ImGui::Text("This restarts the machine and makes a new FreeDOS disk.\n"
+            "Everything installed on the old one is lost.\n\n");
+    else
+        ImGui::Text("This restarts the machine and makes a new disk from the folder.\n"
+            "Everything DOS wrote to this disk is lost, saved games too.\n\n");
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Erase", ImVec2(120, 0)))
+    {
+        ImGui::CloseCurrentPopup();
+        gui_dialog_in_use = false;
+        confirm_erase();
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Cancel", ImVec2(120, 0)))
+    {
+        ImGui::CloseCurrentPopup();
+        gui_dialog_in_use = false;
+    }
+
+    ImGui::SetItemDefaultFocus();
     ImGui::EndPopup();
 }
 

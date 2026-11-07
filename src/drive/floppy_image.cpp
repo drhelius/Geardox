@@ -19,6 +19,7 @@
 
 #include <new>
 #include "floppy_image.h"
+#include "freedos.h"
 #include "../media/crc.h"
 
 struct FloppyImage_Geometry
@@ -69,12 +70,6 @@ static const char k_floppy_pc_oem[] = "GEARDOX ";
 static const char k_floppy_pc_label[] = "NO NAME    FAT12   ";
 static const u32 k_floppy_pc_code_offset = 0x3E;
 static const u8 k_floppy_data_filler = 0xF6;
-
-// Prints that the disk has no system, waits for a key and goes on to the next boot device
-static const u8 k_floppy_pc_boot_code[] =
-{
-
-};
 
 static const u32 k_floppy_mfm_header_size = 19;
 static const u32 k_floppy_mfm_entry_size = 11;
@@ -421,7 +416,7 @@ u8* FloppyImage::CreateBlank(FloppyImage_Blank type, bool formatted, u32* image_
     write_u16_le(raw + 26, geometry.heads);
     raw[38] = 0x29;
     memcpy(raw + 43, k_floppy_pc_label, 19);
-    memcpy(raw + k_floppy_pc_code_offset, k_floppy_pc_boot_code, sizeof(k_floppy_pc_boot_code));
+    memcpy(raw + k_floppy_pc_code_offset, k_freedos_no_system, k_freedos_no_system_size);
     raw[510] = 0x55;
     raw[511] = 0xAA;
 

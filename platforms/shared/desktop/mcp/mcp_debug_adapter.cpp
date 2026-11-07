@@ -3406,6 +3406,15 @@ static json hard_disk_json(int id)
         disk["bios_translation"] = ide_disk->GetTranslation() != 0 ? "LBA" : "NONE";
     }
 
+    if (info.attached || info.pending_attached)
+    {
+        bool zip = ends_with_no_case(info.source, ".zip");
+        disk["source"] = info.builtin ? "freedos" : (info.source[0] == 0 ? "image" : (zip ? "zip" : "folder"));
+
+        if (info.source[0] != 0)
+            disk["source_path"] = info.source;
+    }
+
     if (info.pending)
         disk["at_next_reset"] = {{"attached", info.pending_attached}, {"file_path", info.pending_path},
             {"write_protected", info.pending_write_protected}};
@@ -3424,7 +3433,7 @@ json DebugAdapter::ListHardDisks()
 }
 
 json DebugAdapter::AttachHardDisk(int id, const std::string& file_path, const json& write_protected,
-    const json& create_size_mb)
+    const json& create_size_mb, bool formatted)
 {
     if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS))
         return {{"error", "id must be 0-3"}};
@@ -3446,14 +3455,39 @@ json DebugAdapter::AttachHardDisk(int id, const std::string& file_path, const js
         if (path_exists(path))
             return {{"error", "A file already exists at " + file_path}};
 
-        if (!emu_hard_disk_create(id, path, size_mb, protect))
+        if (formatted && (size_mb < 33))
+            return {{"error", "A formatted disk needs 33 MB or more"}};
+
+        if (!emu_hard_disk_create(id, path, size_mb, formatted, protect))
             return {{"error", "Failed to create the hard disk image"}};
+    }
+    else if (emu_hard_disk_is_source(path))
+    {
+        if (emu_hard_disk_is_source_attached(path))
+            return {{"error", "This folder is attached already"}};
+
+        emu_hard_disk_prepare_source(path, false);
+        const FatImage_Report& report = emu_hard_disk_get_prepared_source()->report;
+
+        if (report.result == FAT_IMAGE_TOO_BIG)
+            return {{"error", "This doesn't fit in a FAT16 disk of 2015 MB"}};
+
+        if ((report.result == FAT_IMAGE_ERROR) || !emu_hard_disk_attach_prepared_source(id, protect))
+            return {{"error", "Failed to make a hard disk from this folder or ZIP"}};
     }
     else if (!emu_hard_disk_attach(id, path, protect))
         return {{"error", "Failed to attach the hard disk image"}};
 
     json result = hard_disk_json(id);
     result["success"] = true;
+
+    if (emu_hard_disk_is_source(path))
+    {
+        const FatImage_Report& report = emu_hard_disk_get_prepared_source()->report;
+        result["left_out"] = report.left_out;
+        result["changed_on_host"] = report.result == FAT_IMAGE_CHANGED;
+    }
+
     return result;
 }
 

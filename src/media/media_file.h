@@ -34,6 +34,8 @@ public:
     static MediaFile* OpenFile(const char* path, bool writable = false);
     static MediaFile* OpenNewFile(const char* path);
     static bool ListDirectory(const char* path, std::vector<std::string>& folders, std::vector<std::string>& files);
+    static bool GetFileInfo(const char* path, u64* size, s64* modified);
+    static bool IsFolderLink(const char* path);
     static bool RenameFile(const char* from, const char* to);
     static bool RemoveFile(const char* path);
     static void SetVfsInterface(const retro_vfs_interface* iface, unsigned version = 1);

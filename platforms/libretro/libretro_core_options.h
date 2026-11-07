@@ -433,6 +433,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "auto"
     },
     {
+        "geardox_freedos",
+        "FreeDOS Disk (restart)",
+        NULL,
+        "With no hard disk in the content, the included FreeDOS disk goes on Primary Master. It lives in the save folder as FreeDOS.hdd, and it's yours: Geardox never changes it again. Delete that file for a new one.",
+        NULL,
+        "system",
+        {
+            { "enabled",  NULL },
+            { "disabled", NULL },
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
         "geardox_boot_device",
         "Boot Device (restart)",
         NULL,

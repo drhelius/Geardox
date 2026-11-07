@@ -53,6 +53,7 @@
 static bool error_window_active = false;
 static char error_message[4096] = "";
 static bool loading_rom_active = false;
+static bool loading_hard_disk_source = false;
 static int pending_state_slot = 0;
 static std::string pending_state_path;
 static char loading_rom_path[4096] = "";
@@ -456,6 +457,9 @@ bool gui_load_rom(const char* path, const char* symbol_path)
     GeardoxCore* core = emu_get_core();
     int drives = emu_is_empty() ? core->GetPendingMachineConfig().floppy_drives : core->GetMachineConfig().floppy_drives;
 
+    if (emu_hard_disk_is_source(path))
+        return gui_hard_disks_load_source(path);
+
     if (emu_hard_disk_is_image(path))
         return gui_hard_disks_load(path);
 
@@ -509,6 +513,20 @@ bool gui_load_playlist_disc(int index)
     start_loading_rom(path, NULL);
     loading_auto = false;
     loading_keep_debug = true;
+    return true;
+}
+
+bool gui_load_hard_disk_source(const char* path, bool rebuild)
+{
+    if (loading_rom_active)
+        return false;
+
+    loading_hard_disk_source = true;
+    loading_rom_active = true;
+    loading_symbol_path[0] = '\0';
+    strncpy_fit(loading_rom_path, path, sizeof(loading_rom_path));
+    emu_resume();
+    emu_load_hard_disk_source_async(path, rebuild);
     return true;
 }
 
@@ -619,7 +637,12 @@ bool gui_finish_loading_rom(void)
     gui_dialog_in_use = false;
     bool success = emu_finish_media_loading();
 
-    if (success)
+    if (loading_hard_disk_source)
+    {
+        loading_hard_disk_source = false;
+        gui_hard_disks_source_loaded();
+    }
+    else if (success)
         success = finish_loading_rom();
     else
     {

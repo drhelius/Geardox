@@ -20,6 +20,7 @@
 #include "media_file_native.h"
 #include "../common/common.h"
 #include <limits>
+#include <sys/stat.h>
 
 MediaFileNative::MediaFileNative()
 {
@@ -87,6 +88,46 @@ bool MediaFileNative::ListDirectory(const char* path, std::vector<std::string>& 
     UNUSED(path);
     UNUSED(folders);
     UNUSED(files);
+    return false;
+#endif
+}
+
+bool MediaFileNative::GetFileInfo(const char* path, u64* size, s64* modified)
+{
+#if defined(_WIN32)
+    struct _stat64 info;
+
+    if (_wstat64(utf8_to_wstring(path).c_str(), &info) != 0)
+        return false;
+#else
+    struct stat info;
+
+    if (stat(path, &info) != 0)
+        return false;
+#endif
+
+    *size = (u64)info.st_size;
+    *modified = (s64)info.st_mtime;
+    return true;
+}
+
+bool MediaFileNative::IsFolderLink(const char* path)
+{
+#if defined(_WIN32)
+    WIN32_FIND_DATAW fd;
+    HANDLE find = FindFirstFileW(utf8_to_wstring(path).c_str(), &fd);
+
+    if (find == INVALID_HANDLE_VALUE)
+        return false;
+
+    FindClose(find);
+    return ((fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) &&
+        ((fd.dwReserved0 == IO_REPARSE_TAG_SYMLINK) || (fd.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT));
+#elif !defined(__LIBRETRO__)
+    struct stat info;
+    return (lstat(path, &info) == 0) && S_ISLNK(info.st_mode);
+#else
+    UNUSED(path);
     return false;
 #endif
 }

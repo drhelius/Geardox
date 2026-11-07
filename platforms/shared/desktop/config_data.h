@@ -104,6 +104,7 @@ struct config_Emulator
     bool floppy_write_protected[config_floppy_drives];
     std::string recent_floppies[config_max_recent_floppies];
     int hard_disk_write_protected[GDOX_MAX_HARD_DISKS];
+    bool hard_disk_freedos;
     std::string recent_hard_disks[config_max_recent_hard_disks];
 };
 

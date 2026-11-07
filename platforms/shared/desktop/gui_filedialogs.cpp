@@ -49,6 +49,7 @@ enum FileDialogID
     FileDialog_SaveFloppy,
     FileDialog_NewFloppy,
     FileDialog_AttachHardDisk,
+    FileDialog_AttachFolder,
     FileDialog_CreateHardDisk,
     FileDialog_ChooseScreenshotPath,
     FileDialog_ChooseVideoRecordingPath,
@@ -271,10 +272,21 @@ void gui_file_dialog_attach_hard_disk(int id)
 
     dialog_hard_disk_id = id;
     SDL_DialogFileFilter filters[] = {
-        { "Hard Disk Images", "hdd;img;vhd;hdm;chd;h0;h1;h2;h3" },
+        { "Hard Disk Images and ZIP Files", "hdd;img;vhd;hdm;chd;h0;h1;h2;h3;zip" },
         { "All Files", "*" }
     };
     show_open_file_dialog(FileDialog_AttachHardDisk, filters, 2);
+}
+
+void gui_file_dialog_attach_folder(int id)
+{
+    if (!begin_dialog())
+        return;
+
+    dialog_hard_disk_id = id;
+    const char* default_path = config_file_dialogs.hard_disks.empty() ? NULL : config_file_dialogs.hard_disks.c_str();
+    SDL_ShowOpenFolderDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_AttachFolder, application_sdl_window,
+        default_path, false);
 }
 
 void gui_file_dialog_create_hard_disk(int id)
@@ -414,6 +426,7 @@ static std::string* get_dialog_folder(FileDialogID id)
         case FileDialog_NewFloppy:
             return &config_file_dialogs.floppies;
         case FileDialog_AttachHardDisk:
+        case FileDialog_AttachFolder:
         case FileDialog_CreateHardDisk:
             return &config_file_dialogs.hard_disks;
         case FileDialog_SaveScreenshot:
@@ -571,6 +584,7 @@ static void process_dialog_result(FileDialogID id, const char* path)
             gui_floppy_dialog_new_blank(dialog_floppy_drive, path);
             break;
         case FileDialog_AttachHardDisk:
+        case FileDialog_AttachFolder:
             gui_hard_disks_dialog_attach(dialog_hard_disk_id, path);
             break;
         case FileDialog_CreateHardDisk:

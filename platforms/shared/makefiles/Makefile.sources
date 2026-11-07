@@ -36,6 +36,7 @@ SOURCES_CXX := \
     $(DEPS_DIR)/imgui/implot_demo.cpp \
     $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
     $(DEPS_DIR)/seabios/seabios.cpp \
+    $(DEPS_DIR)/freedos/freedos.cpp \
     $(DESKTOP_SRC_DIR)/main.cpp \
     $(DESKTOP_SRC_DIR)/application.cpp \
     $(DESKTOP_SRC_DIR)/application_headless.cpp \
@@ -105,6 +106,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/drive/ide_disk.cpp \
     $(SRC_DIR)/drive/i82077.cpp \
     $(SRC_DIR)/drive/hard_disk_image.cpp \
+    $(SRC_DIR)/drive/fat_image.cpp \
     $(SRC_DIR)/drive/floppy_disk.cpp \
     $(SRC_DIR)/drive/floppy_image.cpp \
     $(SRC_DIR)/i386/i386.cpp \

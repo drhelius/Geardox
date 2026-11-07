@@ -21,6 +21,7 @@
 #define EMU_HARD_DISK_H
 
 #include "geardox.h"
+#include "drive/fat_image.h"
 
 #ifdef EMU_HARD_DISK_IMPORT
     #define EXTERN
@@ -36,22 +37,41 @@ struct Emu_HardDiskInfo
     bool pending_attached;
     bool pending_write_protected;
     u32 blocks;
+    bool builtin;
     u32 unflushed;
     char path[GDOX_MAX_PATH];
     char pending_path[GDOX_MAX_PATH];
+    char source[GDOX_MAX_PATH];
+};
+
+struct Emu_HardDiskSource
+{
+    char path[GDOX_MAX_PATH];
+    char image[GDOX_MAX_PATH];
+    FatImage_Report report;
 };
 
 EXTERN bool emu_hard_disk_is_image(const char* path);
 EXTERN int emu_hard_disk_get_image_id(const char* path);
+EXTERN int emu_hard_disk_get_free_id(void);
+EXTERN bool emu_hard_disk_is_source(const char* path);
+EXTERN bool emu_hard_disk_is_source_attached(const char* path);
+EXTERN void emu_hard_disk_prepare_source(const char* path, bool rebuild);
+EXTERN const Emu_HardDiskSource* emu_hard_disk_get_prepared_source(void);
+EXTERN bool emu_hard_disk_attach_prepared_source(int id, bool write_protected);
+EXTERN void emu_hard_disk_boot_freedos(void);
+EXTERN bool emu_hard_disk_attach_freedos(int id);
+EXTERN bool emu_hard_disk_recreate_freedos(void);
 EXTERN bool emu_hard_disk_attach(int id, const char* path, bool write_protected);
 EXTERN bool emu_hard_disk_detach(int id);
-EXTERN bool emu_hard_disk_create(int id, const char* path, int size_mb, bool write_protected);
+EXTERN bool emu_hard_disk_create(int id, const char* path, int size_mb, bool formatted, bool write_protected);
 EXTERN bool emu_hard_disk_set_write_protected(int id, bool write_protected);
 EXTERN bool emu_hard_disk_flush(void);
 EXTERN void emu_hard_disk_update(void);
 EXTERN bool emu_hard_disk_take_flush_error(void);
 EXTERN bool emu_hard_disk_get_info(int id, Emu_HardDiskInfo* info);
 EXTERN const char* emu_hard_disk_get_content_path(void);
+EXTERN const char* emu_hard_disk_get_content_name(void);
 EXTERN void emu_hard_disk_state_loaded(bool rewind);
 EXTERN u32 emu_hard_disk_take_state_changes(void);
 

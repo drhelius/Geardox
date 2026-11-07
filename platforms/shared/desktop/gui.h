@@ -132,6 +132,7 @@ EXTERN void gui_render(void);
 EXTERN void gui_shortcut(gui_ShortCutEvent event);
 EXTERN bool gui_load_rom(const char* path, const char* symbol_path = NULL);
 EXTERN bool gui_load_playlist_disc(int index);
+EXTERN bool gui_load_hard_disk_source(const char* path, bool rebuild);
 EXTERN void gui_load_physical_cdrom(const char* device_id);
 EXTERN void gui_reload_cdrom(void);
 EXTERN void gui_load_media_symbols(const char* media_path, const char* symbol_path);

@@ -51,6 +51,7 @@ tests/
 *.ini
 *.cfg
 *.zip
+!platforms/shared/dependencies/freedos/packages/*.zip
 *.geardox
 *.so
 *.sav

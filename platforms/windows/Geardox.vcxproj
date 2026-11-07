@@ -76,6 +76,7 @@
     <ClCompile Include="..\..\src\drive\ide_disk.cpp" />
     <ClCompile Include="..\..\src\drive\i82077.cpp" />
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
+    <ClCompile Include="..\..\src\drive\fat_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
     <ClCompile Include="..\..\src\system\i8254.cpp" />
@@ -150,6 +151,7 @@
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
     <ClCompile Include="..\shared\dependencies\seabios\seabios.cpp" />
+    <ClCompile Include="..\shared\dependencies\freedos\freedos.cpp" />
     <ClCompile Include="..\shared\dependencies\miniz\miniz.c">
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
@@ -303,6 +305,7 @@
     <ClInclude Include="..\..\src\drive\ide_controller_inline.h" />
     <ClInclude Include="..\..\src\drive\ide_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
+    <ClInclude Include="..\..\src\drive\fat_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\floppy_image.h" />
@@ -537,7 +540,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;dependencies/SDL3/include;release;.;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;../shared/dependencies/freedos;dependencies/SDL3/include;release;.;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:strictStrings -Zc:throwingNew -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerListingLocation>release\</AssemblerListingLocation>
       <BrowseInformation>false</BrowseInformation>
@@ -582,7 +585,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;dependencies/SDL3/include;release;.;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;../shared/dependencies/freedos;dependencies/SDL3/include;release;.;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:strictStrings -Zc:throwingNew -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerListingLocation>release\</AssemblerListingLocation>
       <BrowseInformation>false</BrowseInformation>
@@ -627,7 +630,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;dependencies/SDL3/include;debug;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;../shared/dependencies/freedos;dependencies/SDL3/include;debug;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:strictStrings -Zc:throwingNew -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerListingLocation>debug\</AssemblerListingLocation>
       <BrowseInformation>false</BrowseInformation>
@@ -667,7 +670,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;dependencies/SDL3/include;debug;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;../../src;../shared/dependencies/imgui;../shared/dependencies/mINI;../shared/dependencies/stb;../shared/dependencies/libchdr/include;../shared/dependencies/lzma/include;../shared/dependencies/zstd;../shared/dependencies/minivorbis;../shared/dependencies/miniz;../shared/dependencies/lightning/include;../shared/dependencies/glad;../shared/dependencies/json;../shared/dependencies/bochs_fpu;../shared/dependencies/seabios;../shared/dependencies/freedos;dependencies/SDL3/include;debug;.\GeneratedFiles;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-Zc:strictStrings -Zc:throwingNew -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerListingLocation>debug\</AssemblerListingLocation>
       <BrowseInformation>false</BrowseInformation>

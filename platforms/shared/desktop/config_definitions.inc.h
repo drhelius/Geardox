@@ -213,6 +213,7 @@ static inline void process(config_Operation operation)
     // Hard disks
     CONFIG_INT_ARRAY("HardDisk", "WriteProtected%d", config_emulator.hard_disk_write_protected, GDOX_MAX_HARD_DISKS, 0);
     CONFIG_STRING_ARRAY("HardDisk", "Recent%d", config_emulator.recent_hard_disks, config_max_recent_hard_disks, "");
+    CONFIG_BOOL("HardDisk", "FreeDOS", config_emulator.hard_disk_freedos, true);
 
     // File dialogs
     CONFIG_STRING("FileDialogs", "ROM", config_file_dialogs.rom, "");

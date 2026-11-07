@@ -349,7 +349,9 @@ void application_load_media(const ApplicationParams& params)
     }
 
     // The machine powers on before this, and a hard disk only attaches at a reset
-    if (gui_hard_disks_is_pending())
+    if (gui_hard_disks_is_loading_source())
+        gui_hard_disks_reset_when_loaded();
+    else if (gui_hard_disks_is_pending())
         gui_action_reset();
 
     if ((params.state_slot > 0) || IsValidPointer(params.state_file))
@@ -569,7 +571,7 @@ static void handle_title(void)
     const char* name = media->IsReady() ? media->GetFileName() : get_filename(emu_floppy_get_content_path());
 
     if ((name[0] == 0) && !emu_is_empty())
-        name = get_filename(emu_hard_disk_get_content_path());
+        name = get_filename(emu_hard_disk_get_content_name());
 
     if (strcmp(name, title_name) == 0)
         return;

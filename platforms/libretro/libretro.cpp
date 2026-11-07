@@ -34,6 +34,7 @@
 #include "drive/floppy_disk.h"
 #include "drive/floppy_image.h"
 #include "drive/hard_disk_image.h"
+#include "drive/fat_image.h"
 #include "video/video.h"
 #include "libretro_core_options.h"
 #include "libretro_vfs_file.h"
@@ -160,6 +161,8 @@ static int hard_disk_idle_frames = 0;
 static bool hard_disk_flush_failed = false;
 static bool hard_disk_state_warned = false;
 static std::string hard_disk_working_path[GDOX_MAX_HARD_DISKS];
+static bool hard_disk_image_attached = false;
+static bool freedos_disk = true;
 static int floppy_drive = 0;
 static bool floppy_multidrive = false;
 static bool save_disk = false;
@@ -254,6 +257,8 @@ static bool floppy_load_image(unsigned index, int floppy);
 static bool floppy_flush(int floppy);
 static void floppy_update(void);
 static bool hard_disk_attach(const char* path);
+static bool hard_disk_attach_source(const char* path);
+static void hard_disk_attach_freedos(void);
 static void hard_disk_update(void);
 static void cmos_load(void);
 static void cmos_save(void);
@@ -770,6 +775,7 @@ static bool load_content(const char* path)
         return false;
     }
 
+    hard_disk_attach_freedos();
     core->LatchAutoMedia();
     cmos_load();
     core->SetBootDevice(boot_device);
@@ -852,6 +858,7 @@ static void unload_content(void)
     hard_disk_idle_frames = 0;
     hard_disk_flush_failed = false;
     hard_disk_state_warned = false;
+    hard_disk_image_attached = false;
     disk_clear();
     clear_input_state();
 
@@ -1891,6 +1898,12 @@ static void check_variables(void)
         }
     }
 
+    var.key = "geardox_freedos";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        freedos_disk = strcmp(var.value, "disabled") != 0;
+
     var.key = "geardox_boot_device";
     var.value = NULL;
 
@@ -2072,8 +2085,7 @@ static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images)
             return true;
 
         if (ends_with_no_case(path, ".zip"))
-            show_message("This ZIP file has no floppy disk image, zipped CD-ROM images are not supported, "
-                "use CHD instead", 3, RETRO_LOG_ERROR);
+            return hard_disk_attach_source(path);
 
         log_cb(RETRO_LOG_ERROR, "Unable to read the floppy disk image %s\n", path);
         return false;
@@ -3012,9 +3024,80 @@ static bool hard_disk_attach(const char* path)
     }
 
     hard_disk_working_path[id] = working;
+    hard_disk_image_attached = true;
 
     log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", id, path);
     return true;
+}
+
+// A ZIP with no floppy images is a folder. Slot 0 waits for FreeDOS, so the files show up as D:
+static bool hard_disk_attach_source(const char* path)
+{
+    if (content_loaded)
+    {
+        log_cb(RETRO_LOG_ERROR, "Hard disks are attached with the content and can't be swapped: %s\n", path);
+        return false;
+    }
+
+    std::string name;
+    std::string image(retro_save_directory);
+    FatImage_Report report;
+    FatImage::GetImageName(path, &name);
+    append_path_component(image, name.c_str());
+    FatImage::Prepare(path, image.c_str(), false, &report);
+
+    if (report.result == FAT_IMAGE_TOO_BIG)
+        show_message("These files don't fit in a FAT16 disk of 2015 MB", 3, RETRO_LOG_ERROR);
+
+    if ((report.result == FAT_IMAGE_TOO_BIG) || (report.result == FAT_IMAGE_ERROR))
+    {
+        log_cb(RETRO_LOG_ERROR, "Unable to make a hard disk from %s\n", path);
+        return false;
+    }
+
+    if (report.result == FAT_IMAGE_CHANGED)
+    {
+        log_cb(RETRO_LOG_WARN, "%s changed since %s was made, delete that file to pick it up\n", path, image.c_str());
+        show_message("This ZIP changed since its disk was made", 3, RETRO_LOG_WARN);
+    }
+
+    if (report.left_out != 0)
+        log_cb(RETRO_LOG_WARN, "%u items of %s are too deep for DOS to reach\n", report.left_out, path);
+
+    int id = -1;
+
+    for (int i = (freedos_disk && !hard_disk_image_attached) ? 1 : 0; (id < 0) && (i < GDOX_MAX_HARD_DISKS); i++)
+    {
+        if (!core->GetHardDisk(i)->IsOpen())
+            id = i;
+    }
+
+    if ((id < 0) || !core->AttachHardDisk(id, image.c_str(), false, ""))
+    {
+        log_cb(RETRO_LOG_ERROR, "Unable to attach the hard disk made from %s\n", path);
+        return false;
+    }
+
+    log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", id, image.c_str());
+    return true;
+}
+
+static void hard_disk_attach_freedos(void)
+{
+    if (!freedos_disk || hard_disk_image_attached)
+        return;
+
+    std::string path(retro_save_directory);
+    append_path_component(path, "FreeDOS.hdd");
+
+    if ((!content_file_exists(path.c_str()) && !FatImage::WriteFreeDOS(path.c_str())) ||
+        !core->AttachHardDisk(0, path.c_str(), false, ""))
+    {
+        log_cb(RETRO_LOG_ERROR, "Unable to attach the FreeDOS disk %s\n", path.c_str());
+        return;
+    }
+
+    log_cb(RETRO_LOG_INFO, "Hard disk in slot 0: %s\n", path.c_str());
 }
 
 static void hard_disk_update(void)

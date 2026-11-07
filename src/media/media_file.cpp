@@ -95,6 +95,34 @@ bool MediaFile::ListDirectory(const char* path, std::vector<std::string>& folder
     return MediaFileNative::ListDirectory(path, folders, files);
 }
 
+bool MediaFile::GetFileInfo(const char* path, u64* size, s64* modified)
+{
+    if (!IsValidPointer(path) || (path[0] == '\0'))
+        return false;
+
+#if defined(__LIBRETRO__)
+    if (MediaFileLibretro::HasVfsInterface())
+    {
+        MediaFile* file = OpenFile(path);
+
+        if (!IsValidPointer(file))
+            return false;
+
+        *size = (u64)file->GetSize();
+        *modified = 0;
+        SafeDelete(file);
+        return true;
+    }
+#endif
+
+    return MediaFileNative::GetFileInfo(path, size, modified);
+}
+
+bool MediaFile::IsFolderLink(const char* path)
+{
+    return IsValidPointer(path) && MediaFileNative::IsFolderLink(path);
+}
+
 bool MediaFile::RenameFile(const char* from, const char* to)
 {
 #if defined(__LIBRETRO__)

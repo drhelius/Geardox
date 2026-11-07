@@ -103,6 +103,7 @@ EXTERN bool emu_init(void);
 EXTERN void emu_destroy(void);
 EXTERN void emu_update(void);
 EXTERN void emu_load_media_async(const char* file_path);
+EXTERN void emu_load_hard_disk_source_async(const char* path, bool rebuild);
 EXTERN void emu_load_physical_cdrom_async(const char* device_id);
 EXTERN bool emu_is_media_loading(void);
 EXTERN bool emu_finish_media_loading(void);

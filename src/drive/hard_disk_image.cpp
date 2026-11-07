@@ -21,6 +21,7 @@
 #include <libchdr/chd.h>
 #include "hard_disk_image.h"
 #include "floppy_image.h"
+#include "fat_image.h"
 #include "../media/media_file.h"
 #include "../media/chd_file_adapter.h"
 
@@ -681,10 +682,18 @@ bool HardDiskImage::GetChdHash(const char* path, u32* hash)
     return true;
 }
 
-bool HardDiskImage::Create(const char* path, u64 size)
+bool HardDiskImage::Create(const char* path, u64 size, bool formatted)
 {
-    if (!IsValidPointer(path) || (size < k_hard_disk_block_size) || (size > 0x7FFFFFFF))
+    u64 min_size = formatted ? k_fat_min_size : k_hard_disk_block_size;
+
+    if (!IsValidPointer(path) || (size < min_size) || (size > 0x7FFFFFFF))
         return false;
+
+    if (formatted)
+    {
+        FatImage image;
+        return image.Write(path, size);
+    }
 
     FILE* file = fopen_utf8(path, "wb");
 

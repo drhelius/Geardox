@@ -310,6 +310,9 @@
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\fat_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -409,6 +412,9 @@
     <ClCompile Include="..\shared\dependencies\seabios\seabios.cpp">
       <Filter>dependencies\seabios</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\dependencies\freedos\freedos.cpp">
+      <Filter>dependencies\freedos</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\dependencies\miniz\miniz.c">
       <Filter>dependencies\miniz</Filter>
     </ClCompile>
@@ -507,6 +513,7 @@
     <ClInclude Include="..\..\src\drive\ide_controller_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\ide_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\hard_disk_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\fat_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_image.h"><Filter>src</Filter></ClInclude>
@@ -854,6 +861,9 @@
     </Filter>
     <Filter Include="dependencies\seabios">
       <UniqueIdentifier>{3c7e2a91-5d84-4b0f-a6e3-8f1d2c9b7e45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dependencies\freedos">
+      <UniqueIdentifier>{7f3a1c52-9e4d-4b86-a1d7-3c5e8f2b6d10}</UniqueIdentifier>
     </Filter>
     <Filter Include="dependencies\miniz">
       <UniqueIdentifier>{466b2296-06dc-4afd-a898-3c4ed168681e}</UniqueIdentifier>
