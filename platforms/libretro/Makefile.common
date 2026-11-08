@@ -67,6 +67,9 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/input/input.cpp \
                 $(SOURCE_DIR)/input/i8042.cpp \
                 $(SOURCE_DIR)/input/keyboard.cpp \
+                $(SOURCE_DIR)/input/ps2_mouse.cpp \
+                $(SOURCE_DIR)/input/serial_mouse.cpp \
+                $(SOURCE_DIR)/input/game_port.cpp \
                 $(SOURCE_DIR)/media/chd_file_adapter.cpp \
                 $(SOURCE_DIR)/media/firmware.cpp \
                 $(SOURCE_DIR)/media/media.cpp \
@@ -83,6 +86,9 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/system/pic.cpp \
                 $(SOURCE_DIR)/system/pit.cpp \
                 $(SOURCE_DIR)/system/mc146818.cpp \
+                $(SOURCE_DIR)/system/uart.cpp \
+                $(SOURCE_DIR)/system/serial_ports.cpp \
+                $(SOURCE_DIR)/system/parallel_port.cpp \
                 $(SOURCE_DIR)/system/scheduler.cpp \
                 $(SOURCE_DIR)/system/system_control.cpp \
                 $(SOURCE_DIR)/system/firmware_config.cpp \

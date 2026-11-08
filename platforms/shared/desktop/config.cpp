@@ -48,8 +48,6 @@ static void process_float(config_Operation operation, const char* section, const
                           bool has_maximum, float maximum);
 static void process_string(config_Operation operation, const char* section, const char* key,
                            std::string* value, const char* default_value, bool allow_empty);
-static void process_scancode(config_Operation operation, const char* section, const char* key,
-                             SDL_Scancode* value, SDL_Scancode default_value);
 static void process_int_array(config_Operation operation, const char* section,
                               const char* key_format, int* values, int count,
                               int default_value);
@@ -389,15 +387,6 @@ static void process_string(config_Operation operation, const char* section, cons
         write_string(section, key, processed);
     else if (operation == config_Operation_Read)
         Debug("Load string setting: [%s][%s]=%s", section, key, processed.c_str());
-}
-
-static void process_scancode(config_Operation operation, const char* section, const char* key,
-                             SDL_Scancode* value, SDL_Scancode default_value)
-{
-    int processed = operation == config_Operation_Defaults ? (int)default_value : (int)*value;
-    process_int(operation, section, key, &processed, (int)default_value,
-                       false, 0, false, 0);
-    *value = (SDL_Scancode)processed;
 }
 
 static void process_int_array(config_Operation operation, const char* section,

@@ -32,7 +32,6 @@
 static bool gamepad_shortcut_prev[GDOX_MAX_GAMEPADS][config_HotkeyIndex_COUNT] = { };
 
 static void notify_gamepad(int player, SDL_Gamepad* controller, bool connected);
-static bool is_shortcut_handled_by_lower_port(int controller, int shortcut);
 
 bool gamepad_init(void)
 {
@@ -281,38 +280,6 @@ void gamepad_assign(int slot, SDL_JoystickID instance_id)
             return;
     }
 
-    int other = -1;
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        if (i == slot)
-            continue;
-
-        if (IsValidPointer(gamepad_controller[i]))
-        {
-            SDL_JoystickID id = SDL_GetJoystickID(SDL_GetGamepadJoystick(gamepad_controller[i]));
-            if (id == instance_id)
-            {
-                other = i;
-                break;
-            }
-        }
-    }
-
-    if (other != -1 && !config_input.allow_shared_gamepads)
-    {
-        if (IsValidPointer(gamepad_controller[slot]))
-        {
-            SDL_CloseGamepad(gamepad_controller[slot]);
-            gamepad_controller[slot] = NULL;
-        }
-
-        gamepad_controller[slot] = gamepad_controller[other];
-        gamepad_controller[other] = NULL;
-
-        Debug("Moved controller from Player %d to Player %d", other + 1, slot + 1);
-        return;
-    }
-
     if (IsValidPointer(gamepad_controller[slot]))
     {
         SDL_CloseGamepad(gamepad_controller[slot]);
@@ -330,26 +297,6 @@ void gamepad_assign(int slot, SDL_JoystickID instance_id)
 
     gamepad_controller[slot] = controller;
     Debug("Game controller %d assigned to Player %d", instance_id, slot + 1);
-}
-
-void gamepad_remove_duplicates(void)
-{
-    for (int i = 1; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        if (!IsValidPointer(gamepad_controller[i]))
-            continue;
-
-        for (int j = 0; j < i; j++)
-        {
-            if (gamepad_controller[j] == gamepad_controller[i])
-            {
-                SDL_CloseGamepad(gamepad_controller[i]);
-                gamepad_controller[i] = NULL;
-                Debug("Player %d controller set to None, already used by Player %d", i + 1, j + 1);
-                break;
-            }
-        }
-    }
 }
 
 int gamepad_get_detected(Gamepad_Detected_Info* out_list, int max_count)
@@ -387,12 +334,6 @@ void gamepad_check_shortcuts(int controller)
             continue;
 
         bool button_pressed = gamepad_get_button(sdl_controller, button_mapping);
-
-        if (is_shortcut_handled_by_lower_port(controller, i))
-        {
-            gamepad_shortcut_prev[controller][i] = button_pressed;
-            continue;
-        }
 
         if (i == config_HotkeyIndex_Rewind)
         {
@@ -437,19 +378,6 @@ bool gamepad_get_button(SDL_Gamepad* controller, int mapping)
 
         Sint16 value = SDL_GetGamepadAxis(controller, (SDL_GamepadAxis)axis);
         return value > GAMEPAD_VBTN_AXIS_THRESHOLD;
-    }
-
-    return false;
-}
-
-static bool is_shortcut_handled_by_lower_port(int controller, int shortcut)
-{
-    for (int i = 0; i < controller; i++)
-    {
-        if (gamepad_controller[i] == gamepad_controller[controller] &&
-            config_input_gamepad_shortcuts[i].gamepad_shortcuts[shortcut] ==
-            config_input_gamepad_shortcuts[controller].gamepad_shortcuts[shortcut])
-            return true;
     }
 
     return false;

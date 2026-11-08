@@ -30,8 +30,6 @@ struct GDOX_DB_Entry
     u8 model;
     u8 ram_mb;
     u8 cpu_mhz;
-    u8 port_1;
-    u8 port_2;
     u32 fallback_key;
 };
 
@@ -48,19 +46,14 @@ struct GDOX_DB_Entry
 #define GDOX_GAMEDB_FIRMWARE_VGA_BIOS        0x0200
 #define GDOX_GAMEDB_FIRMWARE_MASK            0x0300
 
-#define GDOX_GAMEDB_PORT_DEFAULT             0
-#define GDOX_GAMEDB_PORT_NONE                1
-#define GDOX_GAMEDB_PORT_PAD                 2
-#define GDOX_GAMEDB_PORT_MOUSE               3
-
 const GDOX_DB_Entry k_game_database[] =
 {
-    { 0, 0, GDOX_GAMEDB_FLAG_NONE, 0, 0, 0, 0, 0, 0 }
+    { 0, 0, GDOX_GAMEDB_FLAG_NONE, 0, 0, 0, 0 }
 };
 
 const GDOX_DB_Entry k_floppy_database[] =
 {
-    { 0, 0, GDOX_GAMEDB_FLAG_NONE, 0, 0, 0, 0, 0, 0 }
+    { 0, 0, GDOX_GAMEDB_FLAG_NONE, 0, 0, 0, 0 }
 };
 
 #endif /* GAME_DB_H */

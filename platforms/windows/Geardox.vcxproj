@@ -53,6 +53,9 @@
     <ClCompile Include="..\..\src\input\input.cpp" />
     <ClCompile Include="..\..\src\input\i8042.cpp" />
     <ClCompile Include="..\..\src\input\keyboard.cpp" />
+    <ClCompile Include="..\..\src\input\ps2_mouse.cpp" />
+    <ClCompile Include="..\..\src\input\serial_mouse.cpp" />
+    <ClCompile Include="..\..\src\input\game_port.cpp" />
     <ClCompile Include="..\..\src\system\memory.cpp" />
     <ClCompile Include="..\..\src\system\io.cpp" />
     <ClCompile Include="..\..\src\system\pic.cpp" />
@@ -61,6 +64,9 @@
     <ClCompile Include="..\..\src\system\i8259.cpp" />
     <ClCompile Include="..\..\src\system\pit.cpp" />
     <ClCompile Include="..\..\src\system\mc146818.cpp" />
+    <ClCompile Include="..\..\src\system\uart.cpp" />
+    <ClCompile Include="..\..\src\system\serial_ports.cpp" />
+    <ClCompile Include="..\..\src\system\parallel_port.cpp" />
     <ClCompile Include="..\..\src\system\system_control.cpp" />
     <ClCompile Include="..\..\src\system\firmware_config.cpp" />
     <ClCompile Include="..\..\src\system\debug_console.cpp" />
@@ -284,6 +290,10 @@
     <ClInclude Include="..\..\src\system\pit_inline.h" />
     <ClInclude Include="..\..\src\system\mc146818.h" />
     <ClInclude Include="..\..\src\system\mc146818_inline.h" />
+    <ClInclude Include="..\..\src\system\uart.h" />
+    <ClInclude Include="..\..\src\system\uart_inline.h" />
+    <ClInclude Include="..\..\src\system\serial_ports.h" />
+    <ClInclude Include="..\..\src\system\parallel_port.h" />
     <ClInclude Include="..\..\src\system\system_control.h" />
     <ClInclude Include="..\..\src\system\system_control_inline.h" />
     <ClInclude Include="..\..\src\system\firmware_config.h" />
@@ -332,6 +342,12 @@
     <ClInclude Include="..\..\src\input\i8042_inline.h" />
     <ClInclude Include="..\..\src\input\keyboard.h" />
     <ClInclude Include="..\..\src\input\keyboard_inline.h" />
+    <ClInclude Include="..\..\src\input\ps2_mouse.h" />
+    <ClInclude Include="..\..\src\input\ps2_mouse_inline.h" />
+    <ClInclude Include="..\..\src\input\serial_mouse.h" />
+    <ClInclude Include="..\..\src\input\serial_mouse_inline.h" />
+    <ClInclude Include="..\..\src\input\game_port.h" />
+    <ClInclude Include="..\..\src\input\game_port_inline.h" />
     <ClInclude Include="..\..\src\system\memory.h" />
     <ClInclude Include="..\..\src\system\memory_inline.h" />
     <ClInclude Include="..\..\src\audio\vgm_recorder.h" />

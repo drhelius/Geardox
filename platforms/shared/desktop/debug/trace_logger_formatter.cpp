@@ -30,7 +30,7 @@
 static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
 static const char* const k_trace_palette_components[3] = { "RED", "GREEN", "BLUE" };
 static const char* const k_trace_pcm_formats[6] = { "PCM8", "PCM16", "ADPCM2", "ADPCM3", "ADPCM4", "SILENCE" };
-static const char* const k_trace_controller_names[3] = { "NONE", "PAD", "MOUSE" };
+static const char* const k_trace_uart_registers[8] = { "RBR/THR", "IER", "IIR/FCR", "LCR", "MCR", "LSR", "MSR", "SCR" };
 
 static void format_event(char* buffer, size_t size, const char* tag, const char* name, const char* format, ...);
 static void format_cpu(const GDOX_Trace_Entry& entry, const GDOX_Trace_Format_Options& options, char* buffer, size_t size);
@@ -49,10 +49,13 @@ static void format_fdc(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 static void format_ide(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_keyboard(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_input(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_serial(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_parallel(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_bit_list(u8 bits, int base, char* buffer, size_t size);
 static void format_msf(u32 lba, char* buffer, size_t size);
-static void format_buttons(u16 buttons, char* buffer, size_t size);
+static void format_buttons(u8 device, u16 buttons, char* buffer, size_t size);
+static void format_bytes(const u8* data, int count, char* buffer, size_t size);
 
 void trace_log_format_cpu_address(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size)
 {
@@ -169,6 +172,12 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
             break;
         case TRACE_INPUT:
             format_input(entry, buffer, buffer_size);
+            break;
+        case TRACE_SERIAL:
+            format_serial(entry, buffer, buffer_size);
+            break;
+        case TRACE_PARALLEL:
+            format_parallel(entry, buffer, buffer_size);
             break;
         case TRACE_SYSTEM:
             format_system(entry, buffer, buffer_size);
@@ -955,25 +964,36 @@ static void format_keyboard(const GDOX_Trace_Entry& entry, char* buffer, size_t 
 
 static void format_input(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    char port = entry.input.port == 0 ? 'A' : 'B';
-    const char* device = k_trace_controller_names[MIN(entry.input.device, (u8)2)];
-    u8 output = entry.input.output;
+    char bytes[32];
+    int count = MIN((int)entry.input.count, 4);
 
     switch (entry.event)
     {
-        case TRACE_INPUT_READ:
+        case TRACE_INPUT_MOUSE_COMMAND:
+            format_bytes(entry.input.data + 1, count - 1, bytes, sizeof(bytes));
+            format_event(buffer, size, "INPUT", "MOUSE CMD", "PS/2 <- $%02X  Reply:%s", entry.input.data[0], bytes);
+            break;
+        case TRACE_INPUT_MOUSE_PACKET:
+            format_bytes(entry.input.data, count, bytes, sizeof(bytes));
+            format_event(buffer, size, "INPUT", "MOUSE PKT", "%s -> %s",
+                entry.input.device == TRACE_INPUT_DEVICE_SERIAL_MOUSE ? "SERIAL" : "PS/2", bytes);
+            break;
+        case TRACE_INPUT_JOYSTICK_FIRE:
         {
-            u8 value = entry.input.value;
-            format_event(buffer, size, "INPUT", "READ", "PORT %c %-9s -> $%02X  Lines:%c%c%c%c A:%u B:%u COM:%u", port,
-                device, value, (value & 0x01) ? '1' : '0', (value & 0x02) ? '1' : '0', (value & 0x04) ? '1' : '0',
-                (value & 0x08) ? '1' : '0', (value >> 4) & 0x01, (value >> 5) & 0x01, (value >> 6) & 0x01);
+            char axes[GDOX_JOYSTICK_AXIS_COUNT][12];
+
+            for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
+            {
+                if (entry.input.data[i] == 0)
+                    snprintf(axes[i], sizeof(axes[i]), "OPEN");
+                else
+                    snprintf(axes[i], sizeof(axes[i]), "%uus", entry.input.data[i] * 5);
+            }
+
+            format_event(buffer, size, "INPUT", "JOY FIRE", "$0201  A-X:%s  A-Y:%s  B-X:%s  B-Y:%s", axes[0], axes[1],
+                axes[2], axes[3]);
             break;
         }
-        case TRACE_INPUT_WRITE:
-            format_event(buffer, size, "INPUT", "WRITE", "$04D6 <- $%02X  TRIG A:%u%u B:%u%u  COM A:%u B:%u  Was:$%02X",
-                output, output & 0x01, (output >> 1) & 0x01, (output >> 2) & 0x01, (output >> 3) & 0x01,
-                (output >> 4) & 0x01, (output >> 5) & 0x01, entry.input.previous & 0xFF);
-            break;
         default:
         {
             char pressed[96];
@@ -981,13 +1001,48 @@ static void format_input(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
             u16 buttons = entry.input.buttons;
             u16 previous = entry.input.previous;
 
-            format_buttons(buttons & ~previous, pressed, sizeof(pressed));
-            format_buttons(previous & ~buttons, released, sizeof(released));
-            format_event(buffer, size, "INPUT", "CHANGE", "PORT %c %-9s Pressed:%s  Released:%s", port, device,
-                pressed, released);
+            format_buttons(entry.input.device, buttons & ~previous, pressed, sizeof(pressed));
+            format_buttons(entry.input.device, previous & ~buttons, released, sizeof(released));
+            format_event(buffer, size, "INPUT", "CHANGE", "%-8s Pressed:%s  Released:%s",
+                entry.input.device == TRACE_INPUT_DEVICE_MOUSE ? "MOUSE" : "JOYSTICK", pressed, released);
             break;
         }
     }
+}
+
+static void format_serial(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    int port = entry.serial.port + 1;
+    u8 value = entry.serial.value;
+
+    switch (entry.event)
+    {
+        case TRACE_SERIAL_WRITE:
+            format_event(buffer, size, "SERIAL", "WRITE", "COM%d %s <- $%02X", port,
+                k_trace_uart_registers[entry.serial.reg & 0x07], value);
+            break;
+        case TRACE_SERIAL_RECEIVE:
+            format_event(buffer, size, "SERIAL", "RECEIVE", "COM%d <- $%02X  LSR:$%02X", port, value,
+                entry.serial.flags);
+            break;
+        case TRACE_SERIAL_TRANSMIT:
+            format_event(buffer, size, "SERIAL", "TRANSMIT", "COM%d -> $%02X", port, value);
+            break;
+        case TRACE_SERIAL_MODEM:
+            format_event(buffer, size, "SERIAL", "MODEM", "COM%d DTR:%u RTS:%u OUT1:%u OUT2:%u", port, value & 0x01,
+                (value >> 1) & 0x01, (value >> 2) & 0x01, (value >> 3) & 0x01);
+            break;
+        default:
+            format_event(buffer, size, "SERIAL", "IRQ", "COM%d IRQ %d %s  IIR:$%02X", port,
+                entry.serial.port == 0 ? 4 : 3, entry.serial.flags != 0 ? "ON " : "OFF", value);
+            break;
+    }
+}
+
+static void format_parallel(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    format_event(buffer, size, "LPT", entry.event == TRACE_PARALLEL_DATA ? "DATA" : "CONTROL", "$%03X <- $%02X",
+        entry.parallel.port, entry.parallel.value);
 }
 
 static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
@@ -1055,21 +1110,22 @@ static void format_msf(u32 lba, char* buffer, size_t size)
     snprintf(buffer, size, "%02u:%02u:%02u", frames / (75 * 60), (frames / 75) % 60, frames % 75);
 }
 
-static void format_buttons(u16 buttons, char* buffer, size_t size)
+static void format_buttons(u8 device, u16 buttons, char* buffer, size_t size)
 {
-    static const char* const k_names[13] =
-    {
-        "UP", "DOWN", "LEFT", "RIGHT", "SELECT", "RUN", "A", "B", "C", "X", "Y", "Z", "ZOOM"
-    };
+    static const char* const k_mouse_names[3] = { "LEFT", "RIGHT", "MIDDLE" };
+    static const char* const k_joystick_names[8] = { "B1", "B2", "B3", "B4", "UP", "DOWN", "LEFT", "RIGHT" };
+    bool mouse = device == TRACE_INPUT_DEVICE_MOUSE;
+    const char* const* names = mouse ? k_mouse_names : k_joystick_names;
+    int count = mouse ? 3 : 8;
     size_t length = 0;
     buffer[0] = 0;
 
-    for (int i = 0; i < 13; i++)
+    for (int i = 0; i < count; i++)
     {
         if ((buttons & (1 << i)) == 0)
             continue;
 
-        int written = snprintf(buffer + length, size - length, length == 0 ? "%s" : "+%s", k_names[i]);
+        int written = snprintf(buffer + length, size - length, length == 0 ? "%s" : "+%s", names[i]);
 
         if (written < 0 || (size_t)written >= size - length)
             break;
@@ -1079,4 +1135,16 @@ static void format_buttons(u16 buttons, char* buffer, size_t size)
 
     if (length == 0)
         snprintf(buffer, size, "-");
+}
+
+static void format_bytes(const u8* data, int count, char* buffer, size_t size)
+{
+    size_t length = 0;
+    buffer[0] = 0;
+
+    for (int i = 0; i < count && length + 4 < size; i++)
+        length += (size_t)snprintf(buffer + length, size - length, " %02X", data[i]);
+
+    if (length == 0)
+        snprintf(buffer, size, " -");
 }

@@ -30,12 +30,14 @@ class FirmwareConfig;
 class I8042;
 class IdeController;
 class MC146818;
-class Input;
+class GamePort;
 class Memory;
+class ParallelPort;
 class PIC;
 class PIT;
 class Video;
 class Scheduler;
+class SerialPorts;
 class SystemControl;
 
 class IO
@@ -44,8 +46,9 @@ public:
     IO();
     ~IO();
     void Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
-        IdeController* ide, Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
-        DebugConsole* debug_console, I8042* i8042, DMA* dma);
+        IdeController* ide, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
+        DebugConsole* debug_console, I8042* i8042, DMA* dma, SerialPorts* serial_ports, ParallelPort* parallel_port,
+        GamePort* game_port);
     void Reset();
     u8 Read8(u16 port, GDOX_Bus_Access_Context& context);
     u16 Read16(u16 port, GDOX_Bus_Access_Context& context);
@@ -72,12 +75,14 @@ private:
     Memory* m_memory;
     FDC* m_fdc;
     IdeController* m_ide;
-    Input* m_input;
     SystemControl* m_system_control;
     MC146818* m_rtc;
     FirmwareConfig* m_firmware_config;
     DebugConsole* m_debug_console;
     I8042* m_i8042;
+    SerialPorts* m_serial_ports;
+    ParallelPort* m_parallel_port;
+    GamePort* m_game_port;
     DMA* m_dma;
     u8 m_decoded_ports[0x2000];
 };

@@ -38,8 +38,6 @@
     process_string(operation, section, key, &(value), default_value, true)
 #define CONFIG_STRING_NOT_EMPTY(section, key, value, default_value) \
     process_string(operation, section, key, &(value), default_value, false)
-#define CONFIG_SCANCODE(section, key, value, default_value) \
-    process_scancode(operation, section, key, &(value), default_value)
 #define CONFIG_INT_ARRAY(section, key_format, values, count, default_value) \
     process_int_array(operation, section, key_format, values, count, default_value)
 #define CONFIG_STRING_ARRAY(section, key_format, values, count, default_value) \

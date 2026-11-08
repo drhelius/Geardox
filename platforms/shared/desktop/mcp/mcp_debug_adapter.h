@@ -89,9 +89,15 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "keyboard.keys", TRACE_KEYBOARD, TRACE_KEYBOARD_EVENT_KEYS },
     { "keyboard.reads", TRACE_KEYBOARD, TRACE_KEYBOARD_EVENT_READS },
     { "keyboard.commands", TRACE_KEYBOARD, TRACE_KEYBOARD_EVENT_COMMANDS },
-    { "input.reads", TRACE_INPUT, TRACE_INPUT_EVENT_READS },
-    { "input.writes", TRACE_INPUT, TRACE_INPUT_EVENT_WRITES },
     { "input.changes", TRACE_INPUT, TRACE_INPUT_EVENT_CHANGES },
+    { "input.commands", TRACE_INPUT, TRACE_INPUT_EVENT_COMMANDS },
+    { "input.packets", TRACE_INPUT, TRACE_INPUT_EVENT_PACKETS },
+    { "input.fires", TRACE_INPUT, TRACE_INPUT_EVENT_FIRES },
+    { "serial.writes", TRACE_SERIAL, TRACE_SERIAL_EVENT_WRITES },
+    { "serial.data", TRACE_SERIAL, TRACE_SERIAL_EVENT_DATA },
+    { "serial.control", TRACE_SERIAL, TRACE_SERIAL_EVENT_CONTROL },
+    { "parallel.data", TRACE_PARALLEL, TRACE_PARALLEL_EVENT_DATA },
+    { "parallel.control", TRACE_PARALLEL, TRACE_PARALLEL_EVENT_CONTROL },
     { "system.reset", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_RESET },
     { "system.a20", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_MEMORY },
     { "system.control", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_CONTROL },
@@ -222,6 +228,8 @@ public:
     json GetSystemStatus();
     json GetRTCStatus();
     json GetKeyboardStatus();
+    json GetSerialStatus();
+    json GetParallelStatus();
     json GetCRTCStatus();
     json GetCRTCRegisters();
     json WriteCRTCRegister(int reg, u8 value);
@@ -288,34 +296,34 @@ public:
     json LoadStateFile(const std::string& file_path);
 
     // Input
-    json ControllerButton(int player, const std::string& button, const std::string& action);
-    json ControllerSetType(int player, const std::string& type);
-    json ControllerGetType(int player);
-    bool IsMouseController(int player) const;
-    bool ApplyMouseMotion(int player, int delta_x, int delta_y);
-    int FindMousePlayer() const;
-    bool IsMouseMotionPending(int player) const;
-    void SetMouseButton(int player, u16 mask, bool pressed);
-    bool FindMousePointer(int player, const u32* before, const u32* out, const u32* back, int width, int height,
-        int counts_x, int counts_y, McpMouseMiss& miss, std::string& reason);
-    const McpMousePointer& GetMousePointer(int player) const;
-    bool IsMousePointerKnown(int player) const;
-    void MoveMousePointerEstimate(int player, int counts_x, int counts_y);
-    void ForgetMousePointer(int player);
-    bool IsMouseButtonHeld(int player) const;
-    json MouseGetCursor(int player);
+    json JoystickSet(const json& arguments);
+    void ReleaseJoystick(u8 buttons, u8 hat);
+    json JoystickPressed(u8 buttons, u8 hat) const;
+    bool HasMouse() const;
+    bool ApplyMouseMotion(int delta_x, int delta_y);
+    bool IsMouseMotionPending() const;
+    void SetMouseButton(u8 mask, bool pressed);
+    bool FindMousePointer(const u32* before, const u32* out, const u32* back, int width, int height, int counts_x,
+        int counts_y, McpMouseMiss& miss, std::string& reason);
+    const McpMousePointer& GetMousePointer() const;
+    bool IsMousePointerKnown() const;
+    void MoveMousePointerEstimate(int counts_x, int counts_y);
+    void ForgetMousePointer();
+    bool IsMouseButtonHeld() const;
+    json MouseGetCursor();
     json KeyboardKey(const std::string& key, const std::string& action);
     bool GetKeyCode(const std::string& name, GDOX_Keys& key) const;
     json GetInputState();
-    void ClearControllerState();
+    void ClearInjectedInput();
 
     // Rewind
     json GetRewindStatus();
     json RewindSeek(int snapshot);
 
 private:
-    u16 ButtonMask(const std::string& button) const;
-    void ApplyControllerState(int player);
+    void ApplyJoystickState();
+    json GetMouseState();
+    json GetJoystickState();
     std::string Hex(u32 value, int digits) const;
     json VideoRegisterArray(const u8* values, int count) const;
     std::string Hex32(u32 value) const;
@@ -329,8 +337,10 @@ private:
 
 private:
     GeardoxCore* m_core;
-    u16 m_buttons[GDOX_MAX_GAMEPADS];
-    McpMousePointer m_mouse_pointers[GDOX_MAX_GAMEPADS];
+    u8 m_mouse_buttons;
+    GDOX_Joystick_State m_joystick;
+    bool m_joystick_axes;
+    McpMousePointer m_mouse_pointer;
 };
 
 #endif /* MCP_DEBUG_ADAPTER_H */

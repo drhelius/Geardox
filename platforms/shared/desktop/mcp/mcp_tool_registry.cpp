@@ -201,7 +201,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"cpu", "CPU", "Inspect Intel 80386 registers, flags, mode, segments, descriptor tables, control and debug registers, and write register values."},
     {"disassembly", "Disassembly", "Decode Intel 80386 code, inspect the call stack, and manage disassembly bookmarks."},
     {"symbols", "Symbols", "Add, remove, load, list and look up user symbols and automatic labels."},
-    {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, the 8254 timer, the board ports and the machine configuration."},
+    {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, the 8254 timer, the board ports, the keyboard controller, the serial and parallel ports and the machine configuration."},
     {"hardware_video", "Video Hardware", "Inspect the VGA: CRTC, registers, palettes, video memory and text screens."},
     {"hardware_audio", "Audio Hardware", "Inspect the sound card and mute audio sources in the debugger."},
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
@@ -211,8 +211,8 @@ static const McpToolCategory kMcpToolCategories[] =
     {"capture", "Capture", "Capture current screenshots and record AVI video."},
     {"state", "Save States", "List save slots, and save or load emulator state in a slot or a file."},
     {"rewind", "Rewind", "Inspect rewind buffer status and seek to rewind snapshots for time-travel debugging."},
-    {"input", "Input", "Press pad buttons, move and click the mouse, set each game port's device, inspect pressed buttons and held keys, and control the PC keyboard."},
-    {"trace", "Trace Logger", "Record executed instructions and hardware events (interrupts, I/O, PIC, timers, DMA, video, sound, CD-ROM, FDC, IDE, keyboard, game ports, system) and read the trace."},
+    {"input", "Input", "Drive the joystick and set its device, move and click the mouse, inspect the mouse and joystick state, and control the PC keyboard."},
+    {"trace", "Trace Logger", "Record executed instructions and hardware events (interrupts, I/O, PIC, timers, DMA, video, sound, CD-ROM, FDC, IDE, keyboard, mouse, joystick, serial, parallel, system) and read the trace."},
     {"profiler", "Profiler", "Profile CPU cycles and call counts per function and interrupt vector."},
     {"tools", "Other Tools", "Additional emulator/debugger tools that do not fit another category."}
 };
@@ -255,7 +255,7 @@ static const char* const kMcpSymbolTools[] =
 static const char* const kMcpSystemTools[] =
 {
     "get_pic_status", "get_pit_status", "get_dma_status", "get_system_status", "get_rtc_status",
-    "get_keyboard_status", "get_bios_log"
+    "get_keyboard_status", "get_serial_status", "get_parallel_status", "get_bios_log"
 };
 
 static const char* const kMcpVideoTools[] =
@@ -308,7 +308,7 @@ static const char* const kMcpRewindTools[] =
 
 static const char* const kMcpInputTools[] =
 {
-    "controller_button", "controller_set_type", "get_input_state",
+    "joystick_set", "get_input_state",
     "keyboard_key", "keyboard_type", "mouse_get_cursor", "mouse_move", "mouse_click"
 };
 
@@ -690,7 +690,7 @@ bool McpToolRegistry::IsDirectToolName(const std::string& tool_name) const
         (name == "set_breakpoint") ||
         (name == "get_screenshot") ||
         (name == "get_text_screen") ||
-        (name == "controller_button");
+        (name == "joystick_set");
 }
 
 std::string McpToolRegistry::ToolCategoryForName(const std::string& tool_name) const
@@ -712,8 +712,12 @@ std::string McpToolRegistry::AliasesForTool(const std::string& tool_name) const
     std::string name = NormalizeToolName(tool_name);
     std::string aliases = ToolCategoryForName(name);
 
-    if (StringContains(name, "controller"))
-        aliases += " input joypad gamepad button tap press release";
+    if (StringContains(name, "joystick"))
+        aliases += " input joypad gamepad flightstick game port axis hat button tap press release";
+    if (StringContains(name, "serial"))
+        aliases += " com1 com2 uart 16550 modem rs232 baud mouse";
+    if (StringContains(name, "parallel"))
+        aliases += " lpt1 printer centronics";
     if (StringContains(name, "video_recording"))
         aliases += " record movie clip capture avi mjpeg gameplay";
     if (StringContains(name, "rewind"))

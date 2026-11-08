@@ -108,7 +108,6 @@ static void sync_cmos(void);
 static void notify_machine(void);
 static bool init_debug(void);
 static void destroy_debug(void);
-static Emu_Pad_Source pad_sources[GDOX_MAX_GAMEPADS];
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
 static void stop_physical_cdrom_after_error(void);
 #endif
@@ -494,12 +493,10 @@ bool emu_finish_media_loading(void)
     return true;
 }
 
-void emu_set_gamepad_state(GDOX_Controllers controller, const GDOX_GamePad_State& state)
+void emu_set_joystick_state(const GDOX_Joystick_State& state)
 {
-    if (!IsValidPointer(geardox))
-        return;
-
-    geardox->GetInput()->SetGamePadState((int)controller, state);
+    if (IsValidPointer(geardox))
+        geardox->GetInput()->SetJoystickState(state);
 }
 
 void emu_key_pressed(GDOX_Keys key)
@@ -520,16 +517,22 @@ void emu_release_all_keys(void)
         geardox->ReleaseAllKeys();
 }
 
-void emu_set_mouse_delta(GDOX_Controllers controller, int x, int y)
+void emu_set_mouse_delta(int x, int y)
 {
     if (IsValidPointer(geardox))
-        geardox->GetInput()->SetMouseDelta((int)controller, x, y);
+        geardox->GetInput()->SetMouseDelta(x, y);
 }
 
-void emu_clear_mouse(GDOX_Controllers controller)
+void emu_set_mouse_buttons(u8 buttons)
 {
     if (IsValidPointer(geardox))
-        geardox->GetInput()->ClearMouseInput((int)controller);
+        geardox->GetInput()->SetMouseButtons(buttons);
+}
+
+void emu_clear_mouse(void)
+{
+    if (IsValidPointer(geardox))
+        geardox->GetInput()->ClearMouseInput();
 }
 
 void emu_pause(void)
@@ -580,7 +583,7 @@ bool emu_power_on(void)
     if (!geardox->PowerOn())
         return false;
 
-    emu_update_pad_types();
+    emu_update_joystick_type();
     notify_machine();
     emu_floppy_check_drives();
     reset_run_state();
@@ -608,7 +611,7 @@ void emu_reset(void)
     gui_debug_trace_logger_reset("reset");
     sync_cmos();
     geardox->ResetMedia();
-    emu_update_pad_types();
+    emu_update_joystick_type();
     notify_machine();
     emu_floppy_check_drives();
     reset_run_state();
@@ -779,6 +782,7 @@ void emu_apply_machine_settings(void)
     settings.sound_card = config_machine.sound_card;
     settings.sound_irq = config_machine.sound_irq;
     settings.sound_dma = config_machine.sound_dma;
+    settings.mouse = config_machine.mouse;
     settings.speed_mode = GDOX_MACHINE_AUTO;
     geardox->SetMachineSettings(settings);
 }
@@ -789,7 +793,7 @@ bool emu_latch_auto_media(void)
         return false;
 
     geardox->LatchAutoMedia();
-    emu_update_pad_types();
+    emu_update_joystick_type();
 
     if (!geardox->IsPoweredOn())
         return false;
@@ -1143,89 +1147,14 @@ void emu_debug_continue(void)
     emu_resume();
 }
 
-void emu_set_pad_type(GDOX_Controllers controller, GDOX_Controller_Type type)
-{
-    if (IsValidPointer(geardox))
-        geardox->GetInput()->SetControllerType((int)controller, type);
-}
-
-GDOX_Controller_Type emu_get_pad_type(GDOX_Controllers controller)
-{
-    if (!IsValidPointer(geardox))
-        return GDOX_CONTROLLER_NONE;
-
-    return geardox->GetInput()->GetControllerType((int)controller);
-}
-
-void emu_update_pad_types(void)
+void emu_update_joystick_type(void)
 {
     if (!IsValidPointer(geardox))
         return;
 
-    GDOX_Controller_Type types[GDOX_MAX_GAMEPADS];
-    bool decided[GDOX_MAX_GAMEPADS];
-    bool mouse = false;
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        decided[i] = config_input.controller_type[i] != config_ControllerType_Auto;
-        types[i] = decided[i] ? (GDOX_Controller_Type)config_input.controller_type[i] : GDOX_CONTROLLER_NONE;
-        pad_sources[i] = Emu_Pad_Source_Explicit;
-        mouse = mouse || (types[i] == GDOX_CONTROLLER_MOUSE);
-    }
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        GDOX_Controller_Type type = GDOX_CONTROLLER_NONE;
-
-        if (decided[i] || !geardox->GetDatabaseController(i, type) || (mouse && (type == GDOX_CONTROLLER_MOUSE)))
-            continue;
-
-        types[i] = type;
-        decided[i] = true;
-        pad_sources[i] = Emu_Pad_Source_Database;
-        mouse = mouse || (type == GDOX_CONTROLLER_MOUSE);
-    }
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        if (!decided[i])
-        {
-            bool default_mouse = i == GDOX_CONTROLLER_2;
-            types[i] = (default_mouse && !mouse) ? GDOX_CONTROLLER_MOUSE : GDOX_CONTROLLER_GAMEPAD;
-            pad_sources[i] = (default_mouse && mouse) ? Emu_Pad_Source_Fallback : Emu_Pad_Source_Default;
-            mouse = mouse || (types[i] == GDOX_CONTROLLER_MOUSE);
-        }
-
-        emu_set_pad_type((GDOX_Controllers)i, types[i]);
-    }
-}
-
-Emu_Pad_Source emu_get_pad_source(GDOX_Controllers controller)
-{
-    return pad_sources[controller];
-}
-
-bool emu_get_pad_mismatch(GDOX_Controllers controller, GDOX_Controller_Type* wanted)
-{
-    GDOX_Controller_Type type = GDOX_CONTROLLER_NONE;
-
-    if (!IsValidPointer(geardox) || !geardox->GetDatabaseController((int)controller, type))
-        return false;
-
-    GDOX_Controller_Type in_use = emu_get_pad_type(controller);
-
-    if (in_use == type)
-        return false;
-
-    *wanted = type;
-    return true;
-}
-
-const char* emu_get_pad_type_name(int type)
-{
-    static const char* const names[] = { "None", "Gamepad", "Mouse" };
-    return ((type >= GDOX_CONTROLLER_NONE) && (type <= GDOX_CONTROLLER_MOUSE)) ? names[type] : "Unknown";
+    int type = config_input.joystick_type;
+    geardox->GetInput()->SetJoystickType((type >= 0) && (type < GDOX_JOYSTICK_TYPE_COUNT) ?
+        (GDOX_Joystick_Type)type : GDOX_JOYSTICK_GAMEPAD);
 }
 
 bool emu_save_screenshot(const char* file_path)
@@ -1896,31 +1825,9 @@ static void notify_machine(void)
     const char* title = report.title;
     const char* origin = IsValidPointer(report.title) ? "game database" : "Auto";
     char value[48];
-    std::string ports;
-    std::string port_warnings;
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        GDOX_Controller_Type type = emu_get_pad_type((GDOX_Controllers)i);
-        GDOX_Controller_Type wanted = GDOX_CONTROLLER_NONE;
-        GDOX_Controller_Type plain = (i == GDOX_CONTROLLER_2) ? GDOX_CONTROLLER_MOUSE : GDOX_CONTROLLER_GAMEPAD;
-
-        if ((pad_sources[i] == Emu_Pad_Source_Database) && (type != plain))
-        {
-            snprintf(value, sizeof(value), "%sPort %d %s", ports.empty() ? "" : ", ", i + 1, emu_get_pad_type_name(type));
-            ports += value;
-        }
-
-        if (emu_get_pad_mismatch((GDOX_Controllers)i, &wanted))
-        {
-            snprintf(value, sizeof(value), "%sPort %d should be %s", port_warnings.empty() ? "" : "\n", i + 1,
-                emu_get_pad_type_name(wanted));
-            port_warnings += value;
-        }
-    }
 
     if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) &&
-        !floppy_notice && ports.empty() && port_warnings.empty()))
+        !floppy_notice))
         return;
 
     char message[256];
@@ -1948,9 +1855,6 @@ static void notify_machine(void)
         choices += value;
     }
 
-    if (!ports.empty())
-        choices += (choices.empty() ? "" : ", ") + ports;
-
     if (choices.empty())
         snprintf(message, sizeof(message), "%s (%s)", title, origin);
     else
@@ -1972,14 +1876,7 @@ static void notify_machine(void)
         detail += floppy.lines[i];
     }
 
-    if (!port_warnings.empty())
-    {
-        Log("%s", port_warnings.c_str());
-        detail += (detail.empty() ? "" : "\n");
-        detail += port_warnings;
-    }
-
-    bool warning = (report.warning_count > 0) || floppy.warning || !port_warnings.empty();
+    bool warning = (report.warning_count > 0) || floppy.warning;
     gui_notify(warning ? gui_NotificationWarning : gui_NotificationInfo, ICON_MD_MEMORY, message,
         detail.empty() ? NULL : detail.c_str(), "machine");
 }

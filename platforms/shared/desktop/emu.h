@@ -72,14 +72,6 @@ enum Directory_Location
     Directory_Location_Custom = 2
 };
 
-enum Emu_Pad_Source
-{
-    Emu_Pad_Source_Explicit = 0,
-    Emu_Pad_Source_Database = 1,
-    Emu_Pad_Source_Default = 2,
-    Emu_Pad_Source_Fallback = 3
-};
-
 EXTERN u8* emu_frame_buffer;
 EXTERN GDOX_SaveState_Header emu_savestates[5];
 EXTERN GDOX_SaveState_Screenshot emu_savestates_screenshots[5];
@@ -107,12 +99,13 @@ EXTERN void emu_load_hard_disk_source_async(const char* path, bool rebuild);
 EXTERN void emu_load_physical_cdrom_async(const char* device_id);
 EXTERN bool emu_is_media_loading(void);
 EXTERN bool emu_finish_media_loading(void);
-EXTERN void emu_set_gamepad_state(GDOX_Controllers controller, const GDOX_GamePad_State& state);
+EXTERN void emu_set_joystick_state(const GDOX_Joystick_State& state);
 EXTERN void emu_key_pressed(GDOX_Keys key);
 EXTERN void emu_key_released(GDOX_Keys key);
 EXTERN void emu_release_all_keys(void);
-EXTERN void emu_set_mouse_delta(GDOX_Controllers controller, int x, int y);
-EXTERN void emu_clear_mouse(GDOX_Controllers controller);
+EXTERN void emu_set_mouse_delta(int x, int y);
+EXTERN void emu_set_mouse_buttons(u8 buttons);
+EXTERN void emu_clear_mouse(void);
 EXTERN void emu_pause(void);
 EXTERN void emu_resume(void);
 EXTERN bool emu_is_paused(void);
@@ -174,12 +167,7 @@ EXTERN void emu_debug_update(void);
 EXTERN void emu_debug_decode_buffer(int buffer, int pitch, u8* output, Emu_Debug_Buffer_Info& info);
 EXTERN int emu_get_debug_buffer_png(int buffer, int pitch, unsigned char** out_buffer, Emu_Debug_Buffer_Info& info);
 
-EXTERN void emu_set_pad_type(GDOX_Controllers controller, GDOX_Controller_Type type);
-EXTERN GDOX_Controller_Type emu_get_pad_type(GDOX_Controllers controller);
-EXTERN void emu_update_pad_types(void);
-EXTERN Emu_Pad_Source emu_get_pad_source(GDOX_Controllers controller);
-EXTERN bool emu_get_pad_mismatch(GDOX_Controllers controller, GDOX_Controller_Type* wanted);
-EXTERN const char* emu_get_pad_type_name(int type);
+EXTERN void emu_update_joystick_type(void);
 EXTERN bool emu_save_screenshot(const char* file_path);
 EXTERN int emu_get_screenshot_png(unsigned char** out_buffer);
 EXTERN bool emu_start_vgm_recording(const char* file_path);

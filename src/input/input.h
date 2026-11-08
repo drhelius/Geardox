@@ -27,14 +27,16 @@
 class StateSerializer;
 class TraceLogger;
 
+// The host's mouse and joystick, which the mice and the game port take from
 class Input
 {
 public:
     struct Input_State
     {
-        s32 mouse_x[GDOX_MAX_GAMEPADS];
-        s32 mouse_y[GDOX_MAX_GAMEPADS];
-        GDOX_GamePad_State gamepads[GDOX_MAX_GAMEPADS];
+        s32 mouse_x;
+        s32 mouse_y;
+        u8 mouse_buttons;
+        GDOX_Joystick_State joystick;
     };
 
 public:
@@ -42,28 +44,36 @@ public:
     void Init();
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
-    void SetMouseDelta(int port, s32 x, s32 y);
-    void ClearMouseInput(int port);
-    void SetGamePadState(int port, const GDOX_GamePad_State& state);
-    void SetInjectedGamePadState(int port, const GDOX_GamePad_State& state);
-    const GDOX_GamePad_State& GetGamePadState(int port) const;
-    void SetControllerType(int port, GDOX_Controller_Type type);
-    GDOX_Controller_Type GetControllerType(int port) const;
+    void SetMouseDelta(s32 x, s32 y);
+    void TakeMouseDelta(s32 limit, s32& x, s32& y);
+    void ClearMouseInput();
+    void SetMouseButtons(u8 buttons);
+    void SetInjectedMouseButtons(u8 buttons);
+    u8 GetMouseButtons() const;
+    void SetJoystickState(const GDOX_Joystick_State& state);
+    void SetInjectedJoystickState(const GDOX_Joystick_State& state, bool axes);
+    const GDOX_Joystick_State& GetJoystickState() const;
+    void SetJoystickType(GDOX_Joystick_Type type);
+    GDOX_Joystick_Type GetJoystickType() const;
     Input_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream);
 
 private:
-    void UpdateGamePadState(int port);
-    void TraceEvent(u8 event, int port, u8 value, u16 previous);
+    void UpdateMouseButtons();
+    void UpdateJoystickState();
+    void TraceChange(u8 device, u16 buttons, u16 previous);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 
 private:
     Input_State m_state;
-    GDOX_GamePad_State m_physical_gamepads[GDOX_MAX_GAMEPADS];
-    GDOX_GamePad_State m_injected_gamepads[GDOX_MAX_GAMEPADS];
-    GDOX_Controller_Type m_controller_type[GDOX_MAX_GAMEPADS];
+    u8 m_physical_mouse_buttons;
+    u8 m_injected_mouse_buttons;
+    GDOX_Joystick_State m_physical_joystick;
+    GDOX_Joystick_State m_injected_joystick;
+    bool m_injected_axes;
+    GDOX_Joystick_Type m_joystick_type;
     TraceLogger* m_trace_logger;
 };
 

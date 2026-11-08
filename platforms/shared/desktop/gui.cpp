@@ -86,7 +86,6 @@ bool gui_init(void)
     gui_in_use = false;
     gui_dialog_in_use = false;
     gui_shortcut_open_rom = false;
-    gui_configured_key = NULL;
     gui_configured_button = NULL;
     gui_configured_hotkey = NULL;
 
@@ -158,7 +157,7 @@ void gui_apply_settings(void)
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_CDDA, config_audio.cdda_volume);
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_BUZZER, config_audio.buzzer_volume);
 
-    emu_update_pad_types();
+    emu_update_joystick_type();
 
     strncpy_fit(gui_savestates_path, config_emulator.savestates_path.c_str(), sizeof(gui_savestates_path));
     strncpy_fit(gui_savefiles_path, config_emulator.savefiles_path.c_str(), sizeof(gui_savefiles_path));

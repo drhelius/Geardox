@@ -39,12 +39,9 @@
 #include "libretro_core_options.h"
 #include "libretro_vfs_file.h"
 
-#define RETRO_DEVICE_PC_GAMEPAD       RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0)
-#define RETRO_DEVICE_PC_MOUSE         RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE, 0)
-#define RETRO_DEVICE_PC_KEYBOARD      RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_KEYBOARD, 0)
+#define RETRO_DEVICE_PC_JOYSTICK      RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0)
 
-#define MAX_PADS GDOX_MAX_GAMEPADS
-#define AUTO_MOUSE_PORT 1
+#define JOYSTICK_DEAD_ZONE 0.15f
 #define FRAMESKIP_MAX 4
 #define DISK_DRIVE_CDROM 0
 #define DISK_DRIVE_FLOPPY_1 1
@@ -56,7 +53,7 @@
 #define RTC_FIXED_DATE 631152000
 #define PLAYLIST_MAX_SIZE (1024 * 1024)
 #define CONTENT_MAX_SIZE (k_floppy_max_image_size * 4)
-#define INPUT_STATE_SIZE ((sizeof(float) * 2) + (sizeof(u16) * MAX_PADS))
+#define INPUT_STATE_SIZE (sizeof(float) * 2)
 
 static retro_environment_t environ_cb;
 static retro_video_refresh_t video_cb;
@@ -73,13 +70,11 @@ static bool libretro_supports_dupe = false;
 static bool libretro_supports_keyboard = false;
 static bool categories_supported = false;
 static bool frameskip_threshold_visible = true;
-static bool analog_mouse_speed_visible = true;
 
 static char retro_system_directory[4096];
 static char retro_save_directory[4096];
 static char retro_game_path[4096];
 static bool content_loaded = false;
-static bool controller_notice_pending = false;
 
 static GeardoxCore* core;
 static GDOX_Runtime_Info runtime_info;
@@ -88,7 +83,8 @@ static s16 audio_buf[GDOX_AUDIO_BUFFER_SIZE];
 static int audio_sample_count = 0;
 static size_t savestate_size = 0;
 static GDOX_Machine_Settings machine_settings = { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
+    GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
+    GDOX_MOUSE_PS2 };
 #if !defined(GDOX_DISABLE_DYNAREC)
 static int dynarec_option = -1;
 #endif
@@ -106,30 +102,13 @@ static bool audio_buffer_active = false;
 static unsigned audio_buffer_occupancy = 0;
 static bool audio_buffer_underrun = false;
 
-static bool allow_up_down = false;
 static int mouse_sensitivity = 5;
-static int analog_mouse = 0;
-static int analog_mouse_speed = 5;
-static unsigned requested_device[MAX_PADS] = {
-    RETRO_DEVICE_JOYPAD,
-    RETRO_DEVICE_JOYPAD
-};
-static unsigned input_device[MAX_PADS] = {
-    RETRO_DEVICE_PC_GAMEPAD,
-    RETRO_DEVICE_PC_MOUSE
-};
-static u16 joypad_previous[MAX_PADS];
+static GDOX_Joystick_Type joystick_type = GDOX_JOYSTICK_GAMEPAD;
+static unsigned input_device = RETRO_DEVICE_PC_JOYSTICK;
 static float mouse_remainder_x = 0.0f;
 static float mouse_remainder_y = 0.0f;
 static bool retro_key_down[RETROK_LAST];
 static int key_references[GDOX_KEY_COUNT];
-
-static const u16 k_joypad_buttons[RETRO_DEVICE_ID_JOYPAD_R + 1] = {
-    GDOX_GAMEPAD_B, GDOX_GAMEPAD_C, GDOX_GAMEPAD_SELECT, GDOX_GAMEPAD_RUN, GDOX_GAMEPAD_UP, GDOX_GAMEPAD_DOWN, GDOX_GAMEPAD_LEFT,
-    GDOX_GAMEPAD_RIGHT, GDOX_GAMEPAD_A, GDOX_GAMEPAD_X, GDOX_GAMEPAD_Y, GDOX_GAMEPAD_Z
-};
-static const u16 k_gamepad_buttons = GDOX_GAMEPAD_UP | GDOX_GAMEPAD_DOWN | GDOX_GAMEPAD_LEFT | GDOX_GAMEPAD_RIGHT |
-    GDOX_GAMEPAD_SELECT | GDOX_GAMEPAD_RUN | GDOX_GAMEPAD_A | GDOX_GAMEPAD_B;
 
 struct DiskSetImage
 {
@@ -182,8 +161,6 @@ static bool load_bios(void);
 static void check_bios(void);
 static void set_machine_config(void);
 static void report_machine(void);
-static void report_controllers(void);
-static const char* get_controller_type_name(GDOX_Controller_Type type);
 static void show_message(const char* message, unsigned priority, enum retro_log_level level);
 static void get_system_av_info(struct retro_system_av_info* info);
 static void audio_buffer_status(bool active, unsigned occupancy, bool underrun_likely);
@@ -197,19 +174,11 @@ static void save_input_state(u8* data);
 static void load_input_state(const u8* data);
 static void sync_keyboard_state(void);
 static void sync_key(GDOX_Keys key);
-static void reset_controller_devices(void);
-static int get_mouse_port(void);
-static int get_requested_mouse_port(void);
-static unsigned resolve_controller_device(unsigned port);
-static void update_controller_devices(unsigned port);
-static void apply_controller_device(unsigned port, unsigned device, bool log_device);
-static void release_controller_input(unsigned port);
 static void poll_input(void);
 static void apply_input(void);
-static void apply_gamepad(int port);
-static u16 filter_opposing(u16 buttons, u16 previous, u16 first, u16 second);
-static void apply_mouse(int port);
-static void poll_analog_mouse(bool& left, bool& right);
+static void apply_joystick(void);
+static void apply_dead_zone(int x, int y, s16& out_x, s16& out_y);
+static void apply_mouse(void);
 static GDOX_Keys key_from_retro_key(unsigned keycode);
 static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint16_t key_modifiers);
 static bool update_core_options_display(void);
@@ -276,7 +245,7 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 static bool IsJoypadDevice(unsigned device)
 {
     return (device == RETRO_DEVICE_JOYPAD) ||
-        (device == RETRO_DEVICE_PC_GAMEPAD);
+        (device == RETRO_DEVICE_PC_JOYSTICK);
 }
 
 static std::string get_file_name(const char* path, bool strip_extension)
@@ -350,7 +319,6 @@ void retro_set_environment(retro_environment_t cb)
     libretro_set_core_options(environ_cb, &categories_supported);
 
     frameskip_threshold_visible = true;
-    analog_mouse_speed_visible = true;
     struct retro_core_options_update_display_callback display_callback = { update_core_options_display };
     environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK, &display_callback);
     update_core_options_display();
@@ -400,9 +368,6 @@ void retro_init(void)
 
     clear_input_state();
 
-    for (int i = 0; i < MAX_PADS; i++)
-        apply_controller_device(i, input_device[i], false);
-
     libretro_supports_bitmasks = environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL);
 
     if (!environ_cb(RETRO_ENVIRONMENT_GET_CAN_DUPE, &libretro_supports_dupe))
@@ -441,6 +406,7 @@ void retro_deinit(void)
     machine_settings.sound_card = GDOX_SOUND_CARD_SB16;
     machine_settings.sound_irq = GDOX_MACHINE_AUTO;
     machine_settings.sound_dma = GDOX_MACHINE_AUTO;
+    machine_settings.mouse = GDOX_MOUSE_PS2;
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
 #endif
@@ -454,10 +420,8 @@ void retro_deinit(void)
     frameskip_counter = 0;
     frameskip_changed = false;
     audio_buffer_active = false;
-    allow_up_down = false;
     mouse_sensitivity = 5;
-    analog_mouse = 0;
-    analog_mouse_speed = 5;
+    joystick_type = GDOX_JOYSTICK_GAMEPAD;
     disk_initial_index = 0;
     disk_initial_path.clear();
     floppy_drive = 0;
@@ -467,7 +431,7 @@ void retro_deinit(void)
     cmos_shared_active = false;
     cmos_path.clear();
 
-    reset_controller_devices();
+    input_device = RETRO_DEVICE_PC_JOYSTICK;
     clear_input_state();
 }
 
@@ -485,7 +449,7 @@ void retro_reset(void)
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-    if (port >= MAX_PADS)
+    if (port >= GDOX_MAX_GAMEPADS)
     {
         if (log_cb)
             log_cb(RETRO_LOG_DEBUG, "retro_set_controller_port_device invalid port number: %u\n", port);
@@ -493,21 +457,12 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
         return;
     }
 
-    if (device == RETRO_DEVICE_MOUSE)
-        device = RETRO_DEVICE_PC_MOUSE;
+    input_device = device;
 
-    int mouse_port = get_requested_mouse_port();
+    if (log_cb)
+        log_cb(RETRO_LOG_INFO, "Controller %u: %s\n", port, IsJoypadDevice(device) ? "PC Joystick" : "Unplugged");
 
-    if ((device == RETRO_DEVICE_PC_MOUSE) && (mouse_port >= 0) && (mouse_port != (int)port))
-    {
-        if (log_cb)
-            log_cb(RETRO_LOG_WARN, "Only one mouse is supported, controller port %u is unplugged\n", port + 1);
-
-        device = RETRO_DEVICE_NONE;
-    }
-
-    requested_device[port] = device;
-    update_controller_devices(port);
+    set_input_descriptors();
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -538,12 +493,6 @@ void retro_run(void)
 
     poll_input();
     apply_input();
-
-    if (controller_notice_pending)
-    {
-        controller_notice_pending = false;
-        report_controllers();
-    }
 
     bool render = true;
     int av_enable = 0;
@@ -950,8 +899,6 @@ static void set_machine_config(void)
 
 static void report_machine(void)
 {
-    controller_notice_pending = true;
-
     const GDOX_Machine_Config& config = core->GetMachineConfig();
     const GDOX_Machine_Report& report = core->GetMachineReport();
     bool model = (report.model == GDOX_MACHINE_SOURCE_DATABASE) && (config.model != GDOX_MACHINE_386DX_33);
@@ -1031,48 +978,6 @@ static void report_machine(void)
     show_message(message, 2, warning ? RETRO_LOG_WARN : RETRO_LOG_INFO);
 }
 
-// Runs on the first frame after load or reset, once the frontend has set the port devices
-static void report_controllers(void)
-{
-    const GDOX_Machine_Report& report = core->GetMachineReport();
-    char ports[256] = "";
-    char value[64];
-
-    for (int i = 0; i < MAX_PADS; i++)
-    {
-        GDOX_Controller_Type wanted = GDOX_CONTROLLER_NONE;
-        GDOX_Controller_Type type = core->GetInput()->GetControllerType(i);
-
-        if (!core->GetDatabaseController(i, wanted) || (type == wanted))
-            continue;
-
-        snprintf(value, sizeof(value), "%sset port %d to %s", ports[0] ? ", " : "", i + 1,
-            get_controller_type_name(wanted));
-        strncat_fit(ports, value, sizeof(ports));
-    }
-
-    if (!ports[0])
-        return;
-
-    static char message[512];
-    snprintf(message, sizeof(message), "%s: %s", IsValidPointer(report.title) ? report.title : "Game database", ports);
-    log_cb(RETRO_LOG_INFO, "%s\n", message);
-    show_message(message, 1, RETRO_LOG_INFO);
-}
-
-static const char* get_controller_type_name(GDOX_Controller_Type type)
-{
-    switch (type)
-    {
-        case GDOX_CONTROLLER_GAMEPAD:
-            return "Gamepad";
-        case GDOX_CONTROLLER_MOUSE:
-            return "Mouse";
-        default:
-            return "Unplugged";
-    }
-}
-
 static void show_message(const char* message, unsigned priority, enum retro_log_level level)
 {
     if (message_interface_version >= 1)
@@ -1138,20 +1043,12 @@ static void update_frameskip(void)
 static void set_controller_info(void)
 {
     static const struct retro_controller_description port_1[] = {
-        { "Gamepad", RETRO_DEVICE_JOYPAD },
-        { "Mouse", RETRO_DEVICE_PC_MOUSE },
-        { "Keyboard", RETRO_DEVICE_PC_KEYBOARD }
-    };
-
-    static const struct retro_controller_description port_2[] = {
-        { "Mouse", RETRO_DEVICE_JOYPAD },
-        { "Gamepad", RETRO_DEVICE_PC_GAMEPAD },
-        { "Keyboard", RETRO_DEVICE_PC_KEYBOARD }
+        { "PC Joystick", RETRO_DEVICE_PC_JOYSTICK },
+        { "None", RETRO_DEVICE_NONE }
     };
 
     static const struct retro_controller_info ports[] = {
-        { port_1, 3 },
-        { port_2, 3 },
+        { port_1, 2 },
         { NULL, 0 }
     };
 
@@ -1162,48 +1059,34 @@ static void set_controller_info(void)
 
 static void set_input_descriptors(void)
 {
-    static const struct retro_input_descriptor k_gamepad[] = {
+    static const struct retro_input_descriptor k_joystick[] = {
         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,     "Up" },
         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,   "Down" },
         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,   "Left" },
         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT,  "Right" },
-        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,  "Run" },
-        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT, "Select" },
-        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "A" },
-        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "B" }
+        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,      "Button 1" },
+        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,      "Button 2" },
+        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,      "Button 3" },
+        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,      "Button 4" },
+        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_X, "Stick X" },
+        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,  RETRO_DEVICE_ID_ANALOG_Y, "Stick Y" },
+        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Throttle (Flight Stick)" }
     };
 
     static const struct retro_input_descriptor k_mouse[] = {
-        { 0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT,     "Mouse Left (A)" },
-        { 0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT,    "Mouse Right (B)" }
+        { 0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT,     "Mouse Left" },
+        { 0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT,    "Mouse Right" },
+        { 0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE,   "Mouse Middle" }
     };
 
-    static const struct retro_input_descriptor k_analog_mouse[] = {
-        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2, "Analog Mouse Left" },
-        { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2, "Analog Mouse Right" },
-        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X, "Analog Mouse X (Left)" },
-        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Mouse Y (Left)" },
-        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X, "Analog Mouse X (Right)" },
-        { 0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y, "Analog Mouse Y (Right)" }
-    };
-
-    struct retro_input_descriptor descriptors[64];
+    struct retro_input_descriptor descriptors[32];
     int count = 0;
 
-    for (unsigned port = 0; port < MAX_PADS; port++)
-    {
-        unsigned device = input_device[port];
+    if (IsJoypadDevice(input_device))
+        count = add_input_descriptors(descriptors, count, 0, k_joystick,
+            (int)(sizeof(k_joystick) / sizeof(k_joystick[0])));
 
-        if (IsJoypadDevice(device))
-            count = add_input_descriptors(descriptors, count, port, k_gamepad,
-                (int)(sizeof(k_gamepad) / sizeof(k_gamepad[0])));
-
-        count = add_input_descriptors(descriptors, count, port, k_mouse, (int)(sizeof(k_mouse) / sizeof(k_mouse[0])));
-
-        if (port == 0)
-            count = add_input_descriptors(descriptors, count, port, k_analog_mouse,
-                (int)(sizeof(k_analog_mouse) / sizeof(k_analog_mouse[0])));
-    }
+    count = add_input_descriptors(descriptors, count, 0, k_mouse, (int)(sizeof(k_mouse) / sizeof(k_mouse[0])));
 
     memset(&descriptors[count], 0, sizeof(descriptors[count]));
     environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, descriptors);
@@ -1225,7 +1108,6 @@ static int add_input_descriptors(struct retro_input_descriptor* descriptors, int
 static void clear_input_state(void)
 {
     clear_keyboard_state();
-    memset(joypad_previous, 0, sizeof(joypad_previous));
     mouse_remainder_x = 0.0f;
     mouse_remainder_y = 0.0f;
 }
@@ -1272,134 +1154,18 @@ static void save_input_state(u8* data)
 {
     memcpy(data, &mouse_remainder_x, sizeof(float));
     memcpy(data + sizeof(float), &mouse_remainder_y, sizeof(float));
-    memcpy(data + (sizeof(float) * 2), joypad_previous, sizeof(joypad_previous));
 }
 
 static void load_input_state(const u8* data)
 {
     memcpy(&mouse_remainder_x, data, sizeof(float));
     memcpy(&mouse_remainder_y, data + sizeof(float), sizeof(float));
-    memcpy(joypad_previous, data + (sizeof(float) * 2), sizeof(joypad_previous));
 
     if (!(fabsf(mouse_remainder_x) < 1.0f))
         mouse_remainder_x = 0.0f;
 
     if (!(fabsf(mouse_remainder_y) < 1.0f))
         mouse_remainder_y = 0.0f;
-}
-
-static void reset_controller_devices(void)
-{
-    for (int i = 0; i < MAX_PADS; i++)
-        requested_device[i] = RETRO_DEVICE_JOYPAD;
-
-    for (int i = 0; i < MAX_PADS; i++)
-        input_device[i] = resolve_controller_device(i);
-}
-
-static int get_mouse_port(void)
-{
-    for (int i = 0; i < MAX_PADS; i++)
-    {
-        if (input_device[i] == RETRO_DEVICE_PC_MOUSE)
-            return i;
-    }
-
-    return -1;
-}
-
-static int get_requested_mouse_port(void)
-{
-    for (int i = 0; i < MAX_PADS; i++)
-    {
-        if (requested_device[i] == RETRO_DEVICE_PC_MOUSE)
-            return i;
-    }
-
-    return -1;
-}
-
-static unsigned resolve_controller_device(unsigned port)
-{
-    if (requested_device[port] != RETRO_DEVICE_JOYPAD)
-        return requested_device[port];
-
-    if ((port == AUTO_MOUSE_PORT) && (get_requested_mouse_port() < 0))
-        return RETRO_DEVICE_PC_MOUSE;
-
-    return RETRO_DEVICE_PC_GAMEPAD;
-}
-
-static void update_controller_devices(unsigned port)
-{
-    for (unsigned i = 0; i < MAX_PADS; i++)
-    {
-        unsigned device = resolve_controller_device(i);
-
-        if ((i != port) && (input_device[i] == device))
-            continue;
-
-        if ((input_device[i] != device) && core)
-            release_controller_input(i);
-
-        if ((i == AUTO_MOUSE_PORT) && (requested_device[i] == RETRO_DEVICE_JOYPAD) &&
-            (device == RETRO_DEVICE_PC_GAMEPAD) && (input_device[i] != device))
-            show_message("Port 2: Original gamepad, the mouse is in port 1", 1, RETRO_LOG_INFO);
-
-        input_device[i] = device;
-        apply_controller_device(i, device, true);
-    }
-
-    set_input_descriptors();
-}
-
-static void apply_controller_device(unsigned port, unsigned device, bool log_device)
-{
-    if (!core || port >= MAX_PADS)
-        return;
-
-    GDOX_Controller_Type type = GDOX_CONTROLLER_NONE;
-    const char* name = "Unplugged";
-
-    switch (device)
-    {
-        case RETRO_DEVICE_PC_GAMEPAD:
-            type = GDOX_CONTROLLER_GAMEPAD;
-            name = "Gamepad";
-            break;
-        case RETRO_DEVICE_PC_MOUSE:
-            type = GDOX_CONTROLLER_MOUSE;
-            name = "Mouse";
-            break;
-        case RETRO_DEVICE_KEYBOARD:
-        case RETRO_DEVICE_PC_KEYBOARD:
-            name = "Keyboard";
-            break;
-        case RETRO_DEVICE_NONE:
-            break;
-        default:
-            name = "Unsupported device";
-            break;
-    }
-
-    if (log_device && log_cb)
-        log_cb(RETRO_LOG_INFO, "Controller %u: %s\n", port, name);
-
-    core->GetInput()->SetControllerType((int)port, type);
-}
-
-static void release_controller_input(unsigned port)
-{
-    GDOX_GamePad_State state = { 0 };
-    core->GetInput()->SetGamePadState((int)port, state);
-    joypad_previous[port] = 0;
-
-    if (input_device[port] == RETRO_DEVICE_PC_MOUSE)
-    {
-        mouse_remainder_x = 0.0f;
-        mouse_remainder_y = 0.0f;
-        core->GetInput()->ClearMouseInput((int)port);
-    }
 }
 
 static void poll_input(void)
@@ -1420,112 +1186,111 @@ static void poll_input(void)
 
 static void apply_input(void)
 {
-    int mouse_port = get_mouse_port();
-
-    for (int i = 0; i < MAX_PADS; i++)
-    {
-        if (i == mouse_port)
-            apply_mouse(i);
-        else
-            apply_gamepad(i);
-    }
+    apply_joystick();
+    apply_mouse();
 }
 
-static void apply_gamepad(int port)
+static void apply_joystick(void)
 {
-    u16 buttons = 0;
+    GDOX_Joystick_State state = { };
 
-    if (IsJoypadDevice(input_device[port]))
+    if (IsJoypadDevice(input_device))
     {
         int bits = 0;
 
         if (libretro_supports_bitmasks)
-            bits = input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
+            bits = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
         else
         {
             for (int i = 0; i <= RETRO_DEVICE_ID_JOYPAD_R; i++)
-                bits |= input_state_cb(port, RETRO_DEVICE_JOYPAD, 0, i) ? (1 << i) : 0;
+                bits |= input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i) ? (1 << i) : 0;
         }
 
-        for (int i = 0; i <= RETRO_DEVICE_ID_JOYPAD_R; i++)
+        int stick_x = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X);
+        int stick_y = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y);
+        apply_dead_zone(stick_x, stick_y, state.axes[GDOX_JOYSTICK_AXIS_AX], state.axes[GDOX_JOYSTICK_AXIS_AY]);
+
+        bool up = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_UP)) != 0;
+        bool down = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)) != 0;
+        bool left = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) != 0;
+        bool right = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)) != 0;
+
+        if (joystick_type == GDOX_JOYSTICK_FLIGHTSTICK)
         {
-            if (bits & (1 << i))
-                buttons |= k_joypad_buttons[i];
+            int throttle_y = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                RETRO_DEVICE_ID_ANALOG_Y);
+            s16 unused;
+            apply_dead_zone(0, throttle_y, unused, state.axes[GDOX_JOYSTICK_AXIS_BY]);
+
+            state.hat = (u8)((up ? GDOX_JOYSTICK_HAT_UP : 0) | (down ? GDOX_JOYSTICK_HAT_DOWN : 0) |
+                (left ? GDOX_JOYSTICK_HAT_LEFT : 0) | (right ? GDOX_JOYSTICK_HAT_RIGHT : 0));
         }
+        else
+        {
+            if (left != right)
+                state.axes[GDOX_JOYSTICK_AXIS_AX] = right ? 32767 : -32768;
+
+            if (up != down)
+                state.axes[GDOX_JOYSTICK_AXIS_AY] = down ? 32767 : -32768;
+        }
+
+        if (bits & (1 << RETRO_DEVICE_ID_JOYPAD_B))
+            state.buttons |= GDOX_JOYSTICK_BUTTON_1;
+
+        if (bits & (1 << RETRO_DEVICE_ID_JOYPAD_A))
+            state.buttons |= GDOX_JOYSTICK_BUTTON_2;
+
+        if (bits & (1 << RETRO_DEVICE_ID_JOYPAD_Y))
+            state.buttons |= GDOX_JOYSTICK_BUTTON_3;
+
+        if (bits & (1 << RETRO_DEVICE_ID_JOYPAD_X))
+            state.buttons |= GDOX_JOYSTICK_BUTTON_4;
     }
 
-    if (!allow_up_down)
-    {
-        buttons = filter_opposing(buttons, joypad_previous[port], GDOX_GAMEPAD_UP, GDOX_GAMEPAD_DOWN);
-        buttons = filter_opposing(buttons, joypad_previous[port], GDOX_GAMEPAD_LEFT, GDOX_GAMEPAD_RIGHT);
-    }
-
-    joypad_previous[port] = buttons;
-
-    buttons &= k_gamepad_buttons;
-
-    GDOX_GamePad_State state = { buttons };
-    core->GetInput()->SetGamePadState(port, state);
+    core->GetInput()->SetJoystickState(state);
 }
 
-static u16 filter_opposing(u16 buttons, u16 previous, u16 first, u16 second)
+static void apply_dead_zone(int x, int y, s16& out_x, s16& out_y)
 {
-    if ((buttons & (first | second)) != (first | second))
-        return buttons;
+    float fx = (float)x / 32768.0f;
+    float fy = (float)y / 32768.0f;
+    float magnitude = sqrtf((fx * fx) + (fy * fy));
 
-    bool second_held = (previous & second) && !(previous & first);
-    return (u16)(buttons & ~(second_held ? first : second));
+    out_x = 0;
+    out_y = 0;
+
+    if (magnitude <= JOYSTICK_DEAD_ZONE)
+        return;
+
+    float scale = (MIN(magnitude, 1.0f) - JOYSTICK_DEAD_ZONE) / (1.0f - JOYSTICK_DEAD_ZONE) / magnitude;
+    out_x = (s16)CLAMP((int)(fx * scale * 32768.0f), -32768, 32767);
+    out_y = (s16)CLAMP((int)(fy * scale * 32768.0f), -32768, 32767);
 }
 
-static void apply_mouse(int port)
+static void apply_mouse(void)
 {
     float scale = (float)mouse_sensitivity / 6.0f;
     mouse_remainder_x += (float)input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X) * scale;
     mouse_remainder_y += (float)input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y) * scale;
-    bool left = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) != 0;
-    bool right = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT) != 0;
-
-    if (analog_mouse > 0)
-        poll_analog_mouse(left, right);
 
     int delta_x = (int)mouse_remainder_x;
     int delta_y = (int)mouse_remainder_y;
     mouse_remainder_x -= (float)delta_x;
     mouse_remainder_y -= (float)delta_y;
-    core->GetInput()->SetMouseDelta(port, delta_x, delta_y);
+    core->GetInput()->SetMouseDelta(delta_x, delta_y);
 
-    GDOX_GamePad_State state = { 0 };
+    u8 buttons = 0;
 
-    if (left)
-        state.buttons |= GDOX_GAMEPAD_A;
+    if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT))
+        buttons |= GDOX_MOUSE_LEFT;
 
-    if (right)
-        state.buttons |= GDOX_GAMEPAD_B;
+    if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT))
+        buttons |= GDOX_MOUSE_RIGHT;
 
-    core->GetInput()->SetGamePadState(port, state);
-}
+    if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE))
+        buttons |= GDOX_MOUSE_MIDDLE;
 
-static void poll_analog_mouse(bool& left, bool& right)
-{
-    unsigned index = analog_mouse == 1 ? RETRO_DEVICE_INDEX_ANALOG_LEFT : RETRO_DEVICE_INDEX_ANALOG_RIGHT;
-    float x = (float)input_state_cb(0, RETRO_DEVICE_ANALOG, index, RETRO_DEVICE_ID_ANALOG_X) / 32767.0f;
-    float y = (float)input_state_cb(0, RETRO_DEVICE_ANALOG, index, RETRO_DEVICE_ID_ANALOG_Y) / 32767.0f;
-    float magnitude = sqrtf((x * x) + (y * y));
-    const float deadzone = 0.15f;
-
-    if (magnitude > deadzone)
-    {
-        float speed = (float)analog_mouse_speed * 1.6f;
-        float scale = ((MIN(magnitude, 1.0f) - deadzone) / (1.0f - deadzone)) * speed / magnitude;
-        mouse_remainder_x += x * scale;
-        mouse_remainder_y += y * scale;
-    }
-
-    if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
-        left = true;
-
-    if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
-        right = true;
+    core->GetInput()->SetMouseButtons(buttons);
 }
 
 static GDOX_Keys key_from_retro_key(unsigned keycode)
@@ -1684,23 +1449,13 @@ static bool update_core_options_display(void)
     bool threshold_visible = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value &&
         (strcmp(var.value, "Manual") == 0);
 
-    var.key = "geardox_analog_mouse";
-    var.value = NULL;
-    bool speed_visible = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value &&
-        (strcmp(var.value, "Disabled") != 0);
-
-    if ((threshold_visible == frameskip_threshold_visible) && (speed_visible == analog_mouse_speed_visible))
+    if (threshold_visible == frameskip_threshold_visible)
         return false;
 
     struct retro_core_option_display display = { "geardox_frameskip_threshold", threshold_visible };
     environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
 
-    display.key = "geardox_analog_mouse_speed";
-    display.visible = speed_visible;
-    environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
-
     frameskip_threshold_visible = threshold_visible;
-    analog_mouse_speed_visible = speed_visible;
     return true;
 }
 
@@ -1753,14 +1508,6 @@ static void check_variables(void)
         frameskip_threshold = (unsigned)CLAMP(atoi(var.value), 15, 60);
     }
 
-    var.key = "geardox_up_down_allowed";
-    var.value = NULL;
-
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-    {
-        allow_up_down = (strcmp(var.value, "Enabled") == 0);
-    }
-
     var.key = "geardox_mouse_sensitivity";
     var.value = NULL;
 
@@ -1769,20 +1516,18 @@ static void check_variables(void)
         mouse_sensitivity = CLAMP(atoi(var.value), 1, 15);
     }
 
-    var.key = "geardox_analog_mouse";
+    var.key = "geardox_joystick";
     var.value = NULL;
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        analog_mouse = strcmp(var.value, "Left stick") == 0 ? 1 : strcmp(var.value, "Right stick") == 0 ? 2 : 0;
-    }
+        for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
+        {
+            if (strcmp(var.value, k_joysticks[i].id) == 0)
+                joystick_type = (GDOX_Joystick_Type)i;
+        }
 
-    var.key = "geardox_analog_mouse_speed";
-    var.value = NULL;
-
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-    {
-        analog_mouse_speed = CLAMP(atoi(var.value), 1, 10);
+        core->GetInput()->SetJoystickType(joystick_type);
     }
 
     var.key = "geardox_fm_volume";
@@ -1910,6 +1655,18 @@ static void check_variables(void)
         {
             if (strcmp(var.value, k_sound_cards[i].id) == 0)
                 machine_settings.sound_card = i;
+        }
+    }
+
+    var.key = "geardox_mouse";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
+        {
+            if (strcmp(var.value, k_mice[i].id) == 0)
+                machine_settings.mouse = i;
         }
     }
 

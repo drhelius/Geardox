@@ -25,10 +25,7 @@
 Input::Input()
 {
     InitPointer(m_trace_logger);
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-        m_controller_type[i] = GDOX_CONTROLLER_GAMEPAD;
-
+    m_joystick_type = GDOX_JOYSTICK_GAMEPAD;
     Reset();
 }
 
@@ -45,17 +42,17 @@ void Input::SetTraceLogger(TraceLogger* trace_logger)
 void Input::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
-    memset(m_physical_gamepads, 0, sizeof(m_physical_gamepads));
-    memset(m_injected_gamepads, 0, sizeof(m_injected_gamepads));
+    memset(&m_physical_joystick, 0, sizeof(m_physical_joystick));
+    memset(&m_injected_joystick, 0, sizeof(m_injected_joystick));
+    m_physical_mouse_buttons = 0;
+    m_injected_mouse_buttons = 0;
+    m_injected_axes = false;
 }
 
-void Input::ClearMouseInput(int port)
+void Input::ClearMouseInput()
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return;
-
-    m_state.mouse_x[port] = 0;
-    m_state.mouse_y[port] = 0;
+    m_state.mouse_x = 0;
+    m_state.mouse_y = 0;
 }
 
 void Input::SaveState(std::ostream& stream)
@@ -73,43 +70,59 @@ void Input::LoadState(std::istream& stream)
 
 void Input::Serialize(StateSerializer& serializer)
 {
-    G_SERIALIZE_ARRAY(serializer, m_state.mouse_x, GDOX_MAX_GAMEPADS);
-    G_SERIALIZE_ARRAY(serializer, m_state.mouse_y, GDOX_MAX_GAMEPADS);
-    G_SERIALIZE_ARRAY(serializer, m_state.gamepads, GDOX_MAX_GAMEPADS);
+    G_SERIALIZE(serializer, m_state.mouse_x);
+    G_SERIALIZE(serializer, m_state.mouse_y);
+    G_SERIALIZE(serializer, m_state.mouse_buttons);
+    G_SERIALIZE_ARRAY(serializer, m_state.joystick.axes, GDOX_JOYSTICK_AXIS_COUNT);
+    G_SERIALIZE(serializer, m_state.joystick.buttons);
+    G_SERIALIZE(serializer, m_state.joystick.hat);
 }
 
 void Input::SanitizeState()
 {
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        m_state.mouse_x[i] = CLAMP(m_state.mouse_x[i], -k_input_mouse_limit, k_input_mouse_limit);
-        m_state.mouse_y[i] = CLAMP(m_state.mouse_y[i], -k_input_mouse_limit, k_input_mouse_limit);
-    }
+    m_state.mouse_x = CLAMP(m_state.mouse_x, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_y = CLAMP(m_state.mouse_y, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_buttons &= GDOX_MOUSE_LEFT | GDOX_MOUSE_RIGHT | GDOX_MOUSE_MIDDLE;
+    m_state.joystick.buttons &= 0x0F;
+    m_state.joystick.hat &= 0x0F;
 }
 
-void Input::UpdateGamePadState(int port)
+void Input::UpdateMouseButtons()
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
+    u8 previous = m_state.mouse_buttons;
+    m_state.mouse_buttons = m_physical_mouse_buttons | m_injected_mouse_buttons;
+
+    if (unlikely(previous != m_state.mouse_buttons))
+        TraceChange(TRACE_INPUT_DEVICE_MOUSE, m_state.mouse_buttons, previous);
+}
+
+// Injected buttons add to the host's, injected axes replace them
+void Input::UpdateJoystickState()
+{
+    u16 previous = (u16)(m_state.joystick.buttons | (m_state.joystick.hat << 4));
+
+    for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
+        m_state.joystick.axes[i] = m_injected_axes ? m_injected_joystick.axes[i] : m_physical_joystick.axes[i];
+
+    m_state.joystick.buttons = (m_physical_joystick.buttons | m_injected_joystick.buttons) & 0x0F;
+    m_state.joystick.hat = (m_physical_joystick.hat | m_injected_joystick.hat) & 0x0F;
+
+    u16 current = (u16)(m_state.joystick.buttons | (m_state.joystick.hat << 4));
+
+    if (unlikely(previous != current))
+        TraceChange(TRACE_INPUT_DEVICE_JOYSTICK, current, previous);
+}
+
+void Input::TraceChange(u8 device, u16 buttons, u16 previous)
+{
+    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_CHANGE))
         return;
 
-    u16 previous = m_state.gamepads[port].buttons;
-    m_state.gamepads[port] = m_physical_gamepads[port];
-    m_state.gamepads[port].buttons |= m_injected_gamepads[port].buttons;
-
-    if (unlikely(previous != m_state.gamepads[port].buttons && IsValidPointer(m_trace_logger) &&
-        m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_CHANGE)))
-        TraceEvent(TRACE_INPUT_CHANGE, port, 0, previous);
-}
-
-void Input::TraceEvent(u8 event, int port, u8 value, u16 previous)
-{
     GDOX_Trace_Entry entry = {};
     entry.type = TRACE_INPUT;
-    entry.event = event;
-    entry.input.buttons = m_state.gamepads[port].buttons;
+    entry.event = TRACE_INPUT_CHANGE;
+    entry.input.device = device;
+    entry.input.buttons = buttons;
     entry.input.previous = previous;
-    entry.input.port = (u8)port;
-    entry.input.value = value;
-    entry.input.device = (u8)m_controller_type[port];
     m_trace_logger->TraceLog(entry);
 }

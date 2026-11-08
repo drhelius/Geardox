@@ -359,7 +359,7 @@ void McpServer::HandleInitialize(const json& request)
         "Use this server for MS-DOS PC game and software debugging, reverse engineering, ROM hacking, translation, "
         "memory inspection, Intel 80386 debugging in real, protected and VM86 mode, execute, data, I/O and interrupt "
         "breakpoints, disassembly, symbols, trace logging, profiling, inspecting the audio, CD-ROM, floppy, hard disk and "
-        "system hardware, save states, rewind, pad, mouse and keyboard input, screenshots, and video recording. "
+        "system hardware, save states, rewind, mouse, joystick and keyboard input, screenshots, and video recording. "
         "Addresses take linear hex (1234ABCD, 0x1234ABCD, $1234ABCD), SR:offset with a segment register (CS:1234) or "
         "SSSS:offset with a selector or real-mode segment (0008:00001234).";
 
@@ -1379,6 +1379,33 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_serial_status"},
+        {"title", "Get Serial Status"},
+        {"description", "Read both 16550A serial ports (COM1 at 03F8 IRQ 4, COM2 at 02F8 IRQ 3): what is attached, "
+            "divisor and baud, IER, IIR, FCR, LCR, MCR, LSR, MSR and scratch registers with their bits decoded, FIFO "
+            "counts and the IRQ line."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_parallel_status"},
+        {"title", "Get Parallel Status"},
+        {"description", "Read LPT1 (0378 IRQ 7, nothing attached): data latch, status (7F with nothing attached) and "
+            "control, with the bits decoded."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "get_bios_log"},
         {"title", "Get BIOS Log"},
         {"description", "Read what the BIOS wrote to the debug console at port 0402: SeaBIOS's POST messages since power "
@@ -2116,68 +2143,80 @@ json McpServer::BuildToolList()
         }}
     });
 
-    // Controller input tools
-    json game_port = {
-        {"type", "integer"},
-        {"minimum", 1},
-        {"maximum", 2}
-    };
-
-    json mouse_port = {
-        {"type", "integer"},
-        {"description", "Default the first port set to mouse."},
-        {"minimum", 1},
-        {"maximum", 2}
-    };
-
+    // Input tools
     tools.push_back({
-        {"name", "controller_button"},
-        {"title", "Controller Button"},
-        {"description", "Press, release or tap a button on a game port. On a mouse port the directions move it (4 counts "
-            "per frame held or per tap) and A/B are the left/right buttons."},
+        {"name", "joystick_set"},
+        {"title", "Set Joystick"},
+        {"description", "Drive the emulated game port joystick, which the host gamepad also drives. ax, ay, bx, by are "
+            "axis positions (0 is centre) that replace the host's axes until reset; buttons 1-4 and hat add to the "
+            "host's. device plugs in another joystick. reset clears everything injected."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
             {"properties", {
-                {"player", game_port},
-                {"button", {
+                {"ax", {
+                    {"type", "integer"},
+                    {"description", "A-X, -32768 left to 32767 right."},
+                    {"minimum", -32768},
+                    {"maximum", 32767}
+                }},
+                {"ay", {
+                    {"type", "integer"},
+                    {"description", "A-Y, -32768 up to 32767 down."},
+                    {"minimum", -32768},
+                    {"maximum", 32767}
+                }},
+                {"bx", {
+                    {"type", "integer"},
+                    {"description", "B-X, only wired on the joystick-type devices that have it."},
+                    {"minimum", -32768},
+                    {"maximum", 32767}
+                }},
+                {"by", {
+                    {"type", "integer"},
+                    {"description", "B-Y, the flightstick's throttle."},
+                    {"minimum", -32768},
+                    {"maximum", 32767}
+                }},
+                {"buttons", {
+                    {"type", "array"},
+                    {"description", "Buttons to act on, with action. The joystick has 1-2, the gamepad and the "
+                        "flightstick 1-4."},
+                    {"items", {{"type", "integer"}, {"minimum", 1}, {"maximum", 4}}}
+                }},
+                {"hat", {
                     {"type", "string"},
-                    {"enum", json::array({"up", "down", "left", "right", "select", "run", "A", "B"})}
+                    {"description", "Hat direction, with action; none clears it. The flightstick's hat."},
+                    {"enum", json::array({"none", "up", "down", "left", "right", "up_left", "up_right", "down_left",
+                        "down_right"})}
                 }},
                 {"action", {
                     {"type", "string"},
-                    {"description", "press_and_release releases after some frames."},
+                    {"description", "For buttons and hat. Default press. press_and_release releases after some frames."},
                     {"enum", json::array({"press", "release", "press_and_release"})}
-                }}
-            }},
-            {"required", json::array({"player", "button", "action"})}
-        }}
-    });
-
-    tools.push_back({
-        {"name", "controller_set_type"},
-        {"title", "Set Controller Type"},
-        {"description", "Set a game port's device; auto takes the game database's device, or gamepad on port 1 "
-            "and mouse on port 2."},
-        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", true}, {"openWorldHint", false}}},
-        {"inputSchema", {
-            {"type", "object"},
-            {"properties", {
-                {"player", game_port},
-                {"type", {
+                }},
+                {"device", {
                     {"type", "string"},
-                    {"enum", json::array({"auto", "none", "gamepad", "mouse"})}
+                    {"description", "Plug in a joystick: none, joystick (IBM, 2 buttons), gamepad (Gravis, 4 buttons, "
+                        "nine positions) or flightstick (CH FlightStick Pro). Takes effect at once."},
+                    {"enum", json::array({"none", "joystick", "gamepad", "flightstick"})}
+                }},
+                {"reset", {
+                    {"type", "boolean"},
+                    {"description", "Clear the injected axes, buttons and hat first, giving the host's input back."}
                 }}
             }},
-            {"required", json::array({"player", "type"})}
+            {"additionalProperties", false}
         }}
     });
 
     tools.push_back({
         {"name", "get_input_state"},
         {"title", "Get Input State"},
-        {"description", "Read each port's device, setting (auto or a device), its source (explicit, database, default or "
-            "fallback) and pressed buttons, and pending tap releases."},
+        {"description", "Read the mouse (type, host pending counts and buttons, the PS/2 mouse's mode, reporting, "
+            "rate, resolution, scaling and queued bytes, or the serial mouse's RTS and queue) and the joystick (type, "
+            "axes, buttons, hat, injected state, the game port byte at 0201 and each axis pulse in microseconds or "
+            "open), and pending tap releases."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2242,9 +2281,7 @@ json McpServer::BuildToolList()
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
-            {"properties", {
-                {"player", mouse_port}
-            }},
+            {"properties", json::object()},
             {"additionalProperties", false}
         }}
     });
@@ -2260,7 +2297,6 @@ json McpServer::BuildToolList()
         {"inputSchema", {
             {"type", "object"},
             {"properties", {
-                {"player", mouse_port},
                 {"x", {
                     {"type", "integer"},
                     {"description", "Column, with y."},
@@ -2297,11 +2333,10 @@ json McpServer::BuildToolList()
         {"inputSchema", {
             {"type", "object"},
             {"properties", {
-                {"player", mouse_port},
                 {"button", {
                     {"type", "string"},
                     {"description", "Default left."},
-                    {"enum", json::array({"left", "right"})}
+                    {"enum", json::array({"left", "right", "middle"})}
                 }},
                 {"action", {
                     {"type", "string"},
@@ -3345,6 +3380,14 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetRTCStatus();
     }
+    else if (normalizedTool == "get_serial_status")
+    {
+        return m_debugAdapter.GetSerialStatus();
+    }
+    else if (normalizedTool == "get_parallel_status")
+    {
+        return m_debugAdapter.GetParallelStatus();
+    }
     else if (normalizedTool == "get_keyboard_status")
     {
         return m_debugAdapter.GetKeyboardStatus();
@@ -3537,6 +3580,8 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         event_filters[TRACE_IDE] = TRACE_IDE_EVENT_ALL;
         event_filters[TRACE_KEYBOARD] = TRACE_KEYBOARD_EVENT_ALL;
         event_filters[TRACE_INPUT] = TRACE_INPUT_EVENT_DEFAULT;
+        event_filters[TRACE_SERIAL] = TRACE_SERIAL_EVENT_DEFAULT;
+        event_filters[TRACE_PARALLEL] = TRACE_PARALLEL_EVENT_DEFAULT;
         event_filters[TRACE_SYSTEM] = TRACE_SYSTEM_EVENT_DEFAULT;
 
         if (enabled && arguments.contains("filters"))
@@ -3632,13 +3677,9 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         return m_debugAdapter.RewindSeek(arguments["snapshot"]);
     }
     // Input
-    else if (normalizedTool == "controller_button")
+    else if (normalizedTool == "joystick_set")
     {
-        return m_debugAdapter.ControllerButton(arguments["player"], arguments["button"], arguments["action"]);
-    }
-    else if (normalizedTool == "controller_set_type")
-    {
-        return m_debugAdapter.ControllerSetType(arguments["player"], arguments["type"]);
+        return m_debugAdapter.JoystickSet(arguments);
     }
     else if ((normalizedTool == "keyboard_type") || (normalizedTool == "mouse_move") ||
         (normalizedTool == "mouse_click") || (normalizedTool == "debug_step_frame"))
@@ -3647,7 +3688,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     }
     else if (normalizedTool == "mouse_get_cursor")
     {
-        return m_debugAdapter.MouseGetCursor(arguments.value("player", 0));
+        return m_debugAdapter.MouseGetCursor();
     }
     else if (normalizedTool == "get_input_state")
     {

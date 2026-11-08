@@ -32,6 +32,8 @@
 #include "input/input.h"
 #include "input/i8042.h"
 #include "input/keyboard.h"
+#include "input/ps2_mouse.h"
+#include "input/game_port.h"
 #include "common/memory_stream.h"
 #include "common/profiler.h"
 #include "common/trace_logger.h"
@@ -50,6 +52,8 @@
 #include "system/mc146818.h"
 #include "system/firmware_config.h"
 #include "system/debug_console.h"
+#include "system/serial_ports.h"
+#include "system/parallel_port.h"
 #include "system/machine_profiles.h"
 #include "video/video.h"
 
@@ -69,6 +73,10 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_system_control);
     InitPointer(m_i8042);
     InitPointer(m_keyboard);
+    InitPointer(m_ps2_mouse);
+    InitPointer(m_serial_ports);
+    InitPointer(m_parallel_port);
+    InitPointer(m_game_port);
     InitPointer(m_rtc);
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
@@ -93,6 +101,7 @@ GeardoxCore::GeardoxCore()
 
     m_machine_settings.sound_card = GDOX_MACHINE_AUTO;
     m_machine_settings.sound_irq = GDOX_MACHINE_AUTO;
+    m_machine_settings.mouse = GDOX_MACHINE_AUTO;
     m_machine_settings.sound_dma = GDOX_MACHINE_AUTO;
 
     InitPointer(m_auto_entry);
@@ -137,6 +146,10 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_system_control);
     SafeDelete(m_i8042);
     SafeDelete(m_keyboard);
+    SafeDelete(m_ps2_mouse);
+    SafeDelete(m_serial_ports);
+    SafeDelete(m_parallel_port);
+    SafeDelete(m_game_port);
     SafeDelete(m_rtc);
     SafeDelete(m_firmware_config);
     SafeDelete(m_debug_console);
@@ -204,6 +217,18 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_keyboard))
         m_keyboard = new Keyboard();
 
+    if (!IsValidPointer(m_ps2_mouse))
+        m_ps2_mouse = new PS2Mouse();
+
+    if (!IsValidPointer(m_serial_ports))
+        m_serial_ports = new SerialPorts();
+
+    if (!IsValidPointer(m_parallel_port))
+        m_parallel_port = new ParallelPort();
+
+    if (!IsValidPointer(m_game_port))
+        m_game_port = new GamePort();
+
     if (!IsValidPointer(m_rtc))
         m_rtc = new MC146818();
 
@@ -243,14 +268,17 @@ void GeardoxCore::Init()
     m_system_control->Init(m_memory, m_pic, m_pit);
     m_keyboard->Init();
     m_i8042->Init(m_pic, m_scheduler, m_system_control, m_keyboard);
+    m_ps2_mouse->Init(m_input);
+    m_serial_ports->Init(m_pic, m_scheduler, m_input);
+    m_game_port->Init(m_input);
     m_rtc->Init(m_pic, m_scheduler);
     m_firmware_config->Init();
     m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler, m_dma);
     m_ide->Init(m_pic, m_scheduler);
-    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_input, m_system_control, m_rtc,
-        m_firmware_config, m_debug_console, m_i8042, m_dma);
+    m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
+        m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port);
     m_i386->Init(m_memory, m_io);
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
@@ -272,6 +300,10 @@ void GeardoxCore::Init()
     m_fdc->SetTraceLogger(m_trace_logger);
     m_ide->SetTraceLogger(m_trace_logger);
     m_input->SetTraceLogger(m_trace_logger);
+    m_ps2_mouse->SetTraceLogger(m_trace_logger);
+    m_serial_ports->SetTraceLogger(m_trace_logger);
+    m_parallel_port->SetTraceLogger(m_trace_logger);
+    m_game_port->SetTraceLogger(m_trace_logger);
     m_media->Init();
     Reset();
 }
@@ -756,6 +788,9 @@ INLINE void GeardoxCore::DispatchEvents()
             case SCHEDULER_EVENT_AUDIO:
                 m_audio->HandleEvent(clocks);
                 break;
+            case SCHEDULER_EVENT_SERIAL:
+                m_serial_ports->HandleEvent(clocks);
+                break;
             default:
                 break;
         }
@@ -861,27 +896,6 @@ bool GeardoxCore::GetFloppyNotice(GDOX_Floppy_Notice& notice)
             "Its original floppy disk is copy protected");
 
     return true;
-}
-
-bool GeardoxCore::GetDatabaseController(int port, GDOX_Controller_Type& type) const
-{
-    if (!IsValidPointer(m_auto_entry) || (port < 0) || (port >= GDOX_MAX_GAMEPADS))
-        return false;
-
-    switch ((port == GDOX_CONTROLLER_1) ? m_auto_entry->port_1 : m_auto_entry->port_2)
-    {
-        case GDOX_GAMEDB_PORT_NONE:
-            type = GDOX_CONTROLLER_NONE;
-            return true;
-        case GDOX_GAMEDB_PORT_PAD:
-            type = GDOX_CONTROLLER_GAMEPAD;
-            return true;
-        case GDOX_GAMEDB_PORT_MOUSE:
-            type = GDOX_CONTROLLER_MOUSE;
-            return true;
-        default:
-            return false;
-    }
 }
 
 bool GeardoxCore::LoadBios(const char* directory_path)
@@ -1305,7 +1319,11 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_rtc->SaveState(stream);
     m_firmware_config->SaveState(stream);
     m_keyboard->SaveState(stream);
+    m_ps2_mouse->SaveState(stream);
     m_i8042->SaveState(stream);
+    m_serial_ports->SaveState(stream);
+    m_parallel_port->SaveState(stream);
+    m_game_port->SaveState(stream);
     m_video->SaveState(stream);
     m_cdrom_audio->SaveState(stream);
     m_fdc->SaveState(stream, media);
@@ -1532,7 +1550,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.ide == machine_config.ide) && (m_machine_config.fpu == machine_config.fpu) &&
         (m_machine_config.sound_card == machine_config.sound_card) &&
         (m_machine_config.sound_irq == machine_config.sound_irq) &&
-        (m_machine_config.sound_dma == machine_config.sound_dma);
+        (m_machine_config.sound_dma == machine_config.sound_dma) && (m_machine_config.mouse == machine_config.mouse);
 
     if (!same_machine)
     {
@@ -1603,7 +1621,11 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_rtc->LoadState(stream, header.version);
     m_firmware_config->LoadState(stream, header.version);
     m_keyboard->LoadState(stream, header.version);
+    m_ps2_mouse->LoadState(stream, header.version);
     m_i8042->LoadState(stream, header.version);
+    m_serial_ports->LoadState(stream, header.version);
+    m_parallel_port->LoadState(stream, header.version);
+    m_game_port->LoadState(stream, header.version);
     m_video->LoadState(stream, header.version);
     m_cdrom_audio->LoadState(stream);
     m_fdc->LoadState(stream, header.version);
@@ -1775,6 +1797,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.sound_card);
     G_SERIALIZE(serializer, config.sound_irq);
     G_SERIALIZE(serializer, config.sound_dma);
+    G_SERIALIZE(serializer, config.mouse);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -1823,6 +1846,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.sound_card = config.sound_card < GDOX_SOUND_CARD_COUNT ? config.sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = config.sound_irq == k_sound_card_irqs[1] ? k_sound_card_irqs[1] : k_sound_card_irqs[0];
     config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
+    config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
 
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
@@ -1922,8 +1946,20 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_keyboard))
         m_keyboard->Reset(m_scheduler->GetClocks());
 
+    if (IsValidPointer(m_ps2_mouse))
+        m_ps2_mouse->Reset(m_scheduler->GetClocks());
+
     if (IsValidPointer(m_i8042))
         m_i8042->Reset();
+
+    if (IsValidPointer(m_serial_ports))
+        m_serial_ports->Reset();
+
+    if (IsValidPointer(m_parallel_port))
+        m_parallel_port->Reset();
+
+    if (IsValidPointer(m_game_port))
+        m_game_port->Reset();
 
     if (IsValidPointer(m_rtc))
         m_rtc->Reset(m_scheduler->GetClocks());
@@ -2036,6 +2072,10 @@ void GeardoxCore::ResolveMachineConfig()
         (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = (u8)m_machine_settings.sound_irq;
     config.sound_dma = (u8)m_machine_settings.sound_dma;
+
+    int mouse = m_machine_settings.mouse;
+
+    config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
 
     report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
     report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
@@ -2206,6 +2246,12 @@ void GeardoxCore::ApplyMachineConfig()
 
     if (IsValidPointer(m_audio))
         m_audio->SetCard(m_machine_config.sound_card, m_machine_config.sound_irq, m_machine_config.sound_dma);
+
+    if (IsValidPointer(m_i8042))
+        m_i8042->SetMouse(m_machine_config.mouse == GDOX_MOUSE_PS2 ? m_ps2_mouse : NULL);
+
+    if (IsValidPointer(m_serial_ports))
+        m_serial_ports->SetMouse(m_machine_config.mouse == GDOX_MOUSE_SERIAL);
 
     if (IsValidPointer(m_fdc))
     {

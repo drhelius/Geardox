@@ -49,7 +49,7 @@ struct retro_core_option_v2_category option_cats_us[] = {
     {
         "input",
         "Input",
-        "Configure controller and mouse behavior."
+        "Configure the joystick and the mouse."
     },
     {
         "cdrom",
@@ -202,18 +202,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
     /* Input */
 
     {
-        "geardox_up_down_allowed",
-        "Allow Opposing Directions",
+        "geardox_joystick",
+        "Joystick",
         NULL,
-        "Allow pressing opposite directions simultaneously. Disabling this may prevent movement glitches in some software.",
+        "The joystick on the game port that the first controller drives. Games choose it by what they support. The Gravis GamePad suits most, flight simulators want the Joystick or the CH FlightStick Pro.",
         NULL,
         "input",
         {
-            { "Disabled", NULL },
-            { "Enabled",  NULL },
+            { "none",        "None" },
+            { "joystick",    "Joystick" },
+            { "gamepad",     "Gravis GamePad" },
+            { "flightstick", "CH FlightStick Pro" },
             { NULL, NULL },
         },
-        "Disabled"
+        "gamepad"
     },
     {
         "geardox_mouse_sensitivity",
@@ -227,35 +229,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { "5",  NULL }, { "6",  NULL }, { "7",  NULL }, { "8",  NULL },
             { "9",  NULL }, { "10", NULL }, { "11", NULL }, { "12", NULL },
             { "13", NULL }, { "14", NULL }, { "15", NULL }, { NULL, NULL }
-        },
-        "5"
-    },
-    {
-        "geardox_analog_mouse",
-        "Analog Stick Mouse",
-        NULL,
-        "Move the mouse with an analog stick of the first controller, L2 and R2 are the mouse buttons. A controller port must be set to Mouse.",
-        NULL,
-        "input",
-        {
-            { "Disabled",    NULL },
-            { "Left stick",  NULL },
-            { "Right stick", NULL },
-            { NULL, NULL },
-        },
-        "Disabled"
-    },
-    {
-        "geardox_analog_mouse_speed",
-        "Analog Mouse Speed",
-        NULL,
-        "Adjust how fast the analog stick moves the mouse.",
-        NULL,
-        "input",
-        {
-            { "1", NULL }, { "2", NULL }, { "3", NULL }, { "4", NULL }, { "5", NULL },
-            { "6", NULL }, { "7", NULL }, { "8", NULL }, { "9", NULL }, { "10", NULL },
-            { NULL, NULL }
         },
         "5"
     },
@@ -431,6 +404,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { NULL, NULL },
         },
         "auto"
+    },
+    {
+        "geardox_mouse",
+        "Mouse (restart)",
+        NULL,
+        "The mouse in the machine. PS/2 is the usual one, Serial is a Microsoft mouse on COM1. The frontend's mouse drives it.",
+        NULL,
+        "system",
+        {
+            { "none",   "None" },
+            { "ps2",    "PS/2" },
+            { "serial", "Serial (COM1)" },
+            { NULL, NULL },
+        },
+        "ps2"
     },
     {
         "geardox_sound_card",

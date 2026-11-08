@@ -28,8 +28,11 @@
 #include "memory.h"
 #include "pic.h"
 #include "pit.h"
+#include "parallel_port.h"
 #include "scheduler.h"
+#include "serial_ports.h"
 #include "system_control.h"
+#include "../input/game_port.h"
 #include "../video/video.h"
 
 IO::IO()
@@ -42,13 +45,15 @@ IO::IO()
     InitPointer(m_memory);
     InitPointer(m_fdc);
     InitPointer(m_ide);
-    InitPointer(m_input);
     InitPointer(m_system_control);
     InitPointer(m_rtc);
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
     InitPointer(m_i8042);
     InitPointer(m_dma);
+    InitPointer(m_serial_ports);
+    InitPointer(m_parallel_port);
+    InitPointer(m_game_port);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -57,8 +62,9 @@ IO::~IO()
 }
 
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
-    IdeController* ide, Input* input, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
-    DebugConsole* debug_console, I8042* i8042, DMA* dma)
+    IdeController* ide, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
+    DebugConsole* debug_console, I8042* i8042, DMA* dma, SerialPorts* serial_ports, ParallelPort* parallel_port,
+    GamePort* game_port)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -68,13 +74,15 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_memory = memory;
     m_fdc = fdc;
     m_ide = ide;
-    m_input = input;
     m_system_control = system_control;
     m_rtc = rtc;
     m_firmware_config = firmware_config;
     m_debug_console = debug_console;
     m_i8042 = i8042;
     m_dma = dma;
+    m_serial_ports = serial_ports;
+    m_parallel_port = parallel_port;
+    m_game_port = game_port;
     Reset();
 }
 
@@ -181,6 +189,15 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
 
             if (m_audio->Decodes(port & k_io_isa_mask))
                 return m_audio->Read(port & k_io_isa_mask, context.clocks);
+
+            if (m_serial_ports->Decodes(port & k_io_isa_mask))
+                return m_serial_ports->Read(port & k_io_isa_mask, context.clocks);
+
+            if (m_game_port->Decodes(port & k_io_isa_mask))
+                return m_game_port->Read(context.clocks);
+
+            if (m_parallel_port->Decodes(port & k_io_isa_mask))
+                return m_parallel_port->Read(port & k_io_isa_mask);
             break;
     }
 
@@ -254,6 +271,24 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
                 return true;
             }
 
+            if (m_serial_ports->Decodes(port & k_io_isa_mask))
+            {
+                value = m_serial_ports->Peek(port & k_io_isa_mask);
+                return true;
+            }
+
+            if (m_game_port->Decodes(port & k_io_isa_mask))
+            {
+                value = m_game_port->Peek(clocks);
+                return true;
+            }
+
+            if (m_parallel_port->Decodes(port & k_io_isa_mask))
+            {
+                value = m_parallel_port->Read(port & k_io_isa_mask);
+                return true;
+            }
+
             if (!m_system_control->Decodes(port))
                 return false;
 
@@ -319,6 +354,15 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
 
             if (m_audio->Decodes(port & k_io_isa_mask))
                 return m_audio->GetReadStableUntil(port & k_io_isa_mask);
+
+            if (m_serial_ports->Decodes(port & k_io_isa_mask))
+                return m_serial_ports->GetReadStableUntil(port & k_io_isa_mask);
+
+            if (m_game_port->Decodes(port & k_io_isa_mask))
+                return m_game_port->GetReadStableUntil(clocks);
+
+            if (m_parallel_port->Decodes(port & k_io_isa_mask))
+                return GDOX_NO_EVENT;
 
             return m_dma->Decodes(port) ? m_dma->GetReadStableUntil(port) : 0;
     }
@@ -411,6 +455,15 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
                 m_audio->Write(port & k_io_isa_mask, value, context.clocks);
                 context.end_batch = true;
             }
+            else if (m_serial_ports->Decodes(port & k_io_isa_mask))
+            {
+                m_serial_ports->Write(port & k_io_isa_mask, value, context.clocks);
+                context.end_batch = true;
+            }
+            else if (m_game_port->Decodes(port & k_io_isa_mask))
+                m_game_port->Write(context.clocks);
+            else if (m_parallel_port->Decodes(port & k_io_isa_mask))
+                m_parallel_port->Write(port & k_io_isa_mask, value);
             else
                 Debug("Unknown IO write at %04X, value=%02X", port, value);
             break;

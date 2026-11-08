@@ -28,6 +28,7 @@
 
 class Keyboard;
 class PIC;
+class PS2Mouse;
 class Scheduler;
 class StateSerializer;
 class SystemControl;
@@ -61,6 +62,7 @@ public:
     I8042();
     ~I8042();
     void Init(PIC* pic, Scheduler* scheduler, SystemControl* system_control, Keyboard* keyboard);
+    void SetMouse(PS2Mouse* mouse);
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
     u8 Read(u16 port, u64 clocks);
@@ -87,7 +89,7 @@ private:
     void ReceiveKeyboardByte(u8 value);
     void PutOutput(u8 value, bool aux);
     void FlushResult();
-    void UpdateKeyboardClock(u64 clocks);
+    void UpdateDeviceClocks(u64 clocks);
     void UpdateIRQ();
     void UpdateNextEvent();
     void TraceEvent(u8 event, u8 value, u8 flags, u8 key);
@@ -99,6 +101,7 @@ private:
     Scheduler* m_scheduler;
     SystemControl* m_system_control;
     Keyboard* m_keyboard;
+    PS2Mouse* m_mouse;
     TraceLogger* m_trace_logger;
     I8042_State m_state;
 };

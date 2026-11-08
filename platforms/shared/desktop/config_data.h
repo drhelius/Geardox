@@ -24,13 +24,12 @@
 #include <string>
 #include "geardox.h"
 
-static const int config_version = 9;
+static const int config_version = 10;
 static const int config_minimum_version = 5;
 static const int config_max_recent_roms = 15;
 static const int config_max_recent_floppies = 5;
 static const int config_max_recent_hard_disks = 5;
 static const int config_floppy_drives = 2;
-static const int config_ControllerType_Auto = -1;
 
 enum config_ShaderMode
 {
@@ -50,12 +49,6 @@ enum config_VideoSync
     config_VideoSync_Disabled = 0,
     config_VideoSync_Fixed = 1,
     config_VideoSync_VRR = 2
-};
-
-enum config_KeyboardMode
-{
-    config_KeyboardMode_Gamepad = 0,
-    config_KeyboardMode_PC = 1
 };
 
 struct config_Emulator
@@ -129,6 +122,7 @@ struct config_Machine
     int sound_card;
     int sound_irq;
     int sound_dma;
+    int mouse;
     std::string firmware_paths[GDOX_MACHINE_COUNT];
 };
 
@@ -171,35 +165,18 @@ struct config_Rewind
 
 struct config_Input
 {
-    bool allow_up_down;
-    bool allow_shared_gamepads;
-    int controller_type[GDOX_MAX_GAMEPADS];
-    int keyboard_mode[GDOX_MAX_GAMEPADS];
-};
-
-struct config_Input_Keyboard
-{
-    SDL_Scancode key_left;
-    SDL_Scancode key_right;
-    SDL_Scancode key_up;
-    SDL_Scancode key_down;
-    SDL_Scancode key_select;
-    SDL_Scancode key_run;
-    SDL_Scancode key_A;
-    SDL_Scancode key_B;
+    int joystick_type;
 };
 
 struct config_Input_Gamepad
 {
-    int gamepad_directional;
     bool gamepad_invert_x_axis;
     bool gamepad_invert_y_axis;
-    int gamepad_select;
-    int gamepad_run;
-    int gamepad_A;
-    int gamepad_B;
+    int gamepad_dead_zone;
+    int gamepad_buttons[4];
     int gamepad_x_axis;
     int gamepad_y_axis;
+    int gamepad_throttle_axis;
 };
 
 enum config_HotkeyIndex
@@ -288,6 +265,8 @@ struct config_Debug
     bool trace_ide;
     bool trace_keyboard;
     bool trace_input;
+    bool trace_serial;
+    bool trace_parallel;
     bool trace_system;
     int trace_cpu_interrupt_events;
     int trace_io_events;
@@ -304,6 +283,8 @@ struct config_Debug
     int trace_ide_events;
     int trace_keyboard_events;
     int trace_input_events;
+    int trace_serial_events;
+    int trace_parallel_events;
     int trace_system_events;
     int trace_vblank_watch_address;
     int trace_vblank_watch_operation;
@@ -321,7 +302,9 @@ struct config_Debug
     bool show_system_control;
     bool show_rtc;
     bool show_bios_log;
-    bool show_game_ports;
+    bool show_mouse_joystick;
+    bool show_serial_ports;
+    bool show_parallel_port;
     bool show_keyboard;
     bool show_vga;
     bool show_vga_registers;
@@ -367,7 +350,6 @@ EXTERN config_Video config_video;
 EXTERN config_Audio config_audio;
 EXTERN config_Rewind config_rewind;
 EXTERN config_Input config_input;
-EXTERN config_Input_Keyboard config_input_keyboard[GDOX_MAX_GAMEPADS];
 EXTERN config_Input_Gamepad config_input_gamepad[GDOX_MAX_GAMEPADS];
 EXTERN config_Input_Gamepad_Shortcuts config_input_gamepad_shortcuts[GDOX_MAX_GAMEPADS];
 EXTERN config_Hotkey config_hotkeys[config_HotkeyIndex_COUNT];

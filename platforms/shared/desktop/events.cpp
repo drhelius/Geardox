@@ -28,9 +28,8 @@
 #define EVENTS_IMPORT
 #include "events.h"
 
-static u16 input_last_buttons[GDOX_MAX_GAMEPADS] = { };
 static bool input_updated = false;
-static u16 mouse_buttons = 0;
+static u8 mouse_buttons = 0;
 static float mouse_remainder_x = 0.0f;
 static float mouse_remainder_y = 0.0f;
 static bool keyboard_scancode_down[SDL_SCANCODE_COUNT] = { };
@@ -40,13 +39,10 @@ static int keyboard_key_references[GDOX_KEY_COUNT] = { };
 static bool events_check_hotkey(const SDL_Event* event, const config_Hotkey& hotkey, bool allow_repeat);
 static bool events_match_hotkey_scancode(const SDL_Event* event, const config_Hotkey& hotkey);
 static void input_update(bool check_shortcuts);
-static GDOX_GamePad_State input_build_state(int controller);
-static u16 input_filter_opposing_directions(int controller, u16 buttons);
+static GDOX_Joystick_State input_build_joystick(void);
 static GDOX_Keys keyboard_key_from_scancode(SDL_Scancode scancode);
 static void keyboard_send_key(SDL_Scancode scancode, bool pressed);
 static bool keyboard_captures_event(const SDL_Event* event);
-static bool keyboard_controller_uses_key(SDL_Scancode scancode);
-static int mouse_get_controller(void);
 
 bool events_shortcuts(const SDL_Event* event)
 {
@@ -132,8 +128,7 @@ void events_emu(const SDL_Event* event, bool shortcut_consumed)
         // Keys already held by the machine are released even when a menu has just taken focus
         if (event->type == SDL_EVENT_KEY_UP)
             keyboard_send_key(scancode, false);
-        else if (keyboard_captures_event(event) && !shortcut_consumed && event->key.repeat == 0 &&
-            !keyboard_controller_uses_key(scancode))
+        else if (keyboard_captures_event(event) && !shortcut_consumed && event->key.repeat == 0)
             keyboard_send_key(scancode, true);
     }
 
@@ -144,9 +139,7 @@ void events_emu(const SDL_Event* event, bool shortcut_consumed)
     {
         case SDL_EVENT_MOUSE_MOTION:
         {
-            int controller = mouse_get_controller();
-
-            if (controller < 0 || (!config_emulator.capture_mouse && !gui_main_window_hovered))
+            if (!config_emulator.capture_mouse && !gui_main_window_hovered)
                 break;
 
             float scale = (float)MAX(config_emulator.mouse_sensitivity, 1) / 6.0f;
@@ -156,7 +149,7 @@ void events_emu(const SDL_Event* event, bool shortcut_consumed)
             int y = (int)mouse_remainder_y;
             mouse_remainder_x -= (float)x;
             mouse_remainder_y -= (float)y;
-            emu_set_mouse_delta((GDOX_Controllers)controller, x, y);
+            emu_set_mouse_delta(x, y);
             break;
         }
 
@@ -164,15 +157,17 @@ void events_emu(const SDL_Event* event, bool shortcut_consumed)
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
         case SDL_EVENT_MOUSE_BUTTON_UP:
         {
-            u16 button = 0;
+            u8 button = 0;
 
             if (event->button.button == SDL_BUTTON_LEFT)
-                button = GDOX_GAMEPAD_A;
+                button = GDOX_MOUSE_LEFT;
             else if (event->button.button == SDL_BUTTON_RIGHT)
-                button = GDOX_GAMEPAD_B;
+                button = GDOX_MOUSE_RIGHT;
+            else if (event->button.button == SDL_BUTTON_MIDDLE)
+                button = GDOX_MOUSE_MIDDLE;
 
             if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
-                mouse_buttons &= (u16)~button;
+                mouse_buttons &= (u8)~button;
             else if (config_emulator.capture_mouse || gui_main_window_hovered)
                 mouse_buttons |= button;
 
@@ -224,14 +219,11 @@ void events_release_keyboard(void)
 
 void events_release_mouse(void)
 {
-    int controller = mouse_get_controller();
-
     mouse_buttons = 0;
     mouse_remainder_x = 0.0f;
     mouse_remainder_y = 0.0f;
-
-    if (controller >= 0)
-        emu_clear_mouse((GDOX_Controllers)controller);
+    emu_set_mouse_buttons(0);
+    emu_clear_mouse();
 }
 
 bool events_is_keyboard_active(void)
@@ -251,126 +243,71 @@ bool events_input_updated(void)
 
 static void input_update(bool check_shortcuts)
 {
-    for (int controller = 0; controller < GDOX_MAX_GAMEPADS; controller++)
-    {
-        GDOX_GamePad_State state = { 0 };
-        int type = emu_get_pad_type((GDOX_Controllers)controller);
+    emu_set_joystick_state(input_build_joystick());
+    emu_set_mouse_buttons(mouse_buttons);
 
-        if (type != GDOX_CONTROLLER_NONE)
-            state = input_build_state(controller);
-
-        if (type == GDOX_CONTROLLER_MOUSE)
-        {
-            state.buttons &= GDOX_GAMEPAD_A | GDOX_GAMEPAD_B;
-
-            if (controller == mouse_get_controller())
-                state.buttons |= mouse_buttons;
-        }
-
-        state.buttons = input_filter_opposing_directions(controller, state.buttons);
-        emu_set_gamepad_state((GDOX_Controllers)controller, state);
-        input_last_buttons[controller] = state.buttons;
-
-        if (check_shortcuts)
-            gamepad_check_shortcuts(controller);
-    }
+    if (check_shortcuts)
+        gamepad_check_shortcuts(0);
 }
 
-static GDOX_GamePad_State input_build_state(int controller)
+// The left stick and the D-pad move stick A, the right stick's throttle is stick B's Y
+// The flight stick's D-pad is its hat
+static GDOX_Joystick_State input_build_joystick(void)
 {
-    GDOX_GamePad_State state = { 0 };
-    SDL_Keymod mods = SDL_GetModState();
-
-    if (config_input.keyboard_mode[controller] == config_KeyboardMode_Gamepad &&
-        (mods & (SDL_KMOD_CTRL | SDL_KMOD_SHIFT | SDL_KMOD_ALT | SDL_KMOD_GUI)) == 0)
-    {
-        const bool* keyboard = SDL_GetKeyboardState(NULL);
-        const config_Input_Keyboard& keys = config_input_keyboard[controller];
-
-        if (keyboard[keys.key_left]) state.buttons |= GDOX_GAMEPAD_LEFT;
-        if (keyboard[keys.key_right]) state.buttons |= GDOX_GAMEPAD_RIGHT;
-        if (keyboard[keys.key_up]) state.buttons |= GDOX_GAMEPAD_UP;
-        if (keyboard[keys.key_down]) state.buttons |= GDOX_GAMEPAD_DOWN;
-        if (keyboard[keys.key_select]) state.buttons |= GDOX_GAMEPAD_SELECT;
-        if (keyboard[keys.key_run]) state.buttons |= GDOX_GAMEPAD_RUN;
-        if (keyboard[keys.key_A]) state.buttons |= GDOX_GAMEPAD_A;
-        if (keyboard[keys.key_B]) state.buttons |= GDOX_GAMEPAD_B;
-    }
-
-    SDL_Gamepad* gamepad = gamepad_controller[controller];
+    GDOX_Joystick_State state;
+    memset(&state, 0, sizeof(state));
+    SDL_Gamepad* gamepad = gamepad_controller[0];
 
     if (!IsValidPointer(gamepad))
         return state;
 
-    const config_Input_Gamepad& mapping = config_input_gamepad[controller];
+    const config_Input_Gamepad& mapping = config_input_gamepad[0];
+    int x = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_x_axis);
+    int y = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_y_axis);
+    int dead_zone = (mapping.gamepad_dead_zone * 32767) / 100;
 
-    if (gamepad_get_button(gamepad, mapping.gamepad_select)) state.buttons |= GDOX_GAMEPAD_SELECT;
-    if (gamepad_get_button(gamepad, mapping.gamepad_run)) state.buttons |= GDOX_GAMEPAD_RUN;
-    if (gamepad_get_button(gamepad, mapping.gamepad_A)) state.buttons |= GDOX_GAMEPAD_A;
-    if (gamepad_get_button(gamepad, mapping.gamepad_B)) state.buttons |= GDOX_GAMEPAD_B;
+    if (mapping.gamepad_invert_x_axis)
+        x = -x - 1;
 
-    if (mapping.gamepad_directional == 0 || mapping.gamepad_directional == 2)
+    if (mapping.gamepad_invert_y_axis)
+        y = -y - 1;
+
+    if ((x * x) + (y * y) < dead_zone * dead_zone)
     {
-        if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT))
-            state.buttons |= GDOX_GAMEPAD_LEFT;
-
-        if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT))
-            state.buttons |= GDOX_GAMEPAD_RIGHT;
-
-        if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP))
-            state.buttons |= GDOX_GAMEPAD_UP;
-
-        if (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
-            state.buttons |= GDOX_GAMEPAD_DOWN;
+        x = 0;
+        y = 0;
     }
 
-    if (mapping.gamepad_directional == 1 || mapping.gamepad_directional == 2)
+    bool up = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP);
+    bool down = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+    bool left = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+    bool right = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+
+    if (config_input.joystick_type == GDOX_JOYSTICK_FLIGHTSTICK)
     {
-        int x = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_x_axis);
-        int y = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_y_axis);
+        state.hat = (u8)((up ? GDOX_JOYSTICK_HAT_UP : 0) | (down ? GDOX_JOYSTICK_HAT_DOWN : 0) |
+            (left ? GDOX_JOYSTICK_HAT_LEFT : 0) | (right ? GDOX_JOYSTICK_HAT_RIGHT : 0));
+    }
+    else
+    {
+        if (left != right)
+            x = left ? -32768 : 32767;
 
-        if (mapping.gamepad_invert_x_axis) x = -x;
-        if (mapping.gamepad_invert_y_axis) y = -y;
+        if (up != down)
+            y = up ? -32768 : 32767;
+    }
 
-        const int dead_zone = 8000;
+    state.axes[GDOX_JOYSTICK_AXIS_AX] = (s16)CLAMP(x, -32768, 32767);
+    state.axes[GDOX_JOYSTICK_AXIS_AY] = (s16)CLAMP(y, -32768, 32767);
+    state.axes[GDOX_JOYSTICK_AXIS_BY] = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_throttle_axis);
 
-        if (x < -dead_zone) state.buttons |= GDOX_GAMEPAD_LEFT;
-        if (x > dead_zone) state.buttons |= GDOX_GAMEPAD_RIGHT;
-        if (y < -dead_zone) state.buttons |= GDOX_GAMEPAD_UP;
-        if (y > dead_zone) state.buttons |= GDOX_GAMEPAD_DOWN;
+    for (int i = 0; i < 4; i++)
+    {
+        if (gamepad_get_button(gamepad, mapping.gamepad_buttons[i]))
+            state.buttons |= (u8)(1 << i);
     }
 
     return state;
-}
-
-static u16 input_filter_opposing_directions(int controller, u16 buttons)
-{
-    if (config_input.allow_up_down)
-        return buttons;
-
-    u16 previous = input_last_buttons[controller];
-
-    if ((buttons & GDOX_GAMEPAD_UP) && (buttons & GDOX_GAMEPAD_DOWN))
-    {
-        if (previous & GDOX_GAMEPAD_UP)
-            buttons = (u16)(buttons & ~GDOX_GAMEPAD_DOWN);
-        else if (previous & GDOX_GAMEPAD_DOWN)
-            buttons = (u16)(buttons & ~GDOX_GAMEPAD_UP);
-        else
-            buttons = (u16)(buttons & ~GDOX_GAMEPAD_DOWN);
-    }
-
-    if ((buttons & GDOX_GAMEPAD_LEFT) && (buttons & GDOX_GAMEPAD_RIGHT))
-    {
-        if (previous & GDOX_GAMEPAD_LEFT)
-            buttons = (u16)(buttons & ~GDOX_GAMEPAD_RIGHT);
-        else if (previous & GDOX_GAMEPAD_RIGHT)
-            buttons = (u16)(buttons & ~GDOX_GAMEPAD_LEFT);
-        else
-            buttons = (u16)(buttons & ~GDOX_GAMEPAD_RIGHT);
-    }
-
-    return buttons;
 }
 
 static bool events_check_hotkey(const SDL_Event* event, const config_Hotkey& hotkey, bool allow_repeat)
@@ -470,45 +407,6 @@ static void keyboard_send_key(SDL_Scancode scancode, bool pressed)
         if (keyboard_key_references[key] > 0 && --keyboard_key_references[key] == 0)
             emu_key_released(key);
     }
-}
-
-// Keys bound to a gamepad driven by the keyboard never reach the PC keyboard
-static bool keyboard_controller_uses_key(SDL_Scancode scancode)
-{
-    for (int controller = 0; controller < GDOX_MAX_GAMEPADS; controller++)
-    {
-        int type = emu_get_pad_type((GDOX_Controllers)controller);
-
-        if (config_input.keyboard_mode[controller] != config_KeyboardMode_Gamepad || type == GDOX_CONTROLLER_NONE)
-            continue;
-
-        const config_Input_Keyboard& keys = config_input_keyboard[controller];
-        const SDL_Scancode mapped[8] =
-        {
-            keys.key_A, keys.key_B, keys.key_left, keys.key_right, keys.key_up, keys.key_down, keys.key_select,
-            keys.key_run
-        };
-        int count = type == GDOX_CONTROLLER_MOUSE ? 2 : 8;
-
-        for (int i = 0; i < count; i++)
-        {
-            if (mapped[i] == scancode)
-                return true;
-        }
-    }
-
-    return false;
-}
-
-static int mouse_get_controller(void)
-{
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        if (emu_get_pad_type((GDOX_Controllers)i) == GDOX_CONTROLLER_MOUSE)
-            return i;
-    }
-
-    return -1;
 }
 
 static GDOX_Keys keyboard_key_from_scancode(SDL_Scancode scancode)

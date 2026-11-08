@@ -74,35 +74,6 @@ static bool open_selected_physical_cdrom_drive(void);
 static void refresh_physical_cdrom_drives(void);
 #endif
 
-void gui_popup_modal_keyboard()
-{
-    gui_center_next_window();
-
-    if (ImGui::BeginPopupModal("Keyboard Configuration", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-    {
-        gui_dialog_in_use = true;
-        ImGui::Text("Press any key to assign...\n\n");
-        ImGui::Separator();
-
-        SDL_Scancode scancode = keyboard_get_first_pressed_scancode();
-
-        if (scancode != SDL_SCANCODE_UNKNOWN)
-        {
-            *gui_configured_key = scancode;
-            gui_dialog_in_use = false;
-            ImGui::CloseCurrentPopup();
-        }
-
-        if (ImGui::Button("Cancel", ImVec2(120, 0)))
-        {
-            gui_dialog_in_use = false;
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
-}
-
 void gui_popup_modal_gamepad(int pad)
 {
     gui_center_next_window();

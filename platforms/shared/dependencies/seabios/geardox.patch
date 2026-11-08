@@ -356,6 +356,131 @@
      default:
          return DISK_RET_EPARAM;
      }
+--- seabios-28aa463/src/misc.c
++++ seabios/src/misc.c
+@@ -13,6 +13,7 @@
+ #include "string.h" // memset
+ 
+ #define PORT_MATH_CLEAR        0x00f0
++#define PORT_GAME              0x0201
+ 
+ // Indicator if POST phase has been started (and if it has completed).
+ int HaveRunPost VARFSEG;
+@@ -67,6 +68,14 @@ mathcp_setup(void)
+     enable_hwirq(13, FUNC16(entry_75));
+ }
+ 
++void
++gameport_setup(void)
++{
++    dprintf(3, "game port init\n");
++    if (!(inb(PORT_GAME) & 0x0f))
++        set_equipment_flags(0x1000, 0x1000);
++}
++
+ // INT 75 - IRQ13 - MATH COPROCESSOR EXCEPTION
+ void VISIBLE16
+ handle_75(void)
+--- seabios-28aa463/src/post.c
++++ seabios/src/post.c
+@@ -131,6 +131,7 @@ device_hardware_setup(void)
+     block_setup();
+     lpt_setup();
+     serial_setup();
++    gameport_setup();
+     cbfs_payload_setup();
+ }
+ 
+--- seabios-28aa463/src/system.c
++++ seabios/src/system.c
+@@ -15,6 +15,10 @@
+ #include "util.h" // handle_1553
+ #include "x86.h" // set_a20
+ 
++#define PORT_PIT_COUNTER0      0x0040
++#define PORT_PIT_MODE          0x0043
++#define PORT_GAME              0x0201
++
+ static void
+ handle_152400(struct bregs *regs)
+ {
+@@ -324,6 +328,68 @@ handle_15e8(struct bregs *regs)
+     }
+ }
+ 
++static u16
++joystick_timer_read(void)
++{
++    outb(0x00, PORT_PIT_MODE);
++    u8 lo = inb(PORT_PIT_COUNTER0);
++    return lo | (inb(PORT_PIT_COUNTER0) << 8);
++}
++
++// IBM 5170 BIOS (11/15/85) listing p5-165, p5-166: TEST_CORD
++static u16
++joystick_read_axis(u8 mask)
++{
++    u16 count = 0;
++    u16 left = 0x4ff;
++    u8 value;
++
++    u16 start = joystick_timer_read();
++    outb(0x00, PORT_GAME);
++    do {
++        value = inb(PORT_GAME);
++        left--;
++    } while (left && (value & mask));
++    if (left) {
++        u16 end = joystick_timer_read();
++        count = (start >= end) ? start - end : start + (0xffff - end);
++        count = (count & 0x1ff0) >> 4;
++    }
++
++    left = 0x4ff;
++    do {
++        value = inb(PORT_GAME);
++        left--;
++    } while (left && (value & 0x0f));
++    return count;
++}
++
++// IBM 5170 BIOS (11/15/85) listing p5-165: JOY_STICK. IBM enables interrupts, but a SeaBIOS handler can't take
++// one on its stack, so the timer tick waits for the return
++static void
++handle_1584(struct bregs *regs)
++{
++    int present = GET_BDA(equipment_list_flags) & 0x1000;
++    regs->ax = regs->dx;
++    switch (regs->al) {
++    case 0x00:
++        regs->al = present ? inb(PORT_GAME) & 0xf0 : 0;
++        set_success(regs);
++        break;
++    case 0x01:
++        regs->ax = present ? joystick_read_axis(0x01) : 0;
++        regs->bx = present ? joystick_read_axis(0x02) : 0;
++        regs->cx = present ? joystick_read_axis(0x04) : 0;
++        regs->dx = present ? joystick_read_axis(0x08) : 0;
++        set_success(regs);
++        break;
++    default:
++        regs->al--;
++        set_invalid_silent(regs);
++        break;
++    }
++}
++
+ static void
+ handle_15XX(struct bregs *regs)
+ {
+@@ -343,6 +409,7 @@ handle_15(struct bregs *regs)
+     case 0x5f: handle_155f(regs); break;
+     case 0x7f: handle_157f(regs); break;
+     case 0x83: handle_1583(regs); break;
++    case 0x84: handle_1584(regs); break;
+     case 0x86: handle_1586(regs); break;
+     case 0x87: handle_1587(regs); break;
+     case 0x88: handle_1588(regs); break;
 --- seabios-28aa463/src/util.h
 +++ seabios/src/util.h
 @@ -170,6 +170,9 @@ void floppy_setup(void);
@@ -368,6 +493,14 @@
  void floppy_tick(void);
  
  // hw/ramdisk.c
+@@ -218,6 +221,7 @@ extern struct floppy_dbt_s diskette_param_table __aligned(1);
+ extern u8 BiosChecksum;
+ int in_post(void);
+ void mathcp_setup(void);
++void gameport_setup(void);
+ 
+ // mouse.c
+ void mouse_init(void);
 --- seabios-28aa463/vgasrc/stdvgaio.c
 +++ seabios/vgasrc/stdvgaio.c
 @@ -106,14 +106,21 @@ stdvga_crtc_mask(u16 crtc_addr, u8 index, u8 off, u8 on)

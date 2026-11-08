@@ -52,7 +52,9 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "SystemControl", config_debug.show_system_control, false);
     CONFIG_BOOL("Debug", "RTC", config_debug.show_rtc, false);
     CONFIG_BOOL("Debug", "BIOSLog", config_debug.show_bios_log, false);
-    CONFIG_BOOL("Debug", "GamePorts", config_debug.show_game_ports, false);
+    CONFIG_BOOL("Debug", "MouseJoystick", config_debug.show_mouse_joystick, false);
+    CONFIG_BOOL("Debug", "SerialPorts", config_debug.show_serial_ports, false);
+    CONFIG_BOOL("Debug", "ParallelPort", config_debug.show_parallel_port, false);
     CONFIG_BOOL("Debug", "Keyboard", config_debug.show_keyboard, false);
     CONFIG_BOOL("Debug", "VGA", config_debug.show_vga, false);
     CONFIG_BOOL("Debug", "VGARegisters", config_debug.show_vga_registers, false);
@@ -100,6 +102,8 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "TraceIde", config_debug.trace_ide, false);
     CONFIG_BOOL("Debug", "TraceKeyboard", config_debug.trace_keyboard, false);
     CONFIG_BOOL("Debug", "TraceInput", config_debug.trace_input, false);
+    CONFIG_BOOL("Debug", "TraceSerial", config_debug.trace_serial, false);
+    CONFIG_BOOL("Debug", "TraceParallel", config_debug.trace_parallel, false);
     CONFIG_BOOL("Debug", "TraceSystem", config_debug.trace_system, false);
     CONFIG_INT_RANGE("Debug", "TraceCpuInterruptEvents", config_debug.trace_cpu_interrupt_events,
         TRACE_CPU_INTERRUPT_EVENT_DEFAULT, 0, TRACE_CPU_INTERRUPT_EVENT_ALL);
@@ -130,6 +134,10 @@ static inline void process(config_Operation operation)
         TRACE_KEYBOARD_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceInputEvents", config_debug.trace_input_events, TRACE_INPUT_EVENT_DEFAULT, 0,
         TRACE_INPUT_EVENT_ALL);
+    CONFIG_INT_RANGE("Debug", "TraceSerialEvents", config_debug.trace_serial_events, TRACE_SERIAL_EVENT_DEFAULT, 0,
+        TRACE_SERIAL_EVENT_ALL);
+    CONFIG_INT_RANGE("Debug", "TraceParallelEvents", config_debug.trace_parallel_events, TRACE_PARALLEL_EVENT_DEFAULT,
+        0, TRACE_PARALLEL_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceSystemEvents", config_debug.trace_system_events, TRACE_SYSTEM_EVENT_DEFAULT, 0,
         TRACE_SYSTEM_EVENT_ALL);
     CONFIG_INT("Debug", "TraceVBlankWatchAddress", config_debug.trace_vblank_watch_address, 0);
@@ -246,6 +254,7 @@ static inline void process(config_Operation operation)
         k_sound_card_irqs[1]);
     CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
         k_sound_card_dmas[1]);
+    CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);
 
     //**************************************
     // Video
@@ -320,56 +329,27 @@ static inline void process(config_Operation operation)
     // Input
     //**************************************
 
-    CONFIG_BOOL("Input", "AllowUpDown", config_input.allow_up_down, false);
-    CONFIG_BOOL("Input", "AllowSharedGamepads", config_input.allow_shared_gamepads, false);
+    CONFIG_INT_RANGE("Input", "Joystick", config_input.joystick_type, GDOX_JOYSTICK_GAMEPAD, 0,
+        GDOX_JOYSTICK_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Input", "MouseSensitivity", config_emulator.mouse_sensitivity, 5, 1, 15);
     CONFIG_BOOL("Input", "CaptureKeyboard", config_emulator.capture_keyboard, true);
 
-    // Players
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        char section[32];
-        snprintf(section, sizeof(section), "Input%d", i + 1);
-        CONFIG_INT_RANGE(section, "ControllerType", config_input.controller_type[i], config_ControllerType_Auto, config_ControllerType_Auto, GDOX_CONTROLLER_MOUSE);
-        CONFIG_INT_RANGE(section, "KeyboardMode", config_input.keyboard_mode[i], i == 0 ? config_KeyboardMode_Gamepad : config_KeyboardMode_PC, config_KeyboardMode_Gamepad, config_KeyboardMode_PC);
-    }
-
-    // Keyboard
-    const SDL_Scancode keyboard_defaults[GDOX_MAX_GAMEPADS][8] = {
-        { SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP, SDL_SCANCODE_DOWN,
-          SDL_SCANCODE_A, SDL_SCANCODE_S, SDL_SCANCODE_X, SDL_SCANCODE_Z },
-        { SDL_SCANCODE_J, SDL_SCANCODE_L, SDL_SCANCODE_I, SDL_SCANCODE_K,
-          SDL_SCANCODE_G, SDL_SCANCODE_H, SDL_SCANCODE_Y, SDL_SCANCODE_T }
-    };
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        char section[32];
-        snprintf(section, sizeof(section), "InputKeyboard%d", i + 1);
-        CONFIG_SCANCODE(section, "KeyLeft", config_input_keyboard[i].key_left, keyboard_defaults[i][0]);
-        CONFIG_SCANCODE(section, "KeyRight", config_input_keyboard[i].key_right, keyboard_defaults[i][1]);
-        CONFIG_SCANCODE(section, "KeyUp", config_input_keyboard[i].key_up, keyboard_defaults[i][2]);
-        CONFIG_SCANCODE(section, "KeyDown", config_input_keyboard[i].key_down, keyboard_defaults[i][3]);
-        CONFIG_SCANCODE(section, "KeySelect", config_input_keyboard[i].key_select, keyboard_defaults[i][4]);
-        CONFIG_SCANCODE(section, "KeyRun", config_input_keyboard[i].key_run, keyboard_defaults[i][5]);
-        CONFIG_SCANCODE(section, "KeyA", config_input_keyboard[i].key_A, keyboard_defaults[i][6]);
-        CONFIG_SCANCODE(section, "KeyB", config_input_keyboard[i].key_B, keyboard_defaults[i][7]);
-    }
-
-    // Gamepads
+    // Gamepad
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
     {
         char section[32];
         snprintf(section, sizeof(section), "InputGamepad%d", i + 1);
-        CONFIG_INT_RANGE(section, "GamepadDirectional", config_input_gamepad[i].gamepad_directional, 0, 0, 2);
         CONFIG_BOOL(section, "GamepadInvertX", config_input_gamepad[i].gamepad_invert_x_axis, false);
         CONFIG_BOOL(section, "GamepadInvertY", config_input_gamepad[i].gamepad_invert_y_axis, false);
-        CONFIG_INT(section, "GamepadSelect", config_input_gamepad[i].gamepad_select, SDL_GAMEPAD_BUTTON_BACK);
-        CONFIG_INT(section, "GamepadRun", config_input_gamepad[i].gamepad_run, SDL_GAMEPAD_BUTTON_START);
+        CONFIG_INT_RANGE(section, "GamepadDeadZone", config_input_gamepad[i].gamepad_dead_zone, 10, 0, 50);
         CONFIG_INT(section, "GamepadXAxis", config_input_gamepad[i].gamepad_x_axis, SDL_GAMEPAD_AXIS_LEFTX);
         CONFIG_INT(section, "GamepadYAxis", config_input_gamepad[i].gamepad_y_axis, SDL_GAMEPAD_AXIS_LEFTY);
-        CONFIG_INT(section, "GamepadA", config_input_gamepad[i].gamepad_A, SDL_GAMEPAD_BUTTON_EAST);
-        CONFIG_INT(section, "GamepadB", config_input_gamepad[i].gamepad_B, SDL_GAMEPAD_BUTTON_SOUTH);
+        CONFIG_INT(section, "GamepadThrottleAxis", config_input_gamepad[i].gamepad_throttle_axis,
+            SDL_GAMEPAD_AXIS_RIGHTY);
+        CONFIG_INT(section, "GamepadButton1", config_input_gamepad[i].gamepad_buttons[0], SDL_GAMEPAD_BUTTON_SOUTH);
+        CONFIG_INT(section, "GamepadButton2", config_input_gamepad[i].gamepad_buttons[1], SDL_GAMEPAD_BUTTON_EAST);
+        CONFIG_INT(section, "GamepadButton3", config_input_gamepad[i].gamepad_buttons[2], SDL_GAMEPAD_BUTTON_WEST);
+        CONFIG_INT(section, "GamepadButton4", config_input_gamepad[i].gamepad_buttons[3], SDL_GAMEPAD_BUTTON_NORTH);
     }
 
     // Gamepad shortcuts
@@ -500,6 +480,22 @@ static void migrate(int file_version)
     {
         write_int("Hotkeys", "CaptureMouseScancode", SDL_SCANCODE_M);
         write_int("Hotkeys", "CaptureMouseMod", SDL_KMOD_CTRL | SDL_KMOD_SHIFT);
+    }
+
+    // One gamepad, for the game port only, and no controller ports
+    if (file_version < 10)
+    {
+        static const char* const gamepad_keys[] =
+        {
+            "GamepadDirectional", "GamepadSelect", "GamepadRun", "GamepadA", "GamepadB"
+        };
+
+        for (int i = 0; i < 5; i++)
+            config_ini_data["InputGamepad1"].remove(gamepad_keys[i]);
+
+        config_ini_data["Input"].remove("AllowUpDown");
+        config_ini_data["Input"].remove("AllowSharedGamepads");
+        config_ini_data["Debug"].remove("GamePorts");
     }
 }
 

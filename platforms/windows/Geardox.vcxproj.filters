@@ -265,6 +265,15 @@
     <ClCompile Include="..\..\src\system\mc146818.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\system\uart.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\serial_ports.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\parallel_port.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\system_control.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -368,6 +377,15 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\input\keyboard.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\input\ps2_mouse.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\input\serial_mouse.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\input\game_port.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
@@ -498,6 +516,10 @@
     <ClInclude Include="..\..\src\system\pit_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\mc146818.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\mc146818_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\uart.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\uart_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\serial_ports.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\parallel_port.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\firmware_config.h"><Filter>src</Filter></ClInclude>
@@ -549,6 +571,12 @@
     <ClInclude Include="..\..\src\input\i8042.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\i8042_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\keyboard.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\ps2_mouse.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\ps2_mouse_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\serial_mouse.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\serial_mouse_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\game_port.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\game_port_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\keyboard_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\log.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\media.h"><Filter>src</Filter></ClInclude>

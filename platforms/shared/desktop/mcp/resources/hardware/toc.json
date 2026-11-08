@@ -11,6 +11,12 @@
       "title": "PC/AT Board — Memory, I/O, Interrupts, Timers, BIOS and CMOS",
       "description": "Memory map, A20, board I/O ports, the 8259A pair and IRQ vectors, the 8254, reset paths, the built-in SeaBIOS, firmware config, debug console and the MC146818 CMOS",
       "mimeType": "text/markdown"
+    },
+    {
+      "uri": "pc_input_serial_parallel",
+      "title": "Mouse, Joystick, Serial and Parallel Ports — What MS-DOS Software Relies On",
+      "description": "The PS/2 and serial mouse, the game port and its joysticks, the two 16550A COM ports and LPT1, with the MCP tools and trace filters that drive and watch them",
+      "mimeType": "text/markdown"
     }
   ]
 }

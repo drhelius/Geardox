@@ -306,39 +306,72 @@ enum GDOX_Keys
 };
 
 
-enum GDOX_Controller_Type
+enum GDOX_Mouse_Type
 {
-    GDOX_CONTROLLER_NONE = 0,
-    GDOX_CONTROLLER_GAMEPAD,
-    GDOX_CONTROLLER_MOUSE
+    GDOX_MOUSE_NONE = 0,
+    GDOX_MOUSE_PS2,
+    GDOX_MOUSE_SERIAL,
+    GDOX_MOUSE_TYPE_COUNT
 };
 
-enum GDOX_Controllers
+enum GDOX_Mouse_Buttons
 {
-    GDOX_CONTROLLER_1 = 0,
-    GDOX_CONTROLLER_2
+    GDOX_MOUSE_LEFT   = 0x01,
+    GDOX_MOUSE_RIGHT  = 0x02,
+    GDOX_MOUSE_MIDDLE = 0x04
 };
 
-enum GDOX_GamePad_Buttons
+struct GDOX_Mouse_Info
 {
-    GDOX_GAMEPAD_UP       = 0x0001,
-    GDOX_GAMEPAD_DOWN     = 0x0002,
-    GDOX_GAMEPAD_LEFT     = 0x0004,
-    GDOX_GAMEPAD_RIGHT    = 0x0008,
-    GDOX_GAMEPAD_SELECT   = 0x0010,
-    GDOX_GAMEPAD_RUN      = 0x0020,
-    GDOX_GAMEPAD_A        = 0x0040,
-    GDOX_GAMEPAD_B        = 0x0080,
-    GDOX_GAMEPAD_C        = 0x0100,
-    GDOX_GAMEPAD_X        = 0x0200,
-    GDOX_GAMEPAD_Y        = 0x0400,
-    GDOX_GAMEPAD_Z        = 0x0800,
-    GDOX_GAMEPAD_ZOOM     = 0x1000
+    const char* name;
+    const char* id;
 };
 
-struct GDOX_GamePad_State
+enum GDOX_Joystick_Type
 {
-    u16 buttons;
+    GDOX_JOYSTICK_NONE = 0,
+    GDOX_JOYSTICK_STANDARD,
+    GDOX_JOYSTICK_GAMEPAD,
+    GDOX_JOYSTICK_FLIGHTSTICK,
+    GDOX_JOYSTICK_TYPE_COUNT
+};
+
+enum GDOX_Joystick_Axis
+{
+    GDOX_JOYSTICK_AXIS_AX = 0,
+    GDOX_JOYSTICK_AXIS_AY,
+    GDOX_JOYSTICK_AXIS_BX,
+    GDOX_JOYSTICK_AXIS_BY,
+    GDOX_JOYSTICK_AXIS_COUNT
+};
+
+enum GDOX_Joystick_Buttons
+{
+    GDOX_JOYSTICK_BUTTON_1 = 0x01,
+    GDOX_JOYSTICK_BUTTON_2 = 0x02,
+    GDOX_JOYSTICK_BUTTON_3 = 0x04,
+    GDOX_JOYSTICK_BUTTON_4 = 0x08
+};
+
+enum GDOX_Joystick_Hat
+{
+    GDOX_JOYSTICK_HAT_UP    = 0x01,
+    GDOX_JOYSTICK_HAT_DOWN  = 0x02,
+    GDOX_JOYSTICK_HAT_LEFT  = 0x04,
+    GDOX_JOYSTICK_HAT_RIGHT = 0x08
+};
+
+struct GDOX_Joystick_State
+{
+    s16 axes[GDOX_JOYSTICK_AXIS_COUNT];
+    u8 buttons;
+    u8 hat;
+};
+
+struct GDOX_Joystick_Info
+{
+    const char* name;
+    const char* id;
 };
 
 enum GDOX_Machine_Model
@@ -516,6 +549,7 @@ struct GDOX_Machine_Config
     u8 sound_card;
     u8 sound_irq;
     u8 sound_dma;
+    u8 mouse;
 };
 
 enum GDOX_Sound_Card
@@ -564,6 +598,7 @@ struct GDOX_Machine_Settings
     int sound_card;
     int sound_irq;
     int sound_dma;
+    int mouse;
 };
 
 struct GDOX_Machine_Report

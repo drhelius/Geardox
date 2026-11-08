@@ -38,6 +38,7 @@ FILES = [
     ("attrib", "ATTRIB.COM", BIN + "ATTRIB.COM"),
     ("chkdsk", "CHKDSK.EXE", BIN + "CHKDSK.EXE"),
     ("choice", "CHOICE.EXE", BIN + "CHOICE.EXE"),
+    ("ctmouse", "CTMOUSE.EXE", BIN + "CTMOUSE.EXE"),
     ("deltree", "DELTREE.COM", BIN + "DELTREE.COM"),
     ("diskcopy", "DISKCOPY.EXE", BIN + "DISKCOPY.EXE"),
     ("edit", "EDIT.EXE", BIN + "EDIT.EXE"),

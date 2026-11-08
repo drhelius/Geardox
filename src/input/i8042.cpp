@@ -20,6 +20,7 @@
 
 #include "i8042.h"
 #include "keyboard.h"
+#include "ps2_mouse.h"
 #include "../system/pic.h"
 #include "../system/scheduler.h"
 #include "../system/system_control.h"
@@ -53,6 +54,7 @@ I8042::I8042()
     InitPointer(m_scheduler);
     InitPointer(m_system_control);
     InitPointer(m_keyboard);
+    InitPointer(m_mouse);
     InitPointer(m_trace_logger);
     memset(&m_state, 0, sizeof(m_state));
 }
@@ -70,6 +72,12 @@ void I8042::Init(PIC* pic, Scheduler* scheduler, SystemControl* system_control, 
     Reset();
 }
 
+// The PS/2 mouse, or nothing on the auxiliary port
+void I8042::SetMouse(PS2Mouse* mouse)
+{
+    m_mouse = mouse;
+}
+
 void I8042::SetTraceLogger(TraceLogger* trace_logger)
 {
     m_trace_logger = trace_logger;
@@ -82,7 +90,7 @@ void I8042::Reset()
     m_state.input_clocks = GDOX_NO_EVENT;
     m_state.timeout_clocks = GDOX_NO_EVENT;
     m_state.result_clocks = GDOX_NO_EVENT;
-    UpdateKeyboardClock(m_scheduler->GetClocks());
+    UpdateDeviceClocks(m_scheduler->GetClocks());
     UpdateIRQ();
     UpdateNextEvent();
 }
@@ -105,7 +113,7 @@ u8 I8042::Read(u16 port, u64 clocks)
     if (m_state.result_pending && m_state.result_clocks == GDOX_NO_EVENT)
         m_state.result_clocks = clocks + k_i8042_command_clocks;
 
-    UpdateKeyboardClock(clocks);
+    UpdateDeviceClocks(clocks);
     UpdateIRQ();
     UpdateNextEvent();
     TraceEvent(TRACE_KEYBOARD_READ, value, aux, 0);
@@ -178,15 +186,22 @@ void I8042::Synchronize(u64 clocks)
             FlushResult();
             UpdateIRQ();
         }
-        else
+        else if (next == m_keyboard->GetNextEventClocks())
         {
             u8 value = 0;
 
             if (m_keyboard->HandleEvent(next, value))
                 ReceiveKeyboardByte(value);
         }
+        else if (IsValidPointer(m_mouse))
+        {
+            u8 value = 0;
 
-        UpdateKeyboardClock(next);
+            if (m_mouse->HandleEvent(next, value))
+                PutOutput(value, true);
+        }
+
+        UpdateDeviceClocks(next);
         next = GetNextClocks();
     }
 
@@ -195,8 +210,10 @@ void I8042::Synchronize(u64 clocks)
 
 u64 I8042::GetNextClocks() const
 {
-    return MIN(MIN(MIN(m_state.input_clocks, m_state.timeout_clocks), m_state.result_clocks),
+    u64 next = MIN(MIN(MIN(m_state.input_clocks, m_state.timeout_clocks), m_state.result_clocks),
         m_keyboard->GetNextEventClocks());
+
+    return IsValidPointer(m_mouse) ? MIN(next, m_mouse->GetNextEventClocks()) : next;
 }
 
 // The cable carries one byte at a time, so a byte for the keyboard waits for the one before it
@@ -208,6 +225,12 @@ void I8042::TakeInput(u64 clocks)
     if (!m_state.input_command && command == 0 && m_keyboard->IsReceiving())
     {
         m_state.input_clocks = m_keyboard->GetReceiveClocks() + k_i8042_command_clocks;
+        return;
+    }
+
+    if (!m_state.input_command && command == 0xD4 && IsValidPointer(m_mouse) && m_mouse->IsReceiving())
+    {
+        m_state.input_clocks = m_mouse->GetReceiveClocks() + k_i8042_command_clocks;
         return;
     }
 
@@ -311,7 +334,10 @@ void I8042::ExecuteParameter(u8 command, u8 value, u64 clocks)
             PutOutput(value, true);
             break;
         case 0xD4:
-            m_state.timeout_clocks = clocks + k_i8042_timeout_clocks;
+            if (IsValidPointer(m_mouse))
+                m_mouse->Receive(value, clocks);
+            else
+                m_state.timeout_clocks = clocks + k_i8042_timeout_clocks;
             break;
         default:
             m_state.ram[command & (I8042_RAM_SIZE - 1)] = value;
@@ -372,12 +398,15 @@ void I8042::FlushResult()
     m_state.result_pending = false;
 }
 
-void I8042::UpdateKeyboardClock(u64 clocks)
+// Each device holds its bytes while the output buffer is busy or its clock is held low, the keyboard goes first
+void I8042::UpdateDeviceClocks(u64 clocks)
 {
-    bool enabled = !m_state.output_full && !m_state.result_pending &&
-        (m_state.ram[0] & k_i8042_keyboard_disabled) == 0;
+    bool free = !m_state.output_full && !m_state.result_pending;
 
-    m_keyboard->SetClock(enabled, clocks);
+    m_keyboard->SetClock(free && (m_state.ram[0] & k_i8042_keyboard_disabled) == 0, clocks);
+
+    if (IsValidPointer(m_mouse))
+        m_mouse->SetClock(free && (m_state.ram[0] & k_i8042_aux_disabled) == 0, clocks);
 }
 
 void I8042::UpdateIRQ()

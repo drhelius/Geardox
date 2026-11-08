@@ -28,7 +28,6 @@
     #define EXTERN extern
 #endif
 
-EXTERN void gui_popup_modal_keyboard();
 EXTERN void gui_popup_modal_gamepad(int pad);
 EXTERN void gui_popup_modal_hotkey();
 EXTERN void gui_popup_modal_about(void);

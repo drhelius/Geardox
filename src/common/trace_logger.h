@@ -42,6 +42,8 @@ enum GDOX_Trace_Type : u8
     TRACE_IDE,
     TRACE_KEYBOARD,
     TRACE_INPUT,
+    TRACE_SERIAL,
+    TRACE_PARALLEL,
     TRACE_SYSTEM,
     TRACE_TYPE_COUNT
 };
@@ -64,6 +66,8 @@ static_assert(TRACE_TYPE_COUNT < 32, "Trace category flags exceed 32 bits");
 #define TRACE_FLAG_IDE              (1U << TRACE_IDE)
 #define TRACE_FLAG_KEYBOARD         (1U << TRACE_KEYBOARD)
 #define TRACE_FLAG_INPUT            (1U << TRACE_INPUT)
+#define TRACE_FLAG_SERIAL           (1U << TRACE_SERIAL)
+#define TRACE_FLAG_PARALLEL         (1U << TRACE_PARALLEL)
 #define TRACE_FLAG_SYSTEM           (1U << TRACE_SYSTEM)
 
 enum GDOX_Trace_CPU_Interrupt_Event : u8
@@ -279,16 +283,52 @@ enum GDOX_Trace_Keyboard_Event : u8
 
 enum GDOX_Trace_Input_Event : u8
 {
-    TRACE_INPUT_READ = 0,
-    TRACE_INPUT_WRITE,
-    TRACE_INPUT_CHANGE
+    TRACE_INPUT_CHANGE = 0,
+    TRACE_INPUT_MOUSE_COMMAND,
+    TRACE_INPUT_MOUSE_PACKET,
+    TRACE_INPUT_JOYSTICK_FIRE
 };
 
-#define TRACE_INPUT_EVENT_READS   (1U << TRACE_INPUT_READ)
-#define TRACE_INPUT_EVENT_WRITES  (1U << TRACE_INPUT_WRITE)
-#define TRACE_INPUT_EVENT_CHANGES (1U << TRACE_INPUT_CHANGE)
-#define TRACE_INPUT_EVENT_DEFAULT (TRACE_INPUT_EVENT_WRITES | TRACE_INPUT_EVENT_CHANGES)
-#define TRACE_INPUT_EVENT_ALL     (TRACE_INPUT_EVENT_DEFAULT | TRACE_INPUT_EVENT_READS)
+enum GDOX_Trace_Input_Device : u8
+{
+    TRACE_INPUT_DEVICE_MOUSE = 0,
+    TRACE_INPUT_DEVICE_JOYSTICK,
+    TRACE_INPUT_DEVICE_PS2_MOUSE,
+    TRACE_INPUT_DEVICE_SERIAL_MOUSE
+};
+
+#define TRACE_INPUT_EVENT_CHANGES  (1U << TRACE_INPUT_CHANGE)
+#define TRACE_INPUT_EVENT_COMMANDS (1U << TRACE_INPUT_MOUSE_COMMAND)
+#define TRACE_INPUT_EVENT_PACKETS  (1U << TRACE_INPUT_MOUSE_PACKET)
+#define TRACE_INPUT_EVENT_FIRES    (1U << TRACE_INPUT_JOYSTICK_FIRE)
+#define TRACE_INPUT_EVENT_DEFAULT  (TRACE_INPUT_EVENT_CHANGES | TRACE_INPUT_EVENT_COMMANDS)
+#define TRACE_INPUT_EVENT_ALL      (TRACE_INPUT_EVENT_DEFAULT | TRACE_INPUT_EVENT_PACKETS | TRACE_INPUT_EVENT_FIRES)
+
+enum GDOX_Trace_Serial_Event : u8
+{
+    TRACE_SERIAL_WRITE = 0,
+    TRACE_SERIAL_RECEIVE,
+    TRACE_SERIAL_TRANSMIT,
+    TRACE_SERIAL_MODEM,
+    TRACE_SERIAL_IRQ
+};
+
+#define TRACE_SERIAL_EVENT_WRITES    (1U << TRACE_SERIAL_WRITE)
+#define TRACE_SERIAL_EVENT_DATA      ((1U << TRACE_SERIAL_RECEIVE) | (1U << TRACE_SERIAL_TRANSMIT))
+#define TRACE_SERIAL_EVENT_CONTROL   ((1U << TRACE_SERIAL_MODEM) | (1U << TRACE_SERIAL_IRQ))
+#define TRACE_SERIAL_EVENT_DEFAULT   (TRACE_SERIAL_EVENT_DATA | TRACE_SERIAL_EVENT_CONTROL)
+#define TRACE_SERIAL_EVENT_ALL       (TRACE_SERIAL_EVENT_DEFAULT | TRACE_SERIAL_EVENT_WRITES)
+
+enum GDOX_Trace_Parallel_Event : u8
+{
+    TRACE_PARALLEL_DATA = 0,
+    TRACE_PARALLEL_CONTROL
+};
+
+#define TRACE_PARALLEL_EVENT_DATA    (1U << TRACE_PARALLEL_DATA)
+#define TRACE_PARALLEL_EVENT_CONTROL (1U << TRACE_PARALLEL_CONTROL)
+#define TRACE_PARALLEL_EVENT_DEFAULT (TRACE_PARALLEL_EVENT_DATA | TRACE_PARALLEL_EVENT_CONTROL)
+#define TRACE_PARALLEL_EVENT_ALL     TRACE_PARALLEL_EVENT_DEFAULT
 
 enum GDOX_Trace_System_Event : u8
 {
@@ -487,11 +527,24 @@ struct GDOX_Trace_Entry
         {
             u16 buttons;
             u16 previous;
-            u8 port;
-            u8 value;
-            u8 output;
             u8 device;
+            u8 count;
+            u8 data[4];
         } input;
+
+        struct
+        {
+            u8 port;
+            u8 reg;
+            u8 value;
+            u8 flags;
+        } serial;
+
+        struct
+        {
+            u16 port;
+            u8 value;
+        } parallel;
 
         struct
         {

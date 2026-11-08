@@ -39,8 +39,8 @@ enum McpTransportMode
 
 struct DelayedButtonRelease
 {
-    int player;
-    std::string button;
+    u8 joystick_buttons;
+    u8 joystick_hat;
     GDOX_Keys key;
     u64 release_at_frame;
 };
@@ -68,15 +68,6 @@ struct McpStepFramesState
 static const u64 k_mcp_tap_frames = 10;
 static const int k_mcp_step_wait_max_frames = 1800;
 
-enum McpMouseMotion
-{
-    MCP_MOUSE_MOTION_UP = 0,
-    MCP_MOUSE_MOTION_DOWN,
-    MCP_MOUSE_MOTION_LEFT,
-    MCP_MOUSE_MOTION_RIGHT,
-    MCP_MOUSE_MOTION_COUNT
-};
-
 static const int k_mcp_mouse_wiggle_counts = 32;
 static const int k_mcp_mouse_wiggle_max_counts = 128;
 static const int k_mcp_mouse_wiggle_tries = 3;
@@ -103,7 +94,6 @@ struct McpMouseMacroState
     bool active;
     json request_id;
     McpMousePhase phase;
-    int player;
     bool click;
     bool absolute;
     bool held;
@@ -134,7 +124,7 @@ struct McpMouseMacroState
     std::vector<u32> frame_out;
     std::string button;
     std::string action;
-    u16 button_mask;
+    u8 button_mask;
     int button_steps;
     bool button_press_first;
     int button_step;
@@ -163,7 +153,6 @@ public:
         reset_input_macro();
         reset_mouse_macro();
         reset_step_frames();
-        reset_mouse_motion();
     }
 
     ~McpManager()
@@ -202,8 +191,7 @@ public:
         reset_input_macro();
         reset_mouse_macro();
         reset_step_frames();
-        reset_mouse_motion();
-        m_debug_adapter->ClearControllerState();
+        m_debug_adapter->ClearInjectedInput();
 
         McpTransportInterface* transport = NULL;
 
@@ -234,7 +222,8 @@ public:
             if (m_delayed_releases[i].key != GDOX_KEY_NONE)
                 emu_key_released(m_delayed_releases[i].key);
             else if (IsValidPointer(m_debug_adapter))
-                m_debug_adapter->ControllerButton(m_delayed_releases[i].player, m_delayed_releases[i].button, "release");
+                m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons,
+                    m_delayed_releases[i].joystick_hat);
         }
 
         m_delayed_releases.clear();
@@ -244,10 +233,9 @@ public:
         reset_input_macro();
         reset_mouse_macro();
         reset_step_frames();
-        reset_mouse_motion();
 
         if (IsValidPointer(m_debug_adapter))
-            m_debug_adapter->ClearControllerState();
+            m_debug_adapter->ClearInjectedInput();
     }
 
     bool IsRunning() const
@@ -272,8 +260,6 @@ public:
 
     void PumpCommands()
     {
-        pump_mouse_motion();
-
         for (size_t i = 0; i < m_delayed_releases.size();)
         {
             if (emu_frame_counter >= m_delayed_releases[i].release_at_frame)
@@ -281,8 +267,8 @@ public:
                 if (m_delayed_releases[i].key != GDOX_KEY_NONE)
                     emu_key_released(m_delayed_releases[i].key);
                 else
-                    m_debug_adapter->ControllerButton(m_delayed_releases[i].player, m_delayed_releases[i].button,
-                        "release");
+                    m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons,
+                        m_delayed_releases[i].joystick_hat);
 
                 m_delayed_releases.erase(m_delayed_releases.begin() + i);
             }
@@ -423,7 +409,7 @@ public:
                 AppendInputRuntimeState(response->result);
 
             UpdateResponseError(response);
-            HandleControllerSideEffects(response->result);
+            HandleInputSideEffects(response->result);
 
             m_response_queue.Push(response);
             SafeDelete(command);
@@ -465,24 +451,30 @@ private:
             if (m_delayed_releases[i].key != GDOX_KEY_NONE)
                 pending_releases.push_back({{"key", gui_debug_key_name(m_delayed_releases[i].key)}});
             else
-                pending_releases.push_back({{"player", m_delayed_releases[i].player},
-                    {"button", m_delayed_releases[i].button}});
+            {
+                json pressed = m_debug_adapter->JoystickPressed(m_delayed_releases[i].joystick_buttons,
+                    m_delayed_releases[i].joystick_hat);
+                pending_releases.push_back({{"joystick_buttons", pressed["buttons"]},
+                    {"joystick_hat", pressed["hat"]}});
+            }
         }
 
         result["pending_releases"] = pending_releases;
     }
 
-    void HandleControllerSideEffects(json& result)
+    void HandleInputSideEffects(json& result)
     {
         if (result.contains("__delayed_release") && result["__delayed_release"] == true)
         {
             DelayedButtonRelease release;
-            release.player = result["player"];
-            release.button = result["button"];
+            release.joystick_buttons = result["__release_buttons"];
+            release.joystick_hat = result["__release_hat"];
             release.key = GDOX_KEY_NONE;
             release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
             m_delayed_releases.push_back(release);
             result.erase("__delayed_release");
+            result.erase("__release_buttons");
+            result.erase("__release_hat");
         }
 
         if (result.contains("__delayed_key_release") && result["__delayed_key_release"] == true)
@@ -490,77 +482,12 @@ private:
             DelayedButtonRelease release;
             GDOX_Keys key = GDOX_KEY_NONE;
             m_debug_adapter->GetKeyCode(result["key"], key);
-            release.player = 0;
+            release.joystick_buttons = 0;
+            release.joystick_hat = 0;
             release.key = key;
             release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
             m_delayed_releases.push_back(release);
             result.erase("__delayed_key_release");
-        }
-
-        if (result.contains("__mouse_motion") && result["__mouse_motion"] == true)
-        {
-            int player = result["player"];
-            std::string button = result["button"];
-            int direction = -1;
-
-            if (button == "up")
-                direction = MCP_MOUSE_MOTION_UP;
-            else if (button == "down")
-                direction = MCP_MOUSE_MOTION_DOWN;
-            else if (button == "left")
-                direction = MCP_MOUSE_MOTION_LEFT;
-            else if (button == "right")
-                direction = MCP_MOUSE_MOTION_RIGHT;
-
-            if (direction >= 0 && player >= 1 && player <= GDOX_MAX_GAMEPADS)
-                m_mouse_motion_held[player - 1][direction] = result["action"] == "press";
-
-            result.erase("__mouse_motion");
-        }
-    }
-
-    void reset_mouse_motion()
-    {
-        memset(m_mouse_motion_held, 0, sizeof(m_mouse_motion_held));
-        m_mouse_motion_frame = emu_frame_counter;
-    }
-
-    // Held directions move a mouse one step per emulated frame, so nothing piles up while paused
-    void pump_mouse_motion()
-    {
-        if (!IsValidPointer(m_debug_adapter) || emu_frame_counter == m_mouse_motion_frame)
-            return;
-
-        m_mouse_motion_frame = emu_frame_counter;
-
-        for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-        {
-            int player = i + 1;
-
-            if (!m_debug_adapter->IsMouseController(player))
-            {
-                for (int j = 0; j < MCP_MOUSE_MOTION_COUNT; j++)
-                    m_mouse_motion_held[i][j] = false;
-
-                continue;
-            }
-
-            int delta_x = 0;
-            int delta_y = 0;
-
-            if (m_mouse_motion_held[i][MCP_MOUSE_MOTION_UP])
-                delta_y -= k_mcp_mouse_motion_step;
-
-            if (m_mouse_motion_held[i][MCP_MOUSE_MOTION_DOWN])
-                delta_y += k_mcp_mouse_motion_step;
-
-            if (m_mouse_motion_held[i][MCP_MOUSE_MOTION_LEFT])
-                delta_x -= k_mcp_mouse_motion_step;
-
-            if (m_mouse_motion_held[i][MCP_MOUSE_MOTION_RIGHT])
-                delta_x += k_mcp_mouse_motion_step;
-
-            m_debug_adapter->ApplyMouseMotion(player, delta_x, delta_y);
         }
     }
 
@@ -708,7 +635,6 @@ private:
         macro.active = false;
         macro.request_id = json();
         macro.phase = MCP_MOUSE_PHASE_START;
-        macro.player = 0;
         macro.click = false;
         macro.absolute = false;
         macro.held = false;
@@ -763,20 +689,9 @@ private:
             return result;
         }
 
-        int player = arguments.value("player", 0);
-
-        if (player == 0)
-            player = m_debug_adapter->FindMousePlayer();
-
-        if (player == 0)
+        if (!m_debug_adapter->HasMouse())
         {
-            result["error"] = "No game port is set to mouse, use controller_set_type";
-            return result;
-        }
-
-        if (!m_debug_adapter->IsMouseController(player))
-        {
-            result["error"] = "Port " + std::to_string(player) + " is not a mouse";
+            result["error"] = "The machine has no mouse, set Mouse in the machine configuration";
             return result;
         }
 
@@ -829,9 +744,9 @@ private:
             return result;
         }
 
-        bool held = m_debug_adapter->IsMouseButtonHeld(player);
+        bool held = m_debug_adapter->IsMouseButtonHeld();
 
-        if (absolute && held && !m_debug_adapter->IsMousePointerKnown(player))
+        if (absolute && held && !m_debug_adapter->IsMousePointerKnown())
         {
             result["error"] = "A button is held and the pointer position is unknown: release it and move to x, y "
                 "before pressing, or move by dx, dy";
@@ -841,7 +756,6 @@ private:
         reset_mouse_macro();
         McpMouseMacroState& macro = m_mouse_macro;
         macro.request_id = request_id;
-        macro.player = player;
         macro.click = click;
         macro.absolute = absolute;
         macro.held = held;
@@ -854,7 +768,8 @@ private:
         macro.delta_y = arguments.value("dy", 0);
         macro.button = button;
         macro.action = action;
-        macro.button_mask = button == "right" ? GDOX_GAMEPAD_B : GDOX_GAMEPAD_A;
+        macro.button_mask = button == "right" ? GDOX_MOUSE_RIGHT :
+            (button == "middle" ? GDOX_MOUSE_MIDDLE : GDOX_MOUSE_LEFT);
         macro.button_steps = action == "double_click" ? 4 : ((action == "click") || drag ? 2 : 1);
         macro.button_press_first = action != "release";
         macro.press_frames = arguments.value("press_frames", k_mcp_mouse_button_frames);
@@ -914,9 +829,9 @@ private:
     {
         McpMouseMacroState& macro = m_mouse_macro;
 
-        if (!m_debug_adapter->IsMouseController(macro.player))
+        if (!m_debug_adapter->HasMouse())
         {
-            finish_mouse_macro_error("Port " + std::to_string(macro.player) + " is no longer a mouse");
+            finish_mouse_macro_error("The machine no longer has a mouse");
             return;
         }
 
@@ -929,7 +844,7 @@ private:
                     begin_mouse_wiggle();
                 else if (!macro.click)
                 {
-                    m_debug_adapter->MoveMousePointerEstimate(macro.player, macro.delta_x, macro.delta_y);
+                    m_debug_adapter->MoveMousePointerEstimate(macro.delta_x, macro.delta_y);
                     begin_mouse_move(macro.delta_x, macro.delta_y);
                 }
                 else
@@ -989,13 +904,12 @@ private:
     {
         McpMouseMacroState& macro = m_mouse_macro;
 
-        if (m_debug_adapter->IsMouseMotionPending(macro.player))
+        if (m_debug_adapter->IsMouseMotionPending())
         {
             macro.stall++;
 
             if (macro.stall >= k_mcp_mouse_stall_frames)
-                finish_mouse_macro_error("The software isn't reading the mouse on port " +
-                    std::to_string(macro.player));
+                finish_mouse_macro_error("The software isn't reading the mouse");
 
             return false;
         }
@@ -1008,7 +922,7 @@ private:
                 k_mcp_mouse_motion_step;
             int step_x = ((macro.send_x * 2) + (macro.send_x < 0 ? -steps : steps)) / (steps * 2);
             int step_y = ((macro.send_y * 2) + (macro.send_y < 0 ? -steps : steps)) / (steps * 2);
-            m_debug_adapter->ApplyMouseMotion(macro.player, step_x, step_y);
+            m_debug_adapter->ApplyMouseMotion(step_x, step_y);
             macro.send_x -= step_x;
             macro.send_y -= step_y;
             macro.settle = k_mcp_mouse_settle_frames;
@@ -1035,10 +949,10 @@ private:
     void begin_mouse_wiggle()
     {
         McpMouseMacroState& macro = m_mouse_macro;
-        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer(macro.player);
+        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer();
         GDOX_Runtime_Info runtime;
         emu_get_runtime(runtime);
-        bool known = m_debug_adapter->IsMousePointerKnown(macro.player);
+        bool known = m_debug_adapter->IsMousePointerKnown();
         int x = macro.moves > 0 ? macro.target_x : (known ? pointer.x : 0);
         int y = macro.moves > 0 ? macro.target_y : (known ? pointer.y : 0);
         int reach = (macro.wiggle_counts * 2) + 32;
@@ -1064,7 +978,7 @@ private:
         std::string reason = "the screen size changed";
         bool same_screen = (runtime.screen_width == macro.screen_width) &&
             (runtime.screen_height == macro.screen_height) && (macro.frame_out.size() == macro.frame_before.size());
-        bool found = same_screen && m_debug_adapter->FindMousePointer(macro.player, macro.frame_before.data(),
+        bool found = same_screen && m_debug_adapter->FindMousePointer(macro.frame_before.data(),
             macro.frame_out.data(), (const u32*)emu_frame_buffer, macro.screen_width, macro.screen_height,
             macro.wiggle_x, macro.wiggle_y, miss, reason);
 
@@ -1093,7 +1007,7 @@ private:
         }
 
         macro.wiggle_tries = 0;
-        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer(macro.player);
+        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer();
         int error_x = macro.target_x - pointer.x;
         int error_y = macro.target_y - pointer.y;
         int counts_x = pixels_to_counts(error_x, pointer.pixels_per_count_x);
@@ -1152,17 +1066,17 @@ private:
     {
         McpMouseMacroState& macro = m_mouse_macro;
 
-        if (!m_debug_adapter->IsMousePointerKnown(macro.player))
+        if (!m_debug_adapter->IsMousePointerKnown())
         {
             finish_mouse_macro_error("The pointer position was lost before the drag");
             return;
         }
 
-        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer(macro.player);
+        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer();
         int counts_x = pixels_to_counts(x - pointer.x, pointer.pixels_per_count_x);
         int counts_y = pixels_to_counts(y - pointer.y, pointer.pixels_per_count_y);
 
-        m_debug_adapter->MoveMousePointerEstimate(macro.player, counts_x, counts_y);
+        m_debug_adapter->MoveMousePointerEstimate(counts_x, counts_y);
         macro.send_x = counts_x;
         macro.send_y = counts_y;
         macro.phase = MCP_MOUSE_PHASE_DRAG;
@@ -1181,7 +1095,7 @@ private:
 
         if (macro.drag && !macro.dragged && (macro.button_step == 1))
         {
-            const McpMousePointer& pointer = m_debug_adapter->GetMousePointer(macro.player);
+            const McpMousePointer& pointer = m_debug_adapter->GetMousePointer();
             macro.from_x = pointer.x;
             macro.from_y = pointer.y;
             macro.dragged = true;
@@ -1196,7 +1110,7 @@ private:
         }
 
         bool pressed = macro.button_press_first && ((macro.button_step % 2) == 0);
-        m_debug_adapter->SetMouseButton(macro.player, macro.button_mask, pressed);
+        m_debug_adapter->SetMouseButton(macro.button_mask, pressed);
         macro.button_step++;
         macro.button_wait = (pressed ? macro.press_frames : macro.release_frames) - 1;
     }
@@ -1205,9 +1119,9 @@ private:
     {
         McpMouseMacroState& macro = m_mouse_macro;
         bool restore_pause = macro.restore_pause;
-        json result = {{"success", true}, {"player", macro.player}, {"frames", emu_frame_counter - macro.start_frame}};
+        json result = {{"success", true}, {"frames", emu_frame_counter - macro.start_frame}};
 
-        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer(macro.player);
+        const McpMousePointer& pointer = m_debug_adapter->GetMousePointer();
 
         if (macro.drag)
         {
@@ -1254,10 +1168,9 @@ private:
         bool restore_pause = macro.restore_pause;
 
         if (macro.click && (macro.button_steps > 1) && (macro.button_step > 0))
-            m_debug_adapter->SetMouseButton(macro.player, macro.button_mask, false);
+            m_debug_adapter->SetMouseButton(macro.button_mask, false);
 
-        if (macro.player > 0)
-            m_debug_adapter->ForgetMousePointer(macro.player);
+        m_debug_adapter->ForgetMousePointer();
 
         DebugResponse* response = new DebugResponse();
         response->requestId = macro.request_id;
@@ -1365,8 +1278,6 @@ private:
     McpInputMacroState m_input_macro;
     McpMouseMacroState m_mouse_macro;
     McpStepFramesState m_step_frames;
-    bool m_mouse_motion_held[GDOX_MAX_GAMEPADS][MCP_MOUSE_MOTION_COUNT];
-    u64 m_mouse_motion_frame;
 };
 
 #endif /* MCP_MANAGER_H */

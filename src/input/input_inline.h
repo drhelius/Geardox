@@ -17,60 +17,64 @@
  *
  */
 
-INLINE void Input::SetMouseDelta(int port, s32 x, s32 y)
+INLINE void Input::SetMouseDelta(s32 x, s32 y)
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return;
-
-    m_state.mouse_x[port] = (s32)CLAMP((s64)m_state.mouse_x[port] + x, -k_input_mouse_limit, k_input_mouse_limit);
-    m_state.mouse_y[port] = (s32)CLAMP((s64)m_state.mouse_y[port] + y, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_x = (s32)CLAMP((s64)m_state.mouse_x + x, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_y = (s32)CLAMP((s64)m_state.mouse_y + y, -k_input_mouse_limit, k_input_mouse_limit);
 }
 
-INLINE void Input::SetGamePadState(int port, const GDOX_GamePad_State& state)
+// Up to limit counts each way, the rest stays for the next report
+INLINE void Input::TakeMouseDelta(s32 limit, s32& x, s32& y)
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return;
-
-    m_physical_gamepads[port] = state;
-    UpdateGamePadState(port);
+    x = CLAMP(m_state.mouse_x, -limit, limit);
+    y = CLAMP(m_state.mouse_y, -limit, limit);
+    m_state.mouse_x -= x;
+    m_state.mouse_y -= y;
 }
 
-INLINE void Input::SetInjectedGamePadState(int port, const GDOX_GamePad_State& state)
+INLINE void Input::SetMouseButtons(u8 buttons)
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return;
-
-    m_injected_gamepads[port] = state;
-    UpdateGamePadState(port);
+    m_physical_mouse_buttons = buttons;
+    UpdateMouseButtons();
 }
 
-INLINE const GDOX_GamePad_State& Input::GetGamePadState(int port) const
+INLINE void Input::SetInjectedMouseButtons(u8 buttons)
 {
-    static const GDOX_GamePad_State empty = { 0 };
-
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return empty;
-
-    return m_state.gamepads[port];
+    m_injected_mouse_buttons = buttons;
+    UpdateMouseButtons();
 }
 
-INLINE void Input::SetControllerType(int port, GDOX_Controller_Type type)
+INLINE u8 Input::GetMouseButtons() const
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return;
-
-    if (m_controller_type[port] != type)
-        ClearMouseInput(port);
-
-    m_controller_type[port] = type;
+    return m_state.mouse_buttons;
 }
 
-INLINE GDOX_Controller_Type Input::GetControllerType(int port) const
+INLINE void Input::SetJoystickState(const GDOX_Joystick_State& state)
 {
-    if (port < 0 || port >= GDOX_MAX_GAMEPADS)
-        return GDOX_CONTROLLER_NONE;
+    m_physical_joystick = state;
+    UpdateJoystickState();
+}
 
-    return m_controller_type[port];
+INLINE void Input::SetInjectedJoystickState(const GDOX_Joystick_State& state, bool axes)
+{
+    m_injected_joystick = state;
+    m_injected_axes = axes;
+    UpdateJoystickState();
+}
+
+INLINE const GDOX_Joystick_State& Input::GetJoystickState() const
+{
+    return m_state.joystick;
+}
+
+INLINE void Input::SetJoystickType(GDOX_Joystick_Type type)
+{
+    m_joystick_type = type;
+}
+
+INLINE GDOX_Joystick_Type Input::GetJoystickType() const
+{
+    return m_joystick_type;
 }
 
 INLINE Input::Input_State* Input::GetState()

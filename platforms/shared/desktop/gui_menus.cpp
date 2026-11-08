@@ -76,6 +76,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile);
 static bool menu_machine_ram(const GDOX_Machine_Profile& profile);
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
 static bool menu_machine_sound(void);
+static bool menu_machine_mouse(void);
 static bool menu_machine_floppy(int drive);
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
 static void menu_machine_hardware(GDOX_Machine_Model model);
@@ -86,7 +87,6 @@ static void get_machine_summary(const GDOX_Machine_Config& config, char* text, s
 static float get_combo_width(float text_width);
 static void menu_video(void);
 static void menu_input(void);
-static void menu_input_controller(int port);
 static void menu_audio(void);
 static void menu_audio_source_mute(const char* label, int source);
 static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
@@ -98,7 +98,6 @@ static void draw_recording_status(const char* status, ImVec4 color, float dot_ra
 static void file_dialogs(void);
 static bool media_menu_actions_enabled(void);
 static const char* get_current_media_directory_text(void);
-static void keyboard_configuration_item(const char* text, SDL_Scancode* key, int player);
 static void gamepad_configuration_item(const char* text, int* button, int player);
 static void hotkey_configuration_item(const char* text, config_Hotkey* hotkey);
 static void gamepad_device_selector(int player);
@@ -860,6 +859,9 @@ static void menu_machine(void)
     if (menu_machine_sound())
         changed = true;
 
+    if (menu_machine_mouse())
+        changed = true;
+
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
     ImGui::Separator();
@@ -1230,6 +1232,38 @@ static bool menu_machine_sound(void)
     return changed;
 }
 
+static bool menu_machine_mouse(void)
+{
+    if (!ImGui::BeginMenu("Mouse"))
+        return false;
+
+    bool changed = false;
+
+    for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
+    {
+        if (ImGui::MenuItem(k_mice[i].name, "", config_machine.mouse == i))
+        {
+            config_machine.mouse = i;
+            changed = true;
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Reset the emulator to apply changes");
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("PS/2 reports up to 200 times a second and leaves the COM ports free.");
+        ImGui::Text("Serial is a Microsoft mouse on COM1, as on 1989 PCs.");
+        ImGui::Text("DOS mouse drivers find either.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::EndMenu();
+    return changed;
+}
+
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
 {
     if (!ImGui::BeginMenu("FPU"))
@@ -1590,99 +1624,11 @@ static void draw_background_color_menu(const char* label, int theme)
     }
 }
 
-static void menu_input_controller(int port)
-{
-    int* setting = &config_input.controller_type[port];
-    bool automatic = *setting == config_ControllerType_Auto;
-    bool changed = false;
-    char preview[64];
-
-    if (automatic)
-        snprintf(preview, sizeof(preview), "Auto (%s)", emu_get_pad_type_name(emu_get_pad_type((GDOX_Controllers)port)));
-    else
-        snprintf(preview, sizeof(preview), "%s", emu_get_pad_type_name(*setting));
-
-    if (ImGui::BeginCombo("##controller", preview))
-    {
-        if (ImGui::Selectable(automatic ? preview : "Auto", automatic))
-        {
-            *setting = config_ControllerType_Auto;
-            changed = true;
-        }
-
-        ImGui::Separator();
-
-        for (int type = GDOX_CONTROLLER_NONE; type <= GDOX_CONTROLLER_MOUSE; type++)
-        {
-            if (ImGui::Selectable(emu_get_pad_type_name(type), *setting == type))
-            {
-                *setting = type;
-                changed = true;
-            }
-        }
-
-        ImGui::EndCombo();
-    }
-    else if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::Text("It is recommended to leave this option on Auto.");
-        ImGui::Text("Auto picks the controller from game database or");
-        ImGui::Text("Original Gamepad (port 1) and Mouse (port 2) if not detected.");
-        ImGui::EndTooltip();
-    }
-
-    if (changed)
-        emu_update_pad_types();
-}
-
 static void menu_input(void)
 {
     if (ImGui::BeginMenu("Input"))
     {
         gui_in_use = true;
-
-        if (ImGui::BeginMenu("Controller Ports"))
-        {
-            for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-            {
-                char player_name[32];
-                snprintf(player_name, sizeof(player_name), "Port %d", i + 1);
-
-                if (ImGui::BeginMenu(player_name))
-                {
-                    ImGui::PushItemWidth(200.0f);
-                    menu_input_controller(i);
-                    ImGui::PopItemWidth();
-
-                    if (ImGui::BeginMenu("Keyboard Mode"))
-                    {
-                        ImGui::PushItemWidth(170.0f);
-
-                        if (ImGui::Combo("##keyboard_mode", &config_input.keyboard_mode[i], "Gamepad\0PC Keyboard\0\0"))
-                            events_sync_input();
-
-                        ImGui::PopItemWidth();
-
-                        if (ImGui::IsItemHovered())
-                        {
-                            ImGui::BeginTooltip();
-                            ImGui::Text("Gamepad: the Port %d bindings from Input > Keyboard control this gamepad.", i + 1);
-                            ImGui::Text("PC Keyboard: the Port %d bindings type on the PC keyboard.", i + 1);
-                            ImGui::Text("Other keys always type on the PC keyboard.");
-                            ImGui::EndTooltip();
-                        }
-
-                        ImGui::EndMenu();
-                    }
-                    ImGui::EndMenu();
-                }
-            }
-
-            ImGui::EndMenu();
-        }
-
-        ImGui::Separator();
 
         if (ImGui::BeginMenu("Keyboard"))
         {
@@ -1719,32 +1665,6 @@ static void menu_input(void)
                 }
             }
 
-            ImGui::Separator();
-
-            for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-            {
-                char keyboard_name[32];
-                snprintf(keyboard_name, sizeof(keyboard_name), "Port %d Mapping", i + 1);
-
-                if (ImGui::BeginMenu(keyboard_name))
-                {
-                    ImGui::TextDisabled("Keyboard %s", keyboard_name);
-                    ImGui::Separator();
-                    keyboard_configuration_item("Left:", &config_input_keyboard[i].key_left, i);
-                    keyboard_configuration_item("Right:", &config_input_keyboard[i].key_right, i);
-                    keyboard_configuration_item("Up:", &config_input_keyboard[i].key_up, i);
-                    keyboard_configuration_item("Down:", &config_input_keyboard[i].key_down, i);
-                    keyboard_configuration_item("Select:", &config_input_keyboard[i].key_select, i);
-                    keyboard_configuration_item("Run:", &config_input_keyboard[i].key_run, i);
-                    keyboard_configuration_item("A:", &config_input_keyboard[i].key_A, i);
-                    keyboard_configuration_item("B:", &config_input_keyboard[i].key_B, i);
-
-                    gui_popup_modal_keyboard();
-
-                    ImGui::EndMenu();
-                }
-            }
-
             ImGui::EndMenu();
         }
 
@@ -1769,116 +1689,107 @@ static void menu_input(void)
 
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Host Gamepads"))
+        if (ImGui::BeginMenu("Joystick"))
         {
-            for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+            for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
             {
-                char gamepad_name[32];
-                snprintf(gamepad_name, sizeof(gamepad_name), "Port %d", i + 1);
-
-                if (ImGui::BeginMenu(gamepad_name))
+                if (ImGui::MenuItem(k_joysticks[i].name, "", config_input.joystick_type == i))
                 {
-                    if (!gamepad_controller[i])
-                        ImGui::TextDisabled("This gamepad is not detected");
-                    else
-                        ImGui::TextDisabled("Gamepad detected for Port %d", i + 1);
-
-                    ImGui::Separator();
-
-                    if (ImGui::BeginMenu("Device"))
-                    {
-                        gamepad_device_selector(i);
-                        ImGui::EndMenu();
-                    }
-
-                    if (ImGui::BeginMenu("Directional Controls"))
-                    {
-                        ImGui::PushItemWidth(200.0f);
-                        ImGui::Combo("##directional", &config_input_gamepad[i].gamepad_directional,
-                            "D-pad\0Left Analog Stick\0D-pad + Left Analog Stick\0\0");
-                        ImGui::PopItemWidth();
-                        ImGui::EndMenu();
-                    }
-
-                    if (ImGui::BeginMenu("Button Configuration"))
-                    {
-                        ImGui::TextDisabled("Gamepad %s", gamepad_name);
-                        ImGui::Separator();
-                        gamepad_configuration_item("Select:", &config_input_gamepad[i].gamepad_select, i);
-                        gamepad_configuration_item("Run:", &config_input_gamepad[i].gamepad_run, i);
-                        gamepad_configuration_item("A:", &config_input_gamepad[i].gamepad_A, i);
-                        gamepad_configuration_item("B:", &config_input_gamepad[i].gamepad_B, i);
-
-                        gui_popup_modal_gamepad(i);
-
-                        ImGui::EndMenu();
-                    }
-
-                    if (ImGui::BeginMenu("Shortcut Configuration"))
-                    {
-                        ImGui::TextDisabled("Gamepad %s - Shortcuts", gamepad_name);
-                        ImGui::Separator();
-
-                        gamepad_configuration_item("Save State:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SaveState], i);
-                        gamepad_configuration_item("Load State:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_LoadState], i);
-                        gamepad_configuration_item("Save State Slot 1:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot1], i);
-                        gamepad_configuration_item("Save State Slot 2:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot2], i);
-                        gamepad_configuration_item("Save State Slot 3:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot3], i);
-                        gamepad_configuration_item("Save State Slot 4:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot4], i);
-                        gamepad_configuration_item("Save State Slot 5:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_SelectSlot5], i);
-
-                        ImGui::Separator();
-
-                        gamepad_configuration_item("Power On:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_PowerOn], i);
-                        gamepad_configuration_item("Power Off:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_PowerOff], i);
-                        gamepad_configuration_item("Reset:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Reset], i);
-                        gamepad_configuration_item("Pause:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Pause], i);
-                        gamepad_configuration_item("Fast Forward:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_FFWD], i);
-                        gamepad_configuration_item("Rewind:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Rewind], i);
-                        gamepad_configuration_item("Screenshot:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Screenshot], i);
-                        gamepad_configuration_item("Video Recording:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_VideoRecording], i);
-                        gamepad_configuration_item("Mute All Audio:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Mute], i);
-                        gamepad_configuration_item("Fullscreen:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_Fullscreen], i);
-                        gamepad_configuration_item("Capture Mouse:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_CaptureMouse], i);
-                        gamepad_configuration_item("Capture Keyboard:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_CaptureKeyboard], i);
-                        gamepad_configuration_item("Show Main Menu:", &config_input_gamepad_shortcuts[i].gamepad_shortcuts[config_HotkeyIndex_ShowMainMenu], i);
-
-                        gui_popup_modal_gamepad(i);
-
-                        ImGui::EndMenu();
-                    }
-
-                    ImGui::EndMenu();
+                    config_input.joystick_type = i;
+                    emu_update_joystick_type();
                 }
+            }
+
+            ImGui::Separator();
+            ImGui::TextDisabled("What the host gamepad plays on the game port");
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Joystick: an analog stick with two buttons.");
+                ImGui::Text("Gravis GamePad: eight directions and four buttons, the D-pad and left stick.");
+                ImGui::Text("CH FlightStick Pro: stick, throttle on the right stick,");
+                ImGui::Text("four buttons and a hat on the D-pad.");
+                ImGui::EndTooltip();
             }
 
             ImGui::EndMenu();
         }
 
-        ImGui::Separator();
-
-        ImGui::MenuItem("Allow Up+Down / Left+Right", "", &config_input.allow_up_down);
-
-        if (ImGui::IsItemHovered())
+        if (ImGui::BeginMenu("Host Gamepad"))
         {
-            ImGui::BeginTooltip();
-            ImGui::Text("Allow pressing, quickly alternating, or holding");
-            ImGui::Text("both left and right or up and down directions.");
-            ImGui::Text("This may cause movement glitches in certain games.");
-            ImGui::EndTooltip();
-        }
+            if (!gamepad_controller[0])
+                ImGui::TextDisabled("No gamepad detected");
+            else
+                ImGui::TextDisabled("Gamepad detected");
 
-        if (ImGui::MenuItem("Allow Shared Gamepads", "", &config_input.allow_shared_gamepads))
-        {
-            if (!config_input.allow_shared_gamepads)
-                gamepad_remove_duplicates();
-        }
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::BeginTooltip();
-            ImGui::Text("Let one gamepad control several ports at the same time.");
-            ImGui::Text("Choose it in the Device menu of each port.");
-            ImGui::EndTooltip();
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Device"))
+            {
+                gamepad_device_selector(0);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Stick"))
+            {
+                ImGui::MenuItem("Invert X Axis", "", &config_input_gamepad[0].gamepad_invert_x_axis);
+                ImGui::MenuItem("Invert Y Axis", "", &config_input_gamepad[0].gamepad_invert_y_axis);
+                ImGui::PushItemWidth(200.0f);
+                ImGui::SliderInt("##dead_zone", &config_input_gamepad[0].gamepad_dead_zone, 0, 50, "Dead Zone = %d%%");
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Button Configuration"))
+            {
+                ImGui::TextDisabled("Game Port Buttons");
+                ImGui::Separator();
+                gamepad_configuration_item("Button 1:", &config_input_gamepad[0].gamepad_buttons[0], 0);
+                gamepad_configuration_item("Button 2:", &config_input_gamepad[0].gamepad_buttons[1], 0);
+                gamepad_configuration_item("Button 3:", &config_input_gamepad[0].gamepad_buttons[2], 0);
+                gamepad_configuration_item("Button 4:", &config_input_gamepad[0].gamepad_buttons[3], 0);
+
+                gui_popup_modal_gamepad(0);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Shortcut Configuration"))
+            {
+                ImGui::TextDisabled("Gamepad Shortcuts");
+                ImGui::Separator();
+
+                gamepad_configuration_item("Save State:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_SaveState], 0);
+                gamepad_configuration_item("Load State:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_LoadState], 0);
+                gamepad_configuration_item("Save State Slot 1:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_SelectSlot1], 0);
+                gamepad_configuration_item("Save State Slot 2:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_SelectSlot2], 0);
+                gamepad_configuration_item("Save State Slot 3:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_SelectSlot3], 0);
+                gamepad_configuration_item("Save State Slot 4:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_SelectSlot4], 0);
+                gamepad_configuration_item("Save State Slot 5:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_SelectSlot5], 0);
+
+                ImGui::Separator();
+
+                gamepad_configuration_item("Power On:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_PowerOn], 0);
+                gamepad_configuration_item("Power Off:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_PowerOff], 0);
+                gamepad_configuration_item("Reset:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_Reset], 0);
+                gamepad_configuration_item("Pause:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_Pause], 0);
+                gamepad_configuration_item("Fast Forward:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_FFWD], 0);
+                gamepad_configuration_item("Rewind:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_Rewind], 0);
+                gamepad_configuration_item("Screenshot:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_Screenshot], 0);
+                gamepad_configuration_item("Video Recording:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_VideoRecording], 0);
+                gamepad_configuration_item("Mute All Audio:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_Mute], 0);
+                gamepad_configuration_item("Fullscreen:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_Fullscreen], 0);
+                gamepad_configuration_item("Capture Mouse:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_CaptureMouse], 0);
+                gamepad_configuration_item("Capture Keyboard:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_CaptureKeyboard], 0);
+                gamepad_configuration_item("Show Main Menu:", &config_input_gamepad_shortcuts[0].gamepad_shortcuts[config_HotkeyIndex_ShowMainMenu], 0);
+
+                gui_popup_modal_gamepad(0);
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenu();
         }
 
         ImGui::EndMenu();
@@ -2227,8 +2138,10 @@ static void menu_debug(void)
 
         if (ImGui::BeginMenu("Input", config_debug.debug))
         {
-            ImGui::MenuItem("Show Game Ports", "", &config_debug.show_game_ports);
             ImGui::MenuItem("Show Keyboard", "", &config_debug.show_keyboard);
+            ImGui::MenuItem("Show Mouse and Joystick", "", &config_debug.show_mouse_joystick);
+            ImGui::MenuItem("Show Serial Ports", "", &config_debug.show_serial_ports);
+            ImGui::MenuItem("Show Parallel Port", "", &config_debug.show_parallel_port);
             ImGui::EndMenu();
         }
 
@@ -2447,31 +2360,6 @@ static const char* get_current_media_directory_text(void)
 #endif
 
     return emu_get_core()->GetMedia()->GetFileDirectory();
-}
-
-static void keyboard_configuration_item(const char* text, SDL_Scancode* key, int player)
-{
-    ImGui::Text("%s", text);
-    ImGui::SameLine(120);
-
-    char button_label[256];
-    snprintf(button_label, 256, "%s##%p%d", SDL_GetKeyName(SDL_GetKeyFromScancode(*key, SDL_KMOD_NONE, false)), (void*)key, player);
-
-    if (ImGui::Button(button_label, ImVec2(90,0)))
-    {
-        gui_configured_key = key;
-        ImGui::OpenPopup("Keyboard Configuration");
-    }
-
-    ImGui::SameLine();
-
-    char remove_label[256];
-    snprintf(remove_label, sizeof(remove_label), "X##rk%p%d", (void*)key, player);
-
-    if (ImGui::Button(remove_label))
-    {
-        *key = SDL_SCANCODE_UNKNOWN;
-    }
 }
 
 static void gamepad_configuration_item(const char* text, int* button, int player)

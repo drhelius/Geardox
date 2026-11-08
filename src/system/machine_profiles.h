@@ -95,6 +95,21 @@ const GDOX_Sound_Card_Info k_sound_cards[GDOX_SOUND_CARD_COUNT] =
 const u8 k_sound_card_irqs[2] = { 5, 7 };
 const u8 k_sound_card_dmas[2] = { 1, 3 };
 
+const GDOX_Mouse_Info k_mice[GDOX_MOUSE_TYPE_COUNT] =
+{
+    { "None", "none" },
+    { "PS/2", "ps2" },
+    { "Serial (COM1)", "serial" }
+};
+
+const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
+{
+    { "None", "none" },
+    { "Joystick", "joystick" },
+    { "Gravis GamePad", "gamepad" },
+    { "CH FlightStick Pro", "flightstick" }
+};
+
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {
     GDOX_MACHINE_386SX_20, GDOX_MACHINE_386DX_33, GDOX_MACHINE_486DX2_66

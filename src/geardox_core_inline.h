@@ -137,6 +137,26 @@ INLINE Keyboard* GeardoxCore::GetKeyboard()
     return m_keyboard;
 }
 
+INLINE PS2Mouse* GeardoxCore::GetPS2Mouse()
+{
+    return m_ps2_mouse;
+}
+
+INLINE SerialPorts* GeardoxCore::GetSerialPorts()
+{
+    return m_serial_ports;
+}
+
+INLINE ParallelPort* GeardoxCore::GetParallelPort()
+{
+    return m_parallel_port;
+}
+
+INLINE GamePort* GeardoxCore::GetGamePort()
+{
+    return m_game_port;
+}
+
 INLINE MC146818* GeardoxCore::GetRTC()
 {
     return m_rtc;

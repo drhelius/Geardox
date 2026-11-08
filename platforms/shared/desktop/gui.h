@@ -119,7 +119,6 @@ EXTERN ImFont* gui_material_icons_font;
 EXTERN int gui_main_window_width;
 EXTERN int gui_main_window_height;
 EXTERN int gui_main_menu_height;
-EXTERN SDL_Scancode* gui_configured_key;
 EXTERN int* gui_configured_button;
 EXTERN config_Hotkey* gui_configured_hotkey;
 EXTERN bool gui_dialog_in_use;

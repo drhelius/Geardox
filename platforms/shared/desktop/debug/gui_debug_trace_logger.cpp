@@ -786,14 +786,39 @@ static void trace_logger_menu_filters(void)
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("Game Ports"))
+    if (ImGui::BeginMenu("Mouse and Joystick"))
     {
         ImGui::MenuItem("Enabled", "", &config_debug.trace_input);
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_input);
-        trace_logger_menu_event_filter("Reads", &config_debug.trace_input_events, TRACE_INPUT_EVENT_READS);
-        trace_logger_menu_event_filter("Writes", &config_debug.trace_input_events, TRACE_INPUT_EVENT_WRITES);
-        trace_logger_menu_event_filter("Changes", &config_debug.trace_input_events, TRACE_INPUT_EVENT_CHANGES);
+        trace_logger_menu_event_filter("Host Changes", &config_debug.trace_input_events, TRACE_INPUT_EVENT_CHANGES);
+        trace_logger_menu_event_filter("Mouse Commands", &config_debug.trace_input_events, TRACE_INPUT_EVENT_COMMANDS);
+        trace_logger_menu_event_filter("Mouse Packets", &config_debug.trace_input_events, TRACE_INPUT_EVENT_PACKETS);
+        trace_logger_menu_event_filter("Joystick Fires", &config_debug.trace_input_events, TRACE_INPUT_EVENT_FIRES);
+        ImGui::EndDisabled();
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Serial Ports"))
+    {
+        ImGui::MenuItem("Enabled", "", &config_debug.trace_serial);
+        ImGui::Separator();
+        ImGui::BeginDisabled(!config_debug.trace_serial);
+        trace_logger_menu_event_filter("Data", &config_debug.trace_serial_events, TRACE_SERIAL_EVENT_DATA);
+        trace_logger_menu_event_filter("Modem Lines and IRQs", &config_debug.trace_serial_events,
+            TRACE_SERIAL_EVENT_CONTROL);
+        trace_logger_menu_event_filter("Register Writes", &config_debug.trace_serial_events, TRACE_SERIAL_EVENT_WRITES);
+        ImGui::EndDisabled();
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Parallel Port"))
+    {
+        ImGui::MenuItem("Enabled", "", &config_debug.trace_parallel);
+        ImGui::Separator();
+        ImGui::BeginDisabled(!config_debug.trace_parallel);
+        trace_logger_menu_event_filter("Data", &config_debug.trace_parallel_events, TRACE_PARALLEL_EVENT_DATA);
+        trace_logger_menu_event_filter("Control", &config_debug.trace_parallel_events, TRACE_PARALLEL_EVENT_CONTROL);
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }
@@ -1158,6 +1183,8 @@ static u32 trace_logger_get_config_flags(void)
     if (config_debug.trace_ide) flags |= TRACE_FLAG_IDE;
     if (config_debug.trace_keyboard) flags |= TRACE_FLAG_KEYBOARD;
     if (config_debug.trace_input) flags |= TRACE_FLAG_INPUT;
+    if (config_debug.trace_serial) flags |= TRACE_FLAG_SERIAL;
+    if (config_debug.trace_parallel) flags |= TRACE_FLAG_PARALLEL;
     if (config_debug.trace_system) flags |= TRACE_FLAG_SYSTEM;
 
     return flags;
@@ -1187,6 +1214,8 @@ static void trace_logger_set_config_flags(u32 flags)
     config_debug.trace_ide = (flags & TRACE_FLAG_IDE) != 0;
     config_debug.trace_keyboard = (flags & TRACE_FLAG_KEYBOARD) != 0;
     config_debug.trace_input = (flags & TRACE_FLAG_INPUT) != 0;
+    config_debug.trace_serial = (flags & TRACE_FLAG_SERIAL) != 0;
+    config_debug.trace_parallel = (flags & TRACE_FLAG_PARALLEL) != 0;
     config_debug.trace_system = (flags & TRACE_FLAG_SYSTEM) != 0;
 }
 
@@ -1209,6 +1238,8 @@ static int* trace_logger_get_config_event_filter(GDOX_Trace_Type type)
         case TRACE_IDE: return &config_debug.trace_ide_events;
         case TRACE_KEYBOARD: return &config_debug.trace_keyboard_events;
         case TRACE_INPUT: return &config_debug.trace_input_events;
+        case TRACE_SERIAL: return &config_debug.trace_serial_events;
+        case TRACE_PARALLEL: return &config_debug.trace_parallel_events;
         case TRACE_SYSTEM: return &config_debug.trace_system_events;
         default: return NULL;
     }
@@ -1368,6 +1399,8 @@ static void render_entry_colored(const GDOX_Trace_Entry& entry, u64 index, bool 
         case TRACE_IDE: ImGui::TextColored(cornflower, "%s", buf); break;
         case TRACE_KEYBOARD: ImGui::TextColored(yellow, "%s", buf); break;
         case TRACE_INPUT: ImGui::TextColored(yellow, "%s", buf); break;
+        case TRACE_SERIAL: ImGui::TextColored(cyan, "%s", buf); break;
+        case TRACE_PARALLEL: ImGui::TextColored(brown, "%s", buf); break;
         default: ImGui::TextColored(white, "%s", buf); break;
     }
 }

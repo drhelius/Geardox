@@ -33,7 +33,14 @@
 #include "system/pit.h"
 #include "system/system_control.h"
 #include "input/i8042.h"
+#include "input/game_port.h"
+#include "input/input.h"
 #include "input/keyboard.h"
+#include "input/ps2_mouse.h"
+#include "input/serial_mouse.h"
+#include "system/parallel_port.h"
+#include "system/serial_ports.h"
+#include "system/uart.h"
 #include "system/debug_console.h"
 #include "system/firmware_config.h"
 #include "system/mc146818.h"
@@ -208,14 +215,12 @@ static bool load_segment(I386_State& state, int index, u32 value, std::string& e
 DebugAdapter::DebugAdapter(GeardoxCore* core)
 {
     m_core = core;
-    memset(m_buttons, 0, sizeof(m_buttons));
-
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        m_mouse_pointers[i].valid = false;
-        m_mouse_pointers[i].generation = 0;
-        m_mouse_pointers[i].estimated = false;
-    }
+    m_mouse_buttons = 0;
+    memset(&m_joystick, 0, sizeof(m_joystick));
+    m_joystick_axes = false;
+    m_mouse_pointer.valid = false;
+    m_mouse_pointer.generation = 0;
+    m_mouse_pointer.estimated = false;
 }
 
 void DebugAdapter::Pause()
@@ -270,7 +275,7 @@ json DebugAdapter::Reset(const std::string& boot)
 
     m_core->SetBootDevice((GDOX_Boot_Device)device);
     emu_reset();
-    ClearControllerState();
+    ClearInjectedInput();
     return {{"success", true}};
 }
 
@@ -2875,6 +2880,94 @@ json DebugAdapter::GetKeyboardStatus()
     };
 }
 
+json DebugAdapter::GetSerialStatus()
+{
+    static const int k_rx_trigger_levels[] = { 1, 4, 8, 14 };
+    SerialPorts* ports = m_core->GetSerialPorts();
+    json list = json::array();
+
+    for (int i = 0; i < SERIAL_PORTS; i++)
+    {
+        UART* uart = ports->GetUART(i);
+        UART::UART_State* state = uart->GetState();
+        u32 divisor = uart->GetDivisor();
+        u8 lcr = state->lcr;
+        u8 mcr = state->mcr;
+        u8 lsr = uart->GetLineStatus();
+        u8 msr = state->msr;
+        u8 data_bits = (u8)((lcr & 0x03) + 5);
+        const char* stop_bits = (lcr & 0x04) == 0 ? "1" : (data_bits == 5 ? "1.5" : "2");
+        const char* parity = (lcr & 0x08) == 0 ? "none" : ((lcr & 0x20) != 0 ?
+            ((lcr & 0x10) != 0 ? "space" : "mark") : ((lcr & 0x10) != 0 ? "even" : "odd"));
+        const char* attached = (i == 0) && ports->IsMouseAttached() ? "serial mouse" : "none";
+        char name[8];
+        snprintf(name, sizeof(name), "COM%d", i + 1);
+
+        list.push_back({
+            {"port", name},
+            {"base", Hex(k_serial_ports_base[i], 4)},
+            {"irq", k_serial_ports_irq[i]},
+            {"irq_line", ports->GetIRQ(i)},
+            {"attached", attached},
+            {"dll", Hex(state->dll, 2)},
+            {"dlm", Hex(state->dlm, 2)},
+            {"divisor", divisor},
+            {"baud", divisor != 0 ? json(k_uart_clock / (16 * divisor)) : json()},
+            {"ier", Hex(state->ier, 2)},
+            {"iir", Hex(uart->GetInterruptIdentification(), 2)},
+            {"fcr", Hex(state->fcr, 2)},
+            {"lcr", Hex(lcr, 2)},
+            {"mcr", Hex(mcr, 2)},
+            {"lsr", Hex(lsr, 2)},
+            {"msr", Hex(msr, 2)},
+            {"scr", Hex(state->scr, 2)},
+            {"frame", {{"data_bits", data_bits}, {"parity", parity}, {"stop_bits", stop_bits},
+                {"dlab", (lcr & 0x80) != 0}, {"break", (lcr & 0x40) != 0}}},
+            {"interrupt_enable", {{"received_data", (state->ier & 0x01) != 0}, {"thr_empty", (state->ier & 0x02) != 0},
+                {"line_status", (state->ier & 0x04) != 0}, {"modem_status", (state->ier & 0x08) != 0}}},
+            {"modem_control", {{"dtr", (mcr & k_uart_dtr) != 0}, {"rts", (mcr & k_uart_rts) != 0},
+                {"out1", (mcr & k_uart_out1) != 0}, {"out2", (mcr & k_uart_out2) != 0},
+                {"loopback", (mcr & k_uart_loopback) != 0}}},
+            {"line_status", {{"data_ready", (lsr & 0x01) != 0}, {"overrun", (lsr & 0x02) != 0},
+                {"parity_error", (lsr & 0x04) != 0}, {"framing_error", (lsr & 0x08) != 0},
+                {"break", (lsr & 0x10) != 0}, {"thr_empty", (lsr & 0x20) != 0},
+                {"transmitter_empty", (lsr & 0x40) != 0}, {"fifo_error", (lsr & 0x80) != 0}}},
+            {"modem_status", {{"dcts", (msr & 0x01) != 0}, {"ddsr", (msr & 0x02) != 0}, {"teri", (msr & 0x04) != 0},
+                {"ddcd", (msr & 0x08) != 0}, {"cts", (msr & 0x10) != 0}, {"dsr", (msr & 0x20) != 0},
+                {"ri", (msr & 0x40) != 0}, {"dcd", (msr & 0x80) != 0}}},
+            {"fifo", {{"enabled", (state->fcr & 0x01) != 0}, {"rx_count", state->rx_count},
+                {"tx_count", state->tx_count}, {"rx_trigger", k_rx_trigger_levels[state->fcr >> 6]},
+                {"rbr", Hex(state->rbr, 2)}, {"shift_register_full", state->tsr_full}}},
+            {"pending", {{"thr_empty", state->thre_pending}, {"timeout", state->timeout_pending}}}
+        });
+    }
+
+    return {{"ports", list}};
+}
+
+json DebugAdapter::GetParallelStatus()
+{
+    ParallelPort* port = m_core->GetParallelPort();
+    u8 data = port->Read(k_parallel_port_base);
+    u8 status = port->Read(k_parallel_port_base + 1);
+    u8 control = port->Read(k_parallel_port_base + 2);
+
+    return {
+        {"port", "LPT1"},
+        {"base", Hex(k_parallel_port_base, 4)},
+        {"irq", 7},
+        {"attached", "none"},
+        {"data", Hex(data, 2)},
+        {"status", Hex(status, 2)},
+        {"control", Hex(control, 2)},
+        {"status_bits", {{"error_n", (status & 0x08) != 0}, {"select", (status & 0x10) != 0},
+            {"paper_end", (status & 0x20) != 0}, {"ack_n", (status & 0x40) != 0}, {"busy_n", (status & 0x80) != 0}}},
+        {"control_bits", {{"strobe", (control & 0x01) != 0}, {"autofeed", (control & 0x02) != 0},
+            {"init_n", (control & 0x04) != 0}, {"select_in", (control & 0x08) != 0},
+            {"irq_enable", (control & 0x10) != 0}}}
+    };
+}
+
 json DebugAdapter::GetSystemStatus()
 {
     const GDOX_Machine_Config& machine = m_core->GetMachineConfig();
@@ -4712,194 +4805,232 @@ void DebugAdapter::AddMediaStateChanges(json& result)
     result["hard_disks_changed"] = ids;
 }
 
-u16 DebugAdapter::ButtonMask(const std::string& button) const
+static const char* const k_joystick_button_names[] = { "1", "2", "3", "4" };
+static const char* const k_joystick_hat_names[] = { "up", "down", "left", "right" };
+
+static const struct
 {
-    std::string name = to_lower(button);
+    const char* name;
+    u8 hat;
+} k_joystick_hat_directions[] =
+{
+    { "none", 0 },
+    { "up", GDOX_JOYSTICK_HAT_UP },
+    { "down", GDOX_JOYSTICK_HAT_DOWN },
+    { "left", GDOX_JOYSTICK_HAT_LEFT },
+    { "right", GDOX_JOYSTICK_HAT_RIGHT },
+    { "up_left", GDOX_JOYSTICK_HAT_UP | GDOX_JOYSTICK_HAT_LEFT },
+    { "up_right", GDOX_JOYSTICK_HAT_UP | GDOX_JOYSTICK_HAT_RIGHT },
+    { "down_left", GDOX_JOYSTICK_HAT_DOWN | GDOX_JOYSTICK_HAT_LEFT },
+    { "down_right", GDOX_JOYSTICK_HAT_DOWN | GDOX_JOYSTICK_HAT_RIGHT }
+};
 
-    if (name == "up") return GDOX_GAMEPAD_UP;
-    if (name == "down") return GDOX_GAMEPAD_DOWN;
-    if (name == "left") return GDOX_GAMEPAD_LEFT;
-    if (name == "right") return GDOX_GAMEPAD_RIGHT;
-    if (name == "select") return GDOX_GAMEPAD_SELECT;
-    if (name == "run") return GDOX_GAMEPAD_RUN;
-    if (name == "a") return GDOX_GAMEPAD_A;
-    if (name == "b") return GDOX_GAMEPAD_B;
+static const char* const k_joystick_axis_names[] = { "ax", "ay", "bx", "by" };
 
-    return 0;
+json DebugAdapter::JoystickPressed(u8 buttons, u8 hat) const
+{
+    json result = {{"buttons", json::array()}, {"hat", json::array()}};
+
+    for (int i = 0; i < 4; i++)
+    {
+        if ((buttons & (1 << i)) != 0)
+            result["buttons"].push_back(k_joystick_button_names[i]);
+
+        if ((hat & (1 << i)) != 0)
+            result["hat"].push_back(k_joystick_hat_names[i]);
+    }
+
+    return result;
 }
 
-json DebugAdapter::ControllerButton(int player, const std::string& button, const std::string& action)
+json DebugAdapter::JoystickSet(const json& arguments)
 {
-    if (player < 1 || player > GDOX_MAX_GAMEPADS)
-        return {{"error", "Invalid player number (must be 1-2)"}};
+    Input* input = m_core->GetInput();
+    bool reset = arguments.value("reset", false);
+    std::string action = arguments.value("action", "press");
+    bool has_axes = false;
+    bool has_buttons = arguments.contains("buttons");
+    bool has_hat = arguments.contains("hat");
+    s32 axes[GDOX_JOYSTICK_AXIS_COUNT] = {};
+    u8 buttons = 0;
+    u8 hat = 0;
+    bool hat_none = false;
+    int device = -1;
 
-    u16 mask = ButtonMask(button);
+    if (action != "press" && action != "release" && action != "press_and_release")
+        return {{"error", "Invalid action"}};
 
-    if (mask == 0)
-        return {{"error", "Invalid button name"}};
-
-    // A mouse moves with the directions, held or one step per tap, and clicks with A (left) and B (right)
-    if (IsMouseController(player))
+    for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
     {
-        const u16 directions = GDOX_GAMEPAD_UP | GDOX_GAMEPAD_DOWN | GDOX_GAMEPAD_LEFT | GDOX_GAMEPAD_RIGHT;
+        if (!arguments.contains(k_joystick_axis_names[i]))
+            continue;
 
-        if ((mask & (directions | GDOX_GAMEPAD_A | GDOX_GAMEPAD_B)) == 0)
-            return {{"error", "A mouse only supports up, down, left, right, A (left button) and B (right button)"}};
+        s64 value = arguments[k_joystick_axis_names[i]].get<s64>();
 
-        if (mask & directions)
+        if (value < -32768 || value > 32767)
+            return {{"error", std::string(k_joystick_axis_names[i]) + " must be -32768 to 32767"}};
+
+        axes[i] = (s32)value;
+        has_axes = true;
+    }
+
+    if (has_buttons)
+    {
+        const json& list = arguments["buttons"];
+
+        for (json::const_iterator it = list.begin(); it != list.end(); ++it)
         {
-            if (action != "press" && action != "release" && action != "press_and_release")
-                return {{"error", "Invalid action"}};
+            int number = it->get<int>();
 
-            ForgetMousePointer(player);
+            if (number < 1 || number > 4)
+                return {{"error", "Joystick buttons are 1 to 4"}};
 
-            json result = {{"success", true}, {"player", player}, {"button", button}, {"action", action}};
-
-            if (action == "press_and_release")
-            {
-                int delta_x = mask == GDOX_GAMEPAD_LEFT ? -k_mcp_mouse_motion_step :
-                    (mask == GDOX_GAMEPAD_RIGHT ? k_mcp_mouse_motion_step : 0);
-                int delta_y = mask == GDOX_GAMEPAD_UP ? -k_mcp_mouse_motion_step :
-                    (mask == GDOX_GAMEPAD_DOWN ? k_mcp_mouse_motion_step : 0);
-                ApplyMouseMotion(player, delta_x, delta_y);
-                result["mouse_delta_x"] = delta_x;
-                result["mouse_delta_y"] = delta_y;
-            }
-            else
-                result["__mouse_motion"] = true;
-
-            return result;
+            buttons |= (u8)(1 << (number - 1));
         }
+    }
+
+    if (has_hat)
+    {
+        std::string name = to_lower(arguments["hat"].get<std::string>());
+        bool found = false;
+
+        for (size_t i = 0; i < sizeof(k_joystick_hat_directions) / sizeof(k_joystick_hat_directions[0]); i++)
+        {
+            if (name == k_joystick_hat_directions[i].name)
+            {
+                hat = k_joystick_hat_directions[i].hat;
+                hat_none = hat == 0;
+                found = true;
+            }
+        }
+
+        if (!found)
+            return {{"error", "Invalid hat (must be: none, up, down, left, right, up_left, up_right, down_left, "
+                "down_right)"}};
+    }
+
+    if (arguments.contains("device"))
+    {
+        std::string name = to_lower(arguments["device"].get<std::string>());
+
+        for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
+        {
+            if (name == k_joysticks[i].id)
+                device = i;
+        }
+
+        if (device < 0)
+            return {{"error", "Invalid device (must be: none, joystick, gamepad, flightstick)"}};
+    }
+
+    json result = {{"success", true}};
+
+    if (device >= 0)
+    {
+        config_input.joystick_type = device;
+        emu_update_joystick_type();
+        result["device"] = k_joysticks[input->GetJoystickType()].id;
+    }
+
+    if (reset)
+    {
+        memset(&m_joystick, 0, sizeof(m_joystick));
+        m_joystick_axes = false;
+        result["reset"] = true;
+    }
+
+    if (has_axes)
+    {
+        for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
+        {
+            if (arguments.contains(k_joystick_axis_names[i]))
+                m_joystick.axes[i] = (s16)axes[i];
+        }
+
+        m_joystick_axes = true;
     }
 
     bool delayed_release = false;
 
-    if (action == "press")
-        m_buttons[player - 1] |= mask;
-    else if (action == "release")
-        m_buttons[player - 1] &= (u16)~mask;
-    else if (action == "press_and_release")
+    if (has_buttons || has_hat)
     {
-        m_buttons[player - 1] |= mask;
-        delayed_release = true;
-    }
-    else
-        return {{"error", "Invalid action"}};
+        if (action == "release")
+        {
+            m_joystick.buttons &= (u8)~buttons;
+            m_joystick.hat = hat_none ? 0 : (u8)(m_joystick.hat & ~hat);
+        }
+        else
+        {
+            m_joystick.buttons |= buttons;
+            m_joystick.hat = hat_none ? 0 : (u8)(m_joystick.hat | hat);
+            delayed_release = action == "press_and_release" && (buttons != 0 || hat != 0);
+        }
 
-    ApplyControllerState(player);
-    json result = {
-        {"success", true},
-        {"player", player},
-        {"button", button},
-        {"action", action}
-    };
+        result["action"] = action;
+    }
+
+    ApplyJoystickState();
 
     if (delayed_release)
-        result["__delayed_release"] = true;
-
-    return result;
-}
-
-static const char* const k_controller_type_names[] =
-{
-    "none", "gamepad", "mouse"
-};
-
-static const int k_controller_type_count = (int)(sizeof(k_controller_type_names) / sizeof(k_controller_type_names[0]));
-
-// The configuration follows so the desktop routes its host mouse and bindings the same way
-json DebugAdapter::ControllerSetType(int player, const std::string& type)
-{
-    if (player < 1 || player > GDOX_MAX_GAMEPADS)
-        return {{"error", "Invalid player number (must be 1-2)"}};
-
-    std::string name = to_lower(type);
-    int setting = -2;
-
-    if (name == "auto")
-        setting = config_ControllerType_Auto;
-
-    for (int i = 0; (setting == -2) && (i < k_controller_type_count); i++)
     {
-        if (name == k_controller_type_names[i])
-            setting = i;
+        result["__delayed_release"] = true;
+        result["__release_buttons"] = buttons;
+        result["__release_hat"] = hat;
     }
 
-    if (setting == -2)
-        return {{"error", "Invalid controller type (must be: auto, none, gamepad, mouse)"}};
+    json state = JoystickPressed(m_joystick.buttons, m_joystick.hat);
+    json injected_axes;
 
-    config_input.controller_type[player - 1] = setting;
-    emu_update_pad_types();
-    json result = ControllerGetType(player);
-    result["setting"] = name;
+    for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
+        injected_axes[k_joystick_axis_names[i]] = m_joystick.axes[i];
+
+    result["injected"] = {{"axes", m_joystick_axes ? injected_axes : json()}, {"buttons", state["buttons"]},
+        {"hat", state["hat"]}};
     return result;
 }
 
-json DebugAdapter::ControllerGetType(int player)
+void DebugAdapter::ReleaseJoystick(u8 buttons, u8 hat)
 {
-    if (player < 1 || player > GDOX_MAX_GAMEPADS)
-        return {{"error", "Invalid player number (must be 1-2)"}};
-
-    static const char* const k_sources[] = { "explicit", "database", "default", "fallback" };
-    int setting = config_input.controller_type[player - 1];
-    int type = (int)emu_get_pad_type((GDOX_Controllers)(player - 1));
-    const char* name = type >= 0 && type < k_controller_type_count ? k_controller_type_names[type] : "unknown";
-    const char* setting_name = setting == config_ControllerType_Auto ? "auto" : (setting >= 0 &&
-        setting < k_controller_type_count ? k_controller_type_names[setting] : "unknown");
-    json result = {{"success", true}, {"player", player}, {"type", name}, {"setting", setting_name},
-        {"source", k_sources[emu_get_pad_source((GDOX_Controllers)(player - 1))]}};
-    GDOX_Controller_Type wanted = GDOX_CONTROLLER_NONE;
-
-    if (emu_get_pad_mismatch((GDOX_Controllers)(player - 1), &wanted))
-        result["database_type"] = k_controller_type_names[wanted];
-
-    return result;
+    m_joystick.buttons &= (u8)~buttons;
+    m_joystick.hat &= (u8)~hat;
+    ApplyJoystickState();
 }
 
-bool DebugAdapter::IsMouseController(int player) const
+void DebugAdapter::ApplyJoystickState()
 {
-    if (player < 1 || player > GDOX_MAX_GAMEPADS)
-        return false;
-
-    return emu_get_pad_type((GDOX_Controllers)(player - 1)) == GDOX_CONTROLLER_MOUSE;
+    m_core->GetInput()->SetInjectedJoystickState(m_joystick, m_joystick_axes);
 }
 
-bool DebugAdapter::ApplyMouseMotion(int player, int delta_x, int delta_y)
+bool DebugAdapter::HasMouse() const
 {
-    if (!IsMouseController(player))
+    return m_core->GetMachineConfig().mouse != GDOX_MOUSE_NONE;
+}
+
+bool DebugAdapter::ApplyMouseMotion(int delta_x, int delta_y)
+{
+    if (!HasMouse())
         return false;
 
     if (delta_x != 0 || delta_y != 0)
-        emu_set_mouse_delta((GDOX_Controllers)(player - 1), delta_x, delta_y);
+        emu_set_mouse_delta(delta_x, delta_y);
 
     return true;
 }
 
-int DebugAdapter::FindMousePlayer() const
-{
-    for (int player = 1; player <= GDOX_MAX_GAMEPADS; player++)
-    {
-        if (IsMouseController(player))
-            return player;
-    }
-
-    return 0;
-}
-
-bool DebugAdapter::IsMouseMotionPending(int player) const
+bool DebugAdapter::IsMouseMotionPending() const
 {
     Input::Input_State* state = m_core->GetInput()->GetState();
-    return (state->mouse_x[player - 1] != 0) || (state->mouse_y[player - 1] != 0);
+    return (state->mouse_x != 0) || (state->mouse_y != 0);
 }
 
-void DebugAdapter::SetMouseButton(int player, u16 mask, bool pressed)
+void DebugAdapter::SetMouseButton(u8 mask, bool pressed)
 {
     if (pressed)
-        m_buttons[player - 1] |= mask;
+        m_mouse_buttons |= mask;
     else
-        m_buttons[player - 1] &= (u16)~mask;
+        m_mouse_buttons &= (u8)~mask;
 
-    ApplyControllerState(player);
+    m_core->GetInput()->SetInjectedMouseButtons(m_mouse_buttons);
 }
 
 static const int k_mcp_mouse_max_changed = 16384;
@@ -4959,8 +5090,8 @@ static void FindPointerShift(const u32* before, const u32* out, int width, int h
     }
 }
 
-bool DebugAdapter::FindMousePointer(int player, const u32* before, const u32* out, const u32* back, int width,
-    int height, int counts_x, int counts_y, McpMouseMiss& miss, std::string& reason)
+bool DebugAdapter::FindMousePointer(const u32* before, const u32* out, const u32* back, int width, int height,
+    int counts_x, int counts_y, McpMouseMiss& miss, std::string& reason)
 {
     miss = MCP_MOUSE_MISS_UNSEEN;
     std::vector<int> changed;
@@ -5054,8 +5185,8 @@ bool DebugAdapter::FindMousePointer(int player, const u32* before, const u32* ou
         return false;
     }
 
-    McpMousePointer& result = m_mouse_pointers[player - 1];
-    bool known = IsMousePointerKnown(player);
+    McpMousePointer& result = m_mouse_pointer;
+    bool known = IsMousePointerKnown();
 
     result.pixels_per_count_x = reliable_x ? gain_x : (known ? result.pixels_per_count_x : gain_y);
     result.pixels_per_count_y = reliable_y ? gain_y : (known ? result.pixels_per_count_y : gain_x);
@@ -5083,14 +5214,14 @@ bool DebugAdapter::FindMousePointer(int player, const u32* before, const u32* ou
     return true;
 }
 
-const McpMousePointer& DebugAdapter::GetMousePointer(int player) const
+const McpMousePointer& DebugAdapter::GetMousePointer() const
 {
-    return m_mouse_pointers[player - 1];
+    return m_mouse_pointer;
 }
 
-bool DebugAdapter::IsMousePointerKnown(int player) const
+bool DebugAdapter::IsMousePointerKnown() const
 {
-    const McpMousePointer& pointer = m_mouse_pointers[player - 1];
+    const McpMousePointer& pointer = m_mouse_pointer;
     GDOX_Runtime_Info runtime;
     emu_get_runtime(runtime);
 
@@ -5098,12 +5229,12 @@ bool DebugAdapter::IsMousePointerKnown(int player) const
         (pointer.screen_width == runtime.screen_width) && (pointer.screen_height == runtime.screen_height);
 }
 
-void DebugAdapter::MoveMousePointerEstimate(int player, int counts_x, int counts_y)
+void DebugAdapter::MoveMousePointerEstimate(int counts_x, int counts_y)
 {
-    if (!IsMousePointerKnown(player))
+    if (!IsMousePointerKnown())
         return;
 
-    McpMousePointer& pointer = m_mouse_pointers[player - 1];
+    McpMousePointer& pointer = m_mouse_pointer;
     int x = pointer.x + (int)floor((counts_x * pointer.pixels_per_count_x) + 0.5);
     int y = pointer.y + (int)floor((counts_y * pointer.pixels_per_count_y) + 0.5);
 
@@ -5112,34 +5243,28 @@ void DebugAdapter::MoveMousePointerEstimate(int player, int counts_x, int counts
     pointer.estimated = true;
 }
 
-void DebugAdapter::ForgetMousePointer(int player)
+void DebugAdapter::ForgetMousePointer()
 {
-    m_mouse_pointers[player - 1].valid = false;
+    m_mouse_pointer.valid = false;
 }
 
-bool DebugAdapter::IsMouseButtonHeld(int player) const
+bool DebugAdapter::IsMouseButtonHeld() const
 {
-    return (m_buttons[player - 1] & (GDOX_GAMEPAD_A | GDOX_GAMEPAD_B)) != 0;
+    return m_mouse_buttons != 0;
 }
 
-json DebugAdapter::MouseGetCursor(int player)
+json DebugAdapter::MouseGetCursor()
 {
     if (!m_core || emu_is_empty())
         return {{"error", "Emulator is powered off"}};
 
-    if (player == 0)
-        player = FindMousePlayer();
+    if (!HasMouse())
+        return {{"error", "The machine has no mouse, set Mouse in the machine configuration"}};
 
-    if (player == 0)
-        return {{"error", "No game port is set to mouse, use controller_set_type"}};
+    const McpMousePointer& pointer = m_mouse_pointer;
+    json result = {{"success", true}};
 
-    if (!IsMouseController(player))
-        return {{"error", "Port " + std::to_string(player) + " is not a mouse"}};
-
-    const McpMousePointer& pointer = m_mouse_pointers[player - 1];
-    json result = {{"success", true}, {"player", player}};
-
-    if (!IsMousePointerKnown(player))
+    if (!IsMousePointerKnown())
     {
         result["known"] = false;
         return result;
@@ -5232,41 +5357,155 @@ json DebugAdapter::KeyboardKey(const std::string& key, const std::string& action
     return result;
 }
 
-json DebugAdapter::GetInputState()
+static json mouse_button_names(u8 buttons)
 {
-    static const char* names[] = {
-        "up", "down", "left", "right", "select", "run",
-        "A", "B"
-    };
-    static const u16 masks[] = {
-        GDOX_GAMEPAD_UP, GDOX_GAMEPAD_DOWN, GDOX_GAMEPAD_LEFT, GDOX_GAMEPAD_RIGHT,
-        GDOX_GAMEPAD_SELECT, GDOX_GAMEPAD_RUN, GDOX_GAMEPAD_A, GDOX_GAMEPAD_B
-    };
+    json names = json::array();
 
-    json players = json::array();
+    if ((buttons & GDOX_MOUSE_LEFT) != 0)
+        names.push_back("left");
 
-    for (int player = 0; player < GDOX_MAX_GAMEPADS; player++)
+    if ((buttons & GDOX_MOUSE_RIGHT) != 0)
+        names.push_back("right");
+
+    if ((buttons & GDOX_MOUSE_MIDDLE) != 0)
+        names.push_back("middle");
+
+    return names;
+}
+
+static json hex_bytes(const u8* bytes, int count)
+{
+    json list = json::array();
+    char text[8];
+
+    for (int i = 0; i < count; i++)
     {
-        json pressed = json::array();
-        u16 buttons = m_core->GetInput()->GetGamePadState(player).buttons;
-
-        for (size_t i = 0; i < sizeof(masks) / sizeof(masks[0]); i++)
-        {
-            if (buttons & masks[i])
-                pressed.push_back(names[i]);
-        }
-
-        json port = ControllerGetType(player + 1);
-        json entry = {{"player", player + 1}, {"type", port["type"]}, {"setting", port["setting"]},
-            {"source", port["source"]}, {"pressed", pressed}};
-
-        if (port.contains("database_type"))
-            entry["database_type"] = port["database_type"];
-
-        players.push_back(entry);
+        snprintf(text, sizeof(text), "%02X", bytes[i]);
+        list.push_back(text);
     }
 
-    return {{"players", players}};
+    return list;
+}
+
+json DebugAdapter::GetMouseState()
+{
+    Input* input = m_core->GetInput();
+    Input::Input_State* host = input->GetState();
+    int type = m_core->GetMachineConfig().mouse;
+
+    if (type < 0 || type >= GDOX_MOUSE_TYPE_COUNT)
+        type = GDOX_MOUSE_NONE;
+
+    json result = {{"type", k_mice[type].id}, {"name", k_mice[type].name}};
+
+    if (type == GDOX_MOUSE_NONE)
+        return result;
+
+    result["host"] = {{"pending_x", host->mouse_x}, {"pending_y", host->mouse_y},
+        {"buttons", mouse_button_names(input->GetMouseButtons())}};
+    result["injected_buttons"] = mouse_button_names(m_mouse_buttons);
+
+    if (type == GDOX_MOUSE_PS2)
+    {
+        PS2Mouse::PS2Mouse_State* mouse = m_core->GetPS2Mouse()->GetState();
+        const char* mode = mouse->wrap ? "wrap" : (mouse->remote ? "remote" : "stream");
+
+        result["ps2"] = {
+            {"mode", mode},
+            {"reporting", mouse->enabled},
+            {"rate", mouse->rate},
+            {"resolution", mouse->resolution},
+            {"counts_per_mm", 1 << mouse->resolution},
+            {"scaling_2_1", mouse->scaling},
+            {"clock_enabled", mouse->clock_enabled},
+            {"buttons", mouse_button_names(mouse->buttons)},
+            {"accumulated", {{"x", mouse->x}, {"y", mouse->y}}},
+            {"queued_bytes", hex_bytes(mouse->reply, mouse->reply_count)},
+            {"last_packet", hex_bytes(mouse->last, mouse->last_count)},
+            {"receiving", m_core->GetPS2Mouse()->IsReceiving()},
+            {"resetting", mouse->resetting}
+        };
+    }
+    else
+    {
+        SerialMouse::SerialMouse_State* mouse = m_core->GetSerialPorts()->GetMouse()->GetState();
+
+        result["serial"] = {
+            {"port", "COM1"},
+            {"rts", mouse->rts},
+            {"ready", mouse->ready},
+            {"buttons", mouse_button_names(mouse->buttons)},
+            {"queued_bytes", hex_bytes(mouse->queue, mouse->queue_count)},
+            {"identification_pending", mouse->ident_clocks != GDOX_NO_EVENT}
+        };
+    }
+
+    return result;
+}
+
+json DebugAdapter::GetJoystickState()
+{
+    Input* input = m_core->GetInput();
+    GamePort* game_port = m_core->GetGamePort();
+    GamePort::GamePort_State* port = game_port->GetState();
+    const GDOX_Joystick_State& state = input->GetJoystickState();
+    int type = input->GetJoystickType();
+    u64 clocks = m_core->GetScheduler()->GetClocks();
+    u8 value = game_port->Peek(clocks);
+    json axes = json::object();
+    json pulses = json::array();
+    json pressed = JoystickPressed(state.buttons, state.hat);
+
+    if (type < 0 || type >= GDOX_JOYSTICK_TYPE_COUNT)
+        type = GDOX_JOYSTICK_NONE;
+
+    for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
+    {
+        axes[k_joystick_axis_names[i]] = state.axes[i];
+
+        json pulse = {{"axis", k_joystick_axis_names[i]}, {"bit", i}, {"high", (value & (1 << i)) != 0}};
+
+        if (port->pulse_end[i] == GDOX_NO_EVENT)
+            pulse["pulse_us"] = "open";
+        else if (port->pulse_end[i] == 0)
+            pulse["pulse_us"] = json();
+        else
+            pulse["pulse_us"] = (double)((port->pulse_end[i] - port->fire_clocks) * 10000000 /
+                GDOX_MACHINE_CLOCK_RATE) / 10.0;
+
+        pulses.push_back(pulse);
+    }
+
+    json injected_axes;
+
+    for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
+        injected_axes[k_joystick_axis_names[i]] = m_joystick.axes[i];
+
+    json injected = JoystickPressed(m_joystick.buttons, m_joystick.hat);
+    injected["axes"] = m_joystick_axes ? injected_axes : json();
+
+    return {
+        {"type", k_joysticks[type].id},
+        {"name", k_joysticks[type].name},
+        {"axes", axes},
+        {"buttons", pressed["buttons"]},
+        {"hat", pressed["hat"]},
+        {"injected", injected},
+        {"game_port", {
+            {"port", "0201"},
+            {"value", Hex(value, 2)},
+            {"switches", Hex(value >> 4, 1)},
+            {"fired", port->fire_clocks != 0},
+            {"fire_age_us", port->fire_clocks != 0 ?
+                json((double)((clocks - port->fire_clocks) * 10000000 / GDOX_MACHINE_CLOCK_RATE) / 10.0) : json()},
+            {"pulses", pulses}
+        }}
+    };
+}
+
+json DebugAdapter::GetInputState()
+{
+    return {{"mouse", GetMouseState()}, {"joystick", GetJoystickState()}};
 }
 
 json DebugAdapter::GetRewindStatus()
@@ -5325,20 +5564,13 @@ json DebugAdapter::RewindSeek(int snapshot)
     return result;
 }
 
-void DebugAdapter::ApplyControllerState(int player)
+void DebugAdapter::ClearInjectedInput()
 {
-    GDOX_GamePad_State state = {m_buttons[player - 1]};
-    m_core->GetInput()->SetInjectedGamePadState(player - 1, state);
-}
-
-void DebugAdapter::ClearControllerState()
-{
-    for (int player = 0; player < GDOX_MAX_GAMEPADS; player++)
-    {
-        m_buttons[player] = 0;
-        GDOX_GamePad_State state = {0};
-        m_core->GetInput()->SetInjectedGamePadState(player, state);
-    }
+    m_mouse_buttons = 0;
+    m_core->GetInput()->SetInjectedMouseButtons(0);
+    memset(&m_joystick, 0, sizeof(m_joystick));
+    m_joystick_axes = false;
+    ApplyJoystickState();
 }
 
 std::string DebugAdapter::Hex(u32 value, int digits) const

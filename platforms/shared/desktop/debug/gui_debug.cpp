@@ -152,8 +152,14 @@ void gui_debug_windows(void)
         if (config_debug.show_bios_log)
             gui_debug_window_bios_log();
 
-        if (config_debug.show_game_ports)
-            gui_debug_window_game_ports();
+        if (config_debug.show_mouse_joystick)
+            gui_debug_window_mouse_joystick();
+
+        if (config_debug.show_serial_ports)
+            gui_debug_window_serial_ports();
+
+        if (config_debug.show_parallel_port)
+            gui_debug_window_parallel_port();
 
         if (config_debug.show_keyboard)
             gui_debug_window_keyboard();
