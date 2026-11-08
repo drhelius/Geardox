@@ -185,8 +185,7 @@ INLINE const u8* Memory::FindReadSpan(u32 physical, u32 size, const DebugRegion*
 
     region = FindPageSpan(physical, size);
 
-    if (!IsValidPointer(region) || !IsValidPointer(region->read_data) ||
-        (region->info.flags & GDOX_DEBUG_REGION_READABLE) == 0)
+    if (!IsValidPointer(region) || !IsValidPointer(region->read_data) || (region->info.flags & GDOX_DEBUG_REGION_READABLE) == 0)
         return NULL;
 
     u32 offset = NormalizePhysicalAddress(physical) - region->info.physical_base;
@@ -336,8 +335,7 @@ u32 Memory::Read32Physical(u32 physical, GDOX_Bus_Access_Context& context)
     if (IsValidPointer(data))
         return read_u32_le(data);
 
-    if (IsValidPointer(region) && IsValidPointer(region->read32) &&
-        (region->info.flags & GDOX_DEBUG_REGION_READABLE) != 0)
+    if (IsValidPointer(region) && IsValidPointer(region->read32) && (region->info.flags & GDOX_DEBUG_REGION_READABLE) != 0)
     {
         GDOX_Bus_Access_Context* outer = m_access_context;
         m_access_context = &context;
@@ -562,6 +560,35 @@ bool Memory::SetRegionMapped(int id, bool mapped)
         region->info.flags &= ~GDOX_DEBUG_REGION_MAPPED;
 
     RemapRange(region->info.physical_base, region->info.size);
+    return true;
+}
+
+// Board registers move what a region maps: the pages it leaves and the ones it takes are mapped again
+bool Memory::SetRegionSpan(int id, u32 physical_base, u32 size, const u8* read_data, u8* write_data)
+{
+    DebugRegion* region = FindRegion(id);
+
+    if (!IsValidPointer(region) || size == 0 || (u64)physical_base + size > 0x100000000ULL ||
+        ((region->info.flags & GDOX_DEBUG_REGION_READABLE) != 0 && !IsValidPointer(read_data)) ||
+        ((region->info.flags & GDOX_DEBUG_REGION_WRITABLE) != 0 && !IsValidPointer(write_data)))
+        return false;
+
+    u32 old_base = region->info.physical_base;
+    u32 old_size = region->info.size;
+    region->info.physical_base = physical_base;
+    region->info.size = size;
+    region->read_data = read_data;
+    region->write_data = write_data;
+    m_region_generation++;
+
+    if ((region->info.flags & GDOX_DEBUG_REGION_MAPPED) == 0)
+    {
+        m_debug_snapshot_id++;
+        return true;
+    }
+
+    RemapRange(old_base, old_size);
+    RemapRange(physical_base, size);
     return true;
 }
 
@@ -1312,12 +1339,14 @@ u8 Memory::GetBusClass(const GDOX_Debug_Memory_Region& info)
     switch (info.id)
     {
         case GDOX_DEBUG_REGION_MAIN_RAM:
+        case GDOX_DEBUG_REGION_BIOS_COPY:
+        case GDOX_DEBUG_REGION_SHADOW_ROM:
+        case GDOX_DEBUG_REGION_SHADOW_BIOS:
             return GDOX_BUS_DRAM;
         case GDOX_DEBUG_REGION_VRAM:
         case GDOX_DEBUG_REGION_VIDEO_APERTURE:
             return GDOX_BUS_VRAM;
         case GDOX_DEBUG_REGION_SYSTEM_ROM:
-        case GDOX_DEBUG_REGION_BIOS_COPY:
         case GDOX_DEBUG_REGION_VGA_ROM:
             return GDOX_BUS_ROM;
         case GDOX_DEBUG_REGION_CMOS:

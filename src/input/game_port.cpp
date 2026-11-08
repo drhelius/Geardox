@@ -87,8 +87,7 @@ void GamePort::Write(u64 clocks)
 
     for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
     {
-        m_state.pulse_end[i] = IsAxisConnected(type, i) ?
-            clocks + GetPulseClocks(GetAxisPosition(type, i)) : GDOX_NO_EVENT;
+        m_state.pulse_end[i] = IsAxisConnected(type, i) ? clocks + GetPulseClocks(GetAxisPosition(type, i)) : GDOX_NO_EVENT;
     }
 
     if (IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_JOYSTICK_FIRE))

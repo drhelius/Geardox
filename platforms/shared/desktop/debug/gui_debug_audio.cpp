@@ -41,8 +41,7 @@ static const char* const k_dsp_format_names[6] = { "PCM 8", "PCM 16", "ADPCM 2",
 
 static float* scope_buffer = NULL;
 
-static void draw_scope(const char* id, const s16* data, int stride, int count, float scale, ImVec2 size,
-    const ImVec4& color);
+static void draw_scope(const char* id, const s16* data, int stride, int count, float scale, ImVec2 size, const ImVec4& color);
 static void draw_stereo_scope(const char* id, int source, float scale, ImVec2 size);
 static bool draw_mute_button(const char* id, bool muted, const char* tooltip);
 static void draw_grid_label(const char* label);
@@ -528,8 +527,7 @@ void gui_debug_window_cdrom_audio(void)
     ImGui::PopStyleVar();
 }
 
-static void draw_scope(const char* id, const s16* data, int stride, int count, float scale, ImVec2 size,
-    const ImVec4& color)
+static void draw_scope(const char* id, const s16* data, int stride, int count, float scale, ImVec2 size, const ImVec4& color)
 {
     count = MIN(count, GDOX_AUDIO_BUFFER_SIZE / 2);
 

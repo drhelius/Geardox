@@ -222,8 +222,7 @@ static bool scsi_sense_is_media_unavailable(const UCHAR* sense)
     UCHAR sense_key = sense[2] & 0x0F;
     UCHAR asc = sense[12];
 
-    return ((sense_key == 0x02) && ((asc == 0x04) || (asc == 0x3A))) ||
-        ((sense_key == 0x06) && ((asc == 0x28) || (asc == 0x29)));
+    return ((sense_key == 0x02) && ((asc == 0x04) || (asc == 0x3A))) || ((sense_key == 0x06) && ((asc == 0x28) || (asc == 0x29)));
 }
 
 static bool read_cd_spti(HANDLE file, u32 lba, u32 sector_count, u8* buffer, bool audio, bool* media_unavailable)

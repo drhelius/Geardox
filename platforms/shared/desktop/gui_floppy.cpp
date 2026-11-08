@@ -116,8 +116,7 @@ static void drive_menu(int drive, int drives)
         ImGui::TextDisabled("Empty");
     else
     {
-        const char* name = info.state_owned ? "Saved-state image" :
-            emu_floppy_get_disk_name(drive, info.disk_index);
+        const char* name = info.state_owned ? "Saved-state image" : emu_floppy_get_disk_name(drive, info.disk_index);
         ImGui::Text("%.40s%s", name, strlen(name) > 40 ? "..." : "");
 
         if (ImGui::IsItemHovered() && info.path[0])
@@ -362,8 +361,7 @@ static bool perform(bool discard_changes)
             done = emu_floppy_select_disk(pending_drive, pending_index, discard_changes);
             break;
         case Floppy_Action_Blank:
-            done = emu_floppy_create_blank(pending_drive, pending_path.c_str(), blank_type, blank_formatted,
-                discard_changes);
+            done = emu_floppy_create_blank(pending_drive, pending_path.c_str(), blank_type, blank_formatted, discard_changes);
             error = "Unable to create the blank disk.";
             break;
         case Floppy_Action_Eject:

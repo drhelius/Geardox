@@ -151,8 +151,7 @@ void Video::RenderText(u32* destination, int x, int end)
     u32 font_b = (map & 0x03) * 0x4000 + ((map & 0x10) != 0 ? 0x2000 : 0);
     u32 underline = m_state.crtc[k_video_cr_underline] & 0x1F;
     u32 cursor = GetCursorAddress();
-    bool cursor_on = (cursor_start & 0x20) == 0 && GetCursorPhase() && row >= (u32)(cursor_start & 0x1F) &&
-        row <= cursor_end;
+    bool cursor_on = (cursor_start & 0x20) == 0 && GetCursorPhase() && row >= (u32)(cursor_start & 0x1F) && row <= cursor_end;
     bool blink = (mode & 0x08) != 0;
     bool blink_phase = GetBlinkPhase();
     bool line_graphics = (mode & 0x04) != 0;

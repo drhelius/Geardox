@@ -1227,8 +1227,7 @@ json DebugAdapter::MemorySearch(int area, const std::string& op, const std::stri
         return {{"error", "Invalid compare_type"}};
 
     std::vector<GuiDebugMemorySearchResult> results;
-    int count = gui_debug_memory_search(info.source, op_index, previous, compare_value, data_type == "signed",
-        results);
+    int count = gui_debug_memory_search(info.source, op_index, previous, compare_value, data_type == "signed", results);
 
     if (count < 0)
         return {{"error", "No search captured in this area, call memory_search_capture first"}};
@@ -1264,8 +1263,7 @@ json DebugAdapter::MemorySearch(int area, const std::string& op, const std::stri
     return result;
 }
 
-json DebugAdapter::MemoryFind(int area, const std::string& value, bool text, bool case_sensitive,
-    const json& arguments)
+json DebugAdapter::MemoryFind(int area, const std::string& value, bool text, bool case_sensitive, const json& arguments)
 {
     GuiDebugMemoryArea info;
     std::string error;
@@ -1582,8 +1580,7 @@ json DebugAdapter::WriteI386Register(const std::string& name, u32 value)
         bool task = reg == "TR";
 
         // Like LLDT and LTR, the selector loads its descriptor from the GDT
-        if (!gui_debug_i386_load_system_segment(state, task, value, task ? state.task_register : state.ldtr, text,
-            sizeof(text)))
+        if (!gui_debug_i386_load_system_segment(state, task, value, task ? state.task_register : state.ldtr, text, sizeof(text)))
             return {{"error", text}};
     }
     else
@@ -1625,13 +1622,11 @@ json DebugAdapter::GetDisassembly(u32 start_address, u32 end_address, int count,
     json lines = json::array();
 
     // A passive decode, so the GUI disassembler and its labels don't change
-    while ((count > 0 ? (int)lines.size() < count : address <= end_address) &&
-        (int)lines.size() < k_mcp_max_disassembly_lines)
+    while ((count > 0 ? (int)lines.size() < count : address <= end_address) && (int)lines.size() < k_mcp_max_disassembly_lines)
     {
         u32 eip = address - code.base;
         I386_Disassembler_Record decoded;
-        I386_Disassembler_Record* record = eip <= code.limit && cpu->DisassemblePassive(code, eip, decoded) ?
-            &decoded : NULL;
+        I386_Disassembler_Record* record = eip <= code.limit && cpu->DisassemblePassive(code, eip, decoded) ? &decoded : NULL;
 
         if (!IsValidPointer(record) || record->name[0] == 0 || record->size <= 0)
         {
@@ -3035,6 +3030,9 @@ json DebugAdapter::GetSystemStatus()
             {"key", profile.key},
             {"cpu", k_machine_cpus[machine.cpu].name},
             {"cpu_clock_hz", machine.cpu_clock_rate},
+            {"turbo", m_core->IsTurbo()},
+            {"cpu_clock_effective_hz", m_core->GetEffectiveCPUClockRate()},
+            {"cpu_cache_serving", m_core->GetI386()->IsBusCached()},
             {"ram_kb", machine.ram_size / 1024},
             {"fpu", machine.fpu ? json(get_machine_fpu_name(machine.cpu)) : json()},
             {"floppy_drives", machine.floppy_drives},
@@ -3158,6 +3156,12 @@ json DebugAdapter::GetSoundStatus()
         result["mpu401"] = {{"uart", mpu->uart}, {"pending", mpu->count}};
 
     return result;
+}
+
+json DebugAdapter::SetTurbo(bool turbo)
+{
+    emu_set_turbo(turbo);
+    return {{"success", true}, {"turbo", m_core->IsTurbo()}, {"cpu_clock_effective_hz", m_core->GetEffectiveCPUClockRate()}};
 }
 
 json DebugAdapter::SetAudioMute(const std::string& source, bool mute)
@@ -4090,8 +4094,7 @@ json DebugAdapter::SetTraceLog(bool enabled, u32 flags, const std::string& outpu
 
     result["filters"] = event_filter_list;
 
-    if ((enabled_flags & TRACE_FLAG_VIDEO) != 0 &&
-        (tl->GetEventFilter(TRACE_VIDEO) & TRACE_VIDEO_EVENT_MISSED_VBLANK) != 0)
+    if ((enabled_flags & TRACE_FLAG_VIDEO) != 0 && (tl->GetEventFilter(TRACE_VIDEO) & TRACE_VIDEO_EVENT_MISSED_VBLANK) != 0)
     {
         char address[16];
         snprintf(address, sizeof(address), "%08X", (u32)config_debug.trace_vblank_watch_address);
@@ -4359,10 +4362,8 @@ json DebugAdapter::GetScreenshot()
 
 static const char* const k_video_recording_ratios[] = { "screen", "square", "4:3", "16:9" };
 static const char* const k_video_recording_qualities[] = { "low", "medium", "high", "lossless", "lossless_compressed" };
-static const int k_video_recording_ratio_count =
-    sizeof(k_video_recording_ratios) / sizeof(k_video_recording_ratios[0]);
-static const int k_video_recording_quality_count =
-    sizeof(k_video_recording_qualities) / sizeof(k_video_recording_qualities[0]);
+static const int k_video_recording_ratio_count = sizeof(k_video_recording_ratios) / sizeof(k_video_recording_ratios[0]);
+static const int k_video_recording_quality_count = sizeof(k_video_recording_qualities) / sizeof(k_video_recording_qualities[0]);
 
 static int find_video_recording_option(const std::string& value, const char* const* options, int count)
 {
@@ -5179,8 +5180,7 @@ static const int k_mcp_mouse_min_size = 3;
 static const double k_mcp_mouse_min_scale = 0.125;
 static const double k_mcp_mouse_max_scale = 8.0;
 
-static bool IsMovedPointerPixel(const u32* before, const u32* out, int width, int height, int index, int shift_x,
-    int shift_y)
+static bool IsMovedPointerPixel(const u32* before, const u32* out, int width, int height, int index, int shift_x, int shift_y)
 {
     int x = (index % width) + shift_x;
     int y = (index / width) + shift_y;
@@ -5736,8 +5736,7 @@ std::string DebugAdapter::FormatAreaOffset(const GuiDebugMemoryArea& area, u32 o
     return Hex(offset, MAX(digits, 4));
 }
 
-bool DebugAdapter::ParseAreaOffset(const GuiDebugMemoryArea& area, const std::string& text, u32& offset,
-    std::string& error)
+bool DebugAdapter::ParseAreaOffset(const GuiDebugMemoryArea& area, const std::string& text, u32& offset, std::string& error)
 {
     if (area.source.space == GDOX_DEBUG_MEMORY_LINEAR)
     {
@@ -5759,8 +5758,7 @@ bool DebugAdapter::ParseAreaOffset(const GuiDebugMemoryArea& area, const std::st
     return true;
 }
 
-bool DebugAdapter::GetAreaRange(const GuiDebugMemoryArea& area, const json& arguments, u32& start, u32& size,
-    std::string& error)
+bool DebugAdapter::GetAreaRange(const GuiDebugMemoryArea& area, const json& arguments, u32& start, u32& size, std::string& error)
 {
     const u64 max_size = 0x04000000;
     start = 0;

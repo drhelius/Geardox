@@ -559,8 +559,7 @@ void MemEditor::DrawOptions()
 
     u32 selected = GetSelectionStart() - m_buffer_base;
 
-    if (GetSelectionStart() >= m_buffer_base && selected < m_status.size() &&
-        m_status[selected] == GDOX_DEBUG_MEMORY_READ_ONLY)
+    if (GetSelectionStart() >= m_buffer_base && selected < m_status.size() && m_status[selected] == GDOX_DEBUG_MEMORY_READ_ONLY)
     {
         ImGui::SameLine();
         ImGui::TextColored(gray, "READ-ONLY");
@@ -580,8 +579,7 @@ void MemEditor::DrawOptions()
 
     char view[32];
     s64 view_end = (s64)m_view_address + (s64)m_visible_rows * GetBytesPerRow() - 1;
-    snprintf(view, sizeof(view), "%08X-%08X", m_view_address,
-        (u32)MIN(view_end, (s64)m_provider->GetAddressLimit(m_source)));
+    snprintf(view, sizeof(view), "%08X-%08X", m_view_address, (u32)MIN(view_end, (s64)m_provider->GetAddressLimit(m_source)));
     ImGui::SameLine();
     DrawRightAligned("VIEW:", view);
 
@@ -654,8 +652,7 @@ void MemEditor::DrawGrid()
     ImVec2 position = ImGui::GetCursorScreenPos();
     ImVec2 available = ImGui::GetContentRegionAvail();
     ImVec2 grid_size(MAX(available.x - scrollbar_size, 1.0f), MAX(available.y - status_bar_height, 1.0f));
-    ImRect scrollbar(position.x + grid_size.x, position.y, position.x + grid_size.x + scrollbar_size,
-        position.y + grid_size.y);
+    ImRect scrollbar(position.x + grid_size.x, position.y, position.x + grid_size.x + scrollbar_size, position.y + grid_size.y);
     ImGuiIO& io = ImGui::GetIO();
     ImS64 row = m_view_address / bytes_per_row;
 
@@ -849,8 +846,7 @@ void MemEditor::DrawCell(u32 address, u32 offset, int column, int bytes_per_row,
     ImVec2 cell_size = ImVec2((float)(int)cell_width + padding.x * 2.0f, ImGui::GetTextLineHeight() + padding.y * 2.0f);
     ImVec2 cell_maximum = cell_minimum + cell_size;
     ImGuiHoveredFlags hover_flags = ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem;
-    bool cell_hovered = ImGui::IsWindowHovered(hover_flags) &&
-        ImGui::IsMouseHoveringRect(cell_minimum, cell_maximum, false);
+    bool cell_hovered = ImGui::IsWindowHovered(hover_flags) && ImGui::IsMouseHoveringRect(cell_minimum, cell_maximum, false);
 
     if (cell_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
@@ -911,8 +907,7 @@ void MemEditor::DrawCell(u32 address, u32 offset, int column, int bytes_per_row,
                 {
                     m_editing_address = address + 1;
                     m_selection_start = m_selection_end = address + 1;
-                    snprintf(m_edit_buffer, sizeof(m_edit_buffer), "%02X",
-                        offset + 1 < m_data.size() ? m_data[offset + 1] : 0);
+                    snprintf(m_edit_buffer, sizeof(m_edit_buffer), "%02X", offset + 1 < m_data.size() ? m_data[offset + 1] : 0);
                     m_edit_focus = true;
                     KeepVisible(address + 1, bytes_per_row);
                 }

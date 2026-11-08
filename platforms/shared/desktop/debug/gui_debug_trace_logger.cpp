@@ -193,8 +193,7 @@ void gui_debug_window_trace_logger(void)
     if ((trace_logger_enabled && trace_logger_follow_latest) || trace_logger_scroll_to_bottom)
         ImGui::SetNextWindowScroll(ImVec2(-1.0f, content_height));
 
-    if (ImGui::BeginChild("##logger", ImVec2(ImGui::GetContentRegionAvail().x, 0), true,
-        ImGuiWindowFlags_HorizontalScrollbar))
+    if (ImGui::BeginChild("##logger", ImVec2(ImGui::GetContentRegionAvail().x, 0), true, ImGuiWindowFlags_HorizontalScrollbar))
     {
         float scroll_y = ImGui::GetScrollY();
         float scroll_max_y = ImGui::GetScrollMaxY();
@@ -804,8 +803,7 @@ static void trace_logger_menu_filters(void)
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_serial);
         trace_logger_menu_event_filter("Data", &config_debug.trace_serial_events, TRACE_SERIAL_EVENT_DATA);
-        trace_logger_menu_event_filter("Modem Lines and IRQs", &config_debug.trace_serial_events,
-            TRACE_SERIAL_EVENT_CONTROL);
+        trace_logger_menu_event_filter("Modem Lines and IRQs", &config_debug.trace_serial_events, TRACE_SERIAL_EVENT_CONTROL);
         trace_logger_menu_event_filter("Register Writes", &config_debug.trace_serial_events, TRACE_SERIAL_EVENT_WRITES);
         ImGui::EndDisabled();
         ImGui::EndMenu();
@@ -940,8 +938,7 @@ static bool trace_logger_start_disk(void)
     trace_logger_disk_error = false;
     trace_logger_disk_last_flush = SDL_GetTicks();
     emu_get_core()->GetTraceLogger()->Reset();
-    gui_notify(gui_NotificationInfo, ICON_MD_FIBER_MANUAL_RECORD, "Trace recording started", trace_logger_disk_path,
-        "trace");
+    gui_notify(gui_NotificationInfo, ICON_MD_FIBER_MANUAL_RECORD, "Trace recording started", trace_logger_disk_path, "trace");
     return true;
 }
 
@@ -1097,8 +1094,7 @@ static bool trace_logger_flush_disk_entries(void)
         int length;
 
         if (config_debug.trace_counter)
-            length = snprintf(line, sizeof(line), "%06llu %s\n", (unsigned long long)trace_logger_disk_entries,
-                entry_text);
+            length = snprintf(line, sizeof(line), "%06llu %s\n", (unsigned long long)trace_logger_disk_entries, entry_text);
         else
             length = snprintf(line, sizeof(line), "%s\n", entry_text);
 

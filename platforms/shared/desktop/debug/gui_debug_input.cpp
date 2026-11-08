@@ -423,8 +423,7 @@ static void draw_joystick(GeardoxCore* core)
 
     ImGui::TableNextRow();
     draw_grid_label("TYPE");
-    ImGui::TextColored(type == GDOX_JOYSTICK_NONE ? gray : orange, "%s",
-        k_joysticks[type % GDOX_JOYSTICK_TYPE_COUNT].name);
+    ImGui::TextColored(type == GDOX_JOYSTICK_NONE ? gray : orange, "%s", k_joysticks[type % GDOX_JOYSTICK_TYPE_COUNT].name);
 
     ImGui::TableNextRow();
     draw_grid_label("PORT");

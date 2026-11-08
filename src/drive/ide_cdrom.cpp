@@ -175,8 +175,7 @@ u8 IdeCdRom::ReadRegister(int offset) const
     switch (offset)
     {
         case 0:
-            return m_state.phase == IDE_CDROM_PHASE_DATA_IN ?
-                m_state.buffer[m_state.block_start + m_state.position] : 0xFF;
+            return m_state.phase == IDE_CDROM_PHASE_DATA_IN ? m_state.buffer[m_state.block_start + m_state.position] : 0xFF;
         case 1:
             return m_state.error;
         case 2:
@@ -276,15 +275,13 @@ void IdeCdRom::Finish()
 
     if (m_state.packet_run)
     {
-        m_state.error = m_state.check ?
-            (u8)((m_state.sense_key << 4) | (m_state.sense_ili ? 0x01 : 0) | m_state.result) : 0;
+        m_state.error = m_state.check ? (u8)((m_state.sense_key << 4) | (m_state.sense_ili ? 0x01 : 0) | m_state.result) : 0;
         m_state.reason = k_ide_cdrom_reason_cod | k_ide_cdrom_reason_io;
     }
     else
         m_state.error = m_state.result;
 
-    m_state.status = (u8)((m_state.drdy ? GetReadyBits() : 0) |
-        (m_state.check ? k_ide_cdrom_status_chk : 0));
+    m_state.status = (u8)((m_state.drdy ? GetReadyBits() : 0) | (m_state.check ? k_ide_cdrom_status_chk : 0));
     m_state.interrupt = true;
     Trace(TRACE_CDROM_COMPLETE);
 }
@@ -995,8 +992,7 @@ void IdeCdRom::CommandReadCD(u32 lba, u32 count, u8 type, u8 flags, u8 sub, u64 
 
     u32 lead_out = GetLeadOut();
     u64 start = GetSpinClocks(clocks) + k_cdrom_command_clocks;
-    bool hit = (lba >= m_state.ahead_lba) && (lba + count <= m_state.ahead_end) &&
-        (m_state.ahead_end > m_state.ahead_lba);
+    bool hit = (lba >= m_state.ahead_lba) && (lba + count <= m_state.ahead_end) && (m_state.ahead_end > m_state.ahead_lba);
 
     if (hit)
     {
@@ -1108,8 +1104,7 @@ bool IdeCdRom::BuildSector(u32 lba, u8* buffer)
         {
             s16 samples[k_cdrom_raw_size / 2];
 
-            if (!m_cdrom_media->IsPlayableAudioSector(lba) ||
-                !m_cdrom_media->ReadSamples(lba, 0, samples, k_cdrom_raw_size / 2))
+            if (!m_cdrom_media->IsPlayableAudioSector(lba) || !m_cdrom_media->ReadSamples(lba, 0, samples, k_cdrom_raw_size / 2))
                 memset(samples, 0, sizeof(samples));
 
             for (u32 i = 0; i < k_cdrom_raw_size / 2; i++)

@@ -138,8 +138,7 @@ static void draw_image(const Emu_Debug_Buffer_Info& info)
             (config_debug.vram_viewer_tab == Emu_Debug_Buffer_256 ? x & 0x03 : 0);
         u32 color = ((u32*)emu_debug_framebuffer)[y * EMU_DEBUG_FRAMEBUFFER_WIDTH + x];
         float swatch = ImGui::GetTextLineHeight();
-        ImVec4 pixel = ImVec4((color & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f, ((color >> 16) & 0xFF) / 255.0f,
-            1.0f);
+        ImVec4 pixel = ImVec4((color & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f, ((color >> 16) & 0xFF) / 255.0f, 1.0f);
 
         ImGui::BeginTooltip();
         ImGui::TextColored(violet, "X,Y    "); ImGui::SameLine();

@@ -406,8 +406,7 @@ int gui_debug_load_symbols(const char* file_path, int* skipped)
             failed++;
         else if (!logical && strchr(name, '.') != NULL && IsValidPointer(gui_debug_get_user_symbol(address)))
             continue;
-        else if (logical ? gui_debug_add_logical_symbol(selector, address, name, true) :
-            gui_debug_add_user_symbol(address, name))
+        else if (logical ? gui_debug_add_logical_symbol(selector, address, name, true) : gui_debug_add_user_symbol(address, name))
         {
             if (!logical)
                 file_symbols[address] = name;
@@ -601,8 +600,7 @@ static void disassembler_menu(void)
             ImGui::PopItemWidth();
 
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Linear hex, SR:offset or SEL:offset\n"
-                    "Code not decoded yet is decoded with the current CS");
+                ImGui::SetTooltip("Linear hex, SR:offset or SEL:offset\n" "Code not decoded yet is decoded with the current CS");
 
             ImGui::SameLine();
 
@@ -1598,8 +1596,7 @@ static void draw_instruction(const I386_Disassembler_Record* record, bool breakp
         sizeof(vector_name), replaced_jump_target, port, vector);
 
     bool light_theme = config_emulator.theme == config_Theme_Light;
-    ImVec4 mnemonic_color = current_pc ? (ImVec4)yellow :
-        (breakpoint ? (ImVec4)red : (stale ? (ImVec4)gray : (ImVec4)white));
+    ImVec4 mnemonic_color = current_pc ? (ImVec4)yellow : (breakpoint ? (ImVec4)red : (stale ? (ImVec4)gray : (ImVec4)white));
     ImVec4 bytes_color = breakpoint ? (ImVec4)red : (light_theme ? (ImVec4)gray : (ImVec4)mid_gray);
     bool override_color = current_pc || breakpoint || stale;
     float space_width = ImGui::CalcTextSize(" ").x;
@@ -1745,8 +1742,7 @@ static bool is_automatic_symbol(const char* start, const char* end)
     return strncmp(start, "LOC_", 4) == 0 || strncmp(start, "SUB_", 4) == 0 || strncmp(start, "INT_", 4) == 0;
 }
 
-static void draw_operands(const char* operands, bool address_operand, bool override_color, const ImVec4& color,
-    const char* label)
+static void draw_operands(const char* operands, bool address_operand, bool override_color, const ImVec4& color, const char* label)
 {
     const char* cursor = operands;
     bool first = true;
@@ -1906,8 +1902,7 @@ static const char* replace_operand_labels(const I386_Disassembler_Record* record
     char vector_description[64];
 
     if (vector >= 0)
-        gui_debug_i386_vector_name((u8)vector, vector_name, vector_name_size, vector_description,
-            sizeof(vector_description));
+        gui_debug_i386_vector_name((u8)vector, vector_name, vector_name_size, vector_description, sizeof(vector_description));
 
     if (vector >= 0 && config_debug.dis_replace_labels && strcmp(vector_name, "INT") != 0 &&
         record->opcodes[opcode_index(record)] == 0xCD)
@@ -2812,8 +2807,7 @@ static void resolve_logical_symbols(void)
 
 static bool is_symbol_name(const char* text)
 {
-    if (!IsValidPointer(text) || text[0] == 0 || strlen(text) >= 64 || isdigit((unsigned char)text[0]) ||
-        strcmp(text, ".") == 0)
+    if (!IsValidPointer(text) || text[0] == 0 || strlen(text) >= 64 || isdigit((unsigned char)text[0]) || strcmp(text, ".") == 0)
         return false;
 
     for (const char* c = text; *c != 0; c++)

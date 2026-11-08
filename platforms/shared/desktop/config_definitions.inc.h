@@ -258,6 +258,7 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "CDROMDrive", config_machine.cdrom, GDOX_CDROM_SECONDARY_MASTER, 0,
         GDOX_CDROM_POSITION_COUNT - 1);
+    CONFIG_BOOL("Machine", "Turbo", config_machine.turbo, true);
     CONFIG_INT_RANGE("Machine", "CDROMSpeed", config_machine.cdrom_speed, GDOX_CDROM_SPEED_4X, 0,
         GDOX_CDROM_SPEED_COUNT - 1);
 
@@ -403,6 +404,7 @@ static inline void process(config_Operation operation)
         (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
     CONFIG_HOTKEY("PowerOff", config_hotkeys[config_HotkeyIndex_PowerOff], SDL_SCANCODE_F,
         (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
+    CONFIG_HOTKEY("Turbo", config_hotkeys[config_HotkeyIndex_Turbo], SDL_SCANCODE_T, SDL_KMOD_CTRL);
 }
 
 //**************************************

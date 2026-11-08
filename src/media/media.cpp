@@ -438,8 +438,7 @@ void Media::GatherDataFromDB()
         if (entry.fallback_key == key)
         {
             m_db_entry = &entry;
-            Log("Media found in database by volume label: %s. CRC: %08X, volume key: %08X", entry.title,
-                m_media_info.crc, key);
+            Log("Media found in database by volume label: %s. CRC: %08X, volume key: %08X", entry.title, m_media_info.crc, key);
             return;
         }
     }

@@ -678,8 +678,7 @@ public:
             return false;
         }
 
-        std::string response =
-            "HTTP/1.1 " + std::to_string(code) + " " + status + "\r\n";
+        std::string response = "HTTP/1.1 " + std::to_string(code) + " " + status + "\r\n";
 
         if (content_type)
         {
@@ -701,8 +700,7 @@ public:
         size_t total_sent = 0;
         while (total_sent < response.length())
         {
-            int sent = ::send(m_current_client, response.c_str() + total_sent,
-                              (int)(response.length() - total_sent), 0);
+            int sent = ::send(m_current_client, response.c_str() + total_sent, (int)(response.length() - total_sent), 0);
             if (sent <= 0)
             {
                 Error("[MCP] HTTP send() failed: %d", sent);
@@ -1038,20 +1036,17 @@ public:
 
             if (http_method == "HEAD")
             {
-                send_http_response(405, "Method Not Allowed", NULL, "", true,
-                                   "Allow: POST, OPTIONS\r\n");
+                send_http_response(405, "Method Not Allowed", NULL, "", true, "Allow: POST, OPTIONS\r\n");
             }
             else if (http_method == "GET")
             {
                 const std::string body = "{\"error\":\"SSE streaming not supported by this server\"}";
-                send_http_response(405, "Method Not Allowed", "application/json", body, true,
-                                   "Allow: POST, OPTIONS\r\n");
+                send_http_response(405, "Method Not Allowed", "application/json", body, true, "Allow: POST, OPTIONS\r\n");
             }
             else
             {
                 const std::string body = "{\"error\":\"HTTP method not supported by this server\"}";
-                send_http_response(405, "Method Not Allowed", "application/json", body, true,
-                                   "Allow: POST, OPTIONS\r\n");
+                send_http_response(405, "Method Not Allowed", "application/json", body, true, "Allow: POST, OPTIONS\r\n");
             }
 
             continue;

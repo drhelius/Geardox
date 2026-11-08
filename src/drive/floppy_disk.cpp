@@ -228,8 +228,7 @@ bool FloppyDisk::ReplaceTrack(int track, const u8* sectors, u32 size, u32 rpm)
         FloppyDisk_Sector formatted[k_floppy_max_sectors];
         int formatted_count = GetSectors(track, formatted);
 
-        m_state.media = GetTrackCells(formatted, formatted_count) > k_floppy_cells_2hd_300 ?
-            FLOPPY_MEDIA_ED : FLOPPY_MEDIA_2HD;
+        m_state.media = GetTrackCells(formatted, formatted_count) > k_floppy_cells_2hd_300 ? FLOPPY_MEDIA_ED : FLOPPY_MEDIA_2HD;
         m_state.rpm = (u16)rpm;
     }
 

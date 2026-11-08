@@ -400,8 +400,7 @@ void DMA::Serialize(StateSerializer& serializer, int version)
 
 void DMA::SanitizeState()
 {
-    if (m_state.active_channel < -1 || m_state.active_channel >= DMA_CHANNELS ||
-        m_state.active_channel == k_dma_cascade_channel)
+    if (m_state.active_channel < -1 || m_state.active_channel >= DMA_CHANNELS || m_state.active_channel == k_dma_cascade_channel)
         m_state.active_channel = -1;
 
     UpdateNextEvent();

@@ -222,8 +222,7 @@ public:
             if (m_delayed_releases[i].key != GDOX_KEY_NONE)
                 emu_key_released(m_delayed_releases[i].key);
             else if (IsValidPointer(m_debug_adapter))
-                m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons,
-                    m_delayed_releases[i].joystick_hat);
+                m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons, m_delayed_releases[i].joystick_hat);
         }
 
         m_delayed_releases.clear();
@@ -730,8 +729,7 @@ private:
         int to_x = arguments.value("to_x", 0);
         int to_y = arguments.value("to_y", 0);
 
-        if ((drag != to) || (to && (!arguments.contains("to_x") || !arguments.contains("to_y"))) ||
-            (drag && !absolute))
+        if ((drag != to) || (to && (!arguments.contains("to_x") || !arguments.contains("to_y"))) || (drag && !absolute))
         {
             result["error"] = "drag needs x, y to start and to_x, to_y to end, which only go with drag";
             return result;
@@ -768,8 +766,7 @@ private:
         macro.delta_y = arguments.value("dy", 0);
         macro.button = button;
         macro.action = action;
-        macro.button_mask = button == "right" ? GDOX_MOUSE_RIGHT :
-            (button == "middle" ? GDOX_MOUSE_MIDDLE : GDOX_MOUSE_LEFT);
+        macro.button_mask = button == "right" ? GDOX_MOUSE_RIGHT : (button == "middle" ? GDOX_MOUSE_MIDDLE : GDOX_MOUSE_LEFT);
         macro.button_steps = action == "double_click" ? 4 : ((action == "click") || drag ? 2 : 1);
         macro.button_press_first = action != "release";
         macro.press_frames = arguments.value("press_frames", k_mcp_mouse_button_frames);
@@ -918,8 +915,7 @@ private:
 
         if ((macro.send_x != 0) || (macro.send_y != 0))
         {
-            int steps = (MAX(abs(macro.send_x), abs(macro.send_y)) + k_mcp_mouse_motion_step - 1) /
-                k_mcp_mouse_motion_step;
+            int steps = (MAX(abs(macro.send_x), abs(macro.send_y)) + k_mcp_mouse_motion_step - 1) / k_mcp_mouse_motion_step;
             int step_x = ((macro.send_x * 2) + (macro.send_x < 0 ? -steps : steps)) / (steps * 2);
             int step_y = ((macro.send_y * 2) + (macro.send_y < 0 ? -steps : steps)) / (steps * 2);
             m_debug_adapter->ApplyMouseMotion(step_x, step_y);

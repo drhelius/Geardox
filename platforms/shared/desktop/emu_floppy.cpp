@@ -549,8 +549,7 @@ static bool read_playlist(const char* path, std::vector<std::string>& entries)
     std::vector<u8> data;
     std::vector<Media::PlaylistEntry> playlist;
 
-    if (!read_file(path, data) ||
-        !Media::ParsePlaylist(path, reinterpret_cast<const char*>(data.data()), data.size(), playlist))
+    if (!read_file(path, data) || !Media::ParsePlaylist(path, reinterpret_cast<const char*>(data.data()), data.size(), playlist))
         return false;
 
     for (size_t i = 0; i < playlist.size(); i++)

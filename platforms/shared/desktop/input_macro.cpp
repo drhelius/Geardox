@@ -170,8 +170,7 @@ bool input_macro_update(Input_Macro_Owner owner)
         else
         {
             emu_key_released(step.key);
-            macro_held_keys.erase(std::remove(macro_held_keys.begin(), macro_held_keys.end(), step.key),
-                macro_held_keys.end());
+            macro_held_keys.erase(std::remove(macro_held_keys.begin(), macro_held_keys.end(), step.key), macro_held_keys.end());
         }
     }
 

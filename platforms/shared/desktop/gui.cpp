@@ -268,6 +268,10 @@ void gui_shortcut(gui_ShortCutEvent event)
         gui_notify(gui_NotificationInfo, config_audio.enable ? ICON_MD_VOLUME_UP : ICON_MD_VOLUME_OFF,
             config_audio.enable ? "Audio unmuted" : "Audio muted", NULL, "mute", 1500);
         break;
+    case gui_ShortcutTurbo:
+        emu_set_turbo(!config_machine.turbo);
+        gui_notify(gui_NotificationInfo, ICON_MD_SPEED, config_machine.turbo ? "Turbo on" : "Turbo off", NULL, "turbo", 1500);
+        break;
     case gui_ShortcutSaveState:
         gui_action_save_state(NULL);
         break;
@@ -703,8 +707,7 @@ static void notify_firmware(void)
             continue;
 
         char entry[64];
-        snprintf(entry, sizeof(entry), "%s%s (CRC %08X)", unknown.empty() ? "" : ", ", Firmware::GetFileName(type),
-            info.crc);
+        snprintf(entry, sizeof(entry), "%s%s (CRC %08X)", unknown.empty() ? "" : ", ", Firmware::GetFileName(type), info.crc);
         unknown += entry;
     }
 

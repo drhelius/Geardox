@@ -105,8 +105,7 @@ void gui_file_dialog_choose_screenshot_path(void)
     if (!begin_dialog())
         return;
 
-    const char* default_path =
-        config_emulator.screenshots_path.empty() ? NULL : config_emulator.screenshots_path.c_str();
+    const char* default_path = config_emulator.screenshots_path.empty() ? NULL : config_emulator.screenshots_path.c_str();
     SDL_ShowOpenFolderDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_ChooseScreenshotPath,
         application_sdl_window, default_path, false);
 }
@@ -519,8 +518,7 @@ static void SDLCALL file_dialog_callback(void* userdata, const char* const* file
         append_extension_if_missing(pending_dialog_path, ".bin");
     else if (id == FileDialog_SaveDebugSettings)
         append_extension_if_missing(pending_dialog_path, ".gdoxdebug");
-    else if (id == FileDialog_SaveLog || id == FileDialog_SaveDisassemblerFull ||
-        id == FileDialog_SaveDisassemblerVisible)
+    else if (id == FileDialog_SaveLog || id == FileDialog_SaveDisassemblerFull || id == FileDialog_SaveDisassemblerVisible)
         append_extension_if_missing(pending_dialog_path, ".txt");
     else if (id == FileDialog_CreateHardDisk)
     {

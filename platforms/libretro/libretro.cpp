@@ -246,8 +246,7 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 
 static bool IsJoypadDevice(unsigned device)
 {
-    return (device == RETRO_DEVICE_JOYPAD) ||
-        (device == RETRO_DEVICE_PC_JOYSTICK);
+    return (device == RETRO_DEVICE_JOYPAD) || (device == RETRO_DEVICE_PC_JOYSTICK);
 }
 
 static std::string get_file_name(const char* path, bool strip_extension)
@@ -872,8 +871,7 @@ static void check_bios(void)
             continue;
 
         char entry[64];
-        snprintf(entry, sizeof(entry), "%s%s (CRC %08X)", unknown.empty() ? "" : ", ", Firmware::GetFileName(type),
-            info.crc);
+        snprintf(entry, sizeof(entry), "%s%s (CRC %08X)", unknown.empty() ? "" : ", ", Firmware::GetFileName(type), info.crc);
         unknown += entry;
     }
 
@@ -933,8 +931,7 @@ static void report_machine(void)
     for (int i = 0; i < floppy.line_count; i++)
         log_cb(floppy.warning ? RETRO_LOG_WARN : RETRO_LOG_INFO, "%s\n", floppy.lines[i]);
 
-    if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) &&
-        !floppy_notice))
+    if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) && !floppy_notice))
         return;
 
     static char message[1024];
@@ -1087,8 +1084,7 @@ static void set_input_descriptors(void)
     int count = 0;
 
     if (IsJoypadDevice(input_device))
-        count = add_input_descriptors(descriptors, count, 0, k_joystick,
-            (int)(sizeof(k_joystick) / sizeof(k_joystick[0])));
+        count = add_input_descriptors(descriptors, count, 0, k_joystick, (int)(sizeof(k_joystick) / sizeof(k_joystick[0])));
 
     count = add_input_descriptors(descriptors, count, 0, k_mouse, (int)(sizeof(k_mouse) / sizeof(k_mouse[0])));
 
@@ -1221,8 +1217,7 @@ static void apply_joystick(void)
 
         if (joystick_type == GDOX_JOYSTICK_FLIGHTSTICK)
         {
-            int throttle_y = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                RETRO_DEVICE_ID_ANALOG_Y);
+            int throttle_y = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
             s16 unused;
             apply_dead_zone(0, throttle_y, unused, state.axes[GDOX_JOYSTICK_AXIS_BY]);
 
@@ -1450,8 +1445,7 @@ static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint
 static bool update_core_options_display(void)
 {
     struct retro_variable var = { "geardox_frameskip", NULL };
-    bool threshold_visible = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value &&
-        (strcmp(var.value, "Manual") == 0);
+    bool threshold_visible = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && (strcmp(var.value, "Manual") == 0);
 
     if (threshold_visible == frameskip_threshold_visible)
         return false;
@@ -1710,6 +1704,18 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         machine_settings.sound_dma = atoi(var.value);
 
+    var.key = "geardox_turbo";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        bool turbo = strcmp(var.value, "Off") != 0;
+        machine_settings.speed_mode = turbo ? 1 : 0;
+
+        if (core->IsTurbo() != turbo)
+            core->SetTurbo(turbo);
+    }
+
     var.key = "geardox_freedos";
     var.value = NULL;
 
@@ -1871,8 +1877,7 @@ static bool disk_load(const char* path)
         if (!disk_images[i].cdrom && !disk_images[i].save_disk)
         {
             if (!disk_insert((unsigned)i, DISK_DRIVE_FLOPPY_2))
-                log_cb(RETRO_LOG_WARN, "Floppy MultiDrive: %s is not inserted in Floppy 2\n",
-                    disk_images[i].path.c_str());
+                log_cb(RETRO_LOG_WARN, "Floppy MultiDrive: %s is not inserted in Floppy 2\n", disk_images[i].path.c_str());
 
             break;
         }
@@ -2036,8 +2041,7 @@ static bool disk_add_floppy_images(const char* path, std::vector<DiskSetImage>& 
     return images.size() > first;
 }
 
-static bool disk_add_save_disk(const std::string& name, const char* label, const char* volume,
-    std::vector<DiskSetImage>& images)
+static bool disk_add_save_disk(const std::string& name, const char* label, const char* volume, std::vector<DiskSetImage>& images)
 {
     std::string path(retro_save_directory);
     append_path_component(path, name.c_str());
@@ -2282,8 +2286,7 @@ static bool mount_entries(const int* entries)
 {
     for (int i = 0; i < DISK_DRIVE_COUNT; i++)
     {
-        if (entries[i] != drive_entry[i] && drive_entry[i] >= 0 && (i != DISK_DRIVE_CDROM || entries[i] < 0) &&
-            !disk_eject(i))
+        if (entries[i] != drive_entry[i] && drive_entry[i] >= 0 && (i != DISK_DRIVE_CDROM || entries[i] < 0) && !disk_eject(i))
             return false;
     }
 
@@ -2583,8 +2586,7 @@ static bool write_content_file(const char* path, const u8* data, u32 size)
 {
     std::string temporary = std::string(path) + ".tmp";
     std::string backup = std::string(path) + ".bak";
-    bool vfs = IsValidPointer(vfs_interface) && IsValidPointer(vfs_interface->rename) &&
-        IsValidPointer(vfs_interface->remove);
+    bool vfs = IsValidPointer(vfs_interface) && IsValidPointer(vfs_interface->rename) && IsValidPointer(vfs_interface->remove);
     bool written = false;
 
     if (vfs)
@@ -2711,8 +2713,7 @@ static bool floppy_load_image(unsigned index, int floppy)
         source = data;
         source_size = size;
 
-        if (read_content_file(working.c_str(), copy, CONTENT_MAX_SIZE) &&
-            FloppyImage::IsD77(copy.data(), (u32)copy.size()))
+        if (read_content_file(working.c_str(), copy, CONTENT_MAX_SIZE) && FloppyImage::IsD77(copy.data(), (u32)copy.size()))
         {
             log_cb(RETRO_LOG_INFO, "Loading floppy working copy: %s\n", working.c_str());
             data_crc = FloppyImage::CalculateDataCRC(data, size);
@@ -2823,8 +2824,7 @@ static bool hard_disk_attach(const char* path)
         if (core->GetHardDisk(i)->IsOpen() && (other.length() == working.length()) &&
             ends_with_no_case(other.c_str(), working.c_str()))
         {
-            log_cb(RETRO_LOG_ERROR, "The hard disk in slot %d already uses the working copy %s: %s\n", i,
-                working.c_str(), path);
+            log_cb(RETRO_LOG_ERROR, "The hard disk in slot %d already uses the working copy %s: %s\n", i, working.c_str(), path);
             return false;
         }
     }

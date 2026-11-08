@@ -118,8 +118,7 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
         char body[GDOX_TRACE_FORMAT_BUFFER_SIZE];
         char prefix[64];
         trace_logger_format_entry(entry, body_options, body, sizeof(body));
-        trace_log_format_cycle_prefix(entry, options.previous_cycle_valid, options.previous_cycle, prefix,
-            sizeof(prefix));
+        trace_log_format_cycle_prefix(entry, options.previous_cycle_valid, options.previous_cycle, prefix, sizeof(prefix));
         snprintf(buffer, buffer_size, "%s%s", prefix, body);
         return;
     }
@@ -738,10 +737,8 @@ static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
             break;
         case TRACE_CDROM_MEDIA:
         {
-            static const char* const kinds[6] = { "DISC IN", "DISC OUT", "TRAY OPEN", "TRAY CLOSED", "READY",
-                "MOTOR STOP" };
-            format_event(buffer, size, "CDROM", "MEDIA", "%d  %s", entry.cdrom.flags,
-                kinds[MIN(entry.cdrom.value, (u8)5)]);
+            static const char* const kinds[6] = { "DISC IN", "DISC OUT", "TRAY OPEN", "TRAY CLOSED", "READY", "MOTOR STOP" };
+            format_event(buffer, size, "CDROM", "MEDIA", "%d  %s", entry.cdrom.flags, kinds[MIN(entry.cdrom.value, (u8)5)]);
             break;
         }
         case TRACE_CDROM_CDDA_PLAY:
@@ -761,8 +758,7 @@ static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
             format_event(buffer, size, "CDROM", "CDDA END", "LBA:%u  MSF %s", lba, msf);
             break;
         default:
-            format_event(buffer, size, "CDROM", "CDDA LOOP", "Back to LBA:%u  MSF %s  End:%u", lba, msf,
-                entry.cdrom.end_lba);
+            format_event(buffer, size, "CDROM", "CDDA LOOP", "Back to LBA:%u  MSF %s  End:%u", lba, msf, entry.cdrom.end_lba);
             break;
     }
 }
@@ -981,8 +977,7 @@ static void format_serial(const GDOX_Trace_Entry& entry, char* buffer, size_t si
                 k_trace_uart_registers[entry.serial.reg & 0x07], value);
             break;
         case TRACE_SERIAL_RECEIVE:
-            format_event(buffer, size, "SERIAL", "RECEIVE", "COM%d <- $%02X  LSR:$%02X", port, value,
-                entry.serial.flags);
+            format_event(buffer, size, "SERIAL", "RECEIVE", "COM%d <- $%02X  LSR:$%02X", port, value, entry.serial.flags);
             break;
         case TRACE_SERIAL_TRANSMIT:
             format_event(buffer, size, "SERIAL", "TRANSMIT", "COM%d -> $%02X", port, value);

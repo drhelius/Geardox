@@ -161,8 +161,7 @@ void McpServer::HandleLine(const std::string& line)
     if (request.contains("id") && !request["id"].is_string() &&
         !request["id"].is_number_integer() && !request["id"].is_number_unsigned())
     {
-        RejectOrSendError(is_notification, json(), MCP_ERROR_INVALID_REQUEST,
-            "Invalid Request: id must be a string or integer");
+        RejectOrSendError(is_notification, json(), MCP_ERROR_INVALID_REQUEST, "Invalid Request: id must be a string or integer");
         return;
     }
 
@@ -177,8 +176,7 @@ void McpServer::HandleLine(const std::string& line)
 
     if (!request.contains("method") || !request["method"].is_string())
     {
-        RejectOrSendError(is_notification, json(), MCP_ERROR_INVALID_REQUEST,
-            "Invalid Request: missing method");
+        RejectOrSendError(is_notification, json(), MCP_ERROR_INVALID_REQUEST, "Invalid Request: missing method");
         return;
     }
 
@@ -186,22 +184,19 @@ void McpServer::HandleLine(const std::string& line)
 
     if (request.contains("params") && !request["params"].is_object())
     {
-        RejectOrSendError(is_notification, request_id, MCP_ERROR_INVALID_PARAMS,
-            "Invalid params: expected an object");
+        RejectOrSendError(is_notification, request_id, MCP_ERROR_INVALID_PARAMS, "Invalid params: expected an object");
         return;
     }
 
     if (method == "initialize" && is_notification)
     {
-        RejectOrSendError(is_notification, json(), MCP_ERROR_INVALID_REQUEST,
-            "Initialize must be a request");
+        RejectOrSendError(is_notification, json(), MCP_ERROR_INVALID_REQUEST, "Initialize must be a request");
         return;
     }
 
     if (!m_initialized && method != "initialize" && method != "ping")
     {
-        RejectOrSendError(is_notification, request_id, MCP_ERROR_INVALID_REQUEST,
-            "Server not initialized");
+        RejectOrSendError(is_notification, request_id, MCP_ERROR_INVALID_REQUEST, "Server not initialized");
         return;
     }
 
@@ -1563,6 +1558,24 @@ json McpServer::BuildToolList()
         {"inputSchema", {
             {"type", "object"},
             {"properties", json::object()}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "set_turbo"},
+        {"title", "Set Turbo"},
+        {"description", "Press the board's Turbo button: off runs the CPU at a third of its clock, at once, without a reset. "
+            "get_system_status reports turbo and the effective clock."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"turbo", {
+                    {"type", "boolean"},
+                    {"description", "true for full speed."}
+                }}
+            }},
+            {"required", json::array({"turbo"})}
         }}
     });
 
@@ -3211,8 +3224,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         if (!parse_hex_with_prefix(arguments["address"].get<std::string>(), &offset))
             return {{"error", "Invalid address format"}};
 
-        return m_debugAdapter.AddMemoryWatch(arguments["area"], offset, arguments.value("notes", ""),
-            arguments.value("size", 8));
+        return m_debugAdapter.AddMemoryWatch(arguments["area"], offset, arguments.value("notes", ""), arguments.value("size", 8));
     }
     else if (normalizedTool == "remove_memory_watch")
     {
@@ -3457,6 +3469,13 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "get_sound_status")
     {
         return m_debugAdapter.GetSoundStatus();
+    }
+    else if (normalizedTool == "set_turbo")
+    {
+        if (!arguments.contains("turbo") || !arguments["turbo"].is_boolean())
+            return {{"error", "turbo must be true or false"}};
+
+        return m_debugAdapter.SetTurbo(arguments["turbo"].get<bool>());
     }
     else if (normalizedTool == "set_audio_mute")
     {

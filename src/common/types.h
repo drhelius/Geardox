@@ -462,6 +462,7 @@ struct GDOX_Machine_CPU_Info
     u32 reset_edx;
     u32 cr0_fixed;
     int bus_width;
+    u8 bus_ratio;
 };
 
 struct GDOX_Machine_Memory_Map

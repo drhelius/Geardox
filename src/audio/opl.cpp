@@ -285,8 +285,7 @@ void OPL::RunOperator(int index)
     m_state.signals[index] =
         CalculateWave((u16)(op.phase_output + m_state.signals[op.modulation]), op.envelope_output, op.waveform);
 
-    if ((op.key | m_state.csm_key) == 0 && op.envelope_state == OPL_ENVELOPE_RELEASE &&
-        op.envelope == k_opl_envelope_silent)
+    if ((op.key | m_state.csm_key) == 0 && op.envelope_state == OPL_ENVELOPE_RELEASE && op.envelope == k_opl_envelope_silent)
         m_state.active_operators &= ~(1ULL << index);
 }
 
@@ -442,8 +441,7 @@ void OPL::UpdatePhase(OPL_Operator& op, const OPL_Channel& channel, int index)
     else if ((index == k_opl_cymbal_operator) && ((m_state.rhythm & k_opl_rhythm_enable) != 0))
         m_state.cymbal_bits = (u8)(((phase >> 3) & 0x01) | (((phase >> 5) & 0x01) << 1));
 
-    if (((m_state.rhythm & k_opl_rhythm_enable) == 0) || (index < k_opl_hihat_operator) ||
-        (index > k_opl_cymbal_operator))
+    if (((m_state.rhythm & k_opl_rhythm_enable) == 0) || (index < k_opl_hihat_operator) || (index > k_opl_cymbal_operator))
         return;
 
     u8 hihat = m_state.hihat_bits;
@@ -485,8 +483,7 @@ s16 OPL::CalculateWave(u16 phase, u16 envelope, u8 waveform) const
             level = k_opl_log_sine[(phase & 0x100) != 0 ? (phase & 0xFF) ^ 0xFF : phase & 0xFF];
             break;
         case 1:
-            level = (phase & 0x200) != 0 ? 0x1000 :
-                k_opl_log_sine[(phase & 0x100) != 0 ? (phase & 0xFF) ^ 0xFF : phase & 0xFF];
+            level = (phase & 0x200) != 0 ? 0x1000 : k_opl_log_sine[(phase & 0x100) != 0 ? (phase & 0xFF) ^ 0xFF : phase & 0xFF];
             break;
         case 2:
             level = k_opl_log_sine[(phase & 0x100) != 0 ? (phase & 0xFF) ^ 0xFF : phase & 0xFF];
@@ -496,12 +493,10 @@ s16 OPL::CalculateWave(u16 phase, u16 envelope, u8 waveform) const
             break;
         case 4:
             negate = (phase & 0x300) == 0x100 ? 0xFFFF : 0;
-            level = (phase & 0x200) != 0 ? 0x1000 :
-                k_opl_log_sine[(((phase & 0x80) != 0 ? phase ^ 0xFF : phase) << 1) & 0xFF];
+            level = (phase & 0x200) != 0 ? 0x1000 : k_opl_log_sine[(((phase & 0x80) != 0 ? phase ^ 0xFF : phase) << 1) & 0xFF];
             break;
         case 5:
-            level = (phase & 0x200) != 0 ? 0x1000 :
-                k_opl_log_sine[(((phase & 0x80) != 0 ? phase ^ 0xFF : phase) << 1) & 0xFF];
+            level = (phase & 0x200) != 0 ? 0x1000 : k_opl_log_sine[(((phase & 0x80) != 0 ? phase ^ 0xFF : phase) << 1) & 0xFF];
             break;
         case 6:
             negate = (phase & 0x200) != 0 ? 0xFFFF : 0;

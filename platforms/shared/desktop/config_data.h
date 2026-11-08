@@ -125,6 +125,7 @@ struct config_Machine
     int mouse;
     int cdrom;
     int cdrom_speed;
+    bool turbo;
     std::string firmware_paths[GDOX_MACHINE_COUNT];
 };
 
@@ -215,6 +216,7 @@ enum config_HotkeyIndex
     config_HotkeyIndex_CaptureKeyboard,
     config_HotkeyIndex_PowerOn,
     config_HotkeyIndex_PowerOff,
+    config_HotkeyIndex_Turbo,
     config_HotkeyIndex_COUNT
 };
 

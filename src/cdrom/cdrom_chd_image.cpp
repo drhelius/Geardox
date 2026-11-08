@@ -467,8 +467,7 @@ bool CdRomChdImage::ReadTOC()
         LbaToMsf(new_track.end_lba, &new_track.end_msf);
 
         // Advance current LBA past data and postgap
-        if (!checked_add_u32(current_lba, data_frames, &current_lba) ||
-            !checked_add_u32(current_lba, (u32)postgap, &current_lba))
+        if (!checked_add_u32(current_lba, data_frames, &current_lba) || !checked_add_u32(current_lba, (u32)postgap, &current_lba))
         {
             Error("Invalid CHD metadata for track %d - LBA overflow", i + 1);
             return false;
@@ -556,8 +555,7 @@ void CdRomChdImage::CalculateCRC()
 
     for (size_t i = 0; i < track_count; i++)
     {
-        if (m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2048 ||
-            m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2352)
+        if (m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2048 || m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2352)
         {
             first_data_track = &m_toc.tracks[i];
             break;

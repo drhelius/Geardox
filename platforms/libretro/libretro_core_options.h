@@ -560,6 +560,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "Built-in"
     },
     {
+        "geardox_turbo",
+        "Turbo",
+        NULL,
+        "The board's Turbo button. Off runs the CPU at a third of its clock, for games too fast for this machine. Takes effect at once.",
+        NULL,
+        "system",
+        {
+            { "On",  NULL },
+            { "Off", NULL },
+            { NULL, NULL },
+        },
+        "On"
+    },
+    {
         "geardox_boot_menu",
         "BIOS Boot Menu (restart)",
         NULL,
@@ -618,8 +632,7 @@ struct retro_core_options_v2 options_us = {
  ********************************
  */
 
-static void libretro_set_core_options(retro_environment_t environ_cb,
-        bool *categories_supported)
+static void libretro_set_core_options(retro_environment_t environ_cb, bool *categories_supported)
 {
     unsigned version = 0;
 
@@ -684,8 +697,7 @@ static void libretro_set_core_options(retro_environment_t environ_cb,
         }
         else
         {
-            variables  = (struct retro_variable *)calloc(num_options + 1,
-                    sizeof(struct retro_variable));
+            variables  = (struct retro_variable *)calloc(num_options + 1, sizeof(struct retro_variable));
             values_buf = (char **)calloc(num_options, sizeof(char *));
 
             if (!variables || !values_buf)

@@ -322,8 +322,7 @@ static void menu_geardox(void)
                 gui_action_start_video_recording(NULL);
             }
 
-            if (ImGui::MenuItem("Stop Recording", config_hotkeys[config_HotkeyIndex_VideoRecording].str, false,
-                is_recording))
+            if (ImGui::MenuItem("Stop Recording", config_hotkeys[config_HotkeyIndex_VideoRecording].str, false, is_recording))
             {
                 gui_action_stop_video_recording();
             }
@@ -758,6 +757,7 @@ static void menu_emulator(void)
             hotkey_configuration_item("Screenshot:", &config_hotkeys[config_HotkeyIndex_Screenshot]);
             hotkey_configuration_item("Video Recording:", &config_hotkeys[config_HotkeyIndex_VideoRecording]);
             hotkey_configuration_item("Mute All Audio:", &config_hotkeys[config_HotkeyIndex_Mute]);
+            hotkey_configuration_item("Turbo:", &config_hotkeys[config_HotkeyIndex_Turbo]);
             hotkey_configuration_item("Fullscreen:", &config_hotkeys[config_HotkeyIndex_Fullscreen]);
             hotkey_configuration_item("Show Main Menu:", &config_hotkeys[config_HotkeyIndex_ShowMainMenu]);
             hotkey_configuration_item("Capture Mouse:", &config_hotkeys[config_HotkeyIndex_CaptureMouse]);
@@ -873,6 +873,14 @@ static void menu_machine(void)
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
     ImGui::Separator();
+
+    bool turbo = core->IsTurbo();
+
+    if (ImGui::MenuItem("Turbo", config_hotkeys[config_HotkeyIndex_Turbo].str, &turbo))
+        emu_set_turbo(turbo);
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The board's Turbo button. Off runs the CPU at a third of its clock, for games too fast\nfor this machine. Takes effect at once.");
 
     if (ImGui::MenuItem("BIOS Boot Menu", "", &config_emulator.bios_boot_menu))
         emu_apply_bios_settings();
@@ -1580,8 +1588,7 @@ static void menu_video(void)
         if (ImGui::BeginMenu("Aspect Ratio"))
         {
             ImGui::PushItemWidth(190.0f);
-            ImGui::Combo("##ratio", &config_video.ratio,
-                "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+            ImGui::Combo("##ratio", &config_video.ratio, "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
             ImGui::PopItemWidth();
             ImGui::EndMenu();
         }
@@ -2322,8 +2329,7 @@ static void draw_mcp_status(void)
         text_width += ImGui::CalcTextSize(mcp_status).x;
     }
 
-    float status_x = ImGui::GetWindowWidth() - text_width -
-        style.ItemSpacing.x - 10.0f;
+    float status_x = ImGui::GetWindowWidth() - text_width - style.ItemSpacing.x - 10.0f;
     float cursor_x = ImGui::GetCursorPosX();
 
     if (status_x <= cursor_x + style.ItemSpacing.x)

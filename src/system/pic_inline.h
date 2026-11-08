@@ -29,8 +29,7 @@ INLINE void PIC::SetIRQLine(int irq, bool high)
     if (irq == k_pic_cascade_line)
         irq = k_pic_redirected_irq;
 
-    if (unlikely(high && IsValidPointer(m_trace_logger) &&
-        m_trace_logger->IsEventEnabled(TRACE_PIC, TRACE_PIC_REQUEST)))
+    if (unlikely(high && IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_PIC, TRACE_PIC_REQUEST)))
         TraceRequest(irq);
 
     if (irq >= 8)

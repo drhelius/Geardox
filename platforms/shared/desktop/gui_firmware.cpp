@@ -166,8 +166,7 @@ static void draw_controls(void)
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Own Folder");
     ImGui::SameLine(label_width);
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browse_width - get_button_width("Use Default") -
-        spacing * 2.0f);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - browse_width - get_button_width("Use Default") - spacing * 2.0f);
 
     if (ImGui::InputTextWithHint("##firmware_own", "Uses the default folder", model_folder, IM_ARRAYSIZE(model_folder),
         ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
@@ -412,8 +411,7 @@ static bool is_loaded(GDOX_Machine_Model model)
 {
     GeardoxCore* core = emu_get_core();
     Firmware* firmware = core->GetFirmware();
-    GDOX_Machine_Model loaded_model = emu_is_empty() ? core->GetPendingMachineConfig().model :
-        core->GetMachineConfig().model;
+    GDOX_Machine_Model loaded_model = emu_is_empty() ? core->GetPendingMachineConfig().model : core->GetMachineConfig().model;
     const GDOX_Firmware_Source& source = core->GetFirmwareSource(model);
     const GDOX_Firmware_Source& loaded = firmware->GetSource();
 

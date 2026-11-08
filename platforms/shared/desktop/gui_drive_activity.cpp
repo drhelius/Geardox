@@ -87,6 +87,20 @@ void gui_drive_activity_render_output(const ImVec2& min, const ImVec2& max)
 
     draw_list->PushClipRect(min, max, true);
 
+    // The Turbo light: shown off, the way the board's LED goes dark
+    if (!emu_is_empty() && !config_machine.turbo)
+    {
+        const char* text = ICON_MD_SPEED " TURBO OFF";
+        float width = roundf(font->CalcTextSizeA(k_drive_activity_label_size, FLT_MAX, 0.0f, text).x + (k_drive_activity_padding * 2.0f));
+        ImVec2 pos(roundf(max.x - k_drive_activity_margin - width), roundf(min.y + k_drive_activity_margin));
+        ImVec4 background = ImGui::GetStyle().Colors[ImGuiCol_PopupBg];
+        background.w = k_drive_activity_background;
+        ImVec2 text_pos(pos.x + k_drive_activity_padding, roundf(pos.y + (height - k_drive_activity_label_size) * 0.5f));
+        draw_list->AddRectFilled(pos, pos + ImVec2(width, height), ImGui::ColorConvertFloat4ToU32(background), k_drive_activity_rounding);
+        draw_list->AddText(font, k_drive_activity_label_size, text_pos, ImGui::ColorConvertFloat4ToU32(amber), text);
+        offset = width + k_drive_activity_spacing;
+    }
+
     for (int i = 0; i < GUI_DRIVE_ACTIVITY_SLOTS; i++)
     {
         Drive_Slot* slot = &slots[i];
@@ -197,8 +211,7 @@ static void draw_slot(ImDrawList* draw_list, ImFont* font, int index, const ImVe
     unsigned int codepoint = 0;
     ImTextCharFromUtf8(&codepoint, icon, NULL);
     ImFontGlyph* glyph = font->GetFontBaked(k_drive_activity_icon_size)->FindGlyph((ImWchar)codepoint);
-    float icon_x = pos.x + k_drive_activity_padding - glyph->X0 +
-        ((k_drive_activity_icon_size - (glyph->X1 - glyph->X0)) * 0.5f);
+    float icon_x = pos.x + k_drive_activity_padding - glyph->X0 + ((k_drive_activity_icon_size - (glyph->X1 - glyph->X0)) * 0.5f);
     float icon_y = pos.y - glyph->Y0 + ((size.y - (glyph->Y1 - glyph->Y0)) * 0.5f);
 
     draw_list->AddText(font, k_drive_activity_icon_size, ImVec2(roundf(icon_x), roundf(icon_y)), color, icon);

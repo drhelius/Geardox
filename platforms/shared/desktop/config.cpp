@@ -38,8 +38,7 @@
 static mINI::INIFile* config_ini_file = NULL;
 static mINI::INIStructure config_ini_data;
 
-static void process_bool(config_Operation operation, const char* section, const char* key,
-                         bool* value, bool default_value);
+static void process_bool(config_Operation operation, const char* section, const char* key, bool* value, bool default_value);
 static void process_int(config_Operation operation, const char* section, const char* key,
                         int* value, int default_value, bool has_minimum, int minimum,
                         bool has_maximum, int maximum);
@@ -248,8 +247,7 @@ void config_write(void)
     }
 }
 
-static void process_bool(config_Operation operation, const char* section, const char* key,
-                         bool* value, bool default_value)
+static void process_bool(config_Operation operation, const char* section, const char* key, bool* value, bool default_value)
 {
     bool processed = default_value;
 
@@ -321,8 +319,7 @@ static void process_float(config_Operation operation, const char* section, const
         Error("Invalid float setting range: [%s][%s]", section, key);
     }
 
-    if (!std::isfinite(default_value) || (has_minimum && default_value < minimum) ||
-        (has_maximum && default_value > maximum))
+    if (!std::isfinite(default_value) || (has_minimum && default_value < minimum) || (has_maximum && default_value > maximum))
     {
         Error("Invalid float setting default: [%s][%s]=%f", section, key, default_value);
     }
@@ -423,10 +420,8 @@ static void process_hotkey(config_Operation operation, const char* key, config_H
 
     int scancode = operation == config_Operation_Defaults ? (int)default_key : (int)value->key;
     int mod = operation == config_Operation_Defaults ? (int)default_mod : (int)value->mod;
-    process_int(operation, "Hotkeys", scancode_key, &scancode, (int)default_key,
-                       false, 0, false, 0);
-    process_int(operation, "Hotkeys", mod_key, &mod, (int)default_mod,
-                       false, 0, false, 0);
+    process_int(operation, "Hotkeys", scancode_key, &scancode, (int)default_key, false, 0, false, 0);
+    process_int(operation, "Hotkeys", mod_key, &mod, (int)default_mod, false, 0, false, 0);
     value->key = (SDL_Scancode)scancode;
     value->mod = (SDL_Keymod)mod;
     config_update_hotkey_string(value);

@@ -27,15 +27,16 @@
 #define GDOX_MACHINE_RAM_SIZE_COUNT 7
 #define GDOX_MACHINE_ISA_CLOCK_RATE 8333333
 
-// ISA cycles in BCLKs at the model's clock, less the 2 clocks of a bus cycle, in 1/256 clocks
+// ISA cycles in BCLKs at the model's bus clock, less the 2 clocks of a bus cycle, in 1/256 bus clocks
 #define GDOX_MACHINE_ISA_WAIT(bclks, rate) ((u16)((((u64)(bclks) * (rate) * 256) / GDOX_MACHINE_ISA_CLOCK_RATE) - 512))
 #define GDOX_MACHINE_ISA16(rate) GDOX_MACHINE_ISA_WAIT(3, rate)
 #define GDOX_MACHINE_ISA8(rate) GDOX_MACHINE_ISA_WAIT(6, rate)
 #define GDOX_MACHINE_ISA8_WORD(rate) GDOX_MACHINE_ISA_WAIT(12, rate)
 
-#define GDOX_MACHINE_BUS_WAITS(rate) { { 0, 0 }, { 0, 0 }, { 0, 0 }, 0, 0, { 0, 0 }, \
-    { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { 0, 0 }, GDOX_MACHINE_ISA16(rate), \
-    GDOX_MACHINE_ISA16(rate), { 0, 0 }, 0, 0, 0 }
+// DRAM read and write waits in bus clocks and the VGA's cycle in BCLK, fitted to TOPBENCH's machines (R13 §4.5)
+#define GDOX_MACHINE_BUS_WAITS(rate, dram_read, dram_write, vga) { { 0, 0 }, { 0, 0 }, { 0, 0 }, 0, 0, \
+    { (dram_read) * 256, (dram_write) * 256 }, { GDOX_MACHINE_ISA_WAIT(vga, rate), GDOX_MACHINE_ISA_WAIT(vga, rate) }, \
+    { 0, 0 }, GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate), { 0, 0 }, 0, 0, 0 }
 
 // The IDE data ports run a 16-bit cycle on a bus where every other port takes an 8-bit one
 #define GDOX_MACHINE_IDE_DATA_WAIT(rate) ((s16)(GDOX_MACHINE_ISA16(rate) - GDOX_MACHINE_ISA8(rate)))
@@ -53,20 +54,21 @@ const u8 k_machine_ram_386sx_20[] = { 1, 2, 4, 8, 16, 0 };
 const u8 k_machine_ram_386dx_33[] = { 1, 2, 4, 8, 16, 0 };
 const u8 k_machine_ram_486dx2_66[] = { 4, 8, 16, 32, 64, 0 };
 
-const GDOX_Machine_Bus_Waits k_machine_bus_waits_386sx_20 = GDOX_MACHINE_BUS_WAITS(20000000);
-const GDOX_Machine_Bus_Waits k_machine_bus_waits_386dx_33 = GDOX_MACHINE_BUS_WAITS(33000000);
-const GDOX_Machine_Bus_Waits k_machine_bus_waits_486dx2_66 = GDOX_MACHINE_BUS_WAITS(66000000);
+// The 386SX at the 82C283's 1 and 1 (p11), the 486 off its cache at the 82C495XLC's 3 and 2 (p28)
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_386sx_20 = GDOX_MACHINE_BUS_WAITS(20000000, 1, 1, 6);
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_386dx_33 = GDOX_MACHINE_BUS_WAITS(33000000, 2, 1, 6);
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_486dx2_66 = GDOX_MACHINE_BUS_WAITS(33000000, 3, 2, 3);
 
 const GDOX_Machine_Port_Wait k_machine_port_waits_386sx_20[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(20000000);
 const GDOX_Machine_Port_Wait k_machine_port_waits_386dx_33[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(33000000);
-const GDOX_Machine_Port_Wait k_machine_port_waits_486dx2_66[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(66000000);
+const GDOX_Machine_Port_Wait k_machine_port_waits_486dx2_66[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(33000000);
 
 const GDOX_Machine_Bus_Timing k_machine_bus_386sx_20 =
     GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386sx_20, k_machine_port_waits_386sx_20, 20000000);
 const GDOX_Machine_Bus_Timing k_machine_bus_386dx_33 =
     GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386dx_33, k_machine_port_waits_386dx_33, 33000000);
 const GDOX_Machine_Bus_Timing k_machine_bus_486dx2_66 =
-    GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486dx2_66, k_machine_port_waits_486dx2_66, 66000000);
+    GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486dx2_66, k_machine_port_waits_486dx2_66, 33000000);
 
 const GDOX_Machine_Memory_Map k_machine_memory_maps[GDOX_MACHINE_MAP_COUNT] =
 {
@@ -139,11 +141,11 @@ const int k_machine_ram_sizes_mb[GDOX_MACHINE_RAM_SIZE_COUNT] = { 1, 2, 4, 8, 16
 
 const GDOX_Machine_CPU_Info k_machine_cpus[GDOX_MACHINE_CPU_COUNT] =
 {
-    { "80386DX", true, 3, false, 0x00000300, 0x7FFFFFE0, 32 },
-    { "80386SX", true, 3, false, 0x00002308, 0x7FFFFFF0, 16 },
-    { "80486SX", true, 4, false, 0x00000420, 0x00000010, 32 },
-    { "80486DX2", true, 4, true, 0x00000430, 0x00000010, 32 },
-    { "Pentium", false, 5, true, 0x00000520, 0x00000010, 64 }
+    { "80386DX", true, 3, false, 0x00000308, 0x7FFFFFE0, 32, 1 },
+    { "80386SX", true, 3, false, 0x00002308, 0x7FFFFFF0, 16, 1 },
+    { "80486SX", true, 4, false, 0x00000420, 0x00000010, 32, 1 },
+    { "80486DX2", true, 4, true, 0x00000433, 0x00000010, 32, 2 },
+    { "Pentium", false, 5, true, 0x00000520, 0x00000010, 64, 1 }
 };
 
 static inline const char* get_machine_fpu_name(GDOX_Machine_CPU cpu)

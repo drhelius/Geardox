@@ -549,8 +549,7 @@ static void update_savestates_texture(void)
     if (slot < 0 || slot >= 5)
         return;
 
-    if (savestates_texture_slot == slot &&
-        savestates_texture_generation == emu_savestates_generation)
+    if (savestates_texture_slot == slot && savestates_texture_generation == emu_savestates_generation)
     {
         return;
     }

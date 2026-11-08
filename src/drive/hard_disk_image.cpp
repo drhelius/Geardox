@@ -281,8 +281,7 @@ bool HardDiskImage::ReadBlock(u32 lba, u8* buffer)
 
     if (!m_overlay_index.empty() && (m_overlay_index[lba] != 0))
     {
-        memcpy(buffer, &m_overlay[(size_t)(m_overlay_index[lba] - 1) * k_hard_disk_block_size],
-            k_hard_disk_block_size);
+        memcpy(buffer, &m_overlay[(size_t)(m_overlay_index[lba] - 1) * k_hard_disk_block_size], k_hard_disk_block_size);
         return true;
     }
 

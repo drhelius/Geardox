@@ -399,8 +399,7 @@ static std::string get_auto_file_path(int dir_option, const std::string& custom_
     {
         media_name = emu_get_core()->GetMedia()->GetFileName();
 
-        if (dir_option == Directory_Location_ROM &&
-            emu_get_core()->GetMedia()->GetFileDirectory()[0] != '\0')
+        if (dir_option == Directory_Location_ROM && emu_get_core()->GetMedia()->GetFileDirectory()[0] != '\0')
         {
             base_path = emu_get_core()->GetMedia()->GetFileDirectory();
         }

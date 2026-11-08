@@ -325,8 +325,7 @@ static void draw_profiler(Profiler* profiler)
                     {
                         char name[16];
                         char description[64];
-                        gui_debug_i386_vector_name(function.vector, name, sizeof(name), description,
-                            sizeof(description));
+                        gui_debug_i386_vector_name(function.vector, name, sizeof(name), description, sizeof(description));
                         ImGui::SetTooltip("%s", description);
                     }
                 }
@@ -469,8 +468,7 @@ static u64 get_sort_value(const GDOX_Profiler_Function& function, int column)
     switch (column)
     {
         case ProfilerColumn_Vector:
-            return ((u64)(function.type == PROFILER_FUNCTION_INTERRUPT ? function.vector + 1 : 0) << 32) |
-                function.address;
+            return ((u64)(function.type == PROFILER_FUNCTION_INTERRUPT ? function.vector + 1 : 0) << 32) | function.address;
         case ProfilerColumn_Address:
             return function.address;
         case ProfilerColumn_Calls:

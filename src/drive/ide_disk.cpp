@@ -81,8 +81,7 @@ bool IdeDisk::Attach(const char* path, bool write_protected, const char* working
     if (!m_image.Open(path, write_protected, working_path))
         return false;
 
-    Log("Hard disk image %s: %u sectors%s", path, m_image.GetBlocks(),
-        m_image.IsWriteProtected() ? ", write protected" : "");
+    Log("Hard disk image %s: %u sectors%s", path, m_image.GetBlocks(), m_image.IsWriteProtected() ? ", write protected" : "");
     return true;
 }
 
@@ -726,8 +725,7 @@ u64 IdeDisk::GetSeekClocks(u32 cylinder) const
     u32 scaled = (u32)(((u64)distance * k_ide_seek_points * 256) / MAX(m_state.cylinders, 1U));
     u32 point = MIN(scaled >> 8, k_ide_seek_points - 1);
     u32 fraction = MIN(scaled - (point << 8), 256U);
-    u32 us = k_ide_track_seek_us + k_ide_seek_us[point] +
-        (((k_ide_seek_us[point + 1] - k_ide_seek_us[point]) * fraction) >> 8);
+    u32 us = k_ide_track_seek_us + k_ide_seek_us[point] + (((k_ide_seek_us[point + 1] - k_ide_seek_us[point]) * fraction) >> 8);
 
     return ((u64)us * GDOX_MACHINE_CLOCK_RATE) / 1000000;
 }

@@ -80,8 +80,7 @@ INLINE bool SoundBlaster::IsSpeakerOn() const
 
 INLINE bool SoundBlaster::IsProStereo() const
 {
-    return (m_mixer_type == k_sound_blaster_mixer_ct1345) &&
-        ((m_state.mixer[0x0E] & k_sound_blaster_stereo_switch) != 0);
+    return (m_mixer_type == k_sound_blaster_mixer_ct1345) && ((m_state.mixer[0x0E] & k_sound_blaster_stereo_switch) != 0);
 }
 
 INLINE bool SoundBlaster::IsStereo() const

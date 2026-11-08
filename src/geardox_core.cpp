@@ -552,8 +552,7 @@ bool GeardoxCore::RunDeferredInterrupt(GDOX_Debug_Run* debug)
     if (unlikely(m_i386->IsDebuggerHitPending()) && AcceptDebuggerHit(debug))
         return true;
 
-    if ((m_debug_step == GDOX_DEBUG_STEP_INSTRUCTION) &&
-        StepInterrupt(debug, return_linear, stack_selector, stack_pointer, true))
+    if ((m_debug_step == GDOX_DEBUG_STEP_INSTRUCTION) && StepInterrupt(debug, return_linear, stack_selector, stack_pointer, true))
     {
         StopDebugger(debug, false);
         return true;
@@ -562,8 +561,7 @@ bool GeardoxCore::RunDeferredInterrupt(GDOX_Debug_Run* debug)
     return false;
 }
 
-bool GeardoxCore::StepInterrupt(GDOX_Debug_Run* debug, u32 return_linear, u16 stack_selector, u32 stack_pointer,
-    bool resume)
+bool GeardoxCore::StepInterrupt(GDOX_Debug_Run* debug, u32 return_linear, u16 stack_selector, u32 stack_pointer, bool resume)
 {
     if (!debug->step_over && !debug->skip_interrupts_on_step)
         return true;
@@ -861,8 +859,29 @@ bool GeardoxCore::IsMachineConfigPending()
         (m_pending_machine_config.floppy_drives != m_machine_config.floppy_drives) ||
         (m_pending_machine_config.cpu_clock_rate != m_machine_config.cpu_clock_rate) ||
         (m_pending_machine_config.ide != m_machine_config.ide) ||
-        (m_pending_machine_config.fpu != m_machine_config.fpu) ||
-        (m_pending_machine_config.speed_mode != m_machine_config.speed_mode);
+        (m_pending_machine_config.fpu != m_machine_config.fpu);
+}
+
+// The Turbo button: off holds the CPU two thirds of the time, as OPTi's 386 and 486 chipsets do (82C391 p11, 82C491
+// p12), modelled as a third of its clock. It acts at once, no reset
+void GeardoxCore::SetTurbo(bool turbo)
+{
+    m_machine_settings.speed_mode = turbo ? 1 : 0;
+    m_machine_config.speed_mode = turbo ? 1 : 0;
+    m_pending_machine_config.speed_mode = m_machine_config.speed_mode;
+    ApplyCPUSpeed();
+    ApplyBusTiming();
+}
+
+bool GeardoxCore::IsTurbo() const
+{
+    return m_machine_config.speed_mode != 0;
+}
+
+u32 GeardoxCore::GetEffectiveCPUClockRate() const
+{
+    u32 rate = m_machine_config.cpu_clock_rate;
+    return m_machine_config.speed_mode == 0 ? rate / 3 : rate;
 }
 
 bool GeardoxCore::GetFloppyNotice(GDOX_Floppy_Notice& notice)
@@ -880,8 +899,7 @@ bool GeardoxCore::GetFloppyNotice(GDOX_Floppy_Notice& notice)
             return false;
     }
 
-    notice.warning = (entry->flags & (GDOX_GAMEDB_FLOPPY_BOOT | GDOX_GAMEDB_FLOPPY_REQUIRED |
-        GDOX_GAMEDB_FLOPPY_PROTECTED)) != 0;
+    notice.warning = (entry->flags & (GDOX_GAMEDB_FLOPPY_BOOT | GDOX_GAMEDB_FLOPPY_REQUIRED | GDOX_GAMEDB_FLOPPY_PROTECTED)) != 0;
 
     if ((entry->flags & GDOX_GAMEDB_FLOPPY_BOOT) != 0)
         snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
@@ -894,8 +912,7 @@ bool GeardoxCore::GetFloppyNotice(GDOX_Floppy_Notice& notice)
             "%s came with an optional floppy disk, it runs without it", entry->title);
 
     if ((entry->flags & GDOX_GAMEDB_FLOPPY_PROTECTED) != 0)
-        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
-            "Its original floppy disk is copy protected");
+        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE, "Its original floppy disk is copy protected");
 
     return true;
 }
@@ -1646,6 +1663,10 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         return false;
     }
 
+    // Turbo is the board's button: the state keeps it. The scheduler's remainder belongs to the state's clock rate
+    m_machine_config.speed_mode = machine_config.speed_mode;
+    m_pending_machine_config.speed_mode = machine_config.speed_mode;
+    ApplyCPUSpeed();
     m_scheduler->LoadState(stream);
     m_memory->LoadState(stream, header.version);
     m_i386->LoadState(stream, header.version);
@@ -1829,6 +1850,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.floppy_drives);
     G_SERIALIZE_ARRAY(serializer, config.floppy_type, GDOX_MAX_FLOPPY_DRIVES);
     G_SERIALIZE(serializer, config.cpu_clock_rate);
+    G_SERIALIZE(serializer, config.speed_mode);
     G_SERIALIZE(serializer, config.ide);
     G_SERIALIZE(serializer, config.fpu);
     G_SERIALIZE(serializer, config.sound_card);
@@ -1881,7 +1903,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.ram_size = (u32)(sizes[size] * megabyte);
     config.floppy_drives = profile.floppy_drives;
     config.fpu = (profile.fpu == GDOX_MACHINE_FPU_INTEGRATED) || (config.fpu && (profile.fpu != GDOX_MACHINE_FPU_NONE));
-    config.speed_mode = GDOX_MACHINE_AUTO;
+    config.speed_mode = config.speed_mode == 0 ? 0 : 1;
     config.sound_card = config.sound_card < GDOX_SOUND_CARD_COUNT ? config.sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = config.sound_irq == k_sound_card_irqs[1] ? k_sound_card_irqs[1] : k_sound_card_irqs[0];
     config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
@@ -2109,8 +2131,7 @@ void GeardoxCore::ResolveMachineConfig()
 
     int sound_card = m_machine_settings.sound_card;
 
-    config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card :
-        (u8)GDOX_SOUND_CARD_SB16;
+    config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = (u8)m_machine_settings.sound_irq;
     config.sound_dma = (u8)m_machine_settings.sound_dma;
 
@@ -2122,8 +2143,7 @@ void GeardoxCore::ResolveMachineConfig()
     int cdrom_speed = m_machine_settings.cdrom_speed;
 
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
-    config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed :
-        (u8)GDOX_CDROM_SPEED_4X;
+    config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
 
     report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
     report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
@@ -2155,22 +2175,10 @@ void GeardoxCore::ResolveMachineConfig()
         report.fpu = GDOX_MACHINE_SOURCE_DATABASE;
     }
 
-    if ((report.model == GDOX_MACHINE_SOURCE_DATABASE) && auto_speed &&
-        (k_machine_cpus[k_machine_profiles[config.model].cpu].family >= 4))
-    {
-        config.speed_mode = 1;
-        report.speed_mode = GDOX_MACHINE_SOURCE_DATABASE;
-    }
-
     SanitizeMachineConfig(config);
 
     if (!auto_fpu && (m_machine_settings.fpu != 0) && !config.fpu)
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "This machine has no socket for an FPU");
-
-    if (m_machine_settings.speed_mode > 0)
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "This machine has no high-speed mode");
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no socket for an FPU");
 
     bool hard_disk_boot = (m_boot_device == GDOX_BOOT_DEVICE_HARD_DISK) ||
         (IsValidPointer(entry) && ((entry->flags & GDOX_GAMEDB_HDD) != 0));
@@ -2211,8 +2219,7 @@ void GeardoxCore::ResolveMachineConfig()
             "Needs a 486 CPU, this machine has an %s", k_machine_cpus[config.cpu].name);
 
     if (((entry->flags & GDOX_GAMEDB_FPU) != 0) && !config.fpu)
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "Needs an FPU, this machine has none");
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "Needs an FPU, this machine has none");
 
     if (((entry->flags & GDOX_GAMEDB_HDD) != 0) && !HasHardDisks())
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
@@ -2222,8 +2229,7 @@ void GeardoxCore::ResolveMachineConfig()
 bool GeardoxCore::CanAutoSelect(GDOX_Machine_Model model)
 {
     GDOX_Firmware_Source_Type type = m_firmware_sources[model].type;
-    return k_machine_profiles[model].emulated && (type != GDOX_FIRMWARE_SOURCE_NONE) &&
-        (type != GDOX_FIRMWARE_SOURCE_OTHER_SET);
+    return k_machine_profiles[model].emulated && (type != GDOX_FIRMWARE_SOURCE_NONE) && (type != GDOX_FIRMWARE_SOURCE_OTHER_SET);
 }
 
 void GeardoxCore::SearchFirmware()
@@ -2271,11 +2277,7 @@ void GeardoxCore::ApplyMachineConfig()
     m_machine_report = m_pending_machine_report;
     const GDOX_Machine_Profile& profile = k_machine_profiles[m_machine_config.model];
 
-    if (IsValidPointer(m_scheduler))
-        m_scheduler->SetCPUClockRate(m_machine_config.cpu_clock_rate);
-
-    if (IsValidPointer(m_profiler))
-        m_profiler->SetCPUClockRate(m_machine_config.cpu_clock_rate);
+    ApplyCPUSpeed();
 
     if (IsValidPointer(m_memory))
     {
@@ -2330,12 +2332,22 @@ void GeardoxCore::ApplyFirmwareDevices()
     bool seabios = m_firmware->IsReady() && (m_firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS);
 
     m_system_control->SetPowerOnA20(seabios);
+    m_system_control->SetShadowControl(seabios);
     m_firmware_config->SetEnabled(seabios);
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
     m_debug_console->SetEnabled(seabios && m_debug_console_enabled);
     m_debug_console->SetLogOutput(m_debug_console_log);
     m_io->UpdateDecodedPorts();
+}
+
+void GeardoxCore::ApplyCPUSpeed()
+{
+    if (IsValidPointer(m_scheduler))
+        m_scheduler->SetCPUClockRate(GetEffectiveCPUClockRate());
+
+    if (IsValidPointer(m_profiler))
+        m_profiler->SetCPUClockRate(GetEffectiveCPUClockRate());
 }
 
 void GeardoxCore::ApplyBusTiming()
@@ -2346,11 +2358,13 @@ void GeardoxCore::ApplyBusTiming()
     const GDOX_Machine_Profile& profile = k_machine_profiles[m_machine_config.model];
     const GDOX_Machine_Bus_Timing* timing = profile.bus_timing;
     const GDOX_Machine_Bus_Waits* waits = IsValidPointer(timing) ? timing->compatible : NULL;
-    u32 cpu_clock_rate = m_machine_config.cpu_clock_rate;
+    u32 cpu_clock_rate = GetEffectiveCPUClockRate();
 
-    m_i386->SetBoardCache(true);
-    m_i386->SetBusTiming(timing, waits, k_machine_cpus[m_machine_config.cpu].bus_width, cpu_clock_rate,
-        profile.cpu_clock_rate);
+    const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
+
+    // The board caches DRAM and its shadow copies; the VGA window, ROMs and the ISA bus stay on the bus
+    m_i386->SetBoardCache(true, 1U << GDOX_BUS_DRAM);
+    m_i386->SetBusTiming(timing, waits, cpu.bus_width, cpu_clock_rate, profile.cpu_clock_rate / cpu.bus_ratio);
 }
 
 // The board's DRAM covers the hole below 1 MB too: the BIOS runs from its copy at E0000h or F0000h, with the
@@ -2426,6 +2440,19 @@ void GeardoxCore::InitMemoryMap()
         copy_size, copy_base, ram_flags))
         Error("Unable to register the BIOS copy");
 
+    // SeaBIOS' shadow register maps these at the end of POST: the ROMs and the F segment read-only, nothing between
+    u32 shadow_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_OVERLAY;
+
+    if (seabios && (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_ROM, "Shadow ROMs", main_ram + k_upper_memory_start,
+        NULL, 0x1000, k_upper_memory_start, shadow_flags) ||
+        !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL, 0x1000, k_upper_memory_start,
+        GDOX_DEBUG_REGION_OVERLAY) ||
+        !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_BIOS, "Shadow BIOS", main_ram + k_system_control_shadow_bios,
+        NULL, 0x10000, k_system_control_shadow_bios, shadow_flags)))
+        Error("Unable to register the shadow regions");
+
+    m_system_control->ApplyShadow();
+
     u8* cmos = m_rtc->GetCMOS();
 
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_CMOS, "CMOS RAM", cmos, cmos, GDOX_CMOS_SIZE, 0,
@@ -2439,8 +2466,7 @@ void GeardoxCore::InitMemoryMap()
 // The rest of the CMOS stays as programs left it, other BIOSes keep all of it
 void GeardoxCore::InitCMOS()
 {
-    if (!IsValidPointer(m_firmware) || !m_firmware->IsReady() ||
-        (m_firmware->GetStyle() != GDOX_FIRMWARE_STYLE_SEABIOS))
+    if (!IsValidPointer(m_firmware) || !m_firmware->IsReady() || (m_firmware->GetStyle() != GDOX_FIRMWARE_STYLE_SEABIOS))
         return;
 
     u32 megabyte = 1024 * 1024;

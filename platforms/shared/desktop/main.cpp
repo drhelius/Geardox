@@ -332,8 +332,7 @@ int main(int argc, char* argv[])
         return ret;
     }
 
-    const char* forward_file = app_params.rom_file ? app_params.rom_file :
-        app_params.cd_file;
+    const char* forward_file = app_params.rom_file ? app_params.rom_file : app_params.cd_file;
 
     if (!application_check_single_instance(forward_file, app_params.symbol_file))
     {

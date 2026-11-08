@@ -145,8 +145,7 @@ bool display_should_run_emu_frame(void)
     if (display_update_content_frame_rate() && config_video.sync_mode == config_VideoSync_Fixed)
         display_use_vsync_if_enabled();
 
-    if (config_video.sync_mode == config_VideoSync_Fixed && last_vsync_state >= 1
-        && !emu_is_empty() && !emu_is_paused()
+    if (config_video.sync_mode == config_VideoSync_Fixed && last_vsync_state >= 1 && !emu_is_empty() && !emu_is_paused()
         && !emu_is_debug_idle() && emu_is_audio_open() && !config_emulator.ffwd)
     {
         if (display_should_use_vsync())
@@ -419,8 +418,7 @@ static bool display_fixed_vsync_supported(void)
 
     if (!supported && !fixed_vsync_fallback_logged)
     {
-        Log("Fixed VSync disabled: %.3f Hz monitor is slower than %.3f FPS content",
-            monitor_refresh_rate, content_frame_rate);
+        Log("Fixed VSync disabled: %.3f Hz monitor is slower than %.3f FPS content", monitor_refresh_rate, content_frame_rate);
         fixed_vsync_fallback_logged = true;
     }
     else if (supported)

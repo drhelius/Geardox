@@ -423,8 +423,7 @@ bool DebugMemoryProvider::Translate(const GDOX_Debug_Memory_Address& address, GD
     {
         if (address.segment_register >= 0)
         {
-            return cpu->DebugTranslateLogical((I386_Segment_Register)address.segment_register, address.address,
-                translation);
+            return cpu->DebugTranslateLogical((I386_Segment_Register)address.segment_register, address.address, translation);
         }
 
         return cpu->DebugTranslateLogical(address.segment, address.address, translation);
@@ -517,8 +516,7 @@ const char* DebugMemoryProvider::GetLastMessage() const
 bool DebugMemoryProvider::GetRegisterValue(const char* name, u32& value) const
 {
     GeardoxCore* core = emu_get_core();
-    return IsValidPointer(core) && IsValidPointer(core->GetI386()) &&
-        core->GetI386()->GetDebugRegisterValue(name, value);
+    return IsValidPointer(core) && IsValidPointer(core->GetI386()) && core->GetI386()->GetDebugRegisterValue(name, value);
 }
 
 u64 DebugMemoryProvider::GetViewKey(const GDOX_Debug_Memory_Address& source) const

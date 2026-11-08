@@ -176,8 +176,7 @@ bool emu_hard_disk_attach_freedos(int id)
     u64 size = 0;
     s64 modified = 0;
 
-    if (!valid_id(id) ||
-        (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) && !FatImage::WriteFreeDOS(path.c_str())))
+    if (!valid_id(id) || (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) && !FatImage::WriteFreeDOS(path.c_str())))
         return false;
 
     return emu_hard_disk_attach(id, path.c_str(), config_emulator.hard_disk_write_protected[id] != 0);

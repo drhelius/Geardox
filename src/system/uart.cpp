@@ -219,8 +219,7 @@ u64 UART::GetReadStableUntil(u8 reg) const
         case 2:
             return (GetInterruptIdentification() & 0x0F) == 0x02 ? 0 : GDOX_NO_EVENT;
         case 5:
-            return (m_state.overrun || (m_state.rx_count != 0 && m_state.rx_errors[m_state.rx_read] != 0)) ? 0 :
-                GDOX_NO_EVENT;
+            return (m_state.overrun || (m_state.rx_count != 0 && m_state.rx_errors[m_state.rx_read] != 0)) ? 0 : GDOX_NO_EVENT;
         case 6:
             return (m_state.msr & 0x0F) != 0 ? 0 : GDOX_NO_EVENT;
         default:
@@ -364,8 +363,7 @@ u8 UART::GetInterruptIdentification() const
 u64 UART::GetCharacterClocks() const
 {
     u32 data = 5 + (m_state.lcr & 0x03);
-    u32 half_bits = 2 * (1 + data + ((m_state.lcr & 0x08) != 0 ? 1 : 0)) +
-        ((m_state.lcr & 0x04) != 0 ? (data == 5 ? 3 : 4) : 2);
+    u32 half_bits = 2 * (1 + data + ((m_state.lcr & 0x08) != 0 ? 1 : 0)) + ((m_state.lcr & 0x04) != 0 ? (data == 5 ? 3 : 4) : 2);
 
     return ((u64)half_bits * GetDivisor() * 8 * GDOX_MACHINE_CLOCK_RATE) / k_uart_clock;
 }

@@ -398,8 +398,7 @@ void I82077::StartCommand(u64 clocks)
             EnterCommandPhase();
             break;
         case I82077_COMMAND_PERPENDICULAR:
-            m_state.perpendicular = (u8)((p[1] & 0x80) != 0 ? p[1] & 0x3F :
-                (m_state.perpendicular & 0x3C) | (p[1] & 0x03));
+            m_state.perpendicular = (u8)((p[1] & 0x80) != 0 ? p[1] & 0x3F : (m_state.perpendicular & 0x3C) | (p[1] & 0x03));
             EnterCommandPhase();
             break;
         case I82077_COMMAND_SENSE_INTERRUPT:
@@ -1021,8 +1020,7 @@ void I82077::RunData(u64 clocks)
     if (m_state.reading && (m_state.terminal_count || m_state.abort))
     {
         m_state.step = I82077_STEP_CRC;
-        m_state.event_clocks = clocks + m_fdc->GetByteClocks(m_state.sector_bytes - m_state.data_index + 2, rate,
-            m_state.mfm);
+        m_state.event_clocks = clocks + m_fdc->GetByteClocks(m_state.sector_bytes - m_state.data_index + 2, rate, m_state.mfm);
         return;
     }
 

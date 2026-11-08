@@ -68,6 +68,7 @@ public:
     bool SetRegionWideHandlers(int id, GDOX_Memory_Write16_Fn write16, GDOX_Memory_Write32_Fn write32);
     bool SetRegionWideReadHandlers(int id, GDOX_Memory_Read16_Fn read16, GDOX_Memory_Read32_Fn read32);
     bool SetRegionMapped(int id, bool mapped);
+    bool SetRegionSpan(int id, u32 physical_base, u32 size, const u8* read_data, u8* write_data);
     bool SetRegionData(int id, const u8* read_data, u8* write_data);
     bool SetRegionHandlerRange(int id, u32 offset, u32 size, bool reads);
     void SynchronizeAccess();

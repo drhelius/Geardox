@@ -169,6 +169,14 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
             if (m_debug_console->Decodes(port))
                 return m_debug_console->Read();
             break;
+        case 0x0404:
+        case 0x0405:
+        case 0x0406:
+        case 0x0407:
+            // Shadow register for SeaBIOS
+            if (m_system_control->Decodes(port))
+                return m_system_control->Read(port, context.clocks);
+            break;
         case 0x0511:
             // Firmware config data
             if (m_firmware_config->Decodes(port))
@@ -340,6 +348,12 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
         case 0x0402:
             // Debug console readback
             return m_debug_console->Decodes(port) ? GDOX_NO_EVENT : 0;
+        case 0x0404:
+        case 0x0405:
+        case 0x0406:
+        case 0x0407:
+            // Shadow register for SeaBIOS
+            return m_system_control->GetReadStableUntil(port, clocks);
         case 0x03BA:
             // VGA input status 1, monochrome block
         case 0x03DA:
@@ -415,6 +429,13 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             // Debug console
             if (m_debug_console->Decodes(port))
                 m_debug_console->Write(value);
+            break;
+        case 0x0404:
+        case 0x0405:
+        case 0x0406:
+            // Shadow register for SeaBIOS
+            if (m_system_control->Decodes(port))
+                m_system_control->Write(port, value, context.clocks);
             break;
         case 0x0510:
             // Firmware config selector

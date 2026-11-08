@@ -172,7 +172,11 @@ static const MemorySourceInfo k_memory_sources[] =
     { GDOX_DEBUG_REGION_VGA_ROM, MEMORY_GROUP_CPU_WINDOW, false,
         "The VGA BIOS at C0000, mapped as a card ROM for BIOSes other than SeaBIOS" },
     { GDOX_DEBUG_REGION_UPPER_MEMORY, MEMORY_GROUP_CPU_WINDOW, true,
-        "Upper memory without RAM, for BIOSes other than SeaBIOS" }
+        "Upper memory with nothing there: the space SeaBIOS frees at the end of POST, or all of it for other BIOSes" },
+    { GDOX_DEBUG_REGION_SHADOW_ROM, MEMORY_GROUP_CPU_WINDOW, false,
+        "The option ROMs from C0000, read-only shadow RAM once SeaBIOS locks it at the end of POST" },
+    { GDOX_DEBUG_REGION_SHADOW_BIOS, MEMORY_GROUP_CPU_WINDOW, false,
+        "The F segment, read-only shadow RAM once SeaBIOS locks it at the end of POST" }
 };
 
 static DebugMemoryProvider memory_provider;
@@ -1805,8 +1809,7 @@ static void format_search_value(u64 value, int width, int type, char* text, size
         snprintf(text, size, "%0*llX", width * 2, (unsigned long long)value);
     else if (type == SEARCH_TYPE_SIGNED)
     {
-        s64 signed_value = width == 1 ? (s64)(s8)value : width == 2 ? (s64)(s16)value : width == 4 ? (s64)(s32)value :
-            (s64)value;
+        s64 signed_value = width == 1 ? (s64)(s8)value : width == 2 ? (s64)(s16)value : width == 4 ? (s64)(s32)value : (s64)value;
         snprintf(text, size, "%lld", (long long)signed_value);
     }
     else
@@ -2033,8 +2036,7 @@ static void remove_memory_breakpoints()
     for (size_t i = 0; i < breakpoints.size(); i++)
     {
         if (breakpoints[i].type != I386_BREAKPOINT_EXECUTE)
-            cpu->RemoveBreakpoint(breakpoints[i].address1, breakpoints[i].address2, breakpoints[i].type,
-                breakpoints[i].space);
+            cpu->RemoveBreakpoint(breakpoints[i].address1, breakpoints[i].address2, breakpoints[i].type, breakpoints[i].space);
     }
 }
 
@@ -2398,8 +2400,7 @@ bool gui_debug_memory_get_area(int id, GuiDebugMemoryArea& area)
 
     GDOX_Debug_Memory_Region region;
 
-    if (id < GUI_DEBUG_MEMORY_AREA_REGIONS ||
-        !memory_provider.GetRegionById(id - GUI_DEBUG_MEMORY_AREA_REGIONS + 1, region))
+    if (id < GUI_DEBUG_MEMORY_AREA_REGIONS || !memory_provider.GetRegionById(id - GUI_DEBUG_MEMORY_AREA_REGIONS + 1, region))
         return false;
 
     area.source.space = GDOX_DEBUG_MEMORY_REGION;
@@ -2780,8 +2781,7 @@ static bool read_data(std::istream& stream, void* data, size_t size)
 
 static bool read_count(std::istream& stream, int& count, size_t record_size)
 {
-    if (!read_data(stream, &count, sizeof(count)) || count < 0 || count > MEMORY_SETTINGS_MAX_RECORDS ||
-        record_size == 0)
+    if (!read_data(stream, &count, sizeof(count)) || count < 0 || count > MEMORY_SETTINGS_MAX_RECORDS || record_size == 0)
         return false;
 
     std::streampos position = stream.tellg();
@@ -2872,8 +2872,7 @@ bool MemorySearch::Start(DebugMemoryProvider& provider, const GDOX_Debug_Memory_
     return true;
 }
 
-bool MemorySearch::FilterOperator(DebugMemoryProvider& provider, int comparison, int reference, u64 value,
-    bool signed_values)
+bool MemorySearch::FilterOperator(DebugMemoryProvider& provider, int comparison, int reference, u64 value, bool signed_values)
 {
     if (!m_active)
         return false;

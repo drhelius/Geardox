@@ -159,8 +159,7 @@ bool FloppyImage::IsD77(const u8* data, u32 size)
 
     u8 media = data[0x1B];
 
-    if ((data[0x1A] & ~0x10) != 0 || (media != 0x00 && media != 0x10 && media != 0x20 && media != 0x30 &&
-        media != 0x40))
+    if ((data[0x1A] & ~0x10) != 0 || (media != 0x00 && media != 0x10 && media != 0x20 && media != 0x30 && media != 0x40))
         return false;
 
     u32 disk_size = read_u32_le(data + 0x1C);
@@ -1190,8 +1189,7 @@ u8* FloppyImage::CreateFromMFM(const u8* data, u32 size, u32* image_size, Floppy
     return result;
 }
 
-u32 FloppyImage::DecodeMFMTrack(const u8* cells, u32 count, u8* run, u32 run_capacity, FloppyImage_Weak* weak,
-    u32* weak_count)
+u32 FloppyImage::DecodeMFMTrack(const u8* cells, u32 count, u8* run, u32 run_capacity, FloppyImage_Weak* weak, u32* weak_count)
 {
     u32 limit = count + count / 10;
     u32 position = 0;
@@ -1279,8 +1277,7 @@ u32 FloppyImage::DecodeMFMTrack(const u8* cells, u32 count, u8* run, u32 run_cap
 
                 if (last[8] == k_floppy_status_no_data)
                 {
-                    last[8] = CRC16(0xFFFF, field + crc_start, data_size + 6 - crc_start) == 0 ? 0x00 :
-                        k_floppy_status_data_crc;
+                    last[8] = CRC16(0xFFFF, field + crc_start, data_size + 6 - crc_start) == 0 ? 0x00 : k_floppy_status_data_crc;
                 }
 
                 // Weak bytes read differently from turn to turn: runs of AA written one cell late read as 00 or AA,

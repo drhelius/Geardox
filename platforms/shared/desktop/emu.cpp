@@ -276,8 +276,7 @@ void emu_update(void)
             debug_run.step_start = emu_debug_step_start;
             debug_run.stop_on_breakpoint = !emu_debug_disable_breakpoints;
             debug_run.stop_on_run_to_breakpoint = true;
-            debug_run.skip_interrupts_on_step = config_debug.step_skip_interrupts &&
-                emu_debug_command == Debug_Command_Step;
+            debug_run.skip_interrupts_on_step = config_debug.step_skip_interrupts && emu_debug_command == Debug_Command_Step;
             debug_run.stopped = false;
             debug_run.breakpoint_hit = false;
 
@@ -756,6 +755,15 @@ void emu_set_dynarec(bool enabled)
         Log("Dynarec unavailable, the CPU runs in the interpreter");
 }
 
+// The board's Turbo button acts at once and stays where it was left
+void emu_set_turbo(bool turbo)
+{
+    config_machine.turbo = turbo;
+
+    if (IsValidPointer(geardox))
+        geardox->SetTurbo(turbo);
+}
+
 bool emu_is_dynarec_enabled(void)
 {
     return IsValidPointer(geardox) && geardox->GetI386()->IsDynarecEnabled();
@@ -785,7 +793,7 @@ void emu_apply_machine_settings(void)
     settings.mouse = config_machine.mouse;
     settings.cdrom = config_machine.cdrom;
     settings.cdrom_speed = config_machine.cdrom_speed;
-    settings.speed_mode = GDOX_MACHINE_AUTO;
+    settings.speed_mode = config_machine.turbo ? 1 : 0;
     geardox->SetMachineSettings(settings);
 }
 
@@ -891,8 +899,7 @@ bool emu_save_state_slot(int index)
     if (emu_is_empty())
         return false;
 
-    const char* dir = get_configurated_dir(config_emulator.savestates_dir_option,
-        config_emulator.savestates_path.c_str());
+    const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
     char path[GDOX_MAX_PATH];
     bool saved = get_floppy_state_path(index, path, sizeof(path)) ? geardox->SaveState(path, -1, true) :
         geardox->SaveState(dir, index, true);
@@ -906,8 +913,7 @@ bool emu_load_state_slot(int index)
     if (emu_is_empty())
         return false;
 
-    const char* dir = get_configurated_dir(config_emulator.savestates_dir_option,
-        config_emulator.savestates_path.c_str());
+    const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
     char path[GDOX_MAX_PATH];
 
     if (get_floppy_state_path(index, path, sizeof(path)))
@@ -919,6 +925,7 @@ bool emu_load_state_slot(int index)
     if (!geardox->LoadState(dir, index))
         return false;
 
+    config_machine.turbo = geardox->IsTurbo();
     restore_state_frame(dir, index);
     emu_floppy_reconcile();
     emu_hard_disk_state_loaded(false);
@@ -941,6 +948,7 @@ bool emu_load_state_file(const char* file_path)
     if (emu_is_empty() || !geardox->LoadState(file_path))
         return false;
 
+    config_machine.turbo = geardox->IsTurbo();
     restore_state_frame(file_path, -1);
     emu_floppy_reconcile();
     emu_hard_disk_state_loaded(false);
@@ -978,8 +986,7 @@ void update_savestates_data(void)
 
     for (int i = 0; i < 5; i++)
     {
-        const char* dir = get_configurated_dir(config_emulator.savestates_dir_option,
-            config_emulator.savestates_path.c_str());
+        const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
         char path[GDOX_MAX_PATH];
         int index = i + 1;
 
@@ -1828,8 +1835,7 @@ static void notify_machine(void)
     const char* origin = IsValidPointer(report.title) ? "game database" : "Auto";
     char value[48];
 
-    if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) &&
-        !floppy_notice))
+    if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) && !floppy_notice))
         return;
 
     char message[256];

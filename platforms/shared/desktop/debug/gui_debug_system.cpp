@@ -403,6 +403,15 @@ void gui_debug_window_system_control(void)
         ImGui::TextColored(orange, "%.0f MHz", machine.cpu_clock_rate / 1000000.0);
 
         ImGui::TableNextRow();
+        draw_grid_label("TURBO");
+        ImGui::TextColored(core->IsTurbo() ? green : gray, "%s", core->IsTurbo() ? "ON" : "OFF"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(gray, "(%.1f MHz)", core->GetEffectiveCPUClockRate() / 1000000.0);
+
+        ImGui::TableNextRow();
+        draw_grid_label("CACHE");
+        ImGui::TextColored(core->GetI386()->IsBusCached() ? green : gray, "%s", core->GetI386()->IsBusCached() ? "ON" : "OFF");
+
+        ImGui::TableNextRow();
         draw_grid_label("RAM");
         ImGui::TextColored(white, "%u KB", machine.ram_size / 1024);
 

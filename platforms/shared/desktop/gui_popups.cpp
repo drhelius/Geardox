@@ -536,8 +536,7 @@ void gui_show_fps(const ImVec2& min, const ImVec2& max)
 
     if (emu_frame_counter != fps_frames)
     {
-        if ((fps_window_start == 0) || (emu_frame_counter < fps_frames) ||
-            (((double)(now - fps_last_frame) / frequency) > 1.0))
+        if ((fps_window_start == 0) || (emu_frame_counter < fps_frames) || (((double)(now - fps_last_frame) / frequency) > 1.0))
         {
             fps_window_start = now;
             fps_window_frames = emu_frame_counter;

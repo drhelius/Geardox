@@ -877,8 +877,7 @@ bool CdRomCueBinImage::SetupFileChunks(ImgFile* img_file)
         img_file->chunk_count++;
 
     img_file->chunk_cache_count = img_file->chunk_count;
-    if ((m_load_options.max_cached_chunks != 0) &&
-        (img_file->chunk_cache_count > m_load_options.max_cached_chunks))
+    if ((m_load_options.max_cached_chunks != 0) && (img_file->chunk_cache_count > m_load_options.max_cached_chunks))
     {
         img_file->chunk_cache_count = MAX(2U, m_load_options.max_cached_chunks);
     }
@@ -1198,8 +1197,7 @@ bool CdRomCueBinImage::ParseCueFile(const char* cue_content)
             track.control_flags = p.control_flags;
             track_file.img_file = f.img_file;
 
-            bool file_starts_at_index1 = m_load_options.track_files_start_at_index1 &&
-                (f.tracks.size() == 1);
+            bool file_starts_at_index1 = m_load_options.track_files_start_at_index1 && (f.tracks.size() == 1);
 
             if (p.has_pregap)
                 total_pregap_length += p.pregap_length;
@@ -1208,8 +1206,7 @@ bool CdRomCueBinImage::ParseCueFile(const char* cue_content)
 
             if (file_starts_at_index1 && (p.type == GDOX_CDROM_AUDIO_TRACK))
             {
-                bool previous_track_is_data = !m_toc.tracks.empty() &&
-                    (m_toc.tracks.back().type != GDOX_CDROM_AUDIO_TRACK);
+                bool previous_track_is_data = !m_toc.tracks.empty() && (m_toc.tracks.back().type != GDOX_CDROM_AUDIO_TRACK);
 
                 if (!previous_track_is_data)
                     index1_lba = 0;
@@ -1481,8 +1478,7 @@ bool CdRomCueBinImage::LoadChunkUnlocked(ImgFile* img_file, u64 chunk_index)
             return true;
         }
 
-        if ((file_offset == UINT64_MAX) || (file_offset > (u64)INT64_MAX) ||
-            !img_file->file->Seek((s64)file_offset))
+        if ((file_offset == UINT64_MAX) || (file_offset > (u64)INT64_MAX) || !img_file->file->Seek((s64)file_offset))
         {
             Error("Cannot load chunk - Failed to seek to offset %llu in file %s (tell after failure: %lld)",
                 (unsigned long long)file_offset, img_file->file_path, (long long)img_file->file->Tell());
@@ -1518,8 +1514,7 @@ bool CdRomCueBinImage::LoadChunkUnlocked(ImgFile* img_file, u64 chunk_index)
 
 u64 CdRomCueBinImage::GetChunkSlot(const ImgFile* img_file, u64 chunk_index) const
 {
-    return img_file->chunk_cache_count == img_file->chunk_count ? chunk_index :
-        chunk_index % img_file->chunk_cache_count;
+    return img_file->chunk_cache_count == img_file->chunk_count ? chunk_index : chunk_index % img_file->chunk_cache_count;
 }
 
 bool CdRomCueBinImage::IsChunkLoaded(const ImgFile* img_file, u64 chunk_index) const
@@ -1536,8 +1531,7 @@ bool CdRomCueBinImage::IsChunkLoaded(const ImgFile* img_file, u64 chunk_index) c
 
 u8* CdRomCueBinImage::GetChunkData(const ImgFile* img_file, u64 chunk_index) const
 {
-    return IsChunkLoaded(img_file, chunk_index) ?
-        img_file->chunks[GetChunkSlot(img_file, chunk_index)] : NULL;
+    return IsChunkLoaded(img_file, chunk_index) ? img_file->chunks[GetChunkSlot(img_file, chunk_index)] : NULL;
 }
 
 bool CdRomCueBinImage::PreloadChunks(ImgFile* img_file, u64 start_chunk, u64 count)
@@ -1786,8 +1780,7 @@ void CdRomCueBinImage::CalculateCRC()
 
     for (size_t i = 0; i < track_count; i++)
     {
-        if (m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2048 ||
-            m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2352)
+        if (m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2048 || m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2352)
         {
             first_data_track = &m_toc.tracks[i];
             first_data_track_file = &m_track_files[i];

@@ -205,8 +205,7 @@ public:
     json WriteI386Register(const std::string& name, u32 value);
 
     // Disassembly and symbols
-    json GetDisassembly(u32 start_address, u32 end_address, int count, int code_size, bool resolve_symbols,
-        bool detailed);
+    json GetDisassembly(u32 start_address, u32 end_address, int count, int code_size, bool resolve_symbols, bool detailed);
     json ListCallStack();
     json AddDisassemblerBookmark(u32 address, const std::string& name);
     json RemoveDisassemblerBookmark(u32 address);
@@ -242,6 +241,7 @@ public:
     // Audio hardware
     json GetSoundStatus();
     json SetAudioMute(const std::string& source, bool mute);
+    json SetTurbo(bool turbo);
 
     // Storage
     json GetCDROMStatus();
@@ -329,8 +329,7 @@ private:
     std::string Hex32(u32 value) const;
     std::string FormatAreaOffset(const GuiDebugMemoryArea& area, u32 offset) const;
     bool ParseAreaOffset(const GuiDebugMemoryArea& area, const std::string& text, u32& offset, std::string& error);
-    bool GetAreaRange(const GuiDebugMemoryArea& area, const json& arguments, u32& start, u32& size,
-        std::string& error);
+    bool GetAreaRange(const GuiDebugMemoryArea& area, const json& arguments, u32& start, u32& size, std::string& error);
     const char* GetSymbolAt(u32 linear);
     std::string FormatLogical(u16 selector, u32 offset, u32 linear);
     void AddMediaStateChanges(json& result);

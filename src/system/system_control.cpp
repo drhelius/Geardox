@@ -34,6 +34,7 @@ SystemControl::SystemControl()
     InitPointer(m_trace_logger);
     memset(&m_state, 0, sizeof(m_state));
     m_power_on_a20_port_92 = true;
+    m_shadow_control = false;
 }
 
 SystemControl::~SystemControl()
@@ -58,6 +59,37 @@ void SystemControl::SetFPU(X87* fpu)
     m_x87 = fpu;
 }
 
+// The shadow register SeaBIOS programs at the end of POST, as it would a chipset's. Other BIOSes get a fixed map
+void SystemControl::SetShadowControl(bool enabled)
+{
+    m_shadow_control = enabled;
+}
+
+// Locked, the option ROMs and the F segment are read-only shadow RAM and the free space between the ROMs and SeaBIOS'
+// low zone has nothing there, for UMB managers. Unlocked, C0000h-FFFFFh is plain RAM
+void SystemControl::ApplyShadow()
+{
+    if (!IsValidPointer(m_memory))
+        return;
+
+    u32 rom_end = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_rom_end << 12), k_system_control_shadow_bios);
+    u32 free_end = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_free_end << 12), k_system_control_shadow_bios);
+    bool locked = m_state.shadow_locked && m_shadow_control;
+    u8* ram = m_memory->GetMainRAM();
+    free_end = MAX(free_end, rom_end);
+
+    if (locked && rom_end > k_system_control_shadow_start)
+        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_SHADOW_ROM, k_system_control_shadow_start,
+            rom_end - k_system_control_shadow_start, ram + k_system_control_shadow_start, NULL);
+
+    if (locked && free_end > rom_end)
+        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_UPPER_MEMORY, rom_end, free_end - rom_end, NULL, NULL);
+
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_ROM, locked && rom_end > k_system_control_shadow_start);
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_UPPER_MEMORY, locked && free_end > rom_end);
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_BIOS, locked);
+}
+
 // SeaBIOS gates A20 through port 92h only and other BIOSes through the 8042. As the two OR together,
 // the one the BIOS drives holds the gate open at power on and the other starts low
 void SystemControl::SetPowerOnA20(bool port_92)
@@ -72,6 +104,7 @@ void SystemControl::Reset()
     m_state.port_92 = m_power_on_a20_port_92 ? 0x02 : 0x00;
     m_state.keyboard_a20 = !m_power_on_a20_port_92;
     UpdateA20();
+    ApplyShadow();
 }
 
 bool SystemControl::Decodes(u16 port) const
@@ -85,6 +118,11 @@ bool SystemControl::Decodes(u16 port) const
         case 0x00F0:
         case 0x00F1:
             return true;
+        case 0x0404:
+        case 0x0405:
+        case 0x0406:
+        case 0x0407:
+            return m_shadow_control;
         default:
             return false;
     }
@@ -106,6 +144,11 @@ u8 SystemControl::Peek(u16 port, u64 clocks) const
             return m_state.post_code;
         case 0x0092:
             return m_state.port_92;
+        case 0x0404:
+        case 0x0405:
+        case 0x0406:
+        case 0x0407:
+            return m_shadow_control ? (u8)(k_system_control_shadow_id >> ((port - 0x0404) * 8)) : 0xFF;
         default:
             return 0xFF;
     }
@@ -152,6 +195,17 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
             if (IsValidPointer(m_x87))
                 m_x87->Reset();
             break;
+        case 0x0404:
+            m_state.shadow_rom_end = value;
+            break;
+        case 0x0405:
+            m_state.shadow_free_end = value;
+            break;
+        case 0x0406:
+            previous = m_state.shadow_locked ? 1 : 0;
+            m_state.shadow_locked = (value & 0x01) != 0;
+            ApplyShadow();
+            break;
         default:
             return;
     }
@@ -169,6 +223,10 @@ u64 SystemControl::GetReadStableUntil(u16 port, u64 clocks) const
             return m_pit->GetSpeakerStableUntil(clocks);
         case 0x0080:
         case 0x0092:
+        case 0x0404:
+        case 0x0405:
+        case 0x0406:
+        case 0x0407:
             return GDOX_NO_EVENT;
         default:
             return 0;
@@ -269,6 +327,9 @@ void SystemControl::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.fpu_error);
     G_SERIALIZE(serializer, m_state.keyboard_a20);
     G_SERIALIZE(serializer, m_state.reset_a20);
+    G_SERIALIZE(serializer, m_state.shadow_rom_end);
+    G_SERIALIZE(serializer, m_state.shadow_free_end);
+    G_SERIALIZE(serializer, m_state.shadow_locked);
 }
 
 void SystemControl::SanitizeState()
@@ -276,4 +337,5 @@ void SystemControl::SanitizeState()
     m_state.port_61 &= 0x0F;
     m_state.port_92 &= 0x03;
     UpdateA20();
+    ApplyShadow();
 }

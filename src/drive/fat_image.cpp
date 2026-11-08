@@ -89,8 +89,7 @@ static std::string upper(const std::string& text)
 
 static bool is_name_character(char c)
 {
-    return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) ||
-        ((c != 0) && (strchr(k_fat_name_characters, c) != NULL));
+    return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || ((c != 0) && (strchr(k_fat_name_characters, c) != NULL));
 }
 
 static bool is_clutter(const std::string& name)
@@ -520,8 +519,7 @@ bool FatImage::ReadFingerprint(const char* path, u32* fingerprint)
 
     bool ok = file->ReadAt(0, sector, k_fat_sector_size) && (read_u16_le(sector + 510) == 0xAA55);
     u32 start = ok ? read_u32_le(sector + k_fat_entry_offset + 8) : 0;
-    ok = ok && file->ReadAt((u64)start * k_fat_sector_size, sector, k_fat_sector_size) &&
-        (read_u16_le(sector + 510) == 0xAA55);
+    ok = ok && file->ReadAt((u64)start * k_fat_sector_size, sector, k_fat_sector_size) && (read_u16_le(sector + 510) == 0xAA55);
     SafeDelete(file);
 
     if (ok)

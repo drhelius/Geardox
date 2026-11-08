@@ -290,8 +290,7 @@ void gui_debug_window_vga_registers(void)
         draw_register_file("GRAPHICS", "GR", k_debug_graphics_register_names, state->graphics, VIDEO_GRAPHICS_COUNT,
             graphics_write_callback, video);
         ImGui::TableNextColumn();
-        draw_register_file("CRTC", "CR", k_debug_crtc_register_names, state->crtc, VIDEO_CRTC_COUNT, crtc_write_callback,
-            video);
+        draw_register_file("CRTC", "CR", k_debug_crtc_register_names, state->crtc, VIDEO_CRTC_COUNT, crtc_write_callback, video);
         ImGui::TableNextColumn();
         draw_register_file("ATTRIBUTE", "AR", k_debug_attribute_register_names, state->attribute, VIDEO_ATTRIBUTE_COUNT,
             attribute_write_callback, video);

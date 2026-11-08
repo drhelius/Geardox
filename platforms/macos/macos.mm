@@ -107,8 +107,7 @@
 - (void)launchNewInstance:(id)sender
 {
     NSURL* app_url = [[NSBundle mainBundle] bundleURL];
-    NSWorkspaceOpenConfiguration* config =
-        [NSWorkspaceOpenConfiguration configuration];
+    NSWorkspaceOpenConfiguration* config = [NSWorkspaceOpenConfiguration configuration];
     config.createsNewApplicationInstance = YES;
     config.activates = YES;
 
@@ -123,8 +122,7 @@
 
 - (BOOL)respondsToSelector:(SEL)selector
 {
-    return [super respondsToSelector:selector] ||
-        [m_delegate respondsToSelector:selector];
+    return [super respondsToSelector:selector] || [m_delegate respondsToSelector:selector];
 }
 
 - (NSMethodSignature*)methodSignatureForSelector:(SEL)selector
@@ -213,8 +211,7 @@ extern "C" void macos_install_dock_menu(void)
     if (!delegate)
         return;
 
-    geardox_application_delegate =
-        [[GeardoxApplicationDelegate alloc] initWithDelegate:delegate];
+    geardox_application_delegate = [[GeardoxApplicationDelegate alloc] initWithDelegate:delegate];
     [NSApp setDelegate:geardox_application_delegate];
 }
 

@@ -539,8 +539,7 @@ static void draw_descriptor_tables(I386* cpu, const I386_State& state)
         ImGui::TableNextColumn();
         ImGui::TextDisabled("-");
         ImGui::TableNextColumn();
-        EditableRegister32(NULL, NULL, I386RegId_GDTRBase, state.gdtr.base, I386WriteCallback32, cpu,
-            EditableRegisterFlags_None);
+        EditableRegister32(NULL, NULL, I386RegId_GDTRBase, state.gdtr.base, I386WriteCallback32, cpu, EditableRegisterFlags_None);
         ImGui::TableNextColumn();
         EditableRegister16(NULL, NULL, I386RegId_GDTRLimit, state.gdtr.limit, I386WriteCallback16, cpu,
             EditableRegisterFlags_None);
@@ -555,8 +554,7 @@ static void draw_descriptor_tables(I386* cpu, const I386_State& state)
         ImGui::TableNextColumn();
         ImGui::TextDisabled("-");
         ImGui::TableNextColumn();
-        EditableRegister32(NULL, NULL, I386RegId_IDTRBase, state.idtr.base, I386WriteCallback32, cpu,
-            EditableRegisterFlags_None);
+        EditableRegister32(NULL, NULL, I386RegId_IDTRBase, state.idtr.base, I386WriteCallback32, cpu, EditableRegisterFlags_None);
         ImGui::TableNextColumn();
         EditableRegister16(NULL, NULL, I386RegId_IDTRLimit, state.idtr.limit, I386WriteCallback16, cpu,
             EditableRegisterFlags_None);
@@ -572,8 +570,7 @@ static void draw_descriptor_tables(I386* cpu, const I386_State& state)
         EditableRegister16(NULL, NULL, I386RegId_LDTRSelector, state.ldtr.selector, I386WriteCallback16, cpu,
             EditableRegisterFlags_None);
         ImGui::TableNextColumn();
-        EditableRegister32(NULL, NULL, I386RegId_LDTRBase, state.ldtr.base, I386WriteCallback32, cpu,
-            EditableRegisterFlags_None);
+        EditableRegister32(NULL, NULL, I386RegId_LDTRBase, state.ldtr.base, I386WriteCallback32, cpu, EditableRegisterFlags_None);
         ImGui::TableNextColumn();
         EditableRegister32(NULL, NULL, I386RegId_LDTRLimit, state.ldtr.limit, I386WriteCallback32, cpu,
             EditableRegisterFlags_None);
@@ -581,8 +578,7 @@ static void draw_descriptor_tables(I386* cpu, const I386_State& state)
         EditableRegister8(NULL, NULL, I386RegId_LDTRAccess, gui_debug_i386_access_byte(state.ldtr), I386WriteCallback8,
             cpu, EditableRegisterFlags_None);
         ImGui::TableNextColumn();
-        EditableRegister8(NULL, NULL, I386RegId_LDTRDpl, state.ldtr.dpl, I386WriteCallback8, cpu,
-            EditableRegisterFlags_None);
+        EditableRegister8(NULL, NULL, I386RegId_LDTRDpl, state.ldtr.dpl, I386WriteCallback8, cpu, EditableRegisterFlags_None);
 
         ImGui::TableNextRow();
         ImGui::TableNextColumn();

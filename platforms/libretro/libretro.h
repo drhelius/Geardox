@@ -5011,8 +5011,7 @@ enum retro_log_level
  * @see RETRO_ENVIRONMENT_GET_LOG_INTERFACE
  * @see printf
  */
-typedef void (RETRO_CALLCONV *retro_log_printf_t)(enum retro_log_level level,
-      const char *fmt, ...);
+typedef void (RETRO_CALLCONV *retro_log_printf_t)(enum retro_log_level level, const char *fmt, ...);
 
 /**
  * Details about how to make log messages.
@@ -5575,8 +5574,7 @@ enum retro_sensor_action
  * on the provided \c port.
  * @see retro_sensor_action
  */
-typedef bool (RETRO_CALLCONV *retro_set_sensor_state_t)(unsigned port,
-      enum retro_sensor_action action, unsigned rate);
+typedef bool (RETRO_CALLCONV *retro_set_sensor_state_t)(unsigned port, enum retro_sensor_action action, unsigned rate);
 
 /**
  * Retrieves the current value reported by sensor.
@@ -5805,8 +5803,7 @@ struct retro_camera_callback
  */
 
 /** @copydoc retro_location_callback::set_interval */
-typedef void (RETRO_CALLCONV *retro_location_set_interval_t)(unsigned interval_ms,
-      unsigned interval_distance);
+typedef void (RETRO_CALLCONV *retro_location_set_interval_t)(unsigned interval_ms, unsigned interval_distance);
 
 /** @copydoc retro_location_callback::start */
 typedef bool (RETRO_CALLCONV *retro_location_start_t)(void);
@@ -5934,8 +5931,7 @@ enum retro_rumble_effect
  * @note Calling this before the first \c retro_run() may return \c false.
  * @see RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE
  */
-typedef bool (RETRO_CALLCONV *retro_set_rumble_state_t)(unsigned port,
-      enum retro_rumble_effect effect, uint16_t strength);
+typedef bool (RETRO_CALLCONV *retro_set_rumble_state_t)(unsigned port, enum retro_rumble_effect effect, uint16_t strength);
 
 /**
  * An interface that the core can use to set the rumble state of a controller.
@@ -6046,8 +6042,7 @@ struct retro_frame_time_callback
  * @param underrun_likely \c true if the frontend expects an audio buffer underrun
  * during the next frame, which indicates that a core should attempt frame-skipping.
  */
-typedef void (RETRO_CALLCONV *retro_audio_buffer_status_callback_t)(
-      bool active, unsigned occupancy, bool underrun_likely);
+typedef void (RETRO_CALLCONV *retro_audio_buffer_status_callback_t)(bool active, unsigned occupancy, bool underrun_likely);
 
 /**
  * A callback to register with the frontend to receive audio buffer occupancy information.
@@ -6221,8 +6216,7 @@ struct retro_hw_render_callback
  * Similarly if only a keycode event is generated with no corresponding
  * character, character should be 0.
  */
-typedef void (RETRO_CALLCONV *retro_keyboard_event_t)(bool down, unsigned keycode,
-      uint32_t character, uint16_t key_modifiers);
+typedef void (RETRO_CALLCONV *retro_keyboard_event_t)(bool down, unsigned keycode, uint32_t character, uint16_t key_modifiers);
 
 struct retro_keyboard_callback
 {
@@ -6339,8 +6333,7 @@ struct retro_game_info;
  * \c false if the tray is not ejected
  * or if there was an error.
  */
-typedef bool (RETRO_CALLCONV *retro_replace_image_index_t)(unsigned index,
-      const struct retro_game_info *info);
+typedef bool (RETRO_CALLCONV *retro_replace_image_index_t)(unsigned index, const struct retro_game_info *info);
 
 /**
  * Adds a new index to the core's internal disk list.
@@ -8541,8 +8534,7 @@ typedef bool (RETRO_CALLCONV *retro_environment_t)(unsigned cmd, void *data);
  * @see RETRO_ENVIRONMENT_SET_PIXEL_FORMAT
  * @see retro_pixel_format
  */
-typedef void (RETRO_CALLCONV *retro_video_refresh_t)(const void *data, unsigned width,
-      unsigned height, size_t pitch);
+typedef void (RETRO_CALLCONV *retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);
 
 /**
  * Renders a single audio frame. Should only be used if implementation generates a single sample at a time.
@@ -8570,8 +8562,7 @@ typedef void (RETRO_CALLCONV *retro_audio_sample_t)(int16_t left, int16_t right)
  * @see retro_set_audio_sample_batch()
  * @see retro_set_audio_sample()
  */
-typedef size_t (RETRO_CALLCONV *retro_audio_sample_batch_t)(const int16_t *data,
-      size_t frames);
+typedef size_t (RETRO_CALLCONV *retro_audio_sample_batch_t)(const int16_t *data, size_t frames);
 
 /**
  * Renders multiple audio frames in one go, in float format.
@@ -8591,8 +8582,7 @@ typedef size_t (RETRO_CALLCONV *retro_audio_sample_batch_t)(const int16_t *data,
  * @see RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT
  * @see retro_audio_sample_batch_t
  */
-typedef size_t (RETRO_CALLCONV *retro_audio_sample_batch_float_t)(
-      const float *data, size_t frames);
+typedef size_t (RETRO_CALLCONV *retro_audio_sample_batch_float_t)(const float *data, size_t frames);
 
 /**
  * Float audio sample-batch callback handed to the core in response to
@@ -8675,8 +8665,7 @@ typedef void (RETRO_CALLCONV *retro_input_poll_t)(void);
  * @see RETRO_DEVICE_ANALOG
  * @see RETRO_DEVICE_POINTER
  */
-typedef int16_t (RETRO_CALLCONV *retro_input_state_t)(unsigned port, unsigned device,
-      unsigned index, unsigned id);
+typedef int16_t (RETRO_CALLCONV *retro_input_state_t)(unsigned port, unsigned device, unsigned index, unsigned id);
 
 /**
  * Sets the environment callback.

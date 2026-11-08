@@ -387,15 +387,12 @@ bool gui_debug_i386_load_system_segment(const I386_State& state, bool task, u32 
     GuiDebugDescriptor descriptor;
     bool type_ok = false;
 
-    if ((selector & 0x0004) == 0 && gui_debug_i386_read_table_entry(GuiDebugDescriptorTable_GDT, selector >> 3,
-        descriptor))
-        type_ok = descriptor.system && descriptor.present && (task ? (descriptor.type & 0x05) == 0x01 :
-            descriptor.type == 0x02);
+    if ((selector & 0x0004) == 0 && gui_debug_i386_read_table_entry(GuiDebugDescriptorTable_GDT, selector >> 3, descriptor))
+        type_ok = descriptor.system && descriptor.present && (task ? (descriptor.type & 0x05) == 0x01 : descriptor.type == 0x02);
 
     if (!type_ok)
     {
-        snprintf(error, error_size, "Selector %04X is not a present %s descriptor in the GDT", selector,
-            task ? "TSS" : "LDT");
+        snprintf(error, error_size, "Selector %04X is not a present %s descriptor in the GDT", selector, task ? "TSS" : "LDT");
         return false;
     }
 
@@ -430,8 +427,7 @@ u8 gui_debug_i386_access_byte(const I386_Segment& segment)
         type |= (attributes & I386_SEGMENT_ACCESSED) != 0 ? 0x01 : 0;
     }
 
-    return (u8)(((attributes & I386_SEGMENT_PRESENT) != 0 ? 0x80 : 0) | ((segment.dpl & 3) << 5) |
-        (system ? 0 : 0x10) | type);
+    return (u8)(((attributes & I386_SEGMENT_PRESENT) != 0 ? 0x80 : 0) | ((segment.dpl & 3) << 5) | (system ? 0 : 0x10) | type);
 }
 
 // G and D/B aren't part of the access byte, so they stay

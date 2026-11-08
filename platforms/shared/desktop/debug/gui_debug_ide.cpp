@@ -139,8 +139,7 @@ static void draw_ide_channel(int channel)
         draw_ide_label("DISK");
 
         if (attached)
-            ImGui::TextColored(orange, "ID %d  %s%s", selected, k_debug_ide_slot_names[selected],
-                is_cdrom ? " (CD-ROM)" : "");
+            ImGui::TextColored(orange, "ID %d  %s%s", selected, k_debug_ide_slot_names[selected], is_cdrom ? " (CD-ROM)" : "");
         else
             ImGui::TextColored(gray, "--");
 

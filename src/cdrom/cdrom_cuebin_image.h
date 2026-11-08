@@ -125,8 +125,7 @@ protected:
         bool preload, GDOX_CdRomCueFileResolver resolver, void* resolver_user_data);
 
 private:
-    static MediaFile* ResolveNormalFile(const char* reference, char* resolved_path,
-        size_t resolved_path_size, void* user_data);
+    static MediaFile* ResolveNormalFile(const char* reference, char* resolved_path, size_t resolved_path_size, void* user_data);
     void InitImgFile(ImgFile* img_file);
     void InitParsedCueTrack(ParsedCueTrack& track);
     void InitParsedCueFile(ParsedCueFile& cue_file);

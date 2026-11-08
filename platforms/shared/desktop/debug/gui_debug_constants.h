@@ -283,8 +283,7 @@ static const stDebugInterruptFunction k_debug_interrupt_functions[] =
     { 0x2F, 0xFFFF, 0x1510, "MSCDEX: send device request" }
 };
 
-static const int k_debug_interrupt_function_count =
-    sizeof(k_debug_interrupt_functions) / sizeof(k_debug_interrupt_functions[0]);
+static const int k_debug_interrupt_function_count = sizeof(k_debug_interrupt_functions) / sizeof(k_debug_interrupt_functions[0]);
 
 static const char* const k_debug_irq_sources[16] =
 {
@@ -560,8 +559,7 @@ static const char* const k_debug_cdrom_phase_names[12] =
     "RESET", "DIAGNOSTIC"
 };
 
-static const char* const k_debug_ide_slot_names[4] = { "primary master", "primary slave", "secondary master",
-    "secondary slave" };
+static const char* const k_debug_ide_slot_names[4] = { "primary master", "primary slave", "secondary master", "secondary slave" };
 
 static inline const char* gui_debug_ide_command_name(u8 command)
 {

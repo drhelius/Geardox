@@ -100,6 +100,9 @@ public:
     const GDOX_Machine_Report& GetMachineReport();
     const GDOX_Machine_Report& GetPendingMachineReport();
     bool IsMachineConfigPending();
+    void SetTurbo(bool turbo);
+    bool IsTurbo() const;
+    u32 GetEffectiveCPUClockRate() const;
     bool GetFloppyNotice(GDOX_Floppy_Notice& notice);
     bool LoadBios(const char* directory_path);
     void UnloadBios();
@@ -214,6 +217,7 @@ private:
     bool CanAutoSelect(GDOX_Machine_Model model);
     bool LoadMachineFirmware(bool force, bool report);
     void ApplyMachineConfig();
+    void ApplyCPUSpeed();
     void ApplyBusTiming();
     void ApplyBootDevice();
     void InitMemoryMap();

@@ -47,6 +47,9 @@ public:
         bool fpu_error;
         bool keyboard_a20;
         bool reset_a20;
+        u8 shadow_rom_end;
+        u8 shadow_free_end;
+        bool shadow_locked;
     };
 
 public:
@@ -56,6 +59,8 @@ public:
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetPowerOnA20(bool port_92);
     void SetFPU(X87* fpu);
+    void SetShadowControl(bool enabled);
+    void ApplyShadow();
     void Reset();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -87,6 +92,7 @@ private:
     PIC* m_pic;
     PIT* m_pit;
     X87* m_x87;
+    bool m_shadow_control;
     TraceLogger* m_trace_logger;
     bool m_power_on_a20_port_92;
 };
@@ -95,6 +101,9 @@ static const u8 k_system_control_reset_fast = 0x01;
 static const u8 k_system_control_reset_shutdown = 0x02;
 static const u8 k_system_control_reset_keyboard = 0x04;
 static const int k_system_control_fpu_irq = 13;
+static const u32 k_system_control_shadow_start = 0xC0000;
+static const u32 k_system_control_shadow_bios = 0xF0000;
+static const u32 k_system_control_shadow_id = 0x584F4447;
 
 #include "system_control_inline.h"
 

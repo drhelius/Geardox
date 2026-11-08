@@ -486,8 +486,7 @@ bool Audio::StartVgmRecording(const char* file_path, int clock_rate, const GDOX_
     if (m_vgm_recording_enabled || (m_opl_chips == 0))
         return false;
 
-    m_vgm_recorder.Start(file_path, m_opl3 ? GDOX_MASTER_CLOCK_RATE : GDOX_SOUND_CLOCK_RATE, metadata, m_opl3,
-        m_opl_chips > 1);
+    m_vgm_recorder.Start(file_path, m_opl3 ? GDOX_MASTER_CLOCK_RATE : GDOX_SOUND_CLOCK_RATE, metadata, m_opl3, m_opl_chips > 1);
     m_vgm_recording_enabled = m_vgm_recorder.IsRecording();
 
     if (m_vgm_recording_enabled)

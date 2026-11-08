@@ -255,8 +255,7 @@ void gui_hard_disks_dialog_attach(int id, const char* path)
 
 void gui_hard_disks_dialog_create(int id, const char* path)
 {
-    if (emu_hard_disk_create(id, path, create_size_mb, create_formatted,
-        config_emulator.hard_disk_write_protected[id] != 0))
+    if (emu_hard_disk_create(id, path, create_size_mb, create_formatted, config_emulator.hard_disk_write_protected[id] != 0))
         notify_attached(id, path, "Hard disk created");
     else
     {
@@ -287,8 +286,7 @@ static void disk_menu(int id)
     bool present = path[0] != 0;
     const char* name = present ? get_filename(path) : "Empty";
     char label[64];
-    snprintf(label, sizeof(label), "%s: %.32s%s###hard_disk_%d", k_slot_names[id], name,
-        strlen(name) > 32 ? "..." : "", id);
+    snprintf(label, sizeof(label), "%s: %.32s%s###hard_disk_%d", k_slot_names[id], name, strlen(name) > 32 ? "..." : "", id);
 
     if (!ImGui::BeginMenu(label))
         return;
@@ -318,8 +316,7 @@ static void disk_menu(int id)
         emu_hard_disk_detach(id);
         Emu_HardDiskInfo detached;
         emu_hard_disk_get_info(id, &detached);
-        gui_notify(gui_NotificationInfo, ICON_MD_EJECT, "Hard disk detached",
-            detached.pending ? "At the next reset" : name);
+        gui_notify(gui_NotificationInfo, ICON_MD_EJECT, "Hard disk detached", detached.pending ? "At the next reset" : name);
     }
 
     ImGui::Separator();
@@ -346,8 +343,7 @@ static void disk_menu(int id)
 
     bool write_protected = present ? info.pending_write_protected : config_emulator.hard_disk_write_protected[id] != 0;
 
-    if (ImGui::MenuItem("Write Protected", NULL, &write_protected) &&
-        !emu_hard_disk_set_write_protected(id, write_protected))
+    if (ImGui::MenuItem("Write Protected", NULL, &write_protected) && !emu_hard_disk_set_write_protected(id, write_protected))
         gui_notify(gui_NotificationError, NULL, "Unable to change the write protection of this disk");
 
     ImGui::Separator();

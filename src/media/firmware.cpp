@@ -80,8 +80,7 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
     {
         GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
         pending_data[i] = new (std::nothrow) u8[GetMaxSize(type)];
-        bool ok = IsValidPointer(pending_data[i]) &&
-            ReadComponent(container, type, pending_data[i], m_pending_info[i], true);
+        bool ok = IsValidPointer(pending_data[i]) && ReadComponent(container, type, pending_data[i], m_pending_info[i], true);
 
         if (!ok)
         {
@@ -161,8 +160,7 @@ bool Firmware::LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet)
     {
         GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
         SetBuiltinInfo(type, m_info[i]);
-        memcpy(GetWritableData(type), type == GDOX_FIRMWARE_SYSTEM_BIOS ? k_seabios_bios :
-            k_seabios_vgabios, m_info[i].size);
+        memcpy(GetWritableData(type), type == GDOX_FIRMWARE_SYSTEM_BIOS ? k_seabios_bios : k_seabios_vgabios, m_info[i].size);
     }
 
     if (!quiet)
@@ -181,8 +179,7 @@ void Firmware::SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info)
 
     memset(&info, 0, sizeof(info));
     strncpy_fit(info.path, "Built-in", sizeof(info.path));
-    snprintf(info.database_name, sizeof(info.database_name), "%s %s", system ? "SeaBIOS" : "SeaVGABIOS",
-        k_seabios_version);
+    snprintf(info.database_name, sizeof(info.database_name), "%s %s", system ? "SeaBIOS" : "SeaVGABIOS", k_seabios_version);
     info.size = (int)(system ? k_seabios_bios_size : k_seabios_vgabios_size);
     info.crc = CalculateCRC32(0, data, (u32)info.size);
     info.loaded = true;

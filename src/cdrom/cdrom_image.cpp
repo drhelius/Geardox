@@ -235,8 +235,7 @@ s32 CdRomImage::FindTrackFromLBA(u32 lba, bool include_lead_in)
         if ((lba >= track.start_lba) && (lba <= track.end_lba))
             return (s32)i;
 
-        if (include_lead_in && track.has_lead_in &&
-            (lba >= track.lead_in_lba) && (lba < track.start_lba))
+        if (include_lead_in && track.has_lead_in && (lba >= track.lead_in_lba) && (lba < track.start_lba))
             return (s32)i;
     }
 

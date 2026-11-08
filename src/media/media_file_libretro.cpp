@@ -119,8 +119,7 @@ unsigned MediaFileLibretro::GetOpenHints(const char* path)
 
 unsigned MediaFileLibretro::GetOpenMode() const
 {
-    return m_writable ? RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING :
-        RETRO_VFS_FILE_ACCESS_READ;
+    return m_writable ? RETRO_VFS_FILE_ACCESS_READ_WRITE | RETRO_VFS_FILE_ACCESS_UPDATE_EXISTING : RETRO_VFS_FILE_ACCESS_READ;
 }
 
 bool MediaFileLibretro::Open(const char* path, bool writable)
@@ -158,8 +157,7 @@ bool MediaFileLibretro::Create(const char* path)
 {
     Close();
 
-    if (!IsValidPointer(path) || !s_vfs_interface || !s_vfs_interface->open || !s_vfs_interface->close ||
-        !s_vfs_interface->write)
+    if (!IsValidPointer(path) || !s_vfs_interface || !s_vfs_interface->open || !s_vfs_interface->close || !s_vfs_interface->write)
         return false;
 
     size_t path_size = strlen(path) + 1;
