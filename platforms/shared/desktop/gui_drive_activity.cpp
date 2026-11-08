@@ -33,7 +33,7 @@
 #include "drive/fdc.h"
 #include "drive/ide_controller.h"
 
-#define GUI_DRIVE_ACTIVITY_SLOTS (1 + GDOX_MAX_FLOPPY_DRIVES)
+#define GUI_DRIVE_ACTIVITY_SLOTS (2 + GDOX_MAX_FLOPPY_DRIVES)
 
 struct Drive_Slot
 {
@@ -58,8 +58,8 @@ static const float k_drive_activity_label_size = 11.0f;
 static const float k_drive_activity_label_spacing = 1.0f;
 static const float k_drive_activity_background = 0.85f;
 static const char* const k_drive_activity_icons[GUI_DRIVE_ACTIVITY_SLOTS] = { ICON_MD_SAVE, ICON_MD_SAVE,
-    ICON_MD_STORAGE };
-static const char* const k_drive_activity_labels[GUI_DRIVE_ACTIVITY_SLOTS] = { "1", "2", NULL };
+    ICON_MD_STORAGE, ICON_MD_ALBUM };
+static const char* const k_drive_activity_labels[GUI_DRIVE_ACTIVITY_SLOTS] = { "1", "2", NULL, NULL };
 
 static Drive_Slot slots[GUI_DRIVE_ACTIVITY_SLOTS];
 static int sample_frame = -1;
@@ -137,6 +137,11 @@ static void sample(Uint64 now, bool resync)
     }
 
     update_slot(&slots[GDOX_MAX_FLOPPY_DRIVES], reads + writes, writes, false, now, resync);
+
+    IdeCdRom* cdrom = core->GetCDROM();
+    bool fitted = IsValidPointer(cdrom) && cdrom->IsAttached();
+    update_slot(&slots[GDOX_MAX_FLOPPY_DRIVES + 1], fitted ? cdrom->GetAccessCount() : 0, 0,
+        fitted && cdrom->HasDisc() && cdrom->IsBusy(), now, resync);
 }
 
 static void update_slot(Drive_Slot* slot, u32 access_count, u32 write_count, bool busy, Uint64 now, bool resync)

@@ -44,6 +44,7 @@ static Machine_Override ram_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_
 static Machine_Override fpu_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
 static Machine_Override sound_override = { false, GDOX_SOUND_CARD_SB16, GDOX_SOUND_CARD_SB16 };
 static Machine_Override mouse_override = { false, GDOX_MOUSE_PS2, GDOX_MOUSE_PS2 };
+static Machine_Override cdrom_override = { false, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SECONDARY_MASTER };
 static Machine_Override joystick_override = { false, GDOX_JOYSTICK_GAMEPAD, GDOX_JOYSTICK_GAMEPAD };
 
 static bool option_has_value(const char* option);
@@ -52,6 +53,7 @@ static bool parse_model(const char* text, int* model);
 static bool parse_fpu(const char* text, int* fpu);
 static bool parse_sound(const char* text, int* card);
 static bool parse_mouse(const char* text, int* mouse);
+static bool parse_cdrom(const char* text, int* cdrom);
 static bool parse_joystick(const char* text, int* joystick);
 static bool parse_number(const char* text, const int* values, int count, int* value);
 static void apply_override(Machine_Override& override, int* setting);
@@ -152,7 +154,7 @@ int main(int argc, char* argv[])
             else if ((strcmp(argv[i], "--model") == 0) || (strcmp(argv[i], "--cpu-mhz") == 0) ||
                 (strcmp(argv[i], "--ram") == 0) || (strcmp(argv[i], "--fpu") == 0) ||
                 (strcmp(argv[i], "--sound") == 0) || (strcmp(argv[i], "--mouse") == 0) ||
-                (strcmp(argv[i], "--joystick") == 0))
+                (strcmp(argv[i], "--cdrom") == 0) || (strcmp(argv[i], "--joystick") == 0))
             {
                 const char* option = argv[i];
                 const char* value = option_value(argc, argv, &i);
@@ -181,6 +183,11 @@ int main(int argc, char* argv[])
                 {
                     override = &mouse_override;
                     valid = parse_mouse(value, &override->value);
+                }
+                else if (strcmp(option, "--cdrom") == 0)
+                {
+                    override = &cdrom_override;
+                    valid = parse_cdrom(value, &override->value);
                 }
                 else if (strcmp(option, "--joystick") == 0)
                 {
@@ -351,7 +358,8 @@ int main(int argc, char* argv[])
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
-        "--load-state", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--mouse", "--joystick" };
+        "--load-state", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--mouse", "--cdrom",
+        "--joystick" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
     {
@@ -402,6 +410,20 @@ static bool parse_mouse(const char* text, int* mouse)
         if (strcmp(text, k_mice[i].id) == 0)
         {
             *mouse = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool parse_cdrom(const char* text, int* cdrom)
+{
+    for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
+    {
+        if (strcmp(text, k_cdrom_positions[i].id) == 0)
+        {
+            *cdrom = i;
             return true;
         }
     }
@@ -500,6 +522,7 @@ static void apply_machine_overrides(void)
     apply_override(fpu_override, &config_machine.fpu);
     apply_override(sound_override, &config_machine.sound_card);
     apply_override(mouse_override, &config_machine.mouse);
+    apply_override(cdrom_override, &config_machine.cdrom);
     apply_override(joystick_override, &config_input.joystick_type);
 }
 
@@ -511,6 +534,7 @@ static void restore_machine_settings(void)
     restore_override(fpu_override, &config_machine.fpu);
     restore_override(sound_override, &config_machine.sound_card);
     restore_override(mouse_override, &config_machine.mouse);
+    restore_override(cdrom_override, &config_machine.cdrom);
     restore_override(joystick_override, &config_input.joystick_type);
 }
 
@@ -591,6 +615,7 @@ static void print_usage(const char* program)
     print_wrapped("      --fpu FPU", "auto, none, 80387");
     print_wrapped("      --sound CARD", "none, adlib, sb15, sb20, sbpro, sbpro2, sb16");
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");
+    print_wrapped("      --cdrom DRIVE", "none, pm, ps, sm, ss (primary or secondary, master or slave)");
     print_wrapped("      --joystick DEVICE", "none, joystick, gamepad, flightstick");
     printf("\nOptions:\n");
     print_wrapped("  -f, --fullscreen", "Start in fullscreen mode");

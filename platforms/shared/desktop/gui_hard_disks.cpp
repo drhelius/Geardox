@@ -273,6 +273,14 @@ void gui_hard_disks_open_quit_confirmation(void)
 
 static void disk_menu(int id)
 {
+    if (emu_hard_disk_is_cdrom_position(id))
+    {
+        char taken[64];
+        snprintf(taken, sizeof(taken), "%s: CD-ROM drive", k_slot_names[id]);
+        ImGui::MenuItem(taken, NULL, false, false);
+        return;
+    }
+
     Emu_HardDiskInfo info;
     emu_hard_disk_get_info(id, &info);
     const char* path = info.source[0] != 0 ? info.source : (info.pending ? info.pending_path : info.path);

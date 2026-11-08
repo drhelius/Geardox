@@ -84,7 +84,7 @@ static int audio_sample_count = 0;
 static size_t savestate_size = 0;
 static GDOX_Machine_Settings machine_settings = { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
     GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MOUSE_PS2 };
+    GDOX_MOUSE_PS2, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SPEED_4X };
 #if !defined(GDOX_DISABLE_DYNAREC)
 static int dynarec_option = -1;
 #endif
@@ -228,6 +228,8 @@ static void floppy_update(void);
 static bool hard_disk_attach(const char* path);
 static bool hard_disk_attach_source(const char* path);
 static void hard_disk_attach_freedos(void);
+static bool hard_disk_is_cdrom_slot(int id);
+static int hard_disk_get_freedos_slot(void);
 static void hard_disk_update(void);
 static void cmos_load(void);
 static void cmos_save(void);
@@ -407,6 +409,8 @@ void retro_deinit(void)
     machine_settings.sound_irq = GDOX_MACHINE_AUTO;
     machine_settings.sound_dma = GDOX_MACHINE_AUTO;
     machine_settings.mouse = GDOX_MOUSE_PS2;
+    machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
+    machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
 #endif
@@ -1670,6 +1674,30 @@ static void check_variables(void)
         }
     }
 
+    var.key = "geardox_cdrom_drive";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
+        {
+            if (strcmp(var.value, k_cdrom_positions[i].id) == 0)
+                machine_settings.cdrom = i;
+        }
+    }
+
+    var.key = "geardox_cdrom_speed";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
+        {
+            if (strcmp(var.value, k_cdrom_speeds[i].id) == 0)
+                machine_settings.cdrom_speed = i;
+        }
+    }
+
     var.key = "geardox_sound_irq";
     var.value = NULL;
 
@@ -2766,7 +2794,7 @@ static bool hard_disk_attach(const char* path)
 
     for (int i = 0; (id < 0) && (i < GDOX_MAX_HARD_DISKS); i++)
     {
-        if (!core->GetHardDisk(i)->IsOpen())
+        if (!core->GetHardDisk(i)->IsOpen() && !hard_disk_is_cdrom_slot(i))
             id = i;
     }
 
@@ -2850,9 +2878,12 @@ static bool hard_disk_attach_source(const char* path)
 
     int id = -1;
 
-    for (int i = (freedos_disk && !hard_disk_image_attached) ? 1 : 0; (id < 0) && (i < GDOX_MAX_HARD_DISKS); i++)
+    bool freedos_waits = freedos_disk && !hard_disk_image_attached;
+
+    for (int i = 0; (id < 0) && (i < GDOX_MAX_HARD_DISKS); i++)
     {
-        if (!core->GetHardDisk(i)->IsOpen())
+        if (!core->GetHardDisk(i)->IsOpen() && !hard_disk_is_cdrom_slot(i) &&
+            !(freedos_waits && (i == hard_disk_get_freedos_slot())))
             id = i;
     }
 
@@ -2875,13 +2906,23 @@ static void hard_disk_attach_freedos(void)
     append_path_component(path, "FreeDOS.hdd");
 
     if ((!content_file_exists(path.c_str()) && !FatImage::WriteFreeDOS(path.c_str())) ||
-        !core->AttachHardDisk(0, path.c_str(), false, ""))
+        !core->AttachHardDisk(hard_disk_get_freedos_slot(), path.c_str(), false, ""))
     {
         log_cb(RETRO_LOG_ERROR, "Unable to attach the FreeDOS disk %s\n", path.c_str());
         return;
     }
 
-    log_cb(RETRO_LOG_INFO, "Hard disk in slot 0: %s\n", path.c_str());
+    log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", hard_disk_get_freedos_slot(), path.c_str());
+}
+
+static bool hard_disk_is_cdrom_slot(int id)
+{
+    return id == (int)core->GetPendingMachineConfig().cdrom - 1;
+}
+
+static int hard_disk_get_freedos_slot(void)
+{
+    return hard_disk_is_cdrom_slot(0) ? 1 : 0;
 }
 
 static void hard_disk_update(void)

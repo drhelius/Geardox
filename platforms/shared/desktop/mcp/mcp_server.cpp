@@ -1591,8 +1591,9 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_cdrom_status"},
         {"title", "Get CD-ROM Status"},
-        {"description", "Read the CD-ROM controller (04C0 status, last command, status queue, transfer, interrupts, "
-            "drive, head, read range, disc), CD audio playback and the .m3u playlist."},
+        {"description", "Read the ATAPI CD-ROM drive (fitted, position, speed, tray, disc, ready or spinning up, motor, "
+            "unit attention, prevent, head, read-ahead window, last packet, sense, audio status, page 0Eh channels and "
+            "volumes), the disc, CD audio playback and the .m3u playlist."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1760,7 +1761,21 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "eject_cdrom"},
         {"title", "Eject CD-ROM"},
-        {"description", "Eject the CD; the machine keeps running and load_media inserts another."},
+        {"description", "Open the CD-ROM tray and eject the CD, even when software prevented removal; the machine keeps "
+            "running and load_media inserts another."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "close_cdrom_tray"},
+        {"title", "Close CD-ROM Tray"},
+        {"description", "Close the CD-ROM drive's tray, as the drive's own button does. With a disc inside it spins up "
+            "and reports a disc change; the machine keeps running."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -3546,6 +3561,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "eject_cdrom")
     {
         return m_debugAdapter.EjectCdrom();
+    }
+    else if (normalizedTool == "close_cdrom_tray")
+    {
+        return m_debugAdapter.CloseCdromTray();
     }
     else if (normalizedTool == "insert_playlist_disc")
     {

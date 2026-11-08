@@ -75,6 +75,7 @@ public:
     void SetFMVolume(float volume);
     void SetPCMVolume(float volume);
     void SetCDDAVolume(float volume);
+    void SetCDDAGains(const s32* gains);
     void SetBuzzerVolume(float volume);
     void Synchronize(u64 clocks);
     void SynchronizeBuzzer(u64 clocks);
@@ -150,6 +151,8 @@ private:
     s32 m_fm_gain_right;
     s32 m_pcm_gain_left;
     s32 m_pcm_gain_right;
+    s32 m_cdda_drive_gains[4];
+    s32 m_cdda_gains[4];
     s16 m_fm_buffer[GDOX_AUDIO_BUFFER_SIZE];
     s16 m_pcm_buffer[GDOX_AUDIO_BUFFER_SIZE];
     s16 m_cdda_buffer[GDOX_AUDIO_BUFFER_SIZE];

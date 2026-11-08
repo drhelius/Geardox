@@ -57,8 +57,10 @@ FILES = [
     ("mode", "MODE.COM", BIN + "MODE.COM"),
     ("more", "MORE.EXE", BIN + "MORE.EXE"),
     ("move", "MOVE.EXE", BIN + "MOVE.EXE"),
+    ("shsucdx", "SHSUCDX.COM", BIN + "SHSUCDX.COM"),
     ("sort", "SORT.EXE", BIN + "SORT.EXE"),
     ("tree", "TREE.COM", BIN + "TREE.COM"),
+    ("udvd2", "UDVD2.SYS", BIN + "UDVD2.SYS"),
     ("xcopy", "XCOPY.EXE", BIN + "XCOPY.EXE"),
 ]
 

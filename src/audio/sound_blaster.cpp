@@ -1065,8 +1065,8 @@ void SoundBlaster::WriteMIDI(u8 value)
 }
 
 // Creative's reset defaults. Bits 4 and 0 of a CT1345 volume aren't used and read high, as on the one clone documented
-// Voice, FM and master reset to full volume. Creative's levels would leave most games, which never write the mixer,
-// 22 or 28 dB down
+// Voice, FM, CD and master reset to full volume. Creative's levels would leave most games, which never write the mixer,
+// 22 or 28 dB down, and CD audio close to silent
 void SoundBlaster::ResetMixer()
 {
     u8* mixer = m_state.mixer;
@@ -1078,10 +1078,11 @@ void SoundBlaster::ResetMixer()
         mixer[0x04] = 0xEE;
         mixer[0x22] = 0xEE;
         mixer[0x26] = 0xEE;
+        mixer[0x28] = 0xEE;
     }
     else if (m_mixer_type == k_sound_blaster_mixer_ct1745)
     {
-        for (int reg = 0x30; reg <= 0x35; reg++)
+        for (int reg = 0x30; reg <= 0x37; reg++)
             mixer[reg] = 31 << 3;
 
         mixer[0x3C] = 0x1F;
@@ -1271,6 +1272,7 @@ void SoundBlaster::UpdateGains()
     u8 voice = m_mixer_type == k_sound_blaster_mixer_ct1345 ? 0x04 : 0x32;
     u8 fm = m_mixer_type == k_sound_blaster_mixer_ct1345 ? 0x26 : 0x34;
     u8 master = m_mixer_type == k_sound_blaster_mixer_ct1345 ? 0x22 : 0x30;
+    u8 cd = m_mixer_type == k_sound_blaster_mixer_ct1345 ? 0x28 : 0x36;
 
     for (int side = 0; side < 2; side++)
     {
@@ -1278,6 +1280,7 @@ void SoundBlaster::UpdateGains()
         {
             m_gain[SOUND_BLASTER_SOURCE_VOICE][side] = 32768;
             m_gain[SOUND_BLASTER_SOURCE_FM][side] = 32768;
+            m_gain[SOUND_BLASTER_SOURCE_CD][side] = 32768;
             continue;
         }
 
@@ -1289,9 +1292,15 @@ void SoundBlaster::UpdateGains()
         s64 master_gain = ((s64)GetLevel(master, side != 0) * output) >> 15;
         s64 voice_gain = ((s64)GetLevel(voice, side != 0) * master_gain) >> 15;
         s64 fm_gain = ((s64)GetLevel(fm, side != 0) * master_gain) >> 15;
+        s64 cd_gain = ((s64)GetLevel(cd, side != 0) * master_gain) >> 15;
+
+        // The SB16's output switches can take the CD out of the mix, bit 2 for its left and bit 1 for its right
+        if ((m_mixer_type == k_sound_blaster_mixer_ct1745) && ((m_state.mixer[0x3C] & (side != 0 ? 0x02 : 0x04)) == 0))
+            cd_gain = 0;
 
         m_gain[SOUND_BLASTER_SOURCE_VOICE][side] = (s32)MIN(voice_gain, (s64)32768);
         m_gain[SOUND_BLASTER_SOURCE_FM][side] = (s32)MIN(fm_gain, (s64)32768);
+        m_gain[SOUND_BLASTER_SOURCE_CD][side] = (s32)MIN(cd_gain, (s64)32768);
     }
 }
 

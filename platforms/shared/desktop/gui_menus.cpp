@@ -77,6 +77,8 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile);
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
 static bool menu_machine_sound(void);
 static bool menu_machine_mouse(void);
+static bool menu_machine_cdrom_drive(void);
+static bool menu_machine_cdrom_speed(void);
 static bool menu_machine_floppy(int drive);
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
 static void menu_machine_hardware(GDOX_Machine_Model model);
@@ -862,6 +864,12 @@ static void menu_machine(void)
     if (menu_machine_mouse())
         changed = true;
 
+    if (menu_machine_cdrom_drive())
+        changed = true;
+
+    if (menu_machine_cdrom_speed())
+        changed = true;
+
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
     ImGui::Separator();
@@ -1264,6 +1272,69 @@ static bool menu_machine_mouse(void)
     return changed;
 }
 
+static bool menu_machine_cdrom_drive(void)
+{
+    if (!ImGui::BeginMenu("CD-ROM Drive"))
+        return false;
+
+    bool changed = false;
+
+    for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
+    {
+        if (ImGui::MenuItem(k_cdrom_positions[i].name, "", config_machine.cdrom == i))
+        {
+            config_machine.cdrom = i;
+            changed = true;
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Reset the emulator to apply changes");
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("An ATAPI CD-ROM drive on the IDE cable. The position it takes is closed to hard disks.");
+        ImGui::Text("Secondary Master leaves the primary channel to the hard disks.");
+        ImGui::Text("Primary Slave is where a 1994 PC with a one-channel card put its CD-ROM.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_cdrom_speed(void)
+{
+    if (!ImGui::BeginMenu("CD-ROM Speed"))
+        return false;
+
+    bool changed = false;
+
+    for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
+    {
+        if (ImGui::MenuItem(k_cdrom_speeds[i].name, "", config_machine.cdrom_speed == i))
+        {
+            config_machine.cdrom_speed = i;
+            changed = true;
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Reset the emulator to apply changes");
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("How fast the drive spins, so how long a seek or a read takes.");
+        ImGui::Text("Games that stream from the disc may want 4x or more.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::EndMenu();
+    return changed;
+}
+
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
 {
     if (!ImGui::BeginMenu("FPU"))
@@ -1416,6 +1487,8 @@ static void menu_boot_device(void)
             enabled = (i - GDOX_BOOT_DEVICE_FLOPPY_0) < config.floppy_drives;
         else if (i == GDOX_BOOT_DEVICE_HARD_DISK)
             enabled = core->HasHardDisks();
+        else if (i == GDOX_BOOT_DEVICE_CDROM)
+            enabled = config.cdrom != GDOX_CDROM_NONE;
 
         if ((i == GDOX_BOOT_DEVICE_HARD_DISK) || (i == GDOX_BOOT_DEVICE_CDROM))
             ImGui::Separator();
@@ -2085,6 +2158,7 @@ static void menu_debug(void)
         {
             ImGui::MenuItem("Show TOC", "", &config_debug.show_cdrom_toc);
             ImGui::MenuItem("Show CD Audio", "", &config_debug.show_cdrom_audio);
+            ImGui::MenuItem("Show Drive", "", &config_debug.show_cdrom_drive);
             ImGui::EndMenu();
         }
 

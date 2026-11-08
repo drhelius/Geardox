@@ -51,7 +51,9 @@
 #include "cdrom/cdrom_audio.h"
 #include "cdrom/cdrom_media.h"
 #include "drive/fdc.h"
+#include "drive/ide_cdrom.h"
 #include "drive/ide_controller.h"
+#include "system/machine_profiles.h"
 #include "drive/floppy_image.h"
 #include "../config.h"
 #include "../emu.h"
@@ -272,6 +274,9 @@ json DebugAdapter::Reset(const std::string& boot)
 
     if (!boot.empty() && (device == GDOX_BOOT_DEVICE_AUTO))
         return {{"error", "Unknown boot device"}};
+
+    if ((device == GDOX_BOOT_DEVICE_CDROM) && (m_core->GetPendingMachineConfig().cdrom == GDOX_CDROM_NONE))
+        return {{"error", "No CD-ROM drive is fitted"}};
 
     m_core->SetBootDevice((GDOX_Boot_Device)device);
     emu_reset();
@@ -2650,6 +2655,41 @@ json DebugAdapter::GetIDEStatus()
             int id = (i * IDE_CHANNEL_DISKS) + j;
             IdeDisk* disk = ide->GetDisk(id);
 
+            if (id == ide->GetCdRomSlot())
+            {
+                IdeCdRom* cdrom = ide->GetCdRom();
+                IdeCdRom::IdeCdRom_State* c = cdrom->GetState();
+                json cdrom_bits = json::array();
+
+                for (int bit = 7; bit >= 0; bit--)
+                {
+                    if (IsValidPointer(status_names[bit]) && ((c->status >> bit) & 1))
+                        cdrom_bits.push_back(status_names[bit]);
+                }
+
+                disks.push_back({
+                    {"id", id},
+                    {"type", "cdrom"},
+                    {"status", Hex(c->status, 2)},
+                    {"status_bits", cdrom_bits},
+                    {"error", Hex(c->error, 2)},
+                    {"interrupt_reason", Hex(c->reason, 2)},
+                    {"sector_number", Hex(c->sector_number, 2)},
+                    {"byte_count", Hex((c->byte_count_high << 8) | c->byte_count_low, 4)},
+                    {"device_head", Hex(c->device_head, 2)},
+                    {"interrupt_pending", c->interrupt},
+                    {"command", Hex(c->command, 2)},
+                    {"command_name", GetCdRomAtaName(c->command)},
+                    {"packet", Hex(c->packet[0], 2)},
+                    {"packet_name", GetCdRomPacketName(c->packet[0])},
+                    {"phase", k_debug_cdrom_phase_names[c->phase % IDE_CDROM_PHASE_COUNT]},
+                    {"position", c->position},
+                    {"length", c->length},
+                    {"remaining", c->remaining}
+                });
+                continue;
+            }
+
             if (!disk->IsAttached())
                 continue;
 
@@ -3161,19 +3201,102 @@ static std::string hex_bytes(const u8* data, u32 size)
     return text;
 }
 
+static const char* cdrom_sense_key_name(u8 key)
+{
+    switch (key)
+    {
+        case 0x00: return "no sense";
+        case 0x02: return "not ready";
+        case 0x03: return "medium error";
+        case 0x04: return "hardware error";
+        case 0x05: return "illegal request";
+        case 0x06: return "unit attention";
+        case 0x0B: return "aborted command";
+        default: return "other";
+    }
+}
+
+static const char* cdrom_audio_status_name(u8 status)
+{
+    switch (status)
+    {
+        case IDE_CDROM_AUDIO_PLAYING: return "playing";
+        case IDE_CDROM_AUDIO_PAUSED: return "paused";
+        case IDE_CDROM_AUDIO_COMPLETED: return "completed";
+        case IDE_CDROM_AUDIO_ERROR: return "error";
+        case IDE_CDROM_AUDIO_NONE: return "none";
+        default: return "invalid";
+    }
+}
+
 json DebugAdapter::GetCDROMStatus()
 {
     CdRomMedia* media = m_core->GetCDROMMedia();
     CdRomAudio* audio = m_core->GetCDROMAudio();
+    IdeCdRom* cdrom = m_core->GetCDROM();
     bool ready = media->IsReady();
+    bool fitted = IsValidPointer(cdrom) && cdrom->IsAttached();
     u32 head = gui_debug_cdrom_head();
-    json drive = {{"state", audio->IsPlaying() ? "playing" : audio->IsPaused() ? "paused" : "idle"}};
+    json drive = {{"fitted", fitted}, {"state", audio->IsPlaying() ? "playing" : audio->IsPaused() ? "paused" : "idle"}};
+
+    if (fitted)
+    {
+        IdeCdRom::IdeCdRom_State* state = cdrom->GetState();
+        int position = m_core->GetIDE()->GetCdRomSlot() + 1;
+        bool drive_ready = cdrom->IsReady(m_core->GetScheduler()->GetClocks());
+        char sense[16];
+        snprintf(sense, sizeof(sense), "%02X/%02X/%02X", state->sense_key, state->sense_asc, state->sense_ascq);
+        json packet = {
+            {"opcode", state->packet[0]},
+            {"name", GetCdRomPacketName(state->packet[0])},
+            {"bytes", hex_bytes(state->packet, IDE_CDROM_PACKET_SIZE)}
+        };
+        json ports = json::array();
+
+        for (int i = 0; i < 2; i++)
+            ports.push_back({{"port", i}, {"channel", state->port_channel[i]}, {"volume", state->port_volume[i]}});
+
+        drive["position"] = k_cdrom_positions[CLAMP(position, 0, GDOX_CDROM_POSITION_COUNT - 1)].id;
+        drive["position_name"] = k_cdrom_positions[CLAMP(position, 0, GDOX_CDROM_POSITION_COUNT - 1)].name;
+        drive["slot"] = position - 1;
+        drive["speed"] = cdrom->GetSpeed();
+        drive["tray_open"] = state->tray_open;
+        drive["disc"] = cdrom->HasDisc();
+        drive["ready"] = drive_ready;
+        drive["spinning_up"] = !state->tray_open && cdrom->HasDisc() && !drive_ready;
+        drive["motor_on"] = state->motor_on;
+        drive["unit_attention_pending"] = state->unit_attention != 0;
+
+        if (state->unit_attention != 0)
+        {
+            char attention[16];
+            snprintf(attention, sizeof(attention), "06/%02X/00", state->unit_attention);
+            drive["unit_attention"] = attention;
+        }
+
+        drive["prevent_removal"] = state->prevent;
+        drive["busy"] = cdrom->IsBusy();
+        drive["phase"] = state->phase;
+        drive["access_count"] = cdrom->GetAccessCount();
+        drive["head_lba"] = state->head_lba;
+        drive["head_msf"] = msf_text(state->head_lba + 150);
+        drive["read_ahead_start_lba"] = state->ahead_lba;
+        drive["read_ahead_end_lba"] = state->ahead_end;
+        drive["last_packet"] = packet;
+        drive["sense"] = {{"key", state->sense_key}, {"asc", state->sense_asc}, {"ascq", state->sense_ascq},
+            {"text", sense}, {"key_name", cdrom_sense_key_name(state->sense_key)}};
+        drive["audio_status"] = {{"code", cdrom->PeekAudioStatus()},
+            {"name", cdrom_audio_status_name(cdrom->PeekAudioStatus())}};
+        drive["page_0e"] = {{"sotc", state->sotc}, {"ports", ports}};
+    }
+    else
+        drive["position"] = "none";
 
     if (ready)
     {
         s32 track = media->FindTrackFromLBA(head, true);
-        drive["head_lba"] = head;
-        drive["head_msf"] = msf_text(head + 150);
+        drive["audio_head_lba"] = head;
+        drive["audio_head_msf"] = msf_text(head + 150);
 
         if (track >= 0)
             drive["head_track"] = track + 1;
@@ -4513,6 +4636,22 @@ json DebugAdapter::EjectCdrom()
         return {{"error", "Unable to eject the CD"}};
 
     return {{"success", true}};
+}
+
+json DebugAdapter::CloseCdromTray()
+{
+    IdeCdRom* cdrom = m_core->GetCDROM();
+
+    if (!IsValidPointer(cdrom) || !cdrom->IsAttached())
+        return {{"error", "No CD-ROM drive is fitted"}};
+
+    if (gui_is_rom_loading() || emu_is_media_loading())
+        return {{"error", "Another media load is in progress"}};
+
+    bool was_open = cdrom->IsTrayOpen();
+    cdrom->CloseTray(m_core->GetScheduler()->GetClocks());
+
+    return {{"success", true}, {"was_open", was_open}, {"disc", cdrom->HasDisc()}};
 }
 
 json DebugAdapter::ListCdromPlaylist()

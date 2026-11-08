@@ -65,6 +65,9 @@ int emu_hard_disk_get_image_id(const char* path)
         Emu_HardDiskInfo info;
         emu_hard_disk_get_info(i, &info);
 
+        if (emu_hard_disk_is_cdrom_position(i))
+            continue;
+
         if ((info.pending ? !info.pending_attached : !info.attached) || info.builtin)
             return i;
     }
@@ -79,11 +82,19 @@ int emu_hard_disk_get_free_id(void)
         Emu_HardDiskInfo info;
         emu_hard_disk_get_info(i, &info);
 
+        if (emu_hard_disk_is_cdrom_position(i))
+            continue;
+
         if (info.pending ? !info.pending_attached : !info.attached)
             return i;
     }
 
     return -1;
+}
+
+bool emu_hard_disk_is_cdrom_position(int id)
+{
+    return valid_id(id) && (id == (int)emu_get_core()->GetPendingMachineConfig().cdrom - 1);
 }
 
 bool emu_hard_disk_is_source(const char* path)

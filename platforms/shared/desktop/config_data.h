@@ -123,6 +123,8 @@ struct config_Machine
     int sound_irq;
     int sound_dma;
     int mouse;
+    int cdrom;
+    int cdrom_speed;
     std::string firmware_paths[GDOX_MACHINE_COUNT];
 };
 
@@ -319,6 +321,7 @@ struct config_Debug
     bool show_sound_control;
     bool show_cdrom_toc;
     bool show_cdrom_audio;
+    bool show_cdrom_drive;
     bool show_floppy_drives;
     bool show_ide;
     bool show_ide_disks;

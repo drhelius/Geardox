@@ -333,6 +333,7 @@ void application_load_media(const ApplicationParams& params)
             Log("Symbol file argument: %s", params.symbol_file);
 
         gui_load_rom(params.rom_file, params.symbol_file);
+        gui_reset_when_loaded();
     }
 
     if (!rom_file_argument && symbol_file_argument)
@@ -346,12 +347,13 @@ void application_load_media(const ApplicationParams& params)
     {
         Log("CD-ROM argument: %s", params.cd_file);
         gui_load_rom(params.cd_file);
+        gui_reset_when_loaded();
     }
 
-    // The machine powers on before this, and a hard disk only attaches at a reset
+    // The machine powers on before this, so a disc given here boots at a reset, and a hard disk only attaches at one
     if (gui_hard_disks_is_loading_source())
         gui_hard_disks_reset_when_loaded();
-    else if (gui_hard_disks_is_pending())
+    else if (gui_hard_disks_is_pending() && !gui_is_rom_loading())
         gui_action_reset();
 
     if ((params.state_slot > 0) || IsValidPointer(params.state_file))

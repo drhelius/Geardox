@@ -103,6 +103,8 @@ GeardoxCore::GeardoxCore()
     m_machine_settings.sound_irq = GDOX_MACHINE_AUTO;
     m_machine_settings.mouse = GDOX_MACHINE_AUTO;
     m_machine_settings.sound_dma = GDOX_MACHINE_AUTO;
+    m_machine_settings.cdrom = GDOX_MACHINE_AUTO;
+    m_machine_settings.cdrom_speed = GDOX_MACHINE_AUTO;
 
     InitPointer(m_auto_entry);
     memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
@@ -276,7 +278,7 @@ void GeardoxCore::Init()
     m_debug_console->Init();
     m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler, m_dma);
-    m_ide->Init(m_pic, m_scheduler);
+    m_ide->Init(m_pic, m_scheduler, m_cdrom_media, m_cdrom_audio, m_audio);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
         m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port);
     m_i386->Init(m_memory, m_io);
@@ -946,12 +948,26 @@ bool GeardoxCore::ReloadFirmware()
     return true;
 }
 
+IdeCdRom* GeardoxCore::GetCDROM()
+{
+    return IsValidPointer(m_ide) ? m_ide->GetCdRom() : NULL;
+}
+
+// A disc going in or out is the drive's tray, never a reset
 bool GeardoxCore::LoadMedia(const char* file_path)
 {
     if (!IsValidPointer(m_media))
         return false;
 
-    return m_media->LoadMedia(file_path);
+    if (IsValidPointer(m_ide))
+        m_ide->GetCdRom()->EjectDisc(m_scheduler->GetClocks());
+
+    bool loaded = m_media->LoadMedia(file_path);
+
+    if (loaded && IsValidPointer(m_ide))
+        m_ide->GetCdRom()->InsertDisc(m_scheduler->GetClocks());
+
+    return loaded;
 }
 
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
@@ -960,7 +976,15 @@ bool GeardoxCore::LoadPhysicalCdRom(const char* device_id)
     if (!IsValidPointer(m_media))
         return false;
 
-    return m_media->LoadPhysicalCdRom(device_id);
+    if (IsValidPointer(m_ide))
+        m_ide->GetCdRom()->EjectDisc(m_scheduler->GetClocks());
+
+    bool loaded = m_media->LoadPhysicalCdRom(device_id);
+
+    if (loaded && IsValidPointer(m_ide))
+        m_ide->GetCdRom()->InsertDisc(m_scheduler->GetClocks());
+
+    return loaded;
 }
 #endif
 
@@ -968,6 +992,9 @@ void GeardoxCore::EjectMedia()
 {
     if (!IsValidPointer(m_media))
         return;
+
+    if (IsValidPointer(m_ide))
+        m_ide->GetCdRom()->EjectDisc(m_scheduler->GetClocks());
 
     m_media->Reset();
 }
@@ -1004,6 +1031,12 @@ bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected,
 {
     if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(path) || !IsValidPointer(m_ide))
         return false;
+
+    if (id == (int)m_pending_machine_config.cdrom - 1)
+    {
+        Log("Hard disk %d is the CD-ROM drive's position", id);
+        return false;
+    }
 
     if (m_powered)
     {
@@ -1140,6 +1173,9 @@ bool GeardoxCore::HasHardDisks()
 {
     for (int i = 0; IsValidPointer(m_ide) && (i < GDOX_MAX_HARD_DISKS); i++)
     {
+        if (i == (int)m_pending_machine_config.cdrom - 1)
+            continue;
+
         if (m_hard_disk_pending[i] ? !m_hard_disk_paths[i].empty() : m_ide->GetDisk(i)->IsAttached())
             return true;
     }
@@ -1550,7 +1586,8 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.ide == machine_config.ide) && (m_machine_config.fpu == machine_config.fpu) &&
         (m_machine_config.sound_card == machine_config.sound_card) &&
         (m_machine_config.sound_irq == machine_config.sound_irq) &&
-        (m_machine_config.sound_dma == machine_config.sound_dma) && (m_machine_config.mouse == machine_config.mouse);
+        (m_machine_config.sound_dma == machine_config.sound_dma) && (m_machine_config.mouse == machine_config.mouse) &&
+        (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed);
 
     if (!same_machine)
     {
@@ -1798,6 +1835,8 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.sound_irq);
     G_SERIALIZE(serializer, config.sound_dma);
     G_SERIALIZE(serializer, config.mouse);
+    G_SERIALIZE(serializer, config.cdrom);
+    G_SERIALIZE(serializer, config.cdrom_speed);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -1847,6 +1886,8 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.sound_irq = config.sound_irq == k_sound_card_irqs[1] ? k_sound_card_irqs[1] : k_sound_card_irqs[0];
     config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
     config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
+    config.cdrom = config.cdrom < GDOX_CDROM_POSITION_COUNT ? config.cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
+    config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
 
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
@@ -2077,6 +2118,13 @@ void GeardoxCore::ResolveMachineConfig()
 
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
 
+    int cdrom = m_machine_settings.cdrom;
+    int cdrom_speed = m_machine_settings.cdrom_speed;
+
+    config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
+    config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed :
+        (u8)GDOX_CDROM_SPEED_4X;
+
     report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
     report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
     report.ram = auto_ram ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
@@ -2253,6 +2301,9 @@ void GeardoxCore::ApplyMachineConfig()
     if (IsValidPointer(m_serial_ports))
         m_serial_ports->SetMouse(m_machine_config.mouse == GDOX_MOUSE_SERIAL);
 
+    if (IsValidPointer(m_ide))
+        m_ide->SetCdRom((int)m_machine_config.cdrom - 1, k_cdrom_speed_factors[m_machine_config.cdrom_speed]);
+
     if (IsValidPointer(m_fdc))
     {
         m_fdc->SetInternalDrives(m_machine_config.floppy_drives);
@@ -2418,10 +2469,13 @@ void GeardoxCore::InitCMOS()
     u8 translation = 0;
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
-        translation |= (u8)(m_ide->GetDisk(i)->GetTranslation() << (i * 2));
+    {
+        if (i != m_ide->GetCdRomSlot())
+            translation |= (u8)(m_ide->GetDisk(i)->GetTranslation() << (i * 2));
+    }
 
-    bool hard_disk_0 = m_ide->GetDisk(0)->IsAttached();
-    bool hard_disk_1 = m_ide->GetDisk(1)->IsAttached();
+    bool hard_disk_0 = m_ide->GetDisk(0)->IsAttached() && (m_ide->GetCdRomSlot() != 0);
+    bool hard_disk_1 = m_ide->GetDisk(1)->IsAttached() && (m_ide->GetCdRomSlot() != 1);
 
     m_rtc->WriteRAM(0x10, (u8)((m_machine_config.floppy_type[0] << 4) | m_machine_config.floppy_type[1]));
     m_rtc->WriteRAM(0x12, (u8)((hard_disk_0 ? 0xF0 : 0x00) | (hard_disk_1 ? 0x0F : 0x00)));

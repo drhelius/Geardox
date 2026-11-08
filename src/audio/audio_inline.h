@@ -269,6 +269,10 @@ INLINE void Audio::SampleSources()
     // CD-DA advances one disc sample per output sample since both run at 44.1 kHz
     m_cdrom_audio->Sample(cdda_left, cdda_right);
 
+    // The drive's output ports pick and scale the disc's channels, then the card's CD input level applies
+    s32 cd_left = (s32)((((s64)cdda_left * m_cdda_gains[0]) + ((s64)cdda_right * m_cdda_gains[1])) >> 15);
+    s32 cd_right = (s32)((((s64)cdda_left * m_cdda_gains[2]) + ((s64)cdda_right * m_cdda_gains[3])) >> 15);
+
     // The card's filter sits between the DAC and the mixer, FM doesn't go through it
     m_state.pcm_lowpass_left += (s32)(((s64)m_pcm_lowpass_alpha_q15 * (pcm_left - m_state.pcm_lowpass_left)) >> 15);
     m_state.pcm_lowpass_right += (s32)(((s64)m_pcm_lowpass_alpha_q15 * (pcm_right - m_state.pcm_lowpass_right)) >> 15);
@@ -297,8 +301,8 @@ INLINE void Audio::SampleSources()
     m_fm_buffer[m_buffer_index + 1] = (s16)((fm_right * m_fm_gain_right) >> 15);
     m_pcm_buffer[m_buffer_index + 0] = (s16)((m_state.pcm_lowpass_left * m_pcm_gain_left) >> 15);
     m_pcm_buffer[m_buffer_index + 1] = (s16)((m_state.pcm_lowpass_right * m_pcm_gain_right) >> 15);
-    m_cdda_buffer[m_buffer_index + 0] = cdda_left;
-    m_cdda_buffer[m_buffer_index + 1] = cdda_right;
+    m_cdda_buffer[m_buffer_index + 0] = (s16)CLAMP(cd_left, -32768, 32767);
+    m_cdda_buffer[m_buffer_index + 1] = (s16)CLAMP(cd_right, -32768, 32767);
     m_buzzer_buffer[m_buffer_index + 0] = buzzer;
     m_buzzer_buffer[m_buffer_index + 1] = buzzer;
     m_buffer_index += 2;

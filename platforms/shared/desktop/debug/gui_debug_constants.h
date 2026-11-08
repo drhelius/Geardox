@@ -554,6 +554,12 @@ static const char* const k_debug_ide_phase_names[11] =
     "RESET"
 };
 
+static const char* const k_debug_cdrom_phase_names[12] =
+{
+    "IDLE", "PACKET WAIT", "PACKET", "REPLY", "READ", "DATA IN", "DATA OUT", "IDENTIFY", "COMPLETE", "RESET HELD",
+    "RESET", "DIAGNOSTIC"
+};
+
 static const char* const k_debug_ide_slot_names[4] = { "primary master", "primary slave", "secondary master",
     "secondary slave" };
 

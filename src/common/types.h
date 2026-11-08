@@ -327,6 +327,31 @@ struct GDOX_Mouse_Info
     const char* id;
 };
 
+enum GDOX_CdRom_Position
+{
+    GDOX_CDROM_NONE = 0,
+    GDOX_CDROM_PRIMARY_MASTER,
+    GDOX_CDROM_PRIMARY_SLAVE,
+    GDOX_CDROM_SECONDARY_MASTER,
+    GDOX_CDROM_SECONDARY_SLAVE,
+    GDOX_CDROM_POSITION_COUNT
+};
+
+enum GDOX_CdRom_Speed
+{
+    GDOX_CDROM_SPEED_1X = 0,
+    GDOX_CDROM_SPEED_2X,
+    GDOX_CDROM_SPEED_4X,
+    GDOX_CDROM_SPEED_8X,
+    GDOX_CDROM_SPEED_COUNT
+};
+
+struct GDOX_CdRom_Info
+{
+    const char* name;
+    const char* id;
+};
+
 enum GDOX_Joystick_Type
 {
     GDOX_JOYSTICK_NONE = 0,
@@ -550,6 +575,8 @@ struct GDOX_Machine_Config
     u8 sound_irq;
     u8 sound_dma;
     u8 mouse;
+    u8 cdrom;
+    u8 cdrom_speed;
 };
 
 enum GDOX_Sound_Card
@@ -599,6 +626,8 @@ struct GDOX_Machine_Settings
     int sound_irq;
     int sound_dma;
     int mouse;
+    int cdrom;
+    int cdrom_speed;
 };
 
 struct GDOX_Machine_Report

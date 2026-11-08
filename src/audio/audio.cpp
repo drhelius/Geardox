@@ -54,6 +54,14 @@ Audio::Audio()
     m_fm_gain_right = 32768;
     m_pcm_gain_left = 32768;
     m_pcm_gain_right = 32768;
+    m_cdda_drive_gains[0] = 32768;
+    m_cdda_drive_gains[1] = 0;
+    m_cdda_drive_gains[2] = 0;
+    m_cdda_drive_gains[3] = 32768;
+
+    for (int i = 0; i < 4; i++)
+        m_cdda_gains[i] = m_cdda_drive_gains[i];
+
     m_buffer_index = 0;
     m_buffer_overflow = false;
     m_frame_samples = 0;
@@ -274,12 +282,27 @@ void Audio::UpdatePCMFilter()
     m_pcm_lowpass_alpha_q15 = (u16)(CLAMP(alpha, 0.0f, 1.0f) * 32768.0f + 0.5f);
 }
 
+// The drive sets its port gains, ports 0 and 1 to the card's left and right inputs
+void Audio::SetCDDAGains(const s32* gains)
+{
+    for (int i = 0; i < 4; i++)
+        m_cdda_drive_gains[i] = gains[i];
+
+    UpdateGains();
+}
+
 void Audio::UpdateGains()
 {
     m_fm_gain_left = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, false);
     m_fm_gain_right = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true);
     m_pcm_gain_left = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, false);
     m_pcm_gain_right = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, true);
+
+    for (int i = 0; i < 4; i++)
+    {
+        s32 card = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_CD, i >= 2);
+        m_cdda_gains[i] = (s32)(((s64)m_cdda_drive_gains[i] * card) >> 15);
+    }
 }
 
 // Machine clock until which a read of the port repeats the last one, the DSP's change with its events

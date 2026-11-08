@@ -54,6 +54,7 @@ struct Emu_HardDiskSource
 EXTERN bool emu_hard_disk_is_image(const char* path);
 EXTERN int emu_hard_disk_get_image_id(const char* path);
 EXTERN int emu_hard_disk_get_free_id(void);
+EXTERN bool emu_hard_disk_is_cdrom_position(int id);
 EXTERN bool emu_hard_disk_is_source(const char* path);
 EXTERN bool emu_hard_disk_is_source_attached(const char* path);
 EXTERN void emu_hard_disk_prepare_source(const char* path, bool rebuild);

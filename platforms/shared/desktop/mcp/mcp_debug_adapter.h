@@ -74,11 +74,10 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "mixer.control", TRACE_MIXER, TRACE_MIXER_EVENT_CONTROL },
     { "midi.data", TRACE_MIDI, TRACE_MIDI_EVENT_DATA },
     { "midi.commands", TRACE_MIDI, TRACE_MIDI_EVENT_COMMANDS },
-    { "cdrom.commands", TRACE_CDROM, TRACE_CDROM_EVENT_COMMANDS },
+    { "cdrom.packets", TRACE_CDROM, TRACE_CDROM_EVENT_PACKETS },
     { "cdrom.status", TRACE_CDROM, TRACE_CDROM_EVENT_STATUS },
-    { "cdrom.irqs", TRACE_CDROM, TRACE_CDROM_EVENT_IRQS },
-    { "cdrom.control", TRACE_CDROM, TRACE_CDROM_EVENT_CONTROL },
     { "cdrom.data", TRACE_CDROM, TRACE_CDROM_EVENT_DATA },
+    { "cdrom.media", TRACE_CDROM, TRACE_CDROM_EVENT_MEDIA },
     { "cdrom.cdda", TRACE_CDROM, TRACE_CDROM_EVENT_CDDA },
     { "fdc.commands", TRACE_FDC, TRACE_FDC_EVENT_COMMANDS },
     { "fdc.results", TRACE_FDC, TRACE_FDC_EVENT_RESULTS },
@@ -282,6 +281,7 @@ public:
     json GetMediaInfo();
     json ListRecentMedia();
     json EjectCdrom();
+    json CloseCdromTray();
     json ListCdromPlaylist();
     json StartInsertPlaylistDisc(int index);
     json LoadBios(const std::string& directory_path);

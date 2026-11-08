@@ -421,6 +421,39 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "ps2"
     },
     {
+        "geardox_cdrom_drive",
+        "CD-ROM Drive (restart)",
+        NULL,
+        "Where the ATAPI CD-ROM drive sits on the IDE cables. The position it takes is closed to hard disks.",
+        NULL,
+        "system",
+        {
+            { "none", "None" },
+            { "pm",   "Primary Master" },
+            { "ps",   "Primary Slave" },
+            { "sm",   "Secondary Master" },
+            { "ss",   "Secondary Slave" },
+            { NULL, NULL },
+        },
+        "sm"
+    },
+    {
+        "geardox_cdrom_speed",
+        "CD-ROM Speed (restart)",
+        NULL,
+        "How fast the CD-ROM drive spins, so how long a seek or a read takes. Games that stream from the disc may want 4x or more.",
+        NULL,
+        "system",
+        {
+            { "1x", NULL },
+            { "2x", NULL },
+            { "4x", NULL },
+            { "8x", NULL },
+            { NULL, NULL },
+        },
+        "4x"
+    },
+    {
         "geardox_sound_card",
         "Sound Card (restart)",
         NULL,

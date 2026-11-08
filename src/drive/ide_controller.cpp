@@ -29,13 +29,14 @@ IdeController::IdeController()
     memset(&m_state, 0, sizeof(m_state));
     memset(m_irq_out, 0, sizeof(m_irq_out));
     m_event_clocks = GDOX_NO_EVENT;
+    m_cdrom_slot = -1;
 }
 
 IdeController::~IdeController()
 {
 }
 
-void IdeController::Init(PIC* pic, Scheduler* scheduler)
+void IdeController::Init(PIC* pic, Scheduler* scheduler, CdRomMedia* cdrom_media, CdRomAudio* cdrom_audio, Audio* audio)
 {
     m_pic = pic;
     m_scheduler = scheduler;
@@ -43,13 +44,23 @@ void IdeController::Init(PIC* pic, Scheduler* scheduler)
     for (int i = 0; i < IDE_DISKS; i++)
         m_disks[i].Init(i);
 
+    m_cdrom.Init(0, cdrom_media, cdrom_audio, audio);
     Reset();
+}
+
+// Takes effect at the next reset, as a drive is fitted with the power off
+void IdeController::SetCdRom(int slot, int speed)
+{
+    m_cdrom_slot = (slot >= 0 && slot < IDE_DISKS) ? slot : -1;
+    m_cdrom.SetFitted(m_cdrom_slot >= 0, MAX(m_cdrom_slot, 0), speed);
 }
 
 void IdeController::SetTraceLogger(TraceLogger* trace_logger)
 {
     for (int i = 0; i < IDE_DISKS; i++)
         m_disks[i].SetTraceLogger(trace_logger);
+
+    m_cdrom.SetTraceLogger(trace_logger);
 }
 
 void IdeController::Reset()
@@ -58,6 +69,8 @@ void IdeController::Reset()
 
     for (int i = 0; i < IDE_DISKS; i++)
         m_disks[i].Reset();
+
+    m_cdrom.Reset();
 
     for (int i = 0; i < IDE_CHANNELS; i++)
         UpdateIRQ(i);
@@ -69,8 +82,8 @@ void IdeController::Run(u64 clocks)
 {
     for (int i = 0; i < IDE_DISKS; i++)
     {
-        while (m_disks[i].GetEventClocks() <= clocks)
-            m_disks[i].RunEvent();
+        while (GetDeviceEventClocks(i) <= clocks)
+            RunDeviceEvent(i);
     }
 
     for (int i = 0; i < IDE_CHANNELS; i++)
@@ -84,7 +97,7 @@ void IdeController::UpdateNextEvent()
     m_event_clocks = GDOX_NO_EVENT;
 
     for (int i = 0; i < IDE_DISKS; i++)
-        m_event_clocks = MIN(m_event_clocks, m_disks[i].GetEventClocks());
+        m_event_clocks = MIN(m_event_clocks, GetDeviceEventClocks(i));
 
     m_scheduler->Schedule(SCHEDULER_EVENT_IDE, m_event_clocks);
 }
@@ -92,7 +105,7 @@ void IdeController::UpdateNextEvent()
 // INTRQ only goes out for the selected disk, and nIEN holds it back without clearing it
 void IdeController::UpdateIRQ(int channel)
 {
-    bool irq = GetSelected(channel).IsInterrupting() && (m_state.control[channel] & k_ide_control_nien) == 0;
+    bool irq = IsDeviceInterrupting(GetSelected(channel)) && (m_state.control[channel] & k_ide_control_nien) == 0;
 
     if (irq != m_irq_out[channel])
     {
@@ -113,25 +126,26 @@ u8 IdeController::Read(u16 port, u64 clocks)
     if (!IsControlPort(port) && (port & 0x07) == 7)
     {
         int channel = GetChannel(port);
-        GetSelected(channel).ClearInterrupt();
+        ClearDeviceInterrupt(GetSelected(channel));
         UpdateIRQ(channel);
     }
 
     return value;
 }
 
-// An absent disk reads 00h in Status, and everything else comes from the other one
+// An absent device reads 00h in Status, and everything else comes from the other one
 u8 IdeController::Peek(u16 port) const
 {
     int channel = GetChannel(port);
-    const IdeDisk& selected = GetSelected(channel);
+    int selected = GetSelected(channel);
+    u8 status = GetDeviceStatus(selected);
 
-    if (IsControlPort(port) || (port & 0x07) == 7 || (selected.GetStatus() & k_ide_status_bsy) != 0)
-        return selected.GetStatus();
+    if (IsControlPort(port) || (port & 0x07) == 7 || (status & k_ide_status_bsy) != 0)
+        return status;
 
     int other = (channel * IDE_CHANNEL_DISKS) + (m_state.selected[channel] ^ 1);
 
-    return (selected.IsAttached() ? selected : m_disks[other]).ReadRegister(port & 0x07);
+    return ReadDeviceRegister(IsDeviceAttached(selected) ? selected : other, port & 0x07);
 }
 
 void IdeController::Write(u16 port, u8 value, u64 clocks)
@@ -145,7 +159,7 @@ void IdeController::Write(u16 port, u8 value, u64 clocks)
         WriteControl(channel, value, clocks);
     else if (offset == 0)
         WriteData(port, value, clocks);
-    else if ((GetSelected(channel).GetStatus() & k_ide_status_bsy) != 0)
+    else if ((GetDeviceStatus(GetSelected(channel)) & k_ide_status_bsy) != 0)
         return;
     else if (offset == 1)
         m_state.features[channel] = value;
@@ -153,8 +167,8 @@ void IdeController::Write(u16 port, u8 value, u64 clocks)
         WriteCommand(channel, value, clocks);
     else
     {
-        m_disks[channel * IDE_CHANNEL_DISKS].WriteRegister(offset, value);
-        m_disks[(channel * IDE_CHANNEL_DISKS) + 1].WriteRegister(offset, value);
+        WriteDeviceRegister(channel * IDE_CHANNEL_DISKS, offset, value);
+        WriteDeviceRegister((channel * IDE_CHANNEL_DISKS) + 1, offset, value);
 
         if (offset == 6)
             m_state.selected[channel] = (value >> 4) & 1;
@@ -175,12 +189,12 @@ void IdeController::WriteControl(int channel, u8 value, u64 clocks)
         m_state.selected[channel] = 0;
 
         for (int i = 0; i < IDE_CHANNEL_DISKS; i++)
-            m_disks[(channel * IDE_CHANNEL_DISKS) + i].HoldReset();
+            HoldDeviceReset((channel * IDE_CHANNEL_DISKS) + i);
     }
     else if ((value & k_ide_control_srst) == 0 && held)
     {
         for (int i = 0; i < IDE_CHANNEL_DISKS; i++)
-            m_disks[(channel * IDE_CHANNEL_DISKS) + i].ReleaseReset(clocks);
+            ReleaseDeviceReset((channel * IDE_CHANNEL_DISKS) + i, clocks);
     }
 }
 
@@ -192,10 +206,10 @@ void IdeController::WriteCommand(int channel, u8 command, u64 clocks)
         m_state.selected[channel] = 0;
 
         for (int i = 0; i < IDE_CHANNEL_DISKS; i++)
-            m_disks[(channel * IDE_CHANNEL_DISKS) + i].Execute(command, m_state.features[channel], clocks);
+            ExecuteDevice((channel * IDE_CHANNEL_DISKS) + i, command, m_state.features[channel], clocks);
     }
     else
-        GetSelected(channel).Execute(command, m_state.features[channel], clocks);
+        ExecuteDevice(GetSelected(channel), command, m_state.features[channel], clocks);
 }
 
 u16 IdeController::ReadData(u16 port, u64 clocks)
@@ -204,7 +218,7 @@ u16 IdeController::ReadData(u16 port, u64 clocks)
 
     u16 value = 0xFFFF;
 
-    if (GetSelected(GetChannel(port)).ReadData(value, clocks))
+    if (ReadDeviceData(GetSelected(GetChannel(port)), value, clocks))
         UpdateNextEvent();
 
     return value;
@@ -214,7 +228,7 @@ void IdeController::WriteData(u16 port, u16 value, u64 clocks)
 {
     Synchronize(clocks);
 
-    if (GetSelected(GetChannel(port)).WriteData(value, clocks))
+    if (WriteDeviceData(GetSelected(GetChannel(port)), value, clocks))
         UpdateNextEvent();
 }
 
@@ -225,6 +239,8 @@ void IdeController::SaveState(std::ostream& stream)
 
     for (int i = 0; i < IDE_DISKS; i++)
         m_disks[i].SaveState(stream);
+
+    m_cdrom.SaveState(stream);
 }
 
 void IdeController::LoadState(std::istream& stream, int version)
@@ -235,6 +251,7 @@ void IdeController::LoadState(std::istream& stream, int version)
     for (int i = 0; i < IDE_DISKS; i++)
         m_disks[i].LoadState(stream, version);
 
+    m_cdrom.LoadState(stream, version);
     SanitizeState();
 }
 
@@ -251,7 +268,7 @@ void IdeController::SanitizeState()
     for (int i = 0; i < IDE_CHANNELS; i++)
     {
         m_state.selected[i] &= 1;
-        m_irq_out[i] = GetSelected(i).IsInterrupting() && (m_state.control[i] & k_ide_control_nien) == 0;
+        m_irq_out[i] = IsDeviceInterrupting(GetSelected(i)) && (m_state.control[i] & k_ide_control_nien) == 0;
     }
 
     UpdateNextEvent();

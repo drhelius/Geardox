@@ -25,6 +25,7 @@
 #include "gui_debug_i386_tables.h"
 #include "../emu.h"
 #include "drive/i82077.h"
+#include "drive/ide_cdrom.h"
 #include "system/i8259.h"
 
 static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
@@ -711,80 +712,38 @@ static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
 
     switch (entry.event)
     {
+        case TRACE_CDROM_PACKET:
+            format_event(buffer, size, "CDROM", "PACKET",
+                "%d  $%02X %-16s %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", entry.cdrom.flags,
+                entry.cdrom.command, GetCdRomPacketName(entry.cdrom.command), b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+                b[8], b[9], b[10], b[11]);
+            break;
         case TRACE_CDROM_COMMAND:
-            format_event(buffer, size, "CDROM", "COMMAND", "$%02X  Params:%02X %02X %02X %02X %02X %02X %02X %02X",
-                entry.cdrom.command, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
+            format_event(buffer, size, "CDROM", "COMMAND", "%d  $%02X %s", entry.cdrom.flags, entry.cdrom.command,
+                GetCdRomAtaName(entry.cdrom.command));
             break;
-        case TRACE_CDROM_STATUS:
-        {
-            const char* name = "";
-
-            switch (b[0])
-            {
-                case 0x00: name = b[1] == 0x09 ? "READY, NO DISC" : "READY"; break;
-                case 0x04: name = "SEEK DONE"; break;
-                case 0x06: name = "READ DONE"; break;
-                case 0x11: name = "CDDA STOPPED"; break;
-                case 0x12: name = "CDDA PAUSED"; break;
-                case 0x13: name = "CDDA RESUMED"; break;
-                case 0x16:
-                case 0x17: name = "TOC"; break;
-                case 0x18:
-                case 0x19:
-                case 0x20: name = "SUBQ"; break;
-                case 0x22: name = "DATA READY"; break;
-                case 0x21:
-                {
-                    switch (b[1])
-                    {
-                        case 0x01: name = "ERROR, BAD PARAMETER"; break;
-                        case 0x04: name = "ERROR, READ FAILED"; break;
-                        case 0x05: name = "ERROR, AUDIO SECTOR"; break;
-                        case 0x08: name = "ERROR, DISC CHANGED"; break;
-                        case 0x09: name = "ERROR, NOT READY"; break;
-                        case 0x0F: name = "ERROR, DATA LOST"; break;
-                        default: name = "ERROR"; break;
-                    }
-                    break;
-                }
-                default: break;
-            }
-
-            format_event(buffer, size, "CDROM", "STATUS", "%02X %02X %02X %02X  %s", b[0], b[1], b[2], b[3], name);
-            break;
-        }
-        case TRACE_CDROM_IRQ:
-            format_event(buffer, size, "CDROM", "IRQ", "IRQ9%s%s", (entry.cdrom.value & 0x01) != 0 ? " STATUS" : "",
-                (entry.cdrom.value & 0x02) != 0 ? " DMA END" : "");
-            break;
-        case TRACE_CDROM_CONTROL:
-        {
-            u8 value = entry.cdrom.value;
-            format_event(buffer, size, "CDROM", "CONTROL", "$04C0 <- $%02X %s%s%s  Status IRQ:%s  DMA end IRQ:%s",
-                value, (value & 0x80) != 0 ? " ACK STATUS" : "", (value & 0x40) != 0 ? " ACK DMA END" : "",
-                (value & 0x04) != 0 ? " RESET" : "", (value & 0x02) != 0 ? "ON " : "OFF",
-                (value & 0x01) != 0 ? "ON " : "OFF");
-            break;
-        }
-        case TRACE_CDROM_SECTOR_READY:
-            format_event(buffer, size, "CDROM", "DATA READY", "LBA:%u  MSF %s  Command:$%02X  Last:%u", lba, msf,
-                entry.cdrom.command, entry.cdrom.end_lba);
-            break;
-        case TRACE_CDROM_TRANSFER:
-            format_event(buffer, size, "CDROM", "TRANSFER", "$04C6 <- $%02X  %s  LBA:%u  Bytes:%u", entry.cdrom.value,
-                (entry.cdrom.value & 0x10) != 0 ? "DMA" : "CPU", lba, entry.cdrom.size);
-            break;
-        case TRACE_CDROM_SECTOR_END:
-            if (entry.cdrom.size != 0)
-                format_event(buffer, size, "CDROM", "SECTOR END", "LBA:%u  %s  Dropped:%u bytes", lba,
-                    (entry.cdrom.flags & 0x10) != 0 ? "DMA" : "CPU", entry.cdrom.size);
+        case TRACE_CDROM_COMPLETE:
+            if (b[4] != 0)
+                format_event(buffer, size, "CDROM", "COMPLETE", "%d  $%02X %-16s Status:%02X  Sense:%X/%02X/%02X",
+                    entry.cdrom.flags, entry.cdrom.command, GetCdRomPacketName(entry.cdrom.command), entry.cdrom.value,
+                    b[0], b[1], b[2]);
             else
-                format_event(buffer, size, "CDROM", "SECTOR END", "LBA:%u  %s", lba,
-                    (entry.cdrom.flags & 0x10) != 0 ? "DMA" : "CPU");
+                format_event(buffer, size, "CDROM", "COMPLETE", "%d  $%02X %-16s Status:%02X  Error:%02X",
+                    entry.cdrom.flags, entry.cdrom.command, GetCdRomAtaName(entry.cdrom.command), entry.cdrom.value,
+                    b[3]);
             break;
-        case TRACE_CDROM_LOST_DATA:
-            format_event(buffer, size, "CDROM", "LOST DATA", "LBA:%u  MSF %s  Not transferred in time", lba, msf);
+        case TRACE_CDROM_DATA:
+            format_event(buffer, size, "CDROM", "DATA", "%d  LBA:%u-%u  MSF %s  Bytes:%u", entry.cdrom.flags, lba,
+                entry.cdrom.end_lba, msf, entry.cdrom.size);
             break;
+        case TRACE_CDROM_MEDIA:
+        {
+            static const char* const kinds[6] = { "DISC IN", "DISC OUT", "TRAY OPEN", "TRAY CLOSED", "READY",
+                "MOTOR STOP" };
+            format_event(buffer, size, "CDROM", "MEDIA", "%d  %s", entry.cdrom.flags,
+                kinds[MIN(entry.cdrom.value, (u8)5)]);
+            break;
+        }
         case TRACE_CDROM_CDDA_PLAY:
             format_event(buffer, size, "CDROM", "CDDA PLAY", "LBA:%u-%u  MSF %s-%s  Seek:%u ms%s", lba,
                 entry.cdrom.end_lba, msf, end_msf, entry.cdrom.size, (entry.cdrom.flags & 0x01) != 0 ? "  REPEAT" : "");

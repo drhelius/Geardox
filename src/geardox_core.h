@@ -27,6 +27,7 @@ class Audio;
 class CdRomAudio;
 class CdRomMedia;
 class FDC;
+class IdeCdRom;
 class IdeController;
 class FloppyDisk;
 class HardDiskImage;
@@ -171,6 +172,7 @@ public:
     Video* GetVideo();
     CdRomMedia* GetCDROMMedia();
     CdRomAudio* GetCDROMAudio();
+    IdeCdRom* GetCDROM();
     FDC* GetFDC();
     IdeController* GetIDE();
     FloppyDisk* GetFloppy(int drive);

@@ -134,6 +134,7 @@ EXTERN bool gui_load_playlist_disc(int index);
 EXTERN bool gui_load_hard_disk_source(const char* path, bool rebuild);
 EXTERN void gui_load_physical_cdrom(const char* device_id);
 EXTERN void gui_reload_cdrom(void);
+EXTERN void gui_reset_when_loaded(void);
 EXTERN void gui_load_media_symbols(const char* media_path, const char* symbol_path);
 EXTERN bool gui_is_rom_loading(void);
 EXTERN bool gui_finish_loading_rom(void);

@@ -783,6 +783,8 @@ void emu_apply_machine_settings(void)
     settings.sound_irq = config_machine.sound_irq;
     settings.sound_dma = config_machine.sound_dma;
     settings.mouse = config_machine.mouse;
+    settings.cdrom = config_machine.cdrom;
+    settings.cdrom_speed = config_machine.cdrom_speed;
     settings.speed_mode = GDOX_MACHINE_AUTO;
     geardox->SetMachineSettings(settings);
 }

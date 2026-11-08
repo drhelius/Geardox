@@ -27,6 +27,7 @@
 #include "geardox.h"
 #include "audio/audio.h"
 #include "cdrom/cdrom_audio.h"
+#include "drive/ide_cdrom.h"
 #include "cdrom/cdrom_media.h"
 #include "../config.h"
 #include "../emu.h"
@@ -488,6 +489,37 @@ void gui_debug_window_cdrom_audio(void)
         draw_position(state->current_lba - MIN(state->current_lba, track_start), 0, track >= 0);
 
         ImGui::EndTable();
+    }
+
+    IdeCdRom* drive = core->GetCDROM();
+
+    if (IsValidPointer(drive) && drive->IsAttached())
+    {
+        s32 gains[4];
+        drive->GetAudioGains(gains);
+
+        ImGui::NewLine(); ImGui::TextColored(cyan, "DRIVE GAINS"); ImGui::Separator();
+
+        if (ImGui::BeginTable("##cdda_gains", 3, flags))
+        {
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, character * 9);
+            ImGui::TableSetupColumn("LEFT", ImGuiTableColumnFlags_WidthFixed, character * 7);
+            ImGui::TableSetupColumn("RIGHT", ImGuiTableColumnFlags_WidthFixed, character * 7);
+            ImGui::TableHeadersRow();
+
+            for (int i = 0; i < 2; i++)
+            {
+                char label[8];
+                snprintf(label, sizeof(label), "PORT %d", i);
+                ImGui::TableNextRow();
+                draw_grid_label(label);
+                ImGui::TextColored(gains[i * 2] != 0 ? white : gray, "%d", gains[i * 2]);
+                ImGui::TableNextColumn();
+                ImGui::TextColored(gains[(i * 2) + 1] != 0 ? white : gray, "%d", gains[(i * 2) + 1]);
+            }
+
+            ImGui::EndTable();
+        }
     }
 
     ImGui::PopFont();

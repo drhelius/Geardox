@@ -204,10 +204,10 @@ static const McpToolCategory kMcpToolCategories[] =
     {"hardware_system", "System Hardware", "Inspect the 8259A interrupt controllers, the 8254 timer, the board ports, the keyboard controller, the serial and parallel ports and the machine configuration."},
     {"hardware_video", "Video Hardware", "Inspect the VGA: CRTC, registers, palettes, video memory and text screens."},
     {"hardware_audio", "Audio Hardware", "Inspect the sound card and mute audio sources in the debugger."},
-    {"hardware_cdrom", "CD-ROM Hardware", "Inspect the disc TOC and CD audio playback, and read disc sectors."},
+    {"hardware_cdrom", "CD-ROM Hardware", "Inspect the ATAPI CD-ROM drive, the disc TOC and CD audio playback, and read disc sectors."},
     {"hardware_floppy", "Floppy Hardware", "Inspect the 82077 controller and the floppy drives, list a track's sectors, and read sector data."},
     {"hardware_hard_disk", "Hard Disk Hardware", "Inspect the IDE channels, list the hard disks in slots 0-3 and read their sectors."},
-    {"media", "Media", "Load firmware or CD images, insert, eject and swap floppies, attach, detach and flush hard disks, list recent media, and inspect loaded media, firmware and floppy drives."},
+    {"media", "Media", "Load firmware or CD images, eject the CD and close the CD-ROM tray, insert, eject and swap floppies, attach, detach and flush hard disks, list recent media, and inspect loaded media, firmware and floppy drives."},
     {"capture", "Capture", "Capture current screenshots and record AVI video."},
     {"state", "Save States", "List save slots, and save or load emulator state in a slot or a file."},
     {"rewind", "Rewind", "Inspect rewind buffer status and seek to rewind snapshots for time-travel debugging."},
@@ -286,7 +286,7 @@ static const char* const kMcpHardDiskTools[] =
 
 static const char* const kMcpMediaTools[] =
 {
-    "load_media", "eject_cdrom", "insert_playlist_disc", "get_media_info", "list_recent_media",
+    "load_media", "eject_cdrom", "close_cdrom_tray", "insert_playlist_disc", "get_media_info", "list_recent_media",
     "load_bios", "insert_floppy", "create_blank_floppy", "eject_floppy", "swap_floppies", "set_floppy_write_protect",
     "attach_hard_disk", "detach_hard_disk", "flush_hard_disks"
 };
@@ -716,6 +716,8 @@ std::string McpToolRegistry::AliasesForTool(const std::string& tool_name) const
         aliases += " input joypad gamepad flightstick game port axis hat button tap press release";
     if (StringContains(name, "serial"))
         aliases += " com1 com2 uart 16550 modem rs232 baud mouse";
+    if (StringContains(name, "cdrom"))
+        aliases += " atapi tray disc drive ide cd audio";
     if (StringContains(name, "parallel"))
         aliases += " lpt1 printer centronics";
     if (StringContains(name, "video_recording"))

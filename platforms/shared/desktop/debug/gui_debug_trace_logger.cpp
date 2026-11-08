@@ -740,11 +740,10 @@ static void trace_logger_menu_filters(void)
         ImGui::MenuItem("Enabled", "", &config_debug.trace_cdrom);
         ImGui::Separator();
         ImGui::BeginDisabled(!config_debug.trace_cdrom);
-        trace_logger_menu_event_filter("Commands", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_COMMANDS);
+        trace_logger_menu_event_filter("Packets and Commands", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_PACKETS);
         trace_logger_menu_event_filter("Status", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_STATUS);
-        trace_logger_menu_event_filter("IRQs", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_IRQS);
-        trace_logger_menu_event_filter("Control", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_CONTROL);
         trace_logger_menu_event_filter("Data Transfers", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_DATA);
+        trace_logger_menu_event_filter("Tray and Disc", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_MEDIA);
         trace_logger_menu_event_filter("CD-DA", &config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_CDDA);
         ImGui::EndDisabled();
         ImGui::EndMenu();

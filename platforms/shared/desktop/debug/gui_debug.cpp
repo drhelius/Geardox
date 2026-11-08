@@ -191,6 +191,9 @@ void gui_debug_windows(void)
         if (config_debug.show_cdrom_audio)
             gui_debug_window_cdrom_audio();
 
+        if (config_debug.show_cdrom_drive)
+            gui_debug_window_cdrom_drive();
+
         if (config_debug.show_floppy_drives)
             gui_debug_window_floppy_drives();
 

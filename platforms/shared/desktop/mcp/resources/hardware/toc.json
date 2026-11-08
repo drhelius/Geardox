@@ -17,6 +17,12 @@
       "title": "Mouse, Joystick, Serial and Parallel Ports — What MS-DOS Software Relies On",
       "description": "The PS/2 and serial mouse, the game port and its joysticks, the two 16550A COM ports and LPT1, with the MCP tools and trace filters that drive and watch them",
       "mimeType": "text/markdown"
+    },
+    {
+      "uri": "pc_ide_cdrom",
+      "title": "IDE and the ATAPI CD-ROM Drive — What MS-DOS Software Relies On",
+      "description": "The two IDE channels and their positions, the ATAPI CD-ROM drive: signature, IDENTIFY PACKET, the packet protocol and commands, sense codes, tray and disc, CD audio and timing, with the MCP tools and trace filters that drive and watch it",
+      "mimeType": "text/markdown"
     }
   ]
 }

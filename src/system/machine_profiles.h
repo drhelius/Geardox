@@ -102,6 +102,25 @@ const GDOX_Mouse_Info k_mice[GDOX_MOUSE_TYPE_COUNT] =
     { "Serial (COM1)", "serial" }
 };
 
+const GDOX_CdRom_Info k_cdrom_positions[GDOX_CDROM_POSITION_COUNT] =
+{
+    { "None", "none" },
+    { "Primary Master", "pm" },
+    { "Primary Slave", "ps" },
+    { "Secondary Master", "sm" },
+    { "Secondary Slave", "ss" }
+};
+
+const GDOX_CdRom_Info k_cdrom_speeds[GDOX_CDROM_SPEED_COUNT] =
+{
+    { "1x", "1x" },
+    { "2x", "2x" },
+    { "4x", "4x" },
+    { "8x", "8x" }
+};
+
+const int k_cdrom_speed_factors[GDOX_CDROM_SPEED_COUNT] = { 1, 2, 4, 8 };
+
 const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 {
     { "None", "none" },

@@ -60,7 +60,7 @@ static char loading_rom_path[4096] = "";
 static char loading_symbol_path[4096] = "";
 static bool loading_physical_cdrom = false;
 static bool loading_reset = false;
-static bool loading_auto = false;
+static bool loading_reload = false;
 static bool loading_keep_debug = false;
 static void main_window(void);
 static void show_error_window(void);
@@ -510,7 +510,6 @@ bool gui_load_playlist_disc(int index)
 
     emu_cdrom_playlist_select(path);
     start_loading_rom(path, NULL);
-    loading_auto = false;
     loading_keep_debug = true;
     return true;
 }
@@ -533,7 +532,7 @@ static void start_loading_rom(const char* path, const char* symbol_path)
 {
     loading_physical_cdrom = false;
     loading_reset = false;
-    loading_auto = true;
+    loading_reload = false;
     loading_keep_debug = false;
     gui_debug_auto_save_settings();
     emu_resume();
@@ -567,7 +566,7 @@ void gui_load_physical_cdrom(const char* device_id)
     emu_cdrom_playlist_clear();
     loading_physical_cdrom = true;
     loading_reset = false;
-    loading_auto = true;
+    loading_reload = false;
     loading_keep_debug = false;
     gui_debug_auto_save_settings();
     emu_resume();
@@ -601,7 +600,13 @@ void gui_reload_cdrom(void)
     }
 
     loading_reset = loading_rom_active;
+    loading_reload = loading_rom_active;
     loading_keep_debug = loading_rom_active;
+}
+
+void gui_reset_when_loaded(void)
+{
+    loading_reset = loading_rom_active;
 }
 
 void gui_load_media_symbols(const char* media_path, const char* symbol_path)
@@ -1049,9 +1054,7 @@ static bool finish_loading_rom(void)
     if (!loading_keep_debug)
         gui_debug_auto_load_settings();
 
-    bool machine_changed = loading_auto && emu_latch_auto_media();
-
-    if (loading_reset || machine_changed)
+    if (loading_reset)
     {
         emu_reset();
 
@@ -1061,7 +1064,7 @@ static bool finish_loading_rom(void)
 
     if (emu_get_core()->GetMedia()->IsReady())
     {
-        gui_notify(gui_NotificationSuccess, ICON_MD_ALBUM, loading_reset ? "CD-ROM reloaded" : "CD-ROM loaded",
+        gui_notify(gui_NotificationSuccess, ICON_MD_ALBUM, loading_reload ? "CD-ROM reloaded" : "CD-ROM loaded",
             emu_get_core()->GetMedia()->GetFileName());
     }
 

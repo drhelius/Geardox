@@ -29,6 +29,7 @@
 #endif
 
 EXTERN void gui_debug_window_cdrom_toc(void);
+EXTERN void gui_debug_window_cdrom_drive(void);
 EXTERN u32 gui_debug_cdrom_head(void);
 
 #undef GUI_DEBUG_CDROM_IMPORT

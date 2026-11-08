@@ -69,6 +69,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
     CONFIG_BOOL("Debug", "CDROMTOC", config_debug.show_cdrom_toc, false);
     CONFIG_BOOL("Debug", "CDROMAudio", config_debug.show_cdrom_audio, false);
+    CONFIG_BOOL("Debug", "CDROMDrive", config_debug.show_cdrom_drive, false);
     CONFIG_BOOL("Debug", "FloppyDrives", config_debug.show_floppy_drives, false);
     CONFIG_BOOL("Debug", "IDE", config_debug.show_ide, false);
     CONFIG_BOOL("Debug", "IDEDisks", config_debug.show_ide_disks, false);
@@ -255,6 +256,10 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
         k_sound_card_dmas[1]);
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "CDROMDrive", config_machine.cdrom, GDOX_CDROM_SECONDARY_MASTER, 0,
+        GDOX_CDROM_POSITION_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "CDROMSpeed", config_machine.cdrom_speed, GDOX_CDROM_SPEED_4X, 0,
+        GDOX_CDROM_SPEED_COUNT - 1);
 
     //**************************************
     // Video

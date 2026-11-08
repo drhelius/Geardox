@@ -51,6 +51,7 @@ public:
     {
         SOUND_BLASTER_SOURCE_VOICE = 0,
         SOUND_BLASTER_SOURCE_FM,
+        SOUND_BLASTER_SOURCE_CD,
         SOUND_BLASTER_SOURCE_COUNT
     };
 
