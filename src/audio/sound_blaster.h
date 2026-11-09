@@ -86,6 +86,7 @@ public:
         u8 output_head;
         u8 output_count;
         u8 last_output;
+        u8 write_status_reads;
         u8 test_register;
         u8 asp_registers[SOUND_BLASTER_ASP_REGISTERS];
         u8 e2_value;

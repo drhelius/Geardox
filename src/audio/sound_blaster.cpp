@@ -158,6 +158,7 @@ void SoundBlaster::ResetDSP()
     m_state.output_head = 0;
     m_state.output_count = 0;
     m_state.last_output = 0;
+    m_state.write_status_reads = 0;
     m_state.test_register = 0;
     memset(m_state.asp_registers, 0, sizeof(m_state.asp_registers));
     m_state.asp_registers[0x05] = 0x01;
@@ -556,6 +557,10 @@ u8 SoundBlaster::Read(u16 port, u64 clocks)
                     TraceEvent(TRACE_PCM_ACK, 16);
             }
             break;
+        case 0x0C:
+            if (!m_state.resetting && !m_state.reset_pending && !m_state.transfer.high_speed)
+                m_state.write_status_reads++;
+            break;
         default:
             break;
     }
@@ -564,6 +569,7 @@ u8 SoundBlaster::Read(u16 port, u64 clocks)
 }
 
 // Bit 7 is the only one that means anything, the rest read high. High-speed mode takes no commands
+// The write buffer reads busy 8 reads in 16, as drivers wait for busy and then ready before a command
 u8 SoundBlaster::Peek(u16 port, u64 clocks) const
 {
     bool ready = m_state.reset_pending && (clocks >= m_state.ready_clocks);
@@ -576,7 +582,8 @@ u8 SoundBlaster::Peek(u16 port, u64 clocks) const
             return m_state.output_count != 0 ? m_state.output[m_state.output_head] :
                 ready ? k_sound_blaster_ready : m_state.last_output;
         case 0x0C:
-            return (m_state.resetting || (m_state.reset_pending && !ready) || m_state.transfer.high_speed) ? 0xFF : 0x7F;
+            return (m_state.resetting || (m_state.reset_pending && !ready) || m_state.transfer.high_speed ||
+                ((m_state.write_status_reads & 0x08) != 0)) ? 0xFF : 0x7F;
         case 0x0E:
             return (m_state.output_count != 0) || ready ? 0xFF : 0x7F;
         default:
@@ -1349,7 +1356,7 @@ u64 SoundBlaster::GetReadStableUntil(u16 port) const
         case 0x0A:
             return m_state.output_count != 0 ? 0 : reset;
         case 0x0C:
-            return reset;
+            return (m_state.resetting || m_state.reset_pending || m_state.transfer.high_speed) ? reset : 0;
         case 0x0E:
             return m_state.irq_8 ? 0 : reset;
         case 0x0F:
@@ -1455,6 +1462,7 @@ void SoundBlaster::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.output_head);
     G_SERIALIZE(serializer, m_state.output_count);
     G_SERIALIZE(serializer, m_state.last_output);
+    G_SERIALIZE(serializer, m_state.write_status_reads);
     G_SERIALIZE(serializer, m_state.test_register);
     G_SERIALIZE_ARRAY(serializer, m_state.asp_registers, SOUND_BLASTER_ASP_REGISTERS);
     G_SERIALIZE(serializer, m_state.e2_value);
