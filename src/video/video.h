@@ -23,7 +23,8 @@
 #include <iostream>
 #include "../common/common.h"
 
-#define VIDEO_VRAM_SIZE 0x40000
+#define VIDEO_VRAM_SIZE 0x100000
+#define VIDEO_VGA_VRAM_SIZE 0x40000
 #define VIDEO_PLANE_SIZE 0x10000
 #define VIDEO_PLANE_COUNT 4
 #define VIDEO_SEQUENCER_COUNT 5
@@ -31,6 +32,10 @@
 #define VIDEO_CRTC_COUNT 25
 #define VIDEO_ATTRIBUTE_COUNT 21
 #define VIDEO_DAC_COUNT 256
+#define VIDEO_SEQUENCER_EXT_COUNT 32
+#define VIDEO_GRAPHICS_EXT_COUNT 64
+#define VIDEO_CRTC_EXT_COUNT 64
+#define VIDEO_DAC_EXT_COUNT 16
 
 class Memory;
 class PIC;
@@ -49,14 +54,26 @@ public:
         VIDEO_FORMAT_256
     };
 
+    enum Video_Extended_Format
+    {
+        VIDEO_EXTENDED_PALETTE = 0,
+        VIDEO_EXTENDED_GREY,
+        VIDEO_EXTENDED_332,
+        VIDEO_EXTENDED_555,
+        VIDEO_EXTENDED_555_MIX,
+        VIDEO_EXTENDED_565,
+        VIDEO_EXTENDED_888,
+        VIDEO_EXTENDED_BLANK
+    };
+
     struct Video_State
     {
         u8 vram[VIDEO_VRAM_SIZE];
-        u8 sequencer[VIDEO_SEQUENCER_COUNT];
+        u8 sequencer[VIDEO_SEQUENCER_EXT_COUNT];
         u8 sequencer_index;
-        u8 graphics[VIDEO_GRAPHICS_COUNT];
+        u8 graphics[VIDEO_GRAPHICS_EXT_COUNT];
         u8 graphics_index;
-        u8 crtc[VIDEO_CRTC_COUNT];
+        u8 crtc[VIDEO_CRTC_EXT_COUNT];
         u8 crtc_index;
         u8 attribute[VIDEO_ATTRIBUTE_COUNT];
         u8 attribute_index;
@@ -71,6 +88,9 @@ public:
         u8 dac_component;
         u8 dac_state;
         u8 pel_mask;
+        u8 hidden_dac;
+        u8 hidden_dac_reads;
+        u8 dac_extended[VIDEO_DAC_EXT_COUNT][3];
         u32 latch;
         bool vertical_interrupt;
         bool running;
@@ -98,6 +118,7 @@ public:
     ~Video();
     void Init(PIC* pic, PIT* pit, Scheduler* scheduler, Memory* memory);
     void SetTraceLogger(TraceLogger* trace_logger);
+    void SetCard(int card);
     void Reset();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -137,11 +158,26 @@ public:
     u32 GetCursorAddress() const;
     u32 GetCRTCOffset(u32 address, u32 row) const;
     u32 GetCharacterClockDots() const;
+    u32 GetExtendedClockMultiplier() const;
     u32 GetBeamLine(u64 clocks) const;
     u32 GetBeamDot(u64 clocks) const;
     u8 GetSyncStatus(u64 clocks) const;
     bool IsDirectMapped() const;
     void UpdateVRAMMapping();
+    int GetCard() const;
+    bool IsCirrus() const;
+    bool IsUnlocked() const;
+    u32 GetVRAMSize() const;
+    bool IsExtendedMode() const;
+    Video_Extended_Format GetExtendedFormat() const;
+    u32 GetExtendedBytesPerPixel() const;
+    u32 GetVideoClock(int index) const;
+    u32 GetCurrentDotClock() const;
+    u32 GetBankOffset(int bank) const;
+    bool IsDualPage() const;
+    u32 GetApertureBase() const;
+    u32 GetOffsetRegister() const;
+    u32 GetCounterMask() const;
     Video_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
@@ -153,6 +189,13 @@ public:
     static u32 ReadWindow32Callback(void* device, u32 offset);
     static void WriteWindow16Callback(void* device, u32 offset, u16 value);
     static void WriteWindow32Callback(void* device, u32 offset, u32 value);
+    static u8 ReadLinearCallback(void* device, u32 offset);
+    static u8 PeekLinearCallback(void* device, u32 offset);
+    static void WriteLinearCallback(void* device, u32 offset, u8 value);
+    static u16 ReadLinear16Callback(void* device, u32 offset);
+    static u32 ReadLinear32Callback(void* device, u32 offset);
+    static void WriteLinear16Callback(void* device, u32 offset, u16 value);
+    static void WriteLinear32Callback(void* device, u32 offset, u32 value);
     static u8 PeekPlane0Callback(void* device, u32 offset);
     static u8 PeekPlane1Callback(void* device, u32 offset);
     static u8 PeekPlane2Callback(void* device, u32 offset);
@@ -170,7 +213,15 @@ private:
     void WriteMisc(u8 value);
     void WriteDAC(u8 value, u64 clocks);
     u8 ReadDAC();
+    u8 PeekSequencer() const;
+    u8 PeekGraphics() const;
     u8 PeekCRTC() const;
+    void WriteCirrusSequencer(u8 index, u8 value, u64 clocks);
+    void WriteCirrusGraphics(u8 index, u8 value, u64 clocks);
+    void WriteCirrusCRTC(u8 index, u8 value, u64 clocks);
+    void WriteHiddenDAC(u8 value, u64 clocks);
+    void UpdateExtendedFormat();
+    void UpdateAperture();
     void RunNextEvent();
     void LatchFrameTiming();
     void StartFrame(u64 clocks);
@@ -187,6 +238,11 @@ private:
     u8 ReadVRAM(u32 offset);
     u8 PeekVRAM(u32 offset) const;
     void WriteVRAM(u32 offset, u8 value);
+    u32 GetWindowAddress(u32 address) const;
+    u8 ReadMemory(u32 address);
+    u8 PeekMemory(u32 address) const;
+    void WriteMemory(u32 address, u8 value);
+    u32 GetApertureSize() const;
     u32 GetPlaneBase(u32 offset) const;
     u32 GetHostOffset(u32 address) const;
     u32 GetCountShift() const;
@@ -201,6 +257,8 @@ private:
     void RenderText(u32* destination, int x, int end);
     template<Video_Format format, bool packed>
     void RenderGraphics(u32* destination, int x, int end);
+    template<Video_Extended_Format format>
+    void RenderExtended(u32* destination, int x, int end);
     int GetPixelPan(bool text, bool packed) const;
     void UpdateDACColor(int index);
     void UpdateAttributeColors();
@@ -259,10 +317,33 @@ private:
     u32 m_dac_colors[VIDEO_DAC_COUNT];
     u32 m_attribute_colors[16];
     u32 m_line_pixels[GDOX_MAX_FRAME_BUFFER_WIDTH + 16];
+    u32 m_direct_low[2][256];
+    u32 m_direct_high[2][256];
+    int m_card;
+    bool m_cirrus;
+    bool m_local_bus;
+    u32 m_vram_size;
+    u32 m_vram_mask;
+    u32 m_plane_mask;
+    bool m_extended;
+    bool m_wide_counter;
+    bool m_dual_page;
+    u32 m_bank_low;
+    u32 m_bank_high;
+    u32 m_mapped_bank;
+    u32 m_aperture_base;
+    u32 m_aperture_mapped;
+    Video_Extended_Format m_extended_format;
+    u32 m_extended_bytes;
+    u32 m_window_limit;
 };
 
 static const u32 k_video_dot_clock_25 = 25175000;
 static const u32 k_video_dot_clock_28 = 28322000;
+static const u32 k_video_reference_clock = 14318180;
+static const u32 k_video_aperture_base = 0x00F00000;
+static const u8 k_video_cirrus_id = 0x98;
+static const u8 k_video_cirrus_unlock = 0x12;
 static const u32 k_video_min_line_dots = 64;
 static const u32 k_video_min_lines = 16;
 static const u32 k_video_max_window_size = 0x20000;
@@ -311,6 +392,32 @@ static const int k_video_cr_line_compare = 0x18;
 static const int k_video_cr_latch_readback = 0x22;
 static const int k_video_cr_toggle_readback = 0x24;
 static const int k_video_cr_index_readback = 0x26;
+
+static const int k_video_sr_unlock = 0x06;
+static const int k_video_sr_extended = 0x07;
+static const int k_video_sr_vclk_numerator = 0x0B;
+static const int k_video_sr_dram = 0x0F;
+static const int k_video_sr_cursor_attributes = 0x12;
+static const int k_video_sr_config = 0x17;
+static const int k_video_sr_vclk_denominator = 0x1B;
+static const int k_video_gr_offset_0 = 0x09;
+static const int k_video_gr_offset_1 = 0x0A;
+static const int k_video_gr_extensions = 0x0B;
+static const int k_video_gr_blt_status = 0x31;
+static const int k_video_cr_interlace_end = 0x19;
+static const int k_video_cr_misc_control = 0x1A;
+static const int k_video_cr_extended_display = 0x1B;
+static const int k_video_cr_overlay = 0x1D;
+static const int k_video_cr_part_status = 0x25;
+static const int k_video_cr_id = 0x27;
+
+// The 5446's reset values for the four video clocks (5446 p232), 542x values have no source; the 542x memory clock
+// readback and bus width straps: 50.11 MHz and a 32-bit, 1 MB DRAM bus (CIRRUS.TXT l1583-1593)
+static const u8 k_video_cirrus_sequencer_reset[VIDEO_SEQUENCER_EXT_COUNT] =
+{
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x66, 0x5B, 0x45, 0x7E, 0x10,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3B, 0x2F, 0x30, 0x33, 0x1C
+};
 
 static const int k_video_ar_mode = 0x10;
 static const int k_video_ar_overscan = 0x11;

@@ -215,6 +215,7 @@ private:
     void ResolveMachineConfig();
     void ApplyHardDisks();
     bool CanAutoSelect(GDOX_Machine_Model model);
+    bool HasMemoryHole() const;
     bool LoadMachineFirmware(bool force, bool report);
     void ApplyMachineConfig();
     void ApplyCPUSpeed();
@@ -262,6 +263,7 @@ private:
     Profiler* m_profiler;
 
     GDOX_Machine_Settings m_machine_settings;
+    GDOX_Machine_Bus_Waits m_card_bus_waits;
     const GDOX_DB_Entry* m_auto_entry;
     std::string m_firmware_folder;
     std::string m_model_firmware_folders[GDOX_MACHINE_COUNT];

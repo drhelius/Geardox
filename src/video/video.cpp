@@ -22,6 +22,7 @@
 #include "../common/trace_logger.h"
 #include "../system/pic.h"
 #include "../system/scheduler.h"
+#include "../system/machine_profiles.h"
 
 Video::Video()
 {
@@ -62,6 +63,23 @@ Video::Video()
     m_set_reset = 0;
     m_set_reset_enable = 0;
     m_bit_mask = 0;
+    m_card = GDOX_VIDEO_CARD_VGA;
+    m_cirrus = false;
+    m_local_bus = false;
+    m_vram_size = VIDEO_VGA_VRAM_SIZE;
+    m_vram_mask = VIDEO_VGA_VRAM_SIZE - 1;
+    m_plane_mask = (VIDEO_VGA_VRAM_SIZE >> 2) - 1;
+    m_extended = false;
+    m_wide_counter = false;
+    m_dual_page = false;
+    m_bank_low = 0;
+    m_bank_high = 0;
+    m_mapped_bank = 0;
+    m_aperture_base = 0;
+    m_aperture_mapped = 0;
+    m_extended_format = VIDEO_EXTENDED_PALETTE;
+    m_extended_bytes = 1;
+    m_window_limit = 0xFFFFFFFF;
 
     for (int i = 0; i < 16; i++)
     {
@@ -71,6 +89,19 @@ Video::Video()
             planes[plane] = (i & (1 << plane)) != 0 ? 0xFF : 0x00;
 
         memcpy(&m_plane_masks[i], planes, sizeof(planes));
+    }
+
+    // 5:5:5 and 5:6:5 pixels expanded to 8 bits a channel, each byte's share of the color: their bits don't overlap
+    for (u32 i = 0; i < 256; i++)
+    {
+        u32 blue = ((i & 0x1F) << 3) | ((i & 0x1F) >> 2);
+        u32 red = (((i >> 2) & 0x1F) << 3) | (((i >> 2) & 0x1F) >> 2);
+        u32 red565 = ((i >> 3) << 3) | ((i >> 3) >> 2);
+
+        m_direct_low[0][i] = blue | ((((i >> 5) << 3) | (i >> 7)) << 8);
+        m_direct_high[0][i] = 0xFF000000U | (red << 16) | ((((i & 0x03) << 6) | ((i & 0x03) << 1)) << 8);
+        m_direct_low[1][i] = blue | (((i >> 5) << 2) << 8);
+        m_direct_high[1][i] = 0xFF000000U | (red565 << 16) | ((((i & 0x07) << 5) | ((i & 0x07) >> 1)) << 8);
     }
 
     for (int i = 0; i < 256; i++)
@@ -105,11 +136,40 @@ void Video::Init(PIC* pic, PIT* pit, Scheduler* scheduler, Memory* memory)
     Reset();
 }
 
+// A card change takes effect at the next reset
+void Video::SetCard(int card)
+{
+    const GDOX_Video_Card_Info& info = k_video_cards[(card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : 0];
+
+    m_card = (card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : GDOX_VIDEO_CARD_VGA;
+    m_cirrus = info.cirrus;
+    m_local_bus = info.local_bus;
+    m_vram_size = MIN(info.memory_size, (u32)VIDEO_VRAM_SIZE);
+    m_vram_mask = m_vram_size - 1;
+    m_plane_mask = (m_vram_size >> 2) - 1;
+}
+
 void Video::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
     m_state.vga_enable = 0x01;
     m_state.pel_mask = 0xFF;
+
+    if (m_cirrus)
+    {
+        for (int i = VIDEO_SEQUENCER_COUNT; i < VIDEO_SEQUENCER_EXT_COUNT; i++)
+            m_state.sequencer[i] = k_video_cirrus_sequencer_reset[i];
+
+        m_state.sequencer[k_video_sr_config] = (m_local_bus ? 0x05 : 0x07) << 3;
+        m_state.crtc[k_video_cr_id] = k_video_cirrus_id;
+    }
+
+    m_extended = false;
+    m_wide_counter = false;
+    m_dual_page = false;
+    m_bank_low = 0;
+    m_bank_high = 0;
+    UpdateExtendedFormat();
     m_frame_ready = false;
     m_frame_width = GDOX_FRAME_BUFFER_WIDTH;
     m_frame_height = GDOX_FRAME_BUFFER_HEIGHT;
@@ -117,6 +177,7 @@ void Video::Reset()
     m_display_height = GDOX_FRAME_BUFFER_HEIGHT;
     UpdateColorCaches();
     UpdateMemoryAccess();
+    UpdateAperture();
     UpdateIRQ();
     StartFrame(m_scheduler->GetClocks());
 }
@@ -174,9 +235,9 @@ u8 Video::Peek(u16 port, u64 clocks) const
         case 0x3C4:
             return m_state.sequencer_index;
         case 0x3C5:
-            return m_state.sequencer_index < VIDEO_SEQUENCER_COUNT ? m_state.sequencer[m_state.sequencer_index] : 0x00;
+            return PeekSequencer();
         case 0x3C6:
-            return m_state.pel_mask;
+            return IsUnlocked() && m_state.hidden_dac_reads == 4 ? m_state.hidden_dac : m_state.pel_mask;
         case 0x3C7:
             return m_state.dac_state;
         case 0x3C8:
@@ -190,7 +251,7 @@ u8 Video::Peek(u16 port, u64 clocks) const
         case 0x3CE:
             return m_state.graphics_index;
         case 0x3CF:
-            return m_state.graphics_index < VIDEO_GRAPHICS_COUNT ? m_state.graphics[m_state.graphics_index] : 0x00;
+            return PeekGraphics();
         case 0x3B4:
         case 0x3D4:
             return IsCRTCBlockSelected(port) ? m_state.crtc_index : 0xFF;
@@ -214,7 +275,20 @@ u8 Video::Read(u16 port, u64 clocks)
 
     switch (port)
     {
+        case 0x3C6:
+            if (IsUnlocked() && m_state.hidden_dac_reads < 4)
+            {
+                m_state.hidden_dac_reads++;
+                return m_state.pel_mask;
+            }
+
+            return Peek(port, clocks);
+        case 0x3C7:
+        case 0x3C8:
+            m_state.hidden_dac_reads = 0;
+            return Peek(port, clocks);
         case 0x3C9:
+            m_state.hidden_dac_reads = 0;
             return ReadDAC();
         case 0x3BA:
         case 0x3DA:
@@ -255,36 +329,47 @@ void Video::Write(u16 port, u8 value, u64 clocks)
             m_state.vga_enable = value & 0x01;
             break;
         case 0x3C4:
-            m_state.sequencer_index = value & 0x07;
+            m_state.sequencer_index = m_cirrus ? value : value & 0x07;
             break;
         case 0x3C5:
             WriteSequencer(value, clocks);
             break;
         case 0x3C6:
-            if (value != m_state.pel_mask)
+            if (IsUnlocked() && m_state.hidden_dac_reads == 4)
             {
+                m_state.hidden_dac_reads = 0;
+                WriteHiddenDAC(value, clocks);
+            }
+            else if (value != m_state.pel_mask)
+            {
+                m_state.hidden_dac_reads = 0;
                 RenderLineToBeam(clocks);
                 m_state.pel_mask = value;
                 UpdateColorCaches();
             }
+            else
+                m_state.hidden_dac_reads = 0;
             break;
         case 0x3C7:
+            m_state.hidden_dac_reads = 0;
             m_state.dac_address = value;
             m_state.dac_index = value + 1;
             m_state.dac_component = 0;
             m_state.dac_state = 0x03;
             break;
         case 0x3C8:
+            m_state.hidden_dac_reads = 0;
             m_state.dac_address = value;
             m_state.dac_index = value;
             m_state.dac_component = 0;
             m_state.dac_state = 0x00;
             break;
         case 0x3C9:
+            m_state.hidden_dac_reads = 0;
             WriteDAC(value, clocks);
             break;
         case 0x3CE:
-            m_state.graphics_index = value & 0x0F;
+            m_state.graphics_index = value & (m_cirrus ? 0x3F : 0x0F);
             break;
         case 0x3CF:
             WriteGraphics(value, clocks);
@@ -366,10 +451,15 @@ void Video::WriteAttribute(u8 value, u64 clocks)
 
 void Video::WriteSequencer(u8 value, u64 clocks)
 {
-    u8 index = m_state.sequencer_index;
+    u8 index = m_state.sequencer_index & (m_cirrus ? 0x1F : 0x07);
 
     if (index >= VIDEO_SEQUENCER_COUNT)
+    {
+        if (m_cirrus)
+            WriteCirrusSequencer(index, value, clocks);
+
         return;
+    }
 
     value &= k_video_sequencer_masks[index];
 
@@ -390,7 +480,12 @@ void Video::WriteGraphics(u8 value, u64 clocks)
     u8 index = m_state.graphics_index;
 
     if (index >= VIDEO_GRAPHICS_COUNT)
+    {
+        if (m_cirrus)
+            WriteCirrusGraphics(index, value, clocks);
+
         return;
+    }
 
     value &= k_video_graphics_masks[index];
 
@@ -410,7 +505,12 @@ void Video::WriteCRTC(u8 value, u64 clocks)
     u8 index = m_state.crtc_index;
 
     if (index >= VIDEO_CRTC_COUNT)
+    {
+        if (m_cirrus)
+            WriteCirrusCRTC(index, value, clocks);
+
         return;
+    }
 
     if ((m_state.crtc[k_video_cr_retrace_end] & 0x80) != 0)
     {
@@ -478,6 +578,13 @@ void Video::WriteDAC(u8 value, u64 clocks)
     m_state.dac_address = index + 1;
     m_state.dac_index++;
 
+    // SR12 bit 1 turns the DAC's address to the 16 extra entries of the cursor and the border
+    if (IsUnlocked() && (m_state.sequencer[k_video_sr_cursor_attributes] & 0x02) != 0)
+    {
+        memcpy(m_state.dac_extended[index & (VIDEO_DAC_EXT_COUNT - 1)], m_state.dac_cache, 3);
+        return;
+    }
+
     if (memcmp(m_state.dac[index], m_state.dac_cache, 3) == 0)
         return;
 
@@ -515,7 +622,191 @@ u8 Video::PeekCRTC() const
         case k_video_cr_index_readback:
             return m_state.attribute_index;
         default:
-            return m_state.crtc_index < VIDEO_CRTC_COUNT ? m_state.crtc[m_state.crtc_index] : 0x00;
+            break;
+    }
+
+    if (m_state.crtc_index < VIDEO_CRTC_COUNT)
+        return m_state.crtc[m_state.crtc_index];
+
+    if (!m_cirrus)
+        return 0x00;
+
+    switch (m_state.crtc_index)
+    {
+        case k_video_cr_interlace_end:
+        case k_video_cr_misc_control:
+        case k_video_cr_extended_display:
+        case k_video_cr_overlay:
+        case k_video_cr_part_status:
+        case k_video_cr_id:
+            return m_state.crtc[m_state.crtc_index];
+        default:
+            return 0xFF;
+    }
+}
+
+// Past SR06 and GR08, a locked Cirrus reads FFh
+u8 Video::PeekSequencer() const
+{
+    u8 index = m_state.sequencer_index & (m_cirrus ? 0x1F : 0x07);
+
+    if (index < VIDEO_SEQUENCER_COUNT)
+        return m_state.sequencer[index];
+
+    if (!m_cirrus || index < k_video_sr_unlock)
+        return 0x00;
+
+    if (index > k_video_sr_unlock && !IsUnlocked())
+        return 0xFF;
+
+    return m_state.sequencer[index];
+}
+
+u8 Video::PeekGraphics() const
+{
+    u8 index = m_state.graphics_index;
+
+    if (index < VIDEO_GRAPHICS_COUNT)
+        return m_state.graphics[index];
+
+    if (!m_cirrus)
+        return 0x00;
+
+    return IsUnlocked() ? m_state.graphics[index] : 0xFF;
+}
+
+// SR06 takes the key in bits 0-2 and 4, 12h unlocks and reads back 12h, anything else reads 0Fh (CIRRUS.TXT l1488-1492)
+void Video::WriteCirrusSequencer(u8 index, u8 value, u64 clocks)
+{
+    if (index == k_video_sr_unlock)
+    {
+        m_state.sequencer[index] = (value & 0x17) == k_video_cirrus_unlock ? k_video_cirrus_unlock : 0x0F;
+        return;
+    }
+
+    if (index < k_video_sr_unlock || !IsUnlocked())
+        return;
+
+    // The memory clock and bus width straps of SR0F and the bus type of SR17 are read only
+    if (index == k_video_sr_dram)
+        value = (value & ~0x1BU) | (m_state.sequencer[index] & 0x1B);
+    else if (index == k_video_sr_config)
+        value = (value & ~0x38U) | (m_state.sequencer[index] & 0x38);
+
+    if (value == m_state.sequencer[index])
+        return;
+
+    RenderLineToBeam(clocks);
+    m_state.sequencer[index] = value;
+
+    if (index == k_video_sr_extended)
+    {
+        UpdateExtendedFormat();
+        UpdateMemoryAccess();
+        UpdateAperture();
+    }
+}
+
+// The BitBLT engine isn't emulated: a blit ends as soon as it starts, never busy (R14-D10)
+void Video::WriteCirrusGraphics(u8 index, u8 value, u64 clocks)
+{
+    if (!IsUnlocked())
+        return;
+
+    if (index == k_video_gr_blt_status)
+        value &= ~0x0BU;
+
+    if (value == m_state.graphics[index])
+        return;
+
+    RenderLineToBeam(clocks);
+    m_state.graphics[index] = value;
+
+    if (index == k_video_gr_offset_0 || index == k_video_gr_offset_1 || index == k_video_gr_extensions)
+        UpdateMemoryAccess();
+
+    if (index == k_video_gr_extensions)
+        UpdateAperture();
+}
+
+// The 5428 has CR19-CR1B, CR25 and CR27 past the VGA's, the last two read only. CR1D is the 5429's, kept and read back
+// since SeaVGABIOS reads its start address bit 19, which only the 543x use
+void Video::WriteCirrusCRTC(u8 index, u8 value, u64 clocks)
+{
+    if (!IsUnlocked() || (index != k_video_cr_interlace_end && index != k_video_cr_misc_control &&
+        index != k_video_cr_extended_display && index != k_video_cr_overlay))
+        return;
+
+    if (value == m_state.crtc[index])
+        return;
+
+    RenderLineToBeam(clocks);
+    m_state.crtc[index] = value;
+    m_wide_counter = (m_state.crtc[k_video_cr_extended_display] & 0x02) != 0;
+}
+
+// Reached by the fifth access to 3C6h after four reads; it picks what the DAC does with the pixels it gets
+void Video::WriteHiddenDAC(u8 value, u64 clocks)
+{
+    if (value == m_state.hidden_dac)
+        return;
+
+    RenderLineToBeam(clocks);
+    m_state.hidden_dac = value;
+    UpdateExtendedFormat();
+}
+
+// The hidden DAC picks the format (CIRRUS.TXT l1792-1825), SR07 bits 3-1 the bytes a dot clock brings
+void Video::UpdateExtendedFormat()
+{
+    u8 dac = m_state.hidden_dac;
+
+    if ((dac & 0x80) == 0)
+        m_extended_format = VIDEO_EXTENDED_PALETTE;
+    else if ((dac & 0x40) == 0)
+        m_extended_format = (dac & 0x10) != 0 ? VIDEO_EXTENDED_555_MIX : VIDEO_EXTENDED_555;
+    else
+    {
+        switch (dac & 0x0F)
+        {
+            case 0x00:
+                m_extended_format = (dac & 0x10) != 0 ? VIDEO_EXTENDED_555_MIX : VIDEO_EXTENDED_555;
+                break;
+            case 0x01:
+                m_extended_format = VIDEO_EXTENDED_565;
+                break;
+            case 0x05:
+                m_extended_format = VIDEO_EXTENDED_888;
+                break;
+            case 0x06:
+            case 0x07:
+                m_extended_format = VIDEO_EXTENDED_BLANK;
+                break;
+            case 0x08:
+                m_extended_format = VIDEO_EXTENDED_GREY;
+                break;
+            case 0x09:
+                m_extended_format = VIDEO_EXTENDED_332;
+                break;
+            default:
+                m_extended_format = VIDEO_EXTENDED_PALETTE;
+                break;
+        }
+    }
+
+    switch (m_extended_format)
+    {
+        case VIDEO_EXTENDED_555:
+        case VIDEO_EXTENDED_555_MIX:
+        case VIDEO_EXTENDED_565:
+            m_extended_bytes = 2;
+            break;
+        case VIDEO_EXTENDED_888:
+            m_extended_bytes = 3;
+            break;
+        default:
+            m_extended_bytes = 1;
+            break;
     }
 }
 
@@ -569,7 +860,7 @@ void Video::FinishLine()
         if (m_state.row_scan == (u32)(max_scan & 0x1F))
         {
             m_state.row_scan = 0;
-            m_state.row_address += (u32)m_state.crtc[k_video_cr_offset] << 1;
+            m_state.row_address += GetOffsetRegister() << 1;
         }
         else
             m_state.row_scan = (m_state.row_scan + 1) & 0x1F;
@@ -638,7 +929,7 @@ void Video::CompleteFrame()
     m_display_height = (m_render_width * 3) / 4;
     m_frame_ready = true;
     m_state.frame_count++;
-    m_state.start_address = (GetStartAddress() + ((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03)) & 0xFFFF;
+    m_state.start_address = (GetStartAddress() + ((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03)) & GetCounterMask();
 
     if (blink != GetBlinkPhase() && !IsTextMode() && (m_state.attribute[k_video_ar_mode] & 0x08) != 0)
         UpdateAttributeColors();
@@ -710,10 +1001,20 @@ void Video::UpdateGeometry()
     u32 width = ((u32)m_state.crtc[k_video_cr_horizontal_display] + 1) * character_pixels;
     u32 v_divider = (max_scan & 0x80) != 0 ? 2 : 1;
 
+    // Extended modes give a pixel a dot whatever AR10 says, or two and three dots when the clock runs at 2 and 3 times
+    // the pixel rate for 16 and 24 bits; a character clock is 8 pixels either way (CIRRUS.TXT l1497-1516)
+    if (m_extended)
+    {
+        text = false;
+        pixel_dots = (((clocking & 0x08) != 0) ? 2 : 1) * GetExtendedClockMultiplier();
+        width = ((u32)m_state.crtc[k_video_cr_horizontal_display] + 1) * ((clocking & 0x01) != 0 ? 8 : 9);
+    }
+
     if (!text && (m_state.crtc[k_video_cr_mode] & 0x03) == 0x03)
         v_divider *= (u32)(max_scan & 0x1F) + 1;
 
-    if (!m_native_resolution)
+    // With native resolution off, a mode whose dots don't fit the frame buffer keeps one pixel a pixel
+    if (!m_native_resolution && width * pixel_dots <= (u32)GDOX_MAX_FRAME_BUFFER_WIDTH)
     {
         m_canvas_h_divider = 1;
         m_canvas_v_divider = 1;
@@ -722,7 +1023,7 @@ void Video::UpdateGeometry()
     else
     {
         m_canvas_h_divider = pixel_dots;
-        m_canvas_v_divider = v_divider;
+        m_canvas_v_divider = m_native_resolution ? v_divider : 1;
         m_canvas_zoom = 1;
     }
 
@@ -877,15 +1178,17 @@ void Video::LoadState(std::istream& stream, int version)
     SanitizeState();
 }
 
+// Older states hold a VGA: 256 KB and its registers
 void Video::Serialize(StateSerializer& serializer, int version)
 {
-    UNUSED(version);
-    G_SERIALIZE_ARRAY(serializer, m_state.vram, VIDEO_VRAM_SIZE);
-    G_SERIALIZE_ARRAY(serializer, m_state.sequencer, VIDEO_SEQUENCER_COUNT);
+    bool svga = version >= GDOX_SAVESTATE_SVGA_VERSION;
+
+    G_SERIALIZE_ARRAY(serializer, m_state.vram, svga ? m_vram_size : VIDEO_VGA_VRAM_SIZE);
+    G_SERIALIZE_ARRAY(serializer, m_state.sequencer, svga ? VIDEO_SEQUENCER_EXT_COUNT : VIDEO_SEQUENCER_COUNT);
     G_SERIALIZE(serializer, m_state.sequencer_index);
-    G_SERIALIZE_ARRAY(serializer, m_state.graphics, VIDEO_GRAPHICS_COUNT);
+    G_SERIALIZE_ARRAY(serializer, m_state.graphics, svga ? VIDEO_GRAPHICS_EXT_COUNT : VIDEO_GRAPHICS_COUNT);
     G_SERIALIZE(serializer, m_state.graphics_index);
-    G_SERIALIZE_ARRAY(serializer, m_state.crtc, VIDEO_CRTC_COUNT);
+    G_SERIALIZE_ARRAY(serializer, m_state.crtc, svga ? VIDEO_CRTC_EXT_COUNT : VIDEO_CRTC_COUNT);
     G_SERIALIZE(serializer, m_state.crtc_index);
     G_SERIALIZE_ARRAY(serializer, m_state.attribute, VIDEO_ATTRIBUTE_COUNT);
     G_SERIALIZE(serializer, m_state.attribute_index);
@@ -920,13 +1223,24 @@ void Video::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.row_repeat);
     G_SERIALIZE(serializer, m_state.pan_reset);
     G_SERIALIZE(serializer, m_state.character_map);
+
+    if (!svga)
+        return;
+
+    G_SERIALIZE(serializer, m_state.hidden_dac);
+    G_SERIALIZE(serializer, m_state.hidden_dac_reads);
+    G_SERIALIZE_ARRAY(serializer, &m_state.dac_extended[0][0], sizeof(m_state.dac_extended));
 }
 
 void Video::SanitizeState()
 {
-    m_state.sequencer_index &= 0x07;
-    m_state.graphics_index &= 0x0F;
+    m_state.sequencer_index &= m_cirrus ? 0xFF : 0x07;
+    m_state.graphics_index &= m_cirrus ? 0x3F : 0x0F;
     m_state.crtc_index &= 0x3F;
+    m_state.hidden_dac_reads = MIN(m_state.hidden_dac_reads, (u8)4);
+    m_wide_counter = m_cirrus && (m_state.crtc[k_video_cr_extended_display] & 0x02) != 0;
+    m_extended = m_cirrus && (m_state.sequencer[k_video_sr_extended] & 0x01) != 0;
+    UpdateExtendedFormat();
     m_state.attribute_index &= 0x3F;
     m_state.dac_component = m_state.dac_component % 3;
     m_state.frame_line_dots = MAX(m_state.frame_line_dots, k_video_min_line_dots);
@@ -945,4 +1259,5 @@ void Video::SanitizeState()
     UpdateIRQ();
     UpdateMemoryAccess();
     UpdateVRAMMapping();
+    UpdateAperture();
 }

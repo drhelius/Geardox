@@ -84,7 +84,7 @@ static int audio_sample_count = 0;
 static size_t savestate_size = 0;
 static GDOX_Machine_Settings machine_settings = { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
     GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MOUSE_PS2, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SPEED_4X };
+    GDOX_MOUSE_PS2, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SPEED_4X, GDOX_MACHINE_AUTO };
 #if !defined(GDOX_DISABLE_DYNAREC)
 static int dynarec_option = -1;
 #endif
@@ -410,6 +410,7 @@ void retro_deinit(void)
     machine_settings.mouse = GDOX_MOUSE_PS2;
     machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
     machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
+    machine_settings.video_card = GDOX_MACHINE_AUTO;
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
 #endif
@@ -1653,6 +1654,18 @@ static void check_variables(void)
         {
             if (strcmp(var.value, k_sound_cards[i].id) == 0)
                 machine_settings.sound_card = i;
+        }
+    }
+
+    var.key = "geardox_video_card";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
+        {
+            if (strcmp(var.value, k_video_cards[i].id) == 0)
+                machine_settings.video_card = i;
         }
     }
 

@@ -90,6 +90,39 @@ void Video::RenderRowPart(int row, int x, int end)
 
 void Video::RenderPixels(u32* destination, int x, int end)
 {
+    if (m_extended)
+    {
+        switch (m_extended_format)
+        {
+            case VIDEO_EXTENDED_GREY:
+                RenderExtended<VIDEO_EXTENDED_GREY>(destination, x, end);
+                break;
+            case VIDEO_EXTENDED_332:
+                RenderExtended<VIDEO_EXTENDED_332>(destination, x, end);
+                break;
+            case VIDEO_EXTENDED_555:
+                RenderExtended<VIDEO_EXTENDED_555>(destination, x, end);
+                break;
+            case VIDEO_EXTENDED_555_MIX:
+                RenderExtended<VIDEO_EXTENDED_555_MIX>(destination, x, end);
+                break;
+            case VIDEO_EXTENDED_565:
+                RenderExtended<VIDEO_EXTENDED_565>(destination, x, end);
+                break;
+            case VIDEO_EXTENDED_888:
+                RenderExtended<VIDEO_EXTENDED_888>(destination, x, end);
+                break;
+            case VIDEO_EXTENDED_BLANK:
+                RenderExtended<VIDEO_EXTENDED_BLANK>(destination, x, end);
+                break;
+            default:
+                RenderExtended<VIDEO_EXTENDED_PALETTE>(destination, x, end);
+                break;
+        }
+
+        return;
+    }
+
     if (IsTextMode())
     {
         RenderText(destination, x, end);
@@ -288,5 +321,53 @@ void Video::RenderGraphics(u32* destination, int x, int end)
         x += count;
         skip = 0;
         column++;
+    }
+}
+
+// Extended modes read memory in order from four bytes per counter step, pixels little endian (5446 p290-293)
+template<Video::Video_Extended_Format format>
+void Video::RenderExtended(u32* destination, int x, int end)
+{
+    const u8* vram = m_state.vram;
+    const u32 bytes = format == VIDEO_EXTENDED_888 ? 3 :
+        (format == VIDEO_EXTENDED_555 || format == VIDEO_EXTENDED_555_MIX || format == VIDEO_EXTENDED_565) ? 2 : 1;
+    u32 mask = m_vram_mask;
+    u32 address = ((m_state.row_address & GetCounterMask()) << 2) + (u32)x * bytes;
+
+    for (int i = x; i < end; i++, address += bytes)
+    {
+        u32 a = address & mask;
+        u32 color;
+
+        if (format == VIDEO_EXTENDED_PALETTE)
+            color = m_dac_colors[vram[a]];
+        else if (format == VIDEO_EXTENDED_GREY)
+            color = ToXRGB(vram[a], vram[a], vram[a]);
+        else if (format == VIDEO_EXTENDED_332)
+        {
+            u8 value = vram[a];
+            u8 red = (u8)((value & 0xE0) | ((value & 0xE0) >> 3) | ((value & 0xE0) >> 6));
+            u8 green = (u8)(((value & 0x1C) << 3) | (value & 0x1C) | ((value & 0x1C) >> 3));
+            u8 blue = (u8)((value & 0x03) * 0x55);
+            color = ToXRGB(red, green, blue);
+        }
+        else if (format == VIDEO_EXTENDED_888)
+            color = ToXRGB(vram[(a + 2) & mask], vram[(a + 1) & mask], vram[a]);
+        else if (format == VIDEO_EXTENDED_BLANK)
+            color = ToXRGB(0, 0, 0);
+        else
+        {
+            u8 low = vram[a];
+            u8 high = vram[(a + 1) & mask];
+
+            if (format == VIDEO_EXTENDED_555_MIX && (high & 0x80) != 0)
+                color = m_dac_colors[low];
+            else if (format == VIDEO_EXTENDED_565)
+                color = m_direct_high[1][high] | m_direct_low[1][low];
+            else
+                color = m_direct_high[0][high] | m_direct_low[0][low];
+        }
+
+        destination[i] = color;
     }
 }

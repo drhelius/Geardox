@@ -45,6 +45,8 @@ public:
     const u8* GetSystemRom() const;
     const u8* GetVGARom() const;
     GDOX_Firmware_Style GetStyle() const;
+    void SetBuiltinCirrus(bool cirrus);
+    bool IsBuiltinCirrus() const;
 
     static void FindSources(const char* default_folder, const std::string* model_folders, GDOX_Firmware_Source* sources);
     static int FindSet(u32 system_crc);
@@ -71,7 +73,8 @@ private:
 
     void GatherDatabaseInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info);
     bool LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet);
-    static void SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info);
+    void SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info) const;
+    const u8* GetBuiltinData(GDOX_Firmware_Type type) const;
     u8* GetWritableData(GDOX_Firmware_Type type);
     static bool IdentifySource(GDOX_Firmware_Source& source);
     static void AddCandidate(std::vector<GDOX_Firmware_Source>& candidates, const char* path, bool zip);
@@ -92,6 +95,7 @@ private:
     GDOX_Firmware_Info m_info[GDOX_FIRMWARE_COUNT];
     GDOX_Firmware_Info m_pending_info[GDOX_FIRMWARE_COUNT];
     bool m_ready;
+    bool m_builtin_cirrus;
     GDOX_Firmware_Style m_style;
     u8 m_system_rom[GDOX_FIRMWARE_SYSTEM_BIOS_MAX_SIZE];
     u8 m_vga_rom[GDOX_FIRMWARE_VGA_BIOS_MAX_SIZE];

@@ -104,17 +104,24 @@ INLINE Video::Video_State* Video::GetState()
     return &m_state;
 }
 
-// Byte o of plane p lives at (o & FFFCh) | ((o & 3) << 16) | p: the four planes of an offset are one aligned doubleword
-// and the chain-4 offset of CPU address A lands on index A, so chain-4 memory is linear for the host
+// Byte o of plane p lives at (o & FFFCh) | ((o & 3) << 16) | p in each 256 KB: the four planes of an offset are one
+// aligned doubleword and the chain-4 offset of CPU address A lands on index A, so chain-4 memory is linear for the host
 INLINE u32 Video::GetPlaneBase(u32 offset) const
 {
-    return (offset & 0xFFFC) | ((offset & 0x03) << 16);
+    offset &= m_plane_mask;
+    return ((offset & ~0xFFFFU) << 2) | (offset & 0xFFFC) | ((offset & 0x03) << 16);
 }
 
 // GR06 bit 1 puts address bit 16 in the place of bit 0, which is what the CRTC's word mode rotation undoes
 INLINE u32 Video::GetHostOffset(u32 address) const
 {
-    return m_odd_even_address ? (address & 0xFFFE) | ((address >> 16) & 0x01) : address;
+    return m_odd_even_address ? (address & ~0x10001U) | ((address >> 16) & 0x01) : address;
+}
+
+// The Cirrus banks: one offset for the whole window, or one per 32 KB half
+INLINE u32 Video::GetWindowAddress(u32 address) const
+{
+    return address + ((m_dual_page && (address & 0x8000) != 0) ? m_bank_high : m_bank_low);
 }
 
 INLINE u8 Video::PeekPlane(int plane, u32 offset) const
@@ -200,9 +207,29 @@ INLINE u32 Video::GetLineCompare() const
         ((m_state.crtc[k_video_cr_max_scan] & 0x40) << 3);
 }
 
+// CR1B adds bit 16 in bit 0 and bits 17-18 in bits 2-3
 INLINE u32 Video::GetStartAddress() const
 {
-    return ((u32)m_state.crtc[k_video_cr_start_high] << 8) | m_state.crtc[k_video_cr_start_low];
+    u32 address = ((u32)m_state.crtc[k_video_cr_start_high] << 8) | m_state.crtc[k_video_cr_start_low];
+
+    if (!m_cirrus)
+        return address;
+
+    u8 extended = m_state.crtc[k_video_cr_extended_display];
+    return address | ((u32)(extended & 0x01) << 16) | ((u32)(extended & 0x0C) << 15);
+}
+
+// CR1B bit 4 is the offset's ninth bit
+INLINE u32 Video::GetOffsetRegister() const
+{
+    u32 offset = m_state.crtc[k_video_cr_offset];
+    return m_cirrus ? offset | ((u32)(m_state.crtc[k_video_cr_extended_display] & 0x10) << 4) : offset;
+}
+
+// The address counter wraps at 16 bits, or at 19 with CR1B bit 1
+INLINE u32 Video::GetCounterMask() const
+{
+    return m_wide_counter ? 0x7FFFF : 0xFFFF;
 }
 
 INLINE u32 Video::GetCursorAddress() const
@@ -226,6 +253,27 @@ INLINE u32 Video::GetCRTCOffset(u32 address, u32 row) const
     u8 mode = m_state.crtc[k_video_cr_mode];
     u32 offset;
 
+    // With the wide counter doubleword mode takes DRAM address bits 1-0 from counter bits 14-15 (5446 p267)
+    if (m_wide_counter)
+    {
+        address &= 0x7FFFF;
+
+        if ((m_state.crtc[k_video_cr_underline] & 0x40) != 0)
+            offset = ((address & 0x3FFF) << 2) | ((address >> 14) & 0x03) | (address & ~0xFFFFU);
+        else if ((mode & 0x40) != 0)
+            offset = address;
+        else
+            offset = (address << 1) | ((address >> ((mode & 0x20) != 0 ? 15 : 13)) & 0x01);
+
+        if ((mode & 0x01) == 0)
+            offset = (offset & ~0x2000U) | ((row & 0x01) << 13);
+
+        if ((mode & 0x02) == 0)
+            offset = (offset & ~0x4000U) | ((row & 0x02) << 13);
+
+        return offset & m_plane_mask;
+    }
+
     address &= 0xFFFF;
 
     if ((m_state.crtc[k_video_cr_underline] & 0x40) != 0)
@@ -244,11 +292,21 @@ INLINE u32 Video::GetCRTCOffset(u32 address, u32 row) const
     return offset & 0xFFFF;
 }
 
-// Dots of a character clock, doubled when the sequencer halves the dot clock
+// Dots of a character clock, doubled when the sequencer halves the dot clock. Cirrus clock/2 and clock/3 run the clock
+// at 2 and 3 times the pixel rate with the timing still in units of 8 pixels (CIRRUS.TXT l1497-1507)
 INLINE u32 Video::GetCharacterClockDots() const
 {
     u8 clocking = m_state.sequencer[k_video_sr_clocking];
-    return ((clocking & 0x01) != 0 ? 8 : 9) << ((clocking >> 3) & 0x01);
+    return (((clocking & 0x01) != 0 ? 8 : 9) * GetExtendedClockMultiplier()) << ((clocking >> 3) & 0x01);
+}
+
+INLINE u32 Video::GetExtendedClockMultiplier() const
+{
+    if (!m_extended)
+        return 1;
+
+    u32 path = (m_state.sequencer[k_video_sr_extended] >> 1) & 0x07;
+    return path == 1 ? 2 : (path == 2 ? 3 : 1);
 }
 
 INLINE u32 Video::GetLineDots() const
@@ -261,10 +319,31 @@ INLINE u32 Video::GetTotalLines() const
     return GetVerticalTotal() + 2;
 }
 
-// Clock selects 2 and 3 are external clocks, which a plain VGA doesn't have
+// Clock selects 2 and 3 are external clocks, which a plain VGA doesn't have; the Cirrus has four synthesizers
 INLINE u32 Video::GetDotClock() const
 {
+    if (m_cirrus)
+        return GetVideoClock((m_state.misc >> 2) & 0x03);
+
     return (m_state.misc & 0x0C) == 0x04 ? k_video_dot_clock_28 : k_video_dot_clock_25;
+}
+
+// 14.31818 MHz x N / D, halved by the post-scalar: N in SR0B-SR0E bits 6-0, D in SR1B-SR1E bits 5-1 (CIRRUS.TXT l1750-1778)
+INLINE u32 Video::GetVideoClock(int index) const
+{
+    u32 numerator = m_state.sequencer[k_video_sr_vclk_numerator + (index & 0x03)] & 0x7F;
+    u8 denominator = m_state.sequencer[k_video_sr_vclk_denominator + (index & 0x03)];
+    u32 divider = ((denominator >> 1) & 0x1F) << (denominator & 0x01);
+
+    if (numerator == 0 || divider == 0)
+        return k_video_dot_clock_25;
+
+    return (u32)(((u64)k_video_reference_clock * numerator) / divider);
+}
+
+INLINE u32 Video::GetCurrentDotClock() const
+{
+    return GetDotClock();
 }
 
 // Lines count from the first line of the display, rounded up to the machine clock that reaches them
@@ -315,6 +394,57 @@ INLINE u8 Video::GetSyncStatus(u64 clocks) const
 INLINE bool Video::IsDirectMapped() const
 {
     return m_mapped_size != 0;
+}
+
+INLINE int Video::GetCard() const
+{
+    return m_card;
+}
+
+INLINE bool Video::IsCirrus() const
+{
+    return m_cirrus;
+}
+
+// SR06 holds 12h with the extensions unlocked
+INLINE bool Video::IsUnlocked() const
+{
+    return m_cirrus && m_state.sequencer[k_video_sr_unlock] == k_video_cirrus_unlock;
+}
+
+INLINE u32 Video::GetVRAMSize() const
+{
+    return m_vram_size;
+}
+
+INLINE bool Video::IsExtendedMode() const
+{
+    return m_extended;
+}
+
+INLINE Video::Video_Extended_Format Video::GetExtendedFormat() const
+{
+    return m_extended_format;
+}
+
+INLINE u32 Video::GetExtendedBytesPerPixel() const
+{
+    return m_extended_bytes;
+}
+
+INLINE u32 Video::GetBankOffset(int bank) const
+{
+    return bank == 0 ? m_bank_low : (m_dual_page ? m_bank_high + 0x8000 : m_bank_low);
+}
+
+INLINE bool Video::IsDualPage() const
+{
+    return m_dual_page;
+}
+
+INLINE u32 Video::GetApertureBase() const
+{
+    return m_aperture_base;
 }
 
 INLINE bool Video::GetBlinkPhase() const

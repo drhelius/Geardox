@@ -790,6 +790,7 @@ void emu_apply_machine_settings(void)
     settings.sound_card = config_machine.sound_card;
     settings.sound_irq = config_machine.sound_irq;
     settings.sound_dma = config_machine.sound_dma;
+    settings.video_card = config_machine.video_card;
     settings.mouse = config_machine.mouse;
     settings.cdrom = config_machine.cdrom;
     settings.cdrom_speed = config_machine.cdrom_speed;
@@ -1249,6 +1250,103 @@ static void debug_buffer_info(int buffer, int pitch, Emu_Debug_Buffer_Info& info
     info.window_height = rows * info.cell_height;
 }
 
+static int debug_linear_auto_format(Video* video)
+{
+    if (!video->IsExtendedMode())
+        return Emu_Debug_Linear_8;
+
+    switch (video->GetExtendedFormat())
+    {
+        case Video::VIDEO_EXTENDED_555:
+        case Video::VIDEO_EXTENDED_555_MIX:
+            return Emu_Debug_Linear_15;
+        case Video::VIDEO_EXTENDED_565:
+            return Emu_Debug_Linear_16;
+        case Video::VIDEO_EXTENDED_888:
+            return Emu_Debug_Linear_24;
+        default:
+            return Emu_Debug_Linear_8;
+    }
+}
+
+// Rows of pitch bytes from start, over all the installed video memory; start and pitch below zero or zero follow the mode
+static void debug_linear_info(int pitch, int format, int start, Emu_Debug_Buffer_Info& info)
+{
+    static const int k_bytes[Emu_Debug_Linear_Count] = { 1, 1, 2, 2, 3 };
+
+    Video* video = geardox->GetVideo();
+    u32 size = video->GetVRAMSize();
+
+    if (format == Emu_Debug_Linear_Auto)
+        format = debug_linear_auto_format(video);
+
+    int bytes = k_bytes[format];
+    u32 current = video->GetStartAddress() * 4;
+
+    if (pitch <= 0)
+        pitch = (int)video->GetOffsetRegister() * 8;
+
+    if (pitch <= 0)
+        pitch = 1024;
+
+    pitch = MAX(pitch, bytes);
+    start = start < 0 ? (int)current : start;
+    start = MIN(start, (int)size);
+
+    memset(&info, 0, sizeof(info));
+    info.format = format;
+    info.bytes_per_pixel = bytes;
+    info.start = (u32)start;
+    info.pitch = pitch;
+    info.cell_width = 1;
+    info.cell_height = 1;
+    info.width = MIN(pitch / bytes, EMU_DEBUG_FRAMEBUFFER_WIDTH);
+    info.height = MIN((int)((size - (u32)start) / (u32)pitch), EMU_DEBUG_FRAMEBUFFER_HEIGHT);
+
+    if (current >= (u32)start)
+    {
+        info.window_x = (int)((current - (u32)start) % (u32)pitch) / bytes;
+        info.window_y = (int)((current - (u32)start) / (u32)pitch);
+    }
+
+    info.window_width = video->GetFrameWidth();
+    info.window_height = video->GetFrameHeight();
+}
+
+static void debug_decode_linear(u32* pixels, const Emu_Debug_Buffer_Info& info)
+{
+    Video* video = geardox->GetVideo();
+    const u8* vram = video->GetState()->vram;
+    u32 bytes = (u32)info.bytes_per_pixel;
+
+    for (int y = 0; y < info.height; y++)
+    {
+        u32* line = pixels + y * EMU_DEBUG_FRAMEBUFFER_WIDTH;
+        const u8* source = vram + info.start + (u32)y * (u32)info.pitch;
+
+        for (int x = 0; x < info.width; x++, source += bytes)
+        {
+            if (bytes == 1)
+                line[x] = debug_rgba(video->GetDACColor(source[0]));
+            else if (bytes == 3)
+                line[x] = debug_rgba(((u32)source[2] << 16) | ((u32)source[1] << 8) | source[0]);
+            else
+            {
+                u32 value = source[0] | ((u32)source[1] << 8);
+                bool is_565 = info.format == Emu_Debug_Linear_16;
+                u32 red = is_565 ? (value >> 11) & 0x1F : (value >> 10) & 0x1F;
+                u32 green = is_565 ? (value >> 5) & 0x3F : (value >> 5) & 0x1F;
+                u32 blue = value & 0x1F;
+
+                red = (red << 3) | (red >> 2);
+                green = is_565 ? (green << 2) | (green >> 4) : (green << 3) | (green >> 2);
+                blue = (blue << 3) | (blue >> 2);
+                line[x] = debug_rgba((red << 16) | (green << 8) | blue);
+            }
+        }
+    }
+}
+
 static void debug_decode_text(u32* pixels, const Emu_Debug_Buffer_Info& info)
 {
     Video* video = geardox->GetVideo();
@@ -1282,11 +1380,18 @@ static void debug_decode_text(u32* pixels, const Emu_Debug_Buffer_Info& info)
     }
 }
 
-void emu_debug_decode_buffer(int buffer, int pitch, u8* output, Emu_Debug_Buffer_Info& info)
+void emu_debug_decode_buffer(int buffer, int pitch, int format, int start, u8* output, Emu_Debug_Buffer_Info& info)
 {
-    debug_buffer_info(buffer, pitch, info);
-
     u32* pixels = (u32*)output;
+
+    if (buffer == Emu_Debug_Buffer_Linear)
+    {
+        debug_linear_info(pitch, format, start, info);
+        debug_decode_linear(pixels, info);
+        return;
+    }
+
+    debug_buffer_info(buffer, pitch, info);
 
     if (buffer == Emu_Debug_Buffer_Text)
     {
@@ -1348,16 +1453,23 @@ void emu_debug_update(void)
     key = (key ^ geardox->GetScheduler()->GetClocks()) * 1099511628211ULL;
     key = (key ^ (u64)config_debug.vram_viewer_tab) * 1099511628211ULL;
     key = (key ^ (u64)config_debug.vram_viewer_pitch) * 1099511628211ULL;
+    key = (key ^ (u64)config_debug.vram_viewer_linear_format) * 1099511628211ULL;
+    key = (key ^ (u64)config_debug.vram_viewer_linear_pitch) * 1099511628211ULL;
+    key = (key ^ (u64)(config_debug.vram_viewer_linear_auto_start ? -1 : config_debug.vram_viewer_linear_start)) *
+        1099511628211ULL;
 
     if (key == last_key)
         return;
 
     last_key = key;
-    emu_debug_decode_buffer(config_debug.vram_viewer_tab, config_debug.vram_viewer_pitch, emu_debug_framebuffer,
+    emu_debug_decode_buffer(config_debug.vram_viewer_tab, config_debug.vram_viewer_tab == Emu_Debug_Buffer_Linear ?
+        config_debug.vram_viewer_linear_pitch : config_debug.vram_viewer_pitch, config_debug.vram_viewer_linear_format,
+        config_debug.vram_viewer_linear_auto_start ? -1 : config_debug.vram_viewer_linear_start, emu_debug_framebuffer,
         emu_debug_framebuffer_info);
 }
 
-int emu_get_debug_buffer_png(int buffer, int pitch, unsigned char** out_buffer, Emu_Debug_Buffer_Info& info)
+int emu_get_debug_buffer_png(int buffer, int pitch, int format, int start, unsigned char** out_buffer,
+    Emu_Debug_Buffer_Info& info)
 {
     if (!IsValidPointer(out_buffer) || emu_is_empty())
         return 0;
@@ -1369,7 +1481,7 @@ int emu_get_debug_buffer_png(int buffer, int pitch, unsigned char** out_buffer, 
     if (!IsValidPointer(pixels))
         return 0;
 
-    emu_debug_decode_buffer(buffer, pitch, pixels, info);
+    emu_debug_decode_buffer(buffer, pitch, format, start, pixels, info);
 
     int size = 0;
     *out_buffer = stbi_write_png_to_mem(pixels, EMU_DEBUG_FRAMEBUFFER_WIDTH * 4, info.width, info.height, 4, &size);

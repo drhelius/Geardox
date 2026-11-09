@@ -33,8 +33,11 @@
 
 static const float k_vram_viewer_zoom[3] = { 1.0f, 2.0f, 3.0f };
 static const char k_vram_viewer_zoom_items[] = "1x\0" "2x\0" "3x\0";
+static const char k_vram_viewer_linear_items[] = "Auto\0" "8 bpp\0" "15 bpp 5:5:5\0" "16 bpp 5:6:5\0" "24 bpp 8:8:8\0";
 
 static void draw_controls(void);
+static void draw_linear_controls(void);
+static void draw_linear_tooltip(const Emu_Debug_Buffer_Info& info, int x, int y, u32 color);
 static void draw_image(const Emu_Debug_Buffer_Info& info);
 static void draw_visible_area(const Emu_Debug_Buffer_Info& info, ImVec2 position, float zoom);
 static void goto_plane(int plane, u32 offset);
@@ -49,7 +52,7 @@ void gui_debug_window_vram_viewer(void)
     if (ImGui::BeginTabBar("##vram_viewer_tabs"))
     {
         static const char* const k_tabs[Emu_Debug_Buffer_Count] = { "PLANE 0", "PLANE 1", "PLANE 2", "PLANE 3", "PLANAR",
-            "256 COLORS", "TEXT" };
+            "256 COLORS", "TEXT", "LINEAR" };
 
         for (int tab = 0; tab < Emu_Debug_Buffer_Count; tab++)
         {
@@ -86,7 +89,15 @@ static void draw_controls(void)
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Zoom"); ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::CalcTextSize("0x").x + ImGui::GetFrameHeight() + style.FramePadding.x * 2.0f);
-    ImGui::Combo("##vram_viewer_zoom", &config_debug.vram_viewer_zoom, k_vram_viewer_zoom_items); ImGui::SameLine();
+    ImGui::Combo("##vram_viewer_zoom", &config_debug.vram_viewer_zoom, k_vram_viewer_zoom_items);
+
+    if (config_debug.vram_viewer_tab == Emu_Debug_Buffer_Linear)
+    {
+        draw_linear_controls();
+        return;
+    }
+
+    ImGui::SameLine();
     ImGui::TextUnformatted(" Pitch"); ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::CalcTextSize("0000").x + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f +
         style.FramePadding.x * 2.0f);
@@ -102,6 +113,60 @@ static void draw_controls(void)
 
     ImGui::SameLine();
     ImGui::Checkbox("Show Visible Area", &config_debug.vram_viewer_show_window);
+}
+
+static void draw_linear_controls(void)
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+    const Emu_Debug_Buffer_Info& info = emu_debug_framebuffer_info;
+
+    ImGui::SameLine();
+    ImGui::TextUnformatted(" Format"); ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("15 bpp 5:5:5").x + ImGui::GetFrameHeight() + style.FramePadding.x * 2.0f);
+
+    if (ImGui::Combo("##vram_viewer_linear_format", &config_debug.vram_viewer_linear_format, k_vram_viewer_linear_items))
+        emu_debug_update();
+
+    ImGui::SameLine();
+    ImGui::TextUnformatted(" Pitch"); ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("00000").x + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f +
+        style.FramePadding.x * 2.0f);
+
+    if (ImGui::InputInt("##vram_viewer_linear_pitch", &config_debug.vram_viewer_linear_pitch, 8, 128))
+    {
+        config_debug.vram_viewer_linear_pitch = CLAMP(config_debug.vram_viewer_linear_pitch, 0, 8192);
+        emu_debug_update();
+    }
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Bytes per row, 0 follows the offset register");
+
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Start"); ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("00000000").x + (ImGui::GetFrameHeight() + style.ItemInnerSpacing.x) * 2.0f +
+        style.FramePadding.x * 2.0f);
+
+    ImGui::BeginDisabled(config_debug.vram_viewer_linear_auto_start);
+
+    if (ImGui::InputInt("##vram_viewer_linear_start", &config_debug.vram_viewer_linear_start, 0x100, 0x10000,
+        ImGuiInputTextFlags_CharsHexadecimal))
+    {
+        config_debug.vram_viewer_linear_start = CLAMP(config_debug.vram_viewer_linear_start, 0, 0xFFFFF);
+        emu_debug_update();
+    }
+
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+
+    if (ImGui::Checkbox("Auto", &config_debug.vram_viewer_linear_auto_start))
+        emu_debug_update();
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Follow the display start address");
+
+    ImGui::SameLine();
+    ImGui::Checkbox("Show Visible Area", &config_debug.vram_viewer_show_window);
+    ImGui::TextColored(gray, "%d BYTES PER PIXEL, PITCH %d, START $%05X", info.bytes_per_pixel, info.pitch, info.start);
 }
 
 static void draw_image(const Emu_Debug_Buffer_Info& info)
@@ -131,6 +196,14 @@ static void draw_image(const Emu_Debug_Buffer_Info& info)
         int x = CLAMP((int)((mouse.x - position.x) / zoom), 0, info.width - 1);
         int y = CLAMP((int)((mouse.y - position.y) / zoom), 0, info.height - 1);
         Video* video = emu_get_core()->GetVideo();
+
+        if (config_debug.vram_viewer_tab == Emu_Debug_Buffer_Linear)
+        {
+            draw_linear_tooltip(info, x, y, ((u32*)emu_debug_framebuffer)[y * EMU_DEBUG_FRAMEBUFFER_WIDTH + x]);
+            ImGui::EndChild();
+            return;
+        }
+
         u32 address = (u32)(y / info.cell_height) * (u32)info.pitch + (u32)(x / info.cell_width);
         bool plane_view = config_debug.vram_viewer_tab <= Emu_Debug_Buffer_Plane3;
         u32 offset = plane_view ? address & 0xFFFF : video->GetCRTCOffset(address, 0);
@@ -160,6 +233,34 @@ static void draw_image(const Emu_Debug_Buffer_Info& info)
     }
 
     ImGui::EndChild();
+}
+
+static void draw_linear_tooltip(const Emu_Debug_Buffer_Info& info, int x, int y, u32 color)
+{
+    const u8* vram = emu_get_core()->GetVideo()->GetState()->vram;
+    u32 address = info.start + (u32)y * (u32)info.pitch + (u32)x * (u32)info.bytes_per_pixel;
+    float swatch = ImGui::GetTextLineHeight();
+    ImVec4 pixel = ImVec4((color & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f, ((color >> 16) & 0xFF) / 255.0f, 1.0f);
+
+    ImGui::BeginTooltip();
+    ImGui::TextColored(violet, "X,Y    "); ImGui::SameLine();
+    ImGui::TextColored(white, "%d,%d", x, y);
+    ImGui::TextColored(violet, "ADDRESS"); ImGui::SameLine();
+    ImGui::TextColored(cyan, "$%05X", address);
+    ImGui::TextColored(violet, "VALUE  "); ImGui::SameLine();
+
+    if (info.bytes_per_pixel == 1)
+        ImGui::TextColored(white, "$%02X", vram[address]);
+    else if (info.bytes_per_pixel == 2)
+        ImGui::TextColored(white, "$%04X", vram[address] | (vram[address + 1] << 8));
+    else
+        ImGui::TextColored(white, "$%06X", vram[address] | (vram[address + 1] << 8) | (vram[address + 2] << 16));
+
+    ImGui::TextColored(violet, "COLOR  "); ImGui::SameLine();
+    ImGui::ColorButton("##pixel", pixel, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop,
+        ImVec2(swatch, swatch)); ImGui::SameLine();
+    ImGui::TextColored(white, "#%02X%02X%02X", color & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF);
+    ImGui::EndTooltip();
 }
 
 static void draw_visible_area(const Emu_Debug_Buffer_Info& info, ImVec2 position, float zoom)

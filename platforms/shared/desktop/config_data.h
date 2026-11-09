@@ -122,6 +122,7 @@ struct config_Machine
     int sound_card;
     int sound_irq;
     int sound_dma;
+    int video_card;
     int mouse;
     int cdrom;
     int cdrom_speed;
@@ -318,6 +319,10 @@ struct config_Debug
     int vram_viewer_zoom;
     bool vram_viewer_show_window;
     int vram_viewer_pitch;
+    int vram_viewer_linear_format;
+    int vram_viewer_linear_pitch;
+    int vram_viewer_linear_start;
+    bool vram_viewer_linear_auto_start;
     bool show_opl;
     bool show_sound_blaster;
     bool show_sound_control;

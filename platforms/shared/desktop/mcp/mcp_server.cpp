@@ -1334,7 +1334,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_system_status"},
         {"title", "Get System Status"},
-        {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, drives, BIOS set and where each "
+        {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, video card, drives, BIOS set and where each "
             "setting came from (user, model, Auto, game database) with warnings, and the board state: A20, port 0061, "
             "NMI mask, POST code, coprocessor IRQ13 and CPU resets, and the BIOS: source, SeaBIOS or AT style, images "
             "and the firmware config and debug console ports."},
@@ -1468,7 +1468,8 @@ json McpServer::BuildToolList()
         {"name", "get_video_output_status"},
         {"title", "Get Video Output Status"},
         {"description", "Read the VGA paths around the CRTC: memory window, chain-4, odd/even, direct writes, write pipeline, "
-            "attribute controller and DAC state."},
+            "attribute controller and DAC state. It names the video card and, with a Cirrus card, adds the extended mode, "
+            "pixel format, video clocks, banks, linear aperture, pitch and start."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1480,7 +1481,9 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_vga_registers"},
         {"title", "Get VGA Registers"},
-        {"description", "Read the miscellaneous, feature, sequencer, graphics, CRTC and attribute registers as hex arrays."},
+        {"description", "Read the miscellaneous, feature, sequencer, graphics, CRTC and attribute registers as hex arrays. "
+            "With a Cirrus card a cirrus object adds the lock, SR00-SR1F, GR00-GR3F, CR19-CR27 (crtc, from crtc_first) and "
+            "the hidden DAC."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1511,20 +1514,33 @@ json McpServer::BuildToolList()
         {"name", "get_frame_buffer"},
         {"title", "Get Frame Buffer"},
         {"description", "Decode the whole video memory as PNG from CRTC address 0: one plane, planar, 256 colors or text, "
-            "to find off-screen graphics."},
+            "to find off-screen graphics. With a Cirrus card, linear decodes it byte by byte from start in 8, 15 (5:5:5), "
+            "16 (5:6:5) or 24 (8:8:8) bits per pixel; format, pitch and start default to the current mode."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
             {"properties", {
                 {"buffer", {
                     {"type", "string"},
-                    {"enum", json::array({"plane0", "plane1", "plane2", "plane3", "planar", "256", "text"})}
+                    {"enum", json::array({"plane0", "plane1", "plane2", "plane3", "planar", "256", "text", "linear"})}
                 }},
                 {"pitch", {
                     {"type", "integer"},
-                    {"description", "CRTC addresses per row, 0 or missing follows the offset register."},
+                    {"description", "CRTC addresses per row, or bytes per row for linear (up to 8192). 0 or missing follows "
+                        "the offset register."},
                     {"minimum", 0},
-                    {"maximum", 512}
+                    {"maximum", 8192}
+                }},
+                {"format", {
+                    {"type", "integer"},
+                    {"enum", json::array({8, 15, 16, 24})},
+                    {"description", "linear only: bits per pixel. Missing follows the current mode."}
+                }},
+                {"start", {
+                    {"type", "integer"},
+                    {"description", "linear only: first byte to decode. Missing follows the display start address."},
+                    {"minimum", 0},
+                    {"maximum", 1048575}
                 }}
             }},
             {"required", json::array({"buffer"})}
@@ -3459,7 +3475,8 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     }
     else if (normalizedTool == "get_frame_buffer")
     {
-        return m_debugAdapter.GetFrameBuffer(arguments.value("buffer", ""), arguments.value("pitch", 0));
+        return m_debugAdapter.GetFrameBuffer(arguments.value("buffer", ""), arguments.value("pitch", 0),
+            arguments.value("format", 0), arguments.value("start", -1));
     }
     else if (normalizedTool == "get_text_screen")
     {

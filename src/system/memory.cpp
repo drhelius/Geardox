@@ -569,8 +569,10 @@ bool Memory::SetRegionSpan(int id, u32 physical_base, u32 size, const u8* read_d
     DebugRegion* region = FindRegion(id);
 
     if (!IsValidPointer(region) || size == 0 || (u64)physical_base + size > 0x100000000ULL ||
-        ((region->info.flags & GDOX_DEBUG_REGION_READABLE) != 0 && !IsValidPointer(read_data)) ||
-        ((region->info.flags & GDOX_DEBUG_REGION_WRITABLE) != 0 && !IsValidPointer(write_data)))
+        ((region->info.flags & GDOX_DEBUG_REGION_READABLE) != 0 && !IsValidPointer(read_data) &&
+        !IsValidPointer(region->read8)) ||
+        ((region->info.flags & GDOX_DEBUG_REGION_WRITABLE) != 0 && !IsValidPointer(write_data) &&
+        !IsValidPointer(region->write8)))
         return false;
 
     u32 old_base = region->info.physical_base;
@@ -1345,6 +1347,7 @@ u8 Memory::GetBusClass(const GDOX_Debug_Memory_Region& info)
             return GDOX_BUS_DRAM;
         case GDOX_DEBUG_REGION_VRAM:
         case GDOX_DEBUG_REGION_VIDEO_APERTURE:
+        case GDOX_DEBUG_REGION_LINEAR_VRAM:
             return GDOX_BUS_VRAM;
         case GDOX_DEBUG_REGION_SYSTEM_ROM:
         case GDOX_DEBUG_REGION_VGA_ROM:

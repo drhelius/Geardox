@@ -582,6 +582,7 @@ struct GDOX_Machine_Config
     u8 mouse;
     u8 cdrom;
     u8 cdrom_speed;
+    u8 video_card;
 };
 
 enum GDOX_Sound_Card
@@ -594,6 +595,25 @@ enum GDOX_Sound_Card
     GDOX_SOUND_CARD_SBPRO2,
     GDOX_SOUND_CARD_SB16,
     GDOX_SOUND_CARD_COUNT
+};
+
+enum GDOX_Video_Card
+{
+    GDOX_VIDEO_CARD_VGA = 0,
+    GDOX_VIDEO_CARD_GD5428,
+    GDOX_VIDEO_CARD_GD5428_VLB,
+    GDOX_VIDEO_CARD_COUNT
+};
+
+// A VL-Bus card's memory cycles, read and write, in bus clocks past the 2 of a bus cycle, in 1/256 clocks
+struct GDOX_Video_Card_Info
+{
+    const char* name;
+    const char* id;
+    u32 memory_size;
+    bool cirrus;
+    bool local_bus;
+    u16 local_bus_cycle[2];
 };
 
 struct GDOX_Sound_Card_Info
@@ -633,6 +653,7 @@ struct GDOX_Machine_Settings
     int mouse;
     int cdrom;
     int cdrom_speed;
+    int video_card;
 };
 
 struct GDOX_Machine_Report

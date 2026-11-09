@@ -13,5 +13,7 @@ extern const uint8_t k_seabios_bios[];
 extern const uint32_t k_seabios_bios_size;
 extern const uint8_t k_seabios_vgabios[];
 extern const uint32_t k_seabios_vgabios_size;
+extern const uint8_t k_seabios_vgabios_cirrus[];
+extern const uint32_t k_seabios_vgabios_cirrus_size;
 
 #endif /* SEABIOS_H */

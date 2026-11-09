@@ -70,6 +70,63 @@ void Video::WriteWindow32Callback(void* device, u32 offset, u32 value)
     video->WriteVRAM(offset + 3, (u8)(value >> 24));
 }
 
+// The linear aperture reaches video memory through the same pipeline as the window
+u8 Video::ReadLinearCallback(void* device, u32 offset)
+{
+    Video* video = (Video*)device;
+    return video->ReadMemory(offset & video->m_vram_mask);
+}
+
+u8 Video::PeekLinearCallback(void* device, u32 offset)
+{
+    Video* video = (Video*)device;
+    return video->PeekMemory(offset & video->m_vram_mask);
+}
+
+void Video::WriteLinearCallback(void* device, u32 offset, u8 value)
+{
+    Video* video = (Video*)device;
+    video->WriteMemory(offset & video->m_vram_mask, value);
+}
+
+u16 Video::ReadLinear16Callback(void* device, u32 offset)
+{
+    Video* video = (Video*)device;
+    u32 mask = video->m_vram_mask;
+    u16 value = video->ReadMemory(offset & mask);
+    value |= (u16)video->ReadMemory((offset + 1) & mask) << 8;
+    return value;
+}
+
+u32 Video::ReadLinear32Callback(void* device, u32 offset)
+{
+    Video* video = (Video*)device;
+    u32 mask = video->m_vram_mask;
+    u32 value = video->ReadMemory(offset & mask);
+    value |= (u32)video->ReadMemory((offset + 1) & mask) << 8;
+    value |= (u32)video->ReadMemory((offset + 2) & mask) << 16;
+    value |= (u32)video->ReadMemory((offset + 3) & mask) << 24;
+    return value;
+}
+
+void Video::WriteLinear16Callback(void* device, u32 offset, u16 value)
+{
+    Video* video = (Video*)device;
+    u32 mask = video->m_vram_mask;
+    video->WriteMemory(offset & mask, (u8)value);
+    video->WriteMemory((offset + 1) & mask, (u8)(value >> 8));
+}
+
+void Video::WriteLinear32Callback(void* device, u32 offset, u32 value)
+{
+    Video* video = (Video*)device;
+    u32 mask = video->m_vram_mask;
+    video->WriteMemory(offset & mask, (u8)value);
+    video->WriteMemory((offset + 1) & mask, (u8)(value >> 8));
+    video->WriteMemory((offset + 2) & mask, (u8)(value >> 16));
+    video->WriteMemory((offset + 3) & mask, (u8)(value >> 24));
+}
+
 u8 Video::PeekPlane0Callback(void* device, u32 offset)
 {
     return ((Video*)device)->PeekPlane(0, offset);
@@ -121,7 +178,6 @@ u8 Video::CompareLatches() const
     return (u8)~(planes[0] | planes[1] | planes[2] | planes[3]);
 }
 
-// Odd/even sends address bit 0 to the plane pair
 u8 Video::ReadVRAM(u32 offset)
 {
     u32 address = offset - m_window_start;
@@ -129,12 +185,23 @@ u8 Video::ReadVRAM(u32 offset)
     if (address >= m_window_size)
         return 0xFF;
 
+    address = GetWindowAddress(address);
+
+    if (address >= m_window_limit)
+        return 0xFF;
+
+    return ReadMemory(address & m_vram_mask);
+}
+
+// Odd/even sends address bit 0 to the plane pair
+u8 Video::ReadMemory(u32 address)
+{
     u32 base;
     u32 plane = m_state.graphics[k_video_gr_read_map] & 0x03;
 
     if (m_chain4)
     {
-        base = address & 0x3FFFC;
+        base = address & (m_vram_mask & ~0x03U);
         plane = address & 0x03;
     }
     else
@@ -161,6 +228,16 @@ u8 Video::PeekVRAM(u32 offset) const
     if (address >= m_window_size)
         return 0xFF;
 
+    address = GetWindowAddress(address);
+
+    if (address >= m_window_limit)
+        return 0xFF;
+
+    return PeekMemory(address & m_vram_mask);
+}
+
+u8 Video::PeekMemory(u32 address) const
+{
     u32 plane = m_state.graphics[k_video_gr_read_map] & 0x03;
 
     if (m_chain4)
@@ -222,12 +299,20 @@ void Video::WriteVRAM(u32 offset, u8 value)
     if (address >= m_window_size)
         return;
 
+    address = GetWindowAddress(address);
+
+    if (address < m_window_limit)
+        WriteMemory(address & m_vram_mask, value);
+}
+
+void Video::WriteMemory(u32 address, u8 value)
+{
     u32 base;
     u32 planes = m_write_planes;
 
     if (m_chain4)
     {
-        base = address & 0x3FFFC;
+        base = address & (m_vram_mask & ~0x03U);
         planes &= m_plane_masks[1 << (address & 0x03)];
     }
     else
@@ -270,22 +355,78 @@ void Video::UpdateMemoryAccess()
     m_plain_write = (graphics[k_video_gr_mode] & 0x03) == 0 && (graphics[k_video_gr_rotate] & 0x1F) == 0 &&
         graphics[k_video_gr_enable_set_reset] == 0 && graphics[k_video_gr_bit_mask] == 0xFF;
 
-    if (GetDirectWriteSize() != m_mapped_size)
+    // A bank past the installed memory reaches no DRAM on the Cirrus, a VGA wraps its window inside its 256 KB
+    if (m_cirrus)
+    {
+        m_window_limit = m_chain4 ? m_vram_size : m_vram_size >> 2;
+        u8 extensions = graphics[k_video_gr_extensions];
+        u32 granularity = (extensions & 0x20) != 0 ? 0x4000 : 0x1000;
+
+        m_extended = (m_state.sequencer[k_video_sr_extended] & 0x01) != 0;
+        m_dual_page = (extensions & 0x01) != 0;
+        m_bank_low = graphics[k_video_gr_offset_0] * granularity;
+        m_bank_high = graphics[k_video_gr_offset_1] * granularity - 0x8000;
+    }
+
+    bool plain = m_chain4 && m_plain_write && (m_state.sequencer[k_video_sr_map_mask] & 0x0F) == 0x0F;
+
+    if (GetDirectWriteSize() != m_mapped_size || m_bank_low != m_mapped_bank ||
+        (m_cirrus && (plain ? m_vram_size : 0) != m_aperture_mapped))
         UpdateVRAMMapping();
 }
 
-// Plain mode 13h writes go straight to host memory, as chain-4 is linear there
+// Plain chain-4 writes go straight to host memory, as chain-4 is linear there, with one bank for the whole window
 // Reads stay on the handlers for the latches
 u32 Video::GetDirectWriteSize() const
 {
     bool plain = m_chain4 && m_plain_write && (m_state.sequencer[k_video_sr_map_mask] & 0x0F) == 0x0F;
-    return plain && m_window_start == 0 ? m_window_size : 0;
+
+    if (!plain || m_window_start != 0 || m_dual_page || m_bank_low >= m_vram_size)
+        return 0;
+
+    return MIN(m_window_size, m_vram_size - m_bank_low);
+}
+
+u32 Video::GetApertureSize() const
+{
+    return m_vram_size;
 }
 
 void Video::UpdateVRAMMapping()
 {
     m_mapped_size = GetDirectWriteSize();
+    m_mapped_bank = m_bank_low;
     m_memory->SetRegionHandlerRange(GDOX_DEBUG_REGION_VIDEO_APERTURE, m_mapped_size,
         k_video_max_window_size - m_mapped_size, false);
-    m_memory->SetRegionData(GDOX_DEBUG_REGION_VIDEO_APERTURE, NULL, m_mapped_size != 0 ? m_state.vram : NULL);
+    m_memory->SetRegionData(GDOX_DEBUG_REGION_VIDEO_APERTURE, NULL, m_mapped_size != 0 ? m_state.vram + m_bank_low : NULL);
+
+    if (!m_cirrus)
+        return;
+
+    bool plain = m_chain4 && m_plain_write && (m_state.sequencer[k_video_sr_map_mask] & 0x0F) == 0x0F;
+
+    m_aperture_mapped = plain ? m_vram_size : 0;
+    m_memory->SetRegionHandlerRange(GDOX_DEBUG_REGION_LINEAR_VRAM, m_aperture_mapped,
+        GetApertureSize() - m_aperture_mapped, false);
+    m_memory->SetRegionData(GDOX_DEBUG_REGION_LINEAR_VRAM, NULL, m_aperture_mapped != 0 ? m_state.vram : NULL);
+}
+
+// SR07 bits 7-4 place video memory at that MB, 0 for none; with 16 KB banks a 2 MB block sits on an even MB
+void Video::UpdateAperture()
+{
+    if (!m_cirrus)
+        return;
+
+    u32 field = m_state.sequencer[k_video_sr_extended] >> 4;
+
+    if ((m_state.graphics[k_video_gr_extensions] & 0x20) != 0)
+        field &= 0x0E;
+
+    m_aperture_base = field << 20;
+
+    if (m_aperture_base != 0)
+        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_LINEAR_VRAM, m_aperture_base, GetApertureSize(), NULL,
+            m_aperture_mapped != 0 ? m_state.vram : NULL);
+
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_LINEAR_VRAM, m_aperture_base != 0);
 }

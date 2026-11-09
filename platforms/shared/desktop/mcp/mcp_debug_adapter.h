@@ -234,7 +234,7 @@ public:
     json GetVideoOutputStatus();
     json GetVGARegisters();
     json GetPalettes(const std::string& palette);
-    json GetFrameBuffer(const std::string& buffer, int pitch);
+    json GetFrameBuffer(const std::string& buffer, int pitch, int format, int start);
     json GetTextScreen(bool attributes);
     json GetBiosLog(int max_bytes);
 

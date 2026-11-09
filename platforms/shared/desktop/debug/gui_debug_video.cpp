@@ -22,6 +22,7 @@
 
 #include "imgui.h"
 #include "geardox.h"
+#include "system/machine_profiles.h"
 #include "system/scheduler.h"
 #include "video/video.h"
 #include "../config.h"
@@ -40,7 +41,8 @@ static void attribute_write_callback(u16 address, u8 value, void* user_data);
 static void crtc_write_callback(u16 address, u8 value, void* user_data);
 static void misc_write_callback(u16 address, u8 value, void* user_data);
 static void draw_register_file(const char* title, const char* prefix, const char* const* names, const u8* values, int count,
-    RegisterWriteCallback8 callback, Video* video);
+    RegisterWriteCallback8 callback, Video* video, int first = 0);
+static void draw_cirrus(Video* video);
 static void draw_palette_indices(void);
 static void draw_color(int index, u32 color, const u8* components);
 static ImVec4 to_imgui_color(u32 color);
@@ -248,6 +250,9 @@ void gui_debug_window_vga(void)
         ImGui::EndTable();
     }
 
+    if (video->IsCirrus())
+        draw_cirrus(video);
+
     ImGui::PopFont();
 
     ImGui::End();
@@ -294,6 +299,26 @@ void gui_debug_window_vga_registers(void)
         ImGui::TableNextColumn();
         draw_register_file("ATTRIBUTE", "AR", k_debug_attribute_register_names, state->attribute, VIDEO_ATTRIBUTE_COUNT,
             attribute_write_callback, video);
+        ImGui::EndTable();
+    }
+
+    if (video->IsCirrus() && ImGui::BeginTable("##vga_cirrus_register_files", 3, ImGuiTableFlags_BordersInnerV |
+        ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
+    {
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        draw_register_file("CIRRUS SEQUENCER", "SR", k_debug_cirrus_sequencer_register_names, state->sequencer, 27,
+            sequencer_write_callback, video, 0x05);
+        ImGui::TableNextColumn();
+        draw_register_file("CIRRUS GRAPHICS", "GR", k_debug_cirrus_graphics_register_names, state->graphics, 9,
+            graphics_write_callback, video, 0x09);
+        ImGui::NewLine();
+        draw_register_file("CIRRUS CRTC", "CR", k_debug_cirrus_crtc_register_names, state->crtc, 5, crtc_write_callback,
+            video, 0x19);
+        draw_register_file(NULL, "CR", k_debug_cirrus_id_register_names, state->crtc, 3, crtc_write_callback, video, 0x25);
+        ImGui::TableNextColumn();
+        draw_register_file("CIRRUS BITBLT", "GR", k_debug_cirrus_blt_register_names, state->graphics, 26,
+            graphics_write_callback, video, 0x20);
         ImGui::EndTable();
     }
 
@@ -491,18 +516,111 @@ static void misc_write_callback(u16 address, u8 value, void* user_data)
 }
 
 static void draw_register_file(const char* title, const char* prefix, const char* const* names, const u8* values, int count,
-    RegisterWriteCallback8 callback, Video* video)
+    RegisterWriteCallback8 callback, Video* video, int first)
 {
-    ImGui::TextColored(cyan, "%s", title);
+    if (IsValidPointer(title))
+        ImGui::TextColored(cyan, "%s", title);
 
     for (int i = 0; i < count; i++)
     {
-        ImGui::PushID(title);
-        ImGui::TextColored(cyan, "%s%02X", prefix, i); ImGui::SameLine();
+        ImGui::PushID(prefix);
+        ImGui::TextColored(cyan, "%s%02X", prefix, first + i); ImGui::SameLine();
         ImGui::TextColored(violet, "%-11s", names[i]); ImGui::SameLine();
-        EditableRegister8(NULL, NULL, (u16)i, values[i], callback, video, EditableRegisterFlags_None);
+        EditableRegister8(NULL, NULL, (u16)(first + i), values[first + i], callback, video, EditableRegisterFlags_None);
         ImGui::PopID();
     }
+}
+
+static void draw_cirrus(Video* video)
+{
+    Video::Video_State* state = video->GetState();
+    u8 extended = state->sequencer[k_video_sr_extended];
+    u32 aperture = video->GetApertureBase();
+    int selected = (state->misc >> 2) & 0x03;
+    u32 pitch = video->GetOffsetRegister() * 8;
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "CIRRUS"); ImGui::Separator();
+    ImGui::TextColored(violet, "CARD"); ImGui::SameLine();
+    ImGui::TextColored(white, "%s, %u KB", k_video_cards[video->GetCard()].name, video->GetVRAMSize() / 1024);
+
+    if (ImGui::BeginTable("##vga_cirrus", 4, flags))
+    {
+        setup_grid_columns();
+
+        ImGui::TableNextRow();
+        draw_grid_label("EXTENSIONS");
+        ImGui::TextColored(video->IsUnlocked() ? green : gray, "%s", video->IsUnlocked() ? "UNLOCKED" : "LOCKED");
+        draw_grid_label("EXT MODE");
+        draw_flag(video->IsExtendedMode());
+
+        ImGui::TableNextRow();
+        draw_grid_label("SR07");
+        ImGui::TextColored(white, "$%02X", extended);
+        draw_grid_label("PIXEL PATH");
+        ImGui::TextColored(white, "%u", (extended >> 1) & 0x07);
+
+        ImGui::TableNextRow();
+        draw_grid_label("APERTURE");
+
+        if (aperture != 0)
+            ImGui::TextColored(white, "$%08X", aperture);
+        else
+            ImGui::TextColored(gray, "OFF");
+
+        draw_grid_label("APERT MB");
+        ImGui::TextColored(white, "%u", extended >> 4);
+
+        for (int i = 0; i < 4; i += 2)
+        {
+            char name[16];
+
+            ImGui::TableNextRow();
+            snprintf(name, sizeof(name), "VCLK%d", i);
+            draw_grid_label(name);
+            ImGui::TextColored(selected == i ? orange : white, "%.3f MHz", video->GetVideoClock(i) / 1000000.0);
+            snprintf(name, sizeof(name), "VCLK%d", i + 1);
+            draw_grid_label(name);
+            ImGui::TextColored(selected == i + 1 ? orange : white, "%.3f MHz", video->GetVideoClock(i + 1) / 1000000.0);
+        }
+
+        ImGui::TableNextRow();
+        draw_grid_label("BANK 0");
+        ImGui::TextColored(white, "$%05X", video->GetBankOffset(0));
+        draw_grid_label("BANK 1");
+        ImGui::TextColored(video->IsDualPage() ? white : gray, "$%05X", video->GetBankOffset(1));
+
+        ImGui::TableNextRow();
+        draw_grid_label("DUAL PAGE");
+        draw_flag(video->IsDualPage());
+        draw_grid_label("WIDE COUNT");
+        draw_flag(video->GetCounterMask() != 0xFFFF);
+
+        ImGui::TableNextRow();
+        draw_grid_label("HIDDEN DAC");
+        ImGui::TextColored(white, "$%02X", state->hidden_dac);
+        draw_grid_label("FORMAT");
+        ImGui::TextColored(blue, "%s", k_debug_extended_format_names[video->GetExtendedFormat()]);
+
+        ImGui::TableNextRow();
+        draw_grid_label("EXT START");
+        ImGui::TextColored(white, "$%05X", video->GetStartAddress());
+        draw_grid_label("EXT OFFSET");
+        ImGui::TextColored(white, "%u (%u B)", video->GetOffsetRegister(), pitch);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::TextColored(violet, "MODE"); ImGui::SameLine();
+
+    if (!state->running)
+        ImGui::TextColored(gray, "--");
+    else if (video->IsExtendedMode())
+        ImGui::TextColored(white, "%dx%d, %u BPP, %u BYTES PER ROW, %.2f Hz", video->GetFrameWidth(),
+            video->GetFrameHeight(), video->GetExtendedBytesPerPixel() * 8, pitch, 1000.0 / video->GetFrameTime());
+    else
+        ImGui::TextColored(white, "%dx%d, %s, %.2f Hz", video->GetFrameWidth(), video->GetFrameHeight(), mode_name(video),
+            1000.0 / video->GetFrameTime());
 }
 
 static void draw_palette_indices(void)

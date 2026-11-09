@@ -25,6 +25,7 @@
 #define GDOX_MACHINE_RELEASE_ORDER_COUNT 3
 #define GDOX_MACHINE_CPU_SPEED_COUNT 8
 #define GDOX_MACHINE_RAM_SIZE_COUNT 7
+#define GDOX_MACHINE_FEATURE_LOCAL_BUS 0x01
 #define GDOX_MACHINE_ISA_CLOCK_RATE 8333333
 
 // ISA cycles in BCLKs at the model's bus clock, less the 2 clocks of a bus cycle, in 1/256 bus clocks
@@ -86,7 +87,17 @@ const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
 {
     { "386SX-20", "386sx_20", "Generic 386SX AT", "1989", true, GDOX_MACHINE_CPU_80386SX, GDOX_MACHINE_FPU_SOCKET, 20000000, GDOX_MACHINE_MAP_24BIT, 0, k_machine_ram_386sx_20, 2, 2, NULL, &k_machine_bus_386sx_20 },
     { "386DX-33", "386dx_33", "Generic 386DX AT", "1989", true, GDOX_MACHINE_CPU_80386DX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_386dx_33, 4, 2, NULL, &k_machine_bus_386dx_33 },
-    { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_486dx2_66, 8, 2, NULL, &k_machine_bus_486dx2_66 }
+    { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486dx2_66, 8, 2, NULL, &k_machine_bus_486dx2_66 }
+};
+
+// The ISA cards keep the model's VGA waits. The VL-Bus card's: reads at 16 bus clocks fit TOPBENCH's video RAM column
+// to its VL-Bus Cirrus DX2-66 rows, writes at 5 give the change one DX2-66 board saw from ISA to VL-Bus, Doom x1.27 and
+// 3D-Bench x1.22 (R14 §8.2)
+const GDOX_Video_Card_Info k_video_cards[GDOX_VIDEO_CARD_COUNT] =
+{
+    { "VGA", "vga", 0x40000, false, false, { 0, 0 } },
+    { "Cirrus Logic GD5428 ISA", "gd5428", 0x100000, true, false, { 0, 0 } },
+    { "Cirrus Logic GD5428 VL-Bus", "gd5428_vlb", 0x100000, true, true, { 16 * 256, 5 * 256 } }
 };
 
 const GDOX_Sound_Card_Info k_sound_cards[GDOX_SOUND_CARD_COUNT] =

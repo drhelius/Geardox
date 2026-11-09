@@ -4,7 +4,8 @@
 
 Geardox emulates an ISA-only IBM PC/AT compatible: no PCI and no chipset registers. Models are a 386SX-20 (24 address
 lines, 16-bit bus), a 386DX-33 and a 486DX2-66. Board timing comes from the 14.31818 MHz oscillator: the PIT counts at
-a twelfth of it (1,193,182 Hz) and ISA cycles run at about 8.33 MHz.
+a twelfth of it (1,193,182 Hz) and ISA cycles run at about 8.33 MHz. The video card is an ISA VGA or a Cirrus Logic
+CL-GD5428 (a VL-Bus one on the 486), described in the `pc_video` resource.
 
 ---
 
@@ -13,10 +14,10 @@ a twelfth of it (1,193,182 Hz) and ISA cycles run at about 8.33 MHz.
 | Range | Contents | Notes |
 |---|---|---|
 | 00000h–9FFFFh | Conventional RAM | 640 KB |
-| A0000h–BFFFFh | Video aperture | Open bus (FFh) until the VGA card is emulated |
-| C0000h–DFFFFh | Upper memory | SeaBIOS: board RAM, writable. Other BIOSes: the VGA BIOS ROM at C0000h, open bus above |
+| A0000h–BFFFFh | Video aperture | The video card's window, see the `pc_video` resource. Open bus (FFh) with no card |
+| C0000h–DFFFFh | Upper memory | SeaBIOS: board RAM, writable, with the built-in VGA BIOS of the card copied to C0000h. Other BIOSes: the VGA BIOS ROM at C0000h, open bus above |
 | E0000h–FFFFFh | BIOS copy | Board RAM filled from the BIOS image at power on. Writable for SeaBIOS, read-only otherwise |
-| 100000h–top of RAM | Extended RAM | Absent with 1 MB of RAM |
+| 100000h–top of RAM | Extended RAM | Absent with 1 MB of RAM. With a Cirrus card and 16 MB or more, F00000h–FFFFFFh is a hole for the card's linear frame buffer and that RAM is lost |
 | Top of address space | System BIOS ROM | The pristine image, 64, 128 or 256 KB, ending at FFFFFFFFh (FFFFFFh on a 386SX) |
 
 - The CPU starts at FFFFFFF0h, in the ROM image at the top, and jumps into the copy below 1 MB.
@@ -116,14 +117,16 @@ program through 40:67h.
 
 ## 7. BIOS
 
-The built-in BIOS is SeaBIOS with SeaVGABIOS, built for this ISA board. A BIOS image the user supplies replaces it;
-an image with the SeaBIOS banner gets the SeaBIOS mapping, any other image the AT mapping.
+The built-in BIOS is SeaBIOS with SeaVGABIOS, built for this ISA board. The VGA BIOS is one per video card: the plain
+SeaVGABIOS for the `vga` card, or its Cirrus build for the CL-GD5428 cards, which is larger and leaves less upper memory.
+A BIOS image the user supplies replaces the system BIOS; an image with the SeaBIOS banner gets the SeaBIOS mapping, any
+other image the AT mapping.
 
 | | SeaBIOS mapping | AT mapping |
 |---|---|---|
 | Upper memory and BIOS copy | Writable RAM | Read-only, open bus between the VGA BIOS and the copy |
-| VGA BIOS | Firmware config file `vgaroms/vgabios.bin`, copied to C0000h by SeaBIOS | ROM at C0000h, run by the BIOS's option ROM scan |
-| Firmware config (510h–511h) | The fw_cfg interface SeaBIOS reads, a subset: signature, ID 1 (no DMA), file directory, VGA BIOS, boot menu settings | Absent |
+| VGA BIOS | Firmware config file `vgaroms/vgabios.bin` (the built-in image of the card, or the user's), copied to C0000h by SeaBIOS | ROM at C0000h, run by the BIOS's option ROM scan |
+| Firmware config (510h–511h) | The fw_cfg interface SeaBIOS reads, a subset: signature, ID 1 (no DMA), file directory, VGA BIOS, boot menu settings, and `etc/e820` with the RAM around the 15–16 MB hole when there is one | Absent |
 | Debug console (402h) | SeaBIOS messages, read with `get_bios_log` | Absent |
 | CMOS | Generated at every power on | Kept |
 
@@ -144,7 +147,7 @@ SeaBIOS has no setup screen, so with it the board writes these bytes at power on
 | 10h | Floppy drive types (none until the floppy controller is emulated) |
 | 14h | Equipment: bit 1 coprocessor, VGA display |
 | 15h–16h | Base memory, 640 KB |
-| 17h–18h, 30h–31h | Extended memory in KB, up to 63 MB |
+| 17h–18h, 30h–31h | Extended memory in KB, up to 63 MB, or 14 MB below the 15–16 MB hole |
 | 2Eh–2Fh | Checksum of 10h–2Dh, high byte first |
 | 32h | Century, BCD |
 | 34h–35h | Memory above 16 MB in 64 KB units |

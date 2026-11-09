@@ -428,6 +428,43 @@
      default:
          return DISK_RET_EPARAM;
      }
+--- seabios-28aa463/src/malloc.c
++++ seabios/src/malloc.c
+@@ -471,6 +471,7 @@ malloc_csm_preinit(u32 low_pmm, u32 low_pmm_size, u32 hi_pmm, u32 hi_pmm_size)
+ }
+ 
+ u32 LegacyRamSize VARFSEG;
++u32 ExtendedRamEnd VARFSEG;
+ 
+ // Calculate the maximum ramsize (less than 4gig) from e820 map.
+ static void
+@@ -488,6 +489,15 @@ calcRamSize(void)
+         }
+     }
+     LegacyRamSize = rs >= 1024*1024 ? rs : 1024*1024;
++
++    // Where the RAM from below 1M ends, short of a memory hole at 15M for a video card's linear frame buffer
++    ExtendedRamEnd = LegacyRamSize;
++    for (i=0; i<e820_count; i++) {
++        struct e820entry *en = &e820_list[i];
++        if (en->type == E820_RAM && en->start <= 1024*1024 && en->start + en->size > 1024*1024
++            && en->start + en->size < LegacyRamSize)
++            ExtendedRamEnd = en->start + en->size;
++    }
+ }
+ 
+ // Update pointers after code relocation.
+--- seabios-28aa463/src/malloc.h
++++ seabios/src/malloc.h
+@@ -12,7 +12,7 @@ int rom_confirm(u32 size);
+ void malloc_csm_preinit(u32 low_pmm, u32 low_pmm_size, u32 hi_pmm,
+                         u32 hi_pmm_size);
+ void malloc_preinit(void);
+-extern u32 LegacyRamSize;
++extern u32 LegacyRamSize, ExtendedRamEnd;
+ void malloc_init(void);
+ void malloc_prepboot(void);
+ u32 malloc_palloc(struct zone_s *zone, u32 size, u32 align);
 --- seabios-28aa463/src/misc.c
 +++ seabios/src/misc.c
 @@ -13,6 +13,7 @@
@@ -476,7 +513,28 @@
  static void
  handle_152400(struct bregs *regs)
  {
-@@ -324,6 +328,68 @@ handle_15e8(struct bregs *regs)
+@@ -169,7 +173,7 @@ handle_1587(struct bregs *regs)
+ static void
+ handle_1588(struct bregs *regs)
+ {
+-    u32 rs = GET_GLOBAL(LegacyRamSize);
++    u32 rs = GET_GLOBAL(ExtendedRamEnd);
+ 
+     // According to Ralf Brown's interrupt the limit should be 15M,
+     // but real machines mostly return max. 63M.
+@@ -269,7 +273,10 @@ handle_15e801(struct bregs *regs)
+     u32 rs = GET_GLOBAL(LegacyRamSize);
+ 
+     // Get the amount of extended memory (above 1M)
+-    if (rs > 16*1024*1024) {
++    if (GET_GLOBAL(ExtendedRamEnd) < 16*1024*1024 && rs > 16*1024*1024) {
++        regs->cx = (GET_GLOBAL(ExtendedRamEnd) - 1*1024*1024) / 1024;
++        regs->dx = (rs - 16*1024*1024) / (64*1024);
++    } else if (rs > 16*1024*1024) {
+         // limit to 15M
+         regs->cx = 15*1024;
+         // Get the amount of extended memory above 16M in 64k blocks
+@@ -324,6 +331,68 @@ handle_15e8(struct bregs *regs)
      }
  }
  
@@ -545,7 +603,7 @@
  static void
  handle_15XX(struct bregs *regs)
  {
-@@ -343,6 +409,7 @@ handle_15(struct bregs *regs)
+@@ -343,6 +412,7 @@ handle_15(struct bregs *regs)
      case 0x5f: handle_155f(regs); break;
      case 0x7f: handle_157f(regs); break;
      case 0x83: handle_1583(regs); break;
@@ -573,6 +631,269 @@
  
  // mouse.c
  void mouse_init(void);
+--- seabios-28aa463/vgasrc/clext.c
++++ seabios/vgasrc/clext.c
+@@ -9,6 +9,7 @@
+ #include "bregs.h" // struct bregs
+ #include "hw/pci.h" // pci_config_readl
+ #include "hw/pci_regs.h" // PCI_BASE_ADDRESS_0
++#include "hw/rtc.h" // PORT_CMOS_INDEX
+ #include "output.h" // dprintf
+ #include "stdvga.h" // VGAREG_SEQU_ADDRESS
+ #include "string.h" // memset16_far
+@@ -21,7 +22,7 @@
+  ****************************************************************/
+ 
+ /* VGA */
+-static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0xffff};
++static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0x660b,0x5b0c,0x3b1b,0x2f1c,0xffff};
+ static u16 cgraph_vga[] VAR16 = {0x0009,0x000a,0x000b,0xffff};
+ static u16 ccrtc_vga[] VAR16 = {0x001a,0x001b,0x001d,0xffff};
+ 
+@@ -33,7 +34,7 @@ static u16 cgraph_svgacolor[] VAR16 = {
+ };
+ /* 640x480x8 */
+ static u16 cseq_640x480x8[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1107,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0107,
+     0x580b,0x580c,0x580d,0x580e,
+     0x0012,0x0013,0x2017,
+     0x331b,0x331c,0x331d,0x331e,
+@@ -47,9 +48,18 @@ static u16 ccrtc_640x480x8[] VAR16 = {
+     0x001a,0x221b,0x001d,
+     0xffff
+ };
++/* 640x400x8, VESA 100h with the VGA's 400-line timing at 70 Hz */
++static u16 ccrtc_640x400x8[] VAR16 = {
++    0x2e11,
++    0x5f00,0x4f01,0x4f02,0x8003,0x5204,0x1e05,0xbf06,0x1f07,
++    0x4009,0x000c,0x000d,
++    0x9c10,0x8f12,0x5013,0x4014,0x9615,0xb916,0xc317,0xff18,
++    0x001a,0x221b,0x001d,
++    0xffff
++};
+ /* 640x480x16 */
+ static u16 cseq_640x480x16[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1707,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0707,
+     0x580b,0x580c,0x580d,0x580e,
+     0x0012,0x0013,0x2017,
+     0x331b,0x331c,0x331d,0x331e,
+@@ -63,25 +73,25 @@ static u16 ccrtc_640x480x16[] VAR16 = {
+     0x001a,0x221b,0x001d,
+     0xffff
+ };
+-/* 640x480x24 */
++/* 640x480x24, a CL-GD5428 BIOS's timing: clock/3 at 75.5 MHz, with the 1920-byte pitch VBE reports */
+ static u16 cseq_640x480x24[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1507,
+-    0x580b,0x580c,0x580d,0x580e,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0507,
++    0x3a0b,0x3a0c,0x3a0d,0x3a0e,
+     0x0012,0x0013,0x2017,
+-    0x331b,0x331c,0x331d,0x331e,
++    0x161b,0x161c,0x161d,0x161e,
+     0xffff
+ };
+ static u16 ccrtc_640x480x24[] VAR16 = {
+-    0x2c11,
+-    0x5f00,0x4f01,0x4f02,0x8003,0x5204,0x1e05,0x0b06,0x3e07,
++    0x0c11,
++    0x5f00,0x4f01,0x5002,0x8203,0x5404,0x8005,0x0b06,0x3e07,
+     0x4009,0x000c,0x000d,
+-    0xea10,0xdf12,0xf013,0x4014,0xdf15,0x0b16,0xc317,0xff18,
++    0xea10,0xdf12,0xf013,0x0014,0xe715,0x0416,0xe317,0xff18,
+     0x001a,0x221b,0x001d,
+     0xffff
+ };
+ /* 800x600x8 */
+ static u16 cseq_800x600x8[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1107,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0107,
+     0x230b,0x230c,0x230d,0x230e,
+     0x0012,0x0013,0x2017,
+     0x141b,0x141c,0x141d,0x141e,
+@@ -96,7 +106,7 @@ static u16 ccrtc_800x600x8[] VAR16 = {
+ };
+ /* 800x600x16 */
+ static u16 cseq_800x600x16[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1707,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0707,
+     0x230b,0x230c,0x230d,0x230e,
+     0x0012,0x0013,0x2017,
+     0x141b,0x141c,0x141d,0x141e,
+@@ -111,7 +121,7 @@ static u16 ccrtc_800x600x16[] VAR16 = {
+ };
+ /* 800x600x24 */
+ static u16 cseq_800x600x24[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1507,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0507,
+     0x230b,0x230c,0x230d,0x230e,
+     0x0012,0x0013,0x2017,
+     0x141b,0x141c,0x141d,0x141e,
+@@ -126,7 +136,7 @@ static u16 ccrtc_800x600x24[] VAR16 = {
+ };
+ /* 1024x768x8 */
+ static u16 cseq_1024x768x8[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1107,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0107,
+     0x760b,0x760c,0x760d,0x760e,
+     0x0012,0x0013,0x2017,
+     0x341b,0x341c,0x341d,0x341e,
+@@ -141,7 +151,7 @@ static u16 ccrtc_1024x768x8[] VAR16 = {
+ };
+ /* 1024x768x16 */
+ static u16 cseq_1024x768x16[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1707,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0707,
+     0x760b,0x760c,0x760d,0x760e,
+     0x0012,0x0013,0x2017,
+     0x341b,0x341c,0x341d,0x341e,
+@@ -156,7 +166,7 @@ static u16 ccrtc_1024x768x16[] VAR16 = {
+ };
+ /* 1024x768x24 */
+ static u16 cseq_1024x768x24[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1507,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0507,
+     0x760b,0x760c,0x760d,0x760e,
+     0x0012,0x0013,0x2017,
+     0x341b,0x341c,0x341d,0x341e,
+@@ -171,7 +181,7 @@ static u16 ccrtc_1024x768x24[] VAR16 = {
+ };
+ /* 1280x1024x8 */
+ static u16 cseq_1280x1024x8[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1107,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0107,
+     0x760b,0x760c,0x760d,0x760e,
+     0x0012,0x0013,0x2017,
+     0x341b,0x341c,0x341d,0x341e,
+@@ -186,7 +196,7 @@ static u16 ccrtc_1280x1024x8[] VAR16 = {
+ };
+ /* 1280x1024x16 */
+ static u16 cseq_1280x1024x16[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1707,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0707,
+     0x760b,0x760c,0x760d,0x760e,
+     0x0012,0x0013,0x2017,
+     0x341b,0x341c,0x341d,0x341e,
+@@ -202,7 +212,7 @@ static u16 ccrtc_1280x1024x16[] VAR16 = {
+ 
+ /* 1600x1200x8 */
+ static u16 cseq_1600x1200x8[] VAR16 = {
+-    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1107,
++    0x0300,0x0101,0x0f02,0x0003,0x0e04,0x0107,
+     0x760b,0x760c,0x760d,0x760e,
+     0x0012,0x0013,0x2017,
+     0x341b,0x341c,0x341d,0x341e,
+@@ -227,6 +237,8 @@ struct cirrus_mode_s {
+ };
+ 
+ static struct cirrus_mode_s cirrus_modes[] VAR16 = {
++    {0x5e,0x100,{MM_PACKED,640,400,8,8,16,SEG_GRAPH},0x00,
++     cseq_640x480x8,cgraph_svgacolor,ccrtc_640x400x8},
+     {0x5f,0x101,{MM_PACKED,640,480,8,8,16,SEG_GRAPH},0x00,
+      cseq_640x480x8,cgraph_svgacolor,ccrtc_640x480x8},
+     {0x64,0x111,{MM_DIRECT,640,480,16,8,16,SEG_GRAPH},0xe1,
+@@ -276,13 +288,25 @@ is_cirrus_mode(struct vgamode_s *vmode_g)
+             && vmode_g <= &cirrus_modes[ARRAY_SIZE(cirrus_modes)-1].info);
+ }
+ 
++// Only modes the installed memory holds, and of the 24-bit ones only 640x480: the others are QEMU's tables, at a
++// third of their rate on a CL-GD542x
++static int
++cirrus_mode_fits(struct cirrus_mode_s *table_g)
++{
++    u32 depth = GET_GLOBAL(table_g->info.depth);
++    u32 width = GET_GLOBAL(table_g->info.width);
++    u32 size = width * GET_GLOBAL(table_g->info.height) * DIV_ROUND_UP(depth, 8);
++    return (depth != 24 || width == 640) && size <= GET_GLOBAL(VBE_total_memory);
++}
++
+ struct vgamode_s *
+ clext_find_mode(int mode)
+ {
+     struct cirrus_mode_s *table_g = cirrus_modes;
+     while (table_g < &cirrus_modes[ARRAY_SIZE(cirrus_modes)]) {
+-        if (GET_GLOBAL(table_g->mode) == mode
+-            || GET_GLOBAL(table_g->vesamode) == mode)
++        if ((GET_GLOBAL(table_g->mode) == mode
++             || GET_GLOBAL(table_g->vesamode) == mode)
++            && cirrus_mode_fits(table_g))
+             return &table_g->info;
+         table_g++;
+     }
+@@ -295,7 +319,7 @@ clext_list_modes(u16 seg, u16 *dest, u16 *last)
+     int i;
+     for (i=0; i<ARRAY_SIZE(cirrus_modes) && dest<last; i++) {
+         u16 mode = GET_GLOBAL(cirrus_modes[i].vesamode);
+-        if (mode == 0xffff)
++        if (mode == 0xffff || !cirrus_mode_fits(&cirrus_modes[i]))
+             continue;
+         SET_FARVAR(seg, *dest, mode);
+         dest++;
+@@ -372,9 +396,9 @@ clext_set_displaystart(struct vgamode_s *curmode_g, int val)
+     val = val * stdvga_vram_ratio(curmode_g) / 4;
+     stdvga_crtc_write(crtc_addr, 0x0d, val);
+     stdvga_crtc_write(crtc_addr, 0x0c, val >> 8);
+-    stdvga_crtc_mask(crtc_addr, 0x1d, 0x80, (val & 0x0800) >> 4);
++    stdvga_crtc_mask(crtc_addr, 0x1d, 0x80, (val & 0x80000) >> 12);
+     stdvga_crtc_mask(crtc_addr, 0x1b, 0x0d
+-                     , ((val & 0x0100) >> 8) | ((val & 0x0600) >> 7));
++                     , ((val & 0x10000) >> 16) | ((val & 0x60000) >> 15));
+     return 0;
+ }
+ 
+@@ -460,6 +484,8 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+     struct cirrus_mode_s *table_g = container_of(
+         vmode_g, struct cirrus_mode_s, info);
+     cirrus_switch_mode(table_g);
++    // The linear aperture in MB, SR07 bits 7-4, in every extended mode
++    stdvga_sequ_mask(0x07, 0xf0, GET_GLOBAL(VBE_framebuffer) >> 16);
+     if (GET_GLOBAL(vmode_g->memmodel) == MM_PACKED && !(flags & MF_NOPALETTE))
+         stdvga_set_packed_palette();
+     if (!(flags & MF_NOCLEARMEM))
+@@ -604,6 +630,32 @@ cirrus_get_memsize(void)
+     return 0x04 << x;
+ }
+ 
++// VBE 2.0's protected mode interface, the table and its code in vgaentry.S
++void
++clext_104f0a(struct bregs *regs)
++{
++    extern char cirrus_pmi[], cirrus_pmi_end[];
++    if (regs->bl) {
++        regs->ax = 0x014f;
++        return;
++    }
++    regs->es = get_global_seg();
++    regs->di = (u32)cirrus_pmi;
++    regs->cx = (u32)cirrus_pmi_end - (u32)cirrus_pmi;
++    regs->ax = 0x004f;
++}
++
++// An ISA or VL-Bus CL-GD542x maps its memory at a MB below 16 MB: 15 MB when extended memory ends at or below it
++static u32
++cirrus_isa_framebuffer(void)
++{
++    outb(0x30 | NMI_DISABLE_BIT, PORT_CMOS_INDEX);
++    u32 extended = inb(PORT_CMOS_DATA);
++    outb(0x31 | NMI_DISABLE_BIT, PORT_CMOS_INDEX);
++    extended |= (u32)inb(PORT_CMOS_DATA) << 8;
++    return extended + 1024 <= 15 * 1024 ? 0x00f00000 : 0;
++}
++
+ int
+ clext_setup(void)
+ {
+@@ -632,6 +684,8 @@ clext_setup(void)
+     if (CONFIG_VGA_PCI && bdf >= 0)
+         lfb_addr = (pci_config_readl(bdf, PCI_BASE_ADDRESS_0)
+                     & PCI_BASE_ADDRESS_MEM_MASK);
++    else
++        lfb_addr = cirrus_isa_framebuffer();
+     SET_VGA(VBE_framebuffer, lfb_addr);
+     u16 totalmem = cirrus_get_memsize();
+     SET_VGA(VBE_total_memory, totalmem * 64 * 1024);
 --- seabios-28aa463/vgasrc/stdvgaio.c
 +++ seabios/vgasrc/stdvgaio.c
 @@ -106,14 +106,21 @@ stdvga_crtc_mask(u16 crtc_addr, u8 index, u8 off, u8 on)
@@ -656,3 +977,147 @@
      // Enable video
      stdvga_attrindex_write(0x20);
  
+--- seabios-28aa463/vgasrc/vbe.c
++++ seabios/vgasrc/vbe.c
+@@ -431,7 +431,7 @@ static void
+ vbe_104f0a(struct bregs *regs)
+ {
+     debug_stub(regs);
+-    regs->ax = 0x0100;
++    if (CONFIG_VGA_CIRRUS) clext_104f0a(regs); else regs->ax = 0x0100;
+ }
+ 
+ static void
+--- seabios-28aa463/vgasrc/vgaentry.S
++++ seabios/vgasrc/vgaentry.S
+@@ -78,10 +78,120 @@ _rom_header_ati_table_anchor:
+         POPBREGS
+         .endm
+ 
++#if CONFIG_VGA_CIRRUS
++        // The VBE window function for a far call, GR09 or GR0A through port I/O only, so it works from protected
++        // mode too: BH 0 sets window BL to DX granules, BH 1 returns it in DX; AX and DX change
++        DECLFUNC entry_104f05
++entry_104f05:
++        movb %bl, %al
++        addb $0x09, %al
++        testb %bh, %bh
++        jnz 1f
++        movb %dl, %ah
++        movw $0x3ce, %dx
++        outw %ax, %dx
++        movw $0x004f, %ax
++        lretw
++1:      movw $0x3ce, %dx
++        outb %al, %dx
++        incw %dx
++        inb %dx, %al
++        movzbw %al, %dx
++        movw $0x004f, %ax
++        lretw
++
++        // VBE 2.0's protected mode interface (4F0Ah): offsets to set window, set display start and set palette, then
++        // the ports they use. The code is 32-bit, relocatable, and ends in a near return
++        DECLFUNC cirrus_pmi
++cirrus_pmi:
++        .word cirrus_pmi_window - cirrus_pmi
++        .word cirrus_pmi_start - cirrus_pmi
++        .word cirrus_pmi_palette - cirrus_pmi
++        .word cirrus_pmi_ports - cirrus_pmi
++        .code32
++        // BL window, DX position in granules
++cirrus_pmi_window:
++        movb %bl, %al
++        addb $0x09, %al
++        movb %dl, %ah
++        movw $0x3ce, %dx
++        outw %ax, %dx
++        ret
++        // BL 00h or 80h to wait for retrace, DX:CX the CRTC start address: CR0D, CR0C, and CR1B bits 0, 2 and 3
++cirrus_pmi_start:
++        shll $16, %edx
++        movw %cx, %dx
++        movl %edx, %ecx
++        testb $0x80, %bl
++        jz 3f
++        movw $0x3da, %dx
++1:      inb %dx, %al
++        testb $0x08, %al
++        jnz 1b
++2:      inb %dx, %al
++        testb $0x08, %al
++        jz 2b
++3:      movw $0x3d4, %dx
++        movb $0x0d, %al
++        movb %cl, %ah
++        outw %ax, %dx
++        movb $0x0c, %al
++        movb %ch, %ah
++        outw %ax, %dx
++        movb $0x1b, %al
++        outb %al, %dx
++        incw %dx
++        inb %dx, %al
++        andb $0xf2, %al
++        shrl $16, %ecx
++        movb %cl, %ah
++        andb $0x01, %ah
++        orb %ah, %al
++        movb %cl, %ah
++        shlb $1, %ah
++        andb $0x0c, %ah
++        orb %ah, %al
++        outb %al, %dx
++        ret
++        // BL 00h or 80h to wait for retrace, ECX entries from EDX, ES:EDI blue, green, red, unused
++cirrus_pmi_palette:
++        pushl %ecx
++        pushl %edx
++        testb $0x80, %bl
++        jz 3f
++        movw $0x3da, %dx
++1:      inb %dx, %al
++        testb $0x08, %al
++        jnz 1b
++2:      inb %dx, %al
++        testb $0x08, %al
++        jz 2b
++3:      popl %eax
++        popl %ecx
++        movw $0x3c8, %dx
++        outb %al, %dx
++        incw %dx
++        jecxz 5f
++4:      movb %es:2(%edi), %al
++        outb %al, %dx
++        movb %es:1(%edi), %al
++        outb %al, %dx
++        movb %es:(%edi), %al
++        outb %al, %dx
++        addl $4, %edi
++        loop 4b
++5:      ret
++        .code16
++cirrus_pmi_ports:
++        .word 0x3c8, 0x3c9, 0x3ce, 0x3cf, 0x3d4, 0x3d5, 0x3da, 0xffff, 0xffff
++        .global cirrus_pmi_end
++cirrus_pmi_end:
++#else
+         DECLFUNC entry_104f05
+ entry_104f05:
+         ENTRY_ARG_VGA vbe_104f05
+         lretw
++#endif
+ 
+         DECLFUNC _optionrom_entry
+ _optionrom_entry:
+--- seabios-28aa463/vgasrc/vgautil.h
++++ seabios/vgasrc/vgautil.h
+@@ -41,6 +41,7 @@ int clext_save_restore(int cmd, u16 seg, void *data);
+ int clext_set_mode(struct vgamode_s *vmode_g, int flags);
+ struct bregs;
+ void clext_1012(struct bregs *regs);
++void clext_104f0a(struct bregs *regs);
+ int clext_setup(void);
+ 
+ // atiext.c

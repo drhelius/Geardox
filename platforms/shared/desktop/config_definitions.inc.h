@@ -60,10 +60,14 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "VGARegisters", config_debug.show_vga_registers, false);
     CONFIG_BOOL("Debug", "Palettes", config_debug.show_palettes, false);
     CONFIG_BOOL("Debug", "VRAMViewer", config_debug.show_vram_viewer, false);
-    CONFIG_INT_RANGE("Debug", "VRAMViewerTab", config_debug.vram_viewer_tab, 0, 0, 6);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerTab", config_debug.vram_viewer_tab, 0, 0, 7);
     CONFIG_INT_RANGE("Debug", "VRAMViewerZoom", config_debug.vram_viewer_zoom, 0, 0, 2);
     CONFIG_BOOL("Debug", "VRAMViewerWindow", config_debug.vram_viewer_show_window, true);
     CONFIG_INT_RANGE("Debug", "VRAMViewerPitch", config_debug.vram_viewer_pitch, 0, 0, 512);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerLinearFormat", config_debug.vram_viewer_linear_format, 0, 0, 4);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerLinearPitch", config_debug.vram_viewer_linear_pitch, 0, 0, 8192);
+    CONFIG_INT_RANGE("Debug", "VRAMViewerLinearStart", config_debug.vram_viewer_linear_start, 0, 0, 0xFFFFF);
+    CONFIG_BOOL("Debug", "VRAMViewerLinearAutoStart", config_debug.vram_viewer_linear_auto_start, true);
     CONFIG_BOOL("Debug", "OPL", config_debug.show_opl, false);
     CONFIG_BOOL("Debug", "SoundBlaster", config_debug.show_sound_blaster, false);
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
@@ -255,6 +259,8 @@ static inline void process(config_Operation operation)
         k_sound_card_irqs[1]);
     CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
         k_sound_card_dmas[1]);
+    CONFIG_INT_RANGE("Machine", "Video", config_machine.video_card, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
+        GDOX_VIDEO_CARD_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "CDROMDrive", config_machine.cdrom, GDOX_CDROM_SECONDARY_MASTER, 0,
         GDOX_CDROM_POSITION_COUNT - 1);

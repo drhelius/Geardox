@@ -30,7 +30,7 @@ static const u8 k_firmware_config_signature_data[4] = { 'Q', 'E', 'M', 'U' };
 static const u8 k_firmware_config_id_data[4] = { 0x01, 0x00, 0x00, 0x00 };
 static const char* const k_firmware_config_file_names[FIRMWARE_CONFIG_FILE_COUNT] =
 {
-    "vgaroms/vgabios.bin", "etc/show-boot-menu", "etc/boot-menu-wait"
+    "vgaroms/vgabios.bin", "etc/show-boot-menu", "etc/boot-menu-wait", "etc/e820"
 };
 
 FirmwareConfig::FirmwareConfig()
@@ -38,6 +38,8 @@ FirmwareConfig::FirmwareConfig()
     m_enabled = false;
     InitPointer(m_vga_bios);
     m_vga_bios_size = 0;
+    memset(m_e820, 0, sizeof(m_e820));
+    m_e820_size = 0;
     m_state.selector = 0;
     m_state.offset = 0;
     SetBootMenu(false, 0);
@@ -71,6 +73,43 @@ void FirmwareConfig::SetBootMenu(bool show, u16 wait_ms)
     m_show_menu[1] = 0;
     m_menu_wait[0] = (u8)wait_ms;
     m_menu_wait[1] = (u8)(wait_ms >> 8);
+    BuildDirectory();
+}
+
+// With a memory hole at 15 MB for a video card's linear frame buffer, SeaBIOS takes its map from etc/e820: RAM below
+// 15 MB and from 16 MB up, little endian address, length and type. Without one the file is left out and SeaBIOS reads
+// the CMOS as before
+void FirmwareConfig::SetMemoryHole(u32 ram_size, bool hole)
+{
+    static const u32 k_hole_start = 15 * 1024 * 1024;
+    static const u32 k_hole_end = 16 * 1024 * 1024;
+
+    memset(m_e820, 0, sizeof(m_e820));
+    m_e820_size = 0;
+
+    if (hole)
+    {
+        u32 starts[FIRMWARE_CONFIG_E820_ENTRIES] = { 0, k_hole_end };
+        u32 lengths[FIRMWARE_CONFIG_E820_ENTRIES] = { k_hole_start, ram_size > k_hole_end ? ram_size - k_hole_end : 0 };
+
+        for (int i = 0; i < FIRMWARE_CONFIG_E820_ENTRIES; i++)
+        {
+            if (lengths[i] == 0)
+                continue;
+
+            u8* entry = m_e820 + m_e820_size;
+
+            for (int b = 0; b < 4; b++)
+            {
+                entry[b] = (u8)(starts[i] >> (b * 8));
+                entry[8 + b] = (u8)(lengths[i] >> (b * 8));
+            }
+
+            entry[16] = 1;
+            m_e820_size += FIRMWARE_CONFIG_E820_ENTRY_SIZE;
+        }
+    }
+
     BuildDirectory();
 }
 
@@ -144,24 +183,30 @@ bool FirmwareConfig::GetEntry(u16 selector, const u8*& data, u32& size) const
             data = m_menu_wait;
             size = sizeof(m_menu_wait);
             return true;
+        case k_firmware_config_file_first + 3:
+            data = m_e820;
+            size = m_e820_size;
+            return m_e820_size != 0;
         default:
             return false;
     }
 }
 
-// Big endian count, then size, selector, reserved and a 56-byte name per file
+// Big endian count, then size, selector, reserved and a 56-byte name per file; empty files are left out
 void FirmwareConfig::BuildDirectory()
 {
-    u32 sizes[FIRMWARE_CONFIG_FILE_COUNT] = { m_vga_bios_size, sizeof(m_show_menu), sizeof(m_menu_wait) };
-    int first = m_vga_bios_size != 0 ? 0 : 1;
-    u32 count = FIRMWARE_CONFIG_FILE_COUNT - first;
+    u32 sizes[FIRMWARE_CONFIG_FILE_COUNT] = { m_vga_bios_size, sizeof(m_show_menu), sizeof(m_menu_wait), m_e820_size };
+    u32 count = 0;
 
     memset(m_directory, 0, sizeof(m_directory));
-    m_directory[3] = (u8)count;
 
-    for (int i = first; i < FIRMWARE_CONFIG_FILE_COUNT; i++)
+    for (int i = 0; i < FIRMWARE_CONFIG_FILE_COUNT; i++)
     {
-        u8* entry = m_directory + 4 + (i - first) * FIRMWARE_CONFIG_FILE_ENTRY_SIZE;
+        if (sizes[i] == 0)
+            continue;
+
+        u8* entry = m_directory + 4 + count * FIRMWARE_CONFIG_FILE_ENTRY_SIZE;
+        count++;
         u16 selector = (u16)(k_firmware_config_file_first + i);
         entry[0] = (u8)(sizes[i] >> 24);
         entry[1] = (u8)(sizes[i] >> 16);
@@ -171,6 +216,8 @@ void FirmwareConfig::BuildDirectory()
         entry[5] = (u8)selector;
         strncpy_fit((char*)entry + 8, k_firmware_config_file_names[i], FIRMWARE_CONFIG_FILE_ENTRY_SIZE - 8);
     }
+
+    m_directory[3] = (u8)count;
 }
 
 void FirmwareConfig::SaveState(std::ostream& stream)

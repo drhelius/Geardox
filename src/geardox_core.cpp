@@ -105,6 +105,8 @@ GeardoxCore::GeardoxCore()
     m_machine_settings.sound_dma = GDOX_MACHINE_AUTO;
     m_machine_settings.cdrom = GDOX_MACHINE_AUTO;
     m_machine_settings.cdrom_speed = GDOX_MACHINE_AUTO;
+    m_machine_settings.video_card = GDOX_MACHINE_AUTO;
+    memset(&m_card_bus_waits, 0, sizeof(m_card_bus_waits));
 
     InitPointer(m_auto_entry);
     memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
@@ -1604,7 +1606,8 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.sound_card == machine_config.sound_card) &&
         (m_machine_config.sound_irq == machine_config.sound_irq) &&
         (m_machine_config.sound_dma == machine_config.sound_dma) && (m_machine_config.mouse == machine_config.mouse) &&
-        (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed);
+        (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed) &&
+        (m_machine_config.video_card == machine_config.video_card);
 
     if (!same_machine)
     {
@@ -1843,7 +1846,6 @@ bool GeardoxCore::GetSaveStateScreenshot(int index, const char* path, GDOX_SaveS
 
 void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& config, int version)
 {
-    UNUSED(version);
     G_SERIALIZE(serializer, config.model);
     G_SERIALIZE(serializer, config.cpu);
     G_SERIALIZE(serializer, config.ram_size);
@@ -1859,6 +1861,11 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.mouse);
     G_SERIALIZE(serializer, config.cdrom);
     G_SERIALIZE(serializer, config.cdrom_speed);
+
+    if (version >= GDOX_SAVESTATE_SVGA_VERSION)
+        G_SERIALIZE(serializer, config.video_card);
+    else
+        config.video_card = GDOX_VIDEO_CARD_VGA;
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -1910,6 +1917,10 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = config.cdrom < GDOX_CDROM_POSITION_COUNT ? config.cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
+    config.video_card = config.video_card < GDOX_VIDEO_CARD_COUNT ? config.video_card : (u8)GDOX_VIDEO_CARD_GD5428;
+
+    if (k_video_cards[config.video_card].local_bus && ((profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) == 0))
+        config.video_card = GDOX_VIDEO_CARD_GD5428;
 
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
@@ -2145,6 +2156,14 @@ void GeardoxCore::ResolveMachineConfig()
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
 
+    int video_card = m_machine_settings.video_card;
+    bool local_bus = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
+
+    if ((video_card >= 0) && (video_card < GDOX_VIDEO_CARD_COUNT))
+        config.video_card = (u8)video_card;
+    else
+        config.video_card = local_bus ? (u8)GDOX_VIDEO_CARD_GD5428_VLB : (u8)GDOX_VIDEO_CARD_GD5428;
+
     report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
     report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
     report.ram = auto_ram ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
@@ -2179,6 +2198,9 @@ void GeardoxCore::ResolveMachineConfig()
 
     if (!auto_fpu && (m_machine_settings.fpu != 0) && !config.fpu)
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no socket for an FPU");
+
+    if ((m_machine_settings.video_card == GDOX_VIDEO_CARD_GD5428_VLB) && (config.video_card != GDOX_VIDEO_CARD_GD5428_VLB))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no VL-Bus slot");
 
     bool hard_disk_boot = (m_boot_device == GDOX_BOOT_DEVICE_HARD_DISK) ||
         (IsValidPointer(entry) && ((entry->flags & GDOX_GAMEDB_HDD) != 0));
@@ -2226,6 +2248,13 @@ void GeardoxCore::ResolveMachineConfig()
             "Installs to a hard disk, attach a hard disk image");
 }
 
+// A Cirrus card's linear aperture sits at 15 MB, so with 16 MB or more the board leaves 15-16 MB to it, the "memory
+// hole at 15M-16M" of 486 board setups: RAM there is lost and extended memory stops at 15 MB
+bool GeardoxCore::HasMemoryHole() const
+{
+    return k_video_cards[m_machine_config.video_card].cirrus && (m_machine_config.ram_size >= 16 * 1024 * 1024);
+}
+
 bool GeardoxCore::CanAutoSelect(GDOX_Machine_Model model)
 {
     GDOX_Firmware_Source_Type type = m_firmware_sources[model].type;
@@ -2258,9 +2287,14 @@ bool GeardoxCore::LoadMachineFirmware(bool force, bool report)
         return false;
     }
 
+    bool cirrus = k_video_cards[m_pending_machine_config.video_card].cirrus;
+
     if (!force && m_firmware->IsReady() && (loaded.zip == source.zip) && (loaded.crc == source.crc) &&
-        (strcmp(loaded.path, source.path) == 0))
+        (strcmp(loaded.path, source.path) == 0) && (m_firmware->IsBuiltinCirrus() == cirrus))
         return true;
+
+    m_firmware->SetBuiltinCirrus(cirrus);
+
 
     if (!m_firmware->LoadSource(source))
         return false;
@@ -2296,6 +2330,9 @@ void GeardoxCore::ApplyMachineConfig()
 
     if (IsValidPointer(m_audio))
         m_audio->SetCard(m_machine_config.sound_card, m_machine_config.sound_irq, m_machine_config.sound_dma);
+
+    if (IsValidPointer(m_video))
+        m_video->SetCard(m_machine_config.video_card);
 
     if (IsValidPointer(m_i8042))
         m_i8042->SetMouse(m_machine_config.mouse == GDOX_MOUSE_PS2 ? m_ps2_mouse : NULL);
@@ -2336,6 +2373,7 @@ void GeardoxCore::ApplyFirmwareDevices()
     m_firmware_config->SetEnabled(seabios);
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
+    m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole());
     m_debug_console->SetEnabled(seabios && m_debug_console_enabled);
     m_debug_console->SetLogOutput(m_debug_console_log);
     m_io->UpdateDecodedPorts();
@@ -2358,7 +2396,17 @@ void GeardoxCore::ApplyBusTiming()
     const GDOX_Machine_Profile& profile = k_machine_profiles[m_machine_config.model];
     const GDOX_Machine_Bus_Timing* timing = profile.bus_timing;
     const GDOX_Machine_Bus_Waits* waits = IsValidPointer(timing) ? timing->compatible : NULL;
+    const GDOX_Video_Card_Info& card = k_video_cards[m_machine_config.video_card];
     u32 cpu_clock_rate = GetEffectiveCPUClockRate();
+
+    // A VL-Bus card's memory runs on the CPU's bus at its own waits, an ISA card keeps the model's
+    if (IsValidPointer(waits) && card.local_bus)
+    {
+        m_card_bus_waits = *waits;
+        m_card_bus_waits.vram_cycle[0] = card.local_bus_cycle[0];
+        m_card_bus_waits.vram_cycle[1] = card.local_bus_cycle[1];
+        waits = &m_card_bus_waits;
+    }
 
     const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
 
@@ -2436,6 +2484,17 @@ void GeardoxCore::InitMemoryMap()
         m_memory->GetMainRAMSize(), 0, ram_flags | GDOX_DEBUG_REGION_MAPPED))
         Error("Unable to map main RAM");
 
+    // Main RAM goes first: where it covers the linear aperture the board's DRAM answers, but for its hole at 15 MB
+    if (m_video->IsCirrus() && (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_LINEAR_VRAM, "Linear VRAM",
+        m_video->GetVRAMSize(), k_video_aperture_base, video_flags | (HasMemoryHole() ? GDOX_DEBUG_REGION_OVERLAY : 0),
+        m_video, Video::ReadLinearCallback,
+        Video::WriteLinearCallback, Video::PeekLinearCallback) ||
+        !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_LINEAR_VRAM, Video::WriteLinear16Callback,
+        Video::WriteLinear32Callback) ||
+        !m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_LINEAR_VRAM, Video::ReadLinear16Callback,
+        Video::ReadLinear32Callback)))
+        Error("Unable to register the linear VRAM");
+
     if (seabios && !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_BIOS_COPY, "BIOS Copy", bios_copy, bios_copy,
         copy_size, copy_base, ram_flags))
         Error("Unable to register the BIOS copy");
@@ -2472,6 +2531,9 @@ void GeardoxCore::InitCMOS()
     u32 megabyte = 1024 * 1024;
     u32 ram_size = m_machine_config.ram_size;
     u32 extended_kb = MIN(ram_size > megabyte ? (ram_size - megabyte) / 1024 : 0, 63U * 1024);
+
+    if (HasMemoryHole())
+        extended_kb = 14 * 1024;
     u32 high_blocks = ram_size > 16 * megabyte ? (ram_size - 16 * megabyte) / 0x10000 : 0;
     u8 order[3] = { 1, 2, 3 };
 

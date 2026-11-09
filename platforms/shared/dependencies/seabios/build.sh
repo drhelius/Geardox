@@ -30,14 +30,15 @@ build_rom()
     cp "$SCRIPT_DIR/$1" .config
     make "${options[@]}" olddefconfig > /dev/null
     make "${options[@]}" EXTRAVERSION=-geardox -j4
-    cp "out/$2" "$WORK_DIR/$2"
+    cp "out/$2" "$WORK_DIR/${3:-$2}"
     VERSION=$(sed -n 's/^#define BUILD_VERSION "\(.*\)"$/\1/p' out/autoversion.h)
 }
 
 build_rom bios.config bios.bin
 build_rom vgabios.config vgabios.bin
+build_rom vgabios_cirrus.config vgabios.bin vgabios_cirrus.bin
 
-"$PYTHON" - "$WORK_DIR/bios.bin" "$WORK_DIR/vgabios.bin" "$SCRIPT_DIR/seabios.cpp" "$VERSION" << 'PYTHON_EOF'
+"$PYTHON" - "$WORK_DIR/bios.bin" "$WORK_DIR/vgabios.bin" "$WORK_DIR/vgabios_cirrus.bin" "$SCRIPT_DIR/seabios.cpp" "$VERSION" << 'PYTHON_EOF'
 import sys
 
 header = """/*
@@ -60,12 +61,14 @@ def array(name, data):
 
 bios = open(sys.argv[1], "rb").read()
 vga = open(sys.argv[2], "rb").read()
+cirrus = open(sys.argv[3], "rb").read()
 
-with open(sys.argv[3], "w") as out:
+with open(sys.argv[4], "w") as out:
     out.write(header)
-    out.write('\nconst char* const k_seabios_version = "%s";\n' % sys.argv[4])
+    out.write('\nconst char* const k_seabios_version = "%s";\n' % sys.argv[5])
     out.write("\n" + array("k_seabios_bios", bios) + "\n")
     out.write("\n" + array("k_seabios_vgabios", vga) + "\n")
+    out.write("\n" + array("k_seabios_vgabios_cirrus", cirrus) + "\n")
 PYTHON_EOF
 
-echo "Built SeaBIOS $VERSION: bios.bin $(wc -c < "$WORK_DIR/bios.bin") bytes, vgabios.bin $(wc -c < "$WORK_DIR/vgabios.bin") bytes"
+echo "Built SeaBIOS $VERSION: bios.bin $(wc -c < "$WORK_DIR/bios.bin") bytes, vgabios.bin $(wc -c < "$WORK_DIR/vgabios.bin") bytes, vgabios_cirrus.bin $(wc -c < "$WORK_DIR/vgabios_cirrus.bin") bytes"

@@ -176,7 +176,9 @@ static const MemorySourceInfo k_memory_sources[] =
     { GDOX_DEBUG_REGION_SHADOW_ROM, MEMORY_GROUP_CPU_WINDOW, false,
         "The option ROMs from C0000, read-only shadow RAM once SeaBIOS locks it at the end of POST" },
     { GDOX_DEBUG_REGION_SHADOW_BIOS, MEMORY_GROUP_CPU_WINDOW, false,
-        "The F segment, read-only shadow RAM once SeaBIOS locks it at the end of POST" }
+        "The F segment, read-only shadow RAM once SeaBIOS locks it at the end of POST" },
+    { GDOX_DEBUG_REGION_LINEAR_VRAM, MEMORY_GROUP_CPU_WINDOW, false,
+        "The Cirrus card's video memory at the linear aperture SR07 selects" }
 };
 
 static DebugMemoryProvider memory_provider;

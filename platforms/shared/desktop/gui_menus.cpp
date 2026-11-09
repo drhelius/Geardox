@@ -76,6 +76,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile);
 static bool menu_machine_ram(const GDOX_Machine_Profile& profile);
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
 static bool menu_machine_sound(void);
+static bool menu_machine_video(void);
 static bool menu_machine_mouse(void);
 static bool menu_machine_cdrom_drive(void);
 static bool menu_machine_cdrom_speed(void);
@@ -861,6 +862,9 @@ static void menu_machine(void)
     if (menu_machine_sound())
         changed = true;
 
+    if (menu_machine_video())
+        changed = true;
+
     if (menu_machine_mouse())
         changed = true;
 
@@ -1244,6 +1248,52 @@ static bool menu_machine_sound(void)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Some old games only work with a fixed IRQ or DMA.\nOn the FreeDOS disk, BLASTER in FDAUTO.BAT doesn't follow this.");
 
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_video(void)
+{
+    if (!ImGui::BeginMenu("Video Card"))
+        return false;
+
+    bool changed = false;
+    int& card = config_machine.video_card;
+    const char* preview = card == GDOX_MACHINE_AUTO ? "Auto" : k_video_cards[card].name;
+
+    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(k_video_cards[GDOX_VIDEO_CARD_GD5428_VLB].name).x));
+
+    if (ImGui::BeginCombo("##machine_video_card", preview))
+    {
+        if (ImGui::Selectable("Auto", card == GDOX_MACHINE_AUTO))
+        {
+            card = GDOX_MACHINE_AUTO;
+            changed = true;
+        }
+
+        ImGui::Separator();
+
+        for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
+        {
+            if (ImGui::Selectable(k_video_cards[i].name, card == i))
+            {
+                card = i;
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Auto fits a Cirrus Logic GD5428 on the ISA bus, or on the VL-Bus on the 486.");
+        ImGui::Text("The VL-Bus card needs a model with a local bus, others fall back to the ISA card.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
 }

@@ -13,6 +13,12 @@
       "mimeType": "text/markdown"
     },
     {
+      "uri": "pc_video",
+      "title": "VGA and the Cirrus Logic CL-GD5428 — What MS-DOS Software Relies On",
+      "description": "The VGA ports and modes, the CL-GD5428 SVGA card on the ISA and VL-Bus: unlock, banking, the linear aperture, clocks and the hidden DAC, the VBE BIOS, and the debugger and MCP tools that show it",
+      "mimeType": "text/markdown"
+    },
+    {
       "uri": "pc_input_serial_parallel",
       "title": "Mouse, Joystick, Serial and Parallel Ports — What MS-DOS Software Relies On",
       "description": "The PS/2 and serial mouse, the game port and its joysticks, the two 16550A COM ports and LPT1, with the MCP tools and trace filters that drive and watch them",

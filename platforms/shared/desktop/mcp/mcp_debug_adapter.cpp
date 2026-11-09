@@ -2363,8 +2363,9 @@ json DebugAdapter::GetVideoOutputStatus()
     u8 graphics_mode = state->graphics[k_video_gr_mode];
     u8 memory_mode = state->sequencer[k_video_sr_memory_mode];
     u8 attribute_mode = state->attribute[k_video_ar_mode];
-
-    return {
+    json result = {
+        {"card", {{"id", k_video_cards[video->GetCard()].id}, {"name", k_video_cards[video->GetCard()].name},
+            {"vram_kb", video->GetVRAMSize() / 1024}}},
         {"misc", Hex(state->misc, 2)},
         {"memory", {
             {"enabled", (state->misc & 0x02) != 0},
@@ -2410,13 +2411,47 @@ json DebugAdapter::GetVideoOutputStatus()
             {"state", state->dac_state}
         }}
     };
+
+    if (video->IsCirrus())
+    {
+        static const char* const k_formats[8] = { "palette", "grey", "332", "555", "555_mixed", "565", "888", "blank" };
+
+        json clocks = json::array();
+
+        for (int i = 0; i < 4; i++)
+            clocks.push_back(video->GetVideoClock(i));
+
+        result["cirrus"] = {
+            {"unlocked", video->IsUnlocked()},
+            {"extended_mode", video->IsExtendedMode()},
+            {"format", k_formats[video->GetExtendedFormat()]},
+            {"bytes_per_pixel", video->GetExtendedBytesPerPixel()},
+            {"hidden_dac", Hex(state->hidden_dac, 2)},
+            {"pixel_path", (state->sequencer[k_video_sr_extended] >> 1) & 0x07},
+            {"vclk_hz", clocks},
+            {"vclk_selected", (state->misc >> 2) & 0x03},
+            {"dot_clock_hz", video->GetCurrentDotClock()},
+            {"bank_0", Hex(video->GetBankOffset(0), 6)},
+            {"bank_1", Hex(video->GetBankOffset(1), 6)},
+            {"dual_page", video->IsDualPage()},
+            {"aperture_base", video->GetApertureBase() != 0 ? json(Hex32(video->GetApertureBase())) : json()},
+            {"wide_counter", video->GetCounterMask() != 0xFFFF},
+            {"offset", video->GetOffsetRegister()},
+            {"pitch_bytes", video->GetOffsetRegister() * 8},
+            {"start_address", Hex(video->GetStartAddress(), 5)},
+            {"start_byte", Hex(video->GetStartAddress() * 4, 6)}
+        };
+    }
+
+    return result;
 }
 
 json DebugAdapter::GetVGARegisters()
 {
-    Video::Video_State* state = m_core->GetVideo()->GetState();
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
 
-    return {
+    json result = {
         {"misc", Hex(state->misc, 2)},
         {"feature", Hex(state->feature, 2)},
         {"sequencer", VideoRegisterArray(state->sequencer, VIDEO_SEQUENCER_COUNT)},
@@ -2424,6 +2459,20 @@ json DebugAdapter::GetVGARegisters()
         {"crtc", VideoRegisterArray(state->crtc, VIDEO_CRTC_COUNT)},
         {"attribute", VideoRegisterArray(state->attribute, VIDEO_ATTRIBUTE_COUNT)}
     };
+
+    if (video->IsCirrus())
+    {
+        result["cirrus"] = {
+            {"unlocked", video->IsUnlocked()},
+            {"sequencer", VideoRegisterArray(state->sequencer, VIDEO_SEQUENCER_EXT_COUNT)},
+            {"graphics", VideoRegisterArray(state->graphics, VIDEO_GRAPHICS_EXT_COUNT)},
+            {"crtc_first", 0x19},
+            {"crtc", VideoRegisterArray(state->crtc + 0x19, 0x27 - 0x19 + 1)},
+            {"hidden_dac", Hex(state->hidden_dac, 2)}
+        };
+    }
+
+    return result;
 }
 
 json DebugAdapter::GetPalettes(const std::string& palette)
@@ -2476,10 +2525,11 @@ json DebugAdapter::GetPalettes(const std::string& palette)
     return result;
 }
 
-json DebugAdapter::GetFrameBuffer(const std::string& buffer, int pitch)
+json DebugAdapter::GetFrameBuffer(const std::string& buffer, int pitch, int format, int start)
 {
     static const char* const k_buffers[Emu_Debug_Buffer_Count] = { "plane0", "plane1", "plane2", "plane3", "planar", "256",
-        "text" };
+        "text", "linear" };
+    static const int k_depths[4] = { 8, 15, 16, 24 };
 
     if (emu_is_empty())
         return {{"error", "Emulator is powered off"}};
@@ -2493,14 +2543,33 @@ json DebugAdapter::GetFrameBuffer(const std::string& buffer, int pitch)
     }
 
     if (index < 0)
-        return {{"error", "buffer must be plane0, plane1, plane2, plane3, planar, 256 or text"}};
+        return {{"error", "buffer must be plane0, plane1, plane2, plane3, planar, 256, text or linear"}};
 
-    if (pitch < 0 || pitch > 512)
-        return {{"error", "pitch must be 0-512"}};
+    int max_pitch = index == Emu_Debug_Buffer_Linear ? 8192 : 512;
+
+    if (pitch < 0 || pitch > max_pitch)
+        return {{"error", index == Emu_Debug_Buffer_Linear ? "pitch must be 0-8192" : "pitch must be 0-512"}};
+
+    int linear_format = Emu_Debug_Linear_Auto;
+
+    if (format != 0)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (format == k_depths[i])
+                linear_format = Emu_Debug_Linear_8 + i;
+        }
+
+        if (linear_format == Emu_Debug_Linear_Auto)
+            return {{"error", "format must be 8, 15, 16 or 24"}};
+    }
+
+    if (start < -1 || start >= VIDEO_VRAM_SIZE)
+        return {{"error", "start must be a byte offset inside the video memory"}};
 
     unsigned char* png = NULL;
     Emu_Debug_Buffer_Info info;
-    int size = emu_get_debug_buffer_png(index, pitch, &png, info);
+    int size = emu_get_debug_buffer_png(index, pitch, linear_format, start, &png, info);
 
     if (size <= 0 || !png)
         return {{"error", "Failed to decode video memory"}};
@@ -3013,6 +3082,7 @@ json DebugAdapter::GetSystemStatus()
     json cpu_setting = settings.cpu_mhz <= 0 ? json("auto") : json(settings.cpu_mhz);
     json ram_setting = settings.ram_mb <= 0 ? json("auto") : json(settings.ram_mb);
     json fpu_setting = settings.fpu < 0 ? json("auto") : settings.fpu == 0 ? json("none") : json("80387");
+    json video_setting = settings.video_card < 0 ? json("auto") : json(k_video_cards[settings.video_card].id);
     json warnings = json::array();
     SystemControl* system_control = m_core->GetSystemControl();
     SystemControl::SystemControl_State* board = system_control->GetState();
@@ -3035,10 +3105,12 @@ json DebugAdapter::GetSystemStatus()
             {"cpu_cache_serving", m_core->GetI386()->IsBusCached()},
             {"ram_kb", machine.ram_size / 1024},
             {"fpu", machine.fpu ? json(get_machine_fpu_name(machine.cpu)) : json()},
+            {"video", {{"card", k_video_cards[machine.video_card].name}, {"id", k_video_cards[machine.video_card].id},
+                {"vram_kb", m_core->GetVideo()->GetVRAMSize() / 1024}}},
             {"floppy_drives", machine.floppy_drives},
             {"firmware_set", IsValidPointer(profile.firmware_set) ? profile.firmware_set : ""},
             {"settings", {{"model", model_setting}, {"cpu_speed_mhz", cpu_setting}, {"ram_mb", ram_setting},
-                {"fpu", fpu_setting}}},
+                {"fpu", fpu_setting}, {"video", video_setting}}},
             {"source", {{"model", k_mcp_machine_sources[report.model]},
                 {"cpu_clock", k_mcp_machine_sources[report.cpu_clock]}, {"ram", k_mcp_machine_sources[report.ram]},
                 {"fpu", k_mcp_machine_sources[report.fpu]}}},

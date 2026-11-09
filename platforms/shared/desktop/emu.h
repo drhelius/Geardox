@@ -40,7 +40,18 @@ enum Emu_Debug_Buffer
     Emu_Debug_Buffer_Planar,
     Emu_Debug_Buffer_256,
     Emu_Debug_Buffer_Text,
+    Emu_Debug_Buffer_Linear,
     Emu_Debug_Buffer_Count
+};
+
+enum Emu_Debug_Linear_Format
+{
+    Emu_Debug_Linear_Auto = 0,
+    Emu_Debug_Linear_8,
+    Emu_Debug_Linear_15,
+    Emu_Debug_Linear_16,
+    Emu_Debug_Linear_24,
+    Emu_Debug_Linear_Count
 };
 
 struct Emu_Debug_Buffer_Info
@@ -54,6 +65,9 @@ struct Emu_Debug_Buffer_Info
     int window_y;
     int window_width;
     int window_height;
+    int format;
+    int bytes_per_pixel;
+    u32 start;
 };
 
 enum Debug_Command
@@ -165,8 +179,9 @@ EXTERN void emu_debug_break(void);
 EXTERN void emu_debug_continue(void);
 EXTERN void emu_debug_state_restored(void);
 EXTERN void emu_debug_update(void);
-EXTERN void emu_debug_decode_buffer(int buffer, int pitch, u8* output, Emu_Debug_Buffer_Info& info);
-EXTERN int emu_get_debug_buffer_png(int buffer, int pitch, unsigned char** out_buffer, Emu_Debug_Buffer_Info& info);
+EXTERN void emu_debug_decode_buffer(int buffer, int pitch, int format, int start, u8* output, Emu_Debug_Buffer_Info& info);
+EXTERN int emu_get_debug_buffer_png(int buffer, int pitch, int format, int start, unsigned char** out_buffer,
+    Emu_Debug_Buffer_Info& info);
 
 EXTERN void emu_update_joystick_type(void);
 EXTERN bool emu_save_screenshot(const char* file_path);

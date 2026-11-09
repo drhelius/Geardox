@@ -406,6 +406,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "auto"
     },
     {
+        "geardox_video_card",
+        "Video Card (restart)",
+        NULL,
+        "The video card in the machine. Auto fits a Cirrus Logic GD5428, on the VL-Bus in the 486. The VL-Bus card falls back to the ISA one on the other models.",
+        NULL,
+        "system",
+        {
+            { "auto",       "Auto" },
+            { "vga",        "VGA" },
+            { "gd5428",     "Cirrus Logic GD5428 ISA" },
+            { "gd5428_vlb", "Cirrus Logic GD5428 VL-Bus" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
         "geardox_mouse",
         "Mouse (restart)",
         NULL,

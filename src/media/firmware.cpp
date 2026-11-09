@@ -34,6 +34,7 @@ static const char* const k_firmware_file_names[GDOX_FIRMWARE_COUNT][FIRMWARE_FIL
 
 Firmware::Firmware()
 {
+    m_builtin_cirrus = false;
     Init();
 }
 
@@ -118,7 +119,7 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
         if (IsValidPointer(pending_data[i]))
             memcpy(destination, pending_data[i], size);
         else
-            memcpy(destination, k_seabios_vgabios, size);
+            memcpy(destination, GetBuiltinData(type), size);
 
         m_info[i] = m_pending_info[i];
 
@@ -160,7 +161,7 @@ bool Firmware::LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet)
     {
         GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
         SetBuiltinInfo(type, m_info[i]);
-        memcpy(GetWritableData(type), type == GDOX_FIRMWARE_SYSTEM_BIOS ? k_seabios_bios : k_seabios_vgabios, m_info[i].size);
+        memcpy(GetWritableData(type), GetBuiltinData(type), m_info[i].size);
     }
 
     if (!quiet)
@@ -172,15 +173,36 @@ bool Firmware::LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet)
     return true;
 }
 
-void Firmware::SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info)
+void Firmware::SetBuiltinCirrus(bool cirrus)
+{
+    m_builtin_cirrus = cirrus;
+}
+
+bool Firmware::IsBuiltinCirrus() const
+{
+    return m_builtin_cirrus;
+}
+
+// The VGA BIOS built for the card: SeaVGABIOS for a plain VGA or for the Cirrus Logic GD5428
+const u8* Firmware::GetBuiltinData(GDOX_Firmware_Type type) const
+{
+    if (type == GDOX_FIRMWARE_SYSTEM_BIOS)
+        return k_seabios_bios;
+
+    return m_builtin_cirrus ? k_seabios_vgabios_cirrus : k_seabios_vgabios;
+}
+
+void Firmware::SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info) const
 {
     bool system = type == GDOX_FIRMWARE_SYSTEM_BIOS;
-    const u8* data = system ? k_seabios_bios : k_seabios_vgabios;
+    const u8* data = GetBuiltinData(type);
+    const char* name = system ? "SeaBIOS" : m_builtin_cirrus ? "SeaVGABIOS CL-GD5428" : "SeaVGABIOS";
+    u32 size = system ? k_seabios_bios_size : m_builtin_cirrus ? k_seabios_vgabios_cirrus_size : k_seabios_vgabios_size;
 
     memset(&info, 0, sizeof(info));
     strncpy_fit(info.path, "Built-in", sizeof(info.path));
-    snprintf(info.database_name, sizeof(info.database_name), "%s %s", system ? "SeaBIOS" : "SeaVGABIOS", k_seabios_version);
-    info.size = (int)(system ? k_seabios_bios_size : k_seabios_vgabios_size);
+    snprintf(info.database_name, sizeof(info.database_name), "%s %s", name, k_seabios_version);
+    info.size = (int)size;
     info.crc = CalculateCRC32(0, data, (u32)info.size);
     info.loaded = true;
     info.recognized = true;

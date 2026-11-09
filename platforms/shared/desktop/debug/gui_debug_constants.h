@@ -382,6 +382,41 @@ static const char* const k_debug_attribute_register_names[21] =
     "PAL D", "PAL E", "PAL F", "MODE", "OVERSCAN", "PLANE EN", "PAN", "COLOR SEL"
 };
 
+static const char* const k_debug_cirrus_sequencer_register_names[27] =
+{
+    "RESERVED", "UNLOCK", "EXT MODE", "EEPROM", "SCRATCH 9", "SCRATCH A", "VCLK0 NUM", "VCLK1 NUM", "VCLK2 NUM",
+    "VCLK3 NUM", "DRAM", "CURSOR X", "CURSOR Y", "CURSOR ATTR", "CURSOR ADDR", "SCRATCH 14", "SCRATCH 15", "FIFO/RDY",
+    "CONFIG", "SIGNATURE", "TEST 19", "RESERVED", "VCLK0 DEN", "VCLK1 DEN", "VCLK2 DEN", "VCLK3 DEN", "MCLK"
+};
+
+static const char* const k_debug_cirrus_graphics_register_names[9] =
+{
+    "OFFSET 0", "OFFSET 1", "EXT MODE", "COLOR KEY", "KEY MASK", "DCLK", "RESERVED", "BG HIGH", "FG HIGH"
+};
+
+static const char* const k_debug_cirrus_blt_register_names[26] =
+{
+    "BLT W LO", "BLT W HI", "BLT H LO", "BLT H HI", "DST PITCH L", "DST PITCH H", "SRC PITCH L", "SRC PITCH H",
+    "DST ADDR L", "DST ADDR M", "DST ADDR H", "RESERVED", "SRC ADDR L", "SRC ADDR M", "SRC ADDR H", "DST MASK",
+    "BLT MODE", "BLT STATUS", "BLT ROP", "RESERVED", "TRANS CLR L", "TRANS CLR H", "RESERVED", "RESERVED",
+    "TRANS MSK L", "TRANS MSK H"
+};
+
+static const char* const k_debug_cirrus_crtc_register_names[5] =
+{
+    "INTERLACE", "MISC CTL", "EXT DISP", "RESERVED", "OVERLAY"
+};
+
+static const char* const k_debug_cirrus_id_register_names[3] =
+{
+    "PART STATUS", "AR INDEX", "CHIP ID"
+};
+
+static const char* const k_debug_extended_format_names[8] =
+{
+    "PALETTE", "GREY", "3:3:2", "5:5:5", "5:5:5 MIXED", "5:6:5", "8:8:8", "BLANK"
+};
+
 struct stDebugKeyName
 {
     GDOX_Keys key;
