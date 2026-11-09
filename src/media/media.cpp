@@ -24,7 +24,6 @@
 #include "media.h"
 #include "media_file.h"
 #include "crc.h"
-#include "game_db.h"
 #include "../cdrom/cdrom_media.h"
 
 Media::Media(CdRomMedia* cdrom_media)
@@ -174,7 +173,6 @@ bool Media::LoadMedia(const char* file_path)
     m_media_info.ready = true;
 
     Log("Media selected: %s (CRC %08X)", file_path, m_media_info.crc);
-    GatherDataFromDB();
     return true;
 }
 
@@ -229,7 +227,6 @@ bool Media::LoadPhysicalCdRom(const char* device_id)
     m_media_info.ready = true;
 
     Log("Physical CD-ROM selected: %s (CRC %08X)", device_id, m_media_info.crc);
-    GatherDataFromDB();
     return true;
 }
 #endif
@@ -378,7 +375,6 @@ void Media::ResetMediaInfo()
 {
     SafeDeleteArray(m_media_data);
     memset(&m_media_info, 0, sizeof(m_media_info));
-    InitPointer(m_db_entry);
 }
 
 void Media::GatherDataFromPath(const char* path)
@@ -413,51 +409,4 @@ void Media::GatherDataFromPath(const char* path)
         extension[i] = (char)std::tolower((unsigned char)extension[i]);
 
     strncpy_fit(m_media_info.extension, extension.c_str(), sizeof(m_media_info.extension));
-}
-
-void Media::GatherDataFromDB()
-{
-    for (int i = 0; k_game_database[i].title != 0; i++)
-    {
-        const GDOX_DB_Entry& entry = k_game_database[i];
-
-        if ((entry.crc == m_media_info.crc) && ((entry.flags & GDOX_GAMEDB_FIRMWARE_MASK) == 0))
-        {
-            m_db_entry = &entry;
-            Log("Media found in database: %s. CRC: %08X", entry.title, m_media_info.crc);
-            return;
-        }
-    }
-
-    u32 key = m_media_info.cdrom ? m_cdrom_media->GetVolumeKey() : 0;
-
-    for (int i = 0; (key != 0) && (k_game_database[i].title != 0); i++)
-    {
-        const GDOX_DB_Entry& entry = k_game_database[i];
-
-        if (entry.fallback_key == key)
-        {
-            m_db_entry = &entry;
-            Log("Media found in database by volume label: %s. CRC: %08X, volume key: %08X", entry.title, m_media_info.crc, key);
-            return;
-        }
-    }
-
-    Debug("Media not found in database. CRC: %08X, volume key: %08X", m_media_info.crc, key);
-}
-
-const GDOX_DB_Entry* Media::FindFloppyEntry(u32 crc)
-{
-    for (int i = 0; k_floppy_database[i].title != 0; i++)
-    {
-        const GDOX_DB_Entry& entry = k_floppy_database[i];
-
-        if (entry.crc == crc)
-        {
-            Log("Floppy disk found in database: %s. CRC: %08X", entry.title, crc);
-            return &entry;
-        }
-    }
-
-    return NULL;
 }

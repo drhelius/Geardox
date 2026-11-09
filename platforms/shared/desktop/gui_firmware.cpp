@@ -319,10 +319,8 @@ static void draw_component(GDOX_Firmware_Type type, const GDOX_Firmware_Info& in
         ImGui::TextColored(gray, "BLANK");
     else if (info.builtin)
         ImGui::TextColored(green, "BUILT-IN");
-    else if (info.recognized)
-        ImGui::TextColored(green, "RECOGNIZED");
     else if (info.loaded)
-        ImGui::TextColored(amber, "UNKNOWN");
+        ImGui::TextColored(green, "LOADED");
     else if (needed)
         ImGui::TextColored(red, "MISSING");
     else
@@ -355,12 +353,9 @@ static void draw_component(GDOX_Firmware_Type type, const GDOX_Firmware_Info& in
     if (info.synthetic)
         ImGui::Text("Not present, reads return FFh");
     else if (info.builtin)
-        ImGui::Text("%s, compiled into Geardox", info.database_name);
+        ImGui::Text("%s, compiled into Geardox", info.name);
     else if (info.loaded)
-    {
-        ImGui::Text("%s", info.recognized ? info.database_name : "Custom or unknown ROM");
         ImGui::Text("%s", info.path);
-    }
 
     ImGui::EndTooltip();
 }

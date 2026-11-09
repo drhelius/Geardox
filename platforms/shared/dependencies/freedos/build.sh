@@ -179,6 +179,11 @@ def kernel_without_sign_on():
 
 def disk_files():
     files = [(target, read_member(package, name)) for package, name, target in FILES]
+
+    for tool in ("gdxrun", "poweroff"):
+        source = os.path.join(script_dir, tool + ".asm")
+        files.append((BIN + tool.upper() + ".COM", assemble(source, os.path.join(work_dir, tool + ".com"))))
+
     files.append(("KERNEL.SYS", kernel_without_sign_on()))
     files.append(("FDCONFIG.SYS", text_file("FDCONFIG.SYS")))
     files.append(("FDAUTO.BAT", text_file("FDAUTO.BAT")))

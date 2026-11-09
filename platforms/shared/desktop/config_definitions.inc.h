@@ -22,6 +22,7 @@
 
 static void process_machine_model(config_Operation operation, int* model);
 static void process_machine_value(config_Operation operation, const char* key, int* value, const int* values, int count);
+static void process_machine_ram(config_Operation operation, int* ram_mb);
 static void process_machine_fpu(config_Operation operation, int* fpu);
 
 static inline void process(config_Operation operation)
@@ -233,6 +234,11 @@ static inline void process(config_Operation operation)
     CONFIG_STRING_ARRAY("HardDisk", "Recent%d", config_emulator.recent_hard_disks, config_max_recent_hard_disks, "");
     CONFIG_BOOL("HardDisk", "FreeDOS", config_emulator.hard_disk_freedos, true);
 
+    // Games
+    CONFIG_INT_RANGE("Game", "WriteBack", config_game.write_back, 0, 0, 1);
+    CONFIG_BOOL("Game", "CloseOnPowerOff", config_game.close_on_power_off, false);
+    CONFIG_STRING_ARRAY("Game", "Recent%d", config_game.recent, config_max_recent_games, "");
+
     // File dialogs
     CONFIG_STRING("FileDialogs", "ROM", config_file_dialogs.rom, "");
     CONFIG_STRING("FileDialogs", "States", config_file_dialogs.states, "");
@@ -249,7 +255,7 @@ static inline void process(config_Operation operation)
     // Machine
     process_machine_model(operation, &config_machine.model);
     process_machine_value(operation, "CPUSpeed", &config_machine.cpu_mhz, k_machine_cpu_speeds_mhz, GDOX_MACHINE_CPU_SPEED_COUNT);
-    process_machine_value(operation, "RAM", &config_machine.ram_mb, k_machine_ram_sizes_mb, GDOX_MACHINE_RAM_SIZE_COUNT);
+    process_machine_ram(operation, &config_machine.ram_mb);
     process_machine_fpu(operation, &config_machine.fpu);
     CONFIG_INT_RANGE("Machine", "FloppyTypeA", config_machine.floppy_type[0], 0, 0, GDOX_FLOPPY_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "FloppyTypeB", config_machine.floppy_type[1], 0, 0, GDOX_FLOPPY_TYPE_COUNT - 1);
@@ -515,9 +521,9 @@ static void migrate(int file_version)
 static void process_machine_model(config_Operation operation, int* model)
 {
     bool known = (*model >= 0) && (*model < GDOX_MACHINE_COUNT);
-    std::string text = known ? k_machine_profiles[*model].key : "auto";
-    process_string(operation, "Machine", "Model", &text, "auto", false);
-    *model = GDOX_MACHINE_AUTO;
+    std::string text = k_machine_profiles[known ? *model : k_machine_default_model].key;
+    process_string(operation, "Machine", "Model", &text, k_machine_profiles[k_machine_default_model].key, false);
+    *model = k_machine_default_model;
 
     for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
     {
@@ -543,11 +549,28 @@ static void process_machine_value(config_Operation operation, const char* key, i
     }
 }
 
+static void process_machine_ram(config_Operation operation, int* ram_mb)
+{
+    std::string text = std::to_string(*ram_mb > 0 ? *ram_mb : k_machine_default_ram_mb);
+    int parsed = 0;
+    process_string(operation, "Machine", "RAM", &text, std::to_string(k_machine_default_ram_mb).c_str(), false);
+    *ram_mb = k_machine_default_ram_mb;
+
+    if (!parse_int_string(text, &parsed))
+        return;
+
+    for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
+    {
+        if (parsed == k_machine_ram_sizes_mb[i])
+            *ram_mb = parsed;
+    }
+}
+
 static void process_machine_fpu(config_Operation operation, int* fpu)
 {
-    std::string text = *fpu < 0 ? "auto" : *fpu == 0 ? "none" : "80387";
-    process_string(operation, "Machine", "FPU", &text, "auto", false);
-    *fpu = text == "none" ? 0 : text == "80387" ? 1 : GDOX_MACHINE_AUTO;
+    std::string text = *fpu == 0 ? "none" : "80387";
+    process_string(operation, "Machine", "FPU", &text, "80387", false);
+    *fpu = text == "none" ? 0 : 1;
 }
 
 static void sync_shader_preset_parameter_defaults(void)

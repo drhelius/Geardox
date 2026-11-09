@@ -57,7 +57,6 @@ public:
     static bool IsValidSize(GDOX_Firmware_Type type, u32 size);
     static const char* GetSizeText(GDOX_Firmware_Type type);
     static bool IsRequired(GDOX_Firmware_Type type);
-    static u16 GetDatabaseFlag(GDOX_Firmware_Type type);
     static bool IsSeaBIOS(const u8* data, u32 size);
 
 private:
@@ -71,7 +70,6 @@ private:
         std::vector<std::string> files;
     };
 
-    void GatherDatabaseInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info);
     bool LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet);
     void SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info) const;
     const u8* GetBuiltinData(GDOX_Firmware_Type type) const;

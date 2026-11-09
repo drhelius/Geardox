@@ -38,6 +38,7 @@ static u32 state_changes = 0;
 static bool rewind_changed = false;
 static std::string source_paths[GDOX_MAX_HARD_DISKS];
 static std::string source_images[GDOX_MAX_HARD_DISKS];
+static bool game_disks[GDOX_MAX_HARD_DISKS];
 static Emu_HardDiskSource prepared_source;
 static const char k_freedos_image[] = "FreeDOS.hdd";
 
@@ -221,12 +222,25 @@ bool emu_hard_disk_attach(int id, const char* path, bool write_protected)
     return true;
 }
 
+// A game's disks are its own: never in the recent list, and they go when the game ends
+bool emu_hard_disk_attach_game(int id, const char* image, const char* source)
+{
+    if (!valid_id(id) || !IsValidPointer(image) || !emu_get_core()->AttachHardDisk(id, image, false, NULL))
+        return false;
+
+    source_paths[id] = IsValidPointer(source) ? source : "";
+    source_images[id] = image;
+    game_disks[id] = true;
+    return true;
+}
+
 bool emu_hard_disk_detach(int id)
 {
     if (!valid_id(id))
         return false;
 
     emu_get_core()->DetachHardDisk(id);
+    game_disks[id] = false;
     return true;
 }
 
@@ -327,6 +341,7 @@ bool emu_hard_disk_get_info(int id, Emu_HardDiskInfo* info)
     if ((path[0] != 0) && (source_images[id] == path))
         strncpy_fit(info->source, source_paths[id].c_str(), sizeof(info->source));
 
+    info->game = game_disks[id] && (path[0] != 0) && (source_images[id] == path);
     return true;
 }
 

@@ -85,9 +85,9 @@ const GDOX_Machine_Memory_Map k_machine_memory_maps[GDOX_MACHINE_MAP_COUNT] =
 
 const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
 {
-    { "386SX-20", "386sx_20", "Generic 386SX AT", "1989", true, GDOX_MACHINE_CPU_80386SX, GDOX_MACHINE_FPU_SOCKET, 20000000, GDOX_MACHINE_MAP_24BIT, 0, k_machine_ram_386sx_20, 2, 2, NULL, &k_machine_bus_386sx_20 },
-    { "386DX-33", "386dx_33", "Generic 386DX AT", "1989", true, GDOX_MACHINE_CPU_80386DX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_386dx_33, 4, 2, NULL, &k_machine_bus_386dx_33 },
-    { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486dx2_66, 8, 2, NULL, &k_machine_bus_486dx2_66 }
+    { "386SX-20", "386sx_20", "Generic 386SX AT", "1989", true, GDOX_MACHINE_CPU_80386SX, GDOX_MACHINE_FPU_SOCKET, 20000000, GDOX_MACHINE_MAP_24BIT, 0, k_machine_ram_386sx_20, 2, NULL, &k_machine_bus_386sx_20 },
+    { "386DX-33", "386dx_33", "Generic 386DX AT", "1989", true, GDOX_MACHINE_CPU_80386DX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_386dx_33, 2, NULL, &k_machine_bus_386dx_33 },
+    { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486dx2_66, 2, NULL, &k_machine_bus_486dx2_66 }
 };
 
 // The ISA cards keep the model's VGA waits. The VL-Bus card's: reads at 16 bus clocks fit TOPBENCH's video RAM column
@@ -148,6 +148,9 @@ const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
     { "CH FlightStick Pro", "flightstick" }
 };
 
+const GDOX_Machine_Model k_machine_default_model = GDOX_MACHINE_486DX2_66;
+const int k_machine_default_ram_mb = 8;
+
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {
     GDOX_MACHINE_386SX_20, GDOX_MACHINE_386DX_33, GDOX_MACHINE_486DX2_66
@@ -164,6 +167,26 @@ const GDOX_Machine_CPU_Info k_machine_cpus[GDOX_MACHINE_CPU_COUNT] =
     { "80486DX2", true, 4, true, 0x00000433, 0x00000010, 32, 2 },
     { "Pentium", false, 5, true, 0x00000520, 0x00000010, 64, 1 }
 };
+
+static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
+{
+    settings->model = GDOX_MACHINE_AUTO;
+    settings->cpu_mhz = GDOX_MACHINE_AUTO;
+    settings->ram_mb = GDOX_MACHINE_AUTO;
+    settings->fpu = GDOX_MACHINE_AUTO;
+    settings->speed_mode = GDOX_MACHINE_AUTO;
+
+    for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
+        settings->floppy_type[i] = GDOX_MACHINE_AUTO;
+
+    settings->sound_card = GDOX_MACHINE_AUTO;
+    settings->sound_irq = GDOX_MACHINE_AUTO;
+    settings->sound_dma = GDOX_MACHINE_AUTO;
+    settings->mouse = GDOX_MACHINE_AUTO;
+    settings->cdrom = GDOX_MACHINE_AUTO;
+    settings->cdrom_speed = GDOX_MACHINE_AUTO;
+    settings->video_card = GDOX_MACHINE_AUTO;
+}
 
 static inline const char* get_machine_fpu_name(GDOX_Machine_CPU cpu)
 {

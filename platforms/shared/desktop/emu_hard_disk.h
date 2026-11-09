@@ -38,6 +38,7 @@ struct Emu_HardDiskInfo
     bool pending_write_protected;
     u32 blocks;
     bool builtin;
+    bool game;
     u32 unflushed;
     char path[GDOX_MAX_PATH];
     char pending_path[GDOX_MAX_PATH];
@@ -64,6 +65,7 @@ EXTERN void emu_hard_disk_boot_freedos(void);
 EXTERN bool emu_hard_disk_attach_freedos(int id);
 EXTERN bool emu_hard_disk_recreate_freedos(void);
 EXTERN bool emu_hard_disk_attach(int id, const char* path, bool write_protected);
+EXTERN bool emu_hard_disk_attach_game(int id, const char* image, const char* source);
 EXTERN bool emu_hard_disk_detach(int id);
 EXTERN bool emu_hard_disk_create(int id, const char* path, int size_mb, bool formatted, bool write_protected);
 EXTERN bool emu_hard_disk_set_write_protected(int id, bool write_protected);

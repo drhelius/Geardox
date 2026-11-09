@@ -326,7 +326,6 @@ bool CdRomPhysicalImage::ReadTOC()
 void CdRomPhysicalImage::CalculateCRC()
 {
     m_crc = 0;
-    m_volume_key = 0;
     u32 current_sector = m_current_sector;
 
     for (size_t track_index = 0; track_index < m_toc.tracks.size(); track_index++)
@@ -356,7 +355,6 @@ void CdRomPhysicalImage::CalculateCRC()
             }
 
             m_crc = CalculateCRC32(m_crc, buffer, CDROM_PHYSICAL_DATA_SECTOR_SIZE);
-            CheckVolumeDescriptor(i, buffer);
         }
 
         Log("Physical CD-ROM CRC calculated from track %u: %08X", (u32)(track_index + 1), m_crc);

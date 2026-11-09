@@ -35,6 +35,7 @@
 #include "drive/floppy_image.h"
 #include "drive/hard_disk_image.h"
 #include "drive/fat_image.h"
+#include "drive/game_disk.h"
 #include "video/video.h"
 #include "libretro_core_options.h"
 #include "libretro_vfs_file.h"
@@ -146,6 +147,12 @@ static int floppy_drive = 0;
 static bool floppy_multidrive = false;
 static bool save_disk = false;
 static GDOX_Boot_Device boot_device = GDOX_BOOT_DEVICE_AUTO;
+static GameDisk game_disk;
+static bool game_active = false;
+static bool game_descriptors = true;
+static bool game_write_folder = false;
+static int game_target = GDOX_GAME_TARGET_GAME;
+static bool game_options_hidden = false;
 static bool cmos_shared = true;
 static bool bios_builtin = true;
 static bool cmos_shared_active = false;
@@ -188,6 +195,8 @@ static bool path_is_cdrom_uri(const char* path);
 static bool path_is_cd_content(const char* path);
 static bool path_is_raw_floppy(const char* path);
 static bool disk_load(const char* path);
+static bool game_open(const char* path, bool* game);
+static void game_end(void);
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_playlist(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_floppy_images(const char* path, std::vector<DiskSetImage>& images);
@@ -397,10 +406,10 @@ void retro_deinit(void)
     libretro_supports_dupe = false;
     libretro_supports_keyboard = false;
     audio_sample_count = 0;
-    machine_settings.model = GDOX_MACHINE_AUTO;
+    machine_settings.model = k_machine_default_model;
     machine_settings.cpu_mhz = GDOX_MACHINE_AUTO;
-    machine_settings.ram_mb = GDOX_MACHINE_AUTO;
-    machine_settings.fpu = GDOX_MACHINE_AUTO;
+    machine_settings.ram_mb = k_machine_default_ram_mb;
+    machine_settings.fpu = 1;
     machine_settings.speed_mode = GDOX_MACHINE_AUTO;
     machine_settings.floppy_type[0] = GDOX_MACHINE_AUTO;
     machine_settings.floppy_type[1] = GDOX_MACHINE_AUTO;
@@ -445,7 +454,12 @@ void retro_reset(void)
 
     check_variables();
     cmos_save();
-    core->SetBootDevice(boot_device);
+
+    if (game_active)
+        core->SetGameTarget(game_target);
+    else
+        core->SetBootDevice(boot_device);
+
     core->ResetMedia();
     report_machine();
     clear_input_state();
@@ -476,7 +490,7 @@ void retro_get_system_info(struct retro_system_info *info)
     info->library_version  = GDOX_VERSION;
     info->need_fullpath    = true;
     info->block_extract    = true;
-    info->valid_extensions = "cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3";
+    info->valid_extensions = "gdox|cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -524,7 +538,15 @@ void retro_run(void)
     hard_disk_update();
     cmos_update();
 
-    if (powered && !core->IsPoweredOn())
+    if (core->IsPowerOffRequested())
+    {
+        core->AcknowledgePowerOff();
+        show_message("Powered off by software", 2, RETRO_LOG_INFO);
+        log_cb(RETRO_LOG_INFO, "The guest powered the machine off\n");
+        game_end();
+        environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+    }
+    else if (powered && !core->IsPoweredOn())
     {
         show_message("Powered off by software", 2, RETRO_LOG_INFO);
         log_cb(RETRO_LOG_INFO, "Powered off by software\n");
@@ -724,17 +746,19 @@ static bool load_content(const char* path)
     set_machine_config();
     disk_clear();
     clear_input_state();
+    bool game = false;
 
-    if (!disk_load(path))
+    if (!game_open(path, &game) || (!game && !disk_load(path)))
     {
         unload_content();
         return false;
     }
 
     hard_disk_attach_freedos();
-    core->LatchAutoMedia();
     cmos_load();
-    core->SetBootDevice(boot_device);
+
+    if (!game)
+        core->SetBootDevice(boot_device);
 
     if (!core->PowerOn())
     {
@@ -815,6 +839,7 @@ static void unload_content(void)
     hard_disk_flush_failed = false;
     hard_disk_state_warned = false;
     hard_disk_image_attached = false;
+    game_end();
     disk_clear();
     clear_input_state();
 
@@ -830,8 +855,7 @@ static bool load_bios_folder(const char* folder, bool any_set)
     if (!core->LoadBios(folder))
         return false;
 
-    return any_set || (!core->GetPendingMachineReport().fallback &&
-        (core->GetFirmwareSource(core->GetPendingMachineConfig().model).type != GDOX_FIRMWARE_SOURCE_OTHER_SET));
+    return any_set || (core->GetFirmwareSource(core->GetPendingMachineConfig().model).type != GDOX_FIRMWARE_SOURCE_OTHER_SET);
 }
 
 // The system folder falls back to the built-in BIOS for a model without one of its own
@@ -860,34 +884,14 @@ static bool load_bios(void)
 
 static void check_bios(void)
 {
-    std::string unknown;
-    Firmware* firmware = core->GetFirmware();
-
-    for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
-    {
-        GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
-        const GDOX_Firmware_Info& info = firmware->GetInfo(type);
-
-        if (!info.loaded || info.recognized)
-            continue;
-
-        char entry[64];
-        snprintf(entry, sizeof(entry), "%s%s (CRC %08X)", unknown.empty() ? "" : ", ", Firmware::GetFileName(type), info.crc);
-        unknown += entry;
-    }
-
-    const GDOX_Firmware_Source& source = firmware->GetSource();
-    const char* model = k_machine_profiles[core->GetPendingMachineConfig().model].name;
+    const GDOX_Firmware_Source& source = core->GetFirmware()->GetSource();
     static char message[256];
 
-    if (!unknown.empty())
-        snprintf(message, sizeof(message), "Unknown firmware for the %s: %s", model, unknown.c_str());
-    else if (source.type == GDOX_FIRMWARE_SOURCE_OTHER_SET)
-        snprintf(message, sizeof(message), "Firmware made for another model: %s on the %s",
-            k_firmware_sets[source.set].description, model);
-    else
+    if (source.type != GDOX_FIRMWARE_SOURCE_OTHER_SET)
         return;
 
+    snprintf(message, sizeof(message), "Firmware made for another model: %s on the %s",
+        k_firmware_sets[source.set].description, k_machine_profiles[core->GetPendingMachineConfig().model].name);
     show_message(message, 2, RETRO_LOG_WARN);
     log_cb(RETRO_LOG_WARN, "%s\n", message);
 }
@@ -904,66 +908,26 @@ static void report_machine(void)
 {
     const GDOX_Machine_Config& config = core->GetMachineConfig();
     const GDOX_Machine_Report& report = core->GetMachineReport();
-    bool model = (report.model == GDOX_MACHINE_SOURCE_DATABASE) && (config.model != GDOX_MACHINE_386DX_33);
-    bool cpu = report.cpu_clock == GDOX_MACHINE_SOURCE_DATABASE;
-    bool ram = report.ram == GDOX_MACHINE_SOURCE_DATABASE;
-    bool fpu = report.fpu == GDOX_MACHINE_SOURCE_DATABASE;
     u32 ram_mb = config.ram_size / (1024 * 1024);
-    GDOX_Floppy_Notice floppy;
-    bool floppy_notice = core->GetFloppyNotice(floppy);
-    bool warning = (report.warning_count > 0) || floppy.warning;
-    const char* title = report.title;
-    const char* origin = IsValidPointer(report.title) ? "game database" : "Auto";
-    char source[256] = "";
-
-    if (report.model == GDOX_MACHINE_SOURCE_DATABASE)
-        snprintf(source, sizeof(source), " (Auto: game database, %s)", report.title);
-    else if (report.model == GDOX_MACHINE_SOURCE_DEFAULT)
-        snprintf(source, sizeof(source), " (Auto: not in the game database)");
-
     bool card = config.fpu && !k_machine_cpus[config.cpu].fpu;
-    log_cb(RETRO_LOG_INFO, "Machine: %s, %s %u MHz%s%s, %u MB RAM, %d floppy drives%s\n",
+
+    log_cb(RETRO_LOG_INFO, "Machine: %s, %s %u MHz%s%s, %u MB RAM, %d floppy drives%s%s\n",
         k_machine_profiles[config.model].name, k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000,
-        card ? " + " : "", card ? get_machine_fpu_name(config.cpu) : "", ram_mb, config.floppy_drives, source);
+        card ? " + " : "", card ? get_machine_fpu_name(config.cpu) : "", ram_mb, config.floppy_drives,
+        IsValidPointer(report.title) ? ", game: " : "", IsValidPointer(report.title) ? report.title : "");
 
     for (int i = 0; i < report.warning_count; i++)
         log_cb(RETRO_LOG_WARN, "%s\n", report.warnings[i]);
 
-    for (int i = 0; i < floppy.line_count; i++)
-        log_cb(floppy.warning ? RETRO_LOG_WARN : RETRO_LOG_INFO, "%s\n", floppy.lines[i]);
-
-    if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) && !floppy_notice))
+    if (!IsValidPointer(report.title) && (report.warning_count == 0))
         return;
 
     static char message[1024];
-    char choices[256] = "";
-    char value[32];
 
-    if (model)
-        strncpy_fit(choices, k_machine_profiles[config.model].name, sizeof(choices));
-
-    if (cpu)
-    {
-        snprintf(value, sizeof(value), "%s%u MHz", choices[0] ? ", " : "", config.cpu_clock_rate / 1000000);
-        strncat_fit(choices, value, sizeof(choices));
-    }
-
-    if (ram)
-    {
-        snprintf(value, sizeof(value), "%s%u MB", choices[0] ? ", " : "", ram_mb);
-        strncat_fit(choices, value, sizeof(choices));
-    }
-
-    if (fpu)
-    {
-        snprintf(value, sizeof(value), "%s%s", choices[0] ? ", " : "", get_machine_fpu_name(config.cpu));
-        strncat_fit(choices, value, sizeof(choices));
-    }
-
-    if (choices[0])
-        snprintf(message, sizeof(message), "%s: %s (%s)", title, choices, origin);
+    if (IsValidPointer(report.title))
+        snprintf(message, sizeof(message), "%s: %s, %u MB", report.title, k_machine_profiles[config.model].name, ram_mb);
     else
-        snprintf(message, sizeof(message), "%s (%s)", title, origin);
+        snprintf(message, sizeof(message), "%s, %u MB", k_machine_profiles[config.model].name, ram_mb);
 
     for (int i = 0; i < report.warning_count; i++)
     {
@@ -971,13 +935,7 @@ static void report_machine(void)
         strncat_fit(message, report.warnings[i], sizeof(message));
     }
 
-    for (int i = 0; i < floppy.line_count; i++)
-    {
-        strncat_fit(message, ". ", sizeof(message));
-        strncat_fit(message, floppy.lines[i], sizeof(message));
-    }
-
-    show_message(message, 2, warning ? RETRO_LOG_WARN : RETRO_LOG_INFO);
+    show_message(message, 2, report.warning_count > 0 ? RETRO_LOG_WARN : RETRO_LOG_INFO);
 }
 
 static void show_message(const char* message, unsigned priority, enum retro_log_level level)
@@ -1443,13 +1401,42 @@ static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint
     }
 }
 
+// A descriptor beats the core options it sets, so those are hidden while its game runs (R15-D17, R15-D27)
+static bool update_game_options_display(void)
+{
+    static const char* const k_options[][3] = {
+        { "geardox_model", "machine", "model" }, { "geardox_cpu_clock", "machine", "cpu_mhz" },
+        { "geardox_turbo", "machine", "turbo" }, { "geardox_main_ram", "machine", "ram" },
+        { "geardox_fpu", "machine", "fpu" }, { "geardox_floppy_a", "machine", "floppy_a" },
+        { "geardox_floppy_b", "machine", "floppy_b" }, { "geardox_video_card", "machine", "video" },
+        { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
+        { "geardox_sound_dma", "sound", "dma" }, { "geardox_mouse", "input", "mouse" },
+        { "geardox_joystick", "input", "joystick" }, { "geardox_cdrom_drive", "drives", "cd" },
+        { "geardox_cdrom_speed", "drives", "cd_speed" } };
+    bool hide = game_active && game_descriptors;
+
+    if (!hide && !game_options_hidden)
+        return false;
+
+    for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
+    {
+        bool set = hide && game_disk.GetDescriptor().Has(k_options[i][1], k_options[i][2]);
+        struct retro_core_option_display display = { k_options[i][0], !set };
+        environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
+    }
+
+    game_options_hidden = hide;
+    return true;
+}
+
 static bool update_core_options_display(void)
 {
     struct retro_variable var = { "geardox_frameskip", NULL };
     bool threshold_visible = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && (strcmp(var.value, "Manual") == 0);
+    bool changed = update_game_options_display();
 
     if (threshold_visible == frameskip_threshold_visible)
-        return false;
+        return changed;
 
     struct retro_core_option_display display = { "geardox_frameskip_threshold", threshold_visible };
     environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &display);
@@ -1526,7 +1513,8 @@ static void check_variables(void)
                 joystick_type = (GDOX_Joystick_Type)i;
         }
 
-        core->GetInput()->SetJoystickType(joystick_type);
+        if (!game_active || !game_disk.GetDescriptor().Has("input", "joystick"))
+            core->GetInput()->SetJoystickType(joystick_type);
     }
 
     var.key = "geardox_fm_volume";
@@ -1592,7 +1580,7 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        machine_settings.model = GDOX_MACHINE_AUTO;
+        machine_settings.model = k_machine_default_model;
 
         for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
         {
@@ -1614,7 +1602,7 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        machine_settings.ram_mb = strcmp(var.value, "auto") == 0 ? GDOX_MACHINE_AUTO : atoi(var.value);
+        machine_settings.ram_mb = atoi(var.value) > 0 ? atoi(var.value) : k_machine_default_ram_mb;
     }
 
     var.key = "geardox_fpu";
@@ -1622,7 +1610,7 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        machine_settings.fpu = strcmp(var.value, "none") == 0 ? 0 : strcmp(var.value, "80387") == 0 ? 1 : GDOX_MACHINE_AUTO;
+        machine_settings.fpu = strcmp(var.value, "none") == 0 ? 0 : 1;
     }
 
     static const char* const floppy_keys[GDOX_MAX_FLOPPY_DRIVES] = { "geardox_floppy_a", "geardox_floppy_b" };
@@ -1725,9 +1713,28 @@ static void check_variables(void)
         bool turbo = strcmp(var.value, "Off") != 0;
         machine_settings.speed_mode = turbo ? 1 : 0;
 
-        if (core->IsTurbo() != turbo)
+        if ((core->IsTurbo() != turbo) && (!game_active || !game_disk.GetDescriptor().Has("machine", "turbo")))
             core->SetTurbo(turbo);
     }
+
+    var.key = "geardox_descriptor";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        game_descriptors = strcmp(var.value, "disabled") != 0;
+
+    var.key = "geardox_game_target";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        game_target = strcmp(var.value, "setup") == 0 ? GDOX_GAME_TARGET_SETUP :
+            strcmp(var.value, "prompt") == 0 ? GDOX_GAME_TARGET_PROMPT : GDOX_GAME_TARGET_GAME;
+
+    var.key = "geardox_write_back";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        game_write_folder = strcmp(var.value, "game_folder") == 0;
 
     var.key = "geardox_freedos";
     var.value = NULL;
@@ -2908,6 +2915,163 @@ static bool hard_disk_attach_source(const char* path)
 
     log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", id, image.c_str());
     return true;
+}
+
+// A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop (R15). Images, manifests and
+// overlays live in the save directory
+static bool game_open(const char* path, bool* game)
+{
+    std::vector<GameDisk_Found> found;
+    *game = false;
+
+    if (!game_descriptors || (path[0] == 0) || !GameDisk::Find(path, &found))
+        return true;
+
+    *game = true;
+
+    if (found.size() > 1)
+        log_cb(RETRO_LOG_INFO, "%u game descriptors, the first by name runs: %s\n", (unsigned)found.size(),
+            found[0].inner.empty() ? found[0].path.c_str() : found[0].inner.c_str());
+
+    static char message[1024];
+
+    if (!game_disk.Open(found[0], retro_save_directory, NULL, game_write_folder))
+    {
+        snprintf(message, sizeof(message), "%s", game_disk.GetError());
+        show_message(message, 3, RETRO_LOG_ERROR);
+        return false;
+    }
+
+    for (int i = 0; i < game_disk.GetDescriptor().GetWarningCount(); i++)
+        log_cb(RETRO_LOG_WARN, "%s\n", game_disk.GetDescriptor().GetWarning(i));
+
+    GDOX_Machine_Settings settings;
+    game_disk.GetGameSettings(machine_settings, &settings);
+    core->SetGameSettings(settings, game_disk.GetName());
+
+    if (!game_disk.Prepare(core->GetPendingMachineConfig()))
+    {
+        snprintf(message, sizeof(message), "%s", game_disk.GetError());
+        show_message(message, 3, RETRO_LOG_ERROR);
+        game_disk.Close();
+        core->ClearGameSettings();
+        return false;
+    }
+
+    if (game_disk.WasRecovered())
+        show_message("The last session didn't end, its changes were saved", 2, RETRO_LOG_WARN);
+
+    if (game_disk.GetRefusedPath()[0] != 0)
+    {
+        log_cb(RETRO_LOG_ERROR, "The last session's disk didn't add up, kept as %s\n", game_disk.GetRefusedPath());
+        show_message("The last session's disk didn't add up, its changes weren't saved", 3, RETRO_LOG_ERROR);
+    }
+
+    if (!core->AttachHardDisk(0, game_disk.GetImagePath(), false, ""))
+    {
+        log_cb(RETRO_LOG_ERROR, "Unable to attach the game's disk %s\n", game_disk.GetImagePath());
+        game_disk.Close();
+        core->ClearGameSettings();
+        return false;
+    }
+
+    hard_disk_image_attached = true;
+    game_active = true;
+    log_cb(RETRO_LOG_INFO, "Game %s: %s %s\n", game_disk.GetName(), game_disk.WasBuilt() ? "built" : "reused",
+        game_disk.GetImagePath());
+    std::string second = game_disk.GetSecondDisk();
+
+    if (!second.empty())
+    {
+        std::vector<std::string> folders;
+        std::vector<std::string> files;
+        bool source = ends_with_no_case(second.c_str(), ".zip") || MediaFile::ListDirectory(second.c_str(), folders, files);
+
+        if (source)
+        {
+            std::string name;
+            std::string image(retro_save_directory);
+            FatImage_Report report;
+            FatImage::GetImageName(second.c_str(), &name);
+            append_path_component(image, name.c_str());
+            FatImage::Prepare(second.c_str(), image.c_str(), false, &report);
+            second = (report.result == FAT_IMAGE_ERROR) || (report.result == FAT_IMAGE_TOO_BIG) ? std::string() : image;
+        }
+
+        if (second.empty() || !core->AttachHardDisk(1, second.c_str(), false, ""))
+            log_cb(RETRO_LOG_ERROR, "Unable to attach drive D: %s\n", game_disk.GetSecondDisk());
+    }
+
+    for (int drive = 0; drive < 2; drive++)
+    {
+        const std::vector<std::string>& floppies = game_disk.GetFloppies(drive);
+
+        for (size_t i = 0; i < floppies.size(); i++)
+        {
+            size_t index = disk_images.size();
+
+            if (!disk_add_images(floppies[i].c_str(), disk_images))
+                return false;
+
+            if ((i == 0) && (index < disk_images.size()))
+                disk_insert((unsigned)index, drive == 0 ? DISK_DRIVE_FLOPPY_1 : DISK_DRIVE_FLOPPY_2);
+        }
+    }
+
+    const std::vector<std::string>& cds = game_disk.GetCdRoms();
+
+    for (size_t i = 0; i < cds.size(); i++)
+    {
+        size_t index = disk_images.size();
+
+        if (!disk_add_images(cds[i].c_str(), disk_images))
+            return false;
+
+        if ((i == 0) && (index < disk_images.size()))
+            disk_insert((unsigned)index, DISK_DRIVE_CDROM);
+    }
+
+    const GDOX_Game_Info& info = game_disk.GetDescriptor().GetInfo();
+
+    if (info.joystick >= 0)
+        core->GetInput()->SetJoystickType((GDOX_Joystick_Type)info.joystick);
+
+    core->SetGameTarget(game_target);
+    core->SetBootDevice(info.boot_floppy ? GDOX_BOOT_DEVICE_FLOPPY_0 : GDOX_BOOT_DEVICE_HARD_DISK);
+    update_core_options_display();
+    return true;
+}
+
+// The machine lets go of the game's disks, then what DOS changed goes back. A frontend killed before this leaves the
+// manifest open, and the next load writes it back
+static void game_end(void)
+{
+    if (!game_active)
+        return;
+
+    game_active = false;
+
+    if (core->IsPoweredOn())
+        core->PowerOff();
+
+    core->FlushHardDisks();
+    core->DetachHardDisk(0);
+    core->DetachHardDisk(1);
+
+    if (!game_disk.Finish())
+        log_cb(RETRO_LOG_ERROR, "The game's changes weren't written back, the next load tries again\n");
+
+    const GameDisk_Result& r = game_disk.GetLastWriteBack();
+    log_cb(RETRO_LOG_INFO, "Write-back: %u written, %u deleted, %u folders, %u conflicts, %u kept\n", r.written,
+        r.deleted, r.directories, r.conflicts, r.kept);
+
+    for (size_t i = 0; i < r.notes.size(); i++)
+        log_cb(RETRO_LOG_WARN, "%s\n", r.notes[i].c_str());
+
+    game_disk.Close();
+    core->ClearGameSettings();
+    core->SetGameTarget(-1);
+    update_core_options_display();
 }
 
 static void hard_disk_attach_freedos(void)

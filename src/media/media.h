@@ -24,7 +24,6 @@
 #include "../common/common.h"
 
 class CdRomMedia;
-struct GDOX_DB_Entry;
 
 class Media
 {
@@ -57,7 +56,6 @@ public:
     void Init();
     void Reset();
     static bool ParsePlaylist(const char* playlist_path, const char* text, size_t size, std::vector<PlaylistEntry>& entries);
-    static const GDOX_DB_Entry* FindFloppyEntry(u32 crc);
     bool LoadMedia(const char* file_path);
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     bool LoadPhysicalCdRom(const char* device_id);
@@ -78,7 +76,6 @@ public:
     const u8* GetData() const;
     int GetSize() const;
     u32 GetCRC() const;
-    const GDOX_DB_Entry* GetGameDBEntry() const;
     const MediaFileInfo& GetMediaInfo() const;
 
 private:
@@ -86,12 +83,10 @@ private:
     bool LoadCdRomFromZipFile(const char* file_path);
     void ResetMediaInfo();
     void GatherDataFromPath(const char* path);
-    void GatherDataFromDB();
 
 private:
     CdRomMedia* m_cdrom_media;
     MediaFileInfo m_media_info;
-    const GDOX_DB_Entry* m_db_entry;
     char m_temp_path[GDOX_MAX_PATH];
     u8* m_media_data;
     bool m_preload_cdrom;

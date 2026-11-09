@@ -39,7 +39,6 @@
 #include "common/trace_logger.h"
 #include "common/state_serializer.h"
 #include "media/media.h"
-#include "media/game_db.h"
 #include "system/memory.h"
 #include "i386/i386.h"
 #include "i386/x87.h"
@@ -90,25 +89,12 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_profiler);
     InitPointer(m_frame_buffer);
 
-    m_machine_settings.model = GDOX_MACHINE_386DX_33;
-    m_machine_settings.cpu_mhz = GDOX_MACHINE_AUTO;
-    m_machine_settings.ram_mb = GDOX_MACHINE_AUTO;
-    m_machine_settings.fpu = GDOX_MACHINE_AUTO;
-    m_machine_settings.speed_mode = GDOX_MACHINE_AUTO;
-
-    for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
-        m_machine_settings.floppy_type[i] = GDOX_MACHINE_AUTO;
-
-    m_machine_settings.sound_card = GDOX_MACHINE_AUTO;
-    m_machine_settings.sound_irq = GDOX_MACHINE_AUTO;
-    m_machine_settings.mouse = GDOX_MACHINE_AUTO;
-    m_machine_settings.sound_dma = GDOX_MACHINE_AUTO;
-    m_machine_settings.cdrom = GDOX_MACHINE_AUTO;
-    m_machine_settings.cdrom_speed = GDOX_MACHINE_AUTO;
-    m_machine_settings.video_card = GDOX_MACHINE_AUTO;
+    clear_machine_settings(&m_machine_settings);
+    clear_machine_settings(&m_game_settings);
+    m_machine_settings.model = k_machine_default_model;
+    m_game = false;
     memset(&m_card_bus_waits, 0, sizeof(m_card_bus_waits));
 
-    InitPointer(m_auto_entry);
     memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
 
     for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
@@ -124,6 +110,8 @@ GeardoxCore::GeardoxCore()
     m_boot_device = GDOX_BOOT_DEVICE_AUTO;
     m_ram_size_locked = false;
     m_boot_menu = false;
+    m_game_target = -1;
+    m_firmware_searched = false;
     m_debug_console_enabled = true;
     m_debug_console_log = false;
     ResolveMachineConfig();
@@ -829,24 +817,22 @@ void GeardoxCore::SetMachineSettings(const GDOX_Machine_Settings& settings)
         m_machine_report = m_pending_machine_report;
 }
 
-void GeardoxCore::LatchAutoMedia()
+void GeardoxCore::SetGameSettings(const GDOX_Machine_Settings& settings, const char* name)
 {
-    const GDOX_DB_Entry* cdrom = IsValidPointer(m_media) ? m_media->GetGameDBEntry() : NULL;
-    const GDOX_DB_Entry* floppy = NULL;
+    m_game_settings = settings;
+    m_game_name = IsValidPointer(name) ? name : "";
+    m_game = true;
+    ResolveMachineConfig();
 
-    for (int i = 0; IsValidPointer(m_fdc) && (i < FDC_DRIVES); i++)
-    {
-        FloppyDisk* disk = GetFloppy(i);
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+}
 
-        if (!disk->IsInserted())
-            continue;
-
-        if (!IsValidPointer(floppy) && (disk->GetDataCRC() != 0))
-            floppy = Media::FindFloppyEntry(disk->GetDataCRC());
-    }
-
-    bool uses_floppy = !IsValidPointer(cdrom) || ((cdrom->flags & GDOX_GAMEDB_FLOPPY_MASK) != 0);
-    m_auto_entry = (IsValidPointer(floppy) && uses_floppy) ? floppy : cdrom;
+void GeardoxCore::ClearGameSettings()
+{
+    clear_machine_settings(&m_game_settings);
+    m_game_name.clear();
+    m_game = false;
     ResolveMachineConfig();
 
     if (!IsMachineConfigPending())
@@ -869,6 +855,10 @@ bool GeardoxCore::IsMachineConfigPending()
 void GeardoxCore::SetTurbo(bool turbo)
 {
     m_machine_settings.speed_mode = turbo ? 1 : 0;
+
+    if (m_game_settings.speed_mode >= 0)
+        m_game_settings.speed_mode = turbo ? 1 : 0;
+
     m_machine_config.speed_mode = turbo ? 1 : 0;
     m_pending_machine_config.speed_mode = m_machine_config.speed_mode;
     ApplyCPUSpeed();
@@ -884,39 +874,6 @@ u32 GeardoxCore::GetEffectiveCPUClockRate() const
 {
     u32 rate = m_machine_config.cpu_clock_rate;
     return m_machine_config.speed_mode == 0 ? rate / 3 : rate;
-}
-
-bool GeardoxCore::GetFloppyNotice(GDOX_Floppy_Notice& notice)
-{
-    const GDOX_DB_Entry* entry = m_auto_entry;
-    notice.warning = false;
-    notice.line_count = 0;
-
-    if (!IsValidPointer(entry) || ((entry->flags & GDOX_GAMEDB_FLOPPY_MASK) == 0))
-        return false;
-
-    for (int i = 0; i < m_machine_config.floppy_drives; i++)
-    {
-        if (GetFloppy(i)->IsInserted())
-            return false;
-    }
-
-    notice.warning = (entry->flags & (GDOX_GAMEDB_FLOPPY_BOOT | GDOX_GAMEDB_FLOPPY_REQUIRED | GDOX_GAMEDB_FLOPPY_PROTECTED)) != 0;
-
-    if ((entry->flags & GDOX_GAMEDB_FLOPPY_BOOT) != 0)
-        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
-            "%s boots from its floppy disk, insert it in Floppy 1", entry->title);
-    else if ((entry->flags & GDOX_GAMEDB_FLOPPY_REQUIRED) != 0)
-        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
-            "%s needs its floppy disk, insert it in Floppy 1", entry->title);
-    else if ((entry->flags & GDOX_GAMEDB_FLOPPY_OPTIONAL) != 0)
-        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE,
-            "%s came with an optional floppy disk, it runs without it", entry->title);
-
-    if ((entry->flags & GDOX_GAMEDB_FLOPPY_PROTECTED) != 0)
-        snprintf(notice.lines[notice.line_count++], GDOX_MACHINE_WARNING_SIZE, "Its original floppy disk is copy protected");
-
-    return true;
 }
 
 bool GeardoxCore::LoadBios(const char* directory_path)
@@ -1169,6 +1126,25 @@ void GeardoxCore::SetBootMenu(bool show)
 
     if (IsValidPointer(m_firmware_config))
         m_firmware_config->SetBootMenu(show, show ? k_boot_menu_wait_ms : 0);
+}
+
+void GeardoxCore::SetGameTarget(int target)
+{
+    m_game_target = target;
+
+    if (IsValidPointer(m_firmware_config))
+        m_firmware_config->SetGameTarget(target);
+}
+
+bool GeardoxCore::IsPowerOffRequested() const
+{
+    return IsValidPointer(m_system_control) && m_system_control->IsPowerOffRequested();
+}
+
+void GeardoxCore::AcknowledgePowerOff()
+{
+    if (IsValidPointer(m_system_control))
+        m_system_control->AcknowledgePowerOff();
 }
 
 void GeardoxCore::SetDebugConsole(bool enabled, bool log)
@@ -1895,12 +1871,12 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     bool known_model = ((int)config.model >= 0) && ((int)config.model < GDOX_MACHINE_COUNT);
 
     if (!known_model || !k_machine_profiles[config.model].emulated)
-        config.model = GDOX_MACHINE_386DX_33;
+        config.model = k_machine_default_model;
 
     const GDOX_Machine_Profile& profile = k_machine_profiles[config.model];
     const u8* sizes = profile.ram_sizes_mb;
     u64 megabyte = 1024 * 1024;
-    u64 ram_mb = config.ram_size == 0 ? (u64)profile.ram_default_mb : ((u64)config.ram_size + megabyte - 1) / megabyte;
+    u64 ram_mb = config.ram_size == 0 ? (u64)k_machine_default_ram_mb : ((u64)config.ram_size + megabyte - 1) / megabyte;
     int size = 0;
 
     while ((sizes[size + 1] != 0) && (sizes[size] < ram_mb))
@@ -2106,111 +2082,91 @@ u8 GeardoxCore::GetAutoFloppyType(int drive)
     }
 }
 
+static int pick_setting(int game, int user, int unset, GDOX_Machine_Source* source)
+{
+    *source = game > unset ? GDOX_MACHINE_SOURCE_GAME : GDOX_MACHINE_SOURCE_USER;
+    return game > unset ? game : user;
+}
+
+// The game's settings over the user's, then the defaults: the 486DX2-66 with 8 MB and an FPU. Only the clock, the
+// video card's bus and the floppy drives follow the model or the media
 void GeardoxCore::ResolveMachineConfig()
 {
     GDOX_Machine_Config& config = m_pending_machine_config;
     GDOX_Machine_Report& report = m_pending_machine_report;
-    const GDOX_DB_Entry* entry = m_auto_entry;
-    bool auto_model = m_machine_settings.model < 0;
-    bool auto_cpu = m_machine_settings.cpu_mhz <= 0;
-    bool auto_ram = m_machine_settings.ram_mb <= 0;
-    bool auto_fpu = m_machine_settings.fpu < 0;
-    bool auto_speed = m_machine_settings.speed_mode < 0;
-    bool database = auto_model && IsValidPointer(entry);
-    GDOX_Machine_Model named = database ? (GDOX_Machine_Model)entry->model : GDOX_MACHINE_386DX_33;
-    GDOX_Machine_Model fallback = GDOX_MACHINE_386DX_33;
+    const GDOX_Machine_Settings& game = m_game_settings;
+    const GDOX_Machine_Settings& user = m_machine_settings;
+    GDOX_Machine_Source floppy_source;
+    GDOX_Machine_Source source;
     u32 megabyte = 1024 * 1024;
 
-    for (int i = 0; (i < GDOX_MACHINE_RELEASE_ORDER_COUNT) && !CanAutoSelect(fallback); i++)
-    {
-        if (CanAutoSelect(k_machine_release_order[i]))
-            fallback = k_machine_release_order[i];
-    }
+    int model = pick_setting(game.model, user.model, -1, &report.model);
+    int cpu_mhz = pick_setting(game.cpu_mhz, user.cpu_mhz, 0, &report.cpu_clock);
+    int ram_mb = pick_setting(game.ram_mb, user.ram_mb, 0, &report.ram);
+    int fpu = pick_setting(game.fpu, user.fpu, -1, &report.fpu);
+    int speed_mode = pick_setting(game.speed_mode, user.speed_mode, -1, &report.speed_mode);
+    bool known_model = (model >= 0) && (model < GDOX_MACHINE_COUNT);
 
-    config.model = !auto_model ? (GDOX_Machine_Model)m_machine_settings.model : CanAutoSelect(named) ? named : fallback;
-    config.cpu_clock_rate = auto_cpu ? 0 : (u32)m_machine_settings.cpu_mhz * 1000000;
-    config.ram_size = auto_ram ? 0 : (u32)m_machine_settings.ram_mb * megabyte;
+    config.model = known_model ? (GDOX_Machine_Model)model : k_machine_default_model;
+    config.cpu_clock_rate = cpu_mhz > 0 ? (u32)cpu_mhz * 1000000 : 0;
+    config.ram_size = (u32)(ram_mb > 0 ? ram_mb : k_machine_default_ram_mb) * megabyte;
     config.ide = HasHardDisks();
-    config.fpu = !auto_fpu && (m_machine_settings.fpu != 0);
-    config.speed_mode = auto_speed ? GDOX_MACHINE_AUTO : m_machine_settings.speed_mode != 0 ? 1 : 0;
+    config.fpu = fpu != 0;
+    config.speed_mode = speed_mode != 0 ? 1 : 0;
+
+    if (cpu_mhz <= 0)
+        report.cpu_clock = GDOX_MACHINE_SOURCE_MODEL;
 
     for (int i = 0; i < GDOX_MAX_FLOPPY_DRIVES; i++)
     {
-        int type = m_machine_settings.floppy_type[i];
+        int type = pick_setting(game.floppy_type[i], user.floppy_type[i], 0, &floppy_source);
         config.floppy_type[i] = (type > 0 && type < GDOX_FLOPPY_TYPE_COUNT) ? (u8)type : GetAutoFloppyType(i);
     }
 
-    int sound_card = m_machine_settings.sound_card;
+    int sound_card = pick_setting(game.sound_card, user.sound_card, -1, &source);
+    int mouse = pick_setting(game.mouse, user.mouse, -1, &source);
+    int cdrom = pick_setting(game.cdrom, user.cdrom, -1, &source);
+    int cdrom_speed = pick_setting(game.cdrom_speed, user.cdrom_speed, -1, &source);
+    int video_card = pick_setting(game.video_card, user.video_card, -1, &source);
+    bool local_bus = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
 
     config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card : (u8)GDOX_SOUND_CARD_SB16;
-    config.sound_irq = (u8)m_machine_settings.sound_irq;
-    config.sound_dma = (u8)m_machine_settings.sound_dma;
-
-    int mouse = m_machine_settings.mouse;
-
+    config.sound_irq = (u8)pick_setting(game.sound_irq, user.sound_irq, 0, &source);
+    config.sound_dma = (u8)pick_setting(game.sound_dma, user.sound_dma, 0, &source);
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
-
-    int cdrom = m_machine_settings.cdrom;
-    int cdrom_speed = m_machine_settings.cdrom_speed;
-
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
-
-    int video_card = m_machine_settings.video_card;
-    bool local_bus = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
 
     if ((video_card >= 0) && (video_card < GDOX_VIDEO_CARD_COUNT))
         config.video_card = (u8)video_card;
     else
         config.video_card = local_bus ? (u8)GDOX_VIDEO_CARD_GD5428_VLB : (u8)GDOX_VIDEO_CARD_GD5428;
 
-    report.model = auto_model ? GDOX_MACHINE_SOURCE_DEFAULT : GDOX_MACHINE_SOURCE_USER;
-    report.cpu_clock = auto_cpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
-    report.ram = auto_ram ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
-    report.fpu = auto_fpu ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
-    report.speed_mode = auto_speed ? GDOX_MACHINE_SOURCE_MODEL : GDOX_MACHINE_SOURCE_USER;
-    report.fallback = auto_model && (config.model != named);
-    report.title = IsValidPointer(entry) ? entry->title : NULL;
+    report.title = m_game ? m_game_name.c_str() : NULL;
     report.warning_count = 0;
-
-    if (database)
-        report.model = GDOX_MACHINE_SOURCE_DATABASE;
-
-    if (database && auto_cpu && (entry->cpu_mhz > 0))
-    {
-        config.cpu_clock_rate = entry->cpu_mhz * 1000000;
-        report.cpu_clock = GDOX_MACHINE_SOURCE_DATABASE;
-    }
-
-    if (database && auto_ram && (entry->ram_mb > 0))
-    {
-        config.ram_size = entry->ram_mb * megabyte;
-        report.ram = GDOX_MACHINE_SOURCE_DATABASE;
-    }
-
-    if (database && auto_fpu && ((entry->flags & GDOX_GAMEDB_FPU) != 0))
-    {
-        config.fpu = true;
-        report.fpu = GDOX_MACHINE_SOURCE_DATABASE;
-    }
 
     SanitizeMachineConfig(config);
 
-    if (!auto_fpu && (m_machine_settings.fpu != 0) && !config.fpu)
+    if (k_machine_profiles[config.model].fpu == GDOX_MACHINE_FPU_INTEGRATED)
+        report.fpu = GDOX_MACHINE_SOURCE_MODEL;
+
+    if (!known_model || !k_machine_profiles[model].emulated)
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "Unknown model, the %s runs",
+            k_machine_profiles[config.model].name);
+    else if (m_firmware_searched && !HasFirmware(config.model))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "No firmware found for the %s",
+            k_machine_profiles[config.model].name);
+
+    if ((fpu > 0) && !config.fpu)
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no socket for an FPU");
 
-    if ((m_machine_settings.video_card == GDOX_VIDEO_CARD_GD5428_VLB) && (config.video_card != GDOX_VIDEO_CARD_GD5428_VLB))
+    if ((video_card == GDOX_VIDEO_CARD_GD5428_VLB) && (config.video_card != GDOX_VIDEO_CARD_GD5428_VLB))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no VL-Bus slot");
 
-    bool hard_disk_boot = (m_boot_device == GDOX_BOOT_DEVICE_HARD_DISK) ||
-        (IsValidPointer(entry) && ((entry->flags & GDOX_GAMEDB_HDD) != 0));
-
-    if (auto_ram && config.ide && HasHardDisks() && (!database || hard_disk_boot) && (config.ram_size < 4 * megabyte))
-    {
-        config.ram_size = 4 * megabyte;
-        report.ram = GDOX_MACHINE_SOURCE_HARD_DISK;
-        SanitizeMachineConfig(config);
-    }
+    if ((report.ram == GDOX_MACHINE_SOURCE_GAME) && ((u32)ram_mb * megabyte != config.ram_size))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "The %s takes no %d MB, it has %u MB", k_machine_profiles[config.model].name, ram_mb,
+            config.ram_size / megabyte);
 
     if (m_ram_size_locked && m_powered && (config.ram_size != m_machine_config.ram_size))
     {
@@ -2220,32 +2176,6 @@ void GeardoxCore::ResolveMachineConfig()
         config.ram_size = m_machine_config.ram_size;
         report.ram = m_machine_report.ram;
     }
-
-    if (database && (config.model != named))
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, k_machine_profiles[named].emulated ?
-            "Needs an %s, no firmware found for it" : "Needs an %s, not emulated yet", k_machine_profiles[named].name);
-
-    if (!IsValidPointer(entry))
-        return;
-
-    if (config.ram_size < entry->ram_mb * megabyte)
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "Needs %d MB, this machine has %u MB", entry->ram_mb, config.ram_size / megabyte);
-
-    if (config.cpu_clock_rate < entry->cpu_mhz * 1000000u)
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "Needs %d MHz, this machine runs at %u MHz", entry->cpu_mhz, config.cpu_clock_rate / 1000000);
-
-    if (((entry->flags & GDOX_GAMEDB_CPU_486) != 0) && (k_machine_cpus[config.cpu].family < 4))
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "Needs a 486 CPU, this machine has an %s", k_machine_cpus[config.cpu].name);
-
-    if (((entry->flags & GDOX_GAMEDB_FPU) != 0) && !config.fpu)
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "Needs an FPU, this machine has none");
-
-    if (((entry->flags & GDOX_GAMEDB_HDD) != 0) && !HasHardDisks())
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "Installs to a hard disk, attach a hard disk image");
 }
 
 // A Cirrus card's linear aperture sits at 15 MB, so with 16 MB or more the board leaves 15-16 MB to it, the "memory
@@ -2255,15 +2185,10 @@ bool GeardoxCore::HasMemoryHole() const
     return k_video_cards[m_machine_config.video_card].cirrus && (m_machine_config.ram_size >= 16 * 1024 * 1024);
 }
 
-bool GeardoxCore::CanAutoSelect(GDOX_Machine_Model model)
-{
-    GDOX_Firmware_Source_Type type = m_firmware_sources[model].type;
-    return k_machine_profiles[model].emulated && (type != GDOX_FIRMWARE_SOURCE_NONE) && (type != GDOX_FIRMWARE_SOURCE_OTHER_SET);
-}
-
 void GeardoxCore::SearchFirmware()
 {
     Firmware::FindSources(m_firmware_folder.c_str(), m_model_firmware_folders, m_firmware_sources);
+    m_firmware_searched = true;
     ResolveMachineConfig();
 
     if (!IsMachineConfigPending())
@@ -2350,7 +2275,7 @@ void GeardoxCore::ApplyMachineConfig()
         // Auto looks at the disks in the drives at every reset, they can change after the last resolve
         for (int i = 0; i < FDC_DRIVES; i++)
         {
-            if (m_machine_settings.floppy_type[i] <= 0)
+            if ((m_game_settings.floppy_type[i] <= 0) && (m_machine_settings.floppy_type[i] <= 0))
                 m_machine_config.floppy_type[i] = GetAutoFloppyType(i);
 
             m_fdc->SetDriveType(i, m_machine_config.floppy_type[i]);
@@ -2374,6 +2299,7 @@ void GeardoxCore::ApplyFirmwareDevices()
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
     m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole());
+    m_firmware_config->SetGameTarget(m_game_target);
     m_debug_console->SetEnabled(seabios && m_debug_console_enabled);
     m_debug_console->SetLogOutput(m_debug_console_log);
     m_io->UpdateDecodedPorts();

@@ -320,7 +320,8 @@ public:
                 response->requestId = command->requestId;
 
                 if (tool == "load_media")
-                    response->result = m_debug_adapter->StartLoadMedia(command->arguments.value("file_path", ""));
+                    response->result = m_debug_adapter->StartLoadMedia(command->arguments.value("file_path", ""),
+                        command->arguments.value("target", ""));
                 else
                     response->result = m_debug_adapter->StartInsertPlaylistDisc(command->arguments.value("index", -1));
 

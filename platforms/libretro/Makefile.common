@@ -38,6 +38,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_image.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_media.cpp \
                 $(SOURCE_DIR)/drive/fdc.cpp \
+                $(SOURCE_DIR)/drive/game_disk.cpp \
                 $(SOURCE_DIR)/drive/ide_controller.cpp \
                 $(SOURCE_DIR)/drive/ide_cdrom.cpp \
                 $(SOURCE_DIR)/drive/ide_disk.cpp \
@@ -72,6 +73,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/input/serial_mouse.cpp \
                 $(SOURCE_DIR)/input/game_port.cpp \
                 $(SOURCE_DIR)/media/chd_file_adapter.cpp \
+                $(SOURCE_DIR)/media/game_descriptor.cpp \
                 $(SOURCE_DIR)/media/firmware.cpp \
                 $(SOURCE_DIR)/media/media.cpp \
                 $(SOURCE_DIR)/media/media_file.cpp \

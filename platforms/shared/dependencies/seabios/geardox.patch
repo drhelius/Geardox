@@ -1,3 +1,22 @@
+--- seabios-28aa463/src/apm.c
++++ seabios/src/apm.c
+@@ -86,12 +86,16 @@ handle_155306(struct bregs *regs)
+     set_success(regs);
+ }
+ 
++// Geardox's board powers off on a write of 1 to port 408h, next to its shadow register
++#define GEARDOX_POWER_OFF_PORT 0x408
++
+ void
+ apm_shutdown(void)
+ {
+     u16 pm1a_cnt = GET_GLOBAL(acpi_pm1a_cnt);
+     if (pm1a_cnt)
+         outw(0x2000, pm1a_cnt);
++    outb(1, GEARDOX_POWER_OFF_PORT);
+ 
+     irq_disable();
+     for (;;)
 --- seabios-28aa463/src/block.h
 +++ seabios/src/block.h
 @@ -32,6 +32,8 @@ struct disk_op_s {

@@ -36,6 +36,9 @@
 #include "gui.h"
 #include "gui_menus.h"
 #include "gui_shader.h"
+#include "gui_game.h"
+#include "emu_game.h"
+#include "media/game_descriptor.h"
 #include "gui_popups.h"
 #include "gui_floppy.h"
 #include "gui_firmware.h"
@@ -54,6 +57,7 @@ static bool error_window_active = false;
 static char error_message[4096] = "";
 static bool loading_rom_active = false;
 static bool loading_hard_disk_source = false;
+static bool loading_game = false;
 static int pending_state_slot = 0;
 static std::string pending_state_path;
 static char loading_rom_path[4096] = "";
@@ -460,6 +464,14 @@ bool gui_load_rom(const char* path, const char* symbol_path)
     GeardoxCore* core = emu_get_core();
     int drives = emu_is_empty() ? core->GetPendingMachineConfig().floppy_drives : core->GetMachineConfig().floppy_drives;
 
+    if (GameDescriptor::IsDescriptor(path) || (emu_hard_disk_is_source(path) && emu_game_is_content(path)))
+        return gui_game_open(path);
+
+    bool hard_disk = emu_hard_disk_is_source(path) || emu_hard_disk_is_image(path);
+
+    if (hard_disk && emu_game_is_open() && !emu_game_close())
+        return false;
+
     if (emu_hard_disk_is_source(path))
         return gui_hard_disks_load_source(path);
 
@@ -529,6 +541,24 @@ bool gui_load_hard_disk_source(const char* path, bool rebuild)
     strncpy_fit(loading_rom_path, path, sizeof(loading_rom_path));
     emu_resume();
     emu_load_hard_disk_source_async(path, rebuild);
+    return true;
+}
+
+bool gui_start_game(const GameDisk_Found& found, int target)
+{
+    if (loading_rom_active)
+        return false;
+
+    gui_debug_auto_save_settings();
+    emu_resume();
+
+    if (!emu_game_open(found, target))
+        return false;
+
+    loading_game = true;
+    loading_rom_active = true;
+    loading_symbol_path[0] = '\0';
+    strncpy_fit(loading_rom_path, found.path.c_str(), sizeof(loading_rom_path));
     return true;
 }
 
@@ -645,7 +675,12 @@ bool gui_finish_loading_rom(void)
     gui_dialog_in_use = false;
     bool success = emu_finish_media_loading();
 
-    if (loading_hard_disk_source)
+    if (loading_game)
+    {
+        loading_game = false;
+        gui_game_loaded();
+    }
+    else if (loading_hard_disk_source)
     {
         loading_hard_disk_source = false;
         gui_hard_disks_source_loaded();
@@ -695,28 +730,9 @@ static void notify_firmware(void)
     GeardoxCore* core = emu_get_core();
     GDOX_Machine_Model model = core->GetPendingMachineConfig().model;
     Firmware* firmware = core->GetFirmware();
-    std::string unknown;
     char status[256];
 
-    for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
-    {
-        GDOX_Firmware_Type type = (GDOX_Firmware_Type)i;
-        const GDOX_Firmware_Info& info = firmware->GetInfo(type);
-
-        if (!info.loaded || info.recognized)
-            continue;
-
-        char entry[64];
-        snprintf(entry, sizeof(entry), "%s%s (CRC %08X)", unknown.empty() ? "" : ", ", Firmware::GetFileName(type), info.crc);
-        unknown += entry;
-    }
-
-    if (!unknown.empty())
-    {
-        snprintf(status, sizeof(status), "Unknown BIOS for the %s", k_machine_profiles[model].name);
-        gui_notify(gui_NotificationWarning, ICON_MD_MEMORY, status, unknown.c_str());
-    }
-    else if (firmware->GetSource().type == GDOX_FIRMWARE_SOURCE_OTHER_SET)
+    if (firmware->GetSource().type == GDOX_FIRMWARE_SOURCE_OTHER_SET)
     {
         snprintf(status, sizeof(status), "%s on the %s", k_firmware_sets[firmware->GetSource().set].description,
             k_machine_profiles[model].name);

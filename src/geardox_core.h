@@ -57,7 +57,6 @@ class StateSerializer;
 class TraceLogger;
 class Profiler;
 struct I386_Run_Result;
-struct GDOX_DB_Entry;
 
 enum GDOX_Debug_Step
 {
@@ -93,8 +92,11 @@ public:
     void PowerOff();
     bool IsPoweredOn();
     void SetMachineSettings(const GDOX_Machine_Settings& settings);
-    void LatchAutoMedia();
+    void SetGameSettings(const GDOX_Machine_Settings& settings, const char* name);
+    void ClearGameSettings();
+    bool IsGameActive() const;
     const GDOX_Machine_Settings& GetMachineSettings();
+    const GDOX_Machine_Settings& GetGameSettings();
     const GDOX_Machine_Config& GetMachineConfig();
     const GDOX_Machine_Config& GetPendingMachineConfig();
     const GDOX_Machine_Report& GetMachineReport();
@@ -103,7 +105,6 @@ public:
     void SetTurbo(bool turbo);
     bool IsTurbo() const;
     u32 GetEffectiveCPUClockRate() const;
-    bool GetFloppyNotice(GDOX_Floppy_Notice& notice);
     bool LoadBios(const char* directory_path);
     void UnloadBios();
     void SetModelFirmwareFolder(GDOX_Machine_Model model, const char* directory_path);
@@ -131,6 +132,9 @@ public:
     GDOX_Boot_Device GetBootDevice() const;
     void LockRAMSize(bool locked);
     void SetBootMenu(bool show);
+    void SetGameTarget(int target);
+    bool IsPowerOffRequested() const;
+    void AcknowledgePowerOff();
     void SetDebugConsole(bool enabled, bool log);
 
     void KeyPressed(GDOX_Keys key);
@@ -214,7 +218,6 @@ private:
     u8 GetAutoFloppyType(int drive);
     void ResolveMachineConfig();
     void ApplyHardDisks();
-    bool CanAutoSelect(GDOX_Machine_Model model);
     bool HasMemoryHole() const;
     bool LoadMachineFirmware(bool force, bool report);
     void ApplyMachineConfig();
@@ -263,11 +266,14 @@ private:
     Profiler* m_profiler;
 
     GDOX_Machine_Settings m_machine_settings;
+    GDOX_Machine_Settings m_game_settings;
+    std::string m_game_name;
+    bool m_game;
     GDOX_Machine_Bus_Waits m_card_bus_waits;
-    const GDOX_DB_Entry* m_auto_entry;
     std::string m_firmware_folder;
     std::string m_model_firmware_folders[GDOX_MACHINE_COUNT];
     GDOX_Firmware_Source m_firmware_sources[GDOX_MACHINE_COUNT];
+    bool m_firmware_searched;
     GDOX_Machine_Config m_machine_config;
     GDOX_Machine_Config m_pending_machine_config;
     GDOX_Machine_Report m_machine_report;
@@ -280,6 +286,7 @@ private:
     GDOX_Boot_Device m_boot_device;
     bool m_ram_size_locked;
     bool m_boot_menu;
+    int m_game_target;
     bool m_debug_console_enabled;
     bool m_debug_console_log;
     bool m_powered;

@@ -301,27 +301,26 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_model",
         "Model (restart)",
         NULL,
-        "The PC/AT machine to emulate. Auto picks the machine, CPU speed and RAM the game database names for the game, and the 386DX-33 for other content. It is recommended to leave this option on Auto. RetroArch's 'Save Game Options' keeps a choice for one game.",
+        "The PC/AT machine to emulate. The 486DX2-66 suits most games of 1990 to 1995; a game that runs too fast wants a 386, or Turbo off. RetroArch's 'Save Game Options' keeps a choice for one game.",
         NULL,
         "system",
         {
-            { "auto",      "Auto" },
             { "386sx_20",  "386SX-20 (80386SX 20 MHz)" },
             { "386dx_33",  "386DX-33 (80386DX 33 MHz)" },
             { "486dx2_66", "486DX2-66 (80486DX2 66 MHz)" },
             { NULL, NULL },
         },
-        "auto"
+        "486dx2_66"
     },
     {
         "geardox_cpu_clock",
         "CPU Speed (restart)",
         NULL,
-        "Auto runs the CPU at the model's original clock, or at the speed the game database names when Model is on Auto. Devices keep their real timing at any speed. Some software may not expect a faster CPU.",
+        "Model Default runs the CPU at the model's original clock. Devices keep their real timing at any speed. Some software may not expect a faster CPU.",
         NULL,
         "system",
         {
-            { "auto", "Auto" },
+            { "auto", "Model Default" },
             { "16",   "16 MHz" },
             { "20",   "20 MHz" },
             { "25",   "25 MHz" },
@@ -338,11 +337,10 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_main_ram",
         "Main RAM (restart)",
         NULL,
-        "Auto uses the model's default RAM, or the RAM the game database names when Model is on Auto. A size the model doesn't offer uses its next size up, or its largest. Save states grow with it.",
+        "8 MB runs nearly every DOS game. A size the model doesn't offer uses its next size up, or its largest. Save states grow with it.",
         NULL,
         "system",
         {
-            { "auto", "Auto" },
             { "1",    "1 MB" },
             { "2",    "2 MB" },
             { "4",    "4 MB" },
@@ -352,22 +350,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { "64",   "64 MB" },
             { NULL, NULL },
         },
-        "auto"
+        "8"
     },
     {
         "geardox_fpu",
         "FPU (restart)",
         NULL,
-        "The math coprocessor: an 80387 in the socket of the 386 models, the 486DX2 has one built in. Auto fits one when the game database names one for the game and Model is on Auto, otherwise none. A few games need one, and some run different code with one fitted.",
+        "The math coprocessor: an 80387 in the socket of the 386 models; the 486DX2 has one built in. A few games need one, and some run different code with one fitted.",
         NULL,
         "system",
         {
-            { "auto",  "Auto" },
-            { "none",  "None" },
             { "80387", "80387" },
+            { "none",  "None" },
             { NULL, NULL },
         },
-        "auto"
+        "80387"
     },
     {
         "geardox_floppy_a",
@@ -409,11 +406,11 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_video_card",
         "Video Card (restart)",
         NULL,
-        "The video card in the machine. Auto fits a Cirrus Logic GD5428, on the VL-Bus in the 486. The VL-Bus card falls back to the ISA one on the other models.",
+        "The video card in the machine. Model Default fits a Cirrus Logic GD5428, on the VL-Bus in the 486. The VL-Bus card falls back to the ISA one on the other models.",
         NULL,
         "system",
         {
-            { "auto",       "Auto" },
+            { "auto",       "Model Default" },
             { "vga",        "VGA" },
             { "gd5428",     "Cirrus Logic GD5428 ISA" },
             { "gd5428_vlb", "Cirrus Logic GD5428 VL-Bus" },
@@ -515,6 +512,49 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { NULL, NULL },
         },
         "1"
+    },
+    {
+        "geardox_descriptor",
+        "Game Descriptors (restart)",
+        NULL,
+        "A .gdox file, or a folder or ZIP with one in its root, opens its game: the machine it asks for, DOS set up for it and the game running, with its saves kept. The machine options it sets are hidden while it runs. Disabled, the folder or ZIP is a plain disk as before.",
+        NULL,
+        "system",
+        {
+            { "enabled",  NULL },
+            { "disabled", NULL },
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
+        "geardox_game_target",
+        "Game Runs (restart)",
+        NULL,
+        "What a game descriptor runs at each boot: the game, its setup program, or the DOS prompt on its drive.",
+        NULL,
+        "system",
+        {
+            { "game",   "Game" },
+            { "setup",  "Setup" },
+            { "prompt", "DOS Prompt" },
+            { NULL, NULL },
+        },
+        "game"
+    },
+    {
+        "geardox_write_back",
+        "Game Saves (restart)",
+        NULL,
+        "Where what a game changes goes when its session ends: a folder in the save directory, or the game's own folder. A ZIP always uses the save directory.",
+        NULL,
+        "system",
+        {
+            { "save_folder", "Save Directory" },
+            { "game_folder", "Game Folder" },
+            { NULL, NULL },
+        },
+        "save_folder"
     },
     {
         "geardox_freedos",

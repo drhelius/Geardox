@@ -41,7 +41,6 @@ public:
     void Reset();
     bool IsReady();
     u32 GetCRC();
-    u32 GetVolumeKey();
     const char* GetFilePath();
     const char* GetFileDirectory();
     const char* GetFileName();

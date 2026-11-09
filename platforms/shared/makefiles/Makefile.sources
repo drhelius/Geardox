@@ -66,6 +66,8 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/emu.cpp \
     $(DESKTOP_SRC_DIR)/emu_floppy.cpp \
     $(DESKTOP_SRC_DIR)/emu_hard_disk.cpp \
+    $(DESKTOP_SRC_DIR)/gui_game.cpp \
+    $(DESKTOP_SRC_DIR)/emu_game.cpp \
     $(DESKTOP_SRC_DIR)/sound_queue.cpp \
     $(DESKTOP_SRC_DIR)/single_instance.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug.cpp \
@@ -105,6 +107,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/cdrom/cdrom_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_media.cpp \
     $(SRC_DIR)/drive/fdc.cpp \
+    $(SRC_DIR)/drive/game_disk.cpp \
     $(SRC_DIR)/drive/ide_controller.cpp \
     $(SRC_DIR)/drive/ide_cdrom.cpp \
     $(SRC_DIR)/drive/ide_disk.cpp \
@@ -139,6 +142,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/input/serial_mouse.cpp \
     $(SRC_DIR)/input/game_port.cpp \
     $(SRC_DIR)/media/chd_file_adapter.cpp \
+    $(SRC_DIR)/media/game_descriptor.cpp \
     $(SRC_DIR)/media/firmware.cpp \
     $(SRC_DIR)/media/media.cpp \
     $(SRC_DIR)/media/media_file.cpp \

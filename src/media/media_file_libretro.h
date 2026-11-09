@@ -37,6 +37,7 @@ public:
     static bool ListDirectory(const char* path, std::vector<std::string>& folders, std::vector<std::string>& files);
     static bool RenameFile(const char* from, const char* to);
     static bool RemoveFile(const char* path);
+    static bool MakeDirectory(const char* path);
     static bool IsCdRomUriPath(const char* path);
 
     virtual bool Open(const char* path, bool writable) override;

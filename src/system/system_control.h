@@ -67,6 +67,8 @@ public:
     u8 Peek(u16 port, u64 clocks) const;
     void Write(u16 port, u8 value, u64 clocks);
     u64 GetReadStableUntil(u16 port, u64 clocks) const;
+    bool IsPowerOffRequested() const;
+    void AcknowledgePowerOff();
     void RequestCPUReset(u8 cause);
     bool IsCPUResetPending() const;
     void AcknowledgeCPUReset();
@@ -93,6 +95,7 @@ private:
     PIT* m_pit;
     X87* m_x87;
     bool m_shadow_control;
+    bool m_power_off_requested;
     TraceLogger* m_trace_logger;
     bool m_power_on_a20_port_92;
 };

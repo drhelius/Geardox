@@ -174,6 +174,8 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
         case 0x0406:
         case 0x0407:
             // Shadow register for SeaBIOS
+        case 0x0408:
+            // APM power off for SeaBIOS
             if (m_system_control->Decodes(port))
                 return m_system_control->Read(port, context.clocks);
             break;
@@ -353,6 +355,8 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
         case 0x0406:
         case 0x0407:
             // Shadow register for SeaBIOS
+        case 0x0408:
+            // APM power off for SeaBIOS
             return m_system_control->GetReadStableUntil(port, clocks);
         case 0x03BA:
             // VGA input status 1, monochrome block
@@ -436,6 +440,13 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             // Shadow register for SeaBIOS
             if (m_system_control->Decodes(port))
                 m_system_control->Write(port, value, context.clocks);
+            break;
+        case 0x0408:
+            // APM power off for SeaBIOS
+            if (m_system_control->Decodes(port))
+                m_system_control->Write(port, value, context.clocks);
+
+            context.end_batch = true;
             break;
         case 0x0510:
             // Firmware config selector

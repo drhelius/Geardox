@@ -61,6 +61,8 @@
 #include "../gui_actions.h"
 #include "../gui_floppy.h"
 #include "../emu_hard_disk.h"
+#include "../emu_game.h"
+#include "../gui_game.h"
 #include "../rewind.h"
 #include "../debug/gui_debug_cdrom.h"
 #include "../debug/gui_debug_constants.h"
@@ -444,7 +446,7 @@ bool DebugAdapter::ParseAddress(const std::string& text, McpAddress& address, st
 }
 
 static const char* const k_mcp_breakpoint_spaces[I386_BREAKPOINT_SPACE_COUNT] = { "linear", "physical", "io" };
-static const char* const k_mcp_machine_sources[] = { "user", "model", "default", "database", "floppy", "hard_disk" };
+static const char* const k_mcp_machine_sources[] = { "user", "game", "model", "media" };
 static const char* const k_mcp_firmware_sources[] = { "none", "model_folder", "own_set", "compatible_set", "unknown",
     "other_set" };
 static const char* const k_mcp_interrupt_sources[I386_INTERRUPT_SOURCE_COUNT] =
@@ -3078,11 +3080,11 @@ json DebugAdapter::GetSystemStatus()
     const GDOX_Machine_Report& report = m_core->GetMachineReport();
     const GDOX_Machine_Settings& settings = m_core->GetMachineSettings();
     const GDOX_Machine_Profile& profile = k_machine_profiles[machine.model];
-    json model_setting = settings.model < 0 ? json("auto") : json(k_machine_profiles[settings.model].key);
-    json cpu_setting = settings.cpu_mhz <= 0 ? json("auto") : json(settings.cpu_mhz);
-    json ram_setting = settings.ram_mb <= 0 ? json("auto") : json(settings.ram_mb);
-    json fpu_setting = settings.fpu < 0 ? json("auto") : settings.fpu == 0 ? json("none") : json("80387");
-    json video_setting = settings.video_card < 0 ? json("auto") : json(k_video_cards[settings.video_card].id);
+    json model_setting = json(k_machine_profiles[settings.model < 0 ? k_machine_default_model : settings.model].key);
+    json cpu_setting = settings.cpu_mhz <= 0 ? json("model_default") : json(settings.cpu_mhz);
+    json ram_setting = json(settings.ram_mb <= 0 ? k_machine_default_ram_mb : settings.ram_mb);
+    json fpu_setting = settings.fpu == 0 ? json("none") : json("80387");
+    json video_setting = settings.video_card < 0 ? json("model_default") : json(k_video_cards[settings.video_card].id);
     json warnings = json::array();
     SystemControl* system_control = m_core->GetSystemControl();
     SystemControl::SystemControl_State* board = system_control->GetState();
@@ -3114,7 +3116,7 @@ json DebugAdapter::GetSystemStatus()
             {"source", {{"model", k_mcp_machine_sources[report.model]},
                 {"cpu_clock", k_mcp_machine_sources[report.cpu_clock]}, {"ram", k_mcp_machine_sources[report.ram]},
                 {"fpu", k_mcp_machine_sources[report.fpu]}}},
-            {"game_database", IsValidPointer(report.title) ? json(report.title) : json()},
+            {"game", IsValidPointer(report.title) ? json(report.title) : json()},
             {"warnings", warnings},
             {"reset_pending", m_core->IsMachineConfigPending()}
         }},
@@ -3134,10 +3136,10 @@ json DebugAdapter::GetSystemStatus()
         {"bios", {
             {"source", firmware->GetSource().type == GDOX_FIRMWARE_SOURCE_BUILTIN ? "built-in" : "external"},
             {"style", firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS ? "seabios" : "at"},
-            {"system_bios", bios.recognized ? json(bios.database_name) : json(bios.path)},
+            {"system_bios", bios.builtin ? json(bios.name) : json(bios.path)},
             {"system_bios_crc", Hex32(bios.crc)},
             {"system_bios_kb", bios.size / 1024},
-            {"vga_bios", vga.recognized ? json(vga.database_name) : json(vga.path)},
+            {"vga_bios", vga.builtin ? json(vga.name) : json(vga.path)},
             {"vga_bios_crc", Hex32(vga.crc)},
             {"firmware_config", m_core->GetFirmwareConfig()->IsEnabled()},
             {"debug_console", m_core->GetDebugConsole()->IsEnabled()}
@@ -3769,7 +3771,7 @@ static json hard_disk_json(int id)
     if (info.attached || info.pending_attached)
     {
         bool zip = ends_with_no_case(info.source, ".zip");
-        disk["source"] = info.builtin ? "freedos" : (info.source[0] == 0 ? "image" : (zip ? "zip" : "folder"));
+        disk["source"] = info.game ? "game" : info.builtin ? "freedos" : (info.source[0] == 0 ? "image" : (zip ? "zip" : "folder"));
 
         if (info.source[0] != 0)
             disk["source_path"] = info.source;
@@ -4558,9 +4560,9 @@ json DebugAdapter::GetMediaInfo()
             {"crc", info.crc},
             {"required", Firmware::IsRequired(type)},
             {"loaded", info.loaded},
-            {"recognized", info.recognized},
+            {"builtin", info.builtin},
             {"synthetic", info.synthetic},
-            {"database_name", info.database_name}
+            {"name", info.name}
         });
     }
 
@@ -4763,7 +4765,8 @@ json DebugAdapter::StartInsertPlaylistDisc(int index)
     return {{"file_path", emu_cdrom_playlist_get_path(index)}};
 }
 
-json DebugAdapter::StartLoadMedia(const std::string& file_path)
+// A game descriptor, or a folder or ZIP with some, opens its game; with several the first by name, as in libretro
+json DebugAdapter::StartLoadMedia(const std::string& file_path, const std::string& target)
 {
     if (file_path.empty())
         return {{"error", "File path is required"}};
@@ -4771,10 +4774,100 @@ json DebugAdapter::StartLoadMedia(const std::string& file_path)
     if (gui_is_rom_loading())
         return {{"error", "Another media load is already in progress"}};
 
+    std::vector<GameDisk_Found> found;
+
+    if (emu_game_find(file_path.c_str(), &found))
+    {
+        int game_target = target == "setup" ? GDOX_GAME_TARGET_SETUP : target == "prompt" ? GDOX_GAME_TARGET_PROMPT :
+            GDOX_GAME_TARGET_GAME;
+
+        if (!target.empty() && (target != "game") && (target != "setup") && (target != "prompt"))
+            return {{"error", "target is game, setup or prompt"}};
+
+        if (!gui_start_game(found[0], game_target))
+            return {{"error", std::string("Unable to open the game: ") + emu_game_get_error()}};
+
+        return {{"file_path", file_path}};
+    }
+
+    if (!target.empty())
+        return {{"error", "target only applies to a game descriptor"}};
+
     if (!gui_load_rom(file_path.c_str()))
         return {{"error", "Failed to load media file"}};
 
     return {{"file_path", file_path}};
+}
+
+json DebugAdapter::GetGameInfo()
+{
+    GameDisk* disk = emu_game_get_disk();
+
+    if (!disk->IsOpen())
+        return {{"open", false}};
+
+    static const char* const k_targets[GDOX_GAME_TARGET_COUNT] = { "game", "setup", "prompt" };
+    static const char* const k_sources[] = { "user", "game", "model", "media" };
+    static const char* const k_keys[][2] = {
+        { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram" },
+        { "machine", "fpu" }, { "machine", "floppy_a" }, { "machine", "floppy_b" }, { "machine", "video" },
+        { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" }, { "input", "joystick" },
+        { "dos", "memory" }, { "dos", "ems" }, { "dos", "ems_frame" }, { "dos", "files" }, { "dos", "buffers" },
+        { "dos", "version" }, { "drives", "c" }, { "drives", "free" }, { "drives", "d" }, { "drives", "a" },
+        { "drives", "b" }, { "drives", "cd" }, { "drives", "cd_speed" }, { "run", "exe" }, { "run", "args" },
+        { "run", "cwd" }, { "run", "setup" }, { "run", "exit" }, { "run", "boot" } };
+    const GameDescriptor& descriptor = disk->GetDescriptor();
+    const GameDescriptor& overrides = disk->GetOverrides();
+    const GDOX_Machine_Config& config = m_core->GetMachineConfig();
+    const GDOX_Machine_Report& report = m_core->GetMachineReport();
+    json keys = json::object();
+
+    for (size_t i = 0; i < sizeof(k_keys) / sizeof(k_keys[0]); i++)
+    {
+        if (!descriptor.Has(k_keys[i][0], k_keys[i][1]))
+            continue;
+
+        std::string name = std::string(k_keys[i][0]) + "." + k_keys[i][1];
+        keys[name] = {{"value", descriptor.Get(k_keys[i][0], k_keys[i][1])},
+            {"layer", overrides.Has(k_keys[i][0], k_keys[i][1]) ? "override" : "descriptor"}};
+    }
+
+    const GameDisk_Result& last = emu_game_get_last_write_back();
+    json notes = json::array();
+
+    for (size_t i = 0; i < last.notes.size(); i++)
+        notes.push_back(last.notes[i]);
+
+    return {
+        {"open", emu_game_is_open()},
+        {"name", disk->GetName()},
+        {"descriptor_path", disk->GetDescriptorPath()},
+        {"descriptor", descriptor.Write()},
+        {"overrides_path", disk->GetOverridesPath()},
+        {"keys", keys},
+        {"machine", {{"model", k_machine_profiles[config.model].key}, {"model_source", k_sources[report.model]},
+            {"cpu_mhz", config.cpu_clock_rate / 1000000}, {"cpu_source", k_sources[report.cpu_clock]},
+            {"ram_mb", config.ram_size / (1024 * 1024)}, {"ram_source", k_sources[report.ram]},
+            {"fpu", config.fpu}, {"fpu_source", k_sources[report.fpu]}, {"turbo", m_core->IsTurbo()},
+            {"sound_card", k_sound_cards[config.sound_card].id}, {"sound_irq", config.sound_irq},
+            {"sound_dma", config.sound_dma}, {"video", k_video_cards[config.video_card].id},
+            {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
+                json(k_joysticks[emu_game_get_joystick()].id) : json()}}},
+        {"target", k_targets[emu_game_get_target()]},
+        {"source", disk->GetSourcePath()},
+        {"image", disk->GetImagePath()},
+        {"built", disk->WasBuilt()},
+        {"recovered", disk->WasRecovered()},
+        {"refused_image", disk->GetRefusedPath()},
+        {"left_out", disk->GetLeftOut()},
+        {"saves_to", disk->IsWritingToOverlay() ? "save_folder" : "game_folder"},
+        {"overlay", disk->GetOverlayPath()},
+        {"session_open", disk->IsSessionOpen()},
+        {"write_back_pending", emu_game_is_write_back_pending()},
+        {"last_write_back", {{"done", last.done}, {"refused", last.refused}, {"written", last.written},
+            {"deleted", last.deleted}, {"folders", last.directories}, {"conflicts", last.conflicts}, {"kept", last.kept},
+            {"notes", notes}}}
+    };
 }
 
 bool DebugAdapter::IsMediaLoading() const
@@ -4812,6 +4905,18 @@ json DebugAdapter::FinishLoadMedia(const std::string& file_path)
 
         return {{"success", true}, {"file_path", file_path}, {"drive", 0}};
     }
+
+    if (emu_game_is_open() && (strcmp(emu_game_get_disk()->GetDescriptorPath(), file_path.c_str()) == 0 ||
+        emu_game_is_content(file_path.c_str())))
+    {
+        json result = GetGameInfo();
+        result["success"] = true;
+        result["file_path"] = file_path;
+        return result;
+    }
+
+    if (emu_game_is_content(file_path.c_str()))
+        return {{"error", std::string("Unable to open the game: ") + emu_game_get_error()}};
 
     if (!m_core->GetMedia()->IsReady())
         return {{"error", "Failed to load media file"}};

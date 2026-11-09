@@ -35,6 +35,7 @@ SystemControl::SystemControl()
     memset(&m_state, 0, sizeof(m_state));
     m_power_on_a20_port_92 = true;
     m_shadow_control = false;
+    m_power_off_requested = false;
 }
 
 SystemControl::~SystemControl()
@@ -103,6 +104,7 @@ void SystemControl::Reset()
     m_state.nmi_mask = true;
     m_state.port_92 = m_power_on_a20_port_92 ? 0x02 : 0x00;
     m_state.keyboard_a20 = !m_power_on_a20_port_92;
+    m_power_off_requested = false;
     UpdateA20();
     ApplyShadow();
 }
@@ -122,6 +124,7 @@ bool SystemControl::Decodes(u16 port) const
         case 0x0405:
         case 0x0406:
         case 0x0407:
+        case 0x0408:
             return m_shadow_control;
         default:
             return false;
@@ -206,6 +209,9 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
             m_state.shadow_locked = (value & 0x01) != 0;
             ApplyShadow();
             break;
+        case 0x0408:
+            m_power_off_requested = m_power_off_requested || ((value & 0x01) != 0);
+            break;
         default:
             return;
     }
@@ -227,10 +233,23 @@ u64 SystemControl::GetReadStableUntil(u16 port, u64 clocks) const
         case 0x0405:
         case 0x0406:
         case 0x0407:
+        case 0x0408:
             return GDOX_NO_EVENT;
         default:
             return 0;
     }
+}
+
+// SeaBIOS' APM Set Power State, off for the whole system, writes 1 here before it halts: an edge for the frontend,
+// not machine state
+bool SystemControl::IsPowerOffRequested() const
+{
+    return m_power_off_requested;
+}
+
+void SystemControl::AcknowledgePowerOff()
+{
+    m_power_off_requested = false;
 }
 
 void SystemControl::RequestCPUReset(u8 cause)

@@ -33,6 +33,7 @@
 #include "config.h"
 #include "debug/gui_debug_trace_logger.h"
 #include "emu_floppy.h"
+#include "emu_game.h"
 #include "emu_hard_disk.h"
 #include "events.h"
 #include "gui_notifications.h"
@@ -66,7 +67,8 @@ enum Loading_Request_Type
 {
     Loading_Request_File = 0,
     Loading_Request_PhysicalCdRom,
-    Loading_Request_HardDiskSource
+    Loading_Request_HardDiskSource,
+    Loading_Request_Game
 };
 
 static GeardoxCore* geardox = NULL;
@@ -200,6 +202,7 @@ void emu_destroy(void)
     loading_state.store(Loading_State_None);
     emu_stop_vgm_recording();
     emu_stop_video_recording();
+    emu_game_close();
 
     if (!emu_floppy_flush())
         Error("Unable to save one or more floppy disks on exit");
@@ -378,6 +381,9 @@ void emu_update(void)
         sound_queue_write(audio_buffer, silence_count, false);
     }
 
+    if (emu_game_update())
+        return;
+
     if (!geardox->IsPoweredOn())
     {
         reset_run_state();
@@ -422,6 +428,25 @@ void emu_load_hard_disk_source_async(const char* path, bool rebuild)
     strncpy_fit(loading_file_path, path, sizeof(loading_file_path));
     loading_request_type = Loading_Request_HardDiskSource;
     loading_rebuild = rebuild;
+    loading_result = false;
+    loading_state.store(Loading_State_Loading);
+    loading_thread = std::thread(load_media_thread_func);
+    loading_thread_active = true;
+}
+
+void emu_load_game_async(void)
+{
+    if (loading_state.load() != Loading_State_None)
+        return;
+
+    if (loading_thread_active)
+    {
+        loading_thread.join();
+        loading_thread_active = false;
+    }
+
+    gui_debug_trace_logger_reset("media_change");
+    loading_request_type = Loading_Request_Game;
     loading_result = false;
     loading_state.store(Loading_State_Loading);
     loading_thread = std::thread(load_media_thread_func);
@@ -474,7 +499,7 @@ bool emu_finish_media_loading(void)
 
     loading_state.store(Loading_State_None);
 
-    if (loading_request_type == Loading_Request_HardDiskSource)
+    if ((loading_request_type == Loading_Request_HardDiskSource) || (loading_request_type == Loading_Request_Game))
         return loading_result;
 
     if (!loading_result)
@@ -758,7 +783,8 @@ void emu_set_dynarec(bool enabled)
 // The board's Turbo button acts at once and stays where it was left
 void emu_set_turbo(bool turbo)
 {
-    config_machine.turbo = turbo;
+    if (!emu_game_is_open())
+        config_machine.turbo = turbo;
 
     if (IsValidPointer(geardox))
         geardox->SetTurbo(turbo);
@@ -796,24 +822,7 @@ void emu_apply_machine_settings(void)
     settings.cdrom_speed = config_machine.cdrom_speed;
     settings.speed_mode = config_machine.turbo ? 1 : 0;
     geardox->SetMachineSettings(settings);
-}
-
-bool emu_latch_auto_media(void)
-{
-    if (!IsValidPointer(geardox))
-        return false;
-
-    geardox->LatchAutoMedia();
-    emu_update_joystick_type();
-
-    if (!geardox->IsPoweredOn())
-        return false;
-
-    if (geardox->IsMachineConfigPending())
-        return true;
-
-    notify_machine();
-    return false;
+    emu_game_apply_machine();
 }
 
 void emu_audio_mute(bool mute)
@@ -1162,7 +1171,7 @@ void emu_update_joystick_type(void)
     if (!IsValidPointer(geardox))
         return;
 
-    int type = config_input.joystick_type;
+    int type = emu_game_get_joystick() >= 0 ? emu_game_get_joystick() : config_input.joystick_type;
     geardox->GetInput()->SetJoystickType((type >= 0) && (type < GDOX_JOYSTICK_TYPE_COUNT) ?
         (GDOX_Joystick_Type)type : GDOX_JOYSTICK_GAMEPAD);
 }
@@ -1706,6 +1715,14 @@ void emu_reset_rewind_timing(void)
 
 static void load_media_thread_func(void)
 {
+    if (loading_request_type == Loading_Request_Game)
+    {
+        emu_game_prepare_thread();
+        loading_result = true;
+        loading_state.store(Loading_State_Finished);
+        return;
+    }
+
     if (loading_request_type == Loading_Request_HardDiskSource)
     {
         emu_hard_disk_prepare_source(loading_file_path, loading_rebuild);
@@ -1937,48 +1954,19 @@ static void notify_machine(void)
 {
     const GDOX_Machine_Config& config = geardox->GetMachineConfig();
     const GDOX_Machine_Report& report = geardox->GetMachineReport();
-    bool model = (report.model == GDOX_MACHINE_SOURCE_DATABASE) && (config.model != GDOX_MACHINE_386DX_33);
-    bool cpu = report.cpu_clock == GDOX_MACHINE_SOURCE_DATABASE;
-    bool ram = report.ram == GDOX_MACHINE_SOURCE_DATABASE;
-    bool fpu = report.fpu == GDOX_MACHINE_SOURCE_DATABASE;
-    GDOX_Floppy_Notice floppy;
-    bool floppy_notice = geardox->GetFloppyNotice(floppy);
-    const char* title = report.title;
-    const char* origin = IsValidPointer(report.title) ? "game database" : "Auto";
-    char value[48];
 
-    if (!IsValidPointer(report.title) || (!model && !cpu && !ram && !fpu && (report.warning_count == 0) && !floppy_notice))
+    if (!IsValidPointer(report.title) && (report.warning_count == 0))
         return;
 
     char message[256];
-    std::string choices;
     std::string detail;
 
-    if (model)
-        choices = k_machine_profiles[config.model].name;
-
-    if (cpu)
-    {
-        snprintf(value, sizeof(value), "%s%u MHz", choices.empty() ? "" : ", ", config.cpu_clock_rate / 1000000);
-        choices += value;
-    }
-
-    if (ram)
-    {
-        snprintf(value, sizeof(value), "%s%u MB", choices.empty() ? "" : ", ", config.ram_size / (1024 * 1024));
-        choices += value;
-    }
-
-    if (fpu)
-    {
-        snprintf(value, sizeof(value), "%s%s", choices.empty() ? "" : ", ", get_machine_fpu_name(config.cpu));
-        choices += value;
-    }
-
-    if (choices.empty())
-        snprintf(message, sizeof(message), "%s (%s)", title, origin);
+    if (IsValidPointer(report.title))
+        snprintf(message, sizeof(message), "%s: %s, %u MB", report.title, k_machine_profiles[config.model].name,
+            config.ram_size / (1024 * 1024));
     else
-        snprintf(message, sizeof(message), "%s: %s (%s)", title, choices.c_str(), origin);
+        snprintf(message, sizeof(message), "%s, %u MB", k_machine_profiles[config.model].name,
+            config.ram_size / (1024 * 1024));
 
     Log("%s", message);
 
@@ -1989,15 +1977,7 @@ static void notify_machine(void)
         detail += report.warnings[i];
     }
 
-    for (int i = 0; i < floppy.line_count; i++)
-    {
-        Log("%s", floppy.lines[i]);
-        detail += (detail.empty() ? "" : "\n");
-        detail += floppy.lines[i];
-    }
-
-    bool warning = (report.warning_count > 0) || floppy.warning;
-    gui_notify(warning ? gui_NotificationWarning : gui_NotificationInfo, ICON_MD_MEMORY, message,
+    gui_notify(report.warning_count > 0 ? gui_NotificationWarning : gui_NotificationInfo, ICON_MD_MEMORY, message,
         detail.empty() ? NULL : detail.c_str(), "machine");
 }
 

@@ -142,11 +142,10 @@ enum GDOX_Firmware_Type
 struct GDOX_Firmware_Info
 {
     char path[GDOX_MAX_PATH];
-    char database_name[128];
+    char name[128];
     int size;
     u32 crc;
     bool loaded;
-    bool recognized;
     bool synthetic;
     bool builtin;
 };
@@ -446,11 +445,9 @@ typedef void (*GDOX_Read_Callback)(void* context);
 enum GDOX_Machine_Source
 {
     GDOX_MACHINE_SOURCE_USER = 0,
+    GDOX_MACHINE_SOURCE_GAME,
     GDOX_MACHINE_SOURCE_MODEL,
-    GDOX_MACHINE_SOURCE_DEFAULT,
-    GDOX_MACHINE_SOURCE_DATABASE,
-    GDOX_MACHINE_SOURCE_FLOPPY,
-    GDOX_MACHINE_SOURCE_HARD_DISK
+    GDOX_MACHINE_SOURCE_MEDIA
 };
 
 struct GDOX_Machine_CPU_Info
@@ -559,7 +556,6 @@ struct GDOX_Machine_Profile
     GDOX_Machine_Map map;
     u32 features;
     const u8* ram_sizes_mb;
-    int ram_default_mb;
     int floppy_drives;
     const char* firmware_set;
     const GDOX_Machine_Bus_Timing* bus_timing;
@@ -663,17 +659,9 @@ struct GDOX_Machine_Report
     GDOX_Machine_Source ram;
     GDOX_Machine_Source fpu;
     GDOX_Machine_Source speed_mode;
-    bool fallback;
     const char* title;
     int warning_count;
     char warnings[GDOX_MACHINE_WARNING_COUNT][GDOX_MACHINE_WARNING_SIZE];
-};
-
-struct GDOX_Floppy_Notice
-{
-    bool warning;
-    int line_count;
-    char lines[2][GDOX_MACHINE_WARNING_SIZE];
 };
 
 struct GDOX_SaveState_Header

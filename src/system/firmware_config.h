@@ -26,7 +26,7 @@
 
 class StateSerializer;
 
-#define FIRMWARE_CONFIG_FILE_COUNT 4
+#define FIRMWARE_CONFIG_FILE_COUNT 5
 #define FIRMWARE_CONFIG_E820_ENTRIES 2
 #define FIRMWARE_CONFIG_E820_ENTRY_SIZE 20
 #define FIRMWARE_CONFIG_FILE_ENTRY_SIZE 64
@@ -50,6 +50,7 @@ public:
     void SetVGABIOS(const u8* data, u32 size);
     void SetBootMenu(bool show, u16 wait_ms);
     void SetMemoryHole(u32 ram_size, bool hole);
+    void SetGameTarget(int target);
     bool Decodes(u16 port) const;
     u8 Read(u16 port);
     u8 Peek(u16 port) const;
@@ -73,6 +74,8 @@ private:
     u8 m_menu_wait[2];
     u8 m_e820[FIRMWARE_CONFIG_E820_ENTRIES * FIRMWARE_CONFIG_E820_ENTRY_SIZE];
     u32 m_e820_size;
+    u8 m_game_target;
+    bool m_game;
     u8 m_directory[4 + FIRMWARE_CONFIG_FILE_COUNT * FIRMWARE_CONFIG_FILE_ENTRY_SIZE];
 };
 

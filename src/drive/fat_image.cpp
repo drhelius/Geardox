@@ -275,6 +275,8 @@ FatImage::FatImage()
     InitPointer(m_zip_file);
     InitPointer(m_output);
     InitPointer(m_boot_sector);
+    InitPointer(m_read);
+    m_read_offset = 0;
     memset(&m_zip, 0, sizeof(m_zip));
     memset(&m_layout, 0, sizeof(m_layout));
     m_zip_open = false;
@@ -283,6 +285,7 @@ FatImage::FatImage()
     m_fingerprint = 0;
     m_left_out = 0;
     m_next_cluster = 2;
+    m_base = 0;
     Clear();
     SetLabel(k_fat_label);
     Finish();
@@ -290,6 +293,7 @@ FatImage::FatImage()
 
 FatImage::~FatImage()
 {
+    CloseRead();
     Clear();
 }
 
@@ -387,9 +391,22 @@ u32 FatImage::GetLeftOut() const
 u64 FatImage::GetContentSize() const
 {
     u64 size = 0;
+    std::vector<u32> pending(1, 0);
 
-    for (size_t i = 0; i < m_entries.size(); i++)
-        size += m_entries[i].size;
+    while (!pending.empty())
+    {
+        u32 directory = pending.back();
+        pending.pop_back();
+
+        for (size_t i = 0; i < m_entries[directory].children.size(); i++)
+        {
+            u32 child = m_entries[directory].children[i];
+            size += m_entries[child].size;
+
+            if (m_entries[child].directory)
+                pending.push_back(child);
+        }
+    }
 
     return size;
 }
@@ -568,6 +585,706 @@ void FatImage::Prepare(const char* source, const char* image_path, bool rebuild,
         report->result = FAT_IMAGE_BUILT;
 }
 
+// The game goes in dir on C:, its folders made as the system's. A descriptor in the game's root never reaches its disk
+bool FatImage::AddGame(const char* source, const char* dir)
+{
+    Clear();
+
+    if (!IsValidPointer(source))
+        return false;
+
+    std::string path = IsValidPointer(dir) ? dir : "";
+    size_t start = 0;
+
+    while (start < path.size())
+    {
+        size_t end = path.find('\\', start);
+        end = end == std::string::npos ? path.size() : end;
+
+        if (end > start)
+        {
+            m_base = AddEntry(m_base, path.substr(start, end - start), true);
+            m_entries[m_base].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        }
+
+        start = end + 1;
+    }
+
+    if (ends_with_no_case(source, ".zip"))
+    {
+        m_zip_file = MediaFile::OpenFile(source);
+
+        if (!IsValidPointer(m_zip_file))
+            return false;
+
+        m_zip.m_pRead = ReadZipFile;
+        m_zip.m_pIO_opaque = m_zip_file;
+
+        if (!mz_zip_reader_init(&m_zip, (mz_uint64)m_zip_file->GetSize(), 0))
+            return false;
+
+        m_zip_open = true;
+
+        if (!ScanZip())
+            return false;
+    }
+    else if (!WalkFolder(trim_path(source), m_base, 0))
+        return false;
+
+    for (size_t i = m_entries[m_base].children.size(); i > 0; i--)
+    {
+        u32 child = m_entries[m_base].children[i - 1];
+
+        if (!m_entries[child].directory && ends_with_no_case(m_entries[child].name.c_str(), ".gdox"))
+            RemoveChild(m_base, child);
+    }
+
+    return true;
+}
+
+// Folders and files of the overlay replace the source's with the same name, whatever the case. Its .deleted lists
+// what the guest removed, one path from the root a line
+bool FatImage::AddOverlay(const char* path)
+{
+    std::string root = trim_path(path);
+    u64 size = 0;
+    s64 modified = 0;
+
+    if (!WalkOverlay(root, m_base, 0))
+        return false;
+
+    std::string list = root;
+    append_path_component(list, ".deleted");
+
+    if (!MediaFile::GetFileInfo(list.c_str(), &size, &modified))
+        return true;
+
+    MediaFile* file = MediaFile::OpenFile(list.c_str());
+
+    if (!IsValidPointer(file))
+        return false;
+
+    std::string text((size_t)size, '\0');
+    bool ok = (size == 0) || file->ReadAt(0, &text[0], size);
+    SafeDelete(file);
+
+    if (ok)
+        ApplyDeleted(text);
+
+    return ok;
+}
+
+bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
+{
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if (!MediaFile::ListDirectory(path.c_str(), folders, files))
+        return false;
+
+    for (size_t i = 0; i < files.size(); i++)
+    {
+        std::string item(path);
+        append_path_component(item, files[i].c_str());
+        u64 size = 0;
+        s64 modified = 0;
+
+        if (is_clutter(files[i]) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified))
+            continue;
+
+        int found = FindChild(directory, files[i]);
+
+        if ((found >= 0) && m_entries[found].directory)
+        {
+            RemoveChild(directory, (u32)found);
+            found = -1;
+        }
+
+        u32 entry = found >= 0 ? (u32)found : AddEntry(directory, files[i], false);
+        m_entries[entry].source = item;
+        m_entries[entry].size = size;
+        m_entries[entry].modified = modified;
+        m_entries[entry].memory = -1;
+        m_entries[entry].crc = 0;
+        m_entries[entry].origin = FAT_IMAGE_ORIGIN_OVERLAY;
+        get_dos_time(modified, &m_entries[entry].date, &m_entries[entry].time);
+    }
+
+    for (size_t i = 0; (depth < k_fat_max_depth) && (i < folders.size()); i++)
+    {
+        std::string item(path);
+        append_path_component(item, folders[i].c_str());
+
+        if (is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
+            continue;
+
+        int found = FindChild(directory, folders[i]);
+
+        if ((found >= 0) && !m_entries[found].directory)
+        {
+            RemoveChild(directory, (u32)found);
+            found = -1;
+        }
+
+        u32 entry = found >= 0 ? (u32)found : AddEntry(directory, folders[i], true);
+
+        if (!WalkOverlay(item, entry, depth + 1))
+            m_left_out++;
+    }
+
+    return true;
+}
+
+void FatImage::ApplyDeleted(const std::string& list)
+{
+    size_t start = 0;
+
+    while (start < list.size())
+    {
+        size_t end = list.find('\n', start);
+        end = end == std::string::npos ? list.size() : end;
+        std::string line = list.substr(start, end - start);
+        start = end + 1;
+
+        if (!line.empty() && (line[line.size() - 1] == '\r'))
+            line.resize(line.size() - 1);
+
+        u32 directory = m_base;
+        int found = -1;
+        size_t part = 0;
+
+        while (part <= line.size())
+        {
+            size_t next = line.find('/', part);
+            next = next == std::string::npos ? line.size() : next;
+            std::string name = line.substr(part, next - part);
+            part = next + 1;
+
+            if (name.empty())
+                continue;
+
+            if (found >= 0)
+            {
+                if (!m_entries[found].directory)
+                {
+                    found = -1;
+                    break;
+                }
+
+                directory = (u32)found;
+            }
+
+            found = FindChild(directory, name);
+
+            if (found < 0)
+                break;
+        }
+
+        if (found > 0)
+            RemoveChild(directory, (u32)found);
+    }
+}
+
+// Laid out as FreeDOS installs itself, with FDCONFIG.SYS and FDAUTO.BAT left to the caller. Hidden, the five entries in
+// the root are hidden and KERNEL.SYS is also read only and system
+bool FatImage::AddFreeDOS(bool hidden)
+{
+    static const char* const k_reserved[] = { "KERNEL.SYS", "FDCONFIG.SYS", "FDAUTO.BAT", "FREEDOS", "TEMP" };
+    u8 hide = hidden ? k_fat_attribute_hidden : 0;
+    mz_zip_archive zip;
+
+    for (size_t i = m_entries[0].children.size(); i > 0; i--)
+    {
+        u32 child = m_entries[0].children[i - 1];
+        std::string name = upper(m_entries[child].name);
+
+        for (size_t r = 0; r < sizeof(k_reserved) / sizeof(k_reserved[0]); r++)
+        {
+            if (name == k_reserved[r])
+            {
+                m_left_out += 1 + CountEntries(child);
+                RemoveChild(0, child);
+                break;
+            }
+        }
+    }
+
+    memset(&zip, 0, sizeof(zip));
+
+    if (!mz_zip_reader_init_mem(&zip, k_freedos_files, k_freedos_files_size, 0))
+        return false;
+
+    u32 freedos = AddEntry(0, "FREEDOS", true);
+    m_entries[freedos].attributes = k_fat_attribute_directory | hide;
+    m_entries[freedos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    bool ok = true;
+
+    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(&zip)); i++)
+    {
+        mz_zip_archive_file_stat stat;
+
+        if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory)
+            continue;
+
+        std::string name(stat.m_filename);
+        bool kernel = name == "KERNEL.SYS";
+
+        if (!kernel && (name.compare(0, 8, "FREEDOS/") != 0))
+            continue;
+
+        size_t size = 0;
+        void* data = mz_zip_reader_extract_to_heap(&zip, i, &size, 0);
+
+        if (!IsValidPointer(data))
+        {
+            ok = false;
+            break;
+        }
+
+        m_memory.push_back(std::string((const char*)data, size));
+        mz_free(data);
+        u32 directory = kernel ? 0 : freedos;
+        std::string rest = kernel ? name : name.substr(8);
+        size_t slash = rest.find('/');
+
+        while (slash != std::string::npos)
+        {
+            std::string folder = rest.substr(0, slash);
+            int found = FindChild(directory, folder);
+
+            if (found < 0)
+            {
+                found = (int)AddEntry(directory, folder, true);
+                m_entries[found].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+            }
+
+            directory = (u32)found;
+            rest = rest.substr(slash + 1);
+            slash = rest.find('/');
+        }
+
+        u32 entry = AddEntry(directory, rest, false);
+        FatImage_Entry& file = m_entries[entry];
+        file.memory = (int)m_memory.size() - 1;
+        file.size = size;
+        file.crc = stat.m_crc32;
+        file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        get_dos_time((s64)stat.m_time, &file.date, &file.time);
+
+        if (kernel && hidden)
+            file.attributes = k_fat_attribute_read_only | k_fat_attribute_hidden | k_fat_attribute_system;
+    }
+
+    mz_zip_reader_end(&zip);
+
+    if (ok)
+    {
+        u32 temp = AddEntry(0, "TEMP", true);
+        m_entries[temp].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        m_entries[temp].attributes = k_fat_attribute_directory | hide;
+    }
+
+    return ok;
+}
+
+bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attributes)
+{
+    std::string rest(path);
+    u32 directory = 0;
+    size_t slash = rest.find('/');
+
+    while (slash != std::string::npos)
+    {
+        int found = FindChild(directory, rest.substr(0, slash));
+
+        if ((found < 0) || !m_entries[found].directory)
+            return false;
+
+        directory = (u32)found;
+        rest = rest.substr(slash + 1);
+        slash = rest.find('/');
+    }
+
+    int existing = FindChild(directory, rest);
+
+    if (existing >= 0)
+        RemoveChild(directory, (u32)existing);
+
+    m_memory.push_back(data);
+    u32 entry = AddEntry(directory, rest, false);
+    m_entries[entry].memory = (int)m_memory.size() - 1;
+    m_entries[entry].size = data.size();
+    m_entries[entry].crc = (u32)mz_crc32(0, (const u8*)data.data(), data.size());
+    m_entries[entry].attributes = attributes;
+    m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    return true;
+}
+
+void FatImage::FinishGame(const char* label)
+{
+    SetLabel(label);
+    Finish();
+}
+
+const FatImage_Entry& FatImage::GetEntry(u32 index) const
+{
+    return m_entries[index];
+}
+
+void FatImage::ListEntries(std::vector<FatImage_Listed>* listed) const
+{
+    listed->clear();
+    ListDirectory(0, "", "", listed);
+}
+
+void FatImage::ListDirectory(u32 directory, const std::string& dos_path, const std::string& host_path,
+    std::vector<FatImage_Listed>* listed) const
+{
+    for (size_t i = 0; i < m_entries[directory].children.size(); i++)
+    {
+        u32 index = m_entries[directory].children[i];
+        const FatImage_Entry& entry = m_entries[index];
+        FatImage_Listed item;
+        item.dos_path = dos_path.empty() ? pretty_name(entry.short_name) : dos_path + "\\" + pretty_name(entry.short_name);
+        item.host_path = host_path.empty() ? entry.name : host_path + "/" + entry.name;
+        item.index = index;
+        listed->push_back(item);
+
+        if (entry.directory)
+            ListDirectory(index, item.dos_path, index == m_base ? std::string() : item.host_path, listed);
+    }
+}
+
+int FatImage::FindChild(u32 directory, const std::string& name) const
+{
+    std::string wanted = upper(name);
+
+    for (size_t i = 0; i < m_entries[directory].children.size(); i++)
+    {
+        u32 child = m_entries[directory].children[i];
+
+        if (upper(m_entries[child].name) == wanted)
+            return (int)child;
+    }
+
+    return -1;
+}
+
+void FatImage::RemoveChild(u32 directory, u32 index)
+{
+    std::vector<u32>& children = m_entries[directory].children;
+    children.erase(std::remove(children.begin(), children.end(), index), children.end());
+}
+
+// The walk write-back trusts: a chain out of range or looping, a cluster in two chains, or a size past its chain and
+// the image is refused
+bool FatImage::Read(const char* path)
+{
+    CloseRead();
+    m_read = MediaFile::OpenFile(path);
+    u8 sector[k_fat_sector_size];
+
+    if (!IsValidPointer(m_read) || !m_read->ReadAt(0, sector, sizeof(sector)) || (read_u16_le(sector + 510) != 0xAA55))
+    {
+        m_read_error = "The hard disk image has no partition table";
+        CloseRead();
+        return false;
+    }
+
+    u32 start = read_u32_le(sector + k_fat_entry_offset + 8);
+    m_read_offset = (u64)start * k_fat_sector_size;
+
+    if (!m_read->ReadAt(m_read_offset, sector, sizeof(sector)) || (read_u16_le(sector + 510) != 0xAA55) ||
+        (read_u16_le(sector + 11) != k_fat_sector_size))
+    {
+        m_read_error = "The partition has no FAT boot sector";
+        CloseRead();
+        return false;
+    }
+
+    u32 cluster_sectors = sector[13];
+    u32 reserved = read_u16_le(sector + 14);
+    u32 fats = sector[16];
+    u32 root_entries = read_u16_le(sector + 17);
+    u32 total = read_u16_le(sector + 19) != 0 ? read_u16_le(sector + 19) : read_u32_le(sector + 32);
+    u32 fat_sectors = read_u16_le(sector + 22);
+    u32 root_sectors = ((root_entries * k_fat_entry_size) + k_fat_sector_size - 1) / k_fat_sector_size;
+    u32 first_data = reserved + (fats * fat_sectors) + root_sectors;
+    bool power = (cluster_sectors != 0) && ((cluster_sectors & (cluster_sectors - 1)) == 0);
+    u32 clusters = (power && (total > first_data)) ? (total - first_data) / cluster_sectors : 0;
+
+    if (!power || (reserved == 0) || (fats == 0) || (fat_sectors == 0) || (clusters <= k_fat_min_clusters) ||
+        (clusters >= k_fat_max_clusters) || ((u64)fat_sectors * k_fat_sector_size / 2 < clusters + 2))
+    {
+        m_read_error = "The partition isn't a FAT16 volume Geardox can read";
+        CloseRead();
+        return false;
+    }
+
+    memset(&m_layout, 0, sizeof(m_layout));
+    m_layout.cluster_sectors = cluster_sectors;
+    m_layout.root_entries = root_entries;
+    m_layout.root_sectors = root_sectors;
+    m_layout.fat_sectors = fat_sectors;
+    m_layout.first_data = first_data;
+    m_layout.clusters = clusters;
+    m_layout.partition = reserved;
+    std::vector<u8> table((size_t)fat_sectors * k_fat_sector_size);
+
+    if (!m_read->ReadAt(m_read_offset + (u64)reserved * k_fat_sector_size, table.data(), table.size()))
+    {
+        m_read_error = "Unable to read the FAT";
+        CloseRead();
+        return false;
+    }
+
+    m_fat.resize(clusters + 2);
+
+    for (u32 i = 0; i < clusters + 2; i++)
+        m_fat[i] = read_u16_le(table.data() + (i * 2));
+
+    std::vector<u8> used(clusters + 2, 0);
+
+    if (!ReadDirectory(0, "", 0, &used))
+    {
+        CloseRead();
+        return false;
+    }
+
+    return true;
+}
+
+void FatImage::CloseRead()
+{
+    SafeDelete(m_read);
+    m_files.clear();
+    m_fat.clear();
+}
+
+const std::vector<FatImage_File>& FatImage::GetFiles() const
+{
+    return m_files;
+}
+
+const char* FatImage::GetReadError() const
+{
+    return m_read_error.c_str();
+}
+
+bool FatImage::ReadDirectory(u32 cluster, const std::string& path, int depth, std::vector<u8>* used)
+{
+    std::vector<u8> data;
+    u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
+
+    if (depth > k_fat_max_depth)
+    {
+        m_read_error = "Directories nest too deep at " + path;
+        return false;
+    }
+
+    if (cluster == 0)
+    {
+        data.resize((size_t)m_layout.root_sectors * k_fat_sector_size);
+        u64 root = m_read_offset + (u64)(m_layout.partition + (2 * m_layout.fat_sectors)) * k_fat_sector_size;
+
+        if (!m_read->ReadAt(root, data.data(), data.size()))
+        {
+            m_read_error = "Unable to read the root directory";
+            return false;
+        }
+    }
+    else
+    {
+        std::vector<u32> chain;
+
+        if (!ReadChain(cluster, &chain, used))
+        {
+            m_read_error += " in directory " + path;
+            return false;
+        }
+
+        data.resize(chain.size() * cluster_size);
+
+        for (size_t i = 0; i < chain.size(); i++)
+        {
+            u64 offset = m_read_offset + ((u64)m_layout.first_data + (u64)(chain[i] - 2) * m_layout.cluster_sectors) *
+                k_fat_sector_size;
+
+            if (!m_read->ReadAt(offset, data.data() + (i * cluster_size), cluster_size))
+            {
+                m_read_error = "Unable to read directory " + path;
+                return false;
+            }
+        }
+    }
+
+    for (size_t offset = 0; offset + k_fat_entry_size <= data.size(); offset += k_fat_entry_size)
+    {
+        const u8* entry = data.data() + offset;
+        u8 attributes = entry[11];
+
+        if (entry[0] == 0x00)
+            break;
+
+        if ((entry[0] == 0xE5) || ((attributes & 0x0F) == 0x0F) || ((attributes & k_fat_attribute_label) != 0) ||
+            (entry[0] == '.'))
+            continue;
+
+        u8 name[11];
+        memcpy(name, entry, sizeof(name));
+
+        if (name[0] == 0x05)
+            name[0] = 0xE5;
+
+        FatImage_File file;
+        file.path = path.empty() ? pretty_name(name) : path + "\\" + pretty_name(name);
+        file.attributes = attributes;
+        file.directory = (attributes & k_fat_attribute_directory) != 0;
+        file.size = file.directory ? 0 : read_u32_le(entry + 28);
+        file.date = read_u16_le(entry + 24);
+        file.time = read_u16_le(entry + 22);
+        file.first_cluster = read_u16_le(entry + 26);
+
+        if (file.directory)
+        {
+            if (file.first_cluster < 2)
+            {
+                m_read_error = "Directory " + file.path + " has no cluster";
+                return false;
+            }
+
+            m_files.push_back(file);
+
+            if (!ReadDirectory(file.first_cluster, file.path, depth + 1, used))
+                return false;
+
+            continue;
+        }
+
+        std::vector<u32> chain;
+
+        if ((file.first_cluster != 0) && !ReadChain(file.first_cluster, &chain, used))
+        {
+            m_read_error += " in " + file.path;
+            return false;
+        }
+
+        if ((u64)chain.size() * cluster_size < file.size)
+        {
+            m_read_error = "The size of " + file.path + " is past its clusters";
+            return false;
+        }
+
+        m_files.push_back(file);
+    }
+
+    return true;
+}
+
+bool FatImage::ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* used)
+{
+    u32 cluster = first;
+
+    while (true)
+    {
+        if ((cluster < 2) || (cluster >= m_layout.clusters + 2))
+        {
+            m_read_error = "A cluster chain leaves the volume";
+            return false;
+        }
+
+        if (IsValidPointer(used))
+        {
+            if ((*used)[cluster] != 0)
+            {
+                m_read_error = "A cluster chain loops or two files share a cluster";
+                return false;
+            }
+
+            (*used)[cluster] = 1;
+        }
+        else if (chain->size() > m_layout.clusters)
+        {
+            m_read_error = "A cluster chain loops";
+            return false;
+        }
+
+        chain->push_back(cluster);
+        u16 next = m_fat[cluster];
+
+        if (next >= 0xFFF8)
+            return true;
+
+        if ((next == 0) || (next == 0xFFF7))
+        {
+            m_read_error = "A cluster chain is cut";
+            return false;
+        }
+
+        cluster = next;
+    }
+}
+
+bool FatImage::GetFileCRC(const FatImage_File& file, u32* crc)
+{
+    return ReadFileData(file, NULL, crc);
+}
+
+bool FatImage::CopyOut(const FatImage_File& file, const char* path, u32* crc)
+{
+    MediaFile* output = MediaFile::OpenNewFile(path);
+    u32 value = 0;
+
+    if (!IsValidPointer(output))
+        return false;
+
+    bool ok = ReadFileData(file, output, &value) && output->Flush();
+    SafeDelete(output);
+
+    if (IsValidPointer(crc))
+        *crc = value;
+
+    return ok;
+}
+
+bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, u32* crc)
+{
+    *crc = 0;
+
+    if (!IsValidPointer(m_read) || file.directory)
+        return false;
+
+    if (file.size == 0)
+        return true;
+
+    std::vector<u32> chain;
+
+    if (!ReadChain(file.first_cluster, &chain, NULL))
+        return false;
+
+    u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
+    std::vector<u8> buffer(cluster_size);
+    u32 left = file.size;
+
+    for (size_t i = 0; (i < chain.size()) && (left != 0); i++)
+    {
+        u32 chunk = MIN(left, cluster_size);
+        u64 offset = m_read_offset + ((u64)m_layout.first_data + (u64)(chain[i] - 2) * m_layout.cluster_sectors) *
+            k_fat_sector_size;
+
+        if (!m_read->ReadAt(offset, buffer.data(), chunk))
+            return false;
+
+        if (IsValidPointer(output) && !output->WriteAt((u64)file.size - left, buffer.data(), chunk))
+            return false;
+
+        *crc = (u32)mz_crc32(*crc, buffer.data(), chunk);
+        left -= chunk;
+    }
+
+    return left == 0;
+}
+
 void FatImage::Clear()
 {
     if (m_zip_open)
@@ -582,6 +1299,13 @@ void FatImage::Clear()
     m_entries[0].size = 0;
     m_entries[0].date = k_fat_default_date;
     m_entries[0].time = k_fat_default_time;
+    m_entries[0].attributes = k_fat_attribute_directory;
+    m_entries[0].origin = FAT_IMAGE_ORIGIN_SOURCE;
+    m_entries[0].memory = -1;
+    m_entries[0].crc = 0;
+    m_entries[0].modified = 0;
+    m_memory.clear();
+    m_base = 0;
     m_left_out = 0;
 }
 
@@ -612,6 +1336,7 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         u32 entry = AddEntry(directory, files[i], false);
         m_entries[entry].source = item;
         m_entries[entry].size = size;
+        m_entries[entry].modified = modified;
         get_dos_time(modified, &m_entries[entry].date, &m_entries[entry].time);
     }
 
@@ -660,7 +1385,7 @@ bool FatImage::ScanZip()
 
     std::sort(order.begin(), order.end());
     std::map<std::string, u32> directories;
-    directories[""] = 0;
+    directories[""] = m_base;
 
     for (size_t i = 0; i < order.size(); i++)
     {
@@ -715,7 +1440,7 @@ bool FatImage::ScanZip()
         get_dos_time((s64)stat.m_time, &date, &time_value);
         size_t folders = stat.m_is_directory ? parts.size() : parts.size() - 1;
         std::string path;
-        u32 directory = 0;
+        u32 directory = m_base;
 
         for (size_t part = 0; part < folders; part++)
         {
@@ -740,6 +1465,7 @@ bool FatImage::ScanZip()
         u32 entry = AddEntry(directory, parts[parts.size() - 1], false);
         m_entries[entry].size = stat.m_uncomp_size;
         m_entries[entry].zip_index = order[i].second;
+        m_entries[entry].crc = stat.m_crc32;
         m_entries[entry].date = date;
         m_entries[entry].time = time_value;
     }
@@ -760,6 +1486,11 @@ u32 FatImage::AddEntry(u32 directory, const std::string& name, bool is_directory
     entry.time = k_fat_default_time;
     entry.zip_index = 0;
     entry.first_cluster = 0;
+    entry.attributes = is_directory ? k_fat_attribute_directory : k_fat_attribute_archive;
+    entry.origin = FAT_IMAGE_ORIGIN_SOURCE;
+    entry.memory = -1;
+    entry.crc = 0;
+    entry.modified = 0;
     m_entries[directory].children.push_back(index);
     return index;
 }
@@ -892,6 +1623,14 @@ void FatImage::HashEntries(u32 directory, u32* crc) const
         *crc = (u32)mz_crc32(*crc, (const u8*)entry.name.data(), entry.name.size());
         *crc = (u32)mz_crc32(*crc, data, sizeof(data));
 
+        // Generated and system files change with their contents and attributes, not only their size
+        if (entry.origin != FAT_IMAGE_ORIGIN_SOURCE)
+        {
+            u8 extra[6] = { entry.attributes, entry.origin, 0, 0, 0, 0 };
+            write_u32_le(extra + 2, entry.crc);
+            *crc = (u32)mz_crc32(*crc, extra, sizeof(extra));
+        }
+
         if (entry.directory)
             HashEntries(m_entries[directory].children[i], crc);
     }
@@ -1018,9 +1757,8 @@ bool FatImage::PlaceDirectory(u32 directory, u32 cluster, u32 parent, std::vecto
     for (size_t i = 0; i < children.size(); i++)
     {
         const FatImage_Entry& entry = m_entries[children[i]];
-        write_entry(content->data() + ((i + own_entries) * k_fat_entry_size), entry.short_name,
-            entry.directory ? k_fat_attribute_directory : k_fat_attribute_archive, entry.date, entry.time,
-            entry.first_cluster, entry.directory ? 0 : (u32)entry.size);
+        write_entry(content->data() + ((i + own_entries) * k_fat_entry_size), entry.short_name, entry.attributes,
+            entry.date, entry.time, entry.first_cluster, entry.directory ? 0 : (u32)entry.size);
     }
 
     for (size_t i = 0; i < children.size(); i++)
@@ -1040,8 +1778,14 @@ bool FatImage::PlaceDirectory(u32 directory, u32 cluster, u32 parent, std::vecto
     return true;
 }
 
-bool FatImage::CopyFile(const FatImage_Entry& entry, u64 offset)
+bool FatImage::CopyFile(FatImage_Entry& entry, u64 offset)
 {
+    if (entry.memory >= 0)
+    {
+        const std::string& data = m_memory[entry.memory];
+        return m_output->WriteAt(offset, data.data(), data.size());
+    }
+
     if (entry.source.empty())
     {
         m_zip_offset = offset;
@@ -1058,14 +1802,18 @@ bool FatImage::CopyFile(const FatImage_Entry& entry, u64 offset)
 
     u64 left = entry.size;
     bool ok = true;
+    u32 crc = 0;
 
     while (ok && (left != 0))
     {
         u32 chunk = (u32)MIN(left, (u64)m_buffer.size());
         ok = file->ReadExact(m_buffer.data(), chunk) && m_output->WriteAt(offset, m_buffer.data(), chunk);
+        crc = (u32)mz_crc32(crc, m_buffer.data(), chunk);
         offset += chunk;
         left -= chunk;
     }
+
+    entry.crc = crc;
 
     SafeDelete(file);
 

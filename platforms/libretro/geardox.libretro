@@ -8,4 +8,4 @@ Authors=Ignacio Sanchez Gines;
 License=GPL-3.0+;
 
 [Platform:DOS]
-MimeType=application/x-dos-disk-image;application/x-cue;
+MimeType=application/x-geardox-game;application/x-dos-disk-image;application/x-cue;

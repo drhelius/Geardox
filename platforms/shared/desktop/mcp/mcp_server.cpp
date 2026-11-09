@@ -1335,7 +1335,7 @@ json McpServer::BuildToolList()
         {"name", "get_system_status"},
         {"title", "Get System Status"},
         {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, video card, drives, BIOS set and where each "
-            "setting came from (user, model, Auto, game database) with warnings, and the board state: A20, port 0061, "
+            "setting came from (user, game, model, media) with warnings, and the board state: A20, port 0061, "
             "NMI mask, POST code, coprocessor IRQ13 and CPU resets, and the BIOS: source, SeaBIOS or AT style, images "
             "and the firmware config and debug console ports."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
@@ -1775,12 +1775,16 @@ json McpServer::BuildToolList()
         {"name", "load_media"},
         {"title", "Load Media"},
         {"description", "Load media from a local file; a hard disk image (.hdd, .h0-.h3, .img or .hdm over 8 MB, fixed .vhd, hard disk .chd) "
-            "attaches to its slot or the first free one, powering on an empty machine."},
+            "attaches to its slot or the first free one, powering on an empty machine. A game descriptor (.gdox), or a folder "
+            "or ZIP with one in its root, opens its game: its disk on C:, built or reused, and the machine powered on; "
+            "the answer is get_game_info's."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", true}}},
         {"inputSchema", {
             {"type", "object"},
             {"properties", {
-                {"file_path", {{"type", "string"}, {"description", "Absolute path."}}}
+                {"file_path", {{"type", "string"}, {"description", "Absolute path."}}},
+                {"target", {{"type", "string"}, {"enum", json::array({"game", "setup", "prompt"})},
+                    {"description", "For a game descriptor: what runs at boot. Default game."}}}
             }},
             {"required", json::array({"file_path"})},
             {"additionalProperties", false}
@@ -1904,6 +1908,21 @@ json McpServer::BuildToolList()
         {"minimum", 0},
         {"maximum", 3}
     };
+
+    tools.push_back({
+        {"name", "get_game_info"},
+        {"title", "Get Game Info"},
+        {"description", "The game open from a .gdox descriptor: the descriptor with its overrides, each key set and its layer "
+            "(descriptor or override), the machine in use and where each value came from, the target (game, setup or prompt), "
+            "the disk image, whether it was built or reused, where saves go, whether the session is open, and the last "
+            "write-back with its conflicts. open is false with no game."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
 
     tools.push_back({
         {"name", "list_hard_disks"},
@@ -3554,6 +3573,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "list_hard_disks")
     {
         return m_debugAdapter.ListHardDisks();
+    }
+    else if (normalizedTool == "get_game_info")
+    {
+        return m_debugAdapter.GetGameInfo();
     }
     else if (normalizedTool == "attach_hard_disk")
     {

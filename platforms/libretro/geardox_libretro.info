@@ -1,7 +1,7 @@
 # Software Information
 display_name = "DOS (Geardox)"
 authors = "Nacho Sanchez"
-supported_extensions = "img|ima|vfd|vhd|hdd|cue|chd|iso|bin|m3u|zip"
+supported_extensions = "gdox|img|ima|vfd|vhd|hdd|cue|chd|iso|bin|m3u|zip"
 corename = "Geardox"
 categories = "Emulator"
 license = "GPLv3"

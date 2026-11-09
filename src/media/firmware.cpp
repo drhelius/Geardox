@@ -23,7 +23,6 @@
 #include "firmware.h"
 #include "seabios.h"
 #include "media_file.h"
-#include "game_db.h"
 #include "crc.h"
 
 static const char* const k_firmware_file_names[GDOX_FIRMWARE_COUNT][FIRMWARE_FILE_NAMES] =
@@ -123,9 +122,6 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
 
         m_info[i] = m_pending_info[i];
 
-        if (!m_info[i].builtin)
-            GatherDatabaseInfo(type, m_info[i]);
-
         SafeDeleteArray(pending_data[i]);
 
         if (quiet)
@@ -133,15 +129,11 @@ bool Firmware::LoadSource(const GDOX_Firmware_Source& source, bool quiet)
 
         if (m_info[i].builtin)
         {
-            Log("Optional firmware not found: %s. Using the built-in %s.", GetFileName(type), m_info[i].database_name);
-        }
-        else if (m_info[i].recognized)
-        {
-            Log("Firmware loaded: %s. CRC: %08X", m_info[i].database_name, m_info[i].crc);
+            Log("Optional firmware not found: %s. Using the built-in %s.", GetFileName(type), m_info[i].name);
         }
         else
         {
-            Log("Unknown firmware loaded: %s. CRC: %08X", GetFileName(type), m_info[i].crc);
+            Log("Firmware loaded: %s. CRC: %08X", GetFileName(type), m_info[i].crc);
         }
     }
 
@@ -165,7 +157,7 @@ bool Firmware::LoadBuiltin(const GDOX_Firmware_Source& source, bool quiet)
     }
 
     if (!quiet)
-        Log("Firmware loaded: built-in %s", m_info[GDOX_FIRMWARE_SYSTEM_BIOS].database_name);
+        Log("Firmware loaded: built-in %s", m_info[GDOX_FIRMWARE_SYSTEM_BIOS].name);
 
     m_source = source;
     m_ready = true;
@@ -201,11 +193,10 @@ void Firmware::SetBuiltinInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info)
 
     memset(&info, 0, sizeof(info));
     strncpy_fit(info.path, "Built-in", sizeof(info.path));
-    snprintf(info.database_name, sizeof(info.database_name), "%s %s", name, k_seabios_version);
+    snprintf(info.name, sizeof(info.name), "%s %s", name, k_seabios_version);
     info.size = (int)size;
     info.crc = CalculateCRC32(0, data, (u32)info.size);
     info.loaded = true;
-    info.recognized = true;
     info.builtin = true;
 }
 
@@ -222,25 +213,6 @@ bool Firmware::IsSeaBIOS(const u8* data, u32 size)
     }
 
     return false;
-}
-
-void Firmware::GatherDatabaseInfo(GDOX_Firmware_Type type, GDOX_Firmware_Info& info)
-{
-    info.recognized = false;
-    info.database_name[0] = '\0';
-    u16 flag = GetDatabaseFlag(type);
-
-    for (int i = 0; k_game_database[i].title != 0; i++)
-    {
-        const GDOX_DB_Entry& entry = k_game_database[i];
-
-        if (entry.crc == info.crc && (entry.flags & flag))
-        {
-            info.recognized = true;
-            strncpy_fit(info.database_name, entry.title, sizeof(info.database_name));
-            return;
-        }
-    }
 }
 
 u8* Firmware::GetWritableData(GDOX_Firmware_Type type)
@@ -317,19 +289,6 @@ const char* Firmware::GetSizeText(GDOX_Firmware_Type type)
 bool Firmware::IsRequired(GDOX_Firmware_Type type)
 {
     return type == GDOX_FIRMWARE_SYSTEM_BIOS;
-}
-
-u16 Firmware::GetDatabaseFlag(GDOX_Firmware_Type type)
-{
-    switch (type)
-    {
-        case GDOX_FIRMWARE_SYSTEM_BIOS:
-            return GDOX_GAMEDB_FIRMWARE_SYSTEM_BIOS;
-        case GDOX_FIRMWARE_VGA_BIOS:
-            return GDOX_GAMEDB_FIRMWARE_VGA_BIOS;
-        default:
-            return GDOX_GAMEDB_FLAG_NONE;
-    }
 }
 
 void Firmware::FindSources(const char* default_folder, const std::string* model_folders, GDOX_Firmware_Source* sources)

@@ -32,6 +32,7 @@ struct ApplicationParams
     const char* floppy_files[2] = { NULL, NULL };
     const char* state_file = NULL;
     int state_slot = 0;
+    int game_target = 0;
     bool force_fullscreen = false;
     bool force_windowed = false;
     int mcp_mode = -1;

@@ -143,6 +143,37 @@ bool MediaFile::RemoveFile(const char* path)
     return remove_file_utf8(path);
 }
 
+bool MediaFile::MakeDirectory(const char* path)
+{
+#if defined(__LIBRETRO__)
+    if (MediaFileLibretro::HasVfsDirectories())
+        return MediaFileLibretro::MakeDirectory(path);
+#endif
+
+    return MediaFileNative::MakeDirectory(path);
+}
+
+bool MediaFile::RemoveDirectory(const char* path)
+{
+#if defined(__LIBRETRO__)
+    if (MediaFileLibretro::HasVfsInterface())
+        return MediaFileLibretro::RemoveFile(path);
+#endif
+
+    return MediaFileNative::RemoveDirectory(path);
+}
+
+// libretro's VFS can't set a time, so there a file keeps the time it was written
+bool MediaFile::SetModified(const char* path, s64 modified)
+{
+#if defined(__LIBRETRO__)
+    if (MediaFileLibretro::HasVfsInterface())
+        return false;
+#endif
+
+    return MediaFileNative::SetModified(path, modified);
+}
+
 void MediaFile::SetVfsInterface(const retro_vfs_interface* iface, unsigned version)
 {
 #if defined(__LIBRETRO__)

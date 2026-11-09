@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+    <mime-type type="application/x-geardox-game">
+        <comment>Geardox Game</comment>
+        <sub-class-of type="text/plain"/>
+        <glob pattern="*.gdox"/>
+    </mime-type>
     <mime-type type="application/x-dos-disk-image">
         <comment>DOS Disk Image</comment>
         <glob pattern="*.ima"/>

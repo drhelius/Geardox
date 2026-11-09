@@ -57,7 +57,7 @@ static bool parse_video(const char* text, int* card);
 static bool parse_mouse(const char* text, int* mouse);
 static bool parse_cdrom(const char* text, int* cdrom);
 static bool parse_joystick(const char* text, int* joystick);
-static bool parse_number(const char* text, const int* values, int count, int* value);
+static bool parse_number(const char* text, const int* values, int count, int* value, bool model_default);
 static void apply_override(Machine_Override& override, int* setting);
 static void restore_override(const Machine_Override& override, int* setting);
 static void apply_machine_overrides(void);
@@ -141,6 +141,25 @@ int main(int argc, char* argv[])
                 if (!(app_params.floppy_files[drive] = option_value(argc, argv, &i)))
                     return -1;
             }
+            else if (strcmp(argv[i], "--target") == 0)
+            {
+                const char* value = option_value(argc, argv, &i);
+
+                if (!value)
+                    return -1;
+
+                if (strcmp(value, "game") == 0)
+                    app_params.game_target = 0;
+                else if (strcmp(value, "setup") == 0)
+                    app_params.game_target = 1;
+                else if (strcmp(value, "prompt") == 0)
+                    app_params.game_target = 2;
+                else
+                {
+                    fprintf(stderr, "Invalid value for --target: %s\n", value);
+                    return -1;
+                }
+            }
             else if (strcmp(argv[i], "--load-state") == 0)
             {
                 const char* value = option_value(argc, argv, &i);
@@ -175,7 +194,7 @@ int main(int argc, char* argv[])
                 else if (strcmp(option, "--cpu-mhz") == 0)
                 {
                     override = &cpu_override;
-                    valid = parse_number(value, k_machine_cpu_speeds_mhz, GDOX_MACHINE_CPU_SPEED_COUNT, &override->value);
+                    valid = parse_number(value, k_machine_cpu_speeds_mhz, GDOX_MACHINE_CPU_SPEED_COUNT, &override->value, true);
                 }
                 else if (strcmp(option, "--sound") == 0)
                 {
@@ -208,7 +227,7 @@ int main(int argc, char* argv[])
                     valid = parse_fpu(value, &override->value);
                 }
                 else
-                    valid = parse_number(value, k_machine_ram_sizes_mb, GDOX_MACHINE_RAM_SIZE_COUNT, &override->value);
+                    valid = parse_number(value, k_machine_ram_sizes_mb, GDOX_MACHINE_RAM_SIZE_COUNT, &override->value, false);
 
                 override->set = valid;
 
@@ -365,7 +384,7 @@ int main(int argc, char* argv[])
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
-        "--load-state", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--video",
+        "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--video",
         "--mouse", "--cdrom", "--joystick" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
@@ -390,12 +409,6 @@ static const char* option_value(int argc, char* argv[], int* i)
 
 static bool parse_model(const char* text, int* model)
 {
-    if (strcmp(text, "auto") == 0)
-    {
-        *model = GDOX_MACHINE_AUTO;
-        return true;
-    }
-
     for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
     {
         GDOX_Machine_Model candidate = k_machine_release_order[i];
@@ -486,9 +499,9 @@ static bool parse_video(const char* text, int* card)
     return false;
 }
 
-static bool parse_number(const char* text, const int* values, int count, int* value)
+static bool parse_number(const char* text, const int* values, int count, int* value, bool model_default)
 {
-    if (strcmp(text, "auto") == 0)
+    if (model_default && (strcmp(text, "auto") == 0))
     {
         *value = GDOX_MACHINE_AUTO;
         return true;
@@ -514,9 +527,7 @@ static bool parse_number(const char* text, const int* values, int count, int* va
 
 static bool parse_fpu(const char* text, int* fpu)
 {
-    if (strcmp(text, "auto") == 0)
-        *fpu = GDOX_MACHINE_AUTO;
-    else if (strcmp(text, "none") == 0)
+    if (strcmp(text, "none") == 0)
         *fpu = 0;
     else if (strcmp(text, "80387") == 0)
         *fpu = 1;
@@ -601,9 +612,9 @@ static void print_usage(const char* program)
 {
     const char* name = strrchr(program, '/');
     const char* name_windows = strrchr(program, '\\');
-    std::string models("auto");
+    std::string models;
     std::string speeds("auto");
-    std::string sizes("auto");
+    std::string sizes;
     char number[16];
 
     if (name_windows > name)
@@ -612,7 +623,7 @@ static void print_usage(const char* program)
     for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
     {
         if (k_machine_profiles[k_machine_release_order[i]].emulated)
-            models += std::string(", ") + k_machine_profiles[k_machine_release_order[i]].key;
+            models += std::string(models.empty() ? "" : ", ") + k_machine_profiles[k_machine_release_order[i]].key;
     }
 
     for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
@@ -623,13 +634,13 @@ static void print_usage(const char* program)
 
     for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
     {
-        snprintf(number, sizeof(number), ", %d", k_machine_ram_sizes_mb[i]);
+        snprintf(number, sizeof(number), "%s%d", sizes.empty() ? "" : ", ", k_machine_ram_sizes_mb[i]);
         sizes += number;
     }
 
     printf("Usage: %s [options] [media_file] [symbol_file]\n", name ? name + 1 : program);
     printf("\nArguments:\n");
-    print_wrapped("  media_file", "CD-ROM (.cue .chd .iso), floppy (.img .ima .vfd .flp .dsk .d77 .d88 .hdm .xdf .mfm), .m3u playlist, "
+    print_wrapped("  media_file", "Game descriptor (.gdox, or a folder or ZIP with one), CD-ROM (.cue .chd .iso), floppy (.img .ima .vfd .flp .dsk .d77 .d88 .hdm .xdf .mfm), .m3u playlist, "
         ".zip, or hard disk (.hdd .h0-.h3, .img and .hdm over 8 MB, fixed .vhd, hard disk .chd)");
     print_wrapped("  symbol_file", "Symbol file for debugging");
     printf("\nMedia:\n");
@@ -637,11 +648,12 @@ static void print_usage(const char* program)
     print_wrapped("      --fd1 FILE", "Floppy image in drive 1");
     print_wrapped("      --fd2 FILE", "Floppy image in drive 2");
     print_wrapped("      --load-state SLOT", "Load save state slot 1-5, or a state file, once the media is loaded");
+    print_wrapped("      --target TARGET", "What a game descriptor runs: game, setup or prompt");
     printf("\nMachine (for this run only, the saved settings stay):\n");
     print_wrapped("      --model MODEL", models);
     print_wrapped("      --cpu-mhz MHZ", speeds);
     print_wrapped("      --ram MB", sizes);
-    print_wrapped("      --fpu FPU", "auto, none, 80387");
+    print_wrapped("      --fpu FPU", "none, 80387");
     print_wrapped("      --sound CARD", "none, adlib, sb15, sb20, sbpro, sbpro2, sb16");
     print_wrapped("      --video CARD", "auto, vga, gd5428, gd5428_vlb");
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");

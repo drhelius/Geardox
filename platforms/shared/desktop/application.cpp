@@ -31,6 +31,8 @@
 #include "emu_floppy.h"
 #include "emu_hard_disk.h"
 #include "gui_actions.h"
+#include "gui_game.h"
+#include "emu_game.h"
 #include "gui_hard_disks.h"
 #include "display.h"
 #include "utils.h"
@@ -332,6 +334,7 @@ void application_load_media(const ApplicationParams& params)
         if (symbol_file_argument)
             Log("Symbol file argument: %s", params.symbol_file);
 
+        gui_game_set_next_target(params.game_target);
         gui_load_rom(params.rom_file, params.symbol_file);
         gui_reset_when_loaded();
     }
@@ -571,6 +574,9 @@ static void handle_title(void)
 
     Media* media = emu_get_core()->GetMedia();
     const char* name = media->IsReady() ? media->GetFileName() : get_filename(emu_floppy_get_content_path());
+
+    if (emu_game_is_open())
+        name = emu_game_get_name();
 
     if ((name[0] == 0) && !emu_is_empty())
         name = get_filename(emu_hard_disk_get_content_name());

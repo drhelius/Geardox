@@ -22,6 +22,12 @@
     <ClCompile Include="..\shared\desktop\emu_hard_disk.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\gui_game.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\emu_game.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\desktop\gui.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
@@ -181,6 +187,9 @@
     <ClCompile Include="..\..\src\media\firmware.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\media\game_descriptor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\i386\i386.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -314,6 +323,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\drive\fdc.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\game_disk.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\drive\ide_controller.cpp">
@@ -493,6 +505,7 @@
     <ClInclude Include="..\..\src\common\bit_ops.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\crc.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\game_descriptor.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\defines.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\firmware.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\i386\i386.h"><Filter>src</Filter></ClInclude>
@@ -544,6 +557,7 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fdc.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\game_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\ide_controller.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\ide_cdrom.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\ide_cdrom_inline.h"><Filter>src</Filter></ClInclude>
@@ -567,7 +581,6 @@
     <ClInclude Include="..\..\src\audio\vgm_recorder.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\debug_memory.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\firmware_inline.h"><Filter>src</Filter></ClInclude>
-    <ClInclude Include="..\..\src\media\game_db.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\geardox.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\geardox_core.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\geardox_core_inline.h"><Filter>src</Filter></ClInclude>
@@ -625,6 +638,12 @@
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\emu_hard_disk.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\gui_game.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\emu_game.h">
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\gui.h">

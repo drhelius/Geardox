@@ -35,6 +35,7 @@
 #include "gui_menus.h"
 #include "gui_floppy.h"
 #include "gui_hard_disks.h"
+#include "gui_game.h"
 #include "utils.h"
 
 enum FileDialogID
@@ -50,6 +51,9 @@ enum FileDialogID
     FileDialog_NewFloppy,
     FileDialog_AttachHardDisk,
     FileDialog_AttachFolder,
+    FileDialog_OpenGame,
+    FileDialog_SaveDescriptor,
+    FileDialog_NewDescriptor,
     FileDialog_CreateHardDisk,
     FileDialog_ChooseScreenshotPath,
     FileDialog_ChooseVideoRecordingPath,
@@ -288,6 +292,48 @@ void gui_file_dialog_attach_folder(int id)
         default_path, false);
 }
 
+void gui_file_dialog_open_game(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = {
+        { "Game Descriptors and ZIP Files", "gdox;zip" }
+    };
+    show_open_file_dialog(FileDialog_OpenGame, filters, 1);
+}
+
+void gui_file_dialog_open_game_folder(void)
+{
+    if (!begin_dialog())
+        return;
+
+    const char* default_path = config_file_dialogs.rom.empty() ? NULL : config_file_dialogs.rom.c_str();
+    SDL_ShowOpenFolderDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_OpenGame, application_sdl_window,
+        default_path, false);
+}
+
+void gui_file_dialog_save_descriptor(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = {
+        { "Game Descriptors", "gdox" }
+    };
+    show_save_file_dialog(FileDialog_SaveDescriptor, filters, 1);
+}
+
+void gui_file_dialog_new_descriptor(void)
+{
+    if (!begin_dialog())
+        return;
+
+    const char* default_path = config_file_dialogs.rom.empty() ? NULL : config_file_dialogs.rom.c_str();
+    SDL_ShowOpenFolderDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_NewDescriptor, application_sdl_window,
+        default_path, false);
+}
+
 void gui_file_dialog_create_hard_disk(int id)
 {
     if (!begin_dialog())
@@ -416,6 +462,9 @@ static std::string* get_dialog_folder(FileDialogID id)
     switch (id)
     {
         case FileDialog_OpenMedia:
+        case FileDialog_OpenGame:
+        case FileDialog_NewDescriptor:
+        case FileDialog_SaveDescriptor:
             return &config_file_dialogs.rom;
         case FileDialog_LoadState:
         case FileDialog_SaveState:
@@ -587,6 +636,15 @@ static void process_dialog_result(FileDialogID id, const char* path)
             break;
         case FileDialog_CreateHardDisk:
             gui_hard_disks_dialog_create(dialog_hard_disk_id, path);
+            break;
+        case FileDialog_OpenGame:
+            gui_load_rom(path);
+            break;
+        case FileDialog_SaveDescriptor:
+            gui_game_dialog_save_descriptor(path);
+            break;
+        case FileDialog_NewDescriptor:
+            gui_game_dialog_new_descriptor(path);
             break;
         case FileDialog_SaveScreenshot:
             gui_action_save_screenshot(path);

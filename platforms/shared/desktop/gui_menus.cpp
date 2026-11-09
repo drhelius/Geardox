@@ -35,6 +35,8 @@
 #include "gamepad.h"
 #include "sound_queue.h"
 #include "emu.h"
+#include "emu_game.h"
+#include "gui_game.h"
 #include "ogl_renderer.h"
 #include "ogl_shader_chain.h"
 #include "shader_preset.h"
@@ -61,6 +63,8 @@ static bool choose_video_recordings_path = false;
 static bool open_physical_cdrom = false;
 #endif
 static const GuiColor& machine_warning_color = amber;
+static const GuiColor& machine_game_color = cyan;
+static config_Machine* menu_settings = &config_machine;
 static const GuiColor& service_mcp_http_color = green;
 static const GuiColor& service_mcp_stdio_color = amber;
 static const GuiColor& video_recording_color = red;
@@ -132,6 +136,7 @@ void gui_main_menu(void)
     if (application_show_menu && ImGui::BeginMainMenuBar())
     {
         menu_geardox();
+        gui_game_menu();
         menu_drives();
         menu_emulator();
         menu_video();
@@ -808,6 +813,8 @@ static void menu_machine(void)
     if (!ImGui::BeginMenu("Machine"))
         return;
 
+    menu_settings = emu_game_get_machine();
+
     GeardoxCore* core = emu_get_core();
     bool running = !emu_is_empty();
     const GDOX_Machine_Config& machine = running ? core->GetMachineConfig() : core->GetPendingMachineConfig();
@@ -828,13 +835,8 @@ static void menu_machine(void)
             ImGui::TextDisabled("After reset: %s", pending);
     }
 
-    if (report.model == GDOX_MACHINE_SOURCE_DATABASE)
-        ImGui::TextDisabled("Game detected: %s", report.title);
-    else if (report.model == GDOX_MACHINE_SOURCE_DEFAULT)
-        ImGui::TextDisabled("Auto: game not detected");
-
-    if (report.ram == GDOX_MACHINE_SOURCE_HARD_DISK)
-        ImGui::TextDisabled("Auto: 4 MB for the hard disk");
+    if (emu_game_is_open())
+        ImGui::TextColored(machine_game_color, "%s: changes here are this game's", emu_game_get_name());
 
     for (int i = 0; i < report.warning_count; i++)
         ImGui::TextColored(machine_warning_color, "%s", report.warnings[i]);
@@ -868,8 +870,12 @@ static void menu_machine(void)
     if (menu_machine_mouse())
         changed = true;
 
+    ImGui::BeginDisabled(emu_game_is_open());
+
     if (menu_machine_cdrom_drive())
         changed = true;
+
+    ImGui::EndDisabled();
 
     if (menu_machine_cdrom_speed())
         changed = true;
@@ -881,7 +887,13 @@ static void menu_machine(void)
     bool turbo = core->IsTurbo();
 
     if (ImGui::MenuItem("Turbo", config_hotkeys[config_HotkeyIndex_Turbo].str, &turbo))
+    {
         emu_set_turbo(turbo);
+        menu_settings->turbo = turbo;
+
+        if (emu_game_is_open())
+            emu_game_apply_machine();
+    }
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("The board's Turbo button. Off runs the CPU at a third of its clock, for games too fast\nfor this machine. Takes effect at once.");
@@ -949,24 +961,12 @@ static bool menu_machine_model(void)
 
     float cpu_column = name_width + ImGui::GetStyle().ItemSpacing.x * 4.0f;
 
-    if (config_machine.model == GDOX_MACHINE_AUTO)
-        snprintf(preview, sizeof(preview), "Auto (%s)", k_machine_profiles[core->GetPendingMachineConfig().model].name);
-    else
-        snprintf(preview, sizeof(preview), "%s", k_machine_profiles[config_machine.model].name);
+    snprintf(preview, sizeof(preview), "%s", k_machine_profiles[menu_settings->model].name);
 
     ImGui::PushItemWidth(get_combo_width(MAX(cpu_column + cpu_width, ImGui::CalcTextSize(preview).x)));
 
     if (ImGui::BeginCombo("##machine_model", preview))
     {
-        if (ImGui::Selectable(config_machine.model == GDOX_MACHINE_AUTO ? preview : "Auto",
-            config_machine.model == GDOX_MACHINE_AUTO))
-        {
-            config_machine.model = GDOX_MACHINE_AUTO;
-            changed = true;
-        }
-
-        ImGui::Separator();
-
         for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
         {
             GDOX_Machine_Model model = k_machine_release_order[i];
@@ -975,9 +975,9 @@ static bool menu_machine_model(void)
 
             ImGui::BeginDisabled(!profile.emulated || !core->HasFirmware(model));
 
-            if (ImGui::Selectable(profile.name, config_machine.model == model))
+            if (ImGui::Selectable(profile.name, menu_settings->model == model))
             {
-                config_machine.model = model;
+                menu_settings->model = model;
                 changed = true;
             }
 
@@ -995,9 +995,8 @@ static bool menu_machine_model(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("It is recommended to leave this option on Auto.");
-        ImGui::Text("Auto picks the machine and RAM from game database");
-        ImGui::Text("or the 386DX-33 if not detected.");
+        ImGui::Text("The 486DX2-66 suits most games of 1990 to 1995.");
+        ImGui::Text("A game that runs too fast wants a 386, or Turbo off.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
@@ -1018,7 +1017,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
     float text_width = 0.0f;
     char labels[GDOX_MACHINE_CPU_SPEED_COUNT][32];
     char auto_label[32];
-    snprintf(auto_label, sizeof(auto_label), "Auto (%d MHz)", config_machine.cpu_mhz == GDOX_MACHINE_AUTO ? in_use : original);
+    snprintf(auto_label, sizeof(auto_label), "Model Default (%d MHz)", menu_settings->cpu_mhz == GDOX_MACHINE_AUTO ? in_use : original);
     const char* preview = auto_label;
 
     for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
@@ -1027,7 +1026,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
         snprintf(labels[i], sizeof(labels[i]), speed == original ? "%d MHz (Original)" : "%d MHz", speed);
         text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
 
-        if (speed == config_machine.cpu_mhz)
+        if (speed == menu_settings->cpu_mhz)
             preview = labels[i];
     }
 
@@ -1035,9 +1034,9 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
 
     if (ImGui::BeginCombo("##machine_cpu_speed", preview))
     {
-        if (ImGui::Selectable(auto_label, config_machine.cpu_mhz == GDOX_MACHINE_AUTO))
+        if (ImGui::Selectable(auto_label, menu_settings->cpu_mhz == GDOX_MACHINE_AUTO))
         {
-            config_machine.cpu_mhz = GDOX_MACHINE_AUTO;
+            menu_settings->cpu_mhz = GDOX_MACHINE_AUTO;
             changed = true;
         }
 
@@ -1045,9 +1044,9 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
 
         for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
         {
-            if (ImGui::Selectable(labels[i], config_machine.cpu_mhz == k_machine_cpu_speeds_mhz[i]))
+            if (ImGui::Selectable(labels[i], menu_settings->cpu_mhz == k_machine_cpu_speeds_mhz[i]))
             {
-                config_machine.cpu_mhz = k_machine_cpu_speeds_mhz[i];
+                menu_settings->cpu_mhz = k_machine_cpu_speeds_mhz[i];
                 changed = true;
             }
         }
@@ -1057,9 +1056,8 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("It is recommended to leave this option on Auto.");
-        ImGui::Text("Auto picks the CPU clock from game database");
-        ImGui::Text("or runs the CPU at the model's original clock.");
+        ImGui::Text("Model Default runs the CPU at the model's original clock.");
+        ImGui::Text("Devices keep their real timing at any speed.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
@@ -1079,42 +1077,30 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
     int in_use = (int)(core->GetPendingMachineConfig().ram_size / (1024 * 1024));
     float text_width = 0.0f;
     char labels[GDOX_MACHINE_RAM_SIZE_COUNT][32];
-    char auto_label[32];
-    char preview[96];
-    snprintf(auto_label, sizeof(auto_label), "Auto (%d MB)",
-        config_machine.ram_mb == GDOX_MACHINE_AUTO ? in_use : profile.ram_default_mb);
-    snprintf(preview, sizeof(preview), "%s", auto_label);
+    char preview[96] = "";
 
     for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
     {
         int size = k_machine_ram_sizes_mb[i];
-        snprintf(labels[i], sizeof(labels[i]), size == profile.ram_default_mb ? "%d MB (Original)" : "%d MB", size);
+        snprintf(labels[i], sizeof(labels[i]), size == k_machine_default_ram_mb ? "%d MB (Default)" : "%d MB", size);
         text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
 
-        if (size == config_machine.ram_mb)
+        if (size == menu_settings->ram_mb)
             snprintf(preview, sizeof(preview), "%s", labels[i]);
     }
 
-    if ((config_machine.ram_mb != GDOX_MACHINE_AUTO) && (config_machine.ram_mb != in_use))
-        snprintf(preview, sizeof(preview), "%d MB, %d MB on the %s", config_machine.ram_mb, in_use, profile.name);
+    if (menu_settings->ram_mb != in_use)
+        snprintf(preview, sizeof(preview), "%d MB, %d MB on the %s", menu_settings->ram_mb, in_use, profile.name);
 
     ImGui::PushItemWidth(get_combo_width(MAX(text_width, ImGui::CalcTextSize(preview).x)));
 
     if (ImGui::BeginCombo("##machine_ram", preview))
     {
-        if (ImGui::Selectable(auto_label, config_machine.ram_mb == GDOX_MACHINE_AUTO))
-        {
-            config_machine.ram_mb = GDOX_MACHINE_AUTO;
-            changed = true;
-        }
-
-        ImGui::Separator();
-
         for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
         {
-            if (ImGui::Selectable(labels[i], config_machine.ram_mb == k_machine_ram_sizes_mb[i]))
+            if (ImGui::Selectable(labels[i], menu_settings->ram_mb == k_machine_ram_sizes_mb[i]))
             {
-                config_machine.ram_mb = k_machine_ram_sizes_mb[i];
+                menu_settings->ram_mb = k_machine_ram_sizes_mb[i];
                 changed = true;
             }
         }
@@ -1124,9 +1110,8 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("It is recommended to leave this option on Auto.");
-        ImGui::Text("Auto picks the RAM from game database");
-        ImGui::Text("or model's original RAM if not detected.");
+        ImGui::Text("8 MB runs nearly every DOS game. A size the model doesn't take uses its next one.");
+        ImGui::Text("Save states and rewind grow with it.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
@@ -1147,7 +1132,7 @@ static bool menu_machine_floppy(int drive)
         return false;
 
     bool changed = false;
-    int& type = config_machine.floppy_type[drive];
+    int& type = menu_settings->floppy_type[drive];
 
     ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(labels[2]).x));
 
@@ -1187,7 +1172,7 @@ static bool menu_machine_sound(void)
         return false;
 
     bool changed = false;
-    int& card = config_machine.sound_card;
+    int& card = menu_settings->sound_card;
 
     ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(k_sound_cards[GDOX_SOUND_CARD_SBPRO2].name).x));
 
@@ -1222,9 +1207,9 @@ static bool menu_machine_sound(void)
         char label[16];
         snprintf(label, sizeof(label), "IRQ %d", k_sound_card_irqs[i]);
 
-        if (ImGui::MenuItem(label, "", config_machine.sound_irq == k_sound_card_irqs[i]))
+        if (ImGui::MenuItem(label, "", menu_settings->sound_irq == k_sound_card_irqs[i]))
         {
-            config_machine.sound_irq = k_sound_card_irqs[i];
+            menu_settings->sound_irq = k_sound_card_irqs[i];
             changed = true;
         }
     }
@@ -1236,9 +1221,9 @@ static bool menu_machine_sound(void)
         char label[16];
         snprintf(label, sizeof(label), "DMA %d", k_sound_card_dmas[i]);
 
-        if (ImGui::MenuItem(label, "", config_machine.sound_dma == k_sound_card_dmas[i]))
+        if (ImGui::MenuItem(label, "", menu_settings->sound_dma == k_sound_card_dmas[i]))
         {
-            config_machine.sound_dma = k_sound_card_dmas[i];
+            menu_settings->sound_dma = k_sound_card_dmas[i];
             changed = true;
         }
     }
@@ -1258,14 +1243,19 @@ static bool menu_machine_video(void)
         return false;
 
     bool changed = false;
-    int& card = config_machine.video_card;
-    const char* preview = card == GDOX_MACHINE_AUTO ? "Auto" : k_video_cards[card].name;
+    int& card = menu_settings->video_card;
+    const GDOX_Machine_Profile& profile = k_machine_profiles[emu_get_core()->GetPendingMachineConfig().model];
+    bool local_bus = (profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
+    char default_label[64];
+    snprintf(default_label, sizeof(default_label), "Model Default (%s)",
+        k_video_cards[local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428].name);
+    const char* preview = card == GDOX_MACHINE_AUTO ? default_label : k_video_cards[card].name;
 
-    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(k_video_cards[GDOX_VIDEO_CARD_GD5428_VLB].name).x));
+    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(default_label).x));
 
     if (ImGui::BeginCombo("##machine_video_card", preview))
     {
-        if (ImGui::Selectable("Auto", card == GDOX_MACHINE_AUTO))
+        if (ImGui::Selectable(default_label, card == GDOX_MACHINE_AUTO))
         {
             card = GDOX_MACHINE_AUTO;
             changed = true;
@@ -1287,7 +1277,7 @@ static bool menu_machine_video(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Auto fits a Cirrus Logic GD5428 on the ISA bus, or on the VL-Bus on the 486.");
+        ImGui::Text("Model Default fits a Cirrus Logic GD5428 on the ISA bus, or on the VL-Bus on the 486.");
         ImGui::Text("The VL-Bus card needs a model with a local bus, others fall back to the ISA card.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
@@ -1307,9 +1297,9 @@ static bool menu_machine_mouse(void)
 
     for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
     {
-        if (ImGui::MenuItem(k_mice[i].name, "", config_machine.mouse == i))
+        if (ImGui::MenuItem(k_mice[i].name, "", menu_settings->mouse == i))
         {
-            config_machine.mouse = i;
+            menu_settings->mouse = i;
             changed = true;
         }
     }
@@ -1339,9 +1329,9 @@ static bool menu_machine_cdrom_drive(void)
 
     for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
     {
-        if (ImGui::MenuItem(k_cdrom_positions[i].name, "", config_machine.cdrom == i))
+        if (ImGui::MenuItem(k_cdrom_positions[i].name, "", menu_settings->cdrom == i))
         {
-            config_machine.cdrom = i;
+            menu_settings->cdrom = i;
             changed = true;
         }
     }
@@ -1371,9 +1361,9 @@ static bool menu_machine_cdrom_speed(void)
 
     for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
     {
-        if (ImGui::MenuItem(k_cdrom_speeds[i].name, "", config_machine.cdrom_speed == i))
+        if (ImGui::MenuItem(k_cdrom_speeds[i].name, "", menu_settings->cdrom_speed == i))
         {
-            config_machine.cdrom_speed = i;
+            menu_settings->cdrom_speed = i;
             changed = true;
         }
     }
@@ -1400,53 +1390,53 @@ static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
 
     bool changed = false;
     bool in_use = emu_get_core()->GetPendingMachineConfig().fpu;
-    const char* labels[2] = { "None (Original)", get_machine_fpu_name(profile.cpu) };
-    char auto_label[32];
+    bool integrated = profile.fpu == GDOX_MACHINE_FPU_INTEGRATED;
+    char labels[2][64];
     char preview[96];
-    snprintf(auto_label, sizeof(auto_label), "Auto (%s)", in_use ? labels[1] : "None");
-    snprintf(preview, sizeof(preview), "%s", config_machine.fpu == GDOX_MACHINE_AUTO ? auto_label :
-        labels[config_machine.fpu != 0 ? 1 : 0]);
+    snprintf(labels[0], sizeof(labels[0]), "None");
+    snprintf(labels[1], sizeof(labels[1]), "%s (Default)", get_machine_fpu_name(profile.cpu));
+    snprintf(preview, sizeof(preview), "%s", integrated ? get_machine_fpu_name(profile.cpu) :
+        labels[menu_settings->fpu != 0 ? 1 : 0]);
 
-    if ((config_machine.fpu > 0) && !in_use)
+    if (!integrated && (menu_settings->fpu != 0) && !in_use)
         snprintf(preview, sizeof(preview), "%s, none on the %s", labels[1], profile.name);
 
-    float text_width = MAX(ImGui::CalcTextSize(labels[0]).x, ImGui::CalcTextSize(preview).x);
+    float text_width = MAX(ImGui::CalcTextSize(labels[1]).x, ImGui::CalcTextSize(preview).x);
     ImGui::PushItemWidth(get_combo_width(text_width));
+    ImGui::BeginDisabled(integrated);
 
     if (ImGui::BeginCombo("##machine_fpu", preview))
     {
-        if (ImGui::Selectable(auto_label, config_machine.fpu == GDOX_MACHINE_AUTO))
+        if (ImGui::Selectable(labels[1], menu_settings->fpu != 0))
         {
-            config_machine.fpu = GDOX_MACHINE_AUTO;
+            menu_settings->fpu = 1;
             changed = true;
         }
 
-        ImGui::Separator();
-
-        if (ImGui::Selectable(labels[0], config_machine.fpu == 0))
+        if (ImGui::Selectable(labels[0], menu_settings->fpu == 0))
         {
-            config_machine.fpu = 0;
+            menu_settings->fpu = 0;
             changed = true;
         }
 
-        ImGui::BeginDisabled(profile.fpu == GDOX_MACHINE_FPU_NONE);
-
-        if (ImGui::Selectable(labels[1], config_machine.fpu > 0))
-        {
-            config_machine.fpu = 1;
-            changed = true;
-        }
-
-        ImGui::EndDisabled();
         ImGui::EndCombo();
     }
-    else if (ImGui::IsItemHovered())
+
+    ImGui::EndDisabled();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
     {
         ImGui::BeginTooltip();
-        ImGui::Text("It is recommended to leave this option on Auto.");
-        ImGui::Text("Auto fits an 80387 if the game database asks for one");
-        ImGui::Text("or keeps the model's original, with no FPU.");
-        ImGui::Text("Reset the emulator to apply changes.");
+
+        if (integrated)
+            ImGui::Text("The %s has its FPU built in.", k_machine_cpus[profile.cpu].name);
+        else
+        {
+            ImGui::Text("An 80387 in the 386's socket.");
+            ImGui::Text("A few games need one, and some run different code with one fitted.");
+            ImGui::Text("Reset the emulator to apply changes.");
+        }
+
         ImGui::EndTooltip();
     }
 
@@ -1821,11 +1811,17 @@ static void menu_input(void)
 
         if (ImGui::BeginMenu("Joystick"))
         {
+            int joystick = emu_game_get_joystick() >= 0 ? emu_game_get_joystick() : config_input.joystick_type;
+
             for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
             {
-                if (ImGui::MenuItem(k_joysticks[i].name, "", config_input.joystick_type == i))
+                if (ImGui::MenuItem(k_joysticks[i].name, "", joystick == i))
                 {
-                    config_input.joystick_type = i;
+                    if (emu_game_is_open())
+                        emu_game_set_joystick(i);
+                    else
+                        config_input.joystick_type = i;
+
                     emu_update_joystick_type();
                 }
             }
@@ -2477,6 +2473,7 @@ static void file_dialogs(void)
     gui_popup_modal_load_defaults();
     gui_floppy_popups();
     gui_hard_disks_popups();
+    gui_game_popups();
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     gui_popup_modal_physical_cdrom();
 #endif

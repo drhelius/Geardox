@@ -30,7 +30,7 @@ static const u8 k_firmware_config_signature_data[4] = { 'Q', 'E', 'M', 'U' };
 static const u8 k_firmware_config_id_data[4] = { 0x01, 0x00, 0x00, 0x00 };
 static const char* const k_firmware_config_file_names[FIRMWARE_CONFIG_FILE_COUNT] =
 {
-    "vgaroms/vgabios.bin", "etc/show-boot-menu", "etc/boot-menu-wait", "etc/e820"
+    "vgaroms/vgabios.bin", "etc/show-boot-menu", "etc/boot-menu-wait", "etc/e820", "opt/geardox/target"
 };
 
 FirmwareConfig::FirmwareConfig()
@@ -40,6 +40,8 @@ FirmwareConfig::FirmwareConfig()
     m_vga_bios_size = 0;
     memset(m_e820, 0, sizeof(m_e820));
     m_e820_size = 0;
+    m_game_target = 0;
+    m_game = false;
     m_state.selector = 0;
     m_state.offset = 0;
     SetBootMenu(false, 0);
@@ -110,6 +112,14 @@ void FirmwareConfig::SetMemoryHole(u32 ram_size, bool hole)
         }
     }
 
+    BuildDirectory();
+}
+
+// What a game disk runs at boot, read by GDXRUN.COM: 0 the game, 1 its setup, 2 the prompt. Below 0 there's no game
+void FirmwareConfig::SetGameTarget(int target)
+{
+    m_game = target >= 0;
+    m_game_target = m_game ? (u8)target : 0;
     BuildDirectory();
 }
 
@@ -187,6 +197,10 @@ bool FirmwareConfig::GetEntry(u16 selector, const u8*& data, u32& size) const
             data = m_e820;
             size = m_e820_size;
             return m_e820_size != 0;
+        case k_firmware_config_file_first + 4:
+            data = &m_game_target;
+            size = 1;
+            return m_game;
         default:
             return false;
     }
@@ -195,7 +209,8 @@ bool FirmwareConfig::GetEntry(u16 selector, const u8*& data, u32& size) const
 // Big endian count, then size, selector, reserved and a 56-byte name per file; empty files are left out
 void FirmwareConfig::BuildDirectory()
 {
-    u32 sizes[FIRMWARE_CONFIG_FILE_COUNT] = { m_vga_bios_size, sizeof(m_show_menu), sizeof(m_menu_wait), m_e820_size };
+    u32 sizes[FIRMWARE_CONFIG_FILE_COUNT] = { m_vga_bios_size, sizeof(m_show_menu), sizeof(m_menu_wait), m_e820_size,
+        m_game ? 1u : 0u };
     u32 count = 0;
 
     memset(m_directory, 0, sizeof(m_directory));

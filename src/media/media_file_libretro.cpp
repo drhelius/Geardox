@@ -87,6 +87,17 @@ bool MediaFileLibretro::RenameFile(const char* from, const char* to)
     return rename_file_utf8(from, to);
 }
 
+bool MediaFileLibretro::MakeDirectory(const char* path)
+{
+    if (IsValidPointer(s_vfs_interface->mkdir))
+    {
+        int result = s_vfs_interface->mkdir(path);
+        return (result == 0) || (result == -2);
+    }
+
+    return create_directory_if_not_exists(path);
+}
+
 bool MediaFileLibretro::RemoveFile(const char* path)
 {
     if (IsValidPointer(s_vfs_interface->remove))

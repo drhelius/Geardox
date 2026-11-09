@@ -32,6 +32,9 @@ public:
     static bool ListDirectory(const char* path, std::vector<std::string>& folders, std::vector<std::string>& files);
     static bool GetFileInfo(const char* path, u64* size, s64* modified);
     static bool IsFolderLink(const char* path);
+    static bool MakeDirectory(const char* path);
+    static bool RemoveDirectory(const char* path);
+    static bool SetModified(const char* path, s64 modified);
 
     virtual bool Open(const char* path, bool writable) override;
     virtual bool Create(const char* path) override;

@@ -26,6 +26,18 @@
     <array>
         <dict>
             <key>CFBundleTypeName</key>
+            <string>Geardox Game</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.drhelius.geardox.game</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
             <string>DOS Disk Image</string>
             <key>CFBundleTypeRole</key>
             <string>Viewer</string>
@@ -63,6 +75,25 @@
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.drhelius.geardox.game</string>
+            <key>UTTypeDescription</key>
+            <string>Geardox Game</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>gdox</string>
+                </array>
+                <key>public.mime-type</key>
+                <string>application/x-geardox-game</string>
+            </dict>
+        </dict>
         <dict>
             <key>UTTypeIdentifier</key>
             <string>com.drhelius.geardox.disk</string>

@@ -21,6 +21,12 @@
 #include "../common/common.h"
 #include <limits>
 #include <sys/stat.h>
+#if defined(_WIN32)
+#include <sys/utime.h>
+#else
+#include <unistd.h>
+#include <utime.h>
+#endif
 
 MediaFileNative::MediaFileNative()
 {
@@ -109,6 +115,35 @@ bool MediaFileNative::GetFileInfo(const char* path, u64* size, s64* modified)
     *size = (u64)info.st_size;
     *modified = (s64)info.st_mtime;
     return true;
+}
+
+bool MediaFileNative::MakeDirectory(const char* path)
+{
+    return create_directory_if_not_exists(path);
+}
+
+bool MediaFileNative::RemoveDirectory(const char* path)
+{
+#if defined(_WIN32)
+    return _wrmdir(utf8_to_wstring(path).c_str()) == 0;
+#else
+    return rmdir(path) == 0;
+#endif
+}
+
+bool MediaFileNative::SetModified(const char* path, s64 modified)
+{
+#if defined(_WIN32)
+    struct _utimbuf times;
+    times.actime = (time_t)modified;
+    times.modtime = (time_t)modified;
+    return _wutime(utf8_to_wstring(path).c_str(), &times) == 0;
+#else
+    struct utimbuf times;
+    times.actime = (time_t)modified;
+    times.modtime = (time_t)modified;
+    return utime(path, &times) == 0;
+#endif
 }
 
 bool MediaFileNative::IsFolderLink(const char* path)

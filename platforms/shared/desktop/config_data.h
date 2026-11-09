@@ -29,6 +29,7 @@ static const int config_minimum_version = 5;
 static const int config_max_recent_roms = 15;
 static const int config_max_recent_floppies = 5;
 static const int config_max_recent_hard_disks = 5;
+static const int config_max_recent_games = 10;
 static const int config_floppy_drives = 2;
 
 enum config_ShaderMode
@@ -110,6 +111,13 @@ struct config_FileDialogs
     std::string screenshots;
     std::string recordings;
     std::string debug;
+};
+
+struct config_Game
+{
+    int write_back;
+    bool close_on_power_off;
+    std::string recent[config_max_recent_games];
 };
 
 struct config_Machine
@@ -356,6 +364,7 @@ struct config_Debug
 EXTERN config_Emulator config_emulator;
 EXTERN config_FileDialogs config_file_dialogs;
 EXTERN config_Machine config_machine;
+EXTERN config_Game config_game;
 EXTERN config_Video config_video;
 EXTERN config_Audio config_audio;
 EXTERN config_Rewind config_rewind;

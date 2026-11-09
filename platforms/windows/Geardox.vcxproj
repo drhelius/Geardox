@@ -24,6 +24,7 @@
     <ClCompile Include="..\..\src\audio\opl.cpp" />
     <ClCompile Include="..\..\src\audio\sound_blaster.cpp" />
     <ClCompile Include="..\..\src\media\firmware.cpp" />
+    <ClCompile Include="..\..\src\media\game_descriptor.cpp" />
     <ClCompile Include="..\..\src\i386\i386.cpp" />
     <ClCompile Include="..\..\src\i386\i386_486.cpp" />
     <ClCompile Include="..\..\src\i386\i386_disassembler.cpp" />
@@ -81,6 +82,7 @@
     <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp" />
     <ClCompile Include="..\..\src\drive\fdc.cpp" />
+    <ClCompile Include="..\..\src\drive\game_disk.cpp" />
     <ClCompile Include="..\..\src\drive\ide_controller.cpp" />
     <ClCompile Include="..\..\src\drive\ide_cdrom.cpp" />
     <ClCompile Include="..\..\src\drive\ide_disk.cpp" />
@@ -176,6 +178,8 @@
     <ClCompile Include="..\shared\desktop\emu.cpp" />
     <ClCompile Include="..\shared\desktop\emu_floppy.cpp" />
     <ClCompile Include="..\shared\desktop\emu_hard_disk.cpp" />
+    <ClCompile Include="..\shared\desktop\gui_game.cpp" />
+    <ClCompile Include="..\shared\desktop\emu_game.cpp" />
     <ClCompile Include="..\shared\desktop\single_instance.cpp" />
     <ClCompile Include="..\shared\desktop\mcp\mcp_debug_adapter.cpp" />
     <ClCompile Include="..\shared\desktop\mcp\mcp_server.cpp" />
@@ -265,6 +269,7 @@
     <ClInclude Include="..\..\src\common\bit_ops.h" />
     <ClInclude Include="..\..\src\common\common.h" />
     <ClInclude Include="..\..\src\media\crc.h" />
+    <ClInclude Include="..\..\src\media\game_descriptor.h" />
     <ClInclude Include="..\..\src\common\defines.h" />
     <ClInclude Include="..\..\src\media\firmware.h" />
     <ClInclude Include="..\..\src\i386\i386.h" />
@@ -316,6 +321,7 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h" />
     <ClInclude Include="..\..\src\drive\fdc.h" />
+    <ClInclude Include="..\..\src\drive\game_disk.h" />
     <ClInclude Include="..\..\src\drive\ide_controller.h" />
     <ClInclude Include="..\..\src\drive\ide_cdrom.h" />
     <ClInclude Include="..\..\src\drive\ide_cdrom_inline.h" />
@@ -335,7 +341,6 @@
     <ClInclude Include="..\..\src\video\video.h" />
     <ClInclude Include="..\..\src\video\video_inline.h" />
     <ClInclude Include="..\..\src\media\firmware_inline.h" />
-    <ClInclude Include="..\..\src\media\game_db.h" />
     <ClInclude Include="..\..\src\geardox.h" />
     <ClInclude Include="..\..\src\geardox_core.h" />
     <ClInclude Include="..\..\src\geardox_core_inline.h" />
@@ -395,6 +400,8 @@
     <ClInclude Include="..\shared\desktop\emu.h" />
     <ClInclude Include="..\shared\desktop\emu_floppy.h" />
     <ClInclude Include="..\shared\desktop\emu_hard_disk.h" />
+    <ClInclude Include="..\shared\desktop\gui_game.h" />
+    <ClInclude Include="..\shared\desktop\emu_game.h" />
     <ClInclude Include="..\shared\dependencies\json\json.hpp" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_debug_adapter.h" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_manager.h" />
