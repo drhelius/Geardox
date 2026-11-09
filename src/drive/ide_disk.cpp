@@ -796,7 +796,6 @@ void IdeDisk::LoadState(std::istream& stream, int version)
     SanitizeState();
 }
 
-// Only a transfer in flight needs its buffer, which keeps it out of most rewind snapshots
 void IdeDisk::Serialize(StateSerializer& serializer, int version)
 {
     UNUSED(version);
@@ -829,12 +828,12 @@ void IdeDisk::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.ahead_lba);
     G_SERIALIZE(serializer, m_state.ahead_end);
     G_SERIALIZE(serializer, m_state.ahead_clocks);
-    m_state.length = MIN(m_state.length, (u32)IDE_DISK_BUFFER_SIZE);
-    G_SERIALIZE_ARRAY(serializer, m_state.buffer, m_state.length);
+    G_SERIALIZE_ARRAY(serializer, m_state.buffer, IDE_DISK_BUFFER_SIZE);
 }
 
 void IdeDisk::SanitizeState()
 {
+    m_state.length = MIN(m_state.length, (u32)IDE_DISK_BUFFER_SIZE);
     m_state.position = MIN(m_state.position, m_state.length);
     m_state.block = CLAMP(m_state.block, 1U, (u32)IDE_DISK_MAX_BLOCK);
     m_state.multiple = MIN(m_state.multiple, (u32)IDE_DISK_MAX_BLOCK);

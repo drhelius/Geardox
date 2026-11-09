@@ -2079,7 +2079,6 @@ void IdeCdRom::LoadState(std::istream& stream, int version)
     SanitizeState();
 }
 
-// Only a transfer in flight needs its buffer, which keeps it out of most rewind snapshots
 void IdeCdRom::Serialize(StateSerializer& serializer, int version)
 {
     UNUSED(version);
@@ -2135,8 +2134,7 @@ void IdeCdRom::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.sotc);
     G_SERIALIZE_ARRAY(serializer, m_state.port_channel, 2);
     G_SERIALIZE_ARRAY(serializer, m_state.port_volume, 2);
-    m_state.length = MIN(m_state.length, (u32)IDE_CDROM_BUFFER_SIZE);
-    G_SERIALIZE_ARRAY(serializer, m_state.buffer, m_state.length);
+    G_SERIALIZE_ARRAY(serializer, m_state.buffer, IDE_CDROM_BUFFER_SIZE);
 }
 
 void IdeCdRom::SanitizeState()
