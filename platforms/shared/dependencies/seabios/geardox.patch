@@ -21,6 +21,19 @@
  }
  static inline u64 __swab64(u64 val) {
      union u64_u32_u i, o;
+--- seabios-28aa463/src/bootsplash.c
++++ seabios/src/bootsplash.c
+@@ -48,6 +48,9 @@ enable_vga_console(void)
+     call16_int10(&br);
+ 
+     // Write to screen.
++    printf("  \xDC\xDB\xDB\xDB\xDB  \xDC\xDC\xDC\xDC\xDC  \xDC\xDC\xDC  \xDC\xDC\xDC\xDC  \xDC\xDC\xDC\xDC   \xDC\xDC\xDC  \xDC\xDC \xDC\xDC\n");
++    printf(" \xDB\xDB  \xDC\xDC\xDC \xDB\xDB\xDC\xDC  \xDB\xDB\xDF\xDB\xDB \xDB\xDB\xDC\xDB\xDC \xDB\xDB\xDF\xDB\xDB \xDB\xDB\xDF\xDB\xDB \xDF\xDB\xDC\xDB\xDF\n");
++    printf("  \xDF\xDB\xDB\xDB\xDF  \xDB\xDB\xDC\xDC\xDC \xDB\xDB\xDF\xDB\xDB \xDB\xDB \xDB\xDB \xDB\xDB\xDB\xDB\xDF \xDF\xDB\xDB\xDB\xDF \xDB\xDB \xDB\xDB\n");
++    printf("\n");
+-    printf("SeaBIOS (version %s)\n", VERSION);
+     display_uuid();
+ }
 --- seabios-28aa463/src/disk.c
 +++ seabios/src/disk.c
 @@ -378,6 +378,8 @@ disk_1315(struct bregs *regs, struct drive_s *drive_fl)

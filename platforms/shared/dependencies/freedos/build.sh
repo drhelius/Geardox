@@ -1,26 +1,28 @@
 #!/bin/bash
 
 # Builds the files of the FreeDOS disk and its boot sectors from the unmodified packages, and writes freedos.cpp
-# Needs Python and NASM
+# Needs Python, NASM and UPX
 
 set -e
 
 PYTHON=${PYTHON:-python3}
 NASM=${NASM:-nasm}
+UPX=${UPX:-upx}
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-"$PYTHON" - "$SCRIPT_DIR" "$WORK_DIR" "$NASM" << 'PYTHON_EOF'
+"$PYTHON" - "$SCRIPT_DIR" "$WORK_DIR" "$NASM" "$UPX" << 'PYTHON_EOF'
 import hashlib
 import io
 import os
+import struct
 import subprocess
 import sys
 import zipfile
 
-script_dir, work_dir, nasm = sys.argv[1:4]
+script_dir, work_dir, nasm, upx = sys.argv[1:5]
 packages = os.path.join(script_dir, "packages")
 
 KERNEL = "kernel"
@@ -31,7 +33,6 @@ OEM_NAME = b"FRDOS5.1"
 VERSION = "FreeDOS 1.4, kernel 2043, FreeCOM 0.86a"
 
 FILES = [
-    (KERNEL, "KERNL386.SYS", "KERNEL.SYS"),
     ("freecom", "COMMAND.COM", BIN + "COMMAND.COM"),
     (KERNEL, "SYS.COM", BIN + "SYS.COM"),
     (KERNEL, "COUNTRY.SYS", BIN + "COUNTRY.SYS"),
@@ -124,8 +125,61 @@ def text_file(name):
     data = open(os.path.join(script_dir, name), "rb").read().replace(b"\r\n", b"\n")
     return data.replace(b"\n", b"\r\n")
 
+def upx_exe(data, ss, sp):
+    size = len(data) + 32
+    header = struct.pack("<2s13H", b"MZ", size % 512, (size + 511) // 512, 0, 2, 0x1000, 0xFFFF, ss, sp, 0, 0, 0,
+                         0x1C, 0)
+    return header.ljust(32, b"\0") + data
+
+def run_upx(data, options):
+    source = os.path.join(work_dir, "upx_in.exe")
+    output = os.path.join(work_dir, "upx_out.exe")
+    open(source, "wb").write(data)
+
+    if os.path.exists(output):
+        os.remove(output)
+
+    subprocess.check_call([upx, "-q"] + options + [source, "-o", output], stdout=subprocess.DEVNULL)
+    return open(output, "rb").read()
+
+def kernel_without_sign_on():
+    data = read_member(KERNEL, "KERNL386.SYS")
+    config, packed, trailer = data[:32], data[32:-34], bytearray(data[-34:])
+    ss, sp = struct.unpack_from("<H", trailer, 23)[0], struct.unpack_from("<H", trailer, 28)[0]
+    image = bytearray(run_upx(upx_exe(packed, ss, sp), ["-d"]))
+
+    sign_on = image.find(b"\r%SKernel compatibility %d.%d")
+
+    if sign_on < 0 or image.count(b"\r%SKernel compatibility %d.%d") != 1:
+        sys.exit("KERNL386.SYS has no sign-on to remove")
+
+    image[sign_on] = 0
+    kernel_ip, kernel_cs = struct.unpack_from("<2H", image, 20)
+    exe = run_upx(bytes(image), ["--8086", "--best", "--no-reloc"])
+    magic, extra, pages, relocs, header_size = struct.unpack_from("<2s4H", exe)
+    ss, sp, checksum, ip, cs = struct.unpack_from("<5H", exe, 14)
+
+    if relocs or ip or cs:
+        sys.exit("UPX made a kernel the CONFIG block can't start")
+
+    size = pages * 512 - (512 - extra if extra else 0)
+    packed = exe[header_size * 16:size]
+    relative_jump = b"\x81\xC5" + struct.pack("<H", kernel_cs) + b"\x55\xB8" + struct.pack("<H", kernel_ip) + b"\x50\xCB"
+
+    if packed.count(relative_jump) != 1:
+        sys.exit("UPX made a kernel with no jump to %04X:%04X" % (kernel_cs, kernel_ip))
+
+    absolute_jump = b"\xEA" + struct.pack("<2H", kernel_ip, kernel_cs) + b"\x90" * 5
+    packed = packed.replace(relative_jump, absolute_jump)
+    config = config[:0x1E] + struct.pack("<H", len(packed))
+    struct.pack_into("<H", trailer, 1, len(packed) + 0x20)
+    struct.pack_into("<H", trailer, 23, ss)
+    struct.pack_into("<H", trailer, 28, sp)
+    return config + packed + bytes(trailer)
+
 def disk_files():
     files = [(target, read_member(package, name)) for package, name, target in FILES]
+    files.append(("KERNEL.SYS", kernel_without_sign_on()))
     files.append(("FDCONFIG.SYS", text_file("FDCONFIG.SYS")))
     files.append(("FDAUTO.BAT", text_file("FDAUTO.BAT")))
     files.append(("FREEDOS/COPYING.TXT", text_file("COPYING")))
