@@ -57,10 +57,8 @@ static const char k_fat_name_characters[] = "$%'-_@~`!(){}^#&";
 // SeaBIOS only names 1024 cylinders of its logical geometry, so a disk just above a head step leaves its end unreachable
 static const u32 k_fat_size_gaps[2][2] = { { 1024, 1088 }, { 2048, 2112 } };
 
-static const u32 k_fat_cluster_table[5][2] =
-{
-    { 262144, 4 }, { 524288, 8 }, { 1048576, 16 }, { 2097152, 32 }, { 4194304, 64 }
-};
+static const u32 k_fat_min_cluster_sectors = 4;
+static const u32 k_fat_max_cluster_sectors = 64;
 
 static const char* const k_fat_clutter[] =
 {
@@ -1657,6 +1655,7 @@ u64 FatImage::CountClusters(u32 directory, u32 cluster_size) const
     return count;
 }
 
+// The largest clusters FAT16 allows, as DOS walks a file's chain a cluster at a time to reach an offset
 bool FatImage::GetLayout(u32 total, FatImage_Layout* layout) const
 {
     u32 heads = get_logical_heads(total);
@@ -1667,24 +1666,24 @@ bool FatImage::GetLayout(u32 total, FatImage_Layout* layout) const
         return false;
 
     u32 partition = reach - k_fat_sectors_per_track;
-    u32 cluster_sectors = 0;
-
-    for (int i = 0; (i < 5) && (cluster_sectors == 0); i++)
-    {
-        if (partition <= k_fat_cluster_table[i][0])
-            cluster_sectors = k_fat_cluster_table[i][1];
-    }
-
-    if (cluster_sectors == 0)
-        return false;
-
     u32 root_entries = (u32)m_entries[0].children.size() + 1;
     root_entries = MAX(k_fat_root_entries, (root_entries + 15) & ~15U);
     u32 root_sectors = (root_entries * k_fat_entry_size) / k_fat_sector_size;
-    u32 divisor = (256 * cluster_sectors) + 2;
-    u32 fat_sectors = (partition - (1 + root_sectors) + divisor - 1) / divisor;
-    u32 first_data = 1 + (2 * fat_sectors) + root_sectors;
-    u32 clusters = (partition - first_data) / cluster_sectors;
+    u32 cluster_sectors = k_fat_max_cluster_sectors;
+    u32 fat_sectors = 0;
+    u32 first_data = 0;
+    u32 clusters = 0;
+
+    for (; cluster_sectors >= k_fat_min_cluster_sectors; cluster_sectors >>= 1)
+    {
+        u32 divisor = (256 * cluster_sectors) + 2;
+        fat_sectors = (partition - (1 + root_sectors) + divisor - 1) / divisor;
+        first_data = 1 + (2 * fat_sectors) + root_sectors;
+        clusters = (partition - first_data) / cluster_sectors;
+
+        if (clusters > k_fat_min_clusters)
+            break;
+    }
 
     if ((clusters <= k_fat_min_clusters) || (clusters >= k_fat_max_clusters))
         return false;
