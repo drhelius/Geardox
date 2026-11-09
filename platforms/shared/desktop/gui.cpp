@@ -41,7 +41,6 @@
 #include "media/game_descriptor.h"
 #include "gui_popups.h"
 #include "gui_floppy.h"
-#include "gui_firmware.h"
 #include "gui_hard_disks.h"
 #include "gui_notifications.h"
 #include "gui_drive_activity.h"
@@ -73,7 +72,6 @@ static void select_save_slot(int slot);
 static bool finish_loading_rom(void);
 static void load_pending_state(void);
 static void start_loading_rom(const char* path, const char* symbol_path);
-static void notify_firmware(void);
 static void update_window_visibility_padding(void);
 static ImVec2 snap_to_physical_pixel(const ImVec2& pos);
 static void set_style(void);
@@ -134,9 +132,6 @@ bool gui_init(void)
 
     gui_apply_settings();
 
-    if (gui_bios_path[0] != '\0')
-        gui_load_bios(gui_bios_path);
-
     if (config_emulator.power_on_startup)
         emu_power_on();
 
@@ -168,14 +163,12 @@ void gui_apply_settings(void)
     strncpy_fit(gui_screenshots_path, config_emulator.screenshots_path.c_str(), sizeof(gui_screenshots_path));
     strncpy_fit(gui_video_recordings_path, config_emulator.video_recordings_path.c_str(), sizeof(gui_video_recordings_path));
 
-    strncpy_fit(gui_bios_path, config_emulator.bios_path.c_str(), sizeof(gui_bios_path));
     strncpy_fit(gui_mcp_http_address, config_emulator.mcp_http_address.c_str(), sizeof(gui_mcp_http_address));
 
     emu_set_preload_cdrom(config_emulator.preload_cdrom);
     emu_set_dynarec(config_emulator.dynarec);
     emu_apply_bios_settings();
     emu_set_native_resolution(config_video.native_resolution);
-    emu_apply_firmware_folders();
     emu_apply_machine_settings();
 }
 
@@ -214,9 +207,6 @@ void gui_render(void)
 
     if (config_emulator.show_info)
         gui_show_info();
-
-    if (config_emulator.show_firmware)
-        gui_firmware_window();
 
     gui_hard_disks_update();
 
@@ -371,88 +361,6 @@ void gui_shortcut(gui_ShortCutEvent event)
         break;
     default:
         break;
-    }
-}
-
-void gui_load_bios(const char* path)
-{
-    if (!emu_load_bios(path))
-    {
-        GDOX_Machine_Model model = emu_get_core()->GetPendingMachineConfig().model;
-        std::string message("No BIOS for the ");
-        message += k_machine_profiles[model].name;
-        message += " was found in:\n";
-        message += path;
-        gui_set_error_message(message.c_str());
-        strncpy_fit(gui_bios_path, config_emulator.bios_path.c_str(), sizeof(gui_bios_path));
-        return;
-    }
-
-    config_emulator.bios_path = path;
-    strncpy_fit(gui_bios_path, path, sizeof(gui_bios_path));
-    notify_firmware();
-}
-
-void gui_load_model_firmware(GDOX_Machine_Model model, const char* path)
-{
-    config_machine.firmware_paths[model] = path;
-    emu_apply_firmware_folders();
-
-    if (model != emu_get_core()->GetPendingMachineConfig().model)
-        return;
-
-    if (emu_reload_firmware())
-        notify_firmware();
-    else
-        gui_notify(gui_NotificationError, ICON_MD_MEMORY, "No BIOS found", path[0] != '\0' ? path : NULL);
-}
-
-void gui_get_firmware_status(GDOX_Machine_Model model, char* text, size_t text_size)
-{
-    const GDOX_Firmware_Source& source = emu_get_core()->GetFirmwareSource(model);
-    const char* name = get_filename(source.path);
-
-    if (name[0] == '\0')
-        name = source.path;
-
-    switch (source.type)
-    {
-        case GDOX_FIRMWARE_SOURCE_MODEL_FOLDER:
-            snprintf(text, text_size, "Own folder");
-            break;
-        case GDOX_FIRMWARE_SOURCE_OWN_SET:
-            snprintf(text, text_size, "Ready, %s%s", name, source.zip ? "" : "/");
-            break;
-        case GDOX_FIRMWARE_SOURCE_COMPATIBLE_SET:
-            snprintf(text, text_size, "Ready, %s (compatible)", k_firmware_sets[source.set].description);
-            break;
-        case GDOX_FIRMWARE_SOURCE_UNKNOWN:
-            snprintf(text, text_size, "Ready, unknown ROMs in %s%s", name, source.zip ? "" : "/");
-            break;
-        case GDOX_FIRMWARE_SOURCE_OTHER_SET:
-            snprintf(text, text_size, "Ready, %s (for another model)", k_firmware_sets[source.set].description);
-            break;
-        case GDOX_FIRMWARE_SOURCE_BUILTIN:
-            snprintf(text, text_size, "Ready, built-in SeaBIOS");
-            break;
-        default:
-            snprintf(text, text_size, "Not found");
-            break;
-    }
-}
-
-ImVec4 gui_get_firmware_status_color(GDOX_Machine_Model model)
-{
-    switch (emu_get_core()->GetFirmwareSource(model).type)
-    {
-        case GDOX_FIRMWARE_SOURCE_NONE:
-            return red;
-        case GDOX_FIRMWARE_SOURCE_COMPATIBLE_SET:
-        case GDOX_FIRMWARE_SOURCE_UNKNOWN:
-        case GDOX_FIRMWARE_SOURCE_OTHER_SET:
-            return amber;
-        default:
-            return green;
     }
 }
 
@@ -723,26 +631,6 @@ void gui_center_next_window(void)
 void gui_set_style(void)
 {
     set_style();
-}
-
-static void notify_firmware(void)
-{
-    GeardoxCore* core = emu_get_core();
-    GDOX_Machine_Model model = core->GetPendingMachineConfig().model;
-    Firmware* firmware = core->GetFirmware();
-    char status[256];
-
-    if (firmware->GetSource().type == GDOX_FIRMWARE_SOURCE_OTHER_SET)
-    {
-        snprintf(status, sizeof(status), "%s on the %s", k_firmware_sets[firmware->GetSource().set].description,
-            k_machine_profiles[model].name);
-        gui_notify(gui_NotificationWarning, ICON_MD_MEMORY, "BIOS made for another model", status);
-    }
-    else
-    {
-        gui_get_firmware_status(model, status, sizeof(status));
-        gui_notify(gui_NotificationSuccess, ICON_MD_MEMORY, "BIOS loaded", status);
-    }
 }
 
 static void update_window_visibility_padding(void)

@@ -62,13 +62,6 @@ int application_headless_init(const ApplicationParams& params)
     emu_audio_mute(true);
 
     gui_debug_init();
-
-    if (!config_emulator.bios_path.empty())
-    {
-        Log("Loading BIOS directory: %s", config_emulator.bios_path.c_str());
-        emu_load_bios(config_emulator.bios_path.c_str());
-    }
-
     emu_apply_machine_settings();
     emu_power_on();
 

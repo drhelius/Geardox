@@ -602,20 +602,6 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "Shared"
     },
     {
-        "geardox_bios",
-        "BIOS (restart)",
-        NULL,
-        "'Built-in' runs the SeaBIOS and SeaVGABIOS compiled into the core. 'System folder' looks for BIOS.BIN and VGABIOS.BIN in the system directory, its geardox subfolder and the zips there, and falls back to the built-in BIOS.",
-        NULL,
-        "system",
-        {
-            { "Built-in",      NULL },
-            { "System folder", NULL },
-            { NULL, NULL },
-        },
-        "Built-in"
-    },
-    {
         "geardox_turbo",
         "Turbo",
         NULL,

@@ -105,13 +105,6 @@ public:
     void SetTurbo(bool turbo);
     bool IsTurbo() const;
     u32 GetEffectiveCPUClockRate() const;
-    bool LoadBios(const char* directory_path);
-    void UnloadBios();
-    void SetModelFirmwareFolder(GDOX_Machine_Model model, const char* directory_path);
-    void SearchFirmware();
-    bool ReloadFirmware();
-    const GDOX_Firmware_Source& GetFirmwareSource(GDOX_Machine_Model model);
-    bool HasFirmware(GDOX_Machine_Model model);
     bool LoadMedia(const char* file_path);
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     bool LoadPhysicalCdRom(const char* device_id);
@@ -219,7 +212,7 @@ private:
     void ResolveMachineConfig();
     void ApplyHardDisks();
     bool HasMemoryHole() const;
-    bool LoadMachineFirmware(bool force, bool report);
+    void LoadMachineFirmware();
     void ApplyMachineConfig();
     void ApplyCPUSpeed();
     void ApplyBusTiming();
@@ -270,10 +263,6 @@ private:
     std::string m_game_name;
     bool m_game;
     GDOX_Machine_Bus_Waits m_card_bus_waits;
-    std::string m_firmware_folder;
-    std::string m_model_firmware_folders[GDOX_MACHINE_COUNT];
-    GDOX_Firmware_Source m_firmware_sources[GDOX_MACHINE_COUNT];
-    bool m_firmware_searched;
     GDOX_Machine_Config m_machine_config;
     GDOX_Machine_Config m_pending_machine_config;
     GDOX_Machine_Report m_machine_report;

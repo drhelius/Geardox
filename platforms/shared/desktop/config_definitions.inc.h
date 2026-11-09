@@ -214,15 +214,6 @@ static inline void process(config_Operation operation)
     CONFIG_STRING_NOT_EMPTY("Emulator", "VideoRecordingPath", config_emulator.video_recordings_path, config_root_path);
     CONFIG_STRING_ARRAY("Emulator", "RecentROM%d", config_emulator.recent_roms, config_max_recent_roms, "");
 
-    // Firmware
-    CONFIG_STRING("Firmware", "Default", config_emulator.bios_path, "");
-
-    for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
-    {
-        GDOX_Machine_Model model = k_machine_release_order[i];
-        CONFIG_STRING("Firmware", k_machine_profiles[model].key, config_machine.firmware_paths[model], "");
-    }
-
     // Floppy drives
     CONFIG_BOOL("Floppy", "RememberChanges", config_emulator.floppy_persistence, true);
     CONFIG_BOOL("Floppy", "Drive1WriteProtected", config_emulator.floppy_write_protected[0], false);
@@ -464,7 +455,6 @@ static void after_defaults(void)
     config_emulator.paused = false;
     config_emulator.ffwd = false;
     config_emulator.show_info = false;
-    config_emulator.show_firmware = false;
     config_emulator.capture_mouse = false;
 }
 

@@ -73,7 +73,6 @@ struct config_Emulator
     int ffwd_speed;
     int runahead;
     bool show_info;
-    bool show_firmware;
     std::string recent_roms[config_max_recent_roms];
     int savestates_dir_option;
     std::string savestates_path;
@@ -81,7 +80,6 @@ struct config_Emulator
     std::string savefiles_path;
     int screenshots_dir_option;
     int video_recordings_dir_option;
-    std::string bios_path;
     std::string screenshots_path;
     std::string video_recordings_path;
     int window_width;
@@ -135,7 +133,6 @@ struct config_Machine
     int cdrom;
     int cdrom_speed;
     bool turbo;
-    std::string firmware_paths[GDOX_MACHINE_COUNT];
 };
 
 struct config_Video

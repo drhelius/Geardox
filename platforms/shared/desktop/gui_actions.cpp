@@ -53,7 +53,7 @@ void gui_action_load_defaults(void)
     GeardoxCore* core = emu_get_core();
     gui_debug_auto_save_settings();
     core->EjectMedia();
-    core->UnloadBios();
+    core->PowerOff();
 
     config_load_defaults();
     gui_apply_settings();
@@ -80,10 +80,7 @@ void gui_action_power_on(void)
     emu_resume();
 
     if (!emu_power_on())
-    {
-        gui_notify(gui_NotificationError, NULL, "Unable to power on", "The BIOS is not loaded");
         return;
-    }
 
     gui_notify(gui_NotificationInfo, ICON_MD_POWER_SETTINGS_NEW, "Powered on", NULL, "power");
 

@@ -365,7 +365,7 @@ void gui_popup_modal_load_defaults(void)
     if (ImGui::BeginPopupModal("Load Default Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize))
     {
         ImGui::Text("Are you sure you want to load default settings?\n\n");
-        ImGui::Text("Current content will close and BIOS configuration will be cleared.\n\n");
+        ImGui::Text("Current content will close.\n\n");
         ImGui::Text("This action cannot be reverted.\n\n");
         ImGui::Separator();
 

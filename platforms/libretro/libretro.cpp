@@ -154,7 +154,6 @@ static bool game_write_folder = false;
 static int game_target = GDOX_GAME_TARGET_GAME;
 static bool game_options_hidden = false;
 static bool cmos_shared = true;
-static bool bios_builtin = true;
 static bool cmos_shared_active = false;
 static std::string cmos_path;
 static u8 cmos_saved[GDOX_CMOS_SIZE];
@@ -164,8 +163,6 @@ static bool cmos_save_failed = false;
 
 static bool load_content(const char* path);
 static void unload_content(void);
-static bool load_bios(void);
-static void check_bios(void);
 static void set_machine_config(void);
 static void report_machine(void);
 static void show_message(const char* message, unsigned priority, enum retro_log_level level);
@@ -736,13 +733,6 @@ static bool load_content(const char* path)
     snprintf(retro_game_path, sizeof(retro_game_path), "%s", path);
     log_cb(RETRO_LOG_INFO, "Loading %s\n", path[0] != 0 ? path : "no content");
 
-    if (!load_bios())
-    {
-        unload_content();
-        return false;
-    }
-
-    check_bios();
     set_machine_config();
     disk_clear();
     clear_input_state();
@@ -848,52 +838,6 @@ static void unload_content(void)
     savestate_size = 0;
     current_fps = 60.0f;
     memset(frame_buffer, 0, GDOX_MAX_FRAME_BUFFER_WIDTH * GDOX_MAX_FRAME_BUFFER_HEIGHT * sizeof(u32));
-}
-
-static bool load_bios_folder(const char* folder, bool any_set)
-{
-    if (!core->LoadBios(folder))
-        return false;
-
-    return any_set || (core->GetFirmwareSource(core->GetPendingMachineConfig().model).type != GDOX_FIRMWARE_SOURCE_OTHER_SET);
-}
-
-// The system folder falls back to the built-in BIOS for a model without one of its own
-static bool load_bios(void)
-{
-    if (bios_builtin)
-        return core->LoadBios("");
-
-    std::string directory(retro_system_directory);
-    append_path_component(directory, "geardox");
-
-    if (load_bios_folder(directory.c_str(), false) || load_bios_folder(retro_system_directory, false) ||
-        load_bios_folder(directory.c_str(), true) || load_bios_folder(retro_system_directory, true))
-        return true;
-
-    log_cb(RETRO_LOG_INFO, "The BIOS is searched in %s and %s, their subfolders and the zips there\n",
-        directory.c_str(), retro_system_directory);
-
-    static char message[256];
-    snprintf(message, sizeof(message), "No BIOS found for the %s",
-        k_machine_profiles[core->GetPendingMachineConfig().model].name);
-    show_message(message, 3, RETRO_LOG_ERROR);
-    log_cb(RETRO_LOG_ERROR, "%s\n", message);
-    return false;
-}
-
-static void check_bios(void)
-{
-    const GDOX_Firmware_Source& source = core->GetFirmware()->GetSource();
-    static char message[256];
-
-    if (source.type != GDOX_FIRMWARE_SOURCE_OTHER_SET)
-        return;
-
-    snprintf(message, sizeof(message), "Firmware made for another model: %s on the %s",
-        k_firmware_sets[source.set].description, k_machine_profiles[core->GetPendingMachineConfig().model].name);
-    show_message(message, 2, RETRO_LOG_WARN);
-    log_cb(RETRO_LOG_WARN, "%s\n", message);
 }
 
 static void set_machine_config(void)
@@ -1763,14 +1707,6 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
         cmos_shared = (strcmp(var.value, "Shared") == 0);
-    }
-
-    var.key = "geardox_bios";
-    var.value = NULL;
-
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-    {
-        bios_builtin = (strcmp(var.value, "Built-in") == 0);
     }
 
     var.key = "geardox_boot_menu";

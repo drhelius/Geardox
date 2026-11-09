@@ -1334,9 +1334,9 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_system_status"},
         {"title", "Get System Status"},
-        {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, video card, drives, BIOS set and where each "
+        {"description", "Read the machine configuration: model, CPU, clock, RAM, FPU, video card, drives and where each "
             "setting came from (user, game, model, media) with warnings, and the board state: A20, port 0061, "
-            "NMI mask, POST code, coprocessor IRQ13 and CPU resets, and the BIOS: source, SeaBIOS or AT style, images "
+            "NMI mask, POST code, coprocessor IRQ13 and CPU resets, and the built-in BIOS: images "
             "and the firmware config and debug console ports."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
@@ -1749,8 +1749,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_media_info"},
         {"title", "Get Media Info"},
-        {"description", "Read the loaded media, the BIOS, where each model takes its BIOS from, the floppy drives and "
-            "the hard disks."},
+        {"description", "Read the loaded media, the built-in BIOS images, the floppy drives and the hard disks."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2045,22 +2044,6 @@ json McpServer::BuildToolList()
                 }}
             }},
             {"required", json::array({"drive", "write_protected"})}
-        }}
-    });
-
-    tools.push_back({
-        {"name", "load_bios"},
-        {"title", "Load BIOS"},
-        {"description", "Set the BIOS folder (subfolders and zips included), load the next machine's BIOS, "
-            "reset and stop at the reset vector. A machine with no BIOS in the folders runs the built-in SeaBIOS."},
-        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", true}}},
-        {"inputSchema", {
-            {"type", "object"},
-            {"properties", {
-                {"directory_path", {{"type", "string"}, {"description", "Absolute folder with BIOS.BIN and VGABIOS.BIN."}}}
-            }},
-            {"required", json::array({"directory_path"})},
-            {"additionalProperties", false}
         }}
     });
 
@@ -3628,10 +3611,6 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "insert_playlist_disc")
     {
         return {{"error", "insert_playlist_disc must be handled by the MCP manager"}};
-    }
-    else if (normalizedTool == "load_bios")
-    {
-        return m_debugAdapter.LoadBios(arguments["directory_path"]);
     }
     // Trace and profiler
     else if (normalizedTool == "get_trace_log")

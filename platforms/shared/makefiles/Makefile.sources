@@ -47,7 +47,6 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/gui_popups.cpp \
     $(DESKTOP_SRC_DIR)/gui_shader.cpp \
     $(DESKTOP_SRC_DIR)/gui_floppy.cpp \
-    $(DESKTOP_SRC_DIR)/gui_firmware.cpp \
     $(DESKTOP_SRC_DIR)/gui_hard_disks.cpp \
     $(DESKTOP_SRC_DIR)/gui_notifications.cpp \
     $(DESKTOP_SRC_DIR)/gui_drive_activity.cpp \

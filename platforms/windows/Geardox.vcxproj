@@ -214,7 +214,6 @@
     <ClCompile Include="..\shared\desktop\gui_popups.cpp" />
     <ClCompile Include="..\shared\desktop\gui_shader.cpp" />
     <ClCompile Include="..\shared\desktop\gui_floppy.cpp" />
-    <ClCompile Include="..\shared\desktop\gui_firmware.cpp" />
     <ClCompile Include="..\shared\desktop\gui_hard_disks.cpp" />
     <ClCompile Include="..\shared\desktop\gui_notifications.cpp" />
     <ClCompile Include="..\shared\desktop\gui_drive_activity.cpp" />
@@ -441,7 +440,6 @@
     <ClInclude Include="..\shared\desktop\gui_popups.h" />
     <ClInclude Include="..\shared\desktop\gui_shader.h" />
     <ClInclude Include="..\shared\desktop\gui_floppy.h" />
-    <ClInclude Include="..\shared\desktop\gui_firmware.h" />
     <ClInclude Include="..\shared\desktop\gui_hard_disks.h" />
     <ClInclude Include="..\shared\desktop\gui_notifications.h" />
     <ClInclude Include="..\shared\desktop\gui_drive_activity.h" />

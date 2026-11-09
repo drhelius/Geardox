@@ -67,16 +67,6 @@ INLINE const GDOX_Machine_Report& GeardoxCore::GetPendingMachineReport()
     return m_pending_machine_report;
 }
 
-INLINE bool GeardoxCore::HasFirmware(GDOX_Machine_Model model)
-{
-    return m_firmware_sources[model].type != GDOX_FIRMWARE_SOURCE_NONE;
-}
-
-INLINE const GDOX_Firmware_Source& GeardoxCore::GetFirmwareSource(GDOX_Machine_Model model)
-{
-    return m_firmware_sources[model];
-}
-
 INLINE Firmware* GeardoxCore::GetFirmware()
 {
     return m_firmware;

@@ -153,7 +153,7 @@ bool gui_hard_disks_load(const char* path)
 
     notify_attached(id, path, "Hard disk attached");
 
-    if (emu_is_empty() && emu_get_core()->GetFirmware()->IsReady())
+    if (emu_is_empty())
         gui_action_power_on();
 
     return true;
@@ -218,7 +218,7 @@ void gui_hard_disks_source_loaded(void)
         gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Part of this folder was left out", message);
     }
 
-    if (emu_is_empty() && emu_get_core()->GetFirmware()->IsReady())
+    if (emu_is_empty())
         gui_action_power_on();
     else if (reset)
         gui_action_reset();

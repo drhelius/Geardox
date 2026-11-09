@@ -284,7 +284,6 @@ public:
     json CloseCdromTray();
     json ListCdromPlaylist();
     json StartInsertPlaylistDisc(int index);
-    json LoadBios(const std::string& directory_path);
     json StartLoadMedia(const std::string& file_path, const std::string& target);
     json GetGameInfo();
     bool IsMediaLoading() const;

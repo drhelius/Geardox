@@ -145,8 +145,6 @@ EXTERN void emu_apply_bios_settings(void);
 EXTERN bool emu_is_dynarec_enabled(void);
 EXTERN void emu_set_native_resolution(bool enabled);
 EXTERN void emu_apply_machine_settings(void);
-EXTERN void emu_apply_firmware_folders(void);
-EXTERN bool emu_reload_firmware(void);
 
 EXTERN void emu_audio_mute(bool mute);
 EXTERN void emu_audio_set_master_volume(float volume);
@@ -192,7 +190,6 @@ EXTERN bool emu_is_vgm_recording(void);
 EXTERN bool emu_start_video_recording(const char* file_path);
 EXTERN void emu_stop_video_recording(void);
 EXTERN bool emu_is_video_recording(void);
-EXTERN bool emu_load_bios(const char* path);
 
 EXTERN void emu_mcp_set_transport(int mode, int tcp_port, const char* tcp_address);
 EXTERN void emu_mcp_start(void);

@@ -447,8 +447,6 @@ bool DebugAdapter::ParseAddress(const std::string& text, McpAddress& address, st
 
 static const char* const k_mcp_breakpoint_spaces[I386_BREAKPOINT_SPACE_COUNT] = { "linear", "physical", "io" };
 static const char* const k_mcp_machine_sources[] = { "user", "game", "model", "media" };
-static const char* const k_mcp_firmware_sources[] = { "none", "model_folder", "own_set", "compatible_set", "unknown",
-    "other_set" };
 static const char* const k_mcp_interrupt_sources[I386_INTERRUPT_SOURCE_COUNT] =
 {
     "any", "exception", "hardware", "software"
@@ -3110,7 +3108,6 @@ json DebugAdapter::GetSystemStatus()
             {"video", {{"card", k_video_cards[machine.video_card].name}, {"id", k_video_cards[machine.video_card].id},
                 {"vram_kb", m_core->GetVideo()->GetVRAMSize() / 1024}}},
             {"floppy_drives", machine.floppy_drives},
-            {"firmware_set", IsValidPointer(profile.firmware_set) ? profile.firmware_set : ""},
             {"settings", {{"model", model_setting}, {"cpu_speed_mhz", cpu_setting}, {"ram_mb", ram_setting},
                 {"fpu", fpu_setting}, {"video", video_setting}}},
             {"source", {{"model", k_mcp_machine_sources[report.model]},
@@ -3134,12 +3131,10 @@ json DebugAdapter::GetSystemStatus()
             {"memory_map", k_machine_memory_maps[profile.map].name}
         }},
         {"bios", {
-            {"source", firmware->GetSource().type == GDOX_FIRMWARE_SOURCE_BUILTIN ? "built-in" : "external"},
-            {"style", firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS ? "seabios" : "at"},
-            {"system_bios", bios.builtin ? json(bios.name) : json(bios.path)},
+            {"system_bios", bios.name},
             {"system_bios_crc", Hex32(bios.crc)},
             {"system_bios_kb", bios.size / 1024},
-            {"vga_bios", vga.builtin ? json(vga.name) : json(vga.path)},
+            {"vga_bios", vga.name},
             {"vga_bios_crc", Hex32(vga.crc)},
             {"firmware_config", m_core->GetFirmwareConfig()->IsEnabled()},
             {"debug_console", m_core->GetDebugConsole()->IsEnabled()}
@@ -4537,7 +4532,6 @@ json DebugAdapter::GetMediaInfo()
         {"ready", media->IsReady()},
         {"bios_ready", firmware->IsReady()},
         {"firmware_ready", firmware->IsReady()},
-        {"firmware_directory", firmware->GetDirectory()},
         {"file_path", media->GetFilePath()},
         {"file_name", media->GetFileName()},
         {"file_directory", media->GetFileDirectory()},
@@ -4554,36 +4548,12 @@ json DebugAdapter::GetMediaInfo()
         const GDOX_Firmware_Info& info = firmware->GetInfo(type);
         result["firmware"].push_back({
             {"type", Firmware::GetComponentName(type)},
-            {"file_name", Firmware::GetFileName(type)},
-            {"path", info.path},
+            {"name", info.name},
             {"size", info.size},
             {"crc", info.crc},
-            {"required", Firmware::IsRequired(type)},
-            {"loaded", info.loaded},
-            {"builtin", info.builtin},
-            {"synthetic", info.synthetic},
-            {"name", info.name}
+            {"loaded", info.loaded}
         });
     }
-
-    json sources = json::array();
-
-    for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
-    {
-        GDOX_Machine_Model model = k_machine_release_order[i];
-        const GDOX_Firmware_Source& source = m_core->GetFirmwareSource(model);
-        sources.push_back({
-            {"model", k_machine_profiles[model].key},
-            {"source", k_mcp_firmware_sources[source.type]},
-            {"path", source.path},
-            {"zip", source.zip},
-            {"set", source.set >= 0 ? k_firmware_sets[source.set].name : ""},
-            {"system_crc", Hex(source.crc, 8)}
-        });
-    }
-
-    result["firmware_folder"] = config_emulator.bios_path;
-    result["firmware_sources"] = sources;
 
     static const char* media_names[] = { "2D", "2DD", "2HD", "ED" };
     json drives = json::array();
@@ -4674,27 +4644,6 @@ json DebugAdapter::ListRecentMedia()
     result["recent_hard_disks"] = recent_hard_disks;
 
     return result;
-}
-
-json DebugAdapter::LoadBios(const std::string& directory_path)
-{
-    if (directory_path.empty())
-        return {{"error", "Firmware directory path is required"}};
-
-    if (!emu_load_bios(directory_path.c_str()))
-        return {{"error", "Failed to load BIOS directory"}};
-
-    if (emu_is_empty())
-        emu_power_on();
-
-    config_debug.debug = true;
-    emu_debug_break();
-
-    return {
-        {"success", true},
-        {"directory_path", directory_path},
-        {"firmware_ready", m_core->GetFirmware()->IsReady()}
-    };
 }
 
 json DebugAdapter::EjectCdrom()

@@ -1632,38 +1632,6 @@ static void get_video_recording_size(const GDOX_Runtime_Info& runtime, int* widt
     *height += *height & 1;
 }
 
-bool emu_load_bios(const char* path)
-{
-    if (!IsValidPointer(geardox))
-        return false;
-
-    sync_cmos();
-    return geardox->LoadBios(path);
-}
-
-void emu_apply_firmware_folders(void)
-{
-    if (!IsValidPointer(geardox))
-        return;
-
-    for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
-    {
-        GDOX_Machine_Model model = k_machine_release_order[i];
-        geardox->SetModelFirmwareFolder(model, config_machine.firmware_paths[model].c_str());
-    }
-
-    geardox->SearchFirmware();
-}
-
-bool emu_reload_firmware(void)
-{
-    if (!IsValidPointer(geardox))
-        return false;
-
-    sync_cmos();
-    return geardox->ReloadFirmware();
-}
-
 void emu_mcp_set_transport(int mode, int tcp_port, const char* tcp_address)
 {
     if (IsValidPointer(mcp_manager))

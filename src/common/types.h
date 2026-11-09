@@ -141,48 +141,10 @@ enum GDOX_Firmware_Type
 
 struct GDOX_Firmware_Info
 {
-    char path[GDOX_MAX_PATH];
     char name[128];
     int size;
     u32 crc;
     bool loaded;
-    bool synthetic;
-    bool builtin;
-};
-
-enum GDOX_Firmware_Source_Type
-{
-    GDOX_FIRMWARE_SOURCE_NONE = 0,
-    GDOX_FIRMWARE_SOURCE_MODEL_FOLDER,
-    GDOX_FIRMWARE_SOURCE_OWN_SET,
-    GDOX_FIRMWARE_SOURCE_COMPATIBLE_SET,
-    GDOX_FIRMWARE_SOURCE_UNKNOWN,
-    GDOX_FIRMWARE_SOURCE_OTHER_SET,
-    GDOX_FIRMWARE_SOURCE_BUILTIN
-};
-
-enum GDOX_Firmware_Style
-{
-    GDOX_FIRMWARE_STYLE_SEABIOS = 0,
-    GDOX_FIRMWARE_STYLE_AT
-};
-
-struct GDOX_Firmware_Source
-{
-    GDOX_Firmware_Source_Type type;
-    int set;
-    bool zip;
-    u32 crc;
-    char path[GDOX_MAX_PATH];
-};
-
-struct GDOX_Firmware_Set
-{
-    const char* name;
-    const char* description;
-    u32 system_crc;
-    u32 models;
-    u32 compatible_models;
 };
 
 struct GDOX_Color
@@ -557,7 +519,6 @@ struct GDOX_Machine_Profile
     u32 features;
     const u8* ram_sizes_mb;
     int floppy_drives;
-    const char* firmware_set;
     const GDOX_Machine_Bus_Timing* bus_timing;
 };
 

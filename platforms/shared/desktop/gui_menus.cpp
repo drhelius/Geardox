@@ -25,7 +25,6 @@
 #include "gui_actions.h"
 #include "gui_colors.h"
 #include "gui_floppy.h"
-#include "gui_firmware.h"
 #include "gui_hard_disks.h"
 #include "gui_notifications.h"
 #include "gui_shader.h"
@@ -159,14 +158,11 @@ static void menu_geardox(void)
     if (ImGui::BeginMenu(GDOX_TITLE))
     {
         gui_in_use = true;
-        GeardoxCore* core = emu_get_core();
         bool media_actions_enabled = media_menu_actions_enabled();
         bool loading = gui_is_rom_loading() || emu_is_media_loading();
         bool powered_on = !emu_is_empty();
-        bool firmware_ready = core->GetFirmware()->IsReady();
 
-        if (ImGui::MenuItem("Power On", config_hotkeys[config_HotkeyIndex_PowerOn].str, false,
-            !loading && !powered_on && firmware_ready))
+        if (ImGui::MenuItem("Power On", config_hotkeys[config_HotkeyIndex_PowerOn].str, false, !loading && !powered_on))
         {
             gui_action_power_on();
         }
@@ -534,9 +530,6 @@ static void menu_emulator(void)
         gui_in_use = true;
 
         menu_machine();
-
-        if (ImGui::MenuItem("BIOS..."))
-            gui_firmware_open();
 
         ImGui::Separator();
 
@@ -944,7 +937,6 @@ static bool menu_machine_model(void)
     if (!ImGui::BeginMenu("Model"))
         return false;
 
-    GeardoxCore* core = emu_get_core();
     bool changed = false;
     float name_width = 0.0f;
     float cpu_width = 0.0f;
@@ -973,7 +965,7 @@ static bool menu_machine_model(void)
             const GDOX_Machine_Profile& profile = k_machine_profiles[model];
             snprintf(cpu, sizeof(cpu), "%s %d MHz", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000));
 
-            ImGui::BeginDisabled(!profile.emulated || !core->HasFirmware(model));
+            ImGui::BeginDisabled(!profile.emulated);
 
             if (ImGui::Selectable(profile.name, menu_settings->model == model))
             {
@@ -1475,18 +1467,14 @@ static void menu_machine_hardware(GDOX_Machine_Model model)
 static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t text_size)
 {
     const GDOX_Machine_Profile& profile = k_machine_profiles[model];
-    char firmware[GDOX_MAX_PATH];
-    gui_get_firmware_status(model, firmware, sizeof(firmware));
 
-    snprintf(text, text_size, "CPU: %s at %d MHz\nFPU: %s\nFloppy drives: %d\nBIOS: %s", k_machine_cpus[profile.cpu].name,
-        (int)(profile.cpu_clock_rate / 1000000), get_machine_fpu_text(profile), profile.floppy_drives, firmware);
+    snprintf(text, text_size, "CPU: %s at %d MHz\nFPU: %s\nFloppy drives: %d", k_machine_cpus[profile.cpu].name,
+        (int)(profile.cpu_clock_rate / 1000000), get_machine_fpu_text(profile), profile.floppy_drives);
 }
 
 static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
 {
     const GDOX_Machine_Profile& profile = k_machine_profiles[model];
-    char firmware[GDOX_MAX_PATH];
-    gui_get_firmware_status(model, firmware, sizeof(firmware));
     char ram[96] = "";
 
     for (int i = 0; profile.ram_sizes_mb[i] != 0; i++)
@@ -1503,19 +1491,11 @@ static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
     ImGui::Text("FPU: %s", get_machine_fpu_text(profile));
     ImGui::Text("RAM: %s MB", ram);
     ImGui::Text("Floppy drives: %d", profile.floppy_drives);
-    ImGui::Text("BIOS:");
-    ImGui::SameLine();
-    ImGui::TextColored(gui_get_firmware_status_color(model), "%s", firmware);
 
     if (!profile.emulated)
     {
         ImGui::Separator();
         ImGui::TextDisabled("Not emulated yet");
-    }
-    else if (!emu_get_core()->HasFirmware(model))
-    {
-        ImGui::Separator();
-        ImGui::TextDisabled("No BIOS found, see Emulator > BIOS...");
     }
 
     ImGui::EndTooltip();

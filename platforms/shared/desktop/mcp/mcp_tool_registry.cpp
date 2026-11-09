@@ -207,7 +207,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"hardware_cdrom", "CD-ROM Hardware", "Inspect the ATAPI CD-ROM drive, the disc TOC and CD audio playback, and read disc sectors."},
     {"hardware_floppy", "Floppy Hardware", "Inspect the 82077 controller and the floppy drives, list a track's sectors, and read sector data."},
     {"hardware_hard_disk", "Hard Disk Hardware", "Inspect the IDE channels, list the hard disks in slots 0-3 and read their sectors."},
-    {"media", "Media", "Load firmware or CD images, eject the CD and close the CD-ROM tray, insert, eject and swap floppies, attach, detach and flush hard disks, list recent media, and inspect loaded media, firmware and floppy drives."},
+    {"media", "Media", "Load media, eject the CD and close the CD-ROM tray, insert, eject and swap floppies, attach, detach and flush hard disks, list recent media, and inspect loaded media, the BIOS and floppy drives."},
     {"capture", "Capture", "Capture current screenshots and record AVI video."},
     {"state", "Save States", "List save slots, and save or load emulator state in a slot or a file."},
     {"rewind", "Rewind", "Inspect rewind buffer status and seek to rewind snapshots for time-travel debugging."},
@@ -287,7 +287,7 @@ static const char* const kMcpHardDiskTools[] =
 static const char* const kMcpMediaTools[] =
 {
     "load_media", "eject_cdrom", "close_cdrom_tray", "insert_playlist_disc", "get_media_info", "list_recent_media",
-    "load_bios", "insert_floppy", "create_blank_floppy", "eject_floppy", "swap_floppies", "set_floppy_write_protect",
+    "insert_floppy", "create_blank_floppy", "eject_floppy", "swap_floppies", "set_floppy_write_protect",
     "attach_hard_disk", "detach_hard_disk", "flush_hard_disks", "get_game_info"
 };
 
@@ -676,7 +676,6 @@ bool McpToolRegistry::IsDirectToolName(const std::string& tool_name) const
     std::string name = NormalizeToolName(tool_name);
 
     return (name == "load_media") ||
-        (name == "load_bios") ||
         (name == "get_media_info") ||
         (name == "debug_pause") ||
         (name == "debug_continue") ||

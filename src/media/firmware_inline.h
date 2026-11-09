@@ -22,25 +22,9 @@ INLINE bool Firmware::IsReady() const
     return m_ready;
 }
 
-INLINE bool Firmware::IsComplete() const
+INLINE bool Firmware::IsCirrus() const
 {
-    for (int i = 0; i < GDOX_FIRMWARE_COUNT; i++)
-    {
-        if (!m_info[i].loaded)
-            return false;
-    }
-
-    return true;
-}
-
-INLINE const char* Firmware::GetDirectory() const
-{
-    return m_source.path;
-}
-
-INLINE const GDOX_Firmware_Source& Firmware::GetSource() const
-{
-    return m_source;
+    return m_cirrus;
 }
 
 INLINE const GDOX_Firmware_Info& Firmware::GetInfo(GDOX_Firmware_Type type) const
@@ -56,9 +40,4 @@ INLINE const u8* Firmware::GetSystemRom() const
 INLINE const u8* Firmware::GetVGARom() const
 {
     return m_vga_rom;
-}
-
-INLINE GDOX_Firmware_Style Firmware::GetStyle() const
-{
-    return m_style;
 }

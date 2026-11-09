@@ -144,10 +144,6 @@ EXTERN void gui_load_media_symbols(const char* media_path, const char* symbol_pa
 EXTERN bool gui_is_rom_loading(void);
 EXTERN bool gui_finish_loading_rom(void);
 EXTERN void gui_load_state_after_media(int slot, const char* path);
-EXTERN void gui_load_bios(const char* path);
-EXTERN void gui_load_model_firmware(GDOX_Machine_Model model, const char* path);
-EXTERN void gui_get_firmware_status(GDOX_Machine_Model model, char* text, size_t text_size);
-EXTERN ImVec4 gui_get_firmware_status_color(GDOX_Machine_Model model);
 EXTERN void gui_set_style(void);
 EXTERN void gui_set_error_message(const char* message);
 EXTERN void gui_center_next_window(void);

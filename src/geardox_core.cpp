@@ -95,11 +95,6 @@ GeardoxCore::GeardoxCore()
     m_game = false;
     memset(&m_card_bus_waits, 0, sizeof(m_card_bus_waits));
 
-    memset(m_firmware_sources, 0, sizeof(m_firmware_sources));
-
-    for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
-        m_firmware_sources[i].set = -1;
-
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
         m_hard_disk_write_protected[i] = false;
@@ -111,7 +106,6 @@ GeardoxCore::GeardoxCore()
     m_ram_size_locked = false;
     m_boot_menu = false;
     m_game_target = -1;
-    m_firmware_searched = false;
     m_debug_console_enabled = true;
     m_debug_console_log = false;
     ResolveMachineConfig();
@@ -789,11 +783,7 @@ INLINE void GeardoxCore::DispatchEvents()
 
 bool GeardoxCore::PowerOn()
 {
-    SearchFirmware();
-
-    if (!LoadMachineFirmware(false, true))
-        return false;
-
+    ResolveMachineConfig();
     Reset();
     m_powered = true;
     return true;
@@ -874,54 +864,6 @@ u32 GeardoxCore::GetEffectiveCPUClockRate() const
 {
     u32 rate = m_machine_config.cpu_clock_rate;
     return m_machine_config.speed_mode == 0 ? rate / 3 : rate;
-}
-
-bool GeardoxCore::LoadBios(const char* directory_path)
-{
-    std::string previous = m_firmware_folder;
-    m_firmware_folder = IsValidPointer(directory_path) ? directory_path : "";
-
-    if (ReloadFirmware())
-        return true;
-
-    m_firmware_folder = previous;
-    SearchFirmware();
-    return false;
-}
-
-void GeardoxCore::UnloadBios()
-{
-    m_powered = false;
-    m_firmware_folder.clear();
-
-    for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
-        m_model_firmware_folders[i].clear();
-
-    SearchFirmware();
-
-    if (IsValidPointer(m_firmware))
-        m_firmware->Unload();
-
-    if (IsValidPointer(m_i386))
-        m_i386->ResetDisassembler();
-}
-
-void GeardoxCore::SetModelFirmwareFolder(GDOX_Machine_Model model, const char* directory_path)
-{
-    m_model_firmware_folders[model] = IsValidPointer(directory_path) ? directory_path : "";
-}
-
-bool GeardoxCore::ReloadFirmware()
-{
-    SearchFirmware();
-
-    if (!LoadMachineFirmware(true, true))
-        return false;
-
-    if (m_powered)
-        Reset();
-
-    return true;
 }
 
 IdeCdRom* GeardoxCore::GetCDROM()
@@ -1966,7 +1908,7 @@ void GeardoxCore::Reset()
     m_debug_step_resume = false;
     m_debug_interrupt_deferred = false;
     ApplyHardDisks();
-    LoadMachineFirmware(false, false);
+    LoadMachineFirmware();
     ApplyMachineConfig();
 
     if (IsValidPointer(m_scheduler))
@@ -2153,9 +2095,6 @@ void GeardoxCore::ResolveMachineConfig()
     if (!known_model || !k_machine_profiles[model].emulated)
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "Unknown model, the %s runs",
             k_machine_profiles[config.model].name);
-    else if (m_firmware_searched && !HasFirmware(config.model))
-        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "No firmware found for the %s",
-            k_machine_profiles[config.model].name);
 
     if ((fpu > 0) && !config.fpu)
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no socket for an FPU");
@@ -2185,49 +2124,20 @@ bool GeardoxCore::HasMemoryHole() const
     return k_video_cards[m_machine_config.video_card].cirrus && (m_machine_config.ram_size >= 16 * 1024 * 1024);
 }
 
-void GeardoxCore::SearchFirmware()
-{
-    Firmware::FindSources(m_firmware_folder.c_str(), m_model_firmware_folders, m_firmware_sources);
-    m_firmware_searched = true;
-    ResolveMachineConfig();
-
-    if (!IsMachineConfigPending())
-        m_machine_report = m_pending_machine_report;
-}
-
-bool GeardoxCore::LoadMachineFirmware(bool force, bool report)
+void GeardoxCore::LoadMachineFirmware()
 {
     if (!IsValidPointer(m_firmware))
-        return false;
-
-    GDOX_Machine_Model model = m_pending_machine_config.model;
-    const GDOX_Firmware_Source& source = m_firmware_sources[model];
-    const GDOX_Firmware_Source& loaded = m_firmware->GetSource();
-
-    if (source.type == GDOX_FIRMWARE_SOURCE_NONE)
-    {
-        if (report)
-            Error("No firmware found for %s", k_machine_profiles[model].name);
-
-        return false;
-    }
+        return;
 
     bool cirrus = k_video_cards[m_pending_machine_config.video_card].cirrus;
 
-    if (!force && m_firmware->IsReady() && (loaded.zip == source.zip) && (loaded.crc == source.crc) &&
-        (strcmp(loaded.path, source.path) == 0) && (m_firmware->IsBuiltinCirrus() == cirrus))
-        return true;
+    if (m_firmware->IsReady() && (m_firmware->IsCirrus() == cirrus))
+        return;
 
-    m_firmware->SetBuiltinCirrus(cirrus);
-
-
-    if (!m_firmware->LoadSource(source))
-        return false;
+    m_firmware->Load(cirrus);
 
     if (IsValidPointer(m_i386))
         m_i386->ResetDisassembler();
-
-    return true;
 }
 
 void GeardoxCore::ApplyMachineConfig()
@@ -2285,22 +2195,20 @@ void GeardoxCore::ApplyMachineConfig()
     ApplyFirmwareDevices();
 }
 
-// SeaBIOS finds the VGA BIOS through the firmware config and prints to the debug console, other BIOSes get neither
+// SeaBIOS finds the VGA BIOS through the firmware config and prints to the debug console
 void GeardoxCore::ApplyFirmwareDevices()
 {
     if (!IsValidPointer(m_firmware) || !IsValidPointer(m_io))
         return;
 
-    bool seabios = m_firmware->IsReady() && (m_firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS);
-
-    m_system_control->SetPowerOnA20(seabios);
-    m_system_control->SetShadowControl(seabios);
-    m_firmware_config->SetEnabled(seabios);
+    m_system_control->SetPowerOnA20(true);
+    m_system_control->SetShadowControl(true);
+    m_firmware_config->SetEnabled(true);
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
     m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole());
     m_firmware_config->SetGameTarget(m_game_target);
-    m_debug_console->SetEnabled(seabios && m_debug_console_enabled);
+    m_debug_console->SetEnabled(m_debug_console_enabled);
     m_debug_console->SetLogOutput(m_debug_console_log);
     m_io->UpdateDecodedPorts();
 }
@@ -2343,7 +2251,7 @@ void GeardoxCore::ApplyBusTiming()
 
 // The board's DRAM covers the hole below 1 MB too: the BIOS runs from its copy at E0000h or F0000h, with the
 // pristine image at the top of the address space for the reset vector
-// SeaBIOS needs the upper memory and its copy writable, other BIOSes get ROM there and the VGA BIOS at C0000h
+// SeaBIOS needs the upper memory and its copy writable
 void GeardoxCore::InitMemoryMap()
 {
     if (!IsValidPointer(m_memory) || !IsValidPointer(m_firmware) || !m_firmware->IsReady())
@@ -2352,7 +2260,6 @@ void GeardoxCore::InitMemoryMap()
     u32 rom_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_MAPPED;
     u32 ram_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_EXECUTABLE;
     const GDOX_Machine_Memory_Map& map = k_machine_memory_maps[k_machine_profiles[m_machine_config.model].map];
-    bool seabios = m_firmware->GetStyle() == GDOX_FIRMWARE_STYLE_SEABIOS;
     const u8* system_rom = m_firmware->GetSystemRom();
     u32 rom_size = (u32)m_firmware->GetInfo(GDOX_FIRMWARE_SYSTEM_BIOS).size;
     u32 copy_size = MIN(rom_size, k_bios_copy_size);
@@ -2388,24 +2295,6 @@ void GeardoxCore::InitMemoryMap()
         m_video, Video::PeekPlane3Callback, Video::PokePlane3Callback, Video::PeekPlane3Callback))
         Error("Unable to register the VGA planes");
 
-    if (!seabios)
-    {
-        const u8* vga_rom = m_firmware->GetVGARom();
-        u32 vga_size = (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size;
-
-        if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_BIOS_COPY, "BIOS Copy", bios_copy, NULL, copy_size,
-            copy_base, rom_flags | GDOX_DEBUG_REGION_OVERLAY))
-            Error("Unable to map the BIOS copy");
-
-        if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_VGA_ROM, "VGA BIOS", vga_rom, NULL, vga_size,
-            k_upper_memory_start, rom_flags | GDOX_DEBUG_REGION_OVERLAY))
-            Error("Unable to map the VGA BIOS");
-
-        if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL,
-            copy_base - k_upper_memory_start, k_upper_memory_start, GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY))
-            Error("Unable to map the upper memory");
-    }
-
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_MAIN_RAM, "Main RAM", main_ram, main_ram,
         m_memory->GetMainRAMSize(), 0, ram_flags | GDOX_DEBUG_REGION_MAPPED))
         Error("Unable to map main RAM");
@@ -2421,19 +2310,19 @@ void GeardoxCore::InitMemoryMap()
         Video::ReadLinear32Callback)))
         Error("Unable to register the linear VRAM");
 
-    if (seabios && !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_BIOS_COPY, "BIOS Copy", bios_copy, bios_copy,
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_BIOS_COPY, "BIOS Copy", bios_copy, bios_copy,
         copy_size, copy_base, ram_flags))
         Error("Unable to register the BIOS copy");
 
     // SeaBIOS' shadow register maps these at the end of POST: the ROMs and the F segment read-only, nothing between
     u32 shadow_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_OVERLAY;
 
-    if (seabios && (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_ROM, "Shadow ROMs", main_ram + k_upper_memory_start,
+    if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_ROM, "Shadow ROMs", main_ram + k_upper_memory_start,
         NULL, 0x1000, k_upper_memory_start, shadow_flags) ||
         !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL, 0x1000, k_upper_memory_start,
         GDOX_DEBUG_REGION_OVERLAY) ||
         !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_BIOS, "Shadow BIOS", main_ram + k_system_control_shadow_bios,
-        NULL, 0x10000, k_system_control_shadow_bios, shadow_flags)))
+        NULL, 0x10000, k_system_control_shadow_bios, shadow_flags))
         Error("Unable to register the shadow regions");
 
     m_system_control->ApplyShadow();
@@ -2448,10 +2337,10 @@ void GeardoxCore::InitMemoryMap()
 }
 
 // SeaBIOS has no setup screen, so the board writes the memory size, equipment and boot order at power on
-// The rest of the CMOS stays as programs left it, other BIOSes keep all of it
+// The rest of the CMOS stays as programs left it
 void GeardoxCore::InitCMOS()
 {
-    if (!IsValidPointer(m_firmware) || !m_firmware->IsReady() || (m_firmware->GetStyle() != GDOX_FIRMWARE_STYLE_SEABIOS))
+    if (!IsValidPointer(m_firmware) || !m_firmware->IsReady())
         return;
 
     u32 megabyte = 1024 * 1024;

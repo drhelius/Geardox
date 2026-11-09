@@ -1350,7 +1350,6 @@ u8 Memory::GetBusClass(const GDOX_Debug_Memory_Region& info)
         case GDOX_DEBUG_REGION_LINEAR_VRAM:
             return GDOX_BUS_VRAM;
         case GDOX_DEBUG_REGION_SYSTEM_ROM:
-        case GDOX_DEBUG_REGION_VGA_ROM:
             return GDOX_BUS_ROM;
         case GDOX_DEBUG_REGION_CMOS:
             return GDOX_BUS_CMOS;
