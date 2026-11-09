@@ -420,9 +420,10 @@ void I8254::LoadState(std::istream& stream, int version)
     SanitizeState();
 }
 
-// States from before the gates and read-back load with the gates high and no count or status pending
 void I8254::Serialize(StateSerializer& serializer, int version)
 {
+    UNUSED(version);
+
     for (int i = 0; i < I8254_COUNTER_COUNT; i++)
     {
         G_SERIALIZE(serializer, m_state.counters[i].reload);
@@ -444,17 +445,6 @@ void I8254::Serialize(StateSerializer& serializer, int version)
         G_SERIALIZE(serializer, m_state.counters[i].pending_load);
         G_SERIALIZE(serializer, m_state.counters[i].pending_count);
         G_SERIALIZE(serializer, m_state.counters[i].pending_phase);
-
-        if (version < GDOX_SAVESTATE_8254_VERSION)
-        {
-            m_state.counters[i].gate = true;
-            m_state.counters[i].hold = 0;
-            m_state.counters[i].null_until = 0;
-            m_state.counters[i].status_latch = 0;
-            m_state.counters[i].status_latched = false;
-            continue;
-        }
-
         G_SERIALIZE(serializer, m_state.counters[i].gate);
         G_SERIALIZE(serializer, m_state.counters[i].hold);
         G_SERIALIZE(serializer, m_state.counters[i].null_until);

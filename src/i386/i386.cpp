@@ -1087,6 +1087,8 @@ void I386::SerializeDescriptorTable(StateSerializer& serializer, I386_Descriptor
 
 void I386::Serialize(StateSerializer& serializer, int version)
 {
+    UNUSED(version);
+
     for (int i = 0; i < I386_REG_COUNT; i++)
         G_SERIALIZE(serializer, m_state.registers[i].value);
 
@@ -1134,11 +1136,7 @@ void I386::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_bus_fraction);
     G_SERIALIZE_ARRAY(serializer, m_cache_test_registers, 3);
     G_SERIALIZE(serializer, m_486_written);
-
-    if (version >= GDOX_SAVESTATE_LINES_VERSION)
-        G_SERIALIZE_ARRAY(serializer, m_bus_lines, I386_BUS_LINES);
-    else
-        memset(m_bus_lines, 0xFF, sizeof(m_bus_lines));
+    G_SERIALIZE_ARRAY(serializer, m_bus_lines, I386_BUS_LINES);
 }
 
 void I386::SanitizeState()

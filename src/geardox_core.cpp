@@ -1764,6 +1764,7 @@ bool GeardoxCore::GetSaveStateScreenshot(int index, const char* path, GDOX_SaveS
 
 void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& config, int version)
 {
+    UNUSED(version);
     G_SERIALIZE(serializer, config.model);
     G_SERIALIZE(serializer, config.cpu);
     G_SERIALIZE(serializer, config.ram_size);
@@ -1779,11 +1780,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.mouse);
     G_SERIALIZE(serializer, config.cdrom);
     G_SERIALIZE(serializer, config.cdrom_speed);
-
-    if (version >= GDOX_SAVESTATE_SVGA_VERSION)
-        G_SERIALIZE(serializer, config.video_card);
-    else
-        config.video_card = GDOX_VIDEO_CARD_VGA;
+    G_SERIALIZE(serializer, config.video_card);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)

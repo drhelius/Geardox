@@ -1178,17 +1178,15 @@ void Video::LoadState(std::istream& stream, int version)
     SanitizeState();
 }
 
-// Older states hold a VGA: 256 KB and its registers
 void Video::Serialize(StateSerializer& serializer, int version)
 {
-    bool svga = version >= GDOX_SAVESTATE_SVGA_VERSION;
-
-    G_SERIALIZE_ARRAY(serializer, m_state.vram, svga ? m_vram_size : VIDEO_VGA_VRAM_SIZE);
-    G_SERIALIZE_ARRAY(serializer, m_state.sequencer, svga ? VIDEO_SEQUENCER_EXT_COUNT : VIDEO_SEQUENCER_COUNT);
+    UNUSED(version);
+    G_SERIALIZE_ARRAY(serializer, m_state.vram, m_vram_size);
+    G_SERIALIZE_ARRAY(serializer, m_state.sequencer, VIDEO_SEQUENCER_EXT_COUNT);
     G_SERIALIZE(serializer, m_state.sequencer_index);
-    G_SERIALIZE_ARRAY(serializer, m_state.graphics, svga ? VIDEO_GRAPHICS_EXT_COUNT : VIDEO_GRAPHICS_COUNT);
+    G_SERIALIZE_ARRAY(serializer, m_state.graphics, VIDEO_GRAPHICS_EXT_COUNT);
     G_SERIALIZE(serializer, m_state.graphics_index);
-    G_SERIALIZE_ARRAY(serializer, m_state.crtc, svga ? VIDEO_CRTC_EXT_COUNT : VIDEO_CRTC_COUNT);
+    G_SERIALIZE_ARRAY(serializer, m_state.crtc, VIDEO_CRTC_EXT_COUNT);
     G_SERIALIZE(serializer, m_state.crtc_index);
     G_SERIALIZE_ARRAY(serializer, m_state.attribute, VIDEO_ATTRIBUTE_COUNT);
     G_SERIALIZE(serializer, m_state.attribute_index);
@@ -1223,10 +1221,6 @@ void Video::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.row_repeat);
     G_SERIALIZE(serializer, m_state.pan_reset);
     G_SERIALIZE(serializer, m_state.character_map);
-
-    if (!svga)
-        return;
-
     G_SERIALIZE(serializer, m_state.hidden_dac);
     G_SERIALIZE(serializer, m_state.hidden_dac_reads);
     G_SERIALIZE_ARRAY(serializer, &m_state.dac_extended[0][0], sizeof(m_state.dac_extended));

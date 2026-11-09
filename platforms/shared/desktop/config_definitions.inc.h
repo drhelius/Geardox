@@ -421,12 +421,11 @@ static void after_write(void);
 static void before_defaults(void);
 static void after_defaults(void);
 static void normalize(void);
-static void migrate(int file_version);
 static void sync_shader_preset_parameter_defaults(void);
 
 static void before_read(int file_version)
 {
-    migrate(file_version);
+    UNUSED(file_version);
 }
 
 static void after_read(int file_version)
@@ -467,45 +466,6 @@ static void normalize(void)
     if (config_video.sync_mode == config_VideoSync_VRR)
         config_video.sync_mode = config_VideoSync_Fixed;
 #endif
-}
-
-static void migrate(int file_version)
-{
-    std::string stored;
-
-    if (file_version < 7)
-    {
-        if (get_setting("Emulator", "LastOpenPath", &stored))
-            write_string("FileDialogs", "ROM", stored);
-
-        config_ini_data["Emulator"].remove("LastOpenPath");
-    }
-
-    if ((file_version < 8) && get_setting("Emulator", "CDROMSpeed", &stored) && (atoi(stored.c_str()) > 0))
-        write_int("Emulator", "CDROMSpeed", atoi(stored.c_str()) + 1);
-
-    if ((file_version < 9) && (read_int("Hotkeys", "CaptureMouseScancode", SDL_SCANCODE_F1) == SDL_SCANCODE_F1) &&
-        (read_int("Hotkeys", "CaptureMouseMod", SDL_KMOD_NONE) == SDL_KMOD_NONE))
-    {
-        write_int("Hotkeys", "CaptureMouseScancode", SDL_SCANCODE_M);
-        write_int("Hotkeys", "CaptureMouseMod", SDL_KMOD_CTRL | SDL_KMOD_SHIFT);
-    }
-
-    // One gamepad, for the game port only, and no controller ports
-    if (file_version < 10)
-    {
-        static const char* const gamepad_keys[] =
-        {
-            "GamepadDirectional", "GamepadSelect", "GamepadRun", "GamepadA", "GamepadB"
-        };
-
-        for (int i = 0; i < 5; i++)
-            config_ini_data["InputGamepad1"].remove(gamepad_keys[i]);
-
-        config_ini_data["Input"].remove("AllowUpDown");
-        config_ini_data["Input"].remove("AllowSharedGamepads");
-        config_ini_data["Debug"].remove("GamePorts");
-    }
 }
 
 static void process_machine_model(config_Operation operation, int* model)
