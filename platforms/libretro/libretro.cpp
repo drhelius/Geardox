@@ -1350,13 +1350,13 @@ static bool update_game_options_display(void)
 {
     static const char* const k_options[][3] = {
         { "geardox_model", "machine", "model" }, { "geardox_cpu_clock", "machine", "cpu_mhz" },
-        { "geardox_turbo", "machine", "turbo" }, { "geardox_main_ram", "machine", "ram" },
-        { "geardox_fpu", "machine", "fpu" }, { "geardox_floppy_a", "machine", "floppy_a" },
-        { "geardox_floppy_b", "machine", "floppy_b" }, { "geardox_video_card", "machine", "video" },
+        { "geardox_turbo", "machine", "turbo" }, { "geardox_main_ram", "machine", "ram_mb" },
+        { "geardox_fpu", "machine", "fpu" }, { "geardox_floppy_a", "machine", "floppy_a_type" },
+        { "geardox_floppy_b", "machine", "floppy_b_type" }, { "geardox_video_card", "machine", "video" },
         { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
         { "geardox_sound_dma", "sound", "dma" }, { "geardox_mouse", "input", "mouse" },
-        { "geardox_joystick", "input", "joystick" }, { "geardox_cdrom_drive", "drives", "cd" },
-        { "geardox_cdrom_speed", "drives", "cd_speed" } };
+        { "geardox_joystick", "input", "joystick" }, { "geardox_cdrom_drive", "drives", "cdrom" },
+        { "geardox_cdrom_speed", "machine", "cdrom_speed" } };
     bool hide = game_active && game_descriptors;
 
     if (!hide && !game_options_hidden)
@@ -2915,27 +2915,30 @@ static bool game_open(const char* path, bool* game)
     game_active = true;
     log_cb(RETRO_LOG_INFO, "Game %s: %s %s\n", game_disk.GetName(), game_disk.WasBuilt() ? "built" : "reused",
         game_disk.GetImagePath());
-    std::string second = game_disk.GetSecondDisk();
-
-    if (!second.empty())
+    for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
     {
+        std::string disk = game_disk.GetHardDisk(id);
+
+        if (disk.empty())
+            continue;
+
         std::vector<std::string> folders;
         std::vector<std::string> files;
-        bool source = ends_with_no_case(second.c_str(), ".zip") || MediaFile::ListDirectory(second.c_str(), folders, files);
+        bool source = ends_with_no_case(disk.c_str(), ".zip") || MediaFile::ListDirectory(disk.c_str(), folders, files);
 
         if (source)
         {
             std::string name;
             std::string image(retro_save_directory);
             FatImage_Report report;
-            FatImage::GetImageName(second.c_str(), &name);
+            FatImage::GetImageName(disk.c_str(), &name);
             append_path_component(image, name.c_str());
-            FatImage::Prepare(second.c_str(), image.c_str(), false, &report);
-            second = (report.result == FAT_IMAGE_ERROR) || (report.result == FAT_IMAGE_TOO_BIG) ? std::string() : image;
+            FatImage::Prepare(disk.c_str(), image.c_str(), false, &report);
+            disk = (report.result == FAT_IMAGE_ERROR) || (report.result == FAT_IMAGE_TOO_BIG) ? std::string() : image;
         }
 
-        if (second.empty() || !core->AttachHardDisk(1, second.c_str(), false, ""))
-            log_cb(RETRO_LOG_ERROR, "Unable to attach drive D: %s\n", game_disk.GetSecondDisk());
+        if (disk.empty() || !core->AttachHardDisk(id, disk.c_str(), false, ""))
+            log_cb(RETRO_LOG_ERROR, "Unable to attach the game's hard disk %s\n", game_disk.GetHardDisk(id));
     }
 
     for (int drive = 0; drive < 2; drive++)

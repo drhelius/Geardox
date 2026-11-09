@@ -2243,9 +2243,9 @@ json McpServer::BuildToolList()
                 }},
                 {"device", {
                     {"type", "string"},
-                    {"description", "Plug in a joystick: none, joystick (IBM, 2 buttons), gamepad (Gravis, 4 buttons, "
+                    {"description", "Plug in a joystick: none, standard (IBM, 2 buttons), gamepad (Gravis, 4 buttons, "
                         "nine positions) or flightstick (CH FlightStick Pro). Takes effect at once."},
-                    {"enum", json::array({"none", "joystick", "gamepad", "flightstick"})}
+                    {"enum", json::array({"none", "standard", "gamepad", "flightstick"})}
                 }},
                 {"reset", {
                     {"type", "boolean"},

@@ -658,7 +658,7 @@ static void print_usage(const char* program)
     print_wrapped("      --video CARD", "auto, vga, gd5428, gd5428_vlb");
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");
     print_wrapped("      --cdrom DRIVE", "none, pm, ps, sm, ss (primary or secondary, master or slave)");
-    print_wrapped("      --joystick DEVICE", "none, joystick, gamepad, flightstick");
+    print_wrapped("      --joystick DEVICE", "none, standard, gamepad, flightstick");
     printf("\nOptions:\n");
     print_wrapped("  -f, --fullscreen", "Start in fullscreen mode");
     print_wrapped("  -w, --windowed", "Start in windowed mode with menu visible");

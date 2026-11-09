@@ -511,14 +511,14 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
 
     const GDOX_Game_Info& base = m_base.GetInfo();
 
-    if (!m_base.Has("drives", "dir"))
-        return Fail("%s: no dir in [drives], the game's folder on C: (. for the root)",
+    if (!m_base.Has("game", "folder"))
+        return Fail("%s: no folder in [game], the game's folder on C: such as C:\\GAME, or C:\\ for the root",
             file_of(found.inner.empty() ? found.path : found.inner).c_str());
 
-    if (base.c.empty())
+    if (base.source.empty())
         m_source = found.inner.empty() ? m_base_directory : found.path;
     else
-        m_source = trim_trailing(is_absolute(base.c) ? base.c : join(m_base_directory, base.c));
+        m_source = trim_trailing(is_absolute(base.source) ? base.source : join(m_base_directory, base.source));
 
     if (!exists(m_source))
         return Fail("The game's folder or ZIP isn't there: %s", m_source.c_str());
@@ -599,7 +599,10 @@ void GameDisk::Close()
     m_manifest.clear();
     m_lock.clear();
     m_overlay.clear();
-    m_second_disk.clear();
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        m_hard_disks[i].clear();
+
     m_cdroms.clear();
     m_floppies[0].clear();
     m_floppies[1].clear();
@@ -653,7 +656,8 @@ const GameDescriptor& GameDisk::GetOverrides() const
     return m_overrides;
 }
 
-// The descriptor's machine, and RAM enough for its EMS when it names none and the user's is too small
+// The descriptor's machine, the CD drive moved off the game's hard disks, and RAM enough for its EMS when it names
+// none and the user's is too small
 void GameDisk::GetGameSettings(const GDOX_Machine_Settings& user, GDOX_Machine_Settings* game) const
 {
     GetGameSettings(m_descriptor, user, game);
@@ -664,6 +668,11 @@ void GameDisk::GetGameSettings(const GameDescriptor& descriptor, const GDOX_Mach
 {
     descriptor.GetMachineSettings(game);
     const GDOX_Game_Info& info = descriptor.GetInfo();
+    int cdrom = game->cdrom >= 0 ? game->cdrom : user.cdrom;
+
+    if ((cdrom > GDOX_CDROM_NONE) && (cdrom < GDOX_CDROM_POSITION_COUNT) &&
+        ((cdrom == GDOX_CDROM_PRIMARY_MASTER) || !info.hard_disks[cdrom - 1].empty()))
+        game->cdrom = GDOX_CDROM_SECONDARY_MASTER;
 
     if ((info.ems_kb <= 0) || (info.memory != GDOX_GAME_MEMORY_EMS) || (game->ram_mb > 0))
         return;
@@ -724,7 +733,9 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
     m_floppies[0].clear();
     m_floppies[1].clear();
     m_cdroms.clear();
-    m_second_disk.clear();
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        m_hard_disks[i].clear();
 
     for (int drive = 0; drive < 2; drive++)
     {
@@ -749,12 +760,15 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         m_cdroms.push_back(path);
     }
 
-    if (!info.d.empty())
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        m_second_disk = is_absolute(info.d) ? info.d : join(m_base_directory, info.d);
+        if (info.hard_disks[i].empty())
+            continue;
 
-        if (!exists(m_second_disk))
-            return Fail("Drive D: isn't there: %s", m_second_disk.c_str());
+        m_hard_disks[i] = is_absolute(info.hard_disks[i]) ? info.hard_disks[i] : join(m_base_directory, info.hard_disks[i]);
+
+        if (!exists(m_hard_disks[i]))
+            return Fail("The game's hard disk isn't there: %s", m_hard_disks[i].c_str());
     }
 
     m_machine = machine;
@@ -931,7 +945,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     for (size_t i = 0; i < info.env.size(); i++)
         out += "SET " + info.env[i].name + "=" + info.env[i].value + "\r\n";
 
-    out += "C:\r\nCD \\" + info.dir + "\r\n";
+    out += "C:\r\nCD \\" + info.folder + "\r\n";
 
     for (size_t i = 0; i < info.autoexec.size(); i++)
         out += info.autoexec[i] + "\r\n";
@@ -940,7 +954,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
 
     if (!info.exe.empty())
     {
-        add_run(&out, info.dir, info.exe, info.cwd, info.args);
+        add_run(&out, info.folder, info.exe, info.cwd, info.args);
 
         if (info.exit == GDOX_GAME_EXIT_POWEROFF)
             out += "POWEROFF\r\n";
@@ -949,7 +963,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     out += "GOTO PROMPT\r\n:SETUP\r\n";
 
     if (!info.setup.empty())
-        add_run(&out, info.dir, info.setup, "", "");
+        add_run(&out, info.folder, info.setup, "", "");
     else
         out += "ECHO This game has no setup program.\r\n";
 
@@ -1027,9 +1041,9 @@ const std::vector<std::string>& GameDisk::GetCdRoms() const
     return m_cdroms;
 }
 
-const char* GameDisk::GetSecondDisk() const
+const char* GameDisk::GetHardDisk(int id) const
 {
-    return m_second_disk.c_str();
+    return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? m_hard_disks[id].c_str() : "";
 }
 
 const GameDisk_Result& GameDisk::GetLastWriteBack() const
@@ -1045,7 +1059,7 @@ const char* GameDisk::GetError() const
 // Inside the game's folder on C:, and none of the system's
 bool GameDisk::IsGamePath(const std::string& dos_path) const
 {
-    std::string base = upper(m_descriptor.GetInfo().dir);
+    std::string base = upper(m_descriptor.GetInfo().folder);
     std::string path = upper(dos_path);
 
     if (is_system_path(path))
@@ -1072,7 +1086,7 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine)
     const GDOX_Game_Info& info = m_descriptor.GetInfo();
     u8 attributes = info.freedos_hidden ? k_fat_attribute_hidden : 0x20;
 
-    if (!image->AddGame(m_source.c_str(), info.dir.c_str()))
+    if (!image->AddGame(m_source.c_str(), info.folder.c_str()))
         return Fail("Unable to read the game's files: %s", m_source.c_str());
 
     if (is_folder(m_overlay) && !image->AddOverlay(m_overlay.c_str()))
@@ -1423,7 +1437,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
             folders[upper(entries[i].dos_path)] = entries[i].host_path;
     }
 
-    std::string base = m_descriptor.GetInfo().dir;
+    std::string base = m_descriptor.GetInfo().folder;
 
     if (!base.empty())
         folders[upper(base)] = "";

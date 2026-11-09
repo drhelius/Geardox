@@ -143,7 +143,7 @@ const int k_cdrom_speed_factors[GDOX_CDROM_SPEED_COUNT] = { 1, 2, 4, 8 };
 const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 {
     { "None", "none" },
-    { "Joystick", "joystick" },
+    { "Joystick", "standard" },
     { "Gravis GamePad", "gamepad" },
     { "CH FlightStick Pro", "flightstick" }
 };

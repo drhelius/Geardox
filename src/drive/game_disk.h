@@ -98,7 +98,7 @@ public:
     u32 GetLeftOut() const;
     const std::vector<std::string>& GetFloppies(int drive) const;
     const std::vector<std::string>& GetCdRoms() const;
-    const char* GetSecondDisk() const;
+    const char* GetHardDisk(int id) const;
     const GameDisk_Result& GetLastWriteBack() const;
     const char* GetError() const;
 
@@ -150,7 +150,7 @@ private:
     u32 m_left_out;
     std::vector<std::string> m_floppies[2];
     std::vector<std::string> m_cdroms;
-    std::string m_second_disk;
+    std::string m_hard_disks[GDOX_MAX_HARD_DISKS];
     std::vector<std::string> m_deleted;
     GameDisk_Result m_last;
     std::string m_error;

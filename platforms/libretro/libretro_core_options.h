@@ -210,7 +210,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "input",
         {
             { "none",        "None" },
-            { "joystick",    "Joystick" },
+            { "standard",    "Joystick" },
             { "gamepad",     "Gravis GamePad" },
             { "flightstick", "CH FlightStick Pro" },
             { NULL, NULL },

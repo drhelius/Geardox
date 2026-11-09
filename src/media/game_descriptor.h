@@ -67,10 +67,10 @@ struct GDOX_Game_Info
     int buffers;
     std::string dos_version;
     bool freedos_hidden;
-    std::string c;
-    std::string dir;
+    std::string source;
+    std::string folder;
     int free_mb;
-    std::string d;
+    std::string hard_disks[GDOX_MAX_HARD_DISKS];
     std::vector<std::string> floppies[2];
     std::vector<std::string> cds;
     std::string exe;
@@ -110,6 +110,7 @@ public:
     const char* GetPath() const;
     u32 GetCRC() const;
     static bool IsDescriptor(const char* path);
+    static const char* GetHardDiskKey(int id);
     static int GetEMSRAM(int ems_kb, int model, bool cirrus);
 
 private:

@@ -41,8 +41,8 @@ static bool prepared = false;
 static bool write_back_pending = false;
 static GDOX_Machine_Config prepare_config;
 static GDOX_Boot_Device saved_boot_device = GDOX_BOOT_DEVICE_AUTO;
-static std::string second_image;
-static FatImage_Report second_report;
+static std::string hard_disk_images[GDOX_MAX_HARD_DISKS];
+static FatImage_Report hard_disk_reports[GDOX_MAX_HARD_DISKS];
 static std::string error_text;
 static GameDisk_Result last_result;
 static std::string last_result_name;
@@ -57,6 +57,7 @@ static void update_machines(void);
 static void apply_game_settings(void);
 static std::string write_list(const std::vector<std::string>& paths, const char* name);
 static void notify_write_back(void);
+static void prepare_hard_disk(int id);
 
 bool emu_game_is_content(const char* path)
 {
@@ -99,32 +100,15 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
 void emu_game_prepare_thread(void)
 {
     prepared = disk.Prepare(prepare_config);
-    second_image.clear();
-    memset(&second_report, 0, sizeof(second_report));
 
-    if (!prepared || (disk.GetSecondDisk()[0] == 0))
-        return;
-
-    std::string second = disk.GetSecondDisk();
-    std::vector<std::string> folders;
-    std::vector<std::string> files;
-    bool source = ends_with_no_case(second.c_str(), ".zip") || MediaFile::ListDirectory(second.c_str(), folders, files);
-
-    if (!source)
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        second_image = second;
-        return;
+        hard_disk_images[i].clear();
+        memset(&hard_disk_reports[i], 0, sizeof(hard_disk_reports[i]));
+
+        if (prepared)
+            prepare_hard_disk(i);
     }
-
-    std::string name;
-    FatImage::GetImageName(second.c_str(), &name);
-    char path[GDOX_MAX_PATH];
-    join_path(get_save_directory().c_str(), name.c_str(), path, sizeof(path));
-    second_image = path;
-    FatImage::Prepare(second.c_str(), path, false, &second_report);
-
-    if ((second_report.result == FAT_IMAGE_ERROR) || (second_report.result == FAT_IMAGE_TOO_BIG))
-        second_image.clear();
 }
 
 bool emu_game_start(void)
@@ -152,8 +136,11 @@ bool emu_game_start(void)
         return false;
     }
 
-    if (!second_image.empty() && !emu_hard_disk_attach_game(1, second_image.c_str(), disk.GetSecondDisk()))
-        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Unable to attach drive D:", disk.GetSecondDisk());
+    for (int i = 1; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        if (!hard_disk_images[i].empty() && !emu_hard_disk_attach_game(i, hard_disk_images[i].c_str(), disk.GetHardDisk(i)))
+            gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Unable to attach the game's hard disk", disk.GetHardDisk(i));
+    }
 
     for (int drive = 0; drive < 2; drive++)
     {
@@ -220,9 +207,12 @@ bool emu_game_start(void)
         gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Part of the game's folder didn't fit DOS", detail);
     }
 
-    if (second_report.result == FAT_IMAGE_CHANGED)
-        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Drive D:'s folder changed since its disk was made",
-            disk.GetSecondDisk());
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        if (hard_disk_reports[i].result == FAT_IMAGE_CHANGED)
+            gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "A hard disk's folder changed since its disk was made",
+                disk.GetHardDisk(i));
+    }
 
     Log("Game: %s, %s", disk.GetName(), disk.WasBuilt() ? "disk built" : "disk reused");
     return emu_power_on();
@@ -370,7 +360,7 @@ void emu_game_apply_machine(void)
     const config_Machine& m = game_machine;
     const config_Machine& b = base_machine;
     static const char* const k_floppy_types[GDOX_FLOPPY_TYPE_COUNT] = { "", "360k", "1200k", "720k", "1440k", "2880k" };
-    static const char* const k_floppy_keys[2] = { "floppy_a", "floppy_b" };
+    static const char* const k_floppy_keys[2] = { "floppy_a_type", "floppy_b_type" };
 
     if ((m.model != b.model) && (m.model >= 0))
         overrides.Set("machine", "model", k_machine_profiles[m.model].key);
@@ -379,7 +369,7 @@ void emu_game_apply_machine(void)
         overrides.Set("machine", "cpu_mhz", std::to_string(m.cpu_mhz).c_str());
 
     if (m.ram_mb != b.ram_mb)
-        overrides.Set("machine", "ram", std::to_string(m.ram_mb).c_str());
+        overrides.Set("machine", "ram_mb", std::to_string(m.ram_mb).c_str());
 
     if ((m.fpu != 0) != (b.fpu != 0))
         overrides.Set("machine", "fpu", m.fpu != 0 ? "80387" : "none");
@@ -412,7 +402,7 @@ void emu_game_apply_machine(void)
         overrides.Set("input", "joystick", k_joysticks[game_joystick].id);
 
     if (m.cdrom_speed != b.cdrom_speed)
-        overrides.Set("drives", "cd_speed", k_cdrom_speeds[m.cdrom_speed].id);
+        overrides.Set("machine", "cdrom_speed", k_cdrom_speeds[m.cdrom_speed].id);
 
     if (!disk.SaveOverrides(overrides))
         gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
@@ -466,8 +456,8 @@ bool emu_game_save_descriptor(const char* path)
 
     if (strcmp(directory, base) != 0)
     {
-        out.Set("drives", "c", disk.GetSourcePath());
-        static const char* const k_lists[3] = { "a", "b", "cd" };
+        out.Set("game", "source", disk.GetSourcePath());
+        static const char* const k_lists[3] = { "floppy_a", "floppy_b", "cdrom" };
 
         for (int i = 0; i < 3; i++)
         {
@@ -481,8 +471,11 @@ bool emu_game_save_descriptor(const char* path)
                 out.Set("drives", k_lists[i], value.c_str());
         }
 
-        if (disk.GetSecondDisk()[0] != 0)
-            out.Set("drives", "d", disk.GetSecondDisk());
+        for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        {
+            if (disk.GetHardDisk(i)[0] != 0)
+                out.Set("drives", GameDescriptor::GetHardDiskKey(i), disk.GetHardDisk(i));
+        }
     }
 
     return out.WriteFile(path);
@@ -586,21 +579,21 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
         source.resize(source.size() - 1);
 
     std::string name = get_filename(source.c_str());
-    std::string dir;
+    std::string dos_folder;
 
-    for (size_t i = 0; (i < name.size()) && (dir.size() < 8); i++)
+    for (size_t i = 0; (i < name.size()) && (dos_folder.size() < 8); i++)
     {
         char c = name[i];
 
         if (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')))
-            dir += (char)(((c >= 'a') && (c <= 'z')) ? c - 32 : c);
+            dos_folder += (char)(((c >= 'a') && (c <= 'z')) ? c - 32 : c);
     }
 
-    if (dir.empty() || (dir == "FREEDOS") || (dir == "TEMP"))
-        dir = ".";
+    if ((dos_folder == "FREEDOS") || (dos_folder == "TEMP"))
+        dos_folder.clear();
 
-    std::string text = "[geardox]\nversion = 1\nname = " + name + "\n\n[drives]\nc = " + source + "\ndir = " + dir +
-        "\n\n[run]\nexe = " + program + "\n";
+    std::string text = "[geardox]\nversion = 1\n\n[game]\nname = " + name + "\nsource = " + source + "\nfolder = C:\\" +
+        dos_folder + "\n\n[run]\nexe = " + program + "\n";
     GameDescriptor descriptor;
 
     if (!descriptor.Parse("", text.data(), text.size()))
@@ -612,6 +605,32 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
     join_path(directory.c_str(), (name + ".gdox").c_str(), file, sizeof(file));
     *path = file;
     return descriptor.WriteFile(file);
+}
+
+static void prepare_hard_disk(int id)
+{
+    std::string source = disk.GetHardDisk(id);
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if (source.empty())
+        return;
+
+    if (!ends_with_no_case(source.c_str(), ".zip") && !MediaFile::ListDirectory(source.c_str(), folders, files))
+    {
+        hard_disk_images[id] = source;
+        return;
+    }
+
+    std::string name;
+    FatImage::GetImageName(source.c_str(), &name);
+    char path[GDOX_MAX_PATH];
+    join_path(get_save_directory().c_str(), name.c_str(), path, sizeof(path));
+    hard_disk_images[id] = path;
+    FatImage::Prepare(source.c_str(), path, false, &hard_disk_reports[id]);
+
+    if ((hard_disk_reports[id].result == FAT_IMAGE_ERROR) || (hard_disk_reports[id].result == FAT_IMAGE_TOO_BIG))
+        hard_disk_images[id].clear();
 }
 
 static std::string get_save_directory(void)
@@ -670,10 +689,10 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
 static void update_machines(void)
 {
     static const char* const k_keys[][2] = {
-        { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram" },
-        { "machine", "fpu" }, { "machine", "floppy_a" }, { "machine", "floppy_b" }, { "machine", "video" },
-        { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" }, { "input", "joystick" },
-        { "drives", "cd_speed" } };
+        { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
+        { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
+        { "machine", "cdrom_speed" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" },
+        { "input", "mouse" }, { "input", "joystick" } };
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
     GDOX_Machine_Settings without;

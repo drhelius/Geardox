@@ -34,10 +34,10 @@ Save the following text as `Master of Orion.gdox` in the game's folder, alongsid
 ```ini
 [geardox]
 version = 1
-name = Master of Orion
 
-[drives]
-dir = orion
+[game]
+name = Master of Orion
+folder = C:\ORION
 
 [run]
 exe = ORION.EXE
@@ -57,38 +57,39 @@ Geardox or choose **Game > Open Game Folder...**.
 
 - `version = 1` selects version 1 of the GDOX file format.
 - `name` is the title Geardox displays for the game.
-- `dir = orion` places the game's files in `C:\ORION` on the emulated hard disk.
+- `folder = C:\ORION` places the game's files in `C:\ORION` on the emulated hard disk.
 - `exe = ORION.EXE` starts that program from the game's folder, giving `C:\ORION\ORION.EXE` in this example.
 
-Only `version` and `dir` are required. Without `exe`, Geardox starts at the DOS prompt instead of launching a game.
+Only `version` and `folder` are required. Without `exe`, Geardox starts at the DOS prompt instead of launching a
+game.
 
-### Game Location: `c` and `dir`
+### Game Location: `source` and `folder`
 
-`c` selects the source files on your computer. `dir` sets their destination on the emulated C: drive:
+`source` selects the game's files on your computer. `folder` sets their destination on the emulated C: drive:
 
 | Setting | Meaning | Example |
 | --- | --- | --- |
-| `c` | Where the game's files already exist on your computer | `c = ../Games/Master of Orion` |
-| `dir` | Where Geardox places those files on the DOS C: drive | `dir = orion` gives `C:\ORION` |
+| `source` | Where the game's files already exist on your computer | `source = ../Games/Master of Orion` |
+| `folder` | Where Geardox places those files on the DOS C: drive | `folder = C:\ORION` |
 
-Geardox creates the DOS folder specified by `dir`. It accepts short DOS names such as `orion` (up to 8 characters,
-without spaces). Use `dir = .` to place the game files directly in `C:\`.
+Geardox creates the DOS folder specified by `folder`. It accepts short DOS names such as `C:\ORION` (up to 8
+characters, without spaces). Use `folder = C:\` to place the game files directly in the root of C:.
 
-If you leave out `c`, Geardox uses the folder containing the descriptor. If the descriptor is inside a ZIP, it uses
-that ZIP instead. Set `c` when you want to keep the descriptor somewhere else.
+If you leave out `source`, Geardox uses the folder containing the descriptor. If the descriptor is inside a ZIP, it
+uses that ZIP instead. Set `source` when you want to keep the descriptor somewhere else.
 
-Paths in `c` and external disk image entries are relative to the descriptor's location, unless you specify a full
-path. For example, a descriptor at `Games/Orion.gdox` with `c = Orion` uses the folder `Games/Orion`. Paths with
-spaces are written without surrounding quotes.
+Paths in `source` and external disk image entries are relative to the descriptor's location, unless you specify a
+full path. For example, a descriptor at `Games/Orion.gdox` with `source = Orion` uses the folder `Games/Orion`. Paths
+with spaces are written without surrounding quotes.
 
 Paths in `exe`, `setup` and `cwd` are relative to the game's DOS folder. For example, `exe = GAME\ORION.EXE`
-with `dir = orion` starts `C:\ORION\GAME\ORION.EXE`.
+with `folder = C:\ORION` starts `C:\ORION\GAME\ORION.EXE`.
 
 ## Use a ZIP or CD Image
 
 ### A Game in a ZIP
 
-You can keep the descriptor beside the game's ZIP and point to it with `c`:
+You can keep the descriptor beside the game's ZIP and point to it with `source`:
 
 ```text
 Games/
@@ -99,11 +100,11 @@ Games/
 ```ini
 [geardox]
 version = 1
-name = Master of Orion
 
-[drives]
-c = Orion.zip
-dir = orion
+[game]
+name = Master of Orion
+source = Orion.zip
+folder = C:\ORION
 
 [run]
 exe = ORION.EXE
@@ -112,12 +113,12 @@ exe = ORION.EXE
 This example uses a ZIP with `ORION.EXE` at its top level. Geardox preserves the ZIP's folder structure: if the
 program is stored as `ORION/ORION.EXE` in the archive, set `exe = ORION\ORION.EXE`.
 
-You can also put the descriptor at the top level of the ZIP, alongside the game files. In that case, leave out `c`
-and open the ZIP itself. Saves go into Geardox's save folder; the ZIP is not modified.
+You can also put the descriptor at the top level of the ZIP, alongside the game files. In that case, leave out
+`source` and open the ZIP itself. Saves go into Geardox's save folder; the ZIP is not modified.
 
 ### A Game That Needs a CD
 
-Add `cd` under `[drives]` to attach a disc image. Supported formats are `.cue`, `.iso` and `.chd`.
+Add `cdrom` under `[drives]` to attach a disc image. Supported formats are `.cue`, `.iso` and `.chd`.
 For example, with this layout:
 
 ```text
@@ -134,12 +135,14 @@ Use:
 ```ini
 [geardox]
 version = 1
+
+[game]
 name = Warcraft II
+source = WAR2.zip
+folder = C:\WAR2
 
 [drives]
-c = WAR2.zip
-dir = WAR2
-cd = Discs/WAR2.cue
+cdrom = Discs/WAR2.cue
 
 [run]
 exe = WAR2.EXE
@@ -149,10 +152,10 @@ setup = SETUP.EXE
 Here, `WAR2.zip` contains the installed game, with `WAR2.EXE` and `SETUP.EXE` at its top level. `Discs/WAR2.cue`
 provides the game's CD. A CUE image also requires its referenced track files, such as `WAR2.bin` in this example.
 
-The CD normally appears as D: in DOS. If you also configure a second hard disk with `d`, the CD uses the next free
-letter. Geardox loads the CD driver automatically.
+The CD normally appears as D: in DOS. If you also add hard disks with `hdd_primary_slave` or `hdd_secondary_slave`,
+the CD uses the next free letter after them. Geardox loads the CD driver automatically.
 
-Disc images can also be inside the game's ZIP: use their path inside the ZIP, such as `cd = Discs/WAR2.cue`.
+Disc images can also be inside the game's ZIP: use their path inside the ZIP, such as `cdrom = Discs/WAR2.cue`.
 For multiple discs, list them separated by commas, or use one `.m3u` playlist.
 
 ## Run Setup or Use the DOS Prompt
@@ -175,8 +178,8 @@ program or other DOS commands without adding them to the descriptor.
 
 Each **Boot To** choice restarts the emulated PC.
 
-By default, quitting a game returns to DOS. To turn off the emulated PC when the game exits, add `exit = poweroff`
-under `[run]`. To close Geardox as well, enable **Game > Quit When a Game Powers Off**.
+By default, quitting a game returns to DOS. To turn off the emulated PC when the game exits, add
+`on_exit = poweroff` under `[run]`. To close Geardox as well, enable **Game > Quit When a Game Powers Off**.
 
 ## Find Your Saves
 
@@ -204,7 +207,7 @@ These locations apply to the game's files. Geardox save states are stored separa
 
 ## Adjust a Game's Settings
 
-On desktop, **Machine** menu changes made while a game is open are saved as settings for that game.
+On desktop, **Emulator > Machine** changes made while a game is open are saved as settings for that game.
 You can also record settings in the descriptor, for example:
 
 ```ini
@@ -216,7 +219,7 @@ This selects a slower PC, which can help with older games that run too fast or f
 
 Geardox uses settings in this order:
 
-1. Machine menu changes remembered for this game.
+1. **Emulator > Machine** changes remembered for this game.
 2. Settings in the descriptor.
 3. Your general Geardox settings.
 4. Built-in defaults for anything still unspecified.
@@ -246,33 +249,34 @@ Set the emulated RAM in megabytes (MB). For example, for a game requiring 16 MB:
 
 ```ini
 [machine]
-ram = 16
+ram_mb = 16
 ```
 
-Games requiring **expanded memory (EMS)** also need a DOS memory manager. The `ems` setting enables it and
+Games requiring **expanded memory (EMS)** also need a DOS memory manager. The `ems_kb` setting enables it and
 specifies the required amount in kilobytes (KB). For example, 1 MB of EMS:
 
 ```ini
 [dos]
-ems = 1024
+ems_kb = 1024
 ```
 
-When `ems` is specified and `ram` is omitted, Geardox can increase the emulated RAM to meet the EMS requirement.
+When `ems_kb` is specified and `ram_mb` is omitted, Geardox can increase the emulated RAM to meet the EMS
+requirement.
 The advanced `memory` and `ems_frame` settings control the DOS memory manager; see [Memory modes](#memory-modes).
 
 ## Troubleshooting
 
 | Problem | What to check |
 | --- | --- |
-| The descriptor will not open | The error message identifies invalid or missing settings. Every descriptor requires `version = 1` in `[geardox]` and `dir` in `[drives]`. |
-| Geardox cannot find the game folder or ZIP | Check `c`. Relative paths start from the descriptor's folder, and paths should not have surrounding quotes. |
+| The descriptor will not open | The error message identifies invalid or missing settings. Every descriptor requires `version = 1` in `[geardox]` and `folder` in `[game]`, written as a DOS path such as `C:\ORION`. |
+| Geardox cannot find the game folder or ZIP | Check `source` under `[game]`. Relative paths start from the descriptor's folder, and paths should not have surrounding quotes. |
 | "Bad command or filename" | Check `exe` under `[run]`. It starts from the game's folder inside DOS; include any subfolder inside your folder or ZIP. |
 | "Please run SETUP" or a missing configuration file | Run the game's setup using **Game > Boot To > Setup**, or start it from **DOS Prompt**. |
 | The game runs too fast, gives "Runtime error 200" or "Divide error", or hangs while loading | Try `model = 386dx_33` under `[machine]`. You can also try `turbo = off`. These errors can have other causes. |
-| The game asks for more RAM | Try `ram = 16` under `[machine]`, or the amount the game requires. |
-| The game asks for expanded memory or EMS | Add `ems = 1024` under `[dos]`, or the required amount in KB. |
+| The game asks for more RAM | Try `ram_mb = 16` under `[machine]`, or the amount the game requires. |
+| The game asks for expanded memory or EMS | Add `ems_kb = 1024` under `[dos]`, or the required amount in KB. |
 | No sound, or the game hangs when playing sound | Run the game's sound setup and match its card, IRQ and DMA to Geardox. |
-| "Please insert the CD" | Check `cd` under `[drives]` and the CD drive letter expected by the game's setup. |
+| "Please insert the CD" | Check `cdrom` under `[drives]` and the CD drive letter expected by the game's setup. |
 | Descriptor changes seem to be ignored | Use **Game > Game Files > Forget Machine Changes** and restart the game. |
 | Saves are not in the game's folder | Check **Game > Game Files > Show Saves Folder**. ZIPs, read-only folders and RetroArch use a separate save location by default. |
 
@@ -296,119 +300,149 @@ is opened as a plain hard disk source, without the automatic game setup describe
 
 ## Settings Reference
 
-The tables below list all supported settings and their behavior when omitted.
+Every setting a descriptor accepts, section by section. Only two are required: `version` in `[geardox]` and `folder`
+in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses the value in the **Default** column.
+
+### Sections
+
+| Section | Required | Contains |
+| --- | --- | --- |
+| `[geardox]` | Yes | The descriptor's format version |
+| `[game]` | Yes | The game's name, where its files are on your computer, and where they go on the DOS C: drive |
+| `[run]` | No | The program that starts the game, its setup program, and what happens when it quits |
+| `[drives]` | No | Floppy disks, extra hard disks and CDs, as in the **Drives** menu |
+| `[machine]` | No | The emulated PC: model, CPU speed, RAM, coprocessor, floppy and CD-ROM drive types, and video card |
+| `[sound]` | No | The sound card and its IRQ and DMA |
+| `[input]` | No | The mouse and the joystick |
+| `[dos]` | No | DOS memory management and other DOS settings |
+| `[env]` | No | DOS environment variables |
+| `[config_sys]`, `[autoexec]` | No | Extra DOS startup lines |
 
 ### Editing Rules
 
-- Use `[section]` headings followed by `key = value` lines. Section and key names are not case-sensitive.
-- Leave optional settings out to use the behavior in the **When omitted** column. Machine settings inherit your
-  Geardox preferences; other settings have the defaults listed below.
-- The value `auto` is supported only by `ems_frame`.
-- File paths are written without surrounding quotes. Spaces within a value are preserved; leading and trailing
-  spaces are removed.
+- Each section starts with a `[section]` heading, followed by `key = value` lines. Section and key names are not
+  case-sensitive, and sections can appear in any order.
+- Paths are written without surrounding quotes and accept `/` or `\`. Paths to files on your computer, such as
+  `source` and disk images, are relative to the descriptor's folder. Program paths in `[run]` are relative to
+  `folder` on the DOS C: drive.
+- Spaces within a value are preserved; leading and trailing spaces are removed. Lists of disk images are separated
+  by commas.
+- There is no `auto` value, except for `ems_frame`: to let Geardox choose, leave the setting out.
 - Comments occupy a whole line starting with `;` or `#`. Text after a value on the same line is part of that value.
-- `[config_sys]` and `[autoexec]` contain DOS instructions rather than ordinary settings. Use `REM` for comments there.
-- Paths accept `/` or `\`. Use commas to separate multiple disk images.
 - Unknown settings produce a warning and are ignored. Invalid values, duplicate settings and missing required
   settings prevent loading. Descriptors requiring a newer format version cannot be loaded.
 - Save as UTF-8 plain text, using Windows or Unix line endings. The maximum file size is 64 KB.
 
 ### `[geardox]`
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `version` | `1` | **Required** |
-| `name` | The game's title: window title, save state names, volume label | The file's name |
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `version` | Yes | The version of the GDOX format the descriptor uses. Not the DOS version, which is `version` in `[dos]` | `1` | — | `version = 1` |
 
-### `[drives]`
+### `[game]`
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `dir` | Folder to create inside DOS: `orion` gives `C:\ORION`; `.` uses `C:\`. Use short DOS names (up to 8 characters, optionally a 3-character extension), without spaces. The first folder cannot be `FREEDOS` or `TEMP` | **Required** |
-| `c` | Existing game folder or ZIP on your computer | The folder or ZIP containing the descriptor |
-| `free` | Extra space for saves and other game files on C:, in MB: 16 to 1024 | `64` |
-| `d` | A folder, ZIP or hard disk image for D: (Primary Slave). Changes stay in its disk image, rather than being copied back to the source folder or ZIP | None |
-| `a`, `b` | Floppy images for A: and B:, comma separated. The first disk is inserted; the others are available to swap in | None |
-| `cd` | CD images (`.cue`, `.iso`, `.chd`) or one `.m3u`, comma separated. Adds a CD-ROM drive on the Secondary Master. Images inside the game's ZIP are extracted automatically | None |
-| `cd_speed` | `1x`, `2x`, `4x`, `8x` | Geardox's setting (4x) |
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `name` | No | The game's title, shown in the window title and used for save state names and the C: volume label | Text | The descriptor's file name | `name = Master of Orion` |
+| `folder` | Yes | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it. Each folder name has up to 8 characters, plus an optional 3-character extension, and no spaces. The first folder cannot be `FREEDOS` or `TEMP` | — | `folder = C:\ORION` |
+| `source` | No | The game's files on your computer | A folder or a `.zip` file | The folder or ZIP containing the descriptor | `source = Orion.zip` |
+| `free_mb` | No | Free space on C: for saves and other files the game creates, in MB | `16` to `1024` | `64` | `free_mb = 256` |
 
 ### `[run]`
 
-Program paths are relative to `dir`: with `dir = orion`, `exe = ORION.EXE` runs `C:\ORION\ORION.EXE`.
+Program paths are relative to `folder`: with `folder = C:\ORION`, `exe = ORION.EXE` runs `C:\ORION\ORION.EXE`.
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `exe` | The program that starts the game: `ORION.EXE`, `GAME\GAME.EXE`, `PLAY.BAT` | None: the DOS prompt |
-| `args` | Extra options passed to the game, such as `-nosound` | None |
-| `cwd` | Working folder used when starting the game, relative to `dir` | `exe`'s directory |
-| `setup` | The game's setup program, with arguments: `SETUP.EXE`, `INSTALL.EXE -S` | None |
-| `exit` | `prompt`: back to DOS when the game quits. `poweroff`: the machine powers off and the session ends. **Game > Quit When a Game Powers Off** closes Geardox too | `prompt` |
-| `boot` | `c` to start from the hard disk, or `a` for games that boot directly from a floppy in A: | `c` |
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `exe` | No | The program that starts the game | A `.EXE`, `.COM` or `.BAT` path | None: Geardox stops at the DOS prompt | `exe = ORION.EXE` |
+| `args` | No | Options passed to `exe` | Text | None | `args = -nosound` |
+| `cwd` | No | The folder the game starts in, for games that must run from a folder other than their program's | A DOS path, relative to `folder` | The folder containing `exe` | `cwd = DATA` |
+| `setup` | No | The game's setup program, with any options. **Game > Boot To > Setup** runs it | A program path, optionally followed by options | None: **Boot To > Setup** is unavailable | `setup = INSTALL.EXE -S` |
+| `on_exit` | No | What happens when the game quits | `prompt`: return to the DOS prompt. `poweroff`: power off the emulated PC. With **Game > Quit When a Game Powers Off**, Geardox closes too | `prompt` | `on_exit = poweroff` |
+| `boot` | No | The drive the emulated PC starts from | `c`: the hard disk. `a`: the floppy in A:, for games that boot directly from a floppy | `c` | `boot = a` |
+
+### `[drives]`
+
+The game's own disk is always C:, on the Primary Master. Extra hard disks take the next letters in the order of their
+positions, D: then E:, and the CD drive the letter after them. If your CD-ROM drive setting puts it on a position the
+game's hard disks use, Geardox moves it to the Secondary Master for that game.
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `floppy_a`, `floppy_b` | No | Floppy disk images for drives A: and B:. The first disk is inserted; the others can be swapped in | Image paths, comma separated | None | `floppy_a = Disk1.img, Disk2.img` |
+| `hdd_primary_slave` | No | An extra hard disk on the Primary Slave, D:. Its changes stay in its own disk image instead of being copied back to the folder or ZIP | A folder, ZIP or hard disk image | None | `hdd_primary_slave = Extras.zip` |
+| `hdd_secondary_slave` | No | An extra hard disk on the Secondary Slave: E:, or D: without `hdd_primary_slave`. Its changes stay in its own disk image, as with `hdd_primary_slave` | A folder, ZIP or hard disk image | None | `hdd_secondary_slave = Data` |
+| `cdrom` | No | CD images for a CD-ROM drive on the Secondary Master. Images inside the game's ZIP are extracted automatically | `.cue`, `.iso` or `.chd` paths, comma separated, or one `.m3u` playlist | None | `cdrom = Discs/WAR2.cue` |
 
 ### `[machine]`
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `model` | `386sx_20`, `386dx_33`, `486dx2_66` | Your machine setting |
-| `cpu_mhz` | `16`, `20`, `25`, `33`, `40`, `50`, `66`, `100` | Your CPU speed setting, or the model's normal speed |
-| `turbo` | `on`, `off`. Off runs the CPU at a third of its clock | Your turbo setting |
-| `ram` | MB: `1`, `2`, `4`, `8`, `16` on the 386s; `4`, `8`, `16`, `32`, `64` on the 486 | Your RAM setting; may increase for `ems` |
-| `fpu` | `none`, `80387` (the 486DX2 has one built in) | Your FPU setting |
-| `floppy_a`, `floppy_b` | `360k`, `1200k`, `720k`, `1440k`, `2880k` | Your drive setting, or automatic detection |
-| `video` | `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486 only) | Your video setting, or the model's default |
+When left out, these settings follow your own Geardox settings: **Emulator > Machine** on desktop, or the core
+options in RetroArch. The **Default** column shows what those are unless you changed them.
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `model` | No | The emulated PC | `386sx_20`, `386dx_33`, `486dx2_66` | Your setting (`486dx2_66`) | `model = 386dx_33` |
+| `cpu_mhz` | No | The CPU clock, in MHz | `16`, `20`, `25`, `33`, `40`, `50`, `66`, `100` | Your setting (the model's own clock: 20, 33 or 66) | `cpu_mhz = 25` |
+| `turbo` | No | The turbo switch. `off` runs the CPU at a third of its clock, for games that run too fast | `on`, `off` | Your setting (`on`) | `turbo = off` |
+| `ram_mb` | No | Memory, in MB | `1`, `2`, `4`, `8`, `16` on the 386s; `4`, `8`, `16`, `32`, `64` on the 486 | Your setting (`8`), raised if needed to fit `ems_kb` | `ram_mb = 16` |
+| `fpu` | No | The math coprocessor on the 386s. The 486DX2 always has one built in | `none`, `80387` | Your setting (`80387`) | `fpu = none` |
+| `floppy_a_type`, `floppy_b_type` | No | The floppy drive types | `360k`, `720k`, `1200k`, `1440k`, `2880k` | Your setting (detected from the disk in the drive) | `floppy_a_type = 1200k` |
+| `cdrom_speed` | No | The CD-ROM drive speed | `1x`, `2x`, `4x`, `8x` | Your setting (`4x`) | `cdrom_speed = 2x` |
+| `video` | No | The video card | `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486 only) | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486) | `video = vga` |
 
 ### `[sound]`
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `card` | `none`, `adlib`, `sb15`, `sb20`, `sbpro`, `sbpro2`, `sb16` | Your sound card setting |
-| `irq` | `5`, `7` | Your IRQ setting |
-| `dma` | `1`, `3` | Your DMA setting |
+Like `[machine]`, these settings follow your own Geardox settings when left out.
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `card` | No | The sound card | `none`, `adlib`, `sb15` (Sound Blaster 1.5), `sb20` (2.0), `sbpro` (Pro), `sbpro2` (Pro 2), `sb16` (16) | Your setting (`sb16`) | `card = sbpro` |
+| `irq` | No | The sound card's IRQ | `5`, `7` | Your setting (`5`) | `irq = 7` |
+| `dma` | No | The sound card's 8-bit DMA channel | `1`, `3` | Your setting (`1`) | `dma = 3` |
 
 The sound port is 220 (hexadecimal). The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the
 DOS `BLASTER` variable automatically to match the selected card, IRQ and DMA.
 
 ### `[input]`
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `mouse` | `none`, `ps2`, `serial` (COM1). The mouse driver loads only with a mouse | Your mouse setting |
-| `joystick` | `none`, `joystick`, `gamepad`, `flightstick` | Geardox's setting |
+Like `[machine]`, these settings follow your own Geardox settings when left out. On desktop, the joystick is in the
+**Input** menu.
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `mouse` | No | The mouse. The DOS mouse driver loads only when there is one | `none`, `ps2`, `serial` (COM1) | Your setting (`ps2`) | `mouse = serial` |
+| `joystick` | No | The joystick on the game port | `none`, `standard` (2 buttons), `gamepad` (Gravis GamePad), `flightstick` (CH FlightStick Pro) | Your setting (`gamepad`) | `joystick = flightstick` |
 
 ### `[dos]`
 
-| Key | Values | When omitted |
-| --- | --- | --- |
-| `memory` | `none`, `xms`, `umb`, `ems` (see [Memory modes](#memory-modes)) | `xms`, or `ems` when `ems` is set |
-| `ems` | Required expanded memory in KB: 16 to 32768. Selects EMS unless `memory` is explicitly set; can raise RAM if `ram` is omitted | None |
-| `ems_frame` | `auto`, `none`, or a hexadecimal address from `C000` to `E000` in steps of `0400` | `auto` |
-| `files` | Maximum open files: 8 to 255 | `40` |
-| `buffers` | DOS disk buffers: 1 to 99 | `20` |
-| `version` | The DOS version to report, `x.yy`, for games that check it | FreeDOS' version |
-| `freedos` | `visible` or `hidden`: whether FreeDOS' files in the root of C: show in `DIR` | `visible` |
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `memory` | No | The DOS memory manager; see [Memory modes](#memory-modes) | `xms`, `ems`, `umb`, `none` | `xms`, or `ems` when `ems_kb` is set | `memory = umb` |
+| `ems_kb` | No | The expanded memory (EMS) the game needs, in KB. Turns on EMS unless `memory` is set, and raises the RAM if needed when `ram_mb` is left out | `16` to `32768` | None: no EMS | `ems_kb = 1024` |
+| `ems_frame` | No | The address of the EMS page frame | `auto`, `none`, or a hexadecimal segment from `C000` to `E000` in steps of `0400` | `auto` | `ems_frame = D000` |
+| `files` | No | DOS `FILES=`: how many files can be open at once | `8` to `255` | `40` | `files = 60` |
+| `buffers` | No | DOS `BUFFERS=`: the number of disk buffers | `1` to `99` | `20` | `buffers = 30` |
+| `version` | No | The DOS version reported to programs, for games that check it | `x.yy` | FreeDOS' own | `version = 5.00` |
+| `freedos` | No | Whether FreeDOS' files in the root of C: appear in `DIR` | `visible`, `hidden` | `visible` | `freedos = hidden` |
 
 ### `[env]`
 
-Use this section for DOS environment variables required by a game. Each `NAME = value` becomes `SET NAME=value`.
-These are applied after Geardox's variables, so they can also replace values such as `BLASTER`.
+Each line sets a DOS environment variable. They are applied after Geardox's own variables, so they can also
+replace values such as `BLASTER`.
 
-```ini
-[env]
-DOS4G = QUIET
-```
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| Any variable name | No | `NAME = value` becomes `SET NAME=value` | Text | None | `DOS4G = QUIET` |
 
 ### `[config_sys]` and `[autoexec]`
 
-These advanced sections add DOS startup commands. `[config_sys]` adds lines to FreeDOS' `FDCONFIG.SYS`, before
-its `SHELL=` line. `[autoexec]` adds commands to `FDAUTO.BAT`, run in the game's folder before the game starts.
+These advanced sections hold DOS startup lines instead of `key = value` settings. Each line is used as written; use
+`REM` for comments.
 
-```ini
-[config_sys]
-STACKS=9,128
-
-[autoexec]
-LH MYDRIVER.COM
-```
+| Section | Required | Contents | Where the lines go | Example |
+| --- | --- | --- | --- | --- |
+| `[config_sys]` | No | `CONFIG.SYS` lines | FreeDOS' `FDCONFIG.SYS`, before its `SHELL=` line | `STACKS=9,128` |
+| `[autoexec]` | No | DOS commands | FreeDOS' `FDAUTO.BAT`, run in the game's folder before the game starts | `LH MYDRIVER.COM` |
 
 ## Advanced DOS Details
 
@@ -426,13 +460,14 @@ LH MYDRIVER.COM
 Upper memory lets DOS load drivers outside the conventional memory area used by many games. `umb` and `ems`
 use V86 mode and provide VCPI; if a game refuses V86 mode, try `xms` or `none`.
 
-`ems = N` is a request for enough memory, not a cap on the EMS DOS exposes. Available EMS is RAM minus about
-1.5 MB, with another 1 MB reserved when using at least 16 MB of RAM and a Cirrus card. An explicit `ram` setting
-prevents automatic RAM selection, and an explicit `memory` setting takes precedence over the mode implied by `ems`.
+`ems_kb = N` is a request for enough memory, not a cap on the EMS DOS exposes. Available EMS is RAM minus about
+1.5 MB, with another 1 MB reserved when using at least 16 MB of RAM and a Cirrus card. An explicit `ram_mb` setting
+prevents automatic RAM selection, and an explicit `memory` setting takes precedence over the mode implied by
+`ems_kb`.
 
 ### Files on the DOS C: Drive
 
-With `dir = orion`, the prepared drive contains:
+With `folder = C:\ORION`, the prepared drive contains:
 
 ```text
 C:\KERNEL.SYS     FreeDOS kernel
@@ -450,16 +485,18 @@ Geardox generates `FDCONFIG.SYS` and `FDAUTO.BAT` again when preparing the disk.
 use `[config_sys]` and `[autoexec]` in the descriptor. A game's own `CONFIG.SYS` and `AUTOEXEC.BAT` stay in its
 folder; they do not replace FreeDOS' startup files.
 
-With `dir = .`, game files share the root of C: with FreeDOS. Game entries with names reserved for those FreeDOS
+With `folder = C:\`, game files share the root of C: with FreeDOS. Game entries with names reserved for those FreeDOS
 files or folders are left out. Using a named game folder avoids that overlap.
 
-For a game designed to boot directly from a floppy, set `a = disk.img` under `[drives]` and `boot = a` under `[run]`.
+For a game designed to boot directly from a floppy, set `floppy_a = disk.img` under `[drives]` and `boot = a` under
+`[run]`.
 
 ### Save Recovery and File Conflicts
 
 The prepared hard disk is a working copy. Geardox copies changes from the game's DOS folder back to the game
-folder or separate save location when the session ends. Files written outside `dir` are not kept, and Geardox
-reports them. A second hard disk configured with `d` keeps its changes in its own disk image.
+folder or separate save location when the session ends. Files written outside `folder` are not kept, and Geardox
+reports them. Hard disks added with `hdd_primary_slave` or `hdd_secondary_slave` keep their changes in their own
+disk images.
 
 Separate saves are stored in a folder named `<game>.<id>.gdox`. A `.deleted` file records files the game removed,
 so those deletions are also applied the next time it runs. New files use their DOS names; changed files retain

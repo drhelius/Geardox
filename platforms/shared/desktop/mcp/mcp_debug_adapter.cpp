@@ -4758,13 +4758,14 @@ json DebugAdapter::GetGameInfo()
     static const char* const k_targets[GDOX_GAME_TARGET_COUNT] = { "game", "setup", "prompt" };
     static const char* const k_sources[] = { "user", "game", "model", "media" };
     static const char* const k_keys[][2] = {
-        { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram" },
-        { "machine", "fpu" }, { "machine", "floppy_a" }, { "machine", "floppy_b" }, { "machine", "video" },
-        { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" }, { "input", "joystick" },
-        { "dos", "memory" }, { "dos", "ems" }, { "dos", "ems_frame" }, { "dos", "files" }, { "dos", "buffers" },
-        { "dos", "version" }, { "drives", "c" }, { "drives", "free" }, { "drives", "d" }, { "drives", "a" },
-        { "drives", "b" }, { "drives", "cd" }, { "drives", "cd_speed" }, { "run", "exe" }, { "run", "args" },
-        { "run", "cwd" }, { "run", "setup" }, { "run", "exit" }, { "run", "boot" } };
+        { "game", "source" }, { "game", "folder" }, { "game", "free_mb" }, { "machine", "model" },
+        { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" }, { "machine", "fpu" },
+        { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
+        { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" },
+        { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
+        { "dos", "buffers" }, { "dos", "version" }, { "drives", "floppy_a" }, { "drives", "floppy_b" },
+        { "drives", "hdd_primary_slave" }, { "drives", "hdd_secondary_slave" }, { "drives", "cdrom" }, { "run", "exe" },
+        { "run", "args" }, { "run", "cwd" }, { "run", "setup" }, { "run", "on_exit" }, { "run", "boot" } };
     const GameDescriptor& descriptor = disk->GetDescriptor();
     const GameDescriptor& overrides = disk->GetOverrides();
     const GDOX_Machine_Config& config = m_core->GetMachineConfig();
@@ -5186,7 +5187,7 @@ json DebugAdapter::JoystickSet(const json& arguments)
         }
 
         if (device < 0)
-            return {{"error", "Invalid device (must be: none, joystick, gamepad, flightstick)"}};
+            return {{"error", "Invalid device (must be: none, standard, gamepad, flightstick)"}};
     }
 
     json result = {{"success", true}};

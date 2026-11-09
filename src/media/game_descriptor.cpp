@@ -56,14 +56,18 @@ struct Descriptor_Key
 static const Descriptor_Key k_descriptor_keys[] =
 {
     { "geardox", "version", DESCRIPTOR_NUMBER, NULL, 1, 1000 },
-    { "geardox", "name", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "game", "name", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "game", "source", DESCRIPTOR_PATH, NULL, 0, 0 },
+    { "game", "folder", DESCRIPTOR_DOS_DIR, NULL, 0, 0 },
+    { "game", "free_mb", DESCRIPTOR_NUMBER, NULL, 16, 1024 },
     { "machine", "model", DESCRIPTOR_MODEL, NULL, 0, 0 },
     { "machine", "cpu_mhz", DESCRIPTOR_CPU, NULL, 0, 0 },
     { "machine", "turbo", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
-    { "machine", "ram", DESCRIPTOR_RAM, NULL, 0, 0 },
+    { "machine", "ram_mb", DESCRIPTOR_RAM, NULL, 0, 0 },
     { "machine", "fpu", DESCRIPTOR_CHOICE, "none,80387", 0, 0 },
-    { "machine", "floppy_a", DESCRIPTOR_CHOICE, "360k,1200k,720k,1440k,2880k", 0, 0 },
-    { "machine", "floppy_b", DESCRIPTOR_CHOICE, "360k,1200k,720k,1440k,2880k", 0, 0 },
+    { "machine", "floppy_a_type", DESCRIPTOR_CHOICE, "360k,1200k,720k,1440k,2880k", 0, 0 },
+    { "machine", "floppy_b_type", DESCRIPTOR_CHOICE, "360k,1200k,720k,1440k,2880k", 0, 0 },
+    { "machine", "cdrom_speed", DESCRIPTOR_CD_SPEED, NULL, 0, 0 },
     { "machine", "video", DESCRIPTOR_VIDEO, NULL, 0, 0 },
     { "sound", "card", DESCRIPTOR_SOUND, NULL, 0, 0 },
     { "sound", "irq", DESCRIPTOR_CHOICE, "5,7", 0, 0 },
@@ -71,31 +75,30 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "dos", "memory", DESCRIPTOR_CHOICE, "none,xms,umb,ems", 0, 0 },
-    { "dos", "ems", DESCRIPTOR_NUMBER, NULL, 16, 32768 },
+    { "dos", "ems_kb", DESCRIPTOR_NUMBER, NULL, 16, 32768 },
     { "dos", "ems_frame", DESCRIPTOR_FRAME, NULL, 0, 0 },
     { "dos", "files", DESCRIPTOR_NUMBER, NULL, 8, 255 },
     { "dos", "buffers", DESCRIPTOR_NUMBER, NULL, 1, 99 },
     { "dos", "version", DESCRIPTOR_DOS_VERSION, NULL, 0, 0 },
     { "dos", "freedos", DESCRIPTOR_CHOICE, "visible,hidden", 0, 0 },
-    { "drives", "c", DESCRIPTOR_PATH, NULL, 0, 0 },
-    { "drives", "dir", DESCRIPTOR_DOS_DIR, NULL, 0, 0 },
-    { "drives", "free", DESCRIPTOR_NUMBER, NULL, 16, 1024 },
-    { "drives", "d", DESCRIPTOR_PATH, NULL, 0, 0 },
-    { "drives", "a", DESCRIPTOR_LIST, NULL, 0, 0 },
-    { "drives", "b", DESCRIPTOR_LIST, NULL, 0, 0 },
-    { "drives", "cd", DESCRIPTOR_LIST, NULL, 0, 0 },
-    { "drives", "cd_speed", DESCRIPTOR_CD_SPEED, NULL, 0, 0 },
+    { "drives", "floppy_a", DESCRIPTOR_LIST, NULL, 0, 0 },
+    { "drives", "floppy_b", DESCRIPTOR_LIST, NULL, 0, 0 },
+    { "drives", "hdd_primary_slave", DESCRIPTOR_PATH, NULL, 0, 0 },
+    { "drives", "hdd_secondary_slave", DESCRIPTOR_PATH, NULL, 0, 0 },
+    { "drives", "cdrom", DESCRIPTOR_LIST, NULL, 0, 0 },
     { "run", "exe", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "args", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "cwd", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "setup", DESCRIPTOR_TEXT, NULL, 0, 0 },
-    { "run", "exit", DESCRIPTOR_CHOICE, "prompt,poweroff", 0, 0 },
+    { "run", "on_exit", DESCRIPTOR_CHOICE, "prompt,poweroff", 0, 0 },
     { "run", "boot", DESCRIPTOR_CHOICE, "c,a", 0, 0 }
 };
 
+static const char* const k_descriptor_hard_disks[GDOX_MAX_HARD_DISKS] = { NULL, "hdd_primary_slave", NULL, "hdd_secondary_slave" };
+
 static const char* const k_descriptor_sections[] =
 {
-    "geardox", "machine", "sound", "input", "dos", "env", "drives", "run", "config_sys", "autoexec"
+    "geardox", "game", "machine", "sound", "input", "dos", "env", "drives", "run", "config_sys", "autoexec"
 };
 
 static const int k_descriptor_key_count = (int)(sizeof(k_descriptor_keys) / sizeof(k_descriptor_keys[0]));
@@ -214,20 +217,17 @@ static bool is_dos_character(char c)
     return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || ((c != 0) && (strchr("$%'-_@~`!(){}^#&", c) != NULL));
 }
 
-// "." for the root, or DOS names from the root with \ or /: GAMES\ORION. FREEDOS and TEMP are the system's
+// C:\ for the root, or DOS names from it with \ or /: C:\GAMES\ORION. FREEDOS and TEMP are the system's
 static bool check_dos_dir(const std::string& value, std::string* normalized)
 {
     std::string text = upper(trim(value));
-
-    if (text == ".")
-    {
-        *normalized = ".";
-        return true;
-    }
-
     std::replace(text.begin(), text.end(), '/', '\\');
+
+    if ((text.compare(0, 2, "C:") != 0) || ((text.size() > 2) && (text[2] != '\\')))
+        return false;
+
     std::string result;
-    size_t start = 0;
+    size_t start = 2;
 
     while (start <= text.size())
     {
@@ -258,10 +258,10 @@ static bool check_dos_dir(const std::string& value, std::string* normalized)
         result += (result.empty() ? "" : "\\") + part;
     }
 
-    if (result.empty() || (result.size() > 48))
+    if (result.size() > 48)
         return false;
 
-    *normalized = result;
+    *normalized = "C:\\" + result;
     return true;
 }
 
@@ -582,7 +582,8 @@ bool GameDescriptor::ParseLine(const std::string& section, const std::string& li
     std::string normalized;
 
     if (!check_value(*found, value, &normalized))
-        return Fail(number, "Bad value for %s in [%s]: %s", key.c_str(), section.c_str(), value.c_str());
+        return Fail(number, "Bad value for %s in [%s]: %s%s", key.c_str(), section.c_str(), value.c_str(),
+            found->type == DESCRIPTOR_DOS_DIR ? ", expected a folder of C: such as C:\\GAME" : "");
 
     m_values[id] = normalized;
     return true;
@@ -763,13 +764,13 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
     if (Has("machine", "turbo"))
         settings->speed_mode = Get("machine", "turbo") == "on" ? 1 : 0;
 
-    if (parse_number(Get("machine", "ram"), &number))
+    if (parse_number(Get("machine", "ram_mb"), &number))
         settings->ram_mb = number;
 
     if (Has("machine", "fpu"))
         settings->fpu = Get("machine", "fpu") == "none" ? 0 : 1;
 
-    static const char* const floppy_keys[2] = { "floppy_a", "floppy_b" };
+    static const char* const floppy_keys[2] = { "floppy_a_type", "floppy_b_type" };
 
     for (int i = 0; i < 2; i++)
     {
@@ -801,13 +802,13 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
             settings->mouse = i;
     }
 
-    for (int i = 0; Has("drives", "cd_speed") && (i < GDOX_CDROM_SPEED_COUNT); i++)
+    for (int i = 0; Has("machine", "cdrom_speed") && (i < GDOX_CDROM_SPEED_COUNT); i++)
     {
-        if (Get("drives", "cd_speed") == k_cdrom_speeds[i].id)
+        if (Get("machine", "cdrom_speed") == k_cdrom_speeds[i].id)
             settings->cdrom_speed = i;
     }
 
-    if (Has("drives", "cd"))
+    if (Has("drives", "cdrom"))
         settings->cdrom = GDOX_CDROM_SECONDARY_MASTER;
 }
 
@@ -830,6 +831,11 @@ u32 GameDescriptor::GetCRC() const
 bool GameDescriptor::IsDescriptor(const char* path)
 {
     return IsValidPointer(path) && ends_with_no_case(path, ".gdox");
+}
+
+const char* GameDescriptor::GetHardDiskKey(int id)
+{
+    return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? k_descriptor_hard_disks[id] : NULL;
 }
 
 // JEMM makes EMS from extended memory, less the HMA, its DMA buffer, the UMBs and itself (JEMM Readme.txt §3), and
@@ -882,7 +888,7 @@ void GameDescriptor::Build()
     GDOX_Game_Info& info = m_info;
     int number = 0;
 
-    info.name = Get("geardox", "name");
+    info.name = Get("game", "name");
 
     if (info.name.empty() && !m_path.empty())
     {
@@ -893,7 +899,7 @@ void GameDescriptor::Build()
             info.name.resize(info.name.size() - 5);
     }
 
-    info.ems_kb = parse_number(Get("dos", "ems"), &number) ? number : 0;
+    info.ems_kb = parse_number(Get("dos", "ems_kb"), &number) ? number : 0;
     info.memory = Has("dos", "memory") ? choice_index("none,xms,umb,ems", Get("dos", "memory")) :
         info.ems_kb > 0 ? (int)GDOX_GAME_MEMORY_EMS : (int)GDOX_GAME_MEMORY_XMS;
 
@@ -903,18 +909,22 @@ void GameDescriptor::Build()
     info.buffers = parse_number(Get("dos", "buffers"), &number) ? number : 20;
     info.dos_version = Get("dos", "version");
     info.freedos_hidden = Get("dos", "freedos") == "hidden";
-    info.c = Get("drives", "c");
-    info.dir = Get("drives", "dir") == "." ? std::string() : Get("drives", "dir");
-    info.free_mb = parse_number(Get("drives", "free"), &number) ? number : 64;
-    info.d = Get("drives", "d");
-    split_list(Get("drives", "a"), &info.floppies[0]);
-    split_list(Get("drives", "b"), &info.floppies[1]);
-    split_list(Get("drives", "cd"), &info.cds);
+    info.source = Get("game", "source");
+    std::string folder = Get("game", "folder");
+    info.folder = folder.size() > 3 ? folder.substr(3) : std::string();
+    info.free_mb = parse_number(Get("game", "free_mb"), &number) ? number : 64;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        info.hard_disks[i] = IsValidPointer(k_descriptor_hard_disks[i]) ? Get("drives", k_descriptor_hard_disks[i]) : "";
+
+    split_list(Get("drives", "floppy_a"), &info.floppies[0]);
+    split_list(Get("drives", "floppy_b"), &info.floppies[1]);
+    split_list(Get("drives", "cdrom"), &info.cds);
     info.exe = Get("run", "exe");
     info.args = Get("run", "args");
     info.cwd = Get("run", "cwd");
     info.setup = Get("run", "setup");
-    info.exit = Get("run", "exit") == "poweroff" ? GDOX_GAME_EXIT_POWEROFF : GDOX_GAME_EXIT_PROMPT;
+    info.exit = Get("run", "on_exit") == "poweroff" ? GDOX_GAME_EXIT_POWEROFF : GDOX_GAME_EXIT_PROMPT;
     info.boot_floppy = Get("run", "boot") == "a";
     info.joystick = -1;
 

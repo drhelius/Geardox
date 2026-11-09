@@ -145,6 +145,9 @@ The game takes over the PC. It has its own C: with its own copy of FreeDOS, so `
 you installed there isn't available. Your other hard disks are removed, and they don't come back on their own when the
 game ends. Once no disk is attached, the next power on brings the FreeDOS disk back.
 
+The game's `.gdox` can bring its own floppies, extra hard disks and CD. If your CD-ROM drive is set to a position the
+game's hard disks use, it moves to the Secondary Master while the game is open.
+
 **Game > Close** followed by the game's name turns the PC off and saves what the game changed. Opening another game,
 or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
 
