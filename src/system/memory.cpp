@@ -274,9 +274,14 @@ INLINE void Memory::WriteRegionBus(const DebugRegion* region, u32 bus_address, u
     }
     else
     {
+#if !defined(GDOX_DISABLE_DYNAREC)
+        bool changed = region->write_data[offset] != value;
+#endif
         region->write_data[offset] = value;
 #if !defined(GDOX_DISABLE_DYNAREC)
-        NotifyCodeWrite(region, offset, 1);
+        // A write that leaves the byte as it was can't change translated code
+        if (changed)
+            NotifyCodeWrite(region, offset, 1);
 #endif
     }
 
@@ -366,10 +371,14 @@ void Memory::Write16Physical(u32 physical, u16 value, GDOX_Bus_Access_Context& c
 
             if (IsValidPointer(region->write_data) && !IsHandlerSpan(region, offset, 2))
             {
+#if !defined(GDOX_DISABLE_DYNAREC)
+                bool changed = read_u16_le(region->write_data + offset) != value;
+#endif
                 write_u16_le(region->write_data + offset, value);
                 m_debug_snapshot_id += 2;
 #if !defined(GDOX_DISABLE_DYNAREC)
-                NotifyCodeWrite(region, offset, 2);
+                if (changed)
+                    NotifyCodeWrite(region, offset, 2);
 #endif
                 return;
             }
@@ -402,10 +411,14 @@ void Memory::Write32Physical(u32 physical, u32 value, GDOX_Bus_Access_Context& c
 
             if (IsValidPointer(region->write_data) && !IsHandlerSpan(region, offset, 4))
             {
+#if !defined(GDOX_DISABLE_DYNAREC)
+                bool changed = read_u32_le(region->write_data + offset) != value;
+#endif
                 write_u32_le(region->write_data + offset, value);
                 m_debug_snapshot_id += 4;
 #if !defined(GDOX_DISABLE_DYNAREC)
-                NotifyCodeWrite(region, offset, 4);
+                if (changed)
+                    NotifyCodeWrite(region, offset, 4);
 #endif
                 return;
             }
