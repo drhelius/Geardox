@@ -414,11 +414,12 @@ static bool display_is_window_focused(void)
 
 static bool display_fixed_vsync_supported(void)
 {
-    bool supported = monitor_refresh_rate * (1.0 + k_display_max_rate_skew) >= content_frame_rate;
+    bool supported = display_is_near_content_rate(monitor_refresh_rate) || (display_get_swap_divider() > 1);
 
     if (!supported && !fixed_vsync_fallback_logged)
     {
-        Log("Fixed VSync disabled: %.3f Hz monitor is slower than %.3f FPS content", monitor_refresh_rate, content_frame_rate);
+        Log("Fixed VSync disabled: %.3f Hz monitor has no swap interval for %.3f FPS content", monitor_refresh_rate,
+            content_frame_rate);
         fixed_vsync_fallback_logged = true;
     }
     else if (supported)
