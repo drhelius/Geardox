@@ -35,7 +35,7 @@ typedef u32 (*GDOX_Memory_Read32_Fn)(void* device, u32 offset);
 typedef void (*GDOX_Memory_Write8_Fn)(void* device, u32 offset, u8 value);
 typedef void (*GDOX_Memory_Write16_Fn)(void* device, u32 offset, u16 value);
 typedef void (*GDOX_Memory_Write32_Fn)(void* device, u32 offset, u32 value);
-typedef void (*GDOX_Memory_Code_Write_Fn)(void* context, u32 offset, u32 size);
+typedef void (*GDOX_Memory_Code_Write_Fn)(void* context, u32 offset, u32 size, bool changed);
 
 class Memory
 {
@@ -163,7 +163,7 @@ private:
     void UpdateCPUPage(u32 page, const DebugRegion* region);
     void RemapRange(u32 base, u32 size);
 #if !defined(GDOX_DISABLE_DYNAREC)
-    void NotifyCodeWrite(const DebugRegion* region, u32 offset, u32 size);
+    void NotifyCodeWrite(const DebugRegion* region, u32 offset, u32 size, bool changed);
 #endif
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
