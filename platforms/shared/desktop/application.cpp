@@ -775,7 +775,7 @@ static void run_emulator(void)
     emu_audio_ratio = display_get_audio_ratio();
     emu_update();
 
-    if (display_should_run_catch_up_frame())
+    while (display_should_run_catch_up_frame())
         emu_update();
 
     events_reset_input();
