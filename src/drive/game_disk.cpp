@@ -843,7 +843,7 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
     std::string out;
     char line[128];
 
-    out += "SWITCHES=/F\r\nLASTDRIVE=Z\r\n";
+    out += "SWITCHES=/F\r\nLASTDRIVE=Z\r\nIDLEHALT=1\r\n";
     snprintf(line, sizeof(line), "FILES=%d\r\nBUFFERS=%d\r\n", info.files, info.buffers);
     out += line;
 
