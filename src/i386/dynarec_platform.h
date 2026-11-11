@@ -75,7 +75,7 @@
         #define GDOX_DYNAREC_CODE_SIZE (8 * 1024 * 1024)
         #define GDOX_DYNAREC_MAX_BLOCKS 16384
     #else
-        #define GDOX_DYNAREC_CODE_SIZE (32 * 1024 * 1024)
+        #define GDOX_DYNAREC_CODE_SIZE (128 * 1024 * 1024)
         #define GDOX_DYNAREC_MAX_BLOCKS 65536
     #endif
 #endif
