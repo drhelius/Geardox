@@ -931,7 +931,7 @@ void Video::CompleteFrame()
     m_state.frame_count++;
     m_state.start_address = (GetStartAddress() + ((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03)) & GetCounterMask();
 
-    if (blink != GetBlinkPhase() && !IsTextMode() && (m_state.attribute[k_video_ar_mode] & 0x08) != 0)
+    if (blink != GetBlinkPhase() && (m_state.attribute[k_video_ar_mode] & 0x09) == 0x09)
         UpdateAttributeColors();
 }
 
@@ -1064,7 +1064,7 @@ void Video::UpdateAttributeColors()
     u8 mode = m_state.attribute[k_video_ar_mode];
     u8 plane_enable = m_state.attribute[k_video_ar_plane_enable] & 0x0F;
     u8 select = m_state.attribute[k_video_ar_color_select];
-    bool blink = !IsTextMode() && (mode & 0x08) != 0;
+    bool blink = (mode & 0x09) == 0x09;
     bool blink_phase = GetBlinkPhase();
 
     for (int i = 0; i < 16; i++)
