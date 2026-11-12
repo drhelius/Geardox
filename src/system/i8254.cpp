@@ -384,6 +384,87 @@ u16 I8254::GetCount(I8254_Counter& counter, u64 tick) const
 }
 
 // Counting stops at the falling gate in the modes a low gate holds
+// The ticks from first to last at which GetOutput would give OUT high, committing a reload where it would. Between
+// reloads OUT changes once or repeats each count, so each stretch is counted instead of walked
+u64 I8254::CountHighs(int index, u64 first, u64 last)
+{
+    I8254_Counter& counter = m_state.counters[index];
+
+    if (first > last)
+        return 0;
+
+    if (!counter.counting)
+        return !counter.programmed || counter.mode != 0 ? last - first + 1 : 0;
+
+    if (!counter.gate && (counter.mode == 2 || counter.mode == 3))
+        return last - first + 1;
+
+    u64 highs = 0;
+
+    // The gate tick never goes back, so a reload commits at the first tick it reaches
+    if (counter.reload_pending && GetGateTick(counter, last) >= counter.pending_load)
+    {
+        u64 commit = MAX(first, counter.pending_load);
+
+        if (commit > first)
+            highs += CountLoadedHighs(counter, first, commit - 1);
+
+        CommitReload(counter, GetGateTick(counter, commit));
+        first = commit;
+    }
+
+    return highs + CountLoadedHighs(counter, first, last);
+}
+
+u64 I8254::CountLoadedHighs(const I8254_Counter& counter, u64 first, u64 last) const
+{
+    u64 highs = 0;
+
+    // A low gate holds modes 0 and 4 where it fell
+    if (GetGateTick(counter, last) < last)
+    {
+        highs += GetLoadedOutput(counter, counter.hold) ? last - MAX(first, counter.hold + 1) + 1 : 0;
+
+        if (first > counter.hold)
+            return highs;
+
+        last = counter.hold;
+    }
+
+    if (first < counter.load)
+    {
+        highs += counter.mode != 0 ? MIN(last, counter.load - 1) - first + 1 : 0;
+
+        if (last < counter.load)
+            return highs;
+
+        first = counter.load;
+    }
+
+    u64 from = first - counter.load + counter.phase;
+    u64 to = last - counter.load + counter.phase;
+    u64 ticks = to - from + 1;
+    u64 count = counter.count;
+    u64 half = (count + 1) / 2;
+
+    switch (counter.mode)
+    {
+        case 0:
+        case 1:
+            return highs + (to < count ? 0 : ticks - (from < count ? count - from : 0));
+        case 2:
+            return highs + ticks - ((to + 1) / count - from / count);
+        case 3:
+            return highs + ((to + 1) / count) * half + MIN((to + 1) % count, half) - (from / count) * half -
+                MIN(from % count, half);
+        case 4:
+        case 5:
+            return highs + ticks - (count >= from && count <= to ? 1 : 0);
+        default:
+            return highs + ticks;
+    }
+}
+
 u64 I8254::GetGateTick(const I8254_Counter& counter, u64 tick) const
 {
     if (counter.gate || counter.mode == 1 || counter.mode == 5)

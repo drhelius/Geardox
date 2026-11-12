@@ -344,8 +344,7 @@ INLINE void Audio::AccumulateBuzzer(u64 tick)
         return;
     }
 
-    for (u64 i = first + 1; i <= tick; i++)
-        m_state.buzzer_level += m_pit->GetBuzzerOutput(i) ? 2 : 0;
+    m_state.buzzer_level += (u32)m_pit->CountBuzzerHighs(first + 1, tick) * 2;
 }
 
 INLINE s32 Audio::HighPass(s32& dc, s32 sample)

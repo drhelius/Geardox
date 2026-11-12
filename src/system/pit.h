@@ -58,7 +58,7 @@ public:
     u64 GetSpeakerStableUntil(u64 clocks) const;
     bool IsBuzzerEnabled() const;
     bool IsBuzzerUltrasonic() const;
-    bool GetBuzzerOutput(u64 tick);
+    u64 CountBuzzerHighs(u64 first, u64 last);
     I8254* GetPIT();
     u64 GetTick(u64 clocks) const;
     u64 GetTickClocks(u64 tick) const;

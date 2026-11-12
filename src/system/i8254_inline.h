@@ -44,7 +44,12 @@ INLINE bool I8254::GetCounterOutput(I8254_Counter& counter, u64 tick) const
 
     tick = GetGateTick(counter, tick);
     CommitReload(counter, tick);
+    return GetLoadedOutput(counter, tick);
+}
 
+// OUT at a gate tick, once a reload due by then has been committed
+INLINE bool I8254::GetLoadedOutput(const I8254_Counter& counter, u64 tick) const
+{
     if (tick < counter.load)
         return counter.mode != 0;
 

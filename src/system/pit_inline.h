@@ -67,9 +67,9 @@ INLINE bool PIT::IsBuzzerUltrasonic() const
     return counter.counting && counter.gate && (counter.mode == 3) && (counter.count < k_pit_buzzer_ultrasonic_count);
 }
 
-INLINE bool PIT::GetBuzzerOutput(u64 tick)
+INLINE u64 PIT::CountBuzzerHighs(u64 first, u64 last)
 {
-    return m_pit.GetOutput(k_pit_buzzer_channel, tick);
+    return m_pit.CountHighs(k_pit_buzzer_channel, first, last);
 }
 
 INLINE I8254* PIT::GetPIT()

@@ -76,6 +76,7 @@ public:
     void SetGate(int index, bool gate, u64 tick);
     bool GetOutput(int index, u64 tick);
     bool PeekOutput(int index, u64 tick) const;
+    u64 CountHighs(int index, u64 first, u64 last);
     u64 GetNextRisingEdge(int index, u64 tick) const;
     I8254_State* GetState();
     const I8254_State* GetState() const;
@@ -88,6 +89,8 @@ private:
     u64 GetGateTick(const I8254_Counter& counter, u64 tick) const;
     void CommitReload(I8254_Counter& counter, u64 tick) const;
     bool GetCounterOutput(I8254_Counter& counter, u64 tick) const;
+    bool GetLoadedOutput(const I8254_Counter& counter, u64 tick) const;
+    u64 CountLoadedHighs(const I8254_Counter& counter, u64 first, u64 last) const;
     u16 GetCount(I8254_Counter& counter, u64 tick) const;
     u32 GetEffectiveCount(u16 raw, bool bcd) const;
     u16 EncodeBCD(u32 value) const;
