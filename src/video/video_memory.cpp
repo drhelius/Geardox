@@ -18,6 +18,7 @@
  */
 
 #include "video.h"
+#include "video_inline.h"
 #include "../system/memory.h"
 
 u8 Video::ReadWindowCallback(void* device, u32 offset)
@@ -32,7 +33,9 @@ u8 Video::PeekWindowCallback(void* device, u32 offset)
 
 void Video::WriteWindowCallback(void* device, u32 offset, u8 value)
 {
-    ((Video*)device)->WriteVRAM(offset, value);
+    Video* video = (Video*)device;
+    video->SynchronizeVRAM();
+    video->WriteVRAM(offset, value);
 }
 
 // Every byte of a wide access is its own ISA transfer, with its own latch load and pipeline pass
@@ -57,6 +60,7 @@ u32 Video::ReadWindow32Callback(void* device, u32 offset)
 void Video::WriteWindow16Callback(void* device, u32 offset, u16 value)
 {
     Video* video = (Video*)device;
+    video->SynchronizeVRAM();
     video->WriteVRAM(offset, (u8)value);
     video->WriteVRAM(offset + 1, (u8)(value >> 8));
 }
@@ -64,6 +68,7 @@ void Video::WriteWindow16Callback(void* device, u32 offset, u16 value)
 void Video::WriteWindow32Callback(void* device, u32 offset, u32 value)
 {
     Video* video = (Video*)device;
+    video->SynchronizeVRAM();
     video->WriteVRAM(offset, (u8)value);
     video->WriteVRAM(offset + 1, (u8)(value >> 8));
     video->WriteVRAM(offset + 2, (u8)(value >> 16));
@@ -86,6 +91,7 @@ u8 Video::PeekLinearCallback(void* device, u32 offset)
 void Video::WriteLinearCallback(void* device, u32 offset, u8 value)
 {
     Video* video = (Video*)device;
+    video->SynchronizeVRAM();
     video->WriteMemory(offset & video->m_vram_mask, value);
 }
 
@@ -113,6 +119,7 @@ void Video::WriteLinear16Callback(void* device, u32 offset, u16 value)
 {
     Video* video = (Video*)device;
     u32 mask = video->m_vram_mask;
+    video->SynchronizeVRAM();
     video->WriteMemory(offset & mask, (u8)value);
     video->WriteMemory((offset + 1) & mask, (u8)(value >> 8));
 }
@@ -121,6 +128,7 @@ void Video::WriteLinear32Callback(void* device, u32 offset, u32 value)
 {
     Video* video = (Video*)device;
     u32 mask = video->m_vram_mask;
+    video->SynchronizeVRAM();
     video->WriteMemory(offset & mask, (u8)value);
     video->WriteMemory((offset + 1) & mask, (u8)(value >> 8));
     video->WriteMemory((offset + 2) & mask, (u8)(value >> 16));

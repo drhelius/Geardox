@@ -20,6 +20,7 @@
 #include "video.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
+#include "../system/memory.h"
 #include "../system/pic.h"
 #include "../system/scheduler.h"
 #include "../system/machine_profiles.h"
@@ -36,6 +37,10 @@ Video::Video()
     m_frame_ready = false;
     m_next_event_clocks = GDOX_NO_EVENT;
     m_next_event_line = 0;
+    m_edge_clocks = GDOX_NO_EVENT;
+    // Without the CPU's cycles every write runs the lines first
+    m_start_cycles = &m_vram_deadline;
+    m_vram_deadline = 0;
     m_line_start_clocks = 0;
     m_display_end_clocks = 0;
     m_display_clocks = 0;
@@ -952,7 +957,9 @@ void Video::UpdateNextEvent()
     {
         m_next_event_line = 0;
         m_next_event_clocks = GDOX_NO_EVENT;
-        m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_next_event_clocks);
+        m_edge_clocks = GDOX_NO_EVENT;
+        m_vram_deadline = 0;
+        m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_edge_clocks);
         return;
     }
 
@@ -972,7 +979,47 @@ void Video::UpdateNextEvent()
     m_next_event_clocks = GetLineClocks(next);
     m_line_start_clocks = GetLineClocks(line);
     m_display_end_clocks = m_line_start_clocks + m_display_clocks;
-    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_next_event_clocks);
+
+    // The CPU stops only where the frame does something it sees: the retrace interrupt, the finished picture and the
+    // next frame. The lines between them run when a port, video memory or one of those looks
+    u32 edge = m_state.frame_lines;
+
+    if (line < m_state.retrace_start)
+        edge = MIN(edge, m_state.retrace_start);
+
+    if (line < m_state.ready_line)
+        edge = MIN(edge, m_state.ready_line);
+
+    m_edge_clocks = GetLineClocks(edge);
+    m_vram_deadline = 0;
+    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_edge_clocks);
+}
+
+void Video::SetStartCycles(const u32* cycles)
+{
+    m_start_cycles = cycles;
+    m_vram_deadline = 0;
+}
+
+// The deadline counts CPU cycles from the slice's start
+void Video::BeginSlice()
+{
+    m_vram_deadline = 0;
+}
+
+// A write runs the lines the beam has finished first, so they show video memory as their line events did. Until the
+// next line ends, measured in the CPU's cycles, writes go straight through
+void Video::SynchronizeVRAMWrite()
+{
+    GDOX_Bus_Access_Context* context = m_memory->GetAccessContext();
+
+    if (IsValidPointer(context) && IsValidPointer(context->synchronize_memory))
+        context->synchronize_memory(context->synchronize_context, *context);
+
+    Synchronize(m_scheduler->GetClocks());
+
+    if (IsValidPointer(context) && IsValidPointer(context->synchronize_memory))
+        m_vram_deadline = context->synchronized_cycles + m_scheduler->GetCyclesBefore(m_next_event_clocks) + 1;
 }
 
 // The canvas is the active area in pixels as the program addresses them, doubled up to dots with native resolution off

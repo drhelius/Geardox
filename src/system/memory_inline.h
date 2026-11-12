@@ -37,6 +37,11 @@ INLINE const u8* Memory::GetCPUPageBus() const
     return m_cpu_page_bus;
 }
 
+INLINE GDOX_Bus_Access_Context* Memory::GetAccessContext() const
+{
+    return m_access_context;
+}
+
 INLINE u32 Memory::GetMapGeneration() const
 {
     return m_map_generation;

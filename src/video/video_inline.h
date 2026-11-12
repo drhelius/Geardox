@@ -32,7 +32,13 @@ INLINE void Video::Synchronize(u64 clocks)
 INLINE void Video::HandleEvent(u64 clocks)
 {
     Synchronize(clocks);
-    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_next_event_clocks);
+    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_edge_clocks);
+}
+
+INLINE void Video::SynchronizeVRAM()
+{
+    if (unlikely(*m_start_cycles >= m_vram_deadline))
+        SynchronizeVRAMWrite();
 }
 
 // A 10-bit ISA decode, the caller drops the upper address lines

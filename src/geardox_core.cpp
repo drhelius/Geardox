@@ -266,6 +266,7 @@ void GeardoxCore::Init()
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
         m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port);
     m_i386->Init(m_memory, m_io);
+    m_video->SetStartCycles(m_i386->GetStartCyclesPointer());
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
     m_input->Init();
@@ -611,6 +612,7 @@ INLINE GDOX_Bus_Access_Context GeardoxCore::BeginSlice()
     context.synchronize_memory = &GeardoxCore::SynchronizeMemoryCallback;
     context.poll_port = &GeardoxCore::PollPortCallback;
     context.synchronize_context = this;
+    m_video->BeginSlice();
     return context;
 }
 

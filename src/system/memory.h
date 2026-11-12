@@ -97,6 +97,7 @@ public:
     void SetA20(bool enabled);
     bool IsA20Enabled() const;
     u32 GetMapGeneration() const;
+    GDOX_Bus_Access_Context* GetAccessContext() const;
     u32 GetRegionGeneration() const;
 #if !defined(GDOX_DISABLE_DYNAREC)
     void SetCodeWriteCallback(void* context, GDOX_Memory_Code_Write_Fn callback);

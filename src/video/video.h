@@ -127,6 +127,8 @@ public:
     u64 GetSyncStableUntil(u64 clocks) const;
     void Synchronize(u64 clocks);
     void HandleEvent(u64 clocks);
+    void SetStartCycles(const u32* cycles);
+    void BeginSlice();
     void BeginFrame(u8* frame_buffer, bool render);
     void EndFrame();
     bool IsFrameReady() const;
@@ -223,6 +225,8 @@ private:
     void UpdateExtendedFormat();
     void UpdateAperture();
     void RunNextEvent();
+    void SynchronizeVRAM();
+    void SynchronizeVRAMWrite();
     void LatchFrameTiming();
     void StartFrame(u64 clocks);
     void CompleteFrame();
@@ -283,6 +287,9 @@ private:
     bool m_frame_ready;
     u64 m_next_event_clocks;
     u32 m_next_event_line;
+    u64 m_edge_clocks;
+    const u32* m_start_cycles;
+    u32 m_vram_deadline;
     u64 m_line_start_clocks;
     u64 m_display_end_clocks;
     u32 m_display_clocks;
