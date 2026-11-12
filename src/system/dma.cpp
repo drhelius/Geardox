@@ -103,6 +103,8 @@ void DMA::Write(u16 port, u8 value)
         CheckUnsupported();
     }
 
+    NotifyChange(port, chip, reg, value);
+
     if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_REGISTER)))
         TraceWrite(port, chip, reg, value);
 }
@@ -130,16 +132,19 @@ void DMA::SetRequest(int channel, bool active)
     UpdateNextEvent();
 }
 
-// Single mode gives the bus back after each unit, a block or demand run keeps it and skips S1 from its second unit
+// Single mode gives the bus back after each unit, a block or demand run keeps it and skips S1 from its second unit.
+// The units a device read ahead since the last event take their bus time here
 u32 DMA::HandleEvent(u64 clocks)
 {
     int channel = GetServiceChannel();
+    u32 ahead = m_state.ahead_clocks;
+    m_state.ahead_clocks = 0;
 
     if (channel < 0)
     {
         m_state.active_channel = -1;
         UpdateNextEvent();
-        return 0;
+        return ahead;
     }
 
     u32 unit = m_state.active_channel == channel ? k_dma_repeat_clocks : k_dma_unit_clocks;
@@ -151,7 +156,7 @@ u32 DMA::HandleEvent(u64 clocks)
         m_state.stalled |= (u8)(1 << channel);
         m_state.active_channel = -1;
         UpdateNextEvent();
-        return 0;
+        return ahead;
     }
 
     I8237& chip = GetChip(channel);
@@ -166,7 +171,70 @@ u32 DMA::HandleEvent(u64 clocks)
 
     m_state.next_clocks = clocks + unit + (hold ? 0 : k_dma_release_clocks);
     UpdateNextEvent();
-    return unit;
+    return unit + ahead;
+}
+
+// A device that buffers takes the units after the ones it requested from memory now, offset units past the current
+// one, and the channel counts them as they come due (Advance). It stops before the terminal count, so the unit that
+// ends the count always comes through a request. Each unit costs the bus what its own request would have
+u32 DMA::ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u8* buffer)
+{
+    I8237& chip = GetChip(channel);
+    int index = channel & 0x03;
+    const I8237::I8237_Channel& state = chip.GetState()->channels[index];
+    u8 service = chip.GetService(index);
+
+    if (!IsServiceable(channel) || (chip.GetTransfer(index) != k_i8237_memory_to_io) ||
+        ((service != k_i8237_single) && (service != k_i8237_demand)) || (state.current_count <= offset))
+        return 0;
+
+    units = MIN(units, (u32)state.current_count - offset);
+
+    bool word = channel >= k_dma_cascade_channel;
+    u16 step = (state.mode & k_i8237_mode_decrement) != 0 ? 0xFFFF : 0x0001;
+    u32 page = m_state.pages[k_dma_channel_pages[channel]];
+    GDOX_Bus_Access_Context context = { };
+    context.clocks = m_scheduler->GetClocks();
+    context.origin = GDOX_BUS_ORIGIN_DMA;
+
+    for (u32 i = 0; i < units; i++)
+    {
+        u16 position = (u16)(state.current_address + (u16)(step * (offset + i)));
+        u32 address = word ? ((page & 0xFE) << 16) | ((u32)position << 1) : (page << 16) | position;
+
+        if (word)
+        {
+            buffer[i * 2] = m_memory->Read8DMA(address, context);
+            buffer[(i * 2) + 1] = m_memory->Read8DMA(address + 1, context);
+        }
+        else
+            buffer[i] = m_memory->Read8DMA(address, context);
+
+#if !defined(GDOX_DISABLE_DISASSEMBLER)
+        if (IsValidPointer(m_debug_callback))
+            m_debug_callback(m_debugger, address, word ? 2 : 1, false);
+#endif
+    }
+
+    u32 frames = (units + frame_units - 1) / frame_units;
+    m_state.ahead_clocks += service == k_i8237_single ? units * k_dma_unit_clocks :
+        (frames * k_dma_unit_clocks) + ((units - frames) * k_dma_repeat_clocks);
+    return units;
+}
+
+// Units a device read ahead come due, so the channel counts them as their transfers would have
+void DMA::Advance(int channel, u32 units)
+{
+    I8237& chip = GetChip(channel);
+
+    for (u32 i = 0; i < units; i++)
+    {
+        if (chip.Advance(channel & 0x03))
+        {
+            FinishService(channel);
+            UpdateNextEvent();
+        }
+    }
 }
 
 // Cascade channels other than channel 4 would be ISA bus masters, and a stalled channel waits for its device
@@ -176,6 +244,20 @@ u8 DMA::GetExcluded(int chip) const
     u8 stalled = (u8)(m_state.stalled >> (chip * 4)) & 0x0F;
 
     return (u8)(stalled | (chip != 0 ? cascade & ~0x01 : cascade));
+}
+
+// What a request on the channel needs to reach the bus, besides the other channels' priority
+bool DMA::IsServiceable(int channel) const
+{
+    const I8237& chip = GetChip(channel);
+
+    if (!chip.IsEnabled() || chip.IsMasked(channel & 0x03))
+        return false;
+
+    if (channel >= k_dma_cascade_channel)
+        return true;
+
+    return m_chips[1].IsEnabled() && !m_chips[1].IsMasked(0) && (m_chips[1].GetService(0) == k_i8237_cascade);
 }
 
 bool DMA::IsHolding(int channel) const
@@ -272,6 +354,36 @@ void DMA::FinishService(int channel)
 void DMA::UpdateCascade()
 {
     m_chips[1].SetRequestLine(0, m_chips[0].GetServiceChannel(GetExcluded(0)) >= 0);
+}
+
+// The channels a write can change the transfer of: theirs, or all of a chip's, and chip 2's channel 4 carries chip 1's
+void DMA::NotifyChange(u16 port, int chip, int reg, u8 value)
+{
+    u8 channels = 0;
+
+    if (port >= 0x0081 && port <= 0x008F)
+    {
+        for (int i = 0; i < DMA_CHANNELS; i++)
+        {
+            if (k_dma_channel_pages[i] == (port & 0x0F))
+                channels |= (u8)(1 << i);
+        }
+    }
+    else if (reg < k_i8237_reg_status)
+        channels = (u8)(1 << ((chip * 4) + (reg >> 1)));
+    else if (reg == k_i8237_reg_request || reg == k_i8237_reg_single_mask || reg == k_i8237_reg_mode)
+        channels = (u8)(1 << ((chip * 4) + (value & 0x03)));
+    else if (reg != k_i8237_reg_clear_flip_flop)
+        channels = (u8)(0x0F << (chip * 4));
+
+    if ((channels & (1 << k_dma_cascade_channel)) != 0)
+        channels |= 0x0F;
+
+    for (int i = 0; i < DMA_CHANNELS; i++)
+    {
+        if (((channels & (1 << i)) != 0) && IsValidPointer(m_endpoints[i].change))
+            m_endpoints[i].change(m_endpoints[i].device);
+    }
 }
 
 void DMA::UpdateNextEvent()
@@ -396,6 +508,7 @@ void DMA::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.stalled);
     G_SERIALIZE(serializer, m_state.active_channel);
     G_SERIALIZE(serializer, m_state.next_clocks);
+    G_SERIALIZE(serializer, m_state.ahead_clocks);
 }
 
 void DMA::SanitizeState()

@@ -147,6 +147,14 @@ INLINE void Audio::SynchronizeBuzzer(u64 clocks)
     AccumulateBuzzer(m_pit->GetTick(clocks));
 }
 
+// The DSP reads frames ahead of the controller, which counts them as they play, so a look at the controller first plays
+// the frames whose time has come
+INLINE void Audio::SynchronizeDMA(u64 clocks)
+{
+    if (m_dsp && m_sound_blaster->IsReadingAhead())
+        Synchronize(clocks);
+}
+
 INLINE void Audio::HandleEvent(u64 clocks)
 {
     Synchronize(clocks);

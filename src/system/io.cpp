@@ -195,7 +195,10 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
                 return m_ide->Read(port & k_io_isa_mask, context.clocks);
 
             if (m_dma->Decodes(port))
+            {
+                m_audio->SynchronizeDMA(context.clocks);
                 return m_dma->Read(port);
+            }
 
             if (m_audio->Decodes(port & k_io_isa_mask))
                 return m_audio->Read(port & k_io_isa_mask, context.clocks);
@@ -482,7 +485,10 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             }
             else if (m_dma->Decodes(port))
             {
+                // A change to the DSP's channel drops what it read ahead and brings its next request
+                m_audio->SynchronizeDMA(context.clocks);
                 m_dma->Write(port, value);
+                m_audio->UpdateEvent();
                 context.end_batch = true;
             }
             else if (m_audio->Decodes(port & k_io_isa_mask))

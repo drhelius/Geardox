@@ -26,6 +26,7 @@
 #define SOUND_BLASTER_OUTPUT_SIZE 64
 #define SOUND_BLASTER_MIXER_SIZE 256
 #define SOUND_BLASTER_LATCH_SIZE 4
+#define SOUND_BLASTER_AHEAD_SIZE 256
 #define SOUND_BLASTER_OPERANDS 4
 #define SOUND_BLASTER_ASP_REGISTERS 256
 
@@ -101,6 +102,9 @@ public:
         u8 latch[SOUND_BLASTER_LATCH_SIZE];
         u8 latch_count;
         u8 transfers_needed;
+        u8 ahead[SOUND_BLASTER_AHEAD_SIZE];
+        u16 ahead_size;
+        u16 ahead_read;
         bool requesting;
         s16 left_sample;
         s16 right_sample;
@@ -147,6 +151,7 @@ public:
     bool IsRunning() const;
     bool IsSpeakerOn() const;
     bool IsStereo() const;
+    bool IsReadingAhead() const;
     u32 GetSampleRate() const;
     u8 GetVersionMajor() const;
     u8 GetVersionMinor() const;
@@ -157,6 +162,7 @@ public:
 
     static bool DMAReadCallback(void* device, u16& value, bool word);
     static bool DMAWriteCallback(void* device, u16 value, bool word);
+    static void DMAChangeCallback(void* device);
 
 private:
     void ResetDSP();
@@ -168,6 +174,11 @@ private:
     void EndBlock();
     void StopTransfer();
     void RequestFrame();
+    void ReadAhead(u32 units);
+    bool TakeAhead(u32 units);
+    void DropAhead();
+    u32 GetFramesAhead() const;
+    u32 GetUnitBytes() const;
     void SetRequest(bool active);
     int GetChannel() const;
     bool IsWordChannel() const;

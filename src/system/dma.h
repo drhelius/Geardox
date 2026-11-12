@@ -36,6 +36,7 @@ class StateSerializer;
 typedef bool (*GDOX_DMA_Read_Fn)(void* device, u16& value, bool word);
 typedef bool (*GDOX_DMA_Write_Fn)(void* device, u16 value, bool word);
 typedef void (*GDOX_DMA_End_Fn)(void* device);
+typedef void (*GDOX_DMA_Change_Fn)(void* device);
 typedef void (*GDOX_DMA_Debug_Fn)(void* debugger, u32 address, u32 size, bool write);
 
 struct GDOX_DMA_Endpoint
@@ -44,6 +45,7 @@ struct GDOX_DMA_Endpoint
     GDOX_DMA_Read_Fn read;
     GDOX_DMA_Write_Fn write;
     GDOX_DMA_End_Fn end;
+    GDOX_DMA_Change_Fn change;
 };
 
 class DMA
@@ -55,6 +57,7 @@ public:
         u8 stalled;
         s8 active_channel;
         u64 next_clocks;
+        u32 ahead_clocks;
     };
 
 public:
@@ -72,6 +75,8 @@ public:
     void SetEndpoint(int channel, const GDOX_DMA_Endpoint& endpoint);
     void SetRequest(int channel, bool active);
     u32 HandleEvent(u64 clocks);
+    u32 ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u8* buffer);
+    void Advance(int channel, u32 units);
     I8237* GetController(int index);
     u32 GetPhysicalAddress(int channel) const;
     DMA_State* GetState();
@@ -83,10 +88,12 @@ private:
     const I8237& GetChip(int channel) const;
     u8 GetExcluded(int chip) const;
     bool IsHolding(int channel) const;
+    bool IsServiceable(int channel) const;
     int GetServiceChannel() const;
     bool TransferUnit(int channel, u64 clocks, bool& terminal);
     void FinishService(int channel);
     void UpdateCascade();
+    void NotifyChange(u16 port, int chip, int reg, u8 value);
     void UpdateNextEvent();
     void CheckUnsupported();
     void TraceWrite(u16 port, int chip, int reg, u8 value);

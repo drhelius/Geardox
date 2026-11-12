@@ -79,7 +79,9 @@ public:
     void SetBuzzerVolume(float volume);
     void Synchronize(u64 clocks);
     void SynchronizeBuzzer(u64 clocks);
+    void SynchronizeDMA(u64 clocks);
     void HandleEvent(u64 clocks);
+    void UpdateEvent();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
     u8 Peek(u16 port, u64 clocks) const;
@@ -115,7 +117,6 @@ private:
     bool IsMPUPort(u16 port) const;
     void WriteFM(u16 port, u8 value);
     void WriteChip(int chip, u8 port, u8 value);
-    void UpdateEvent();
     void UpdatePCMFilter();
     void UpdateGains();
     void TraceFM(int chip, u8 value);

@@ -54,7 +54,7 @@ void FDC::Init(PIC* pic, Scheduler* scheduler, DMA* dma)
     m_dma = dma;
     m_chip.Init(this);
 
-    GDOX_DMA_Endpoint endpoint = { this, DMAReadCallback, DMAWriteCallback, DMAEndCallback };
+    GDOX_DMA_Endpoint endpoint = { this, DMAReadCallback, DMAWriteCallback, DMAEndCallback, NULL };
     m_dma->SetEndpoint(k_fdc_dma_channel, endpoint);
 
     Reset();

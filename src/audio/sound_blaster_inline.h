@@ -89,6 +89,11 @@ INLINE bool SoundBlaster::IsStereo() const
 }
 
 // The time constant counts every byte, so a Pro in stereo makes a frame of two at half the rate
+INLINE bool SoundBlaster::IsReadingAhead() const
+{
+    return m_state.ahead_read < m_state.ahead_size;
+}
+
 INLINE u64 SoundBlaster::GetPeriod() const
 {
     u64 period = (u64)m_state.rate_denominator * GDOX_MACHINE_CLOCK_RATE;
