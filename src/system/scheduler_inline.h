@@ -59,13 +59,15 @@ INLINE u32 Scheduler::GetSliceClocks(u64 limit) const
     return end > m_state.clocks ? (u32)(end - m_state.clocks) : 1;
 }
 
-// CPU cycles that cover a whole slice of machine clocks
+// CPU cycles that cover a whole slice of machine clocks, counting the cycles AddCycles still holds: an instruction runs
+// in the slice when its start's machine time is before the slice's end, however time was cut into slices before
 INLINE u32 Scheduler::GetSliceCycles(u32 clocks) const
 {
     if (m_cpu_clock_rate == GDOX_MACHINE_CLOCK_RATE)
         return clocks;
 
-    return (u32)((((u64)clocks * m_cpu_clock_rate) + GDOX_MACHINE_CLOCK_RATE - 1) / GDOX_MACHINE_CLOCK_RATE);
+    return (u32)((((u64)clocks * m_cpu_clock_rate) - m_state.cycle_remainder + GDOX_MACHINE_CLOCK_RATE - 1) /
+        GDOX_MACHINE_CLOCK_RATE);
 }
 
 // The most CPU cycles AddCycles can take from now while machine time stays before the given clock
