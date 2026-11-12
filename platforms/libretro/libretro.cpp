@@ -85,7 +85,7 @@ static int audio_sample_count = 0;
 static size_t savestate_size = 0;
 static GDOX_Machine_Settings machine_settings = { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
     GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MOUSE_PS2, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SPEED_4X, GDOX_MACHINE_AUTO };
+    GDOX_MOUSE_PS2, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SPEED_4X, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
 #if !defined(GDOX_DISABLE_DYNAREC)
 static int dynarec_option = -1;
 #endif
@@ -416,6 +416,7 @@ void retro_deinit(void)
     machine_settings.mouse = GDOX_MOUSE_PS2;
     machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
     machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
+    machine_settings.drive_timing = GDOX_MACHINE_AUTO;
     machine_settings.video_card = GDOX_MACHINE_AUTO;
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
@@ -1356,7 +1357,7 @@ static bool update_game_options_display(void)
         { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
         { "geardox_sound_dma", "sound", "dma" }, { "geardox_mouse", "input", "mouse" },
         { "geardox_joystick", "input", "joystick" }, { "geardox_cdrom_drive", "drives", "cdrom" },
-        { "geardox_cdrom_speed", "machine", "cdrom_speed" } };
+        { "geardox_cdrom_speed", "machine", "cdrom_speed" }, { "geardox_drive_timing", "machine", "drive_timing" } };
     bool hide = game_active && game_descriptors;
 
     if (!hide && !game_options_hidden)
@@ -1634,6 +1635,20 @@ static void check_variables(void)
         {
             if (strcmp(var.value, k_cdrom_speeds[i].id) == 0)
                 machine_settings.cdrom_speed = i;
+        }
+    }
+
+    var.key = "geardox_drive_timing";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        machine_settings.drive_timing = GDOX_MACHINE_AUTO;
+
+        for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
+        {
+            if (strcmp(var.value, k_drive_timings[i].id) == 0)
+                machine_settings.drive_timing = i;
         }
     }
 

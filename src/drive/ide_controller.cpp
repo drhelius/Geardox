@@ -55,6 +55,14 @@ void IdeController::SetCdRom(int slot, int speed)
     m_cdrom.SetFitted(m_cdrom_slot >= 0, MAX(m_cdrom_slot, 0), speed);
 }
 
+void IdeController::SetDelayDivider(u32 divider)
+{
+    for (int i = 0; i < IDE_DISKS; i++)
+        m_disks[i].SetDelayDivider(divider);
+
+    m_cdrom.SetDelayDivider(divider);
+}
+
 void IdeController::SetTraceLogger(TraceLogger* trace_logger)
 {
     for (int i = 0; i < IDE_DISKS; i++)

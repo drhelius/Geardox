@@ -388,6 +388,7 @@ options in RetroArch. The **Default** column shows what those are unless you cha
 | `fpu` | No | The math coprocessor on the 386s. The 486DX2 always has one built in | `none`, `80387` | Your setting (`80387`) | `fpu = none` |
 | `floppy_a_type`, `floppy_b_type` | No | The floppy drive types | `360k`, `720k`, `1200k`, `1440k`, `2880k` | Your setting (detected from the disk in the drive) | `floppy_a_type = 1200k` |
 | `cdrom_speed` | No | The CD-ROM drive speed | `1x`, `2x`, `4x`, `8x` | Your setting (`4x`) | `cdrom_speed = 2x` |
+| `drive_timing` | No | How long the drives' mechanics take: seeks, the wait for a sector to come round, and spinning up a CD. `fast` takes a sixteenth of the time, so games load sooner; `real` is for programs that time the drive. Transfers keep their speed either way | `real`, `fast` | Your setting (Auto, which is `fast` for games) | `drive_timing = real` |
 | `video` | No | The video card | `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486 only) | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486) | `video = vga` |
 
 ### `[sound]`

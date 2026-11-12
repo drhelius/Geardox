@@ -86,6 +86,7 @@ IdeCdRom::IdeCdRom()
     memset(&m_state, 0, sizeof(m_state));
     m_state.event_clocks = GDOX_NO_EVENT;
     m_fitted = false;
+    m_delay_divider = 1;
     m_id = 0;
     m_speed = 4;
     m_access_count = 0;
@@ -114,6 +115,12 @@ void IdeCdRom::SetFitted(bool fitted, int id, int speed)
     m_fitted = fitted;
     m_id = id;
     m_speed = MAX(speed, 1);
+}
+
+// Seeks, settling, rotational waits and spin-ups take a fraction of their time with fast drives, sectors keep their rate
+void IdeCdRom::SetDelayDivider(u32 divider)
+{
+    m_delay_divider = MAX(divider, 1U);
 }
 
 // A hardware reset finds the disc ready, with the power on unit attention waiting
@@ -1924,12 +1931,12 @@ u64 IdeCdRom::GetPositionClocks(u32 lba, u64 clocks)
 
     if (fabs(to - from) >= 1.0)
         us += k_cdrom_settle_us;
-    u64 seeked = clocks + (((u64)us * GDOX_MACHINE_CLOCK_RATE) / 1000000);
+    u64 seeked = clocks + ((((u64)us * GDOX_MACHINE_CLOCK_RATE) / 1000000) / m_delay_divider);
     double turn_seconds = (2.0 * k_cdrom_pi * cdrom_radius(lba)) / (k_cdrom_velocity * m_speed);
     u64 turn = MAX((u64)(turn_seconds * GDOX_MACHINE_CLOCK_RATE), (u64)1);
     u64 angle = (u64)((to - floor(to)) * (double)turn);
     m_state.head_lba = lba;
-    return seeked + ((angle + turn - (seeked % turn)) % turn);
+    return seeked + (((angle + turn - (seeked % turn)) % turn) / m_delay_divider);
 }
 
 // A stopped motor spins up on the next access without an error
@@ -1938,7 +1945,7 @@ u64 IdeCdRom::GetSpinClocks(u64 clocks)
     if (!m_state.motor_on)
     {
         m_state.motor_on = true;
-        m_state.ready_clocks = clocks + k_cdrom_spin_clocks;
+        m_state.ready_clocks = clocks + (k_cdrom_spin_clocks / m_delay_divider);
     }
 
     return MAX(clocks, m_state.ready_clocks);
@@ -1960,7 +1967,7 @@ void IdeCdRom::InsertDisc(u64 clocks)
     m_state.tray_open = false;
     m_state.motor_on = true;
     m_state.spinning_up = true;
-    m_state.ready_clocks = clocks + k_cdrom_spin_clocks;
+    m_state.ready_clocks = clocks + (k_cdrom_spin_clocks / m_delay_divider);
     m_state.unit_attention = 0x28;
     m_state.head_lba = 0;
     m_state.ahead_end = m_state.ahead_lba;
@@ -2003,7 +2010,7 @@ void IdeCdRom::CloseTray(u64 clocks)
 
     m_state.motor_on = true;
     m_state.spinning_up = true;
-    m_state.ready_clocks = clocks + k_cdrom_spin_clocks;
+    m_state.ready_clocks = clocks + (k_cdrom_spin_clocks / m_delay_divider);
     m_state.unit_attention = 0x28;
     m_state.head_lba = 0;
 }

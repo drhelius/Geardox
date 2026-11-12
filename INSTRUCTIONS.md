@@ -166,6 +166,7 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 | Video Card | Auto | Cirrus Logic SVGA, with VESA modes. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
+| Drive Timing | Auto | Fast for games: seeks, the wait for a sector and a CD's spin-up take a sixteenth of the time. Real keeps the drives' mechanics. |
 
 **Turbo** works at once: off runs the CPU at a third of its speed, for games that are too fast. It's Ctrl+T when the
 keyboard isn't captured, and a "TURBO OFF" badge shows while it's off.

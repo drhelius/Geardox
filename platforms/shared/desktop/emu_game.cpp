@@ -404,6 +404,9 @@ void emu_game_apply_machine(void)
     if (m.cdrom_speed != b.cdrom_speed)
         overrides.Set("machine", "cdrom_speed", k_cdrom_speeds[m.cdrom_speed].id);
 
+    if ((m.drive_timing != b.drive_timing) && (m.drive_timing >= 0))
+        overrides.Set("machine", "drive_timing", k_drive_timings[m.drive_timing].id);
+
     if (!disk.SaveOverrides(overrides))
         gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
 
@@ -661,6 +664,7 @@ static void config_to_settings(const config_Machine& machine, GDOX_Machine_Setti
     settings->mouse = machine.mouse;
     settings->cdrom = machine.cdrom;
     settings->cdrom_speed = machine.cdrom_speed;
+    settings->drive_timing = machine.drive_timing;
     settings->speed_mode = machine.turbo ? 1 : 0;
 }
 
@@ -681,6 +685,7 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
     machine->mouse = game.mouse >= 0 ? game.mouse : machine->mouse;
     machine->cdrom = game.cdrom >= 0 ? game.cdrom : machine->cdrom;
     machine->cdrom_speed = game.cdrom_speed >= 0 ? game.cdrom_speed : machine->cdrom_speed;
+    machine->drive_timing = game.drive_timing >= 0 ? game.drive_timing : machine->drive_timing;
     machine->turbo = game.speed_mode >= 0 ? game.speed_mode != 0 : machine->turbo;
 }
 
@@ -691,8 +696,8 @@ static void update_machines(void)
     static const char* const k_keys[][2] = {
         { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
         { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
-        { "machine", "cdrom_speed" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" },
-        { "input", "mouse" }, { "input", "joystick" } };
+        { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" },
+        { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" }, { "input", "joystick" } };
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
     GDOX_Machine_Settings without;

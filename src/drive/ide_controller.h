@@ -52,6 +52,7 @@ public:
     ~IdeController();
     void Init(PIC* pic, Scheduler* scheduler, CdRomMedia* cdrom_media, CdRomAudio* cdrom_audio, Audio* audio);
     void SetCdRom(int slot, int speed);
+    void SetDelayDivider(u32 divider);
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
     bool Decodes(u16 port) const;

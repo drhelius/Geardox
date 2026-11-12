@@ -1527,6 +1527,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.sound_irq == machine_config.sound_irq) &&
         (m_machine_config.sound_dma == machine_config.sound_dma) && (m_machine_config.mouse == machine_config.mouse) &&
         (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed) &&
+        (m_machine_config.drive_timing == machine_config.drive_timing) &&
         (m_machine_config.video_card == machine_config.video_card);
 
     if (!same_machine)
@@ -1783,6 +1784,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.cdrom);
     G_SERIALIZE(serializer, config.cdrom_speed);
     G_SERIALIZE(serializer, config.video_card);
+    G_SERIALIZE(serializer, config.drive_timing);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -1834,6 +1836,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = config.cdrom < GDOX_CDROM_POSITION_COUNT ? config.cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
+    config.drive_timing = config.drive_timing < GDOX_DRIVE_TIMING_COUNT ? config.drive_timing : (u8)GDOX_DRIVE_TIMING_REAL;
     config.video_card = config.video_card < GDOX_VIDEO_CARD_COUNT ? config.video_card : (u8)GDOX_VIDEO_CARD_GD5428;
 
     if (k_video_cards[config.video_card].local_bus && ((profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) == 0))
@@ -2068,6 +2071,7 @@ void GeardoxCore::ResolveMachineConfig()
     int mouse = pick_setting(game.mouse, user.mouse, -1, &source);
     int cdrom = pick_setting(game.cdrom, user.cdrom, -1, &source);
     int cdrom_speed = pick_setting(game.cdrom_speed, user.cdrom_speed, -1, &source);
+    int drive_timing = pick_setting(game.drive_timing, user.drive_timing, -1, &source);
     int video_card = pick_setting(game.video_card, user.video_card, -1, &source);
     bool local_bus = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
 
@@ -2077,6 +2081,12 @@ void GeardoxCore::ResolveMachineConfig()
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
+
+    // Games load as fast as their drives' transfers allow, unless they or the user ask for the drives' mechanics
+    if ((drive_timing >= 0) && (drive_timing < GDOX_DRIVE_TIMING_COUNT))
+        config.drive_timing = (u8)drive_timing;
+    else
+        config.drive_timing = m_game ? (u8)GDOX_DRIVE_TIMING_FAST : (u8)GDOX_DRIVE_TIMING_REAL;
 
     if ((video_card >= 0) && (video_card < GDOX_VIDEO_CARD_COUNT))
         config.video_card = (u8)video_card;
@@ -2175,11 +2185,15 @@ void GeardoxCore::ApplyMachineConfig()
         m_serial_ports->SetMouse(m_machine_config.mouse == GDOX_MOUSE_SERIAL);
 
     if (IsValidPointer(m_ide))
+    {
         m_ide->SetCdRom((int)m_machine_config.cdrom - 1, k_cdrom_speed_factors[m_machine_config.cdrom_speed]);
+        m_ide->SetDelayDivider(k_drive_timing_dividers[m_machine_config.drive_timing]);
+    }
 
     if (IsValidPointer(m_fdc))
     {
         m_fdc->SetInternalDrives(m_machine_config.floppy_drives);
+        m_fdc->SetDelayDivider(k_drive_timing_dividers[m_machine_config.drive_timing]);
 
         // Auto looks at the disks in the drives at every reset, they can change after the last resolve
         for (int i = 0; i < FDC_DRIVES; i++)

@@ -264,6 +264,8 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Machine", "Turbo", config_machine.turbo, true);
     CONFIG_INT_RANGE("Machine", "CDROMSpeed", config_machine.cdrom_speed, GDOX_CDROM_SPEED_4X, 0,
         GDOX_CDROM_SPEED_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "DriveTiming", config_machine.drive_timing, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
+        GDOX_DRIVE_TIMING_COUNT - 1);
 
     //**************************************
     // Video

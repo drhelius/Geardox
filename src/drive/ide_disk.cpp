@@ -45,6 +45,7 @@ IdeDisk::IdeDisk()
     m_state.event_clocks = GDOX_NO_EVENT;
     m_id = 0;
     m_access_count = 0;
+    m_delay_divider = 1;
 }
 
 IdeDisk::~IdeDisk()
@@ -713,6 +714,12 @@ void IdeDisk::BuildIdentify()
         write_u16_le(m_state.buffer + (i * 2), words[i]);
 }
 
+// Seeks and rotational waits take a fraction of their time with fast drives, transfers keep the media rate
+void IdeDisk::SetDelayDivider(u32 divider)
+{
+    m_delay_divider = MAX(divider, 1U);
+}
+
 // The stroke is the image's own, so a small disk seeks like a big one
 u64 IdeDisk::GetSeekClocks(u32 cylinder) const
 {
@@ -727,7 +734,7 @@ u64 IdeDisk::GetSeekClocks(u32 cylinder) const
     u32 fraction = MIN(scaled - (point << 8), 256U);
     u32 us = k_ide_track_seek_us + k_ide_seek_us[point] + (((k_ide_seek_us[point + 1] - k_ide_seek_us[point]) * fraction) >> 8);
 
-    return ((u64)us * GDOX_MACHINE_CLOCK_RATE) / 1000000;
+    return (((u64)us * GDOX_MACHINE_CLOCK_RATE) / 1000000) / m_delay_divider;
 }
 
 // Seek, then wait for the sector to come round. Its angle is its LBA within a track of the outer zone
@@ -738,7 +745,7 @@ u64 IdeDisk::GetPositionClocks(u32 lba, u64 clocks)
     u64 angle = ((lba % k_ide_track_sectors) * k_ide_turn_clocks) / k_ide_track_sectors;
     m_state.head_cylinder = cylinder;
 
-    return seeked + ((angle + k_ide_turn_clocks - (seeked % k_ide_turn_clocks)) % k_ide_turn_clocks);
+    return seeked + (((angle + k_ide_turn_clocks - (seeked % k_ide_turn_clocks)) % k_ide_turn_clocks) / m_delay_divider);
 }
 
 // Sectors of the last read and the ones after it keep arriving at media rate. Anything else is a miss

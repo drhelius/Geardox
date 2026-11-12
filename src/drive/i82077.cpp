@@ -30,7 +30,13 @@ I82077::I82077()
     InitPointer(m_fdc);
     InitPointer(m_trace_logger);
     m_port_logged = false;
+    m_delay_divider = 1;
     memset(&m_state, 0, sizeof(m_state));
+}
+
+void I82077::SetDelayDivider(u32 divider)
+{
+    m_delay_divider = divider;
 }
 
 I82077::~I82077()

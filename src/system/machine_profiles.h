@@ -140,6 +140,15 @@ const GDOX_CdRom_Info k_cdrom_speeds[GDOX_CDROM_SPEED_COUNT] =
 
 const int k_cdrom_speed_factors[GDOX_CDROM_SPEED_COUNT] = { 1, 2, 4, 8 };
 
+const GDOX_Drive_Timing_Info k_drive_timings[GDOX_DRIVE_TIMING_COUNT] =
+{
+    { "Real", "real" },
+    { "Fast", "fast" }
+};
+
+// Fast drives seek, wait for the sector, settle and spin up in a sixteenth of the time. Transfers keep their rate
+const u32 k_drive_timing_dividers[GDOX_DRIVE_TIMING_COUNT] = { 1, 16 };
+
 const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 {
     { "None", "none" },
@@ -185,6 +194,7 @@ static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
     settings->mouse = GDOX_MACHINE_AUTO;
     settings->cdrom = GDOX_MACHINE_AUTO;
     settings->cdrom_speed = GDOX_MACHINE_AUTO;
+    settings->drive_timing = GDOX_MACHINE_AUTO;
     settings->video_card = GDOX_MACHINE_AUTO;
 }
 

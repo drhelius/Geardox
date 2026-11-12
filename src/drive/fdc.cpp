@@ -41,6 +41,7 @@ FDC::FDC()
     m_irq_out = false;
     m_drq_out = false;
     m_internal_drives = FDC_DRIVES;
+    m_delay_divider = 1;
 }
 
 FDC::~FDC()
@@ -89,6 +90,13 @@ void FDC::Reset()
     m_chip.Reset();
     UpdateLines();
     UpdateNextEvent();
+}
+
+// Steps, head loads and the wait for a sector take a fraction of their time with fast drives, bytes keep their rate
+void FDC::SetDelayDivider(u32 divider)
+{
+    m_delay_divider = MAX(divider, 1U);
+    m_chip.SetDelayDivider(m_delay_divider);
 }
 
 void FDC::SetInternalDrives(int drives)
@@ -358,7 +366,7 @@ u64 FDC::GetPositionClocks(u64 clocks, u32 position, u32 track_bytes) const
     u64 target = ((u64)position * k_fdc_turn) / MAX(track_bytes, 1U);
     u64 delta = (target + k_fdc_turn - angle) % k_fdc_turn;
 
-    return clocks + (delta + rpm - 1) / rpm;
+    return clocks + (((delta + rpm - 1) / rpm) / m_delay_divider);
 }
 
 u32 FDC::GetTrackBytes(u32 rate, bool mfm) const

@@ -132,6 +132,7 @@ struct config_Machine
     int mouse;
     int cdrom;
     int cdrom_speed;
+    int drive_timing;
     bool turbo;
 };
 

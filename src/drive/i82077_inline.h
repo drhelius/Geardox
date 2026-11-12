@@ -62,13 +62,13 @@ INLINE u32 I82077::GetRateKbps() const
 // SRT counts down from 16 in units of 0.5 ms at 1 Mbps, longer in proportion at slower rates
 INLINE u64 I82077::GetStepClocks() const
 {
-    return ((u64)GDOX_MACHINE_CLOCK_RATE * (16 - m_state.srt)) / (2 * GetRateKbps());
+    return ((u64)GDOX_MACHINE_CLOCK_RATE * (16 - m_state.srt)) / (2 * GetRateKbps() * m_delay_divider);
 }
 
 // HLT counts 1 ms at 1 Mbps, 0 is 128
 INLINE u64 I82077::GetHeadLoadClocks() const
 {
-    return ((u64)GDOX_MACHINE_CLOCK_RATE * (m_state.hlt != 0 ? m_state.hlt : 128)) / GetRateKbps();
+    return ((u64)GDOX_MACHINE_CLOCK_RATE * (m_state.hlt != 0 ? m_state.hlt : 128)) / (GetRateKbps() * m_delay_divider);
 }
 
 // HUT counts 8 ms at 1 Mbps, 0 is 128

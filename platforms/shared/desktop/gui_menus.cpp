@@ -83,6 +83,7 @@ static bool menu_machine_video(void);
 static bool menu_machine_mouse(void);
 static bool menu_machine_cdrom_drive(void);
 static bool menu_machine_cdrom_speed(void);
+static bool menu_machine_drive_timing(void);
 static bool menu_machine_floppy(int drive);
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
 static void menu_machine_hardware(GDOX_Machine_Model model);
@@ -873,6 +874,9 @@ static void menu_machine(void)
     if (menu_machine_cdrom_speed())
         changed = true;
 
+    if (menu_machine_drive_timing())
+        changed = true;
+
     menu_machine_hardware(core->GetPendingMachineConfig().model);
 
     ImGui::Separator();
@@ -1337,6 +1341,43 @@ static bool menu_machine_cdrom_drive(void)
         ImGui::Text("An ATAPI CD-ROM drive on the IDE cable. The position it takes is closed to hard disks.");
         ImGui::Text("Secondary Master leaves the primary channel to the hard disks.");
         ImGui::Text("Primary Slave is where a 1994 PC with a one-channel card put its CD-ROM.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_drive_timing(void)
+{
+    if (!ImGui::BeginMenu("Drive Timing"))
+        return false;
+
+    bool changed = false;
+
+    if (ImGui::MenuItem("Auto", "", menu_settings->drive_timing < 0))
+    {
+        menu_settings->drive_timing = GDOX_MACHINE_AUTO;
+        changed = true;
+    }
+
+    for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
+    {
+        if (ImGui::MenuItem(k_drive_timings[i].name, "", menu_settings->drive_timing == i))
+        {
+            menu_settings->drive_timing = i;
+            changed = true;
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Reset the emulator to apply changes");
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("How long disk, floppy and CD-ROM seeks, rotation and spin-up take.");
+        ImGui::Text("Auto is fast for games and real otherwise. Transfers keep their rate.");
         ImGui::EndTooltip();
     }
 

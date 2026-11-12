@@ -820,6 +820,7 @@ void emu_apply_machine_settings(void)
     settings.mouse = config_machine.mouse;
     settings.cdrom = config_machine.cdrom;
     settings.cdrom_speed = config_machine.cdrom_speed;
+    settings.drive_timing = config_machine.drive_timing;
     settings.speed_mode = config_machine.turbo ? 1 : 0;
     geardox->SetMachineSettings(settings);
     emu_game_apply_machine();

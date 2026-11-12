@@ -307,7 +307,20 @@ enum GDOX_CdRom_Speed
     GDOX_CDROM_SPEED_COUNT
 };
 
+enum GDOX_Drive_Timing
+{
+    GDOX_DRIVE_TIMING_REAL = 0,
+    GDOX_DRIVE_TIMING_FAST,
+    GDOX_DRIVE_TIMING_COUNT
+};
+
 struct GDOX_CdRom_Info
+{
+    const char* name;
+    const char* id;
+};
+
+struct GDOX_Drive_Timing_Info
 {
     const char* name;
     const char* id;
@@ -540,6 +553,7 @@ struct GDOX_Machine_Config
     u8 cdrom;
     u8 cdrom_speed;
     u8 video_card;
+    u8 drive_timing;
 };
 
 enum GDOX_Sound_Card
@@ -611,6 +625,7 @@ struct GDOX_Machine_Settings
     int cdrom;
     int cdrom_speed;
     int video_card;
+    int drive_timing;
 };
 
 struct GDOX_Machine_Report

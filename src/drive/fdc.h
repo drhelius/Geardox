@@ -49,6 +49,7 @@ public:
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
     void SetInternalDrives(int drives);
+    void SetDelayDivider(u32 divider);
     void SetDriveType(int drive, u8 type);
     u8 GetDriveType(int drive) const;
     bool Decodes(u16 port) const;
@@ -118,6 +119,7 @@ private:
     void* m_read_context;
     GDOX_Read_Callback m_read_callback;
     int m_internal_drives;
+    u32 m_delay_divider;
 };
 
 struct FDC_Drive_Info

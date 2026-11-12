@@ -68,6 +68,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "machine", "floppy_a_type", DESCRIPTOR_CHOICE, "360k,1200k,720k,1440k,2880k", 0, 0 },
     { "machine", "floppy_b_type", DESCRIPTOR_CHOICE, "360k,1200k,720k,1440k,2880k", 0, 0 },
     { "machine", "cdrom_speed", DESCRIPTOR_CD_SPEED, NULL, 0, 0 },
+    { "machine", "drive_timing", DESCRIPTOR_CHOICE, "real,fast", 0, 0 },
     { "machine", "video", DESCRIPTOR_VIDEO, NULL, 0, 0 },
     { "sound", "card", DESCRIPTOR_SOUND, NULL, 0, 0 },
     { "sound", "irq", DESCRIPTOR_CHOICE, "5,7", 0, 0 },
@@ -806,6 +807,12 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
     {
         if (Get("machine", "cdrom_speed") == k_cdrom_speeds[i].id)
             settings->cdrom_speed = i;
+    }
+
+    for (int i = 0; Has("machine", "drive_timing") && (i < GDOX_DRIVE_TIMING_COUNT); i++)
+    {
+        if (Get("machine", "drive_timing") == k_drive_timings[i].id)
+            settings->drive_timing = i;
     }
 
     if (Has("drives", "cdrom"))

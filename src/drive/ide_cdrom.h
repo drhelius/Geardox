@@ -126,6 +126,7 @@ public:
     void Init(int id, CdRomMedia* cdrom_media, CdRomAudio* cdrom_audio, Audio* audio);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetFitted(bool fitted, int id, int speed);
+    void SetDelayDivider(u32 divider);
     void Reset();
     bool IsAttached() const;
     int GetId() const;
@@ -227,6 +228,7 @@ private:
     int m_id;
     int m_speed;
     u32 m_access_count;
+    u32 m_delay_divider;
 };
 
 static const u8 k_ide_cdrom_status_chk = 0x01;

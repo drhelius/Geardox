@@ -88,6 +88,7 @@ public:
     ~IdeDisk();
     void Init(int id);
     void SetTraceLogger(TraceLogger* trace_logger);
+    void SetDelayDivider(u32 divider);
     void Reset();
     bool Attach(const char* path, bool write_protected, const char* working_path = NULL);
     void Detach();
@@ -143,6 +144,7 @@ private:
     IdeDisk_State m_state;
     int m_id;
     u32 m_access_count;
+    u32 m_delay_divider;
 };
 
 static const u8 k_ide_status_bsy = 0x80;

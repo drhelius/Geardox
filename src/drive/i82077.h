@@ -186,6 +186,7 @@ public:
     ~I82077();
     void Init(FDC* fdc);
     void SetTraceLogger(TraceLogger* trace_logger);
+    void SetDelayDivider(u32 divider);
     void Reset();
     u8 Read(int reg, u64 clocks);
     u8 Peek(int reg) const;
@@ -263,6 +264,7 @@ private:
     FDC* m_fdc;
     TraceLogger* m_trace_logger;
     bool m_port_logged;
+    u32 m_delay_divider;
     I82077_State m_state;
 };
 

@@ -467,6 +467,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "4x"
     },
     {
+        "geardox_drive_timing",
+        "Drive Timing (restart)",
+        NULL,
+        "How long disk, floppy and CD-ROM seeks, rotation and spin-up take. Auto is fast for games and real otherwise; transfers keep their rate either way.",
+        NULL,
+        "system",
+        {
+            { "auto", "Auto" },
+            { "real", "Real" },
+            { "fast", "Fast" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
         "geardox_sound_card",
         "Sound Card (restart)",
         NULL,
