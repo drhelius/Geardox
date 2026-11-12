@@ -43,6 +43,9 @@
 
 #define GDOX_MAX_PATH 4096
 
+// The CPU's bus cycle counters feed a video engine Geardox doesn't have
+#define GDOX_DISABLE_BUS_COUNTERS
+
 #define GDOX_MAIN_RAM_SIZE (2 * 1024 * 1024)
 #define GDOX_CMOS_SIZE 128
 #define GDOX_CMOS_FILE_MAGIC 0x4347
