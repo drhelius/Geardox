@@ -387,9 +387,12 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
 }
 
 // A20, the fast reset and the DMA end the CPU batch after the write, a new transfer shouldn't wait for the slice
+// As a read, a write ends the batch when it moved an event or the interrupt line, besides the devices that always do
 void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
 {
     u32 generation = m_memory->GetMapGeneration();
+    u64 next_event = m_scheduler->GetNextEventClocks();
+    bool interrupt = m_pic->IsInterruptPending();
 
     switch (port)
     {
@@ -501,6 +504,7 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             break;
     }
 
-    if ((m_memory->GetMapGeneration() != generation) || m_system_control->IsCPUResetPending())
+    if ((m_memory->GetMapGeneration() != generation) || m_system_control->IsCPUResetPending() ||
+        m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
         context.end_batch = true;
 }
