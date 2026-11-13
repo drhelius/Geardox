@@ -918,10 +918,17 @@ bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attri
     return true;
 }
 
-void FatImage::FinishGame(const char* label)
+void FatImage::FinishGame(const char* label, u64 free_size)
 {
     SetLabel(label);
+    SetBootSector(k_freedos_boot);
     Finish();
+    u8 data[8];
+    write_u32_le(data, (u32)free_size);
+    write_u32_le(data + 4, (u32)(free_size >> 32));
+    u32 crc = (u32)mz_crc32(m_fingerprint, k_freedos_boot, k_freedos_boot_size);
+    crc = (u32)mz_crc32(crc, k_freedos_mbr, k_freedos_mbr_size);
+    m_fingerprint = (u32)mz_crc32(crc, data, sizeof(data));
 }
 
 const FatImage_Entry& FatImage::GetEntry(u32 index) const

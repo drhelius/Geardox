@@ -124,7 +124,7 @@ public:
     bool AddOverlay(const char* path);
     bool AddFreeDOS(bool hidden);
     bool AddMemoryFile(const char* path, const std::string& data, u8 attributes);
-    void FinishGame(const char* label);
+    void FinishGame(const char* label, u64 free_size);
     const FatImage_Entry& GetEntry(u32 index) const;
     void ListEntries(std::vector<FatImage_Listed>* listed) const;
     bool Read(const char* path);

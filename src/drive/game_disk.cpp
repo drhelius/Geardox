@@ -23,7 +23,6 @@
 #include <algorithm>
 #include <map>
 #include "game_disk.h"
-#include "freedos.h"
 #include "../media/media_file.h"
 #include "../system/machine_profiles.h"
 #if defined(_WIN32)
@@ -789,7 +788,6 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         return Fail("The game doesn't fit in a 2 GB FAT16 disk");
 
     Log("Building the disk of %s: %s", GetName(), m_image.c_str());
-    image.SetBootSector(k_freedos_boot);
 
     if (!image.Write(m_image.c_str(), size, true))
         return Fail("Unable to write the game's disk %s", m_image.c_str());
@@ -1098,7 +1096,7 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine)
         return Fail("Unable to add the game's configuration");
 
     std::string label = m_descriptor.GetInfo().name;
-    image->FinishGame(label.c_str());
+    image->FinishGame(label.c_str(), (u64)info.free_mb * 1024 * 1024);
     return true;
 }
 
