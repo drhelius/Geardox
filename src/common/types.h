@@ -415,8 +415,6 @@ enum GDOX_Boot_Device
     GDOX_BOOT_DEVICE_COUNT
 };
 
-typedef void (*GDOX_Read_Callback)(void* context);
-
 enum GDOX_Machine_Source
 {
     GDOX_MACHINE_SOURCE_USER = 0,

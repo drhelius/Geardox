@@ -704,9 +704,6 @@ void I82077::StartData(u64 clocks)
     m_state.fifo_count = 0;
     m_state.reading = !IsWrite();
 
-    if (m_state.reading)
-        m_fdc->NotifyRead();
-
     if (m_state.command == I82077_COMMAND_FORMAT)
     {
         m_state.size_code = p[2];

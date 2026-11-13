@@ -69,8 +69,6 @@ public:
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
 
     u32 GetAccessCount(int drive) const;
-    void SetReadCallback(void* context, GDOX_Read_Callback callback);
-    void NotifyRead();
     u32 GetWriteCount(int drive) const;
 
     // The drive pins, for the chip
@@ -116,8 +114,6 @@ private:
     bool m_drq_out;
     u32 m_access_count[FDC_DRIVES];
     u32 m_write_count[FDC_DRIVES];
-    void* m_read_context;
-    GDOX_Read_Callback m_read_callback;
     int m_internal_drives;
     u32 m_delay_divider;
 };

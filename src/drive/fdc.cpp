@@ -31,8 +31,6 @@ FDC::FDC()
     InitPointer(m_scheduler);
     InitPointer(m_dma);
     InitPointer(m_trace_logger);
-    InitPointer(m_read_context);
-    InitPointer(m_read_callback);
     memset(&m_state, 0, sizeof(m_state));
     memset(m_state.disk_changed, 1, sizeof(m_state.disk_changed));
     memset(m_access_count, 0, sizeof(m_access_count));
@@ -65,18 +63,6 @@ void FDC::SetTraceLogger(TraceLogger* trace_logger)
 {
     m_trace_logger = trace_logger;
     m_chip.SetTraceLogger(trace_logger);
-}
-
-void FDC::SetReadCallback(void* context, GDOX_Read_Callback callback)
-{
-    m_read_context = context;
-    m_read_callback = callback;
-}
-
-void FDC::NotifyRead()
-{
-    if (IsValidPointer(m_read_callback))
-        m_read_callback(m_read_context);
 }
 
 // Disks stay in their drives
