@@ -600,7 +600,10 @@ void Video::WriteDAC(u8 value, u64 clocks)
 
 u8 Video::ReadDAC()
 {
-    u8 value = m_state.dac[m_state.dac_address][m_state.dac_component];
+    u8 index = m_state.dac_address;
+    u8 value = IsUnlocked() && (m_state.sequencer[k_video_sr_cursor_attributes] & 0x02) != 0 ?
+        m_state.dac_extended[index & (VIDEO_DAC_EXT_COUNT - 1)][m_state.dac_component] :
+        m_state.dac[index][m_state.dac_component];
 
     if (++m_state.dac_component == 3)
     {
