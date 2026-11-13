@@ -222,7 +222,7 @@ static void menu_options(void)
     ImGui::MenuItem("Quit When a Game Powers Off", NULL, &config_game.close_on_power_off);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A descriptor with exit = poweroff turns the machine off when the game quits.\nWith this on, Geardox then closes too.");
+        ImGui::SetTooltip("A descriptor with on_exit = poweroff turns the machine off when the game quits.\nWith this on, Geardox then closes too.");
 }
 
 // The OS shows a folder from a file:// URL, with everything but the path's own characters escaped
