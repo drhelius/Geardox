@@ -147,13 +147,6 @@ struct GDOX_Firmware_Info
     bool loaded;
 };
 
-struct GDOX_Color
-{
-    u8 red;
-    u8 green;
-    u8 blue;
-};
-
 enum GDOX_Keys
 {
     GDOX_KEY_NONE             = 0x00,
@@ -465,13 +458,6 @@ struct GDOX_Machine_Port_Wait
     s16 extra[2];
 };
 
-enum GDOX_Machine_Bus_Mode
-{
-    GDOX_MACHINE_BUS_FIXED = 0,
-    GDOX_MACHINE_BUS_WAIT_PORTS,
-    GDOX_MACHINE_BUS_SPEED_PORT
-};
-
 // In 1/256 clocks at the model's clock, reads first
 // A follow adds to the wait of each later cycle of a read split in cycles, which overlaps the one before
 // The 486's cache: the average wait of a read and of a write it serves, and the fill of a code line it misses
@@ -498,9 +484,7 @@ struct GDOX_Machine_Bus_Waits
 
 struct GDOX_Machine_Bus_Timing
 {
-    GDOX_Machine_Bus_Mode mode;
     const GDOX_Machine_Bus_Waits* compatible;
-    const GDOX_Machine_Bus_Waits* fast;
     u16 refresh;
     u16 refill;
     u16 misalign;

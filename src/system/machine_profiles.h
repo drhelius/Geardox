@@ -49,7 +49,7 @@
     { 0x0170, 0x0170, { GDOX_MACHINE_IDE_DATA_WAIT(rate), GDOX_MACHINE_IDE_DATA_WAIT(rate) } }, \
     { 0x01F0, 0x01F0, { GDOX_MACHINE_IDE_DATA_WAIT(rate), GDOX_MACHINE_IDE_DATA_WAIT(rate) } } }
 
-#define GDOX_MACHINE_BUS_TIMING(waits, ports, rate, page_miss) { GDOX_MACHINE_BUS_FIXED, &waits, NULL, \
+#define GDOX_MACHINE_BUS_TIMING(waits, ports, rate, page_miss) { &waits, \
     0, 0, 0, (page_miss) * 256, 0, { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
     { GDOX_MACHINE_ISA8_WORD(rate), GDOX_MACHINE_ISA8_WORD(rate) }, { 0, 0 }, \
     { GDOX_MACHINE_ISA16(rate), GDOX_MACHINE_ISA16(rate) }, { GDOX_MACHINE_ISA8(rate), GDOX_MACHINE_ISA8(rate) }, \
