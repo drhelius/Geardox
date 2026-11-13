@@ -183,6 +183,10 @@ Fullscreen (F12), Capture Mouse and Capture Keyboard hotkeys work. Press **Ctrl+
 get every hotkey back, such as Ctrl+S and Ctrl+L for save states or Ctrl+R to reset. Press it again to capture.
 **Input > Keyboard > Paste as Keystrokes** types the clipboard into the PC.
 
+**If your keyboard isn't a United States one,** choose its layout in **Input > Keyboard > DOS Layout**. Games then
+get DOS set up for it, so `:`, `/` and the rest are where your keys say. See
+[Keyboard layout](GDOX_README.md#keyboard-layout).
+
 **The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, press
 **Ctrl+Shift+M** to lock it inside the window, and again to let it go.
 

@@ -586,6 +586,32 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "auto"
     },
     {
+        "geardox_keyboard_layout",
+        "DOS Keyboard Layout (restart)",
+        NULL,
+        "The layout of your keyboard, for DOS in games: Geardox loads KEYB with it in the AUTOEXEC.BAT it makes for each game, on FreeDOS or MS-DOS. A game's descriptor can set its own with keyboard = under [dos].",
+        NULL,
+        "system",
+        {
+            { "us", "United States" },
+            { "be", "Belgium" },
+            { "br", "Brazil" },
+            { "su", "Finland" },
+            { "fr", "France" },
+            { "gr", "Germany" },
+            { "it", "Italy" },
+            { "la", "Latin America" },
+            { "nl", "Netherlands" },
+            { "sp", "Spain" },
+            { "sv", "Sweden" },
+            { "sf", "Switzerland (French)" },
+            { "sg", "Switzerland (German)" },
+            { "uk", "United Kingdom" },
+            { NULL, NULL },
+        },
+        "us"
+    },
+    {
         "geardox_freedos",
         "FreeDOS Disk (restart)",
         NULL,

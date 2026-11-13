@@ -693,6 +693,24 @@ void GameDisk::SetSystem(int system)
         m_descriptor.Set("dos", "system", system == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos");
 }
 
+// The user's layout for every game, the frontend's setting; the descriptor's keyboard key wins over it
+void GameDisk::SetKeyboardLayout(const char* layout)
+{
+    m_keyboard.clear();
+
+    for (int i = 0; IsValidPointer(layout) && (i < k_keyboard_layout_count); i++)
+    {
+        if (strcmp(layout, k_keyboard_layouts[i].id) == 0)
+            m_keyboard = layout;
+    }
+}
+
+const char* GameDisk::GetKeyboardLayout() const
+{
+    const std::string& game = m_descriptor.GetInfo().keyboard;
+    return !game.empty() ? game.c_str() : !m_keyboard.empty() ? m_keyboard.c_str() : k_keyboard_layouts[0].id;
+}
+
 bool GameDisk::HasMSDOS() const
 {
     return !m_msdos_path.empty();
@@ -1030,6 +1048,13 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     }
 
     out += "PROMPT $P$G\r\n";
+
+    // KEYB with the VGA's code page 437, from MS-DOS's HELP KEYB and FreeDOS's KEYB documents (docs/27 §18)
+    if (strcmp(GetKeyboardLayout(), k_keyboard_layouts[0].id) != 0)
+    {
+        std::string layout = upper(GetKeyboardLayout());
+        out += "LH KEYB " + layout + (msdos ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" : ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
+    }
 
     if (machine.mouse != GDOX_MOUSE_NONE)
         out += msdos ? "LH C:\\GEARDOX\\CTMOUSE.EXE\r\n" : "LH CTMOUSE\r\n";

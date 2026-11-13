@@ -468,6 +468,7 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `system` | No | The DOS the game runs on; see [Use your own MS-DOS](#use-your-own-ms-dos) | `freedos`, `msdos` | MS-DOS when imported, FreeDOS otherwise | `system = freedos` |
 | `version` | No | The DOS version FreeDOS reports to programs, for games that check it. Ignored on MS-DOS, which has only `SETVER` | `x.yy` | The DOS's own | `version = 5.00` |
 | `system_files` | No | Whether the DOS's files in the root of C: appear in `DIR` | `visible`, `hidden` | `visible` | `system_files = hidden` |
+| `keyboard` | No | The keyboard layout DOS uses for this game, overriding your own setting; see [Keyboard layout](#keyboard-layout) | `us`, `uk`, `fr`, `gr` (German), `it`, `sp` (Spain), `la` (Latin America), `be`, `nl`, `sv`, `su` (Finland), `sf` and `sg` (Swiss French and German), `br` | Your setting (`us`) | `keyboard = sp` |
 | `cache` | No | Loads the DOS's disk cache: SMARTDRV on MS-DOS, LBACACHE on FreeDOS. It caches reads only, so a save is never held back, and uses 1 to 2 MB of extended memory. Not loaded with `memory = none` | `off`, `on` | `off` | `cache = on` |
 
 ### `[env]`
@@ -490,6 +491,23 @@ These advanced sections hold DOS startup lines instead of `key = value` settings
 | `[autoexec]` | No | DOS commands | `C:\AUTOEXEC.BAT`, run in the game's folder before the game starts | `LH MYDRIVER.COM` |
 
 ## Advanced DOS Details
+
+### Keyboard Layout
+
+Geardox sends the PC the position of each key you press, as a real keyboard does. DOS assumes a United States
+keyboard, so on another layout symbols such as `:`, `/` and `-` land elsewhere until DOS is told the layout. Choose
+yours in **Input > Keyboard > DOS Layout**, or with the **DOS Keyboard Layout (restart)** option in RetroArch. Geardox
+then loads KEYB with it in each game's `AUTOEXEC.BAT`, on FreeDOS or MS-DOS, from the next game opened. KEYB loads into
+upper memory when there is some, and costs no conventional memory then.
+
+`keyboard` under `[dos]` sets a layout for one game, over your setting. The layouts are the ones both DOSes support with
+the VGA's own character set, which has the letters and accents of these languages, such as ñ, ç, ü or å.
+
+Games that read the keyboard directly, as most action games do, use the keys' positions and aren't affected. The
+layout matters at the DOS prompt and in games that read typed text.
+
+The FreeDOS disk, `FreeDOS.hdd`, is yours and Geardox doesn't change it. Add a line such as
+`KEYB SP,437,C:\FREEDOS\BIN\KEYBOARD.SYS`, with your layout's code, to its `FDAUTO.BAT` once.
 
 ### Memory Modes
 

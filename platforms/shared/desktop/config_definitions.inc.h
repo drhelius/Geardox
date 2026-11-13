@@ -347,6 +347,7 @@ static inline void process(config_Operation operation)
         GDOX_JOYSTICK_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Input", "MouseSensitivity", config_emulator.mouse_sensitivity, 5, 1, 15);
     CONFIG_BOOL("Input", "CaptureKeyboard", config_emulator.capture_keyboard, true);
+    CONFIG_STRING("Input", "KeyboardLayout", config_input.keyboard_layout, "us");
 
     // Gamepad
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)

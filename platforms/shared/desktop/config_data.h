@@ -179,6 +179,7 @@ struct config_Rewind
 struct config_Input
 {
     int joystick_type;
+    std::string keyboard_layout;
 };
 
 struct config_Input_Gamepad

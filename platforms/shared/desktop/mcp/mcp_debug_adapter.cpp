@@ -4763,7 +4763,7 @@ json DebugAdapter::GetGameInfo()
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
         { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" },
         { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
-        { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" },
+        { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
         { "drives", "hdd_primary_slave" }, { "drives", "hdd_secondary_slave" }, { "drives", "cdrom" }, { "run", "exe" },
         { "run", "args" }, { "run", "cwd" }, { "run", "setup" }, { "run", "on_exit" }, { "run", "boot" } };
@@ -4805,6 +4805,7 @@ json DebugAdapter::GetGameInfo()
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
                 json(k_joysticks[emu_game_get_joystick()].id) : json()}}},
         {"target", k_targets[emu_game_get_target()]},
+        {"keyboard_layout", disk->GetKeyboardLayout()},
         {"system", {{"name", disk->GetSystemName()}, {"id", disk->GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos"},
             {"layer", overrides.Has("dos", "system") ? "override" : descriptor.Has("dos", "system") ? "descriptor" :
                 disk->HasMSDOS() ? "imported" : "default"}, {"msdos_imported", disk->HasMSDOS()}}},

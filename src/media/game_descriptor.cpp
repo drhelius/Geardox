@@ -40,7 +40,8 @@ enum Descriptor_Key_Type
     DESCRIPTOR_CD_SPEED,
     DESCRIPTOR_FRAME,
     DESCRIPTOR_DOS_VERSION,
-    DESCRIPTOR_DOS_DIR
+    DESCRIPTOR_DOS_DIR,
+    DESCRIPTOR_KEYBOARD
 };
 
 struct Descriptor_Key
@@ -84,6 +85,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "dos", "system", DESCRIPTOR_CHOICE, "freedos,msdos", 0, 0 },
     { "dos", "system_files", DESCRIPTOR_CHOICE, "visible,hidden", 0, 0 },
     { "dos", "cache", DESCRIPTOR_CHOICE, "off,on", 0, 0 },
+    { "dos", "keyboard", DESCRIPTOR_KEYBOARD, NULL, 0, 0 },
     { "drives", "floppy_a", DESCRIPTOR_LIST, NULL, 0, 0 },
     { "drives", "floppy_b", DESCRIPTOR_LIST, NULL, 0, 0 },
     { "drives", "hdd_primary_slave", DESCRIPTOR_PATH, NULL, 0, 0 },
@@ -369,6 +371,14 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
             for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
             {
                 if (text == k_joysticks[i].id)
+                    return true;
+            }
+
+            return false;
+        case DESCRIPTOR_KEYBOARD:
+            for (int i = 0; i < k_keyboard_layout_count; i++)
+            {
+                if (text == k_keyboard_layouts[i].id)
                     return true;
             }
 
@@ -911,6 +921,7 @@ void GameDescriptor::Build()
     info.system = Has("dos", "system") ? choice_index("freedos,msdos", Get("dos", "system")) : -1;
     info.system_hidden = Get("dos", "system_files") == "hidden";
     info.cache = Get("dos", "cache") == "on";
+    info.keyboard = Get("dos", "keyboard");
     info.source = Get("game", "source");
     std::string folder = Get("game", "folder");
     info.folder = folder.size() > 3 ? folder.substr(3) : std::string();

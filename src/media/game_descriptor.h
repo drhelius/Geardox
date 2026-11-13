@@ -57,6 +57,34 @@ enum GDOX_Game_Target
     GDOX_GAME_TARGET_COUNT
 };
 
+struct GDOX_Keyboard_Layout
+{
+    const char* name;
+    const char* id;
+};
+
+// The layouts KEYB finds in KEYBOARD.SYS for code page 437, the VGA's own, on MS-DOS 6.22 (its HELP KEYB) and on
+// FreeDOS (KEYB's LAYOUTS.TXT): the ones a game's DOS can use without switching code pages
+const GDOX_Keyboard_Layout k_keyboard_layouts[] =
+{
+    { "United States", "us" },
+    { "Belgium", "be" },
+    { "Brazil", "br" },
+    { "Finland", "su" },
+    { "France", "fr" },
+    { "Germany", "gr" },
+    { "Italy", "it" },
+    { "Latin America", "la" },
+    { "Netherlands", "nl" },
+    { "Spain", "sp" },
+    { "Sweden", "sv" },
+    { "Switzerland (French)", "sf" },
+    { "Switzerland (German)", "sg" },
+    { "United Kingdom", "uk" }
+};
+
+const int k_keyboard_layout_count = (int)(sizeof(k_keyboard_layouts) / sizeof(k_keyboard_layouts[0]));
+
 struct GDOX_Game_Env
 {
     std::string name;
@@ -76,6 +104,7 @@ struct GDOX_Game_Info
     int system;
     bool system_hidden;
     bool cache;
+    std::string keyboard;
     std::string source;
     std::string folder;
     int free_mb;

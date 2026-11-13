@@ -152,6 +152,7 @@ static bool game_active = false;
 static bool game_descriptors = true;
 static bool game_write_folder = false;
 static bool game_freedos_only = false;
+static char game_keyboard_layout[8] = "us";
 static int game_target = GDOX_GAME_TARGET_GAME;
 static bool game_options_hidden = false;
 static bool cmos_shared = true;
@@ -1704,6 +1705,12 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         game_freedos_only = strcmp(var.value, "freedos") == 0;
 
+    var.key = "geardox_keyboard_layout";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        snprintf(game_keyboard_layout, sizeof(game_keyboard_layout), "%s", var.value);
+
     var.key = "geardox_freedos";
     var.value = NULL;
 
@@ -2957,6 +2964,8 @@ static bool game_open(const char* path, bool* game)
 
     if (game_freedos_only)
         game_disk.SetSystem(GDOX_GAME_SYSTEM_FREEDOS);
+
+    game_disk.SetKeyboardLayout(game_keyboard_layout);
 
     for (int i = 0; i < game_disk.GetDescriptor().GetWarningCount(); i++)
         log_cb(RETRO_LOG_WARN, "%s\n", game_disk.GetDescriptor().GetWarning(i));

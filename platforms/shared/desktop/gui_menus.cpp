@@ -94,6 +94,7 @@ static void get_machine_summary(const GDOX_Machine_Config& config, char* text, s
 static float get_combo_width(float text_width);
 static void menu_video(void);
 static void menu_input(void);
+static void menu_input_keyboard_layout(void);
 static void menu_audio(void);
 static void menu_audio_source_mute(const char* label, int source);
 static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
@@ -1774,6 +1775,29 @@ static void draw_background_color_menu(const char* label, int theme)
     }
 }
 
+// docs/27 §18: Geardox sends the keys' positions, and DOS needs KEYB to read them as the user's layout
+static void menu_input_keyboard_layout(void)
+{
+    if (!ImGui::BeginMenu("DOS Layout"))
+    {
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The layout of your keyboard, for DOS in games: Geardox loads KEYB with it.\nFrom the next game opened. A game's .gdox can set its own with keyboard = under [dos].");
+
+        return;
+    }
+
+    for (int i = 0; i < k_keyboard_layout_count; i++)
+    {
+        if (ImGui::MenuItem(k_keyboard_layouts[i].name, NULL, config_input.keyboard_layout == k_keyboard_layouts[i].id))
+            config_input.keyboard_layout = k_keyboard_layouts[i].id;
+
+        if (i == 0)
+            ImGui::Separator();
+    }
+
+    ImGui::EndMenu();
+}
+
 static void menu_input(void)
 {
     if (ImGui::BeginMenu("Input"))
@@ -1814,6 +1838,9 @@ static void menu_input(void)
                     ImGui::EndTooltip();
                 }
             }
+
+            ImGui::Separator();
+            menu_input_keyboard_layout();
 
             ImGui::EndMenu();
         }

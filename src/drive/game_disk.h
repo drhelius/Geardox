@@ -91,6 +91,8 @@ public:
         GDOX_Machine_Settings* game, int system);
     int GetSystem() const;
     void SetSystem(int system);
+    void SetKeyboardLayout(const char* layout);
+    const char* GetKeyboardLayout() const;
     bool HasMSDOS() const;
     const char* GetSystemName() const;
     bool Prepare(const GDOX_Machine_Config& machine);
@@ -159,6 +161,7 @@ private:
     std::string m_lock;
     std::string m_media_directory;
     std::string m_msdos_path;
+    std::string m_keyboard;
     DosImport_System m_msdos;
     bool m_msdos_loaded;
     bool m_write_overlay;

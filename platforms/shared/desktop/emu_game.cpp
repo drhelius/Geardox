@@ -89,6 +89,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
         return false;
     }
 
+    disk.SetKeyboardLayout(config_input.keyboard_layout.c_str());
     current_found = found;
     target = CLAMP(game_target, 0, GDOX_GAME_TARGET_COUNT - 1);
     saved_boot_device = emu_get_core()->GetBootDevice();
