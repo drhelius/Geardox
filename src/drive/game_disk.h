@@ -24,6 +24,7 @@
 #include <vector>
 #include "../common/common.h"
 #include "../media/game_descriptor.h"
+#include "dos_import.h"
 #include "fat_image.h"
 
 struct GameDisk_Found
@@ -41,7 +42,16 @@ struct GameDisk_Result
     u32 directories;
     u32 conflicts;
     u32 kept;
+    u32 startup;
     std::vector<std::string> notes;
+};
+
+struct GameDisk_Manifest_System
+{
+    u8 system;
+    std::vector<std::string> reserved;
+    std::string config_sys;
+    std::string autoexec;
 };
 
 struct GameDisk_Manifest_Entry
@@ -68,7 +78,8 @@ public:
     ~GameDisk();
     static bool Find(const char* path, std::vector<GameDisk_Found>* found);
     static bool IsGameContent(const char* path);
-    bool Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory, bool write_to_folder);
+    bool Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory, bool write_to_folder,
+        const char* msdos_path);
     void Close();
     bool IsOpen() const;
     bool SaveOverrides(const GameDescriptor& overrides);
@@ -77,7 +88,11 @@ public:
     const GameDescriptor& GetOverrides() const;
     void GetGameSettings(const GDOX_Machine_Settings& user, GDOX_Machine_Settings* game) const;
     static void GetGameSettings(const GameDescriptor& descriptor, const GDOX_Machine_Settings& user,
-        GDOX_Machine_Settings* game);
+        GDOX_Machine_Settings* game, int system);
+    int GetSystem() const;
+    void SetSystem(int system);
+    bool HasMSDOS() const;
+    const char* GetSystemName() const;
     bool Prepare(const GDOX_Machine_Config& machine);
     bool Finish();
     bool RetryFinish();
@@ -104,14 +119,19 @@ public:
 
 private:
     bool Fail(const char* format, ...);
+    bool IsSystemPath(const std::string& dos_path) const;
+    bool HasCDExtension() const;
+    bool LoadSystem();
     bool IsGamePath(const std::string& dos_path) const;
-    bool Assemble(FatImage* image, const GDOX_Machine_Config& machine);
+    bool Assemble(FatImage* image, const GDOX_Machine_Config& machine, GameDisk_Manifest_System* system);
     bool ResolveMedia(const std::string& value, std::string* path);
     bool ExtractFromZip(const std::string& inner, std::string* path);
-    bool LoadManifest(std::vector<GameDisk_Manifest_Entry>* entries, bool* open, u32* fingerprint, u8* mode) const;
+    bool LoadManifest(std::vector<GameDisk_Manifest_Entry>* entries, bool* open, u32* fingerprint, u8* mode,
+        GameDisk_Manifest_System* system = NULL) const;
     bool SaveManifest(const std::vector<GameDisk_Manifest_Entry>& entries, bool open, u32 fingerprint);
     bool SetManifestOpen(bool open);
     bool WriteBack(GameDisk_Result* result);
+    void NoteStartupFile(FatImage* image, const FatImage_File* file, const GameDisk_Manifest_Entry& entry, GameDisk_Result* result);
     bool TakeLock();
     void ReleaseLock();
     void ListBuilt(FatImage* image, std::vector<GameDisk_Manifest_Entry>* entries);
@@ -138,6 +158,9 @@ private:
     std::string m_manifest;
     std::string m_lock;
     std::string m_media_directory;
+    std::string m_msdos_path;
+    DosImport_System m_msdos;
+    bool m_msdos_loaded;
     bool m_write_overlay;
     bool m_folder_read_only;
     bool m_built;
@@ -151,6 +174,7 @@ private:
     std::vector<std::string> m_cdroms;
     std::string m_hard_disks[GDOX_MAX_HARD_DISKS];
     std::vector<std::string> m_deleted;
+    GameDisk_Manifest_System m_system;
     GameDisk_Result m_last;
     std::string m_error;
 };

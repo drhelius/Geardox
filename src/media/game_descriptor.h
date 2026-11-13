@@ -42,6 +42,13 @@ enum GDOX_Game_Exit
     GDOX_GAME_EXIT_POWEROFF
 };
 
+enum GDOX_Game_System
+{
+    GDOX_GAME_SYSTEM_FREEDOS = 0,
+    GDOX_GAME_SYSTEM_MSDOS,
+    GDOX_GAME_SYSTEM_COUNT
+};
+
 enum GDOX_Game_Target
 {
     GDOX_GAME_TARGET_GAME = 0,
@@ -66,7 +73,9 @@ struct GDOX_Game_Info
     int files;
     int buffers;
     std::string dos_version;
-    bool freedos_hidden;
+    int system;
+    bool system_hidden;
+    bool cache;
     std::string source;
     std::string folder;
     int free_mb;
@@ -109,7 +118,7 @@ public:
     const GDOX_Game_Info& GetInfo() const;
     static bool IsDescriptor(const char* path);
     static const char* GetHardDiskKey(int id);
-    static int GetEMSRAM(int ems_kb, int model, bool cirrus);
+    static int GetEMSRAM(int ems_kb, int model, bool cirrus, int system);
 
 private:
     bool ParseLine(const std::string& section, const std::string& line, int number);

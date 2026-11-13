@@ -2,7 +2,8 @@
 
 Geardox is an early-90s PC in a window: a 386 or 486 with a Sound Blaster, VGA or SVGA graphics, floppy drives,
 hard disks and a CD-ROM drive. A real PC needs DOS to run games, so Geardox comes with **FreeDOS built in**. You never
-have to install DOS yourself.
+have to install DOS yourself. If you own MS-DOS, games can run on it instead: see
+[Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos).
 
 - [Play a game](#play-a-game)
 - [Starting with nothing attached](#starting-with-nothing-attached)
@@ -141,8 +142,8 @@ The game stays on the FreeDOS disk, so it's there the next time you open Geardox
 
 ## While a Game Is Open
 
-The game takes over the PC. It has its own C: with its own copy of FreeDOS, so `FreeDOS.hdd` isn't used, and anything
-you installed there isn't available. Your other hard disks are removed, and they don't come back on their own when the
+The game takes over the PC. It has its own C: with its own copy of DOS, FreeDOS or your imported MS-DOS, so
+`FreeDOS.hdd` isn't used, and anything you installed there isn't available. Your other hard disks are removed, and they don't come back on their own when the
 game ends. Once no disk is attached, the next power on brings the FreeDOS disk back.
 
 The game's `.gdox` can bring its own floppies, extra hard disks and CD. If your CD-ROM drive is set to a position the
@@ -151,7 +152,8 @@ game's hard disks use, it moves to the Secondary Master while the game is open.
 **Game > Close** followed by the game's name turns the PC off and saves what the game changed. Opening another game,
 or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
 
-**Emulator > Machine** changes made while a game is open are remembered for that game only.
+**Emulator > Machine** changes made while a game is open are remembered for that game only. So is the DOS chosen in
+**Game > DOS**, where **Import MS-DOS...** and **Remove MS-DOS** also are.
 
 ## Machine Settings
 
@@ -205,6 +207,7 @@ next to it. On macOS, it goes next to the `.app`.
 In this folder:
 
 - `FreeDOS.hdd` is the FreeDOS disk.
+- `msdos.zip` is your imported MS-DOS, when you've imported it.
 - `<name>.<id>.geardox.hdd` files are the disks made from folders and ZIPs.
 - `config.ini` holds your settings.
 

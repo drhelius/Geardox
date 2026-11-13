@@ -81,7 +81,9 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "dos", "files", DESCRIPTOR_NUMBER, NULL, 8, 255 },
     { "dos", "buffers", DESCRIPTOR_NUMBER, NULL, 1, 99 },
     { "dos", "version", DESCRIPTOR_DOS_VERSION, NULL, 0, 0 },
-    { "dos", "freedos", DESCRIPTOR_CHOICE, "visible,hidden", 0, 0 },
+    { "dos", "system", DESCRIPTOR_CHOICE, "freedos,msdos", 0, 0 },
+    { "dos", "system_files", DESCRIPTOR_CHOICE, "visible,hidden", 0, 0 },
+    { "dos", "cache", DESCRIPTOR_CHOICE, "off,on", 0, 0 },
     { "drives", "floppy_a", DESCRIPTOR_LIST, NULL, 0, 0 },
     { "drives", "floppy_b", DESCRIPTOR_LIST, NULL, 0, 0 },
     { "drives", "hdd_primary_slave", DESCRIPTOR_PATH, NULL, 0, 0 },
@@ -253,7 +255,8 @@ static bool check_dos_dir(const std::string& value, std::string* normalized)
                 return false;
         }
 
-        if (result.empty() && ((part == "FREEDOS") || (part == "TEMP")))
+        // The folders either DOS keeps in the root of a game's disk, so a descriptor works on both (docs/27 §6.1)
+        if (result.empty() && ((part == "FREEDOS") || (part == "TEMP") || (part == "DOS") || (part == "GEARDOX")))
             return false;
 
         result += (result.empty() ? "" : "\\") + part;
@@ -835,10 +838,11 @@ const char* GameDescriptor::GetHardDiskKey(int id)
 }
 
 // JEMM makes EMS from extended memory, less the HMA, its DMA buffer, the UMBs and itself (JEMM Readme.txt §3), and
-// R14's hole takes 15-16 MB with a Cirrus card. The smallest size of the model that leaves the game its EMS
-int GameDescriptor::GetEMSRAM(int ems_kb, int model, bool cirrus)
+// R14's hole takes 15-16 MB with a Cirrus card. MS-DOS's EMM386 leaves 1472K to 1488K less EMS free than RAM, measured
+// with MEM (docs/27 §6.3). The smallest size of the model that leaves the game its EMS
+int GameDescriptor::GetEMSRAM(int ems_kb, int model, bool cirrus, int system)
 {
-    static const int k_reserved_kb = 1024 + 512;
+    int reserved_kb = system == GDOX_GAME_SYSTEM_MSDOS ? 1488 : 1024 + 512;
     const u8* sizes = k_machine_profiles[(model >= 0) && (model < GDOX_MACHINE_COUNT) ? model : k_machine_default_model].ram_sizes_mb;
     int size = 0;
 
@@ -846,7 +850,7 @@ int GameDescriptor::GetEMSRAM(int ems_kb, int model, bool cirrus)
     {
         int hole = (cirrus && (sizes[size] >= 16)) ? 1024 : 0;
 
-        if ((sizes[size] * 1024) - hole - k_reserved_kb >= ems_kb)
+        if ((sizes[size] * 1024) - hole - reserved_kb >= ems_kb)
             break;
 
         size++;
@@ -904,7 +908,9 @@ void GameDescriptor::Build()
     info.files = parse_number(Get("dos", "files"), &number) ? number : 40;
     info.buffers = parse_number(Get("dos", "buffers"), &number) ? number : 20;
     info.dos_version = Get("dos", "version");
-    info.freedos_hidden = Get("dos", "freedos") == "hidden";
+    info.system = Has("dos", "system") ? choice_index("freedos,msdos", Get("dos", "system")) : -1;
+    info.system_hidden = Get("dos", "system_files") == "hidden";
+    info.cache = Get("dos", "cache") == "on";
     info.source = Get("game", "source");
     std::string folder = Get("game", "folder");
     info.folder = folder.size() > 3 ? folder.substr(3) : std::string();

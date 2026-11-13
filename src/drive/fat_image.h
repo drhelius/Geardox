@@ -122,9 +122,11 @@ public:
     static void Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report);
     bool AddGame(const char* source, const char* dir = NULL);
     bool AddOverlay(const char* path);
-    bool AddFreeDOS(bool hidden);
+    bool AddFreeDOS(bool hidden, const std::vector<std::string>& reserved);
+    bool AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
+        const std::vector<std::string>& pinned, bool shsucdx);
     bool AddMemoryFile(const char* path, const std::string& data, u8 attributes);
-    void FinishGame(const char* label, u64 free_size);
+    void FinishGame(const char* label, u64 free_size, const u8* boot_sector);
     const FatImage_Entry& GetEntry(u32 index) const;
     void ListEntries(std::vector<FatImage_Listed>* listed) const;
     bool Read(const char* path);
@@ -132,6 +134,7 @@ public:
     const std::vector<FatImage_File>& GetFiles() const;
     const char* GetReadError() const;
     bool GetFileCRC(const FatImage_File& file, u32* crc);
+    bool GetFileData(const FatImage_File& file, std::string* data, u32* crc);
     bool CopyOut(const FatImage_File& file, const char* path, u32* crc = NULL);
 
 private:
@@ -142,12 +145,15 @@ private:
     int FindChild(u32 directory, const std::string& name) const;
     void RemoveChild(u32 directory, u32 index);
     bool WalkOverlay(const std::string& path, u32 directory, int depth);
+    void LeaveOutReserved(const std::vector<std::string>& reserved);
+    bool AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directory, const char* target);
+    void PinEntries();
     void ApplyDeleted(const std::string& list);
     void ListDirectory(u32 directory, const std::string& dos_path, const std::string& host_path,
         std::vector<FatImage_Listed>* listed) const;
     bool ReadDirectory(u32 cluster, const std::string& path, int depth, std::vector<u8>* used);
     bool ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* used);
-    bool ReadFileData(const FatImage_File& file, MediaFile* output, u32* crc);
+    bool ReadFileData(const FatImage_File& file, MediaFile* output, std::string* data, u32* crc);
     void Finish();
     void AssignNames(u32 directory);
     void LimitPaths(u32 directory, const std::string& path);
@@ -172,6 +178,10 @@ private:
     FatImage_Layout m_layout;
     mz_zip_archive m_zip;
     bool m_zip_open;
+    mz_zip_archive m_system_zip;
+    bool m_system_zip_open;
+    std::vector<std::string> m_pinned;
+    u32 m_pinned_count;
     MediaFile* m_zip_file;
     MediaFile* m_output;
     u64 m_zip_offset;

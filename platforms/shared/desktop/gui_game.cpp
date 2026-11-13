@@ -46,6 +46,8 @@ static bool open_write_back = false;
 static bool start(const GameDisk_Found& found);
 static void menu_boot(bool enabled);
 static void menu_files(bool open);
+static void menu_dos(bool open, bool loading);
+static void set_system(int system);
 static void menu_options(void);
 static void show_folder(const char* path);
 static bool is_folder(const char* path);
@@ -92,6 +94,7 @@ void gui_game_menu(void)
     ImGui::Separator();
     menu_boot(open && !loading);
     menu_files(open);
+    menu_dos(open, loading);
 
     if (ImGui::MenuItem("Last Save Report...", NULL, false, emu_game_get_last_write_back().done ||
         emu_game_get_last_write_back().refused))
@@ -195,6 +198,84 @@ static void menu_files(bool open)
         ImGui::SetTooltip("While a game is open, Machine menu changes are kept for that game only.\nThis forgets them.");
 
     ImGui::EndMenu();
+}
+
+// docs/27 §9: the open game's DOS, and the user's own MS-DOS imported once for every game
+static void menu_dos(bool open, bool loading)
+{
+    if (!ImGui::BeginMenu("DOS"))
+    {
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The DOS games boot: FreeDOS, built in, or your own MS-DOS once imported.");
+
+        return;
+    }
+
+    const char* msdos = emu_game_get_msdos_name();
+    bool imported = msdos[0] != 0;
+    int system = open ? emu_game_get_system() : (imported ? GDOX_GAME_SYSTEM_MSDOS : GDOX_GAME_SYSTEM_FREEDOS);
+
+    if (ImGui::MenuItem(imported ? msdos : "MS-DOS", NULL, system == GDOX_GAME_SYSTEM_MSDOS, open && imported && !loading))
+        set_system(GDOX_GAME_SYSTEM_MSDOS);
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", !imported ? "Import your own MS-DOS first." : open ?
+            "This game boots your MS-DOS. A change closes the game, saving its changes, and opens it again." :
+            "With a game open, the DOS it boots.");
+
+    if (ImGui::MenuItem("FreeDOS", NULL, system == GDOX_GAME_SYSTEM_FREEDOS, open && !loading))
+        set_system(GDOX_GAME_SYSTEM_FREEDOS);
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", open ? "This game boots FreeDOS. A change closes the game, saving its changes, and opens it again." :
+            "With a game open, the DOS it boots.");
+
+    ImGui::Separator();
+
+    if (ImGui::MenuItem("Import MS-DOS...", NULL, false, !loading))
+        gui_file_dialog_import_msdos();
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Your own MS-DOS Setup disks: one of the disk images, or a ZIP with them.\nGeardox keeps its own "
+            "copy and boots it in every game that doesn't ask for FreeDOS.\nMS-DOS 6.0 to 6.22, in any language.");
+
+    if (ImGui::MenuItem("Remove MS-DOS", NULL, false, imported && !loading))
+    {
+        if (emu_game_remove_msdos())
+            gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "MS-DOS removed",
+                "Games boot FreeDOS from the next one opened. Your disks aren't touched.");
+        else
+            gui_notify(gui_NotificationError, NULL, "Unable to remove MS-DOS", emu_game_get_msdos_path().c_str());
+    }
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Games go back to FreeDOS. Your disks aren't touched.");
+
+    ImGui::EndMenu();
+}
+
+static void set_system(int system)
+{
+    GameDisk_Found found;
+
+    if ((system == emu_game_get_system()) || !emu_game_get_found(&found))
+        return;
+
+    next_target = emu_game_get_target();
+
+    if (emu_game_set_system(system))
+        start(found);
+}
+
+void gui_game_dialog_import_msdos(const char* path)
+{
+    std::string message;
+
+    if (emu_game_import_msdos(path, &message))
+        gui_notify(gui_NotificationSuccess, ICON_MD_VIDEOGAME_ASSET, (message + " imported").c_str(),
+            "Games boot it from the next one opened, unless they ask for FreeDOS.");
+    else
+        gui_notify(gui_NotificationError, NULL, "MS-DOS not imported", message.c_str());
 }
 
 static void menu_options(void)

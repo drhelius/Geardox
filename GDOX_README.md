@@ -1,8 +1,8 @@
 # Running DOS Games with GDOX Files
 
 A **game descriptor** (`.gdox`) is a text file that records a game's location, startup command and settings.
-Opening it in Geardox prepares an emulated hard disk with the game and the included FreeDOS operating system,
-then launches the game.
+Opening it in Geardox prepares an emulated hard disk with the game and DOS, then launches the game. The DOS is the
+included FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 
 - [Start with a game folder](#start-with-a-game-folder)
 - [Create a GDOX file by hand](#create-a-gdox-file-by-hand)
@@ -10,6 +10,7 @@ then launches the game.
 - [Run setup or use the DOS prompt](#run-setup-or-use-the-dos-prompt)
 - [Find your saves](#find-your-saves)
 - [Adjust a game's settings](#adjust-a-games-settings)
+- [Use your own MS-DOS](#use-your-own-ms-dos)
 - [Troubleshooting](#troubleshooting)
 - [Settings reference](#settings-reference)
 
@@ -264,6 +265,43 @@ When `ems_kb` is specified and `ram_mb` is omitted, Geardox can increase the emu
 requirement.
 The advanced `memory` and `ems_frame` settings control the DOS memory manager; see [Memory modes](#memory-modes).
 
+## Use Your Own MS-DOS
+
+Geardox includes FreeDOS and needs nothing else. If you own MS-DOS, games can run on it instead. Geardox doesn't
+include MS-DOS: you import your own Setup disks once.
+
+1. Choose **Game > DOS > Import MS-DOS...**.
+2. Select one of the Setup disk images, or a ZIP containing them. When you select an image, Geardox reads every
+   image in its folder.
+
+Geardox expands the files as MS-DOS Setup does and keeps its own copy, `msdos.zip`, in its settings folder. Your
+disk images are never changed. Any floppy image format Geardox can open works, and the disks can be in any order.
+
+From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. The game's C: drive
+then has MS-DOS's files instead of FreeDOS's, and the same `CONFIG.SYS` and `AUTOEXEC.BAT`, generated from the
+descriptor (see [Files on the DOS C: drive](#files-on-the-dos-c-drive)). Saves are unaffected: they stay in the game's
+folder or save location whichever DOS runs.
+
+- **One game on FreeDOS:** while the game is open, choose **Game > DOS > FreeDOS**. Geardox closes the game, saving
+  its changes, and opens it again on FreeDOS. The choice is kept for that game, and **Forget Machine Changes**
+  clears it. **Game > DOS** and your MS-DOS's name, such as **MS-DOS 6.22**, switches it back.
+- **In a descriptor:** `system = freedos` or `system = msdos` under `[dos]`. A game that asks for MS-DOS doesn't
+  start until MS-DOS is imported.
+- **Removing it:** **Game > DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
+  opened.
+
+**MS-DOS 6.0, 6.2, 6.21 and 6.22** can be imported, in any language. Geardox installs exactly the files the Setup
+disks' `PACKING.LST` lists, as MS-DOS Setup does, and leaves out supplemental disks, which Setup never installs. The
+name shown, such as "MS-DOS 6.22", comes from your copy's own `COMMAND.COM`. A disk or file that's missing, a disk
+that can't be read, or a compressed file that doesn't expand is reported with the disk it should be on. A damaged byte
+inside a compressed file can't be detected, because MS-DOS's compression has no checksum. MS-DOS 5.0 and older use
+an older format that Geardox can't import yet.
+
+In RetroArch, put the Setup disk images, or a ZIP of them, in `geardox/msdos` inside RetroArch's system folder.
+Geardox imports them the next time a game loads, and again whenever they change. Removing them goes back to FreeDOS.
+The **Game DOS (restart)** core option set to **FreeDOS** runs games on FreeDOS without removing anything, and
+RetroArch's per-game options make that choice for one game.
+
 ## Troubleshooting
 
 | Problem | What to check |
@@ -279,6 +317,9 @@ The advanced `memory` and `ems_frame` settings control the DOS memory manager; s
 | "Please insert the CD" | Check `cdrom` under `[drives]` and the CD drive letter expected by the game's setup. |
 | Descriptor changes seem to be ignored | Use **Game > Game Files > Forget Machine Changes** and restart the game. |
 | Saves are not in the game's folder | Check **Game > Game Files > Show Saves Folder**. ZIPs, read-only folders and RetroArch use a separate save location by default. |
+| "This game needs MS-DOS, and none has been imported" | The descriptor has `system = msdos` under `[dos]`. Import your MS-DOS, see [Use your own MS-DOS](#use-your-own-ms-dos), or remove the line to use FreeDOS. |
+| A game works on FreeDOS but not on MS-DOS, or the other way round | Choose the other one with **Game > DOS** while the game is open. The two DOSes leave different amounts of memory, see [Memory modes](#memory-modes). |
+| After closing, a message says the game changed `AUTOEXEC.BAT` or `CONFIG.SYS` | The game's installer edited them. Geardox writes both again at every launch, so the message lists the lines it added. Copy the ones the game needs into `[autoexec]` or `[config_sys]`. |
 
 ## Other Ways to Open a Game
 
@@ -292,7 +333,8 @@ geardox --target prompt "Master of Orion.gdox"
 
 In RetroArch, load the `.gdox` file or a ZIP containing one at its top level. Use **Game Runs (restart)** to choose
 the game, setup or DOS prompt, then restart the content. Machine options controlled by the descriptor are hidden
-while the game runs. **Game Descriptors (restart): Disabled** turns descriptor handling off.
+while the game runs. **Game Descriptors (restart): Disabled** turns descriptor handling off. **Game DOS (restart)**
+chooses between your own MS-DOS, when imported, and FreeDOS.
 
 A folder or ZIP can contain several descriptors at its top level, for example for different episodes of a game.
 The desktop asks which one to use; RetroArch selects the first in name order. A folder or ZIP without a descriptor
@@ -423,8 +465,10 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `ems_frame` | No | The address of the EMS page frame | `auto`, `none`, or a hexadecimal segment from `C000` to `E000` in steps of `0400` | `auto` | `ems_frame = D000` |
 | `files` | No | DOS `FILES=`: how many files can be open at once | `8` to `255` | `40` | `files = 60` |
 | `buffers` | No | DOS `BUFFERS=`: the number of disk buffers | `1` to `99` | `20` | `buffers = 30` |
-| `version` | No | The DOS version reported to programs, for games that check it | `x.yy` | FreeDOS' own | `version = 5.00` |
-| `freedos` | No | Whether FreeDOS' files in the root of C: appear in `DIR` | `visible`, `hidden` | `visible` | `freedos = hidden` |
+| `system` | No | The DOS the game runs on; see [Use your own MS-DOS](#use-your-own-ms-dos) | `freedos`, `msdos` | MS-DOS when imported, FreeDOS otherwise | `system = freedos` |
+| `version` | No | The DOS version FreeDOS reports to programs, for games that check it. Ignored on MS-DOS, which has only `SETVER` | `x.yy` | The DOS's own | `version = 5.00` |
+| `system_files` | No | Whether the DOS's files in the root of C: appear in `DIR` | `visible`, `hidden` | `visible` | `system_files = hidden` |
+| `cache` | No | Loads the DOS's disk cache: SMARTDRV on MS-DOS, LBACACHE on FreeDOS. It caches reads only, so a save is never held back, and uses 1 to 2 MB of extended memory. Not loaded with `memory = none` | `off`, `on` | `off` | `cache = on` |
 
 ### `[env]`
 
@@ -442,52 +486,79 @@ These advanced sections hold DOS startup lines instead of `key = value` settings
 
 | Section | Required | Contents | Where the lines go | Example |
 | --- | --- | --- | --- | --- |
-| `[config_sys]` | No | `CONFIG.SYS` lines | FreeDOS' `FDCONFIG.SYS`, before its `SHELL=` line | `STACKS=9,128` |
-| `[autoexec]` | No | DOS commands | FreeDOS' `FDAUTO.BAT`, run in the game's folder before the game starts | `LH MYDRIVER.COM` |
+| `[config_sys]` | No | `CONFIG.SYS` lines | `C:\CONFIG.SYS`, before its `SHELL=` line | `STACKS=9,128` |
+| `[autoexec]` | No | DOS commands | `C:\AUTOEXEC.BAT`, run in the game's folder before the game starts | `LH MYDRIVER.COM` |
 
 ## Advanced DOS Details
 
 ### Memory Modes
 
-`memory` in `[dos]` selects how FreeDOS makes memory available to games:
+`memory` in `[dos]` selects how DOS makes memory available to games. Each DOS uses its own memory managers:
 
-| Value | Use |
-| --- | --- |
-| `xms` | Default. Loads HIMEMX for extended memory (XMS), suitable for DOS/4GW and many other games. |
-| `ems` | Loads JEMMEX for expanded memory (EMS), XMS and upper memory. |
-| `umb` | Loads JEMMEX with EMS disabled, providing XMS and upper memory. |
-| `none` | Loads no memory manager. |
+| Value | Use | FreeDOS | MS-DOS |
+| --- | --- | --- | --- |
+| `xms` | Default. Extended memory (XMS), suitable for DOS/4GW and many other games. | HIMEMX | HIMEM |
+| `ems` | Expanded memory (EMS), XMS and upper memory. | JEMMEX | HIMEM and EMM386 `RAM` |
+| `umb` | XMS and upper memory, with EMS disabled. | JEMMEX `NOEMS` | HIMEM and EMM386 `NOEMS` |
+| `none` | No memory manager. | | |
 
 Upper memory lets DOS load drivers outside the conventional memory area used by many games. `umb` and `ems`
 use V86 mode and provide VCPI; if a game refuses V86 mode, try `xms` or `none`.
 
+Free conventional memory for a game, with the mouse and CD drivers loaded:
+
+| `memory` | FreeDOS | MS-DOS |
+| --- | --- | --- |
+| `none` | 498 KB | 567 KB |
+| `xms` | 606 KB | 585 KB |
+| `umb` | 620 KB | 615 KB |
+| `ems` | 620 KB | 615 KB |
+
 `ems_kb = N` is a request for enough memory, not a cap on the EMS DOS exposes. Available EMS is RAM minus about
-1.5 MB, with another 1 MB reserved when using at least 16 MB of RAM and a Cirrus card. An explicit `ram_mb` setting
-prevents automatic RAM selection, and an explicit `memory` setting takes precedence over the mode implied by
-`ems_kb`.
+1.5 MB on either DOS, with another 1 MB reserved when using at least 16 MB of RAM and a Cirrus card. On MS-DOS,
+extended memory stops below that 1 MB, so EMS doesn't grow past about 13.5 MB however much RAM there is. An explicit
+`ram_mb` setting prevents automatic RAM selection, and an explicit `memory` setting takes precedence over the mode
+implied by `ems_kb`.
 
 ### Files on the DOS C: Drive
 
-With `folder = C:\ORION`, the prepared drive contains:
+With `folder = C:\ORION`, the prepared drive contains, on FreeDOS:
 
 ```text
 C:\KERNEL.SYS     FreeDOS kernel
-C:\FDCONFIG.SYS   DOS configuration generated from the descriptor
-C:\FDAUTO.BAT     Startup commands generated from the descriptor
+C:\CONFIG.SYS     DOS configuration generated from the descriptor
+C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
 C:\FREEDOS\BIN    DOS commands, drivers and tools
 C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```
 
-`freedos = hidden` under `[dos]` hides the FreeDOS files and folders from a normal `DIR` listing. They remain
+and on MS-DOS:
+
+```text
+C:\IO.SYS         MS-DOS system files, hidden as MS-DOS Setup leaves them
+C:\MSDOS.SYS
+C:\COMMAND.COM    MS-DOS command interpreter
+C:\WINA20.386     As MS-DOS Setup installs it
+C:\CONFIG.SYS     DOS configuration generated from the descriptor
+C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
+C:\DOS            Everything MS-DOS Setup installs there
+C:\GEARDOX        Geardox's tools: the mouse and CD drivers, and the programs that start the game and power off
+C:\TEMP           Temporary files
+C:\ORION          Your game's files
+```
+
+`system_files = hidden` under `[dos]` hides these files and folders from a normal `DIR` listing. They remain
 available and can be seen with `DIR /A`.
 
-Geardox generates `FDCONFIG.SYS` and `FDAUTO.BAT` again when preparing the disk. To make lasting startup changes,
-use `[config_sys]` and `[autoexec]` in the descriptor. A game's own `CONFIG.SYS` and `AUTOEXEC.BAT` stay in its
-folder; they do not replace FreeDOS' startup files.
+Geardox writes `CONFIG.SYS` and `AUTOEXEC.BAT` again whenever it prepares the disk. If a game or its installer changes
+them, the change takes effect when the PC restarts during that session, and is gone the next time the game opens.
+Geardox then lists the lines the game added, so you can copy the ones it needs into `[config_sys]` and `[autoexec]`,
+which is how lasting startup changes are made.
 
-With `folder = C:\`, game files share the root of C: with FreeDOS. Game entries with names reserved for those FreeDOS
-files or folders are left out. Using a named game folder avoids that overlap.
+With `folder = C:\`, game files share the root of C: with DOS. Game entries named like DOS's own files or folders
+are left out, including a game's own `CONFIG.SYS` and `AUTOEXEC.BAT`. Using a named game folder avoids that overlap.
+A game folder can't be one of DOS's folders: `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`.
 
 For a game designed to boot directly from a floppy, set `floppy_a = disk.img` under `[drives]` and `boot = a` under
 `[run]`.

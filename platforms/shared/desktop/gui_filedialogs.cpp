@@ -54,6 +54,7 @@ enum FileDialogID
     FileDialog_OpenGame,
     FileDialog_SaveDescriptor,
     FileDialog_NewDescriptor,
+    FileDialog_ImportMSDOS,
     FileDialog_CreateHardDisk,
     FileDialog_ChooseScreenshotPath,
     FileDialog_ChooseVideoRecordingPath,
@@ -321,6 +322,17 @@ void gui_file_dialog_save_descriptor(void)
     show_save_file_dialog(FileDialog_SaveDescriptor, filters, 1);
 }
 
+void gui_file_dialog_import_msdos(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = {
+        { "Disk Images and ZIP Files", "img;ima;vfd;flp;dsk;xdf;d77;d88;hdm;mfm;zip" }
+    };
+    show_open_file_dialog(FileDialog_ImportMSDOS, filters, 1);
+}
+
 void gui_file_dialog_new_descriptor(void)
 {
     if (!begin_dialog())
@@ -446,6 +458,7 @@ static std::string* get_dialog_folder(FileDialogID id)
         case FileDialog_OpenFloppy:
         case FileDialog_SaveFloppy:
         case FileDialog_NewFloppy:
+        case FileDialog_ImportMSDOS:
             return &config_file_dialogs.floppies;
         case FileDialog_AttachHardDisk:
         case FileDialog_AttachFolder:
@@ -619,6 +632,9 @@ static void process_dialog_result(FileDialogID id, const char* path)
             break;
         case FileDialog_NewDescriptor:
             gui_game_dialog_new_descriptor(path);
+            break;
+        case FileDialog_ImportMSDOS:
+            gui_game_dialog_import_msdos(path);
             break;
         case FileDialog_SaveScreenshot:
             gui_action_save_screenshot(path);

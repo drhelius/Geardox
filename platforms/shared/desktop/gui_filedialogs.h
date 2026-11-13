@@ -40,6 +40,7 @@ EXTERN void gui_file_dialog_open_game(void);
 EXTERN void gui_file_dialog_open_game_folder(void);
 EXTERN void gui_file_dialog_save_descriptor(void);
 EXTERN void gui_file_dialog_new_descriptor(void);
+EXTERN void gui_file_dialog_import_msdos(void);
 EXTERN void gui_file_dialog_create_hard_disk(int id);
 EXTERN void gui_file_dialog_choose_screenshot_path(void);
 EXTERN void gui_file_dialog_choose_video_recording_path(void);

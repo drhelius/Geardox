@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <map>
 #include "game_disk.h"
+#include "freedos.h"
 #include "../media/media_file.h"
 #include "../system/machine_profiles.h"
 #if defined(_WIN32)
@@ -37,6 +38,18 @@ static const u8 k_game_disk_mode_folder = 0;
 static const u8 k_game_disk_mode_overlay = 1;
 static const char k_game_disk_deleted[] = ".deleted";
 static const char k_game_disk_conflicts[] = ".conflicts";
+static const char k_game_disk_config_sys[] = "CONFIG.SYS";
+static const char k_game_disk_autoexec[] = "AUTOEXEC.BAT";
+static const u32 k_game_disk_startup_lines = 8;
+
+// The names of C:'s root the system owns: a game's entry with one is left out, and DOS's writes there never go back
+static const char* const k_game_disk_freedos_reserved[] =
+{
+    "KERNEL.SYS", "FDCONFIG.SYS", "FREEDOS", "TEMP", "CONFIG.SYS", "AUTOEXEC.BAT"
+};
+
+// MS-DOS's root files come from its version's table, these follow them
+static const char* const k_game_disk_msdos_reserved[] = { "DOS", "GEARDOX", "TEMP", "CONFIG.SYS", "AUTOEXEC.BAT" };
 
 static std::string upper(const std::string& text)
 {
@@ -162,14 +175,6 @@ static s64 dos_to_host_time(u16 date, u16 time_value)
     local.tm_sec = (time_value & 0x1F) * 2;
     local.tm_isdst = -1;
     return (s64)mktime(&local);
-}
-
-// The boot files, the configuration, \FREEDOS and \TEMP are Geardox's: never written back
-static bool is_system_path(const std::string& dos_path)
-{
-    std::string path = upper(dos_path);
-    return (path == "KERNEL.SYS") || (path == "FDCONFIG.SYS") || (path == "FDAUTO.BAT") || (path == "FREEDOS") ||
-        (path.compare(0, 8, "FREEDOS\\") == 0) || (path == "TEMP") || (path.compare(0, 5, "TEMP\\") == 0);
 }
 
 static bool is_scratch_path(const std::string& dos_path)
@@ -374,6 +379,10 @@ GameDisk::GameDisk()
     m_recovered = false;
     m_locked = false;
     m_has_machine = false;
+    m_msdos_loaded = false;
+    m_msdos.cd_extension = false;
+    m_msdos.cache = false;
+    m_msdos.crc = 0;
     m_left_out = 0;
     memset(&m_machine, 0, sizeof(m_machine));
     m_last.done = false;
@@ -383,6 +392,8 @@ GameDisk::GameDisk()
     m_last.directories = 0;
     m_last.conflicts = 0;
     m_last.kept = 0;
+    m_last.startup = 0;
+    m_system.system = GDOX_GAME_SYSTEM_FREEDOS;
 }
 
 GameDisk::~GameDisk()
@@ -467,10 +478,11 @@ bool GameDisk::IsGameContent(const char* path)
 }
 
 bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory,
-    bool write_to_folder)
+    bool write_to_folder, const char* msdos_path)
 {
     Close();
     m_error.clear();
+    m_msdos_path = (IsValidPointer(msdos_path) && exists(msdos_path)) ? std::string(msdos_path) : std::string();
     m_descriptor_path = found.path;
     m_save_directory = IsValidPointer(save_directory) ? trim_trailing(save_directory) : std::string();
 
@@ -596,6 +608,10 @@ void GameDisk::Close()
     m_manifest.clear();
     m_lock.clear();
     m_overlay.clear();
+    m_msdos_path.clear();
+    m_msdos.zip.clear();
+    m_msdos.name.clear();
+    m_msdos_loaded = false;
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         m_hard_disks[i].clear();
@@ -657,11 +673,67 @@ const GameDescriptor& GameDisk::GetOverrides() const
 // none and the user's is too small
 void GameDisk::GetGameSettings(const GDOX_Machine_Settings& user, GDOX_Machine_Settings* game) const
 {
-    GetGameSettings(m_descriptor, user, game);
+    GetGameSettings(m_descriptor, user, game, GetSystem());
+}
+
+// §7.1 of docs/27: the game's own choice, then MS-DOS when the user imported it, then FreeDOS
+int GameDisk::GetSystem() const
+{
+    int system = m_descriptor.GetInfo().system;
+    return system >= 0 ? system : HasMSDOS() ? (int)GDOX_GAME_SYSTEM_MSDOS : (int)GDOX_GAME_SYSTEM_FREEDOS;
+}
+
+// A frontend's choice for this session over the descriptor's and the overrides', as libretro's core option is
+void GameDisk::SetSystem(int system)
+{
+    m_descriptor = m_base;
+    m_descriptor.Merge(m_overrides);
+
+    if ((system >= 0) && (system < GDOX_GAME_SYSTEM_COUNT))
+        m_descriptor.Set("dos", "system", system == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos");
+}
+
+bool GameDisk::HasMSDOS() const
+{
+    return !m_msdos_path.empty();
+}
+
+const char* GameDisk::GetSystemName() const
+{
+    if (GetSystem() != GDOX_GAME_SYSTEM_MSDOS)
+        return k_freedos_version;
+
+    return m_msdos_loaded ? m_msdos.name.c_str() : "MS-DOS";
+}
+
+bool GameDisk::HasCDExtension() const
+{
+    return !m_msdos_loaded || m_msdos.cd_extension;
+}
+
+// The user's import is read once a session, and refused whole if it doesn't add up
+bool GameDisk::LoadSystem()
+{
+    if (GetSystem() != GDOX_GAME_SYSTEM_MSDOS)
+        return true;
+
+    if (!HasMSDOS())
+        return Fail("This game needs MS-DOS, and none has been imported: import your own MS-DOS setup disks first");
+
+    if (m_msdos_loaded)
+        return true;
+
+    std::string error;
+
+    if (!DosImport::Load(m_msdos_path.c_str(), &m_msdos, &error))
+        return Fail("%s", error.c_str());
+
+    m_msdos_loaded = true;
+    return true;
 }
 
 void GameDisk::GetGameSettings(const GameDescriptor& descriptor, const GDOX_Machine_Settings& user,
-    GDOX_Machine_Settings* game)
+    GDOX_Machine_Settings* game, int system)
 {
     descriptor.GetMachineSettings(game);
     const GDOX_Game_Info& info = descriptor.GetInfo();
@@ -677,7 +749,7 @@ void GameDisk::GetGameSettings(const GameDescriptor& descriptor, const GDOX_Mach
     int model = game->model >= 0 ? game->model : user.model >= 0 ? user.model : (int)k_machine_default_model;
     int video = game->video_card >= 0 ? game->video_card : user.video_card;
     bool cirrus = (video < 0) || (video >= GDOX_VIDEO_CARD_COUNT) || k_video_cards[video].cirrus;
-    int needed = GameDescriptor::GetEMSRAM(info.ems_kb, model, cirrus);
+    int needed = GameDescriptor::GetEMSRAM(info.ems_kb, model, cirrus, system);
     int ram = user.ram_mb > 0 ? user.ram_mb : k_machine_default_ram_mb;
 
     if (needed > ram)
@@ -772,7 +844,13 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
     m_has_machine = true;
     FatImage image;
 
-    if (!Assemble(&image, machine))
+    if (!LoadSystem())
+        return false;
+
+    if ((GetSystem() == GDOX_GAME_SYSTEM_MSDOS) && !m_descriptor.GetInfo().dos_version.empty())
+        Log("%s: [dos] version is FreeDOS's, MS-DOS sets versions per program with SETVER: ignored", GetName());
+
+    if (!Assemble(&image, machine, &m_system))
         return false;
 
     m_left_out = image.GetLeftOut();
@@ -832,52 +910,68 @@ bool GameDisk::IsSessionOpen() const
     return m_open && LoadManifest(&entries, &open, &fingerprint, &mode) && open;
 }
 
+// FreeDOS's lines from its kernel's config.txt and JEMM's Readme.txt (R15 §4.3), MS-DOS's from its own HELP
+// (docs/reference text/dos/msdos_6.22, docs/27 §6.3)
 std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
 {
     UNUSED(machine);
     const GDOX_Game_Info& info = m_descriptor.GetInfo();
+    bool msdos = GetSystem() == GDOX_GAME_SYSTEM_MSDOS;
+    std::string frame;
     std::string out;
     char line[128];
 
-    out += "SWITCHES=/F\r\nLASTDRIVE=Z\r\nIDLEHALT=1\r\n";
+    if (info.ems_frame == 0)
+        frame = " FRAME=NONE";
+    else if (info.ems_frame > 0)
+    {
+        snprintf(line, sizeof(line), " FRAME=%04X", info.ems_frame);
+        frame = line;
+    }
+
+    out += msdos ? "SWITCHES=/F\r\nLASTDRIVE=Z\r\n" : "SWITCHES=/F\r\nLASTDRIVE=Z\r\nIDLEHALT=1\r\n";
     snprintf(line, sizeof(line), "FILES=%d\r\nBUFFERS=%d\r\n", info.files, info.buffers);
     out += line;
 
-    if (!info.dos_version.empty())
+    if (!info.dos_version.empty() && !msdos)
         out += "VERSION=" + info.dos_version + "\r\n";
 
-    switch (info.memory)
+    if (msdos)
     {
-        case GDOX_GAME_MEMORY_XMS:
-            out += "DOS=HIGH\r\nDEVICE=C:\\FREEDOS\\BIN\\HIMEMX.EXE\r\n";
-            break;
-        case GDOX_GAME_MEMORY_UMB:
-            out += "DOS=HIGH,UMB\r\nDOSDATA=UMB\r\nDEVICE=C:\\FREEDOS\\BIN\\JEMMEX.EXE NOEMS\r\n";
-            break;
-        case GDOX_GAME_MEMORY_EMS:
-            out += "DOS=HIGH,UMB\r\nDOSDATA=UMB\r\nDEVICE=C:\\FREEDOS\\BIN\\JEMMEX.EXE";
+        if (info.memory != GDOX_GAME_MEMORY_NONE)
+        {
+            out += info.memory == GDOX_GAME_MEMORY_XMS ? "DOS=HIGH\r\n" : "DOS=HIGH,UMB\r\n";
+            out += "DEVICE=C:\\DOS\\HIMEM.SYS /TESTMEM:OFF\r\n";
+        }
 
-            if (info.ems_frame == 0)
-                out += " FRAME=NONE";
-            else if (info.ems_frame > 0)
-            {
-                snprintf(line, sizeof(line), " FRAME=%04X", info.ems_frame);
-                out += line;
-            }
+        if (info.memory == GDOX_GAME_MEMORY_UMB)
+            out += "DEVICE=C:\\DOS\\EMM386.EXE NOEMS\r\n";
+        else if (info.memory == GDOX_GAME_MEMORY_EMS)
+            out += "DEVICE=C:\\DOS\\EMM386.EXE RAM" + frame + "\r\n";
 
-            out += "\r\n";
-            break;
-        default:
-            break;
+        if (!info.cds.empty())
+            out += "DEVICEHIGH=C:\\GEARDOX\\UDVD2.SYS /D:FDCD0001\r\n";
     }
+    else
+    {
+        if (info.memory == GDOX_GAME_MEMORY_XMS)
+            out += "DOS=HIGH\r\nDEVICE=C:\\FREEDOS\\BIN\\HIMEMX.EXE\r\n";
+        else if (info.memory == GDOX_GAME_MEMORY_UMB)
+            out += "DOS=HIGH,UMB\r\nDOSDATA=UMB\r\nDEVICE=C:\\FREEDOS\\BIN\\JEMMEX.EXE NOEMS\r\n";
+        else if (info.memory == GDOX_GAME_MEMORY_EMS)
+            out += "DOS=HIGH,UMB\r\nDOSDATA=UMB\r\nDEVICE=C:\\FREEDOS\\BIN\\JEMMEX.EXE" + frame + "\r\n";
 
-    if (!info.cds.empty())
-        out += "DEVICEHIGH=C:\\FREEDOS\\BIN\\UDVD2.SYS /D:FDCD0001\r\n";
+        if (!info.cds.empty())
+            out += "DEVICEHIGH=C:\\FREEDOS\\BIN\\UDVD2.SYS /D:FDCD0001\r\n";
+    }
 
     for (size_t i = 0; i < info.config_sys.size(); i++)
         out += info.config_sys[i] + "\r\n";
 
-    out += "SHELL=C:\\FREEDOS\\BIN\\COMMAND.COM C:\\FREEDOS\\BIN /E:1024 /P=C:\\FDAUTO.BAT\r\n";
+    if (msdos)
+        out += "SHELL=C:\\COMMAND.COM C:\\ /E:1024 /P\r\n";
+    else
+        out += "SHELL=C:\\FREEDOS\\BIN\\COMMAND.COM C:\\FREEDOS\\BIN /E:1024 /P\r\n";
     return out;
 }
 
@@ -917,10 +1011,15 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     static const char* const k_types[GDOX_SOUND_CARD_COUNT] = { NULL, NULL, "1", "3", "2", "4", "6" };
     const GDOX_Game_Info& info = m_descriptor.GetInfo();
     const GDOX_Sound_Card_Info& card = k_sound_cards[machine.sound_card < GDOX_SOUND_CARD_COUNT ? machine.sound_card : 0];
+    bool msdos = GetSystem() == GDOX_GAME_SYSTEM_MSDOS;
     std::string out;
     char line[128];
 
-    out += "@ECHO OFF\r\nSET DOSDIR=C:\\FREEDOS\r\nSET PATH=C:\\FREEDOS\\BIN\r\nSET TEMP=C:\\TEMP\r\n";
+    if (msdos)
+        out += "@ECHO OFF\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\nSET TEMP=C:\\TEMP\r\n";
+    else
+        out += "@ECHO OFF\r\nSET DOSDIR=C:\\FREEDOS\r\nSET PATH=C:\\FREEDOS\\BIN\r\nSET TEMP=C:\\TEMP\r\n";
+
     out += "SET DIRCMD=/OGN\r\n";
 
     if ((card.dsp_major != 0) && IsValidPointer(k_types[machine.sound_card]))
@@ -933,10 +1032,16 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     out += "PROMPT $P$G\r\n";
 
     if (machine.mouse != GDOX_MOUSE_NONE)
-        out += "LH CTMOUSE\r\n";
+        out += msdos ? "LH C:\\GEARDOX\\CTMOUSE.EXE\r\n" : "LH CTMOUSE\r\n";
 
-    if (!info.cds.empty())
-        out += "LH SHSUCDX /QQ /D:FDCD0001\r\n";
+    if (!info.cds.empty() && msdos && HasCDExtension())
+        out += "LH C:\\DOS\\MSCDEX.EXE /D:FDCD0001\r\n";
+    else if (!info.cds.empty())
+        out += msdos ? "LH C:\\GEARDOX\\SHSUCDX.COM /QQ /D:FDCD0001\r\n" : "LH SHSUCDX /QQ /D:FDCD0001\r\n";
+
+    // Read caching only, after the CD extension so SMARTDRV caches the disc too: a write is never held back
+    if (info.cache && (info.memory != GDOX_GAME_MEMORY_NONE) && (!msdos || !m_msdos_loaded || m_msdos.cache))
+        out += msdos ? "C:\\DOS\\SMARTDRV.EXE /X /Q\r\n" : "LH C:\\FREEDOS\\BIN\\LBACACHE.COM\r\n";
 
     for (size_t i = 0; i < info.env.size(); i++)
         out += "SET " + info.env[i].name + "=" + info.env[i].value + "\r\n";
@@ -1053,12 +1158,27 @@ const char* GameDisk::GetError() const
 }
 
 // Inside the game's folder on C:, and none of the system's
+bool GameDisk::IsSystemPath(const std::string& dos_path) const
+{
+    std::string path = upper(dos_path);
+
+    for (size_t i = 0; i < m_system.reserved.size(); i++)
+    {
+        const std::string& name = m_system.reserved[i];
+
+        if ((path == name) || ((path.size() > name.size()) && (path.compare(0, name.size(), name) == 0) && (path[name.size()] == '\\')))
+            return true;
+    }
+
+    return false;
+}
+
 bool GameDisk::IsGamePath(const std::string& dos_path) const
 {
     std::string base = upper(m_descriptor.GetInfo().folder);
     std::string path = upper(dos_path);
 
-    if (is_system_path(path))
+    if (IsSystemPath(path))
         return false;
 
     return base.empty() || ((path.size() > base.size()) && (path.compare(0, base.size(), base) == 0) &&
@@ -1077,10 +1197,37 @@ bool GameDisk::Fail(const char* format, ...)
     return false;
 }
 
-bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine)
+bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, GameDisk_Manifest_System* system)
 {
     const GDOX_Game_Info& info = m_descriptor.GetInfo();
-    u8 attributes = info.freedos_hidden ? k_fat_attribute_hidden : 0x20;
+    u8 attributes = info.system_hidden ? k_fat_attribute_hidden : 0x20;
+    bool msdos = GetSystem() == GDOX_GAME_SYSTEM_MSDOS;
+    std::vector<std::string> pinned;
+
+    if (msdos && !m_msdos_loaded)
+        return Fail("MS-DOS isn't loaded");
+
+    system->system = msdos ? (u8)GDOX_GAME_SYSTEM_MSDOS : (u8)GDOX_GAME_SYSTEM_FREEDOS;
+    system->reserved.clear();
+
+    if (msdos)
+    {
+        pinned = m_msdos.pinned;
+        system->reserved = m_msdos.root;
+        system->reserved.insert(system->reserved.end(), k_game_disk_msdos_reserved, k_game_disk_msdos_reserved +
+            sizeof(k_game_disk_msdos_reserved) / sizeof(k_game_disk_msdos_reserved[0]));
+    }
+    else
+        system->reserved.assign(k_game_disk_freedos_reserved, k_game_disk_freedos_reserved +
+            sizeof(k_game_disk_freedos_reserved) / sizeof(k_game_disk_freedos_reserved[0]));
+
+    std::string top = upper(info.folder.substr(0, info.folder.find('\\')));
+
+    if (!top.empty() && (std::find(system->reserved.begin(), system->reserved.end(), top) != system->reserved.end()))
+        return Fail("The game's folder, C:\\%s, is the system's: give it another folder in [game]", info.folder.c_str());
+
+    system->config_sys = GetConfigSys(machine);
+    system->autoexec = GetBatch(machine);
 
     if (!image->AddGame(m_source.c_str(), info.folder.c_str()))
         return Fail("Unable to read the game's files: %s", m_source.c_str());
@@ -1088,15 +1235,19 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine)
     if (is_folder(m_overlay) && !image->AddOverlay(m_overlay.c_str()))
         return Fail("Unable to read the game's saves: %s", m_overlay.c_str());
 
-    if (!image->AddFreeDOS(info.freedos_hidden))
+    if (msdos && !image->AddMSDOS((const u8*)m_msdos.zip.data(), m_msdos.zip.size(), info.system_hidden,
+        system->reserved, pinned, !HasCDExtension()))
+        return Fail("Unable to add %s to the game's disk", m_msdos.name.c_str());
+
+    if (!msdos && !image->AddFreeDOS(info.system_hidden, system->reserved))
         return Fail("Unable to add FreeDOS to the game's disk");
 
-    if (!image->AddMemoryFile("FDCONFIG.SYS", GetConfigSys(machine), attributes) ||
-        !image->AddMemoryFile("FDAUTO.BAT", GetBatch(machine), attributes))
+    if (!image->AddMemoryFile(k_game_disk_config_sys, system->config_sys, attributes) ||
+        !image->AddMemoryFile(k_game_disk_autoexec, system->autoexec, attributes))
         return Fail("Unable to add the game's configuration");
 
     std::string label = m_descriptor.GetInfo().name;
-    image->FinishGame(label.c_str(), (u64)info.free_mb * 1024 * 1024);
+    image->FinishGame(label.c_str(), (u64)info.free_mb * 1024 * 1024, msdos ? m_msdos.boot : k_freedos_boot);
     return true;
 }
 
@@ -1168,7 +1319,8 @@ bool GameDisk::ExtractFromZip(const std::string& inner, std::string* path)
     return ok && found;
 }
 
-bool GameDisk::LoadManifest(std::vector<GameDisk_Manifest_Entry>* entries, bool* open, u32* fingerprint, u8* mode) const
+bool GameDisk::LoadManifest(std::vector<GameDisk_Manifest_Entry>* entries, bool* open, u32* fingerprint, u8* mode,
+    GameDisk_Manifest_System* system) const
 {
     entries->clear();
     u64 size = 0;
@@ -1212,7 +1364,29 @@ bool GameDisk::LoadManifest(std::vector<GameDisk_Manifest_Entry>* entries, bool*
         entries->push_back(entry);
     }
 
-    return reader.ok;
+    if (!reader.ok || !IsValidPointer(system))
+        return reader.ok;
+
+    system->system = GDOX_GAME_SYSTEM_FREEDOS;
+    system->reserved.assign(k_game_disk_freedos_reserved, k_game_disk_freedos_reserved +
+        sizeof(k_game_disk_freedos_reserved) / sizeof(k_game_disk_freedos_reserved[0]));
+    system->config_sys.clear();
+    system->autoexec.clear();
+
+    // A manifest from before R23 stops at its entries, and its disk is FreeDOS's
+    if (reader.offset == data.size())
+        return true;
+
+    system->system = reader.Byte();
+    u32 reserved = reader.Long();
+    system->reserved.clear();
+
+    for (u32 i = 0; reader.ok && (i < reserved); i++)
+        system->reserved.push_back(reader.Text());
+
+    system->config_sys = reader.Text();
+    system->autoexec = reader.Text();
+    return reader.ok && (system->system < GDOX_GAME_SYSTEM_COUNT);
 }
 
 bool GameDisk::SaveManifest(const std::vector<GameDisk_Manifest_Entry>& entries, bool open, u32 fingerprint)
@@ -1242,6 +1416,14 @@ bool GameDisk::SaveManifest(const std::vector<GameDisk_Manifest_Entry>& entries,
         put_u64(&out, (u64)entry.host_modified);
     }
 
+    put_u8(&out, m_system.system);
+    put_u32(&out, (u32)m_system.reserved.size());
+
+    for (size_t i = 0; i < m_system.reserved.size(); i++)
+        put_string(&out, m_system.reserved[i]);
+
+    put_string(&out, m_system.config_sys);
+    put_string(&out, m_system.autoexec);
     return write_text(m_manifest, out);
 }
 
@@ -1387,6 +1569,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     result->directories = 0;
     result->conflicts = 0;
     result->kept = 0;
+    result->startup = 0;
     result->notes.clear();
 
     std::vector<GameDisk_Manifest_Entry> entries;
@@ -1394,7 +1577,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     u32 fingerprint = 0;
     u8 mode = 0;
 
-    if (!LoadManifest(&entries, &open, &fingerprint, &mode))
+    if (!LoadManifest(&entries, &open, &fingerprint, &mode, &m_system))
     {
         result->refused = true;
         result->notes.push_back("The manifest is missing or damaged: " + m_manifest);
@@ -1451,12 +1634,14 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
             if (is_scratch_path(entry.dos_path))
                 continue;
 
-            if (!IsValidPointer(file) || (file->directory != entry.directory))
-                system_changed = true;
-            else if (!file->directory && ((file->size != entry.size) || (file->date != entry.date) ||
-                (file->time != entry.time) || (file->first_cluster != entry.first_cluster)))
-                system_changed = true;
+            bool changed = !IsValidPointer(file) || (file->directory != entry.directory) || (!file->directory &&
+                ((file->size != entry.size) || (file->date != entry.date) || (file->time != entry.time) ||
+                (file->first_cluster != entry.first_cluster)));
 
+            if (changed && !entry.directory)
+                NoteStartupFile(&image, file, entry, result);
+
+            system_changed = system_changed || changed;
             continue;
         }
 
@@ -1575,7 +1760,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 
         if (!IsGamePath(file.path))
         {
-            if (!is_system_path(file.path))
+            if (!IsSystemPath(file.path))
             {
                 result->kept++;
                 result->notes.push_back("Outside the game's folder, not kept: C:\\" + file.path);
@@ -1711,11 +1896,15 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     image.CloseRead();
     u32 next = 0;
 
+    // The next launch reuses the image only if a fresh build would make this one: a DOS or startup files changed
+    // during the session, by the game's overrides, need a new build
     if ((result->conflicts == 0) && (result->kept == 0) && !system_changed && m_has_machine)
     {
         FatImage fresh;
+        GameDisk_Manifest_System system;
 
-        if (Assemble(&fresh, m_machine))
+        if (Assemble(&fresh, m_machine, &system) && (system.system == m_system.system) &&
+            (system.config_sys == m_system.config_sys) && (system.autoexec == m_system.autoexec))
             next = fresh.GetFingerprint();
     }
 
@@ -1730,9 +1919,91 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     }
 
     result->done = true;
-    Log("Write-back of %s: %u written, %u deleted, %u folders, %u conflicts, %u kept", GetName(), result->written,
-        result->deleted, result->directories, result->conflicts, result->kept);
+    Log("Write-back of %s: %u written, %u deleted, %u folders, %u conflicts, %u kept, %u startup", GetName(),
+        result->written, result->deleted, result->directories, result->conflicts, result->kept, result->startup);
     return true;
+}
+
+static std::string trim_line(const std::string& line)
+{
+    size_t start = line.find_first_not_of(" \t\r\x1A");
+
+    if (start == std::string::npos)
+        return "";
+
+    return line.substr(start, line.find_last_not_of(" \t\r\x1A") - start + 1);
+}
+
+// §6.5 of docs/27: the next launch writes CONFIG.SYS and AUTOEXEC.BAT again, so the lines DOS added are named
+void GameDisk::NoteStartupFile(FatImage* image, const FatImage_File* file, const GameDisk_Manifest_Entry& entry, GameDisk_Result* result)
+{
+    std::string name = upper(entry.dos_path);
+    bool config = name == k_game_disk_config_sys;
+
+    if (!config && (name != k_game_disk_autoexec))
+        return;
+
+    std::string path = std::string("C:\\") + name;
+    const char* section = config ? "[config_sys]" : "[autoexec]";
+
+    if (!IsValidPointer(file) || file->directory)
+    {
+        result->startup++;
+        result->notes.push_back("The game deleted " + path + ". Geardox writes it again at the next launch.");
+        return;
+    }
+
+    std::string data;
+    u32 crc = 0;
+
+    if (!image->GetFileData(*file, &data, &crc) || (crc == entry.crc))
+        return;
+
+    const std::string& generated = config ? m_system.config_sys : m_system.autoexec;
+    std::vector<std::string> known;
+    std::vector<std::string> added;
+    size_t start = 0;
+
+    while (start < generated.size())
+    {
+        size_t end = generated.find('\n', start);
+        end = end == std::string::npos ? generated.size() : end;
+        known.push_back(upper(trim_line(generated.substr(start, end - start))));
+        start = end + 1;
+    }
+
+    start = 0;
+
+    while (start < data.size())
+    {
+        size_t end = data.find('\n', start);
+        end = end == std::string::npos ? data.size() : end;
+        std::string line = trim_line(data.substr(start, end - start));
+        start = end + 1;
+
+        if (!line.empty() && (std::find(known.begin(), known.end(), upper(line)) == known.end()))
+            added.push_back(line);
+    }
+
+    std::string note = "The game changed " + path + ". Geardox writes it again at every launch, so ";
+
+    if (added.empty())
+        note += "the change wasn't kept.";
+    else
+    {
+        note += added.size() == 1 ? "this line wasn't kept: " : "these lines weren't kept: ";
+
+        for (size_t i = 0; (i < added.size()) && (i < k_game_disk_startup_lines); i++)
+            note += (i > 0 ? "; " : "") + added[i];
+
+        if (added.size() > k_game_disk_startup_lines)
+            note += "; and " + std::to_string(added.size() - k_game_disk_startup_lines) + " more";
+
+        note += std::string(". Lines the game needs go in ") + section + ".";
+    }
+
+    result->startup++;
+    result->notes.push_back(note);
 }
 
 bool GameDisk::TakeLock()

@@ -276,8 +276,11 @@ FatImage::FatImage()
     InitPointer(m_read);
     m_read_offset = 0;
     memset(&m_zip, 0, sizeof(m_zip));
+    memset(&m_system_zip, 0, sizeof(m_system_zip));
     memset(&m_layout, 0, sizeof(m_layout));
     m_zip_open = false;
+    m_system_zip_open = false;
+    m_pinned_count = 0;
     m_zip_offset = 0;
     m_label[0] = 0;
     m_fingerprint = 0;
@@ -495,9 +498,12 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
     u64 root_offset = (u64)(k_fat_sectors_per_track + 1 + (2 * m_layout.fat_sectors)) * k_fat_sector_size;
 
     bool ok = m_output->WriteAt((u64)(total - 1) * k_fat_sector_size, zero, k_fat_sector_size);
+    u64 pinned_size = (u64)m_pinned_count * k_fat_entry_size;
     ok = ok && PlaceDirectory(0, 0, 0, &root);
-    ok = ok && m_output->WriteAt(root_offset, label_entry, k_fat_entry_size);
-    ok = ok && (root.empty() || m_output->WriteAt(root_offset + k_fat_entry_size, root.data(), root.size()));
+    ok = ok && ((pinned_size == 0) || m_output->WriteAt(root_offset, root.data(), pinned_size));
+    ok = ok && m_output->WriteAt(root_offset + pinned_size, label_entry, k_fat_entry_size);
+    ok = ok && ((root.size() == pinned_size) || m_output->WriteAt(root_offset + pinned_size + k_fat_entry_size,
+        root.data() + pinned_size, root.size() - pinned_size));
     ok = ok && WriteFat() && WriteBootSector() && WriteMasterBootRecord() && m_output->Flush();
     SafeDelete(m_output);
     std::vector<u8>().swap(m_buffer);
@@ -785,27 +791,11 @@ void FatImage::ApplyDeleted(const std::string& list)
 
 // Laid out as FreeDOS installs itself, with FDCONFIG.SYS and FDAUTO.BAT left to the caller. Hidden, the five entries in
 // the root are hidden and KERNEL.SYS is also read only and system
-bool FatImage::AddFreeDOS(bool hidden)
+bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 {
-    static const char* const k_reserved[] = { "KERNEL.SYS", "FDCONFIG.SYS", "FDAUTO.BAT", "FREEDOS", "TEMP" };
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
     mz_zip_archive zip;
-
-    for (size_t i = m_entries[0].children.size(); i > 0; i--)
-    {
-        u32 child = m_entries[0].children[i - 1];
-        std::string name = upper(m_entries[child].name);
-
-        for (size_t r = 0; r < sizeof(k_reserved) / sizeof(k_reserved[0]); r++)
-        {
-            if (name == k_reserved[r])
-            {
-                m_left_out += 1 + CountEntries(child);
-                RemoveChild(0, child);
-                break;
-            }
-        }
-    }
+    LeaveOutReserved(reserved);
 
     memset(&zip, 0, sizeof(zip));
 
@@ -885,6 +875,160 @@ bool FatImage::AddFreeDOS(bool hidden)
     return ok;
 }
 
+// An imported MS-DOS (docs/27 §6): its C/ tree from the user's ZIP, read at Write, IO.SYS and MSDOS.SYS ahead of the
+// label as its boot sector wants, and Geardox' own tools from the FreeDOS files in \GEARDOX
+bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
+    const std::vector<std::string>& pinned, bool shsucdx)
+{
+    static const char* const k_tools[] = { "GDXRUN.COM", "POWEROFF.COM", "CTMOUSE.EXE", "UDVD2.SYS" };
+    u8 hide = hidden ? k_fat_attribute_hidden : 0;
+    LeaveOutReserved(reserved);
+
+    if (m_system_zip_open)
+        mz_zip_reader_end(&m_system_zip);
+
+    memset(&m_system_zip, 0, sizeof(m_system_zip));
+    m_system_zip_open = mz_zip_reader_init_mem(&m_system_zip, zip, size, 0) != 0;
+
+    if (!m_system_zip_open)
+        return false;
+
+    u32 dos = AddEntry(0, "DOS", true);
+    m_entries[dos].attributes = k_fat_attribute_directory | hide;
+    m_entries[dos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&m_system_zip); i++)
+    {
+        mz_zip_archive_file_stat stat;
+
+        if (!mz_zip_reader_file_stat(&m_system_zip, i, &stat) || stat.m_is_directory)
+            continue;
+
+        std::string name(stat.m_filename);
+
+        if (name.compare(0, 2, "C/") != 0)
+            continue;
+
+        name = name.substr(2);
+        u32 directory = 0;
+
+        if (name.compare(0, 4, "DOS/") == 0)
+        {
+            directory = dos;
+            name = name.substr(4);
+        }
+
+        if (name.empty() || (name.find('/') != std::string::npos))
+            continue;
+
+        bool boot = (directory == 0) && (std::find(pinned.begin(), pinned.end(), upper(name)) != pinned.end());
+        u32 entry = AddEntry(directory, name, false);
+        FatImage_Entry& file = m_entries[entry];
+        file.size = stat.m_uncomp_size;
+        file.crc = stat.m_crc32;
+        file.zip_index = i;
+        file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        get_dos_time((s64)stat.m_time, &file.date, &file.time);
+
+        if (boot)
+            file.attributes = k_fat_attribute_read_only | k_fat_attribute_hidden | k_fat_attribute_system;
+        else if (directory == 0)
+            file.attributes = k_fat_attribute_archive | hide;
+    }
+
+    mz_zip_archive tools;
+    memset(&tools, 0, sizeof(tools));
+
+    if (!mz_zip_reader_init_mem(&tools, k_freedos_files, k_freedos_files_size, 0))
+        return false;
+
+    u32 geardox = AddEntry(0, "GEARDOX", true);
+    m_entries[geardox].attributes = k_fat_attribute_directory | hide;
+    m_entries[geardox].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    bool ok = AddFreeDOSFile(&tools, "FREEDOS/COPYING.TXT", geardox, "COPYING.TXT");
+
+    for (size_t i = 0; ok && (i < sizeof(k_tools) / sizeof(k_tools[0])); i++)
+        ok = AddFreeDOSFile(&tools, (std::string("FREEDOS/BIN/") + k_tools[i]).c_str(), geardox, k_tools[i]);
+
+    if (ok && shsucdx)
+        ok = AddFreeDOSFile(&tools, "FREEDOS/BIN/SHSUCDX.COM", geardox, "SHSUCDX.COM");
+
+    mz_zip_reader_end(&tools);
+
+    if (!ok)
+        return false;
+
+    u32 temp = AddEntry(0, "TEMP", true);
+    m_entries[temp].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    m_entries[temp].attributes = k_fat_attribute_directory | hide;
+    m_pinned = pinned;
+    return true;
+}
+
+bool FatImage::AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directory, const char* target)
+{
+    int index = mz_zip_reader_locate_file(zip, name, NULL, 0);
+    mz_zip_archive_file_stat stat;
+    size_t size = 0;
+
+    if ((index < 0) || !mz_zip_reader_file_stat(zip, (mz_uint)index, &stat))
+        return false;
+
+    void* data = mz_zip_reader_extract_to_heap(zip, (mz_uint)index, &size, 0);
+
+    if (!IsValidPointer(data))
+        return false;
+
+    m_memory.push_back(std::string((const char*)data, size));
+    mz_free(data);
+    u32 entry = AddEntry(directory, target, false);
+    m_entries[entry].memory = (int)m_memory.size() - 1;
+    m_entries[entry].size = size;
+    m_entries[entry].crc = stat.m_crc32;
+    m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    get_dos_time((s64)stat.m_time, &m_entries[entry].date, &m_entries[entry].time);
+    return true;
+}
+
+// The names in m_pinned lead the root in their order, so the label is written after them
+void FatImage::PinEntries()
+{
+    std::vector<u32>& children = m_entries[0].children;
+    std::vector<u32> pinned;
+    m_pinned_count = 0;
+
+    for (size_t p = 0; p < m_pinned.size(); p++)
+    {
+        for (size_t i = 0; i < children.size(); i++)
+        {
+            if (upper(m_entries[children[i]].name) == m_pinned[p])
+            {
+                pinned.push_back(children[i]);
+                children.erase(children.begin() + i);
+                break;
+            }
+        }
+    }
+
+    children.insert(children.begin(), pinned.begin(), pinned.end());
+    m_pinned_count = (u32)pinned.size();
+}
+
+void FatImage::LeaveOutReserved(const std::vector<std::string>& reserved)
+{
+    for (size_t i = m_entries[0].children.size(); i > 0; i--)
+    {
+        u32 child = m_entries[0].children[i - 1];
+        std::string name = upper(m_entries[child].name);
+
+        if (std::find(reserved.begin(), reserved.end(), name) != reserved.end())
+        {
+            m_left_out += 1 + CountEntries(child);
+            RemoveChild(0, child);
+        }
+    }
+}
+
 bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attributes)
 {
     std::string rest(path);
@@ -918,15 +1062,15 @@ bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attri
     return true;
 }
 
-void FatImage::FinishGame(const char* label, u64 free_size)
+void FatImage::FinishGame(const char* label, u64 free_size, const u8* boot_sector)
 {
     SetLabel(label);
-    SetBootSector(k_freedos_boot);
+    SetBootSector(boot_sector);
     Finish();
     u8 data[8];
     write_u32_le(data, (u32)free_size);
     write_u32_le(data + 4, (u32)(free_size >> 32));
-    u32 crc = (u32)mz_crc32(m_fingerprint, k_freedos_boot, k_freedos_boot_size);
+    u32 crc = (u32)mz_crc32(m_fingerprint, boot_sector, k_fat_sector_size);
     crc = (u32)mz_crc32(crc, k_freedos_mbr, k_freedos_mbr_size);
     m_fingerprint = (u32)mz_crc32(crc, data, sizeof(data));
 }
@@ -1232,7 +1376,13 @@ bool FatImage::ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* us
 
 bool FatImage::GetFileCRC(const FatImage_File& file, u32* crc)
 {
-    return ReadFileData(file, NULL, crc);
+    return ReadFileData(file, NULL, NULL, crc);
+}
+
+bool FatImage::GetFileData(const FatImage_File& file, std::string* data, u32* crc)
+{
+    data->clear();
+    return ReadFileData(file, NULL, data, crc);
 }
 
 bool FatImage::CopyOut(const FatImage_File& file, const char* path, u32* crc)
@@ -1243,7 +1393,7 @@ bool FatImage::CopyOut(const FatImage_File& file, const char* path, u32* crc)
     if (!IsValidPointer(output))
         return false;
 
-    bool ok = ReadFileData(file, output, &value) && output->Flush();
+    bool ok = ReadFileData(file, output, NULL, &value) && output->Flush();
     SafeDelete(output);
 
     if (IsValidPointer(crc))
@@ -1252,7 +1402,7 @@ bool FatImage::CopyOut(const FatImage_File& file, const char* path, u32* crc)
     return ok;
 }
 
-bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, u32* crc)
+bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, std::string* data, u32* crc)
 {
     *crc = 0;
 
@@ -1283,6 +1433,9 @@ bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, u32* c
         if (IsValidPointer(output) && !output->WriteAt((u64)file.size - left, buffer.data(), chunk))
             return false;
 
+        if (IsValidPointer(data))
+            data->append((const char*)buffer.data(), chunk);
+
         *crc = (u32)mz_crc32(*crc, buffer.data(), chunk);
         left -= chunk;
     }
@@ -1295,8 +1448,15 @@ void FatImage::Clear()
     if (m_zip_open)
         mz_zip_reader_end(&m_zip);
 
+    if (m_system_zip_open)
+        mz_zip_reader_end(&m_system_zip);
+
     memset(&m_zip, 0, sizeof(m_zip));
+    memset(&m_system_zip, 0, sizeof(m_system_zip));
     m_zip_open = false;
+    m_system_zip_open = false;
+    m_pinned.clear();
+    m_pinned_count = 0;
     SafeDelete(m_zip_file);
     m_entries.clear();
     m_entries.resize(1);
@@ -1503,6 +1663,7 @@ u32 FatImage::AddEntry(u32 directory, const std::string& name, bool is_directory
 void FatImage::Finish()
 {
     AssignNames(0);
+    PinEntries();
     LimitPaths(0, "");
     u32 crc = (u32)mz_crc32(0, (const u8*)m_label, 11);
     HashEntries(0, &crc);
@@ -1790,6 +1951,12 @@ bool FatImage::CopyFile(FatImage_Entry& entry, u64 offset)
     {
         const std::string& data = m_memory[entry.memory];
         return m_output->WriteAt(offset, data.data(), data.size());
+    }
+
+    if (entry.source.empty() && (entry.origin == FAT_IMAGE_ORIGIN_SYSTEM))
+    {
+        m_zip_offset = offset;
+        return mz_zip_reader_extract_to_callback(&m_system_zip, entry.zip_index, WriteZipEntry, this, 0) != 0;
     }
 
     if (entry.source.empty())

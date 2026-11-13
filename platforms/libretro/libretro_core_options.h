@@ -572,6 +572,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "save_folder"
     },
     {
+        "geardox_game_dos",
+        "Game DOS (restart)",
+        NULL,
+        "Your own MS-DOS: put its Setup disk images, or a ZIP of them, in the system folder's geardox/msdos. Geardox imports them once, then games boot it unless their descriptor asks for FreeDOS. FreeDOS here runs every game on FreeDOS. MS-DOS 6.0 to 6.22, in any language.",
+        NULL,
+        "system",
+        {
+            { "auto",    "MS-DOS When Found" },
+            { "freedos", "FreeDOS" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
         "geardox_freedos",
         "FreeDOS Disk (restart)",
         NULL,

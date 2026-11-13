@@ -16,7 +16,8 @@ FreeCOM 0.86a, from the packages in `packages`. Geardox compiles in the result, 
 again. `FDCONFIG.SYS` and `FDAUTO.BAT` are here. Everything else is a program from the packages, in `\FREEDOS\BIN`, and the license texts are in `\FREEDOS`.
 
 CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. LBACACHE is the read cache a game descriptor's
-`cache = on` loads.
+`cache = on` loads. Game disks on the user's own MS-DOS take GDXRUN, POWEROFF, CTMOUSE, UDVD2 and `COPYING` from here
+into their `\GEARDOX`.
 
 ## Building
 

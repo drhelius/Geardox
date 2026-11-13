@@ -58,6 +58,13 @@ EXTERN const char* emu_game_get_last_write_back_name(void);
 EXTERN const char* emu_game_get_saves_path(void);
 EXTERN bool emu_game_has_setup(void);
 EXTERN GameDisk* emu_game_get_disk(void);
+EXTERN std::string emu_game_get_msdos_path(void);
+EXTERN const char* emu_game_get_msdos_name(void);
+EXTERN bool emu_game_import_msdos(const char* path, std::string* message);
+EXTERN bool emu_game_remove_msdos(void);
+EXTERN int emu_game_get_system(void);
+EXTERN bool emu_game_set_system(int system);
+EXTERN bool emu_game_get_found(GameDisk_Found* found);
 EXTERN void emu_game_list_programs(const char* folder, std::vector<std::string>* programs);
 EXTERN bool emu_game_new_descriptor(const char* folder, const char* program, std::string* path);
 

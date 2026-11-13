@@ -33,6 +33,7 @@ EXTERN void gui_game_set_next_target(int target);
 EXTERN void gui_game_loaded(void);
 EXTERN void gui_game_dialog_new_descriptor(const char* folder);
 EXTERN void gui_game_dialog_save_descriptor(const char* path);
+EXTERN void gui_game_dialog_import_msdos(const char* path);
 
 #undef GUI_GAME_IMPORT
 #undef EXTERN

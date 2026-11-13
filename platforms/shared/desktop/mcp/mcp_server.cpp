@@ -1913,7 +1913,7 @@ json McpServer::BuildToolList()
         {"title", "Get Game Info"},
         {"description", "The game open from a .gdox descriptor: the descriptor with its overrides, each key set and its layer "
             "(descriptor or override), the machine in use and where each value came from, the target (game, setup or prompt), "
-            "the disk image, whether it was built or reused, where saves go, whether the session is open, and the last "
+            "the DOS it boots (FreeDOS or the user's imported MS-DOS) and its layer, the disk image, whether it was built or reused, where saves go, whether the session is open, and the last "
             "write-back with its conflicts. open is false with no game."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {

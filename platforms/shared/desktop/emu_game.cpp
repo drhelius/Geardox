@@ -48,6 +48,9 @@ static GameDisk_Result last_result;
 static std::string last_result_name;
 static bool game_floppies[2] = { false, false };
 static bool game_cdrom = false;
+static GameDisk_Found current_found;
+static std::string msdos_name;
+static bool msdos_checked = false;
 
 static std::string get_save_directory(void);
 static std::string get_games_directory(void);
@@ -79,12 +82,14 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
     if (emu_is_powered_on())
         emu_power_off();
 
-    if (!disk.Open(found, get_save_directory().c_str(), get_games_directory().c_str(), config_game.write_back == 0))
+    if (!disk.Open(found, get_save_directory().c_str(), get_games_directory().c_str(), config_game.write_back == 0,
+        emu_game_get_msdos_path().c_str()))
     {
         error_text = disk.GetError();
         return false;
     }
 
+    current_found = found;
     target = CLAMP(game_target, 0, GDOX_GAME_TARGET_COUNT - 1);
     saved_boot_device = emu_get_core()->GetBootDevice();
     update_machines();
@@ -402,6 +407,9 @@ void emu_game_apply_machine(void)
     if ((m.drive_timing != b.drive_timing) && (m.drive_timing >= 0))
         overrides.Set("machine", "drive_timing", k_drive_timings[m.drive_timing].id);
 
+    if (disk.GetOverrides().Has("dos", "system"))
+        overrides.Set("dos", "system", disk.GetOverrides().Get("dos", "system").c_str());
+
     if (!disk.SaveOverrides(overrides))
         gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
 
@@ -644,6 +652,97 @@ static std::string get_games_directory(void)
     return path;
 }
 
+std::string emu_game_get_msdos_path(void)
+{
+    char path[GDOX_MAX_PATH];
+    join_path(config_root_path, k_dos_import_file, path, sizeof(path));
+    return path;
+}
+
+// The imported MS-DOS's name, read once and again after an import or a removal; empty with none
+const char* emu_game_get_msdos_name(void)
+{
+    if (!msdos_checked)
+    {
+        DosImport_System system;
+        std::string error;
+        std::string path = emu_game_get_msdos_path();
+        u64 size = 0;
+        s64 modified = 0;
+        msdos_checked = true;
+        msdos_name.clear();
+
+        if (MediaFile::GetFileInfo(path.c_str(), &size, &modified))
+        {
+            if (DosImport::Load(path.c_str(), &system, &error))
+                msdos_name = system.name;
+            else
+                Log("%s", error.c_str());
+        }
+    }
+
+    return msdos_name.c_str();
+}
+
+bool emu_game_import_msdos(const char* path, std::string* message)
+{
+    DosImport import;
+    message->clear();
+
+    if (!import.AddSource(path) || (import.Import(emu_game_get_msdos_path().c_str()) != DOS_IMPORT_DONE))
+    {
+        *message = import.GetError();
+        return false;
+    }
+
+    msdos_checked = false;
+    *message = import.GetName();
+    return true;
+}
+
+bool emu_game_remove_msdos(void)
+{
+    msdos_checked = false;
+    return MediaFile::RemoveFile(emu_game_get_msdos_path().c_str());
+}
+
+int emu_game_get_system(void)
+{
+    return disk.IsOpen() ? disk.GetSystem() : -1;
+}
+
+// The open game's own DOS, kept with its overrides. The disk is built again when the game opens next
+bool emu_game_set_system(int system)
+{
+    if (!emu_game_is_open())
+        return false;
+
+    GameDescriptor overrides = disk.GetOverrides();
+    static const char k_empty[] = "[geardox]\nversion = 1\n";
+
+    if (overrides.IsEmpty())
+        overrides.Parse("", k_empty, sizeof(k_empty) - 1);
+
+    overrides.Set("dos", "system", system == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos");
+
+    if (!disk.SaveOverrides(overrides))
+    {
+        gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
+        return false;
+    }
+
+    return true;
+}
+
+bool emu_game_get_found(GameDisk_Found* found)
+{
+    if (!disk.IsOpen())
+        return false;
+
+    *found = current_found;
+    return true;
+}
+
 static void config_to_settings(const config_Machine& machine, GDOX_Machine_Settings* settings)
 {
     settings->model = machine.model;
@@ -710,7 +809,7 @@ static void update_machines(void)
             stripped.Unset(k_keys[i][0], k_keys[i][1]);
     }
 
-    GameDisk::GetGameSettings(stripped, user, &without);
+    GameDisk::GetGameSettings(stripped, user, &without, disk.GetSystem());
     base_machine = config_machine;
     overlay_settings(&base_machine, without);
     game_joystick = disk.GetDescriptor().GetInfo().joystick;
@@ -770,7 +869,7 @@ static void notify_write_back(void)
     for (size_t i = 0; i < r.notes.size() && i < 4; i++)
         detail += (i > 0 ? "\n" : "") + r.notes[i];
 
-    if ((r.conflicts > 0) || (r.kept > 0))
+    if ((r.conflicts > 0) || (r.kept > 0) || (r.startup > 0))
         gui_notify(gui_NotificationWarning, ICON_MD_SAVE, message, detail.c_str());
     else if ((r.written > 0) || (r.deleted > 0))
         gui_notify(gui_NotificationInfo, ICON_MD_SAVE, message);

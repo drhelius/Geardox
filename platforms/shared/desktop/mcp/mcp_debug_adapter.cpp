@@ -4763,7 +4763,8 @@ json DebugAdapter::GetGameInfo()
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
         { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" },
         { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
-        { "dos", "buffers" }, { "dos", "version" }, { "drives", "floppy_a" }, { "drives", "floppy_b" },
+        { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" },
+        { "drives", "floppy_a" }, { "drives", "floppy_b" },
         { "drives", "hdd_primary_slave" }, { "drives", "hdd_secondary_slave" }, { "drives", "cdrom" }, { "run", "exe" },
         { "run", "args" }, { "run", "cwd" }, { "run", "setup" }, { "run", "on_exit" }, { "run", "boot" } };
     const GameDescriptor& descriptor = disk->GetDescriptor();
@@ -4804,6 +4805,9 @@ json DebugAdapter::GetGameInfo()
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
                 json(k_joysticks[emu_game_get_joystick()].id) : json()}}},
         {"target", k_targets[emu_game_get_target()]},
+        {"system", {{"name", disk->GetSystemName()}, {"id", disk->GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos"},
+            {"layer", overrides.Has("dos", "system") ? "override" : descriptor.Has("dos", "system") ? "descriptor" :
+                disk->HasMSDOS() ? "imported" : "default"}, {"msdos_imported", disk->HasMSDOS()}}},
         {"source", disk->GetSourcePath()},
         {"image", disk->GetImagePath()},
         {"built", disk->WasBuilt()},
@@ -4816,7 +4820,7 @@ json DebugAdapter::GetGameInfo()
         {"write_back_pending", emu_game_is_write_back_pending()},
         {"last_write_back", {{"done", last.done}, {"refused", last.refused}, {"written", last.written},
             {"deleted", last.deleted}, {"folders", last.directories}, {"conflicts", last.conflicts}, {"kept", last.kept},
-            {"notes", notes}}}
+            {"startup", last.startup}, {"notes", notes}}}
     };
 }
 

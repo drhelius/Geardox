@@ -73,6 +73,7 @@ static bool categories_supported = false;
 static bool frameskip_threshold_visible = true;
 
 static char retro_save_directory[4096];
+static char retro_system_directory[4096];
 static char retro_game_path[4096];
 static bool content_loaded = false;
 
@@ -150,6 +151,7 @@ static GameDisk game_disk;
 static bool game_active = false;
 static bool game_descriptors = true;
 static bool game_write_folder = false;
+static bool game_freedos_only = false;
 static int game_target = GDOX_GAME_TARGET_GAME;
 static bool game_options_hidden = false;
 static bool cmos_shared = true;
@@ -355,6 +357,13 @@ void retro_init(void)
         snprintf(retro_save_directory, sizeof(retro_save_directory), "%s", dir);
     else
         snprintf(retro_save_directory, sizeof(retro_save_directory), "%s", ".");
+
+    dir = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
+        snprintf(retro_system_directory, sizeof(retro_system_directory), "%s", dir);
+    else
+        retro_system_directory[0] = 0;
 
     log_cb(RETRO_LOG_INFO, "%s (%s) libretro\n", GDOX_TITLE, GDOX_VERSION);
 
@@ -1689,6 +1698,12 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         game_write_folder = strcmp(var.value, "game_folder") == 0;
 
+    var.key = "geardox_game_dos";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        game_freedos_only = strcmp(var.value, "freedos") == 0;
+
     var.key = "geardox_freedos";
     var.value = NULL;
 
@@ -2862,6 +2877,59 @@ static bool hard_disk_attach_source(const char* path)
     return true;
 }
 
+// docs/27 §10: the user's own Setup disks in <system>/geardox/msdos are imported into the save directory, and again
+// when they change. With none there, msdos.zip goes and games run on FreeDOS
+static std::string get_msdos_path(void)
+{
+    std::string zip(retro_save_directory);
+    std::string source(retro_system_directory);
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+    append_path_component(zip, k_dos_import_file);
+
+    if (game_freedos_only)
+        return "";
+
+    append_path_component(source, "geardox");
+    append_path_component(source, "msdos");
+
+    if ((retro_system_directory[0] == 0) || !MediaFile::ListDirectory(source.c_str(), folders, files) || files.empty())
+    {
+        if (content_file_exists(zip.c_str()) && MediaFile::RemoveFile(zip.c_str()))
+            log_cb(RETRO_LOG_INFO, "No MS-DOS disks in %s any more, games run on FreeDOS\n", source.c_str());
+
+        return "";
+    }
+
+    DosImport import;
+    DosImport_System system;
+    std::string error;
+    u32 imported = 0;
+
+    if (!import.AddSource(source.c_str()))
+    {
+        log_cb(RETRO_LOG_WARN, "MS-DOS in %s not imported: %s\n", source.c_str(), import.GetError());
+        return "";
+    }
+
+    if (DosImport::ReadSourceFingerprint(zip.c_str(), &imported) && (imported == import.GetSourceFingerprint()) &&
+        DosImport::Load(zip.c_str(), &system, &error))
+        return zip;
+
+    static char message[512];
+
+    if (import.Import(zip.c_str()) != DOS_IMPORT_DONE)
+    {
+        snprintf(message, sizeof(message), "MS-DOS not imported: %s", import.GetError());
+        show_message(message, 3, RETRO_LOG_WARN);
+        return "";
+    }
+
+    snprintf(message, sizeof(message), "%s imported from %s", import.GetName(), source.c_str());
+    show_message(message, 2, RETRO_LOG_INFO);
+    return zip;
+}
+
 // A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop (R15). Images, manifests and
 // overlays live in the save directory
 static bool game_open(const char* path, bool* game)
@@ -2880,12 +2948,15 @@ static bool game_open(const char* path, bool* game)
 
     static char message[1024];
 
-    if (!game_disk.Open(found[0], retro_save_directory, NULL, game_write_folder))
+    if (!game_disk.Open(found[0], retro_save_directory, NULL, game_write_folder, get_msdos_path().c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);
         return false;
     }
+
+    if (game_freedos_only)
+        game_disk.SetSystem(GDOX_GAME_SYSTEM_FREEDOS);
 
     for (int i = 0; i < game_disk.GetDescriptor().GetWarningCount(); i++)
         log_cb(RETRO_LOG_WARN, "%s\n", game_disk.GetDescriptor().GetWarning(i));
@@ -2922,8 +2993,8 @@ static bool game_open(const char* path, bool* game)
 
     hard_disk_image_attached = true;
     game_active = true;
-    log_cb(RETRO_LOG_INFO, "Game %s: %s %s\n", game_disk.GetName(), game_disk.WasBuilt() ? "built" : "reused",
-        game_disk.GetImagePath());
+    log_cb(RETRO_LOG_INFO, "Game %s on %s: %s %s\n", game_disk.GetName(), game_disk.GetSystemName(),
+        game_disk.WasBuilt() ? "built" : "reused", game_disk.GetImagePath());
     for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
     {
         std::string disk = game_disk.GetHardDisk(id);
