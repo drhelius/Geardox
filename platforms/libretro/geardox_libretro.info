@@ -1,15 +1,15 @@
 # Software Information
 display_name = "DOS (Geardox)"
 authors = "Nacho Sanchez"
-supported_extensions = "gdox|img|ima|vfd|vhd|hdd|cue|chd|iso|bin|m3u|zip"
+supported_extensions = "gdox|cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3"
 corename = "Geardox"
 categories = "Emulator"
 license = "GPLv3"
 permissions = ""
 
 # Hardware Information
-manufacturer = "IBM"
-systemname = "PC/AT"
+manufacturer = "Microsoft"
+systemname = "DOS"
 systemid = "dos"
 
 # Libretro Features
@@ -31,5 +31,6 @@ is_experimental = "false"
 
 # BIOS / Firmware
 firmware_count = 0
+notes = "No BIOS files are needed: SeaBIOS and FreeDOS are built in.|The FreeDOS boot disk (FreeDOS.hdd) and the CMOS settings are kept in the save directory."
 
-description = "A port of the Geardox MS-DOS PC/AT emulator to libretro."
+description = "A port of the Geardox MS-DOS PC/AT emulator to libretro. This core emulates 386SX-20, 386DX-33 and 486DX2-66 PC/AT machines with VGA and Cirrus Logic GD5428 SVGA video on ISA or VL-Bus, AdLib and Sound Blaster 1.5 to 16 sound, floppy, IDE hard disk and ATAPI CD-ROM drives, disk swapping, keyboard, PS/2 and serial mice, and joysticks. Games start directly from .gdox descriptors."
