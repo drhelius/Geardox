@@ -188,6 +188,9 @@ static inline void process(config_Operation operation)
                operation == config_Operation_Defaults ? 640 : 600);
     CONFIG_BOOL("Emulator", "ShowNotifications", config_emulator.show_notifications, true);
     CONFIG_BOOL("Emulator", "ShowDriveActivity", config_emulator.show_drive_activity, true);
+    CONFIG_BOOL("Emulator", "ShowDriveActivityCDROM", config_emulator.show_drive_activity_cdrom, true);
+    CONFIG_BOOL("Emulator", "ShowDriveActivityHardDisk", config_emulator.show_drive_activity_hard_disk, false);
+    CONFIG_BOOL("Emulator", "ShowDriveActivityFloppy", config_emulator.show_drive_activity_floppy, true);
     CONFIG_BOOL("Emulator", "AllowScreenSaver", config_emulator.allow_screensaver, false);
 
     // Emulation

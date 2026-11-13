@@ -86,6 +86,9 @@ struct config_Emulator
     int window_height;
     bool show_notifications;
     bool show_drive_activity;
+    bool show_drive_activity_cdrom;
+    bool show_drive_activity_hard_disk;
+    bool show_drive_activity_floppy;
     bool allow_screensaver;
     int mcp_tcp_port;
     std::string mcp_http_address;

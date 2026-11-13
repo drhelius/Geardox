@@ -732,7 +732,16 @@ static void menu_emulator(void)
 
         //ImGui::MenuItem("Show Media Info", "", &config_emulator.show_info);
         ImGui::MenuItem("Show Notifications", "", &config_emulator.show_notifications);
-        ImGui::MenuItem("Show Drive Activity", "", &config_emulator.show_drive_activity);
+
+        if (ImGui::BeginMenu("Drive Activity"))
+        {
+            ImGui::MenuItem("Enabled", "", &config_emulator.show_drive_activity);
+            ImGui::Separator();
+            ImGui::MenuItem("CD-ROM", "", &config_emulator.show_drive_activity_cdrom, config_emulator.show_drive_activity);
+            ImGui::MenuItem("Hard Disk", "", &config_emulator.show_drive_activity_hard_disk, config_emulator.show_drive_activity);
+            ImGui::MenuItem("Floppy", "", &config_emulator.show_drive_activity_floppy, config_emulator.show_drive_activity);
+            ImGui::EndMenu();
+        }
 
         ImGui::Separator();
 

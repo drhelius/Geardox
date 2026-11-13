@@ -65,6 +65,7 @@ static Drive_Slot slots[GUI_DRIVE_ACTIVITY_SLOTS];
 static int sample_frame = -1;
 
 static void sample(Uint64 now, bool resync);
+static bool slot_shown(int index);
 static void update_slot(Drive_Slot* slot, u32 access_count, u32 write_count, bool busy, Uint64 now, bool resync);
 static float slot_width(ImFont* font, int index);
 static void draw_slot(ImDrawList* draw_list, ImFont* font, int index, const ImVec2& pos, const ImVec2& size, bool write);
@@ -105,7 +106,7 @@ void gui_drive_activity_render_output(const ImVec2& min, const ImVec2& max)
     {
         Drive_Slot* slot = &slots[i];
 
-        if (now >= slot->hold_until)
+        if ((now >= slot->hold_until) || !slot_shown(i))
         {
             slot->placed = false;
             continue;
@@ -156,6 +157,15 @@ static void sample(Uint64 now, bool resync)
     bool fitted = IsValidPointer(cdrom) && cdrom->IsAttached();
     update_slot(&slots[GDOX_MAX_FLOPPY_DRIVES + 1], fitted ? cdrom->GetAccessCount() : 0, 0,
         fitted && cdrom->HasDisc() && cdrom->IsBusy(), now, resync);
+}
+
+static bool slot_shown(int index)
+{
+    if (index < GDOX_MAX_FLOPPY_DRIVES)
+        return config_emulator.show_drive_activity_floppy;
+    if (index == GDOX_MAX_FLOPPY_DRIVES)
+        return config_emulator.show_drive_activity_hard_disk;
+    return config_emulator.show_drive_activity_cdrom;
 }
 
 static void update_slot(Drive_Slot* slot, u32 access_count, u32 write_count, bool busy, Uint64 now, bool resync)
