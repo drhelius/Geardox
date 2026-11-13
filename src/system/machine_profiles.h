@@ -22,7 +22,7 @@
 
 #include "../common/common.h"
 
-#define GDOX_MACHINE_RELEASE_ORDER_COUNT 4
+#define GDOX_MACHINE_RELEASE_ORDER_COUNT 5
 #define GDOX_MACHINE_CPU_SPEED_COUNT 8
 #define GDOX_MACHINE_RAM_SIZE_COUNT 7
 #define GDOX_MACHINE_FEATURE_LOCAL_BUS 0x01
@@ -65,10 +65,12 @@ const u8 k_machine_ram_486[] = { 4, 8, 16, 32, 64, 0 };
 const GDOX_Machine_Bus_Waits k_machine_bus_waits_386sx_20 = GDOX_MACHINE_BUS_WAITS(20000000, 1, 1, 0, 6, 0, 0, 0);
 const GDOX_Machine_Bus_Waits k_machine_bus_waits_386dx_33 = GDOX_MACHINE_BUS_WAITS(33000000, 0, 0, 3, 6, 0, 0, 0);
 const GDOX_Machine_Bus_Waits k_machine_bus_waits_486 = GDOX_MACHINE_BUS_WAITS(33000000, 3, 2, 0, 3.5, 0.375, 0.75, 8);
+const GDOX_Machine_Bus_Waits k_machine_bus_waits_486dx4 = GDOX_MACHINE_BUS_WAITS(33333333, 3, 2, 0, 3.5, 0.375, 0.75, 8);
 
 const GDOX_Machine_Port_Wait k_machine_port_waits_386sx_20[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(20000000);
 const GDOX_Machine_Port_Wait k_machine_port_waits_386dx_33[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(33000000);
 const GDOX_Machine_Port_Wait k_machine_port_waits_486[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(33000000);
+const GDOX_Machine_Port_Wait k_machine_port_waits_486dx4[GDOX_MACHINE_PORT_WAIT_BLOCKS] = GDOX_MACHINE_PORT_WAITS(33333333);
 
 const GDOX_Machine_Bus_Timing k_machine_bus_386sx_20 =
     GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386sx_20, k_machine_port_waits_386sx_20, 20000000, 0);
@@ -76,6 +78,8 @@ const GDOX_Machine_Bus_Timing k_machine_bus_386dx_33 =
     GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_386dx_33, k_machine_port_waits_386dx_33, 33000000, 3);
 const GDOX_Machine_Bus_Timing k_machine_bus_486 =
     GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486, k_machine_port_waits_486, 33000000, 0);
+const GDOX_Machine_Bus_Timing k_machine_bus_486dx4 =
+    GDOX_MACHINE_BUS_TIMING(k_machine_bus_waits_486dx4, k_machine_port_waits_486dx4, 33333333, 0);
 
 const GDOX_Machine_Memory_Map k_machine_memory_maps[GDOX_MACHINE_MAP_COUNT] =
 {
@@ -88,7 +92,8 @@ const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
     { "386SX-20", "386sx_20", "Generic 386SX AT", "1989", true, GDOX_MACHINE_CPU_80386SX, GDOX_MACHINE_FPU_SOCKET, 20000000, GDOX_MACHINE_MAP_24BIT, 0, k_machine_ram_386sx_20, 2, &k_machine_bus_386sx_20 },
     { "386DX-33", "386dx_33", "Generic 386DX AT", "1989", true, GDOX_MACHINE_CPU_80386DX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, 0, k_machine_ram_386dx_33, 2, &k_machine_bus_386dx_33 },
     { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486 },
-    { "486SX-33", "486sx_33", "Generic 486SX AT", "1992", true, GDOX_MACHINE_CPU_80486SX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486 }
+    { "486SX-33", "486sx_33", "Generic 486SX AT", "1992", true, GDOX_MACHINE_CPU_80486SX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486 },
+    { "486DX4-100", "486dx4_100", "Generic 486DX4 AT", "1994", true, GDOX_MACHINE_CPU_80486DX4, GDOX_MACHINE_FPU_INTEGRATED, 100000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486dx4 }
 };
 
 // The ISA cards keep the model's VGA waits. The VL-Bus card's: reads at 16 bus clocks fit TOPBENCH's video RAM column
@@ -163,7 +168,7 @@ const int k_machine_default_ram_mb = 8;
 
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {
-    GDOX_MACHINE_386SX_20, GDOX_MACHINE_386DX_33, GDOX_MACHINE_486SX_33, GDOX_MACHINE_486DX2_66
+    GDOX_MACHINE_386SX_20, GDOX_MACHINE_386DX_33, GDOX_MACHINE_486SX_33, GDOX_MACHINE_486DX2_66, GDOX_MACHINE_486DX4_100
 };
 
 const int k_machine_cpu_speeds_mhz[GDOX_MACHINE_CPU_SPEED_COUNT] = { 16, 20, 25, 33, 40, 50, 66, 100 };
@@ -171,11 +176,12 @@ const int k_machine_ram_sizes_mb[GDOX_MACHINE_RAM_SIZE_COUNT] = { 1, 2, 4, 8, 16
 
 const GDOX_Machine_CPU_Info k_machine_cpus[GDOX_MACHINE_CPU_COUNT] =
 {
-    { "80386DX", true, 3, false, 0x00000308, 0x7FFFFFE0, 32, 1 },
-    { "80386SX", true, 3, false, 0x00002308, 0x7FFFFFF0, 16, 1 },
-    { "80486SX", true, 4, false, 0x00000420, 0x00000010, 32, 1 },
-    { "80486DX2", true, 4, true, 0x00000433, 0x00000010, 32, 2 },
-    { "Pentium", false, 5, true, 0x00000520, 0x00000010, 64, 1 }
+    { "80386DX", true, 3, false, 0x00000308, 0x7FFFFFE0, 32, 1, 0, false, false },
+    { "80386SX", true, 3, false, 0x00002308, 0x7FFFFFF0, 16, 1, 0, false, false },
+    { "80486SX", true, 4, false, 0x00000420, 0x00000010, 32, 1, 8, false, false },
+    { "80486DX2", true, 4, true, 0x00000433, 0x00000010, 32, 2, 8, false, false },
+    { "80486DX4", true, 4, true, 0x00000480, 0x00000010, 32, 3, 16, true, true },
+    { "Pentium", false, 5, true, 0x00000520, 0x00000010, 64, 1, 16, true, false }
 };
 
 static inline void clear_machine_settings(GDOX_Machine_Settings* settings)

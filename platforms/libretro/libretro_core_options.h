@@ -305,10 +305,11 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         NULL,
         "system",
         {
-            { "386sx_20",  "386SX-20 (80386SX 20 MHz)" },
-            { "386dx_33",  "386DX-33 (80386DX 33 MHz)" },
-            { "486sx_33",  "486SX-33 (80486SX 33 MHz)" },
-            { "486dx2_66", "486DX2-66 (80486DX2 66 MHz)" },
+            { "386sx_20",   "386SX-20 (80386SX 20 MHz)" },
+            { "386dx_33",   "386DX-33 (80386DX 33 MHz)" },
+            { "486sx_33",   "486SX-33 (80486SX 33 MHz)" },
+            { "486dx2_66",  "486DX2-66 (80486DX2 66 MHz)" },
+            { "486dx4_100", "486DX4-100 (80486DX4 100 MHz)" },
             { NULL, NULL },
         },
         "486dx2_66"

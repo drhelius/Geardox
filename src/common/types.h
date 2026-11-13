@@ -370,6 +370,7 @@ enum GDOX_Machine_Model
     GDOX_MACHINE_386DX_33,
     GDOX_MACHINE_486DX2_66,
     GDOX_MACHINE_486SX_33,
+    GDOX_MACHINE_486DX4_100,
     GDOX_MACHINE_COUNT
 };
 
@@ -379,6 +380,7 @@ enum GDOX_Machine_CPU
     GDOX_MACHINE_CPU_80386SX,
     GDOX_MACHINE_CPU_80486SX,
     GDOX_MACHINE_CPU_80486DX2,
+    GDOX_MACHINE_CPU_80486DX4,
     GDOX_MACHINE_CPU_PENTIUM,
     GDOX_MACHINE_CPU_COUNT
 };
@@ -425,6 +427,9 @@ struct GDOX_Machine_CPU_Info
     u32 cr0_fixed;
     int bus_width;
     u8 bus_ratio;
+    u8 cache_kb;
+    bool cpuid;
+    bool fast_imul;
 };
 
 struct GDOX_Machine_Memory_Map
