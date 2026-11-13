@@ -28,11 +28,6 @@ INLINE bool SystemControl::IsCPUResetPending() const
     return m_state.reset_pending;
 }
 
-INLINE bool SystemControl::IsNMIMasked() const
-{
-    return m_state.nmi_mask;
-}
-
 // The gate is open when port 92h or the 8042 ask for it. The CPU fetches its reset vector through it, so a CPU reset
 // opens it until one of them is written again
 INLINE bool SystemControl::IsA20Enabled() const
@@ -43,11 +38,6 @@ INLINE bool SystemControl::IsA20Enabled() const
 INLINE bool SystemControl::IsKeyboardA20Enabled() const
 {
     return m_state.keyboard_a20;
-}
-
-INLINE u8 SystemControl::GetPOSTCode() const
-{
-    return m_state.post_code;
 }
 
 INLINE SystemControl::SystemControl_State* SystemControl::GetState()

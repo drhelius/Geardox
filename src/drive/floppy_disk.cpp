@@ -101,12 +101,6 @@ u8 FloppyDisk::ReadWeakByte(u32 offset, u8 fill) const
     return index < m_weak_count && m_weak[index].offset == offset ? m_weak[index].value : ReadByte(offset, fill);
 }
 
-bool FloppyDisk::HasWeakBytes(u32 offset, u32 size) const
-{
-    u32 index = FindWeakByte(offset);
-    return index < m_weak_count && m_weak[index].offset < offset + size;
-}
-
 u32 FloppyDisk::FindWeakByte(u32 offset) const
 {
     u32 low = 0;

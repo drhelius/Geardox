@@ -140,7 +140,6 @@ public:
     void SetFrameSize(int frame_width, int frame_height, int display_width, int display_height);
     float GetFrameTime() const;
     void EnableNativeResolution(bool enable);
-    bool IsNativeResolutionEnabled() const;
     u8* GetVRAM();
     u8 PeekPlane(int plane, u32 offset) const;
     void PokePlane(int plane, u32 offset, u8 value);

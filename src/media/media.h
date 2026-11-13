@@ -66,9 +66,7 @@ public:
     const char* GetPhysicalCdRomDeviceId() const;
     bool HasPhysicalCdRomError();
     void PreloadCdRom(bool enable);
-    bool IsPreloadCdRomEnabled() const;
     void SetTempPath(const char* path);
-    const char* GetTempPath() const;
     const char* GetFilePath() const;
     const char* GetFileDirectory() const;
     const char* GetFileName() const;
@@ -76,7 +74,6 @@ public:
     const u8* GetData() const;
     int GetSize() const;
     u32 GetCRC() const;
-    const MediaFileInfo& GetMediaInfo() const;
 
 private:
     bool LoadFile(const char* file_path);

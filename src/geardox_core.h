@@ -94,7 +94,6 @@ public:
     void SetMachineSettings(const GDOX_Machine_Settings& settings);
     void SetGameSettings(const GDOX_Machine_Settings& settings, const char* name);
     void ClearGameSettings();
-    bool IsGameActive() const;
     const GDOX_Machine_Settings& GetMachineSettings();
     const GDOX_Machine_Settings& GetGameSettings();
     const GDOX_Machine_Config& GetMachineConfig();

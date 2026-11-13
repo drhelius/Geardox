@@ -895,11 +895,6 @@ void emu_audio_restart(void)
         sound_queue_start(GDOX_AUDIO_SAMPLE_RATE, 2, GDOX_AUDIO_QUEUE_SIZE, config_audio.buffer_count);
 }
 
-bool emu_is_audio_enabled(void)
-{
-    return audio_enabled;
-}
-
 bool emu_is_audio_open(void)
 {
     return sound_queue_is_open();

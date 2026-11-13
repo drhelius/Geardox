@@ -116,16 +116,6 @@ bool CdRomImage::IsPlayableAudioSector(u32 lba)
         (m_toc.tracks[(size_t)track - 1].type == GDOX_CDROM_AUDIO_TRACK);
 }
 
-const char* CdRomImage::GetFilePath()
-{
-    return m_file_path;
-}
-
-const char* CdRomImage::GetFileDirectory()
-{
-    return m_file_directory;
-}
-
 const char* CdRomImage::GetFileName()
 {
     return m_file_name;

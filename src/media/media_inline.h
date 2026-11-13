@@ -42,16 +42,6 @@ INLINE void Media::PreloadCdRom(bool enable)
     m_preload_cdrom = enable;
 }
 
-INLINE bool Media::IsPreloadCdRomEnabled() const
-{
-    return m_preload_cdrom;
-}
-
-INLINE const char* Media::GetTempPath() const
-{
-    return m_temp_path;
-}
-
 INLINE const char* Media::GetFilePath() const
 {
     return m_media_info.path;
@@ -85,9 +75,4 @@ INLINE int Media::GetSize() const
 INLINE u32 Media::GetCRC() const
 {
     return m_media_info.crc;
-}
-
-INLINE const Media::MediaFileInfo& Media::GetMediaInfo() const
-{
-    return m_media_info;
 }

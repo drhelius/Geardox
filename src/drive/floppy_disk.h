@@ -80,8 +80,6 @@ public:
     int GetSectors(int track, FloppyDisk_Sector* sectors) const;
     u8 ReadByte(u32 offset, u8 fill) const;
     u8 ReadWeakByte(u32 offset, u8 fill) const;
-    bool HasWeakBytes(u32 offset, u32 size) const;
-    u32 GetWeakByteCount() const;
     void WriteByte(u32 offset, u8 value);
     void SetSectorStatus(u32 header, bool deleted, u8 status);
     bool ReplaceTrack(int track, const u8* sectors, u32 size, u32 rpm);

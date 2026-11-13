@@ -42,11 +42,6 @@ INLINE const GDOX_Machine_Settings& GeardoxCore::GetGameSettings()
     return m_game_settings;
 }
 
-INLINE bool GeardoxCore::IsGameActive() const
-{
-    return m_game;
-}
-
 INLINE const GDOX_Machine_Config& GeardoxCore::GetMachineConfig()
 {
     return m_machine_config;

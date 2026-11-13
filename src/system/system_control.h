@@ -75,9 +75,7 @@ public:
     void SetFPUError();
     void SetKeyboardA20(bool enabled);
     bool IsKeyboardA20Enabled() const;
-    bool IsNMIMasked() const;
     bool IsA20Enabled() const;
-    u8 GetPOSTCode() const;
     SystemControl_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);

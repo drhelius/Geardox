@@ -67,7 +67,6 @@ public:
     bool TakeBookmarkRequest(GDOX_Debug_Memory_Address& address, u32& end);
     bool TakeWatchRequest(GDOX_Debug_Memory_Address& address);
     bool TakeBreakpointRequest(GDOX_Debug_Memory_Address& address, u32& end, u8& type);
-    DebugMemoryProvider* GetProvider() const;
 
     Options GetOptions() const;
     void SetOptions(const Options& options);

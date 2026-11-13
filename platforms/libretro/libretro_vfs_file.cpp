@@ -118,23 +118,6 @@ s64 LibretroVfsFile::Write(const void* buffer, u64 size)
     return (s64)m_interface->write(m_file, buffer, size);
 }
 
-bool LibretroVfsFile::ReadAll(void* buffer, u64 size)
-{
-    u8* destination = reinterpret_cast<u8*>(buffer);
-    u64 total = 0;
-
-    while (total < size)
-    {
-        s64 read = Read(destination + total, size - total);
-        if (read <= 0 || (u64)read > size - total)
-            return false;
-
-        total += read;
-    }
-
-    return true;
-}
-
 bool LibretroVfsFile::WriteAll(const void* buffer, u64 size)
 {
     const u8* source = reinterpret_cast<const u8*>(buffer);

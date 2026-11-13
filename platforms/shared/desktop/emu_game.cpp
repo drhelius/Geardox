@@ -279,11 +279,6 @@ bool emu_game_is_open(void)
     return disk.IsOpen() && !write_back_pending;
 }
 
-bool emu_game_is_preparing(void)
-{
-    return preparing;
-}
-
 const char* emu_game_get_name(void)
 {
     return disk.IsOpen() ? disk.GetName() : "";

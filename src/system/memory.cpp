@@ -667,23 +667,6 @@ bool Memory::SetRegionHandlerRange(int id, u32 offset, u32 size, bool reads)
     return true;
 }
 
-// A handler that must see its access in time moves machine time up to it first
-// Debugger accesses have no context and stay at the current machine time
-void Memory::SynchronizeAccess()
-{
-    GDOX_Bus_Access_Context* context = m_access_context;
-
-    if (IsValidPointer(context) && IsValidPointer(context->synchronize_memory))
-        context->synchronize_memory(context->synchronize_context, *context);
-}
-
-// A wide handler of a register region does what its byte accesses would
-void Memory::SynchronizeRegisterAccess()
-{
-    if (IsValidPointer(m_access_context))
-        SynchronizeRegister(*m_access_context);
-}
-
 void Memory::SynchronizeRegister(GDOX_Bus_Access_Context& context)
 {
     context.end_batch = true;

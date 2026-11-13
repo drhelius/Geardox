@@ -41,8 +41,6 @@ public:
     void Reset();
     bool IsReady();
     u32 GetCRC();
-    const char* GetFilePath();
-    const char* GetFileDirectory();
     const char* GetFileName();
     const char* GetFileExtension();
     const std::vector<CdRomImage::Track>& GetTracks();
@@ -51,7 +49,6 @@ public:
     GDOX_CdRomMSF GetCdRomLength();
     u32 GetSectorCount();
     u32 GetCurrentSector();
-    u32 GetMediaGeneration();
     bool IsAudioSector(u32 lba);
     bool IsPlayableAudioSector(u32 lba);
     void SetCurrentSector(u32 sector);
@@ -73,7 +70,6 @@ private:
 
 private:
     CdRomImage* m_current_image;
-    u32 m_media_generation;
     CdRomCueBinImage* m_cue_bin_image;
     CdRomChdImage* m_chd_image;
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)

@@ -95,11 +95,6 @@ INLINE void Video::EnableNativeResolution(bool enable)
     m_native_resolution = enable;
 }
 
-INLINE bool Video::IsNativeResolutionEnabled() const
-{
-    return m_native_resolution;
-}
-
 INLINE u8* Video::GetVRAM()
 {
     return m_state.vram;

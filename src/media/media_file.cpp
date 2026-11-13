@@ -184,15 +184,6 @@ void MediaFile::SetVfsInterface(const retro_vfs_interface* iface, unsigned versi
 #endif
 }
 
-bool MediaFile::HasVfsInterface()
-{
-#if defined(__LIBRETRO__)
-    return MediaFileLibretro::HasVfsInterface();
-#else
-    return false;
-#endif
-}
-
 bool MediaFile::ReadExact(void* buffer, u64 size)
 {
     if ((size > (u64)SIZE_MAX) || (!IsValidPointer(buffer) && (size != 0)))

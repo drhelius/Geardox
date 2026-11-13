@@ -39,7 +39,6 @@ public:
     s64 Seek(s64 offset, int position);
     s64 Read(void* buffer, u64 size);
     s64 Write(const void* buffer, u64 size);
-    bool ReadAll(void* buffer, u64 size);
     bool WriteAll(const void* buffer, u64 size);
     bool Flush();
 

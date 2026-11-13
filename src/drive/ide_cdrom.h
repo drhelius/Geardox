@@ -129,7 +129,6 @@ public:
     void SetDelayDivider(u32 divider);
     void Reset();
     bool IsAttached() const;
-    int GetId() const;
     int GetSpeed() const;
     u8 GetStatus() const;
     u8 ReadRegister(int offset) const;

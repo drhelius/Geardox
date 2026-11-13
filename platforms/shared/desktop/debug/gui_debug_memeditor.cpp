@@ -459,11 +459,6 @@ bool MemEditor::TakeBreakpointRequest(GDOX_Debug_Memory_Address& address, u32& e
     return true;
 }
 
-DebugMemoryProvider* MemEditor::GetProvider() const
-{
-    return m_provider;
-}
-
 MemEditor::Options MemEditor::GetOptions() const
 {
     return m_options;

@@ -39,7 +39,6 @@ EXTERN void emu_game_prepare_thread(void);
 EXTERN bool emu_game_start(void);
 EXTERN bool emu_game_close(void);
 EXTERN bool emu_game_is_open(void);
-EXTERN bool emu_game_is_preparing(void);
 EXTERN const char* emu_game_get_name(void);
 EXTERN const char* emu_game_get_error(void);
 EXTERN void emu_game_set_target(int target);

@@ -71,8 +71,6 @@ public:
     bool SetRegionSpan(int id, u32 physical_base, u32 size, const u8* read_data, u8* write_data);
     bool SetRegionData(int id, const u8* read_data, u8* write_data);
     bool SetRegionHandlerRange(int id, u32 offset, u32 size, bool reads);
-    void SynchronizeAccess();
-    void SynchronizeRegisterAccess();
     int GetDebugRegionCount() const;
     bool GetDebugRegion(int index, GDOX_Debug_Memory_Region& region) const;
     void DebugReadRegionBlock(int id, u32 offset, u8* data, GDOX_Debug_Memory_Status* status, u32 size) const;

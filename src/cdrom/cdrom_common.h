@@ -71,14 +71,4 @@ INLINE u8 DecToBcd(u8 val)
     return ((val / 10) << 4) | (val % 10);
 }
 
-INLINE u8 BcdToDec(u8 bcd)
-{
-    return ((bcd >> 4) * 10) + (bcd & 0x0F);
-}
-
-INLINE bool IsValidBcd(u8 bcd)
-{
-    return ((bcd >> 4) <= 9) && ((bcd & 0x0F) <= 9);
-}
-
 #endif /* CDROM_COMMON_H */

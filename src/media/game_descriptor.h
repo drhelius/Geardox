@@ -107,8 +107,6 @@ public:
     const char* GetWarning(int index) const;
     void GetMachineSettings(GDOX_Machine_Settings* settings) const;
     const GDOX_Game_Info& GetInfo() const;
-    const char* GetPath() const;
-    u32 GetCRC() const;
     static bool IsDescriptor(const char* path);
     static const char* GetHardDiskKey(int id);
     static int GetEMSRAM(int ems_kb, int model, bool cirrus);

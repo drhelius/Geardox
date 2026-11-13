@@ -42,7 +42,6 @@ public:
     static bool RemoveDirectory(const char* path);
     static bool SetModified(const char* path, s64 modified);
     static void SetVfsInterface(const retro_vfs_interface* iface, unsigned version = 1);
-    static bool HasVfsInterface();
 
     virtual bool Open(const char* path, bool writable) = 0;
     virtual bool Create(const char* path) = 0;

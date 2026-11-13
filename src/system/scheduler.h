@@ -55,7 +55,6 @@ public:
     void Init();
     void Reset();
     void SetCPUClockRate(u32 rate);
-    u32 GetCPUClockRate() const;
     u64 GetClocks() const;
     void AddClocks(u32 clocks);
     void AddCycles(u32 cycles);

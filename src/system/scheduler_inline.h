@@ -22,11 +22,6 @@
 
 #include "scheduler.h"
 
-INLINE u32 Scheduler::GetCPUClockRate() const
-{
-    return m_cpu_clock_rate;
-}
-
 INLINE u64 Scheduler::GetClocks() const
 {
     return m_state.clocks;

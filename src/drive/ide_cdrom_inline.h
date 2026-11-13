@@ -27,11 +27,6 @@ INLINE bool IdeCdRom::IsAttached() const
     return m_fitted;
 }
 
-INLINE int IdeCdRom::GetId() const
-{
-    return m_id;
-}
-
 INLINE int IdeCdRom::GetSpeed() const
 {
     return m_speed;

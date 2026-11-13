@@ -824,17 +824,6 @@ const GDOX_Game_Info& GameDescriptor::GetInfo() const
     return m_info;
 }
 
-const char* GameDescriptor::GetPath() const
-{
-    return m_path.c_str();
-}
-
-u32 GameDescriptor::GetCRC() const
-{
-    std::string text = Write();
-    return (u32)mz_crc32(0, (const u8*)text.data(), text.size());
-}
-
 bool GameDescriptor::IsDescriptor(const char* path)
 {
     return IsValidPointer(path) && ends_with_no_case(path, ".gdox");
