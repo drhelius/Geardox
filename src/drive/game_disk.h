@@ -128,7 +128,6 @@ private:
     GameDescriptor m_overrides;
     GameDescriptor m_descriptor;
     std::string m_descriptor_path;
-    std::string m_descriptor_inner;
     std::string m_base_directory;
     std::string m_save_directory;
     std::string m_overrides_path;

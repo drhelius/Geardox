@@ -249,7 +249,7 @@ void GeardoxCore::Init()
     m_cdrom_audio->Init();
     m_pic->Init();
     m_dma->Init(m_memory, m_scheduler);
-    m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_memory, m_dma);
+    m_audio->Init(m_scheduler, m_cdrom_audio, m_pic, m_pit, m_dma);
     m_pit->Init(m_pic, m_scheduler, m_audio);
     m_system_control->Init(m_memory, m_pic, m_pit);
     m_keyboard->Init();
@@ -260,7 +260,7 @@ void GeardoxCore::Init()
     m_rtc->Init(m_pic, m_scheduler);
     m_firmware_config->Init();
     m_debug_console->Init();
-    m_video->Init(m_pic, m_pit, m_scheduler, m_memory);
+    m_video->Init(m_pic, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler, m_dma);
     m_ide->Init(m_pic, m_scheduler, m_cdrom_media, m_cdrom_audio, m_audio);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
@@ -274,7 +274,6 @@ void GeardoxCore::Init()
     m_profiler->Init(&m_scheduler->GetState()->clocks);
     m_i386->SetTraceLogger(m_trace_logger);
     m_i386->SetProfiler(m_profiler);
-    m_memory->SetTraceLogger(m_trace_logger);
     m_pic->SetTraceLogger(m_trace_logger);
     m_pit->SetTraceLogger(m_trace_logger);
     m_dma->SetTraceLogger(m_trace_logger);
@@ -1898,8 +1897,6 @@ void GeardoxCore::GetRuntimeInfo(GDOX_Runtime_Info& runtime_info)
         runtime_info.frame_time = m_video->GetFrameTime();
 
     runtime_info.sample_rate = GDOX_AUDIO_SAMPLE_RATE;
-    runtime_info.media_ready = IsValidPointer(m_media) && m_media->IsReady();
-    runtime_info.bios_ready = IsValidPointer(m_firmware) && m_firmware->IsReady();
     runtime_info.paused = m_paused;
 }
 

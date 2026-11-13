@@ -27,7 +27,6 @@
 #include "../i386/dynarec_platform.h"
 
 class StateSerializer;
-class TraceLogger;
 
 typedef u8 (*GDOX_Memory_Read8_Fn)(void* device, u32 offset);
 typedef u16 (*GDOX_Memory_Read16_Fn)(void* device, u32 offset);
@@ -49,7 +48,6 @@ public:
     Memory();
     ~Memory();
     void Init();
-    void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
 
     u8 Read8Physical(u32 physical, GDOX_Bus_Access_Context& context);
@@ -190,7 +188,6 @@ private:
 
     u8* m_video_ram;
     size_t m_video_ram_size;
-    TraceLogger* m_trace_logger;
     GDOX_Bus_Access_Context* m_access_context;
 
 #if !defined(GDOX_DISABLE_DYNAREC)

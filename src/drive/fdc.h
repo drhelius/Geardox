@@ -105,7 +105,6 @@ private:
     PIC* m_pic;
     Scheduler* m_scheduler;
     DMA* m_dma;
-    TraceLogger* m_trace_logger;
     I82077 m_chip;
     FloppyDisk m_disks[FDC_DRIVES];
     FDC_State m_state;

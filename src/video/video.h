@@ -40,7 +40,6 @@
 class Memory;
 class PIC;
 class TraceLogger;
-class PIT;
 class Scheduler;
 class StateSerializer;
 
@@ -116,7 +115,7 @@ public:
 public:
     Video();
     ~Video();
-    void Init(PIC* pic, PIT* pit, Scheduler* scheduler, Memory* memory);
+    void Init(PIC* pic, Scheduler* scheduler, Memory* memory);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCard(int card);
     void Reset();
@@ -278,7 +277,6 @@ private:
     Video_State m_state;
     PIC* m_pic;
     TraceLogger* m_trace_logger;
-    PIT* m_pit;
     Scheduler* m_scheduler;
     Memory* m_memory;
     u8* m_frame_buffer;

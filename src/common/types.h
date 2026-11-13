@@ -84,8 +84,6 @@ struct GDOX_Runtime_Info
     int display_height;
     float frame_time;
     int sample_rate;
-    bool media_ready;
-    bool bios_ready;
     bool paused;
 };
 

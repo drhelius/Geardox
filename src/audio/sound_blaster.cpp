@@ -90,7 +90,6 @@ SoundBlaster::SoundBlaster()
     InitPointer(m_pic);
     InitPointer(m_dma);
     InitPointer(m_trace_logger);
-    m_card = GDOX_SOUND_CARD_NONE;
     m_version_major = 0;
     m_version_minor = 0;
     m_mixer_type = k_sound_blaster_mixer_none;
@@ -125,7 +124,6 @@ void SoundBlaster::SetCard(int card, int irq, int dma)
 {
     const GDOX_Sound_Card_Info& info = k_sound_cards[card];
 
-    m_card = card;
     m_version_major = info.dsp_major;
     m_version_minor = info.dsp_minor;
     m_mixer_type = info.mixer;

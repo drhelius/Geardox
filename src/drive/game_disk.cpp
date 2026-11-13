@@ -473,7 +473,6 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     Close();
     m_error.clear();
     m_descriptor_path = found.path;
-    m_descriptor_inner = found.inner;
     m_save_directory = IsValidPointer(save_directory) ? trim_trailing(save_directory) : std::string();
 
     if (found.inner.empty())
@@ -592,7 +591,6 @@ void GameDisk::Close()
     m_overrides.Clear();
     m_descriptor.Clear();
     m_descriptor_path.clear();
-    m_descriptor_inner.clear();
     m_overrides_path.clear();
     m_source.clear();
     m_image.clear();

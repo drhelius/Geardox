@@ -29,7 +29,6 @@ Video::Video()
 {
     InitPointer(m_pic);
     InitPointer(m_trace_logger);
-    InitPointer(m_pit);
     InitPointer(m_scheduler);
     InitPointer(m_memory);
     InitPointer(m_frame_buffer);
@@ -131,10 +130,9 @@ void Video::SetTraceLogger(TraceLogger* trace_logger)
     m_trace_logger = trace_logger;
 }
 
-void Video::Init(PIC* pic, PIT* pit, Scheduler* scheduler, Memory* memory)
+void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
 {
     m_pic = pic;
-    m_pit = pit;
     m_scheduler = scheduler;
     m_memory = memory;
 

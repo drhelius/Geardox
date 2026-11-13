@@ -30,7 +30,6 @@ FDC::FDC()
     InitPointer(m_pic);
     InitPointer(m_scheduler);
     InitPointer(m_dma);
-    InitPointer(m_trace_logger);
     memset(&m_state, 0, sizeof(m_state));
     memset(m_state.disk_changed, 1, sizeof(m_state.disk_changed));
     memset(m_access_count, 0, sizeof(m_access_count));
@@ -61,7 +60,6 @@ void FDC::Init(PIC* pic, Scheduler* scheduler, DMA* dma)
 
 void FDC::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
     m_chip.SetTraceLogger(trace_logger);
 }
 

@@ -222,7 +222,6 @@ private:
     PIC* m_pic;
     DMA* m_dma;
     TraceLogger* m_trace_logger;
-    int m_card;
     u8 m_version_major;
     u8 m_version_minor;
     int m_mixer_type;

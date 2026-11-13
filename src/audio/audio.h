@@ -31,7 +31,6 @@
 
 class CdRomAudio;
 class DMA;
-class Memory;
 class PIC;
 class PIT;
 class Scheduler;
@@ -66,7 +65,7 @@ public:
 public:
     Audio();
     ~Audio();
-    void Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, Memory* memory, DMA* dma);
+    void Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, DMA* dma);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCard(int card, int irq, int dma);
     void Reset();
@@ -130,9 +129,7 @@ private:
     MPU401* m_mpu401;
     CdRomAudio* m_cdrom_audio;
     Scheduler* m_scheduler;
-    PIC* m_pic;
     PIT* m_pit;
-    Memory* m_memory;
     TraceLogger* m_trace_logger;
     int m_opl_chips;
     bool m_opl3;

@@ -41,7 +41,6 @@ Memory::Memory()
     InitPointer(m_state.main_ram);
     InitPointer(m_video_ram);
     m_video_ram_size = 0;
-    InitPointer(m_trace_logger);
     InitPointer(m_access_context);
     memset(m_debug_regions, 0, sizeof(m_debug_regions));
 #if !defined(GDOX_DISABLE_DYNAREC)
@@ -70,11 +69,6 @@ void Memory::Init()
         m_state.main_ram = new u8[m_main_ram_size];
 
     Reset();
-}
-
-void Memory::SetTraceLogger(TraceLogger* trace_logger)
-{
-    m_trace_logger = trace_logger;
 }
 
 void Memory::Reset()

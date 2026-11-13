@@ -33,9 +33,7 @@ Audio::Audio()
     InitPointer(m_mpu401);
     InitPointer(m_cdrom_audio);
     InitPointer(m_scheduler);
-    InitPointer(m_pic);
     InitPointer(m_pit);
-    InitPointer(m_memory);
     InitPointer(m_trace_logger);
     m_mute = false;
     m_master_volume = 1.0f;
@@ -86,13 +84,11 @@ Audio::~Audio()
     SafeDelete(m_opl[0]);
 }
 
-void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, Memory* memory, DMA* dma)
+void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, DMA* dma)
 {
     m_scheduler = scheduler;
     m_cdrom_audio = cdrom_audio;
-    m_pic = pic;
     m_pit = pit;
-    m_memory = memory;
 
     for (int i = 0; i < AUDIO_OPL_CHIPS; i++)
     {

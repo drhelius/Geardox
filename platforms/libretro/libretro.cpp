@@ -72,7 +72,6 @@ static bool libretro_supports_keyboard = false;
 static bool categories_supported = false;
 static bool frameskip_threshold_visible = true;
 
-static char retro_system_directory[4096];
 static char retro_save_directory[4096];
 static char retro_game_path[4096];
 static bool content_loaded = false;
@@ -351,13 +350,6 @@ void retro_init(void)
         log_cb = fallback_log;
 
     const char *dir = NULL;
-
-    if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &dir) && dir)
-        snprintf(retro_system_directory, sizeof(retro_system_directory), "%s", dir);
-    else
-        snprintf(retro_system_directory, sizeof(retro_system_directory), "%s", ".");
-
-    dir = NULL;
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &dir) && dir)
         snprintf(retro_save_directory, sizeof(retro_save_directory), "%s", dir);
