@@ -289,8 +289,8 @@ void Audio::SetCDDAGains(const s32* gains)
 
 void Audio::UpdateGains()
 {
-    m_fm_gain_left = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, false);
-    m_fm_gain_right = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true);
+    m_fm_gain_left = (s32)(((s64)m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, false) * k_audio_fm_gain_q15) >> 15);
+    m_fm_gain_right = (s32)(((s64)m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true) * k_audio_fm_gain_q15) >> 15);
     m_pcm_gain_left = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, false);
     m_pcm_gain_right = m_sound_blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, true);
 

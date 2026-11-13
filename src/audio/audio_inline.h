@@ -37,6 +37,7 @@ static const int k_audio_dc_fraction = 12;
 static const s32 k_audio_dc_round = 1 << (k_audio_dc_fraction - 1);
 static const s32 k_audio_dc_limit = 1 << 30;
 static const u16 k_audio_fm_port = 0x0388;
+static const s32 k_audio_fm_gain_q15 = 65536;
 
 INLINE void Audio::Mute(bool mute)
 {
@@ -305,8 +306,8 @@ INLINE void Audio::SampleSources()
     if (m_channel_scopes)
         CaptureChannels(m_buffer_index >> 1);
 
-    m_fm_buffer[m_buffer_index + 0] = (s16)((fm_left * m_fm_gain_left) >> 15);
-    m_fm_buffer[m_buffer_index + 1] = (s16)((fm_right * m_fm_gain_right) >> 15);
+    m_fm_buffer[m_buffer_index + 0] = (s16)CLAMP((fm_left * m_fm_gain_left) >> 15, -32768, 32767);
+    m_fm_buffer[m_buffer_index + 1] = (s16)CLAMP((fm_right * m_fm_gain_right) >> 15, -32768, 32767);
     m_pcm_buffer[m_buffer_index + 0] = (s16)((m_state.pcm_lowpass_left * m_pcm_gain_left) >> 15);
     m_pcm_buffer[m_buffer_index + 1] = (s16)((m_state.pcm_lowpass_right * m_pcm_gain_right) >> 15);
     m_cdda_buffer[m_buffer_index + 0] = (s16)CLAMP(cd_left, -32768, 32767);
