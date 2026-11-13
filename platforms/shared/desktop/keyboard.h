@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef KEYBOARD_H
-#define KEYBOARD_H
+#ifndef DESKTOP_KEYBOARD_H
+#define DESKTOP_KEYBOARD_H
 
 #include <SDL3/SDL.h>
 #include "imgui.h"
@@ -65,4 +65,4 @@ static SDL_Scancode keyboard_get_first_pressed_scancode()
     return SDL_SCANCODE_UNKNOWN;
 }
 
-#endif /* KEYBOARD_H */
+#endif /* DESKTOP_KEYBOARD_H */
