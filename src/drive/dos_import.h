@@ -45,6 +45,7 @@ struct DosImport_File
 struct DosImport_System
 {
     std::string name;
+    int version;
     std::vector<std::string> pinned;
     std::vector<std::string> root;
     bool cd_extension;
@@ -68,6 +69,7 @@ public:
     static bool Load(const char* zip_path, DosImport_System* system, std::string* error);
     static bool ReadSourceFingerprint(const char* zip_path, u32* fingerprint);
     static bool ExpandKWAJ(const u8* data, size_t size, std::string* out);
+    static bool ExpandSZDD(const u8* data, size_t size, std::string* out);
 
 private:
     bool AddFolder(const std::string& path);

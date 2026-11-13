@@ -237,7 +237,7 @@ static void menu_dos(bool open, bool loading)
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Your own MS-DOS Setup disks: one of the disk images, or a ZIP with them.\nGeardox keeps its own "
-            "copy and boots it in every game that doesn't ask for FreeDOS.\nMS-DOS 6.0 to 6.22, in any language.");
+            "copy and boots it in every game that doesn't ask for FreeDOS.\nMS-DOS 5.0 to 6.22, in any language.");
 
     if (ImGui::MenuItem("Remove MS-DOS", NULL, false, imported && !loading))
     {

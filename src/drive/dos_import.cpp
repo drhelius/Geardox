@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <algorithm>
+#include <set>
 #include "dos_import.h"
 #include "floppy_image.h"
 #include "../media/media_file.h"
@@ -36,17 +37,30 @@ static const u32 k_dos_kwaj_max_size = 8 * 1024 * 1024;
 static const u16 k_dos_kwaj_method_lzh = 3;
 
 // MS-DOS 6's Setup disks, whatever the version or the language: PACKING.LST names every file Setup installs, the
-// compressed ones in KWAJ, and DOSSETUP.INI's [dif-path] puts these in the root (docs/27 §18)
+// compressed ones in KWAJ, and DOSSETUP.INI's [dif-path] puts these in the root (docs/27 §18). MS-DOS 5's compress in
+// SZDD, list each disk's names only as stored, and have the real ones in SETUP.INI and PACKING.LST's install layout
+// (docs/27 §19)
 static const char k_dos_names_list[] = "PACKING.LST";
 static const char* const k_dos_boot_files[] = { "IO.SYS", "MSDOS.SYS", NULL };
 static const char* const k_dos_root_files[] = { "WINA20.386", NULL };
 static const char* const k_dos_both_files[] = { "COMMAND.COM", NULL };
-static const char* const k_dos_left_out[] = { "PACKING.LST", "SETUP.MSG", "CONFIG.SYS", "AUTOEXEC.BAT", NULL };
+static const char* const k_dos_left_out_6[] = { "PACKING.LST", "SETUP.MSG", "CONFIG.SYS", "AUTOEXEC.BAT", NULL };
+static const char* const k_dos_left_out_5[] = { "SETUP.EXE", "SETUP.INI", "CV.COM", "README.1ST", "CONFIG.SYS", "AUTOEXEC.BAT", NULL };
+static const char* const k_dos_shell_copies[] = { "VGA.VID", "DOSSHELL.VID", "VGA.GRB", "DOSSHELL.GRB", "EGA.INI", "DOSSHELL.INI", NULL };
+static const char* const k_dos_shell_adapters[] =
+{
+    "MONO.VID", "CGA.VID", "EGA.VID", "VGA.VID", "HERC.VID", "8514.VID", "MONO.GRB", "CGA.GRB", "EGA.GRB", "EGAMONO.GRB",
+    "VGA.GRB", "VGAMONO.GRB", "HERC.GRB", "MONO.INI", "CGA.INI", "EGA.INI", NULL
+};
 static const char* const k_dos_renames[] = { "WNTOOLS.GRB", "WNTOOLS.GRP", NULL };
 static const char* const k_dos_required[] = { "HIMEM.SYS", "EMM386.EXE", NULL };
 static const char k_dos_cd_extension[] = "MSCDEX.EXE";
 static const char k_dos_cache[] = "SMARTDRV.EXE";
-static const char k_dos_family[] = "msdos6";
+static const char k_dos_family_6[] = "msdos6";
+static const char k_dos_family_5[] = "msdos5";
+static const char k_dos_setup_ini_5[] = "SETUP.INI";
+static const u8 k_dos_szdd_signature[8] = { 'S', 'Z', 'D', 'D', 0x88, 0xF0, 0x27, 0x33 };
+static const u32 k_dos_szdd_header_size = 14;
 
 enum Dos_Place
 {
@@ -183,8 +197,9 @@ static bool is_listed_name(const std::string& name)
     return true;
 }
 
-// Each Setup disk's heading has its number after a #, whatever the language, and each file a line of two names
-static void parse_names(const std::string& text, std::vector<Dos_Listed>* listed)
+// A disk's heading has its number after a # (6.x, "Setup Disk #1", "DISQUETE #1") or alone after a word (5.0,
+// "DISK 1"), whatever the language. MS-DOS 6 lists a file as its stored and its expanded name, MS-DOS 5 as one name
+static void parse_names(const std::string& text, std::vector<Dos_Listed>* pairs, std::vector<Dos_Listed>* singles)
 {
     size_t start = 0;
     int disk = 0;
@@ -196,25 +211,74 @@ static void parse_names(const std::string& text, std::vector<Dos_Listed>* listed
         std::string line = text.substr(start, end - start);
         start = end + 1;
         size_t hash = line.find('#');
-
-        if ((hash != std::string::npos) && (hash + 1 < line.size()) && (line[hash + 1] >= '1') && (line[hash + 1] <= '9'))
-            disk = line[hash + 1] - '0';
-
         char first[64];
         char second[64];
         char third[8];
+        int count = sscanf(line.c_str(), "%63s %63s %7s", first, second, third);
 
-        if (sscanf(line.c_str(), "%63s %63s %7s", first, second, third) != 2)
-            continue;
+        if ((hash != std::string::npos) && (hash + 1 < line.size()) && (line[hash + 1] >= '1') && (line[hash + 1] <= '9'))
+            disk = line[hash + 1] - '0';
+        else if ((count == 2) && (strlen(second) == 1) && (second[0] >= '1') && (second[0] <= '9') && !is_listed_name(upper(first)))
+            disk = second[0] - '0';
 
         Dos_Listed item;
         item.stored = upper(first);
-        item.name = upper(second);
+        item.name = count == 2 ? upper(second) : item.stored;
         item.disk = disk;
 
-        if (is_listed_name(item.stored) && is_listed_name(item.name))
-            listed->push_back(item);
+        if ((count == 2) && is_listed_name(item.stored) && is_listed_name(item.name))
+            pairs->push_back(item);
+        else if ((count == 1) && is_listed_name(item.stored))
+            singles->push_back(item);
     }
+}
+
+// Every 8.3 name in a Setup file of MS-DOS 5, which isn't all text
+static void add_names(const std::string& text, std::set<std::string>* names)
+{
+    std::string token;
+
+    for (size_t i = 0; i <= text.size(); i++)
+    {
+        char c = i < text.size() ? text[i] : ' ';
+        bool part = ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) ||
+            ((c != 0) && (strchr("$%'-_@~`!(){}^#&.", c) != NULL));
+
+        if (part)
+        {
+            token += c;
+            continue;
+        }
+
+        if (is_listed_name(upper(token)))
+            names->insert(upper(token));
+
+        token.clear();
+    }
+}
+
+// MS-DOS 5's stored names lose their last letter to an underscore, and the SZDD header doesn't keep it: the real name
+// is the one that differs only there
+static std::string get_real_name(const std::string& stored, const std::set<std::string>& names)
+{
+    if (stored[stored.size() - 1] != '_')
+        return stored;
+
+    std::string found;
+
+    for (std::set<std::string>::const_iterator it = names.begin(); it != names.end(); ++it)
+    {
+        if ((it->size() != stored.size()) || ((*it)[it->size() - 1] == '_') ||
+            (it->compare(0, it->size() - 1, stored, 0, stored.size() - 1) != 0))
+            continue;
+
+        if (!found.empty())
+            return "";
+
+        found = *it;
+    }
+
+    return found;
 }
 
 // COMMAND.COM's own banner, "MS-DOS(R) Version 6.22" or "Versión 6.22", names the version whatever the language
@@ -224,16 +288,34 @@ static std::string get_version_name(const std::string& command)
     size_t at = command.find(k_banner);
 
     if (at == std::string::npos)
-        return "MS-DOS 6";
+        return "MS-DOS";
 
     size_t word = command.find(' ', at + sizeof(k_banner) - 1);
     size_t end = word == std::string::npos ? word : command.find_first_not_of("0123456789.", word + 1);
 
     if ((word == std::string::npos) || (end == word + 1))
-        return "MS-DOS 6";
+        return "MS-DOS";
 
     std::string version = command.substr(word + 1, end - word - 1);
     return "MS-DOS " + (version.find('.') == std::string::npos ? version + ".0" : version);
+}
+
+// "MS-DOS 6.22" as 622, "MS-DOS 6.0" as 600, "MS-DOS 5.00" as 500: what the generated CONFIG.SYS can use
+static int get_version_number(const std::string& name)
+{
+    size_t digit = name.find_first_of("0123456789");
+
+    if (digit == std::string::npos)
+        return 0;
+
+    int major = atoi(name.c_str() + digit);
+    size_t dot = name.find('.', digit);
+    std::string minor = dot == std::string::npos ? std::string() : name.substr(dot + 1, 2);
+
+    while (minor.size() < 2)
+        minor += '0';
+
+    return (major * 100) + atoi(minor.c_str());
 }
 
 static u32 kwaj_bits(Kwaj_Bits* bits, int count)
@@ -653,7 +735,65 @@ bool DosImport::ExpandKWAJ(const u8* data, size_t size, std::string* out)
     return bits.bit <= (bits.size * 8) + 32;
 }
 
-// docs/27 §18: any MS-DOS 6 Setup set, by the family's rules, named by its own COMMAND.COM
+// SZDD, MS-DOS 5's COMPRESS, from the same format page: LZSS over a 4 KB window of spaces. A control byte's bits, low
+// first, choose a literal or a 12-bit position and 4-bit length, plus 3
+bool DosImport::ExpandSZDD(const u8* data, size_t size, std::string* out)
+{
+    out->clear();
+
+    if ((size < k_dos_szdd_header_size) || (memcmp(data, k_dos_szdd_signature, sizeof(k_dos_szdd_signature)) != 0) ||
+        (data[8] != 'A'))
+        return false;
+
+    u32 length = read_u32_le(data + 10);
+
+    if (length > k_dos_kwaj_max_size)
+        return false;
+
+    u8 window[k_dos_kwaj_window];
+    u32 position = k_dos_kwaj_window - 16;
+    size_t at = k_dos_szdd_header_size;
+    memset(window, ' ', sizeof(window));
+    out->reserve(length);
+
+    while ((out->size() < length) && (at < size))
+    {
+        u8 control = data[at++];
+
+        for (int bit = 0; (bit < 8) && (out->size() < length); bit++)
+        {
+            if ((control & (1 << bit)) != 0)
+            {
+                if (at >= size)
+                    return false;
+
+                window[position] = data[at++];
+                out->push_back((char)window[position]);
+                position = (position + 1) & (k_dos_kwaj_window - 1);
+                continue;
+            }
+
+            if (at + 1 >= size)
+                return false;
+
+            u32 from = data[at] | ((data[at + 1] & 0xF0) << 4);
+            u32 count = (data[at + 1] & 0x0F) + 3;
+            at += 2;
+
+            for (u32 i = 0; (i < count) && (out->size() < length); i++)
+            {
+                window[position] = window[from];
+                out->push_back((char)window[position]);
+                position = (position + 1) & (k_dos_kwaj_window - 1);
+                from = (from + 1) & (k_dos_kwaj_window - 1);
+            }
+        }
+    }
+
+    return out->size() == length;
+}
+
+// docs/27 §18 and §19: any MS-DOS 6 or 5 Setup set, by the family's rules, named by its own COMMAND.COM
 DosImport_Result DosImport::Import(const char* zip_path)
 {
     m_name.clear();
@@ -665,32 +805,61 @@ DosImport_Result DosImport::Import(const char* zip_path)
         return m_result;
     }
 
-    for (std::map<std::string, DosImport_File>::const_iterator it = m_files.begin(); it != m_files.end(); ++it)
-    {
-        if ((it->second.data.size() >= 4) && (memcmp(it->second.data.data(), "SZDD", 4) == 0))
-        {
-            Fail(DOS_IMPORT_UNKNOWN, "These are the Setup disks of MS-DOS 5 or older, which Geardox can't import yet");
-            return m_result;
-        }
-    }
-
     std::map<std::string, DosImport_File>::const_iterator io = m_files.find(k_dos_boot_files[0]);
     std::map<std::string, DosImport_File>::const_iterator command = m_files.find(k_dos_both_files[0]);
     std::map<std::string, DosImport_File>::const_iterator list = m_files.find(k_dos_names_list);
     std::vector<Dos_Listed> listed;
+    std::vector<Dos_Listed> singles;
 
     if ((io == m_files.end()) || (command == m_files.end()) || (m_files.count(k_dos_boot_files[1]) == 0))
     {
-        Fail(DOS_IMPORT_UNKNOWN, "No IO.SYS, MSDOS.SYS and COMMAND.COM: these aren't MS-DOS 6's Setup disks, or Disk 1 is missing");
+        Fail(DOS_IMPORT_UNKNOWN, "No IO.SYS, MSDOS.SYS and COMMAND.COM: these aren't MS-DOS 5 or 6 Setup disks, or Disk 1 is missing");
         return m_result;
     }
 
     if (list != m_files.end())
-        parse_names(list->second.data, &listed);
+        parse_names(list->second.data, &listed, &singles);
+
+    const char* family = k_dos_family_6;
+    const char* const* left_out = k_dos_left_out_6;
+
+    if (listed.empty() && !singles.empty())
+    {
+        std::set<std::string> names;
+        std::map<std::string, DosImport_File>::const_iterator setup = m_files.find(k_dos_setup_ini_5);
+        family = k_dos_family_5;
+        left_out = k_dos_left_out_5;
+
+        if (setup != m_files.end())
+            add_names(setup->second.data, &names);
+
+        for (size_t i = 0; i < singles.size(); i++)
+            names.insert(singles[i].stored);
+
+        for (size_t i = 0; i < singles.size(); i++)
+        {
+            Dos_Listed item = singles[i];
+            bool compressed = item.stored[item.stored.size() - 1] == '_';
+
+            if (!compressed && (m_files.count(item.stored) == 0))
+                continue;
+
+            item.name = get_real_name(item.stored, names);
+
+            if (item.name.empty())
+            {
+                Fail(DOS_IMPORT_INCOMPLETE, "%s has no name of its own in %s or %s", item.stored.c_str(), k_dos_setup_ini_5,
+                    k_dos_names_list);
+                return m_result;
+            }
+
+            listed.push_back(item);
+        }
+    }
 
     if (listed.empty())
     {
-        Fail(DOS_IMPORT_UNKNOWN, "No %s naming the files: these aren't MS-DOS 6's Setup disks", k_dos_names_list);
+        Fail(DOS_IMPORT_UNKNOWN, "No %s naming the files: these aren't MS-DOS 5 or 6 Setup disks", k_dos_names_list);
         return m_result;
     }
 
@@ -707,7 +876,7 @@ DosImport_Result DosImport::Import(const char* zip_path)
                 name = k_dos_renames[r + 1];
         }
 
-        if (in_list(k_dos_left_out, name))
+        if (in_list(left_out, name))
             continue;
 
         if (found == m_files.end())
@@ -717,15 +886,30 @@ DosImport_Result DosImport::Import(const char* zip_path)
         }
 
         DosImport_File file = found->second;
+        const u8* data = (const u8*)found->second.data.data();
+        size_t size = found->second.data.size();
+        bool kwaj = (size >= 4) && (memcmp(data, k_dos_kwaj_signature, 4) == 0);
+        bool szdd = (size >= 4) && (memcmp(data, k_dos_szdd_signature, 4) == 0);
 
-        if ((file.data.size() >= 4) && (memcmp(file.data.data(), k_dos_kwaj_signature, 4) == 0) &&
-            !ExpandKWAJ((const u8*)found->second.data.data(), found->second.data.size(), &file.data))
+        if ((kwaj && !ExpandKWAJ(data, size, &file.data)) || (szdd && !ExpandSZDD(data, size, &file.data)))
         {
             Fail(DOS_IMPORT_INCOMPLETE, "%s doesn't expand: the image of Disk %d may be damaged", listed[i].stored.c_str(), file.image + 1);
             return m_result;
         }
 
         installed[name] = file;
+    }
+
+    // Setup gives the MS-DOS Shell the VGA's files under its own names, and installs no other adapter's: what 5.0's
+    // Setup did on Geardox's VGA (docs/27 §19)
+    if ((installed.count(k_dos_shell_copies[0]) != 0) && (installed.count(k_dos_shell_copies[2]) != 0) &&
+        (installed.count(k_dos_shell_copies[4]) != 0))
+    {
+        for (int i = 0; IsValidPointer(k_dos_shell_copies[i]); i += 2)
+            installed[k_dos_shell_copies[i + 1]] = installed[k_dos_shell_copies[i]];
+
+        for (int i = 0; IsValidPointer(k_dos_shell_adapters[i]); i++)
+            installed.erase(k_dos_shell_adapters[i]);
     }
 
     for (int i = 0; IsValidPointer(k_dos_required[i]); i++)
@@ -755,7 +939,7 @@ DosImport_Result DosImport::Import(const char* zip_path)
         return m_result;
     }
 
-    std::string version_text = std::string("id=") + k_dos_family + "\r\nname=" + m_name + "\r\n";
+    std::string version_text = std::string("id=") + family + "\r\nname=" + m_name + "\r\n";
     char source[32];
     snprintf(source, sizeof(source), "source=%08X\r\n", GetSourceFingerprint());
     version_text += source;
@@ -916,7 +1100,8 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
 
     size_t boot_size = 0;
     void* boot = mz_zip_reader_extract_file_to_heap(&zip, k_dos_import_boot, &boot_size, 0);
-    bool ok = (get_value(text, "id") == k_dos_family) && IsValidPointer(boot) && (boot_size == sizeof(system->boot)) &&
+    std::string id = get_value(text, "id");
+    bool ok = ((id == k_dos_family_6) || (id == k_dos_family_5)) && IsValidPointer(boot) && (boot_size == sizeof(system->boot)) &&
         (read_u16_le((const u8*)boot + 510) == 0xAA55);
 
     if (ok)
@@ -958,7 +1143,8 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
         system->pinned.push_back(k_dos_boot_files[i]);
 
     system->name = get_value(text, "name");
-    system->name = system->name.empty() ? std::string("MS-DOS 6") : system->name;
+    system->name = system->name.empty() ? std::string("MS-DOS") : system->name;
+    system->version = get_version_number(system->name);
     system->zip.assign((const char*)data.data(), data.size());
     system->crc = (u32)mz_crc32(0, data.data(), data.size());
     error->clear();

@@ -380,6 +380,7 @@ GameDisk::GameDisk()
     m_locked = false;
     m_has_machine = false;
     m_msdos_loaded = false;
+    m_msdos.version = 0;
     m_msdos.cd_extension = false;
     m_msdos.cache = false;
     m_msdos.crc = 0;
@@ -947,7 +948,12 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
         frame = line;
     }
 
-    out += msdos ? "SWITCHES=/F\r\nLASTDRIVE=Z\r\n" : "SWITCHES=/F\r\nLASTDRIVE=Z\r\nIDLEHALT=1\r\n";
+    // SWITCHES=/F came with MS-DOS 6.0, and HIMEM's memory test, with /TESTMEM to skip it, with 6.2 (docs/27 §19)
+    if (msdos)
+        out += m_msdos.version >= 600 ? "SWITCHES=/F\r\nLASTDRIVE=Z\r\n" : "LASTDRIVE=Z\r\n";
+    else
+        out += "SWITCHES=/F\r\nLASTDRIVE=Z\r\nIDLEHALT=1\r\n";
+
     snprintf(line, sizeof(line), "FILES=%d\r\nBUFFERS=%d\r\n", info.files, info.buffers);
     out += line;
 
@@ -959,13 +965,19 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
         if (info.memory != GDOX_GAME_MEMORY_NONE)
         {
             out += info.memory == GDOX_GAME_MEMORY_XMS ? "DOS=HIGH\r\n" : "DOS=HIGH,UMB\r\n";
-            out += "DEVICE=C:\\DOS\\HIMEM.SYS /TESTMEM:OFF\r\n";
+            out += m_msdos.version >= 620 ? "DEVICE=C:\\DOS\\HIMEM.SYS /TESTMEM:OFF\r\n" : "DEVICE=C:\\DOS\\HIMEM.SYS\r\n";
         }
 
         if (info.memory == GDOX_GAME_MEMORY_UMB)
             out += "DEVICE=C:\\DOS\\EMM386.EXE NOEMS\r\n";
-        else if (info.memory == GDOX_GAME_MEMORY_EMS)
+        else if ((info.memory == GDOX_GAME_MEMORY_EMS) && (m_msdos.version >= 600))
             out += "DEVICE=C:\\DOS\\EMM386.EXE RAM" + frame + "\r\n";
+        else if (info.memory == GDOX_GAME_MEMORY_EMS)
+        {
+            // MS-DOS 5's EMM386 sets its EMS aside as it loads, 256K unless told: the game's, or all it finds (docs/27 §19)
+            snprintf(line, sizeof(line), "DEVICE=C:\\DOS\\EMM386.EXE %d RAM", info.ems_kb > 0 ? ((info.ems_kb + 15) / 16) * 16 : 32768);
+            out += line + frame + "\r\n";
+        }
 
         if (!info.cds.empty())
             out += "DEVICEHIGH=C:\\GEARDOX\\UDVD2.SYS /D:FDCD0001\r\n";

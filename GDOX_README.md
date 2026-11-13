@@ -290,12 +290,15 @@ folder or save location whichever DOS runs.
 - **Removing it:** **Game > DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
   opened.
 
-**MS-DOS 6.0, 6.2, 6.21 and 6.22** can be imported, in any language. Geardox installs exactly the files the Setup
-disks' `PACKING.LST` lists, as MS-DOS Setup does, and leaves out supplemental disks, which Setup never installs. The
-name shown, such as "MS-DOS 6.22", comes from your copy's own `COMMAND.COM`. A disk or file that's missing, a disk
-that can't be read, or a compressed file that doesn't expand is reported with the disk it should be on. A damaged byte
-inside a compressed file can't be detected, because MS-DOS's compression has no checksum. MS-DOS 5.0 and older use
-an older format that Geardox can't import yet.
+**MS-DOS 5.0, 6.0, 6.2, 6.21 and 6.22** can be imported, in any language. Geardox installs the files MS-DOS Setup
+installs, as the Setup disks list them, and leaves out supplemental disks, which Setup never installs. The name shown,
+such as "MS-DOS 6.22", comes from your copy's own `COMMAND.COM`. A disk or file that's missing, a disk that can't be
+read, or a compressed file that doesn't expand is reported with the disk it should be on. A damaged byte inside a
+compressed file can't be detected, because MS-DOS's compression has no checksum. MS-DOS 4 and older aren't supported.
+
+MS-DOS 5.0 has no CD-ROM extensions, so a game's CD uses SHSUCDX, Geardox's own, as FreeDOS does. Its EMM386 sets the
+whole of its EMS aside when it loads: with `memory = ems`, a game gets all the extended memory as EMS and has little
+XMS left, unless `ems_kb` asks for less. `cache = on` loads nothing, as 5.0 has no SMARTDRV.EXE.
 
 In RetroArch, put the Setup disk images, or a ZIP of them, in `geardox/msdos` inside RetroArch's system folder.
 Geardox imports them the next time a game loads, and again whenever they change. Removing them goes back to FreeDOS.
@@ -525,12 +528,12 @@ use V86 mode and provide VCPI; if a game refuses V86 mode, try `xms` or `none`.
 
 Free conventional memory for a game, with the mouse and CD drivers loaded:
 
-| `memory` | FreeDOS | MS-DOS |
-| --- | --- | --- |
-| `none` | 498 KB | 567 KB |
-| `xms` | 606 KB | 585 KB |
-| `umb` | 620 KB | 615 KB |
-| `ems` | 620 KB | 615 KB |
+| `memory` | FreeDOS | MS-DOS 6.22 | MS-DOS 5.0 |
+| --- | --- | --- | --- |
+| `none` | 498 KB | 567 KB | 568 KB |
+| `xms` | 606 KB | 585 KB | 606 KB |
+| `umb` | 620 KB | 615 KB | 603 KB |
+| `ems` | 620 KB | 615 KB | 609 KB |
 
 `ems_kb = N` is a request for enough memory, not a cap on the EMS DOS exposes. Available EMS is RAM minus about
 1.5 MB on either DOS, with another 1 MB reserved when using at least 16 MB of RAM and a Cirrus card. On MS-DOS,
