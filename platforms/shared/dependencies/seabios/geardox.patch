@@ -494,7 +494,29 @@
  
  // Indicator if POST phase has been started (and if it has completed).
  int HaveRunPost VARFSEG;
-@@ -67,6 +68,14 @@ mathcp_setup(void)
+@@ -58,15 +59,36 @@ handle_02(void)
+     debug_isr(DEBUG_ISR_02);
+ }
+ 
++static int
++mathcp_present(void)
++{
++    u16 control = 0, status = 0;
++    asm volatile("fninit\n"
++                 "fnstcw %0\n"
++                 "fnstsw %1"
++                 : "=m"(control), "=m"(status));
++    return (control & 0x1f3f) == 0x033f && !(status & 0xb8bf);
++}
++
+ void
+ mathcp_setup(void)
+ {
+     dprintf(3, "math cp init\n");
++    if (!mathcp_present())
++        return;
+     // 80x87 coprocessor installed
+     set_equipment_flags(0x02, 0x02);
      enable_hwirq(13, FUNC16(entry_75));
  }
  
