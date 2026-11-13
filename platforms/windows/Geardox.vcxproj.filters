@@ -515,6 +515,9 @@
     <ClInclude Include="..\..\src\i386\i386_opcodes_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\i386\x87.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\i386\x87_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\exec_memory.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\dynarec_platform.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\i386\i386_dynarec_emit.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\io.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\io_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\pic.h"><Filter>src</Filter></ClInclude>

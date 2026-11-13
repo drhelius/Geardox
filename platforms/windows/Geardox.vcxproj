@@ -281,6 +281,9 @@
     <ClInclude Include="..\..\src\i386\i386_opcodes_inline.h" />
     <ClInclude Include="..\..\src\i386\x87.h" />
     <ClInclude Include="..\..\src\i386\x87_inline.h" />
+    <ClInclude Include="..\..\src\i386\exec_memory.h" />
+    <ClInclude Include="..\..\src\i386\dynarec_platform.h" />
+    <ClInclude Include="..\..\src\i386\i386_dynarec_emit.h" />
     <ClInclude Include="..\..\src\system\io.h" />
     <ClInclude Include="..\..\src\system\io_inline.h" />
     <ClInclude Include="..\..\src\system\pic.h" />
