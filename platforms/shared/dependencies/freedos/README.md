@@ -15,7 +15,8 @@ FreeCOM 0.86a, from the packages in `packages`. Geardox compiles in the result, 
 `KERNEL.SYS` is the kernel's `KERNL386.SYS`, because every Geardox model is a 386 or better, without its sign-on: `build.sh` unpacks it, empties the sign-on's format string and packs it
 again. `FDCONFIG.SYS` and `FDAUTO.BAT` are here. Everything else is a program from the packages, in `\FREEDOS\BIN`, and the license texts are in `\FREEDOS`.
 
-CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware.
+CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. LBACACHE is the read cache a game descriptor's
+`cache = on` loads.
 
 ## Building
 

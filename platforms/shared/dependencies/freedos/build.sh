@@ -54,6 +54,7 @@ FILES = [
     ("keyb", "KEYB.EXE", BIN + "KEYB.EXE"),
     ("keyb_lay", "KEYBOARD.SYS", BIN + "KEYBOARD.SYS"),
     ("label", "LABEL.EXE", BIN + "LABEL.EXE"),
+    ("lbacache", "LBACACHE.COM", BIN + "LBACACHE.COM"),
     ("mem", "MEM.EXE", BIN + "MEM.EXE"),
     ("mode", "MODE.COM", BIN + "MODE.COM"),
     ("more", "MORE.EXE", BIN + "MORE.EXE"),
