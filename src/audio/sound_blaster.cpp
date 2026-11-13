@@ -304,7 +304,7 @@ u8 SoundBlaster::DecodeADPCM(u8 code, int bits)
     int top = bits == 4 ? 3 : bits == 3 ? 4 : 5;
     int raise = bits == 4 ? 5 : bits == 3 ? 3 : 1;
     int step = MIN((int)m_state.adpcm_step, top);
-    int size = code & ((1 << (bits - 1)) - 1);
+    int size = code & BIT_MASK(bits - 1);
     int delta = bits == 4 ? k_sound_blaster_adpcm4[step][code] : bits == 3 ? k_sound_blaster_adpcm3[step][code] :
         k_sound_blaster_adpcm2[step][code];
 

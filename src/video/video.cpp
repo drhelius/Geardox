@@ -91,7 +91,7 @@ Video::Video()
         u8 planes[4];
 
         for (int plane = 0; plane < 4; plane++)
-            planes[plane] = (i & (1 << plane)) != 0 ? 0xFF : 0x00;
+            planes[plane] = IS_SET_BIT(i, plane) ? 0xFF : 0x00;
 
         memcpy(&m_plane_masks[i], planes, sizeof(planes));
     }

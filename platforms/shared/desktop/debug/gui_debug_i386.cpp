@@ -165,9 +165,9 @@ static void I386WriteCallback1(u16 reg_id, u8 bit_index, bool value, void* user_
         return;
 
     if (value)
-        *reg |= 1U << bit_index;
+        *reg = SET_BIT(*reg, bit_index);
     else
-        *reg &= ~(1U << bit_index);
+        *reg = UNSET_BIT(*reg, bit_index);
 
     state.eflags |= I386_FLAG_FIXED;
     write_state(cpu, state, reg_id == I386RegId_CR0 || (reg_id == I386RegId_EFLAGS && bit_index == 17));

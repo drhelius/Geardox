@@ -142,7 +142,7 @@ int I8237::GetServiceChannel(u8 excluded) const
 
     for (int i = 0; i < I8237_CHANNELS; i++)
     {
-        if ((excluded & (1 << i)) != 0 || !IsRequesting(i))
+        if (IS_SET_BIT(excluded, i) || !IsRequesting(i))
             continue;
 
         if (GetTransfer(i) != k_i8237_illegal || GetService(i) == k_i8237_cascade)

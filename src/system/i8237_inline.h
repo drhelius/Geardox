@@ -40,12 +40,12 @@ INLINE bool I8237::IsEnabled() const
 // The mask only gates the DREQ lines, a software request gets through it
 INLINE bool I8237::IsRequesting(int channel) const
 {
-    return (((m_state.request_levels & ~m_state.mask) | m_state.software_requests) & (1 << channel)) != 0;
+    return IS_SET_BIT((m_state.request_levels & ~m_state.mask) | m_state.software_requests, channel);
 }
 
 INLINE bool I8237::IsMasked(int channel) const
 {
-    return (m_state.mask & (1 << channel)) != 0;
+    return IS_SET_BIT(m_state.mask, channel);
 }
 
 INLINE u8 I8237::GetTransfer(int channel) const

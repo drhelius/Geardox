@@ -573,16 +573,11 @@ s16 OPL::ConvertDAC(s32 sample) const
     sample = CLAMP(sample, -32768, 32767);
 
     int magnitude = (sample >> 9) & 0x3F;
-    int shift = 0;
 
     if (sample < 0)
         magnitude ^= 0x3F;
 
-    while (magnitude != 0)
-    {
-        shift++;
-        magnitude >>= 1;
-    }
+    int shift = 16 - (int)l_zero16((u16)magnitude);
 
     return (s16)((sample >> shift) * (1 << shift));
 }
@@ -635,10 +630,7 @@ void OPL::UpdateEnvelopeTimer()
 {
     if (m_state.envelope_tick != 0)
     {
-        int shift = 0;
-
-        while ((shift < 13) && (((m_state.envelope_timer >> shift) & 0x01) == 0))
-            shift++;
+        int shift = (int)t_zero32((u32)m_state.envelope_timer | 0x2000U);
 
         m_state.envelope_add = (u8)(shift > 12 ? 0 : shift + 1);
         m_state.envelope_timer_low = (u8)(m_state.envelope_timer & 0x03);
@@ -685,10 +677,10 @@ void OPL::ApplyPending(int index)
 
     int channel = index % 9;
 
-    if ((m_state.pending_low & (1 << index)) != 0)
+    if (IS_SET_BIT(m_state.pending_low, index))
         WriteFrequencyLow(channel, m_state.pending_low_value[index]);
 
-    if ((m_state.pending_high & (1 << index)) != 0)
+    if (IS_SET_BIT(m_state.pending_high, index))
     {
         WriteFrequencyHigh(channel, m_state.pending_high_value[index]);
         SetChannelKey(channel, (m_state.pending_high_value[index] & 0x20) != 0);

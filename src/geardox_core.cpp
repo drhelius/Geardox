@@ -1628,7 +1628,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
 
         if (state_media.hard_disk_attached[i] &&
             !image->Restore(state_media.hard_disk_session[i], state_media.hard_disk_write[i]))
-            m_hard_disk_state_changes |= 1 << i;
+            m_hard_disk_state_changes = SET_BIT(m_hard_disk_state_changes, i);
     }
 
     ApplyBusTiming();

@@ -118,7 +118,7 @@ void DMA::SetRequest(int channel, bool active)
     int index = channel & 0x03;
     u8 bit = (u8)(1 << channel);
 
-    if (active && (chip.GetState()->request_levels & (1 << index)) == 0 && IsValidPointer(m_trace_logger) &&
+    if (active && IS_NOT_SET_BIT(chip.GetState()->request_levels, index) && IsValidPointer(m_trace_logger) &&
         m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_REQUEST))
         TraceEvent(TRACE_DMA_REQUEST, channel, 0, 0, false);
 
@@ -265,7 +265,7 @@ bool DMA::IsHolding(int channel) const
     const I8237& chip = GetChip(channel);
     int index = channel & 0x03;
 
-    if (!chip.IsEnabled() || (m_state.stalled & (1 << channel)) != 0)
+    if (!chip.IsEnabled() || IS_SET_BIT(m_state.stalled, channel))
         return false;
 
     return chip.GetService(index) == k_i8237_block || chip.IsRequesting(index);
@@ -376,12 +376,12 @@ void DMA::NotifyChange(u16 port, int chip, int reg, u8 value)
     else if (reg != k_i8237_reg_clear_flip_flop)
         channels = (u8)(0x0F << (chip * 4));
 
-    if ((channels & (1 << k_dma_cascade_channel)) != 0)
+    if (IS_SET_BIT(channels, k_dma_cascade_channel))
         channels |= 0x0F;
 
     for (int i = 0; i < DMA_CHANNELS; i++)
     {
-        if (((channels & (1 << i)) != 0) && IsValidPointer(m_endpoints[i].change))
+        if (IS_SET_BIT(channels, i) && IsValidPointer(m_endpoints[i].change))
             m_endpoints[i].change(m_endpoints[i].device);
     }
 }

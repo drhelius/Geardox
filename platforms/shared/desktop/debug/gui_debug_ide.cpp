@@ -331,7 +331,7 @@ static void draw_ide_bits(u8 value, const char* const* names, bool present)
         if (!first)
             ImGui::SameLine(0.0f, space);
 
-        ImGui::TextColored(present && ((value >> bit) & 1) ? green : gray, "%s", names[bit]);
+        ImGui::TextColored(present && IS_SET_BIT(value, bit) ? green : gray, "%s", names[bit]);
         first = false;
     }
 }

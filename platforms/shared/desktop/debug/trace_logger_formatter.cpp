@@ -308,7 +308,7 @@ static void format_io(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
     const char* label = gui_debug_port_label(entry.io.port);
     int digits = MIN((int)entry.io.size, 4) * 2;
-    u32 mask = digits >= 8 ? 0xFFFFFFFFU : (1U << (digits * 4)) - 1;
+    u32 mask = digits >= 8 ? 0xFFFFFFFFU : BIT_MASK(digits * 4);
     bool write = entry.event == TRACE_IO_WRITE;
 
     format_event(buffer, size, "I/O", write ? "OUT" : "IN", "$%04X %-18s %s $%0*X  PC:$%08X", entry.io.port,
@@ -1045,7 +1045,7 @@ static void format_bit_list(u8 bits, int base, char* buffer, size_t size)
 
     for (int i = 0; i < 8 && length + 4 < size; i++)
     {
-        if ((bits & (1 << i)) == 0)
+        if (IS_NOT_SET_BIT(bits, i))
             continue;
 
         int written = snprintf(buffer + length, size - length, length == 0 ? "%d" : ",%d", base + i);
@@ -1076,7 +1076,7 @@ static void format_buttons(u8 device, u16 buttons, char* buffer, size_t size)
 
     for (int i = 0; i < count; i++)
     {
-        if ((buttons & (1 << i)) == 0)
+        if (IS_NOT_SET_BIT(buttons, i))
             continue;
 
         int written = snprintf(buffer + length, size - length, length == 0 ? "%s" : "+%s", names[i]);

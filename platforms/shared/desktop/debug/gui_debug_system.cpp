@@ -727,7 +727,7 @@ static void draw_dma_chip(const I8237::I8237_State* chip, const char* title, con
 
     for (int i = 0, shown = 0; i < 8; i++)
     {
-        if ((chip->command & (1 << i)) == 0)
+        if (IS_NOT_SET_BIT(chip->command, i))
             continue;
 
         if (shown++ > 0)

@@ -763,7 +763,7 @@ json DebugAdapter::ListMemoryAreas()
 
         for (int f = 0; f < (int)(sizeof(k_mcp_area_flags) / sizeof(k_mcp_area_flags[0])); f++)
         {
-            if ((area.flags & (1U << f)) != 0)
+            if (IS_SET_BIT(area.flags, f))
                 flags.push_back(k_mcp_area_flags[f]);
         }
 
@@ -2710,7 +2710,7 @@ json DebugAdapter::GetIDEStatus()
 
         for (int bit = 7; bit >= 0; bit--)
         {
-            if (IsValidPointer(control_names[bit]) && ((state->control[i] >> bit) & 1))
+            if (IsValidPointer(control_names[bit]) && IS_SET_BIT(state->control[i], bit))
                 control_bits.push_back(control_names[bit]);
         }
 
@@ -2727,7 +2727,7 @@ json DebugAdapter::GetIDEStatus()
 
                 for (int bit = 7; bit >= 0; bit--)
                 {
-                    if (IsValidPointer(status_names[bit]) && ((c->status >> bit) & 1))
+                    if (IsValidPointer(status_names[bit]) && IS_SET_BIT(c->status, bit))
                         cdrom_bits.push_back(status_names[bit]);
                 }
 
@@ -2762,7 +2762,7 @@ json DebugAdapter::GetIDEStatus()
 
             for (int bit = 7; bit >= 0; bit--)
             {
-                if (IsValidPointer(status_names[bit]) && ((d->status >> bit) & 1))
+                if (IsValidPointer(status_names[bit]) && IS_SET_BIT(d->status, bit))
                     status_bits.push_back(status_names[bit]);
             }
 
@@ -2821,7 +2821,7 @@ json DebugAdapter::GetDMAStatus()
 
         for (int bit = 0; bit < 8; bit++)
         {
-            if ((chip->command & (1 << bit)) != 0)
+            if (IS_SET_BIT(chip->command, bit))
                 command.push_back(k_debug_dma_command_names[bit]);
         }
 
@@ -4157,7 +4157,7 @@ json DebugAdapter::SetTraceLog(bool enabled, u32 flags, const std::string& outpu
         const McpTraceFilter& filter = k_mcp_trace_filters[i];
         u32 events = tl->GetEventFilter(filter.type);
 
-        if ((enabled_flags & (1U << filter.type)) != 0 && (events & filter.mask) == filter.mask)
+        if (IS_SET_BIT(enabled_flags, filter.type) && (events & filter.mask) == filter.mask)
             event_filter_list.push_back(filter.name);
     }
 
@@ -5065,7 +5065,7 @@ void DebugAdapter::AddMediaStateChanges(json& result)
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        if ((changes & (1 << i)) != 0)
+        if (IS_SET_BIT(changes, i))
             ids.push_back(i);
     }
 
@@ -5100,10 +5100,10 @@ json DebugAdapter::JoystickPressed(u8 buttons, u8 hat) const
 
     for (int i = 0; i < 4; i++)
     {
-        if ((buttons & (1 << i)) != 0)
+        if (IS_SET_BIT(buttons, i))
             result["buttons"].push_back(k_joystick_button_names[i]);
 
-        if ((hat & (1 << i)) != 0)
+        if (IS_SET_BIT(hat, i))
             result["hat"].push_back(k_joystick_hat_names[i]);
     }
 
@@ -5729,7 +5729,7 @@ json DebugAdapter::GetJoystickState()
     {
         axes[k_joystick_axis_names[i]] = state.axes[i];
 
-        json pulse = {{"axis", k_joystick_axis_names[i]}, {"bit", i}, {"high", (value & (1 << i)) != 0}};
+        json pulse = {{"axis", k_joystick_axis_names[i]}, {"bit", i}, {"high", IS_SET_BIT(value, i)}};
 
         if (port->pulse_end[i] == GDOX_NO_EVENT)
             pulse["pulse_us"] = "open";

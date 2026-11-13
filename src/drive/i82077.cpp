@@ -595,7 +595,7 @@ void I82077::FinishSeek(int drive, u64 clocks)
 
     if (type == I82077_SEEK_IMPLIED)
     {
-        m_state.drive_busy &= ~(1 << drive);
+        m_state.drive_busy = UNSET_BIT(m_state.drive_busy, drive);
         m_state.st0 |= k_i82077_st0_seek_end;
         BeginWork(clocks);
         return;

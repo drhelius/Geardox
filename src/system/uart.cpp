@@ -272,7 +272,7 @@ void UART::Receive(u8 data, u8 data_bits, u32 divisor, u64 clocks)
     u32 line = (u32)data | (0xFFFFFFFFU << data_bits);
     int width = 5 + (m_state.lcr & 0x03);
     int position = width;
-    u8 value = (u8)(line & ((1U << width) - 1));
+    u8 value = (u8)(line & BIT_MASK(width));
     u8 errors = 0;
 
     if ((m_state.lcr & 0x08) != 0)
@@ -283,14 +283,7 @@ void UART::Receive(u8 data, u8 data_bits, u32 divisor, u64 clocks)
         if ((m_state.lcr & 0x20) != 0)
             expected = (m_state.lcr & 0x10) != 0 ? 0 : 1;
         else
-        {
-            u32 ones = 0;
-
-            for (int i = 0; i < width; i++)
-                ones += (value >> i) & 1;
-
-            expected = ((m_state.lcr & 0x10) != 0) ? (ones & 1) : ((ones & 1) ^ 1);
-        }
+            expected = ((m_state.lcr & 0x10) != 0) ? parity8(value) : (parity8(value) ^ 1);
 
         if (parity != expected)
             errors |= 0x04;
@@ -298,7 +291,7 @@ void UART::Receive(u8 data, u8 data_bits, u32 divisor, u64 clocks)
         position++;
     }
 
-    if (((line >> position) & 1) == 0)
+    if (IS_NOT_SET_BIT(line, position))
         errors |= 0x08;
 
     Store(value, errors, clocks);
