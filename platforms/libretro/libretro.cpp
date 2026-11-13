@@ -1595,6 +1595,8 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
+        machine_settings.video_card = GDOX_MACHINE_AUTO;
+
         for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
         {
             if (strcmp(var.value, k_video_cards[i].id) == 0)
