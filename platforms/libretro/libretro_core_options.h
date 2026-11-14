@@ -220,7 +220,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_joystick",
         "Joystick",
         NULL,
-        "The joystick on the game port that the first controller drives. Games choose it by what they support. The Gravis GamePad suits most, flight simulators want the Joystick or the CH FlightStick Pro.",
+        "The joystick on the game port that the first controller drives when its device type is PC Joystick. Games choose it by what they support. The Gravis GamePad suits most, flight simulators want the Joystick or the CH FlightStick Pro.",
         NULL,
         "input",
         {
@@ -237,6 +237,87 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "Mouse Sensitivity",
         NULL,
         "Adjust the sensitivity of the mouse. Higher values result in faster cursor movement.",
+        NULL,
+        "input",
+        {
+            { "1",  NULL }, { "2",  NULL }, { "3",  NULL }, { "4",  NULL },
+            { "5",  NULL }, { "6",  NULL }, { "7",  NULL }, { "8",  NULL },
+            { "9",  NULL }, { "10", NULL }, { "11", NULL }, { "12", NULL },
+            { "13", NULL }, { "14", NULL }, { "15", NULL }, { NULL, NULL }
+        },
+        "5"
+    },
+    {
+        "geardox_pad1_mouse",
+        "Gamepad 1 Moves Mouse With",
+        NULL,
+        "With the port's device type set to Keyboard and Mouse or RetroPad, this stick or the D-pad moves the PC's mouse. Its buttons press the keys set in the port's controls when the device type is Keyboard and Mouse.",
+        NULL,
+        "input",
+        {
+            { "left_stick",  "Left Stick" },
+            { "right_stick", "Right Stick" },
+            { "dpad",        "D-Pad" },
+            { "off",         "Off" },
+            { NULL, NULL },
+        },
+        "left_stick"
+    },
+    {
+        "geardox_pad1_mouse_buttons",
+        "Gamepad 1 Mouse Buttons",
+        NULL,
+        "The two buttons that click the PC mouse's left and right buttons. Leave them without keys in the port's controls.",
+        NULL,
+        "input",
+        {
+            { "b_a",   "B and A" },
+            { "y_x",   "Y and X" },
+            { "l_r",   "L and R" },
+            { "l2_r2", "L2 and R2" },
+            { "off",   "Off" },
+            { NULL, NULL },
+        },
+        "b_a"
+    },
+    {
+        "geardox_pad2_mouse",
+        "Gamepad 2 Moves Mouse With",
+        NULL,
+        "With the port's device type set to Keyboard and Mouse or RetroPad, this stick or the D-pad moves the PC's mouse. Its buttons press the keys set in the port's controls when the device type is Keyboard and Mouse.",
+        NULL,
+        "input",
+        {
+            { "left_stick",  "Left Stick" },
+            { "right_stick", "Right Stick" },
+            { "dpad",        "D-Pad" },
+            { "off",         "Off" },
+            { NULL, NULL },
+        },
+        "left_stick"
+    },
+    {
+        "geardox_pad2_mouse_buttons",
+        "Gamepad 2 Mouse Buttons",
+        NULL,
+        "The two buttons that click the PC mouse's left and right buttons. Leave them without keys in the port's controls.",
+        NULL,
+        "input",
+        {
+            { "b_a",   "B and A" },
+            { "y_x",   "Y and X" },
+            { "l_r",   "L and R" },
+            { "l2_r2", "L2 and R2" },
+            { "off",   "Off" },
+            { NULL, NULL },
+        },
+        "b_a"
+    },
+    {
+        "geardox_pad_mouse_speed",
+        "Gamepad Mouse Speed",
+        NULL,
+        "How fast a stick or the D-pad moves the PC's mouse.",
         NULL,
         "input",
         {
