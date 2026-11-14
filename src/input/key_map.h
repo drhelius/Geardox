@@ -51,6 +51,7 @@ public:
     void HostKeyPressed(u16 usage);
     void HostKeyReleased(u16 usage);
     void IgnoreHostKey(u16 usage);
+    void DiscardDeferredHostKeys();
     bool IsHostKeyDown(u16 usage) const;
     void ReleaseAll();
     void Suspend();
@@ -89,6 +90,9 @@ private:
     const GDOX_Key_Map_Entry& GetActiveEntry(u16 usage) const;
     const GDOX_Key_Map_Entry& GetBaseEntry(GDOX_Key_Map_Layer layer, u16 usage) const;
     void SetUserEntry(u16 usage, const GDOX_Key_Map_Entry& entry);
+    void PressHostTargets(u16 usage);
+    void FlushDeferredHostKeys();
+    static bool IsDeferredHostKey(u16 usage);
     void PressKey(u8 key);
     void ReleaseKey(u8 key);
     void SyncKey(u8 key);
@@ -100,6 +104,7 @@ private:
     GDOX_Key_Map_Entry m_layers[GDOX_KEY_MAP_LAYER_COUNT][GDOX_HOST_KEY_COUNT];
     GDOX_Key_Map_Entry m_host_targets[GDOX_HOST_KEY_COUNT];
     bool m_host_down[GDOX_HOST_KEY_COUNT];
+    bool m_host_deferred[GDOX_HOST_KEY_COUNT];
     int m_references[GDOX_KEY_COUNT];
     bool m_enabled;
     bool m_blocked;

@@ -1190,6 +1190,7 @@ void GeardoxCore::HostKeyPressed(u16 usage)
             m_key_mapper->Open();
 
         m_key_map->IgnoreHostKey(usage);
+        m_key_map->DiscardDeferredHostKeys();
         return;
     }
 
@@ -1211,6 +1212,11 @@ void GeardoxCore::ReleaseAllHostKeys()
 {
     m_key_map->ReleaseAll();
     m_key_mapper->ReleaseHostKeys();
+}
+
+void GeardoxCore::DiscardDeferredHostKeys()
+{
+    m_key_map->DiscardDeferredHostKeys();
 }
 
 void GeardoxCore::EnableHostHotkeys(bool enable)
