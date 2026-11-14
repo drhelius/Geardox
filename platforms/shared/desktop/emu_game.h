@@ -49,6 +49,8 @@ EXTERN void emu_game_apply_machine(void);
 EXTERN int emu_game_get_joystick(void);
 EXTERN int emu_game_get_midi(void);
 EXTERN void emu_game_set_midi(int synth);
+EXTERN const char* emu_game_get_midi_port(void);
+EXTERN void emu_game_set_midi_port(const char* port);
 EXTERN void emu_game_set_joystick(int joystick);
 EXTERN bool emu_game_has_overrides(void);
 EXTERN bool emu_game_reset_settings(void);

@@ -38,6 +38,8 @@ static int game_joystick = -1;
 static int base_joystick = -1;
 static int game_midi = -1;
 static int base_midi = -1;
+static std::string game_midi_port;
+static std::string base_midi_port;
 static bool preparing = false;
 static bool prepared = false;
 static bool write_back_pending = false;
@@ -278,6 +280,7 @@ bool emu_game_close(void)
     core->SetBootDevice(saved_boot_device);
     game_joystick = -1;
     game_midi = -1;
+    game_midi_port.clear();
     emu_update_joystick_type();
     emu_apply_machine_settings();
     return true;
@@ -411,6 +414,9 @@ void emu_game_apply_machine(void)
     if ((game_midi != base_midi) && (game_midi >= 0))
         overrides.Set("sound", "midi", k_midi_synths[game_midi].id);
 
+    if (game_midi_port != base_midi_port)
+        overrides.Set("sound", "midi_port", game_midi_port.c_str());
+
     if (m.cdrom_speed != b.cdrom_speed)
         overrides.Set("machine", "cdrom_speed", k_cdrom_speeds[m.cdrom_speed].id);
 
@@ -452,6 +458,20 @@ void emu_game_set_midi(int synth)
         return;
 
     game_midi = synth;
+    emu_game_apply_machine();
+}
+
+const char* emu_game_get_midi_port(void)
+{
+    return emu_game_is_open() ? game_midi_port.c_str() : "";
+}
+
+void emu_game_set_midi_port(const char* port)
+{
+    if (!emu_game_is_open())
+        return;
+
+    game_midi_port = port;
     emu_game_apply_machine();
 }
 
@@ -817,8 +837,8 @@ static void update_machines(void)
         { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
         { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
         { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" },
-        { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" }, { "input", "mouse" },
-        { "input", "joystick" } };
+        { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" }, { "sound", "midi_port" },
+        { "input", "mouse" }, { "input", "joystick" } };
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
     GDOX_Machine_Settings without;
@@ -843,6 +863,8 @@ static void update_machines(void)
     base_joystick = stripped.GetInfo().joystick;
     game_midi = disk.GetDescriptor().GetInfo().midi;
     base_midi = stripped.GetInfo().midi;
+    game_midi_port = disk.GetDescriptor().GetInfo().midi_port;
+    base_midi_port = stripped.GetInfo().midi_port;
 }
 
 static void apply_game_settings(void)

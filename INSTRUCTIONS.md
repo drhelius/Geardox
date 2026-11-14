@@ -179,22 +179,19 @@ If you change the sound card's IRQ or DMA, the FreeDOS disk doesn't follow. Edit
 
 ## MIDI Music
 
-Games set up for **General MIDI** or a **Roland MT-32** send their music to the MPU-401 at port `330`. Geardox
-passes it to a synthesizer outside it, so one has to be running:
-
-- **MT-32:** [Munt](https://sourceforge.net/projects/munt/) (mt32emu-qt) with the MT-32 ROMs in its ROM folder.
-- **General MIDI:** FluidSynth with a General MIDI SoundFont, or **Microsoft GS Wavetable Synth**, which every Windows
-  PC has. On macOS and Linux, FluidSynth makes a MIDI port when started with
-  `fluidsynth -a coreaudio -m coremidi -o midi.portname="FluidSynth GM" SOUNDFONT.sf2` (macOS) or
-  `fluidsynth -m alsa_seq SOUNDFONT.sf2` (Linux).
-- A real module on a USB MIDI interface works too.
+Games set up for **General MIDI** (including GS and XG) or a **Roland MT-32** send their music to the MPU-401 at port
+`330`. Geardox passes it to a synthesizer outside it, so one has to be running: a software synth or emulator that
+offers a MIDI port, the General MIDI synth Windows includes, or a real module on a USB MIDI interface.
 
 Then in **Audio > MIDI Out**:
 
-1. Choose the port for each kind of synth in **General MIDI Port** and **MT-32 Port**. The lists are read again each
-   time they open, so a synth started after Geardox shows up.
-2. In **Synth**, pick the one games use. With a game open, the choice is only that game's. Its `.gdox` can also set it
-   with `midi` under `[sound]`.
+1. Choose the port for each kind of music: **General MIDI Port** for General MIDI, GS and XG synths, and **MT-32 Port**
+   for an MT-32, CM-32L or LAPC-I, or an emulator of one. The lists are read again each time they open, so a synth
+   started after Geardox shows up.
+2. In **Synth**, pick what the game was set up for. With a game open, the choice is only that game's. Its `.gdox` can
+   also set it with `midi` under `[sound]`.
+3. With a game open, **Game Port** sends it to any port, for example an SC-55 for one game and an MU2000 for another.
+   **Default** follows its Synth.
 
 The last line of the menu shows where the music is playing in green, or the missing port in red.
 

@@ -76,6 +76,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "dma", DESCRIPTOR_CHOICE, "1,3", 0, 0 },
     { "sound", "mpu", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
     { "sound", "midi", DESCRIPTOR_CHOICE, "gm,mt32", 0, 0 },
+    { "sound", "midi_port", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "dos", "memory", DESCRIPTOR_CHOICE, "none,xms,umb,ems", 0, 0 },
@@ -959,6 +960,8 @@ void GameDescriptor::Build()
         if (Get("sound", "midi") == k_midi_synths[i].id)
             info.midi = i;
     }
+
+    info.midi_port = Get("sound", "midi_port");
 
     info.env.clear();
 

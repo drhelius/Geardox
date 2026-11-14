@@ -168,10 +168,16 @@ int emu_midi_get_synth(void)
     return synth >= 0 ? synth : CLAMP(config_audio.midi_default, 0, GDOX_MIDI_SYNTH_COUNT - 1);
 }
 
-const char* emu_midi_get_wanted_port(void)
+const char* emu_midi_get_synth_port(void)
 {
     return emu_midi_get_synth() == GDOX_MIDI_SYNTH_MT32 ? config_audio.midi_mt32_port.c_str() :
         config_audio.midi_gm_port.c_str();
+}
+
+const char* emu_midi_get_wanted_port(void)
+{
+    const char* port = emu_game_get_midi_port();
+    return port[0] != 0 ? port : emu_midi_get_synth_port();
 }
 
 const char* emu_midi_get_port(void)

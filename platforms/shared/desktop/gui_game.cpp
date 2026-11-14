@@ -73,7 +73,7 @@ void gui_game_menu(void)
             emu_game_close();
 
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Powers the machine off and saves what the game changed.");
+            ImGui::SetTooltip("Powers off and saves the game's changes.");
 
         ImGui::Separator();
     }
@@ -82,7 +82,7 @@ void gui_game_menu(void)
         gui_file_dialog_open_game();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A .gdox game descriptor, or a ZIP with one in its root.");
+        ImGui::SetTooltip("A .gdox game descriptor,\nor a ZIP with one in its root.");
 
     if (ImGui::MenuItem("Open Game Folder...", NULL, false, !loading))
         gui_file_dialog_open_game_folder();
@@ -101,7 +101,7 @@ void gui_game_menu(void)
         open_write_back = true;
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("What the last game saved back when it closed: files saved, deleted and conflicts.");
+        ImGui::SetTooltip("What the last game saved on closing:\nfiles saved, deleted, conflicts.");
 
     if (emu_game_is_write_back_pending())
     {
@@ -113,7 +113,7 @@ void gui_game_menu(void)
         ImGui::PopStyleColor();
 
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s's changes couldn't be saved. See Last Save Report...", emu_game_get_last_write_back_name());
+            ImGui::SetTooltip("%s's changes couldn't be saved.\nSee Last Save Report...", emu_game_get_last_write_back_name());
     }
 
     ImGui::Separator();
@@ -122,7 +122,7 @@ void gui_game_menu(void)
         gui_file_dialog_new_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Pick a game's folder, then the program that starts it.\nThe descriptor is written to Geardox's games folder and opened.");
+        ImGui::SetTooltip("Pick a game's folder, then the program\nthat starts it. The descriptor goes to\nGeardox's games folder and opens.");
 
     ImGui::Separator();
     menu_options();
@@ -134,7 +134,7 @@ static void menu_boot(bool enabled)
     if (!ImGui::BeginMenu("Boot To", enabled))
     {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Restarts the machine into the game, its setup program or the DOS prompt.\nThe game's disk stays as it is.");
+            ImGui::SetTooltip("Restarts into the game, its setup or the DOS\nprompt. The disk stays as it is.");
 
         return;
     }
@@ -148,8 +148,8 @@ static void menu_boot(bool enabled)
         emu_game_set_target(GDOX_GAME_TARGET_SETUP);
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", emu_game_has_setup() ? "The game's setup program, to choose its sound card or controls.\n"
-            "It ends at the DOS prompt." : "This game's descriptor names no setup program.");
+        ImGui::SetTooltip("%s", emu_game_has_setup() ? "The game's setup, for its sound card or controls.\n"
+            "Ends at the DOS prompt." : "The descriptor names no setup program.");
 
     if (ImGui::MenuItem("DOS Prompt", NULL, target == GDOX_GAME_TARGET_PROMPT))
         emu_game_set_target(GDOX_GAME_TARGET_PROMPT);
@@ -185,7 +185,7 @@ static void menu_files(bool open)
         gui_file_dialog_save_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Writes this game's descriptor, with the Machine menu changes made for it, as one file.");
+        ImGui::SetTooltip("Writes the descriptor with this game's\nMachine changes, as one file.");
 
     if (ImGui::MenuItem("Forget Machine Changes", NULL, false, emu_game_has_overrides()))
     {
@@ -195,7 +195,7 @@ static void menu_files(bool open)
     }
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("While a game is open, Machine menu changes are kept for that game only.\nThis forgets them.");
+        ImGui::SetTooltip("Forgets the Machine menu changes\nkept for this game.");
 
     ImGui::EndMenu();
 }
@@ -206,7 +206,7 @@ static void menu_dos(bool open, bool loading)
     if (!ImGui::BeginMenu("DOS"))
     {
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The DOS games boot: FreeDOS, built in, or your own MS-DOS once imported.");
+            ImGui::SetTooltip("The DOS games boot: the built-in FreeDOS,\nor your imported MS-DOS.");
 
         return;
     }
@@ -236,8 +236,8 @@ static void menu_dos(bool open, bool loading)
         ImGui::EndCombo();
     }
     else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", open ? "The DOS this game boots. A change closes the game, saving its changes, and opens it again." :
-            "With a game open, the DOS it boots.");
+        ImGui::SetTooltip("%s", open ? "The DOS this game boots. Changing it\nsaves, closes and reopens the game." :
+            "The DOS the open game boots.");
 
     ImGui::PopItemWidth();
     ImGui::EndDisabled();
@@ -247,8 +247,8 @@ static void menu_dos(bool open, bool loading)
         gui_file_dialog_import_msdos();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Your own MS-DOS Setup disks: one of the disk images, or a ZIP with them.\nGeardox keeps its own "
-            "copy and boots it in every game that doesn't ask for FreeDOS.\nMS-DOS 5.0 to 6.22, in any language.");
+        ImGui::SetTooltip("Your MS-DOS 5.0 to 6.22 Setup disks, any\nlanguage: a disk image or a ZIP of them.\n"
+            "Geardox keeps a copy and boots it in\ngames that don't ask for FreeDOS.");
 
     if (ImGui::MenuItem("Remove MS-DOS", NULL, false, imported && !loading))
     {
@@ -260,7 +260,7 @@ static void menu_dos(bool open, bool loading)
     }
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Games go back to FreeDOS. Your disks aren't touched.");
+        ImGui::SetTooltip("Games go back to FreeDOS.\nYour disks aren't touched.");
 
     ImGui::EndMenu();
 }
@@ -296,8 +296,8 @@ static void menu_options(void)
         static const char* const k_places[2] = { "The Game's Folder", "Geardox's Save Folder" };
         static const char* const k_tooltips[2] =
         {
-            "What a game changes goes back to its own folder.\nA ZIP or a read-only folder always uses the save folder.",
-            "The game's folder stays untouched: its changes are kept in Geardox's save folder\nand laid over the game every time it runs."
+            "Changes go back to the game's folder.\nZIPs and read-only folders use the save folder.",
+            "The game's folder stays untouched: changes\nstay in the save folder and are laid over\nthe game each run."
         };
         int selected = config_game.write_back != 0 ? 1 : 0;
         float text_width = MAX(ImGui::CalcTextSize(k_places[0]).x, ImGui::CalcTextSize(k_places[1]).x);
@@ -325,12 +325,12 @@ static void menu_options(void)
     }
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Where games keep what they change. Takes effect the next time a game opens.");
+        ImGui::SetTooltip("Where games keep their changes.\nFrom the next game opened.");
 
     ImGui::MenuItem("Quit When a Game Powers Off", NULL, &config_game.close_on_power_off);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A descriptor with on_exit = poweroff turns the machine off when the game quits.\nWith this on, Geardox then closes too.");
+        ImGui::SetTooltip("When a game with on_exit = poweroff quits,\nGeardox closes too.");
 }
 
 // The OS shows a folder from a file:// URL, with everything but the path's own characters escaped
