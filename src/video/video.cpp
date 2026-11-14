@@ -18,6 +18,7 @@
  */
 
 #include "video.h"
+#include "mc6845.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
 #include "../system/memory.h"
@@ -70,7 +71,16 @@ Video::Video()
     m_set_reset_enable = 0;
     m_bit_mask = 0;
     m_card = GDOX_VIDEO_CARD_VGA;
+    m_family = GDOX_VIDEO_FAMILY_VGA;
     m_cirrus = false;
+    m_ega = false;
+    m_cga = false;
+    InitPointer(m_mc6845);
+    memset(m_cga_colors, 0, sizeof(m_cga_colors));
+    m_cga_output = GDOX_CGA_OUTPUT_AUTO;
+    m_cga_composite = false;
+    memset(m_composite_line, 0, sizeof(m_composite_line));
+    BuildCompositeTables();
     m_local_bus = false;
     m_vram_size = VIDEO_VGA_VRAM_SIZE;
     m_vram_mask = VIDEO_VGA_VRAM_SIZE - 1;
@@ -125,6 +135,7 @@ Video::Video()
 
 Video::~Video()
 {
+    SafeDelete(m_mc6845);
 }
 
 void Video::SetTraceLogger(TraceLogger* trace_logger)
@@ -138,6 +149,10 @@ void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
     m_scheduler = scheduler;
     m_memory = memory;
 
+    if (!IsValidPointer(m_mc6845))
+        m_mc6845 = new MC6845();
+
+    m_mc6845->Init();
     Reset();
 }
 
@@ -147,7 +162,10 @@ void Video::SetCard(int card)
     const GDOX_Video_Card_Info& info = k_video_cards[(card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : 0];
 
     m_card = (card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : GDOX_VIDEO_CARD_VGA;
-    m_cirrus = info.cirrus;
+    m_family = info.family;
+    m_cirrus = info.family == GDOX_VIDEO_FAMILY_CIRRUS;
+    m_ega = info.family == GDOX_VIDEO_FAMILY_EGA;
+    m_cga = info.family == GDOX_VIDEO_FAMILY_CGA;
     m_local_bus = info.local_bus;
     m_vram_size = MIN(info.memory_size, (u32)VIDEO_VRAM_SIZE);
     m_vram_mask = m_vram_size - 1;
@@ -157,8 +175,9 @@ void Video::SetCard(int card)
 void Video::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
-    m_state.vga_enable = 0x01;
+    m_state.vga_enable = m_ega || m_cga ? 0x00 : 0x01;
     m_state.pel_mask = 0xFF;
+    m_mc6845->Reset();
 
     if (m_cirrus)
     {
@@ -226,6 +245,12 @@ void Video::SetFrameSize(int frame_width, int frame_height, int display_width, i
 // What a read returns, without the attribute flip-flop reset and the DAC stepping of Read
 u8 Video::Peek(u16 port, u64 clocks) const
 {
+    if (m_cga)
+        return PeekCGA(port, clocks);
+
+    if (m_ega)
+        return PeekEGA(port, clocks);
+
     switch (port)
     {
         case 0x3C0:
@@ -278,6 +303,9 @@ u8 Video::Read(u16 port, u64 clocks)
 {
     Synchronize(clocks);
 
+    if (m_cga)
+        return PeekCGA(port, clocks);
+
     switch (port)
     {
         case 0x3C6:
@@ -322,19 +350,33 @@ void Video::Write(u16 port, u8 value, u64 clocks)
 {
     Synchronize(clocks);
 
+    if (m_cga)
+    {
+        WriteCGA(port, value, clocks);
+
+        if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_VIDEO)))
+            TraceCGAWrite(port, value, clocks);
+
+        return;
+    }
+
     switch (port)
     {
         case 0x3C0:
             WriteAttribute(value, clocks);
             break;
+        case 0x3C1:
+            if (m_ega)
+                WriteAttribute(value, clocks);
+            break;
         case 0x3C2:
-            WriteMisc(value);
+            WriteMisc(value, clocks);
             break;
         case 0x3C3:
             m_state.vga_enable = value & 0x01;
             break;
         case 0x3C4:
-            m_state.sequencer_index = m_cirrus ? value : value & 0x07;
+            m_state.sequencer_index = m_cirrus ? value : value & (m_ega ? 0x0F : 0x07);
             break;
         case 0x3C5:
             WriteSequencer(value, clocks);
@@ -373,6 +415,11 @@ void Video::Write(u16 port, u8 value, u64 clocks)
             m_state.hidden_dac_reads = 0;
             WriteDAC(value, clocks);
             break;
+        case 0x3CA:
+        case 0x3CC:
+            if (m_ega)
+                m_state.ega_position[port == 0x3CA ? 1 : 0] = value & 0x03;
+            break;
         case 0x3CE:
             m_state.graphics_index = value & (m_cirrus ? 0x3F : 0x0F);
             break;
@@ -382,7 +429,7 @@ void Video::Write(u16 port, u8 value, u64 clocks)
         case 0x3B4:
         case 0x3D4:
             if (IsCRTCBlockSelected(port))
-                m_state.crtc_index = value & 0x3F;
+                m_state.crtc_index = value & (m_ega ? 0x1F : 0x3F);
             break;
         case 0x3B5:
         case 0x3D5:
@@ -392,7 +439,7 @@ void Video::Write(u16 port, u8 value, u64 clocks)
         case 0x3BA:
         case 0x3DA:
             if (IsCRTCBlockSelected(port))
-                m_state.feature = value;
+                m_state.feature = m_ega ? value & 0x03 : value;
             break;
         default:
             break;
@@ -419,7 +466,7 @@ void Video::WriteAttribute(u8 value, u64 clocks)
 
     u8 index = m_state.attribute_index & 0x1F;
 
-    if (index >= VIDEO_ATTRIBUTE_COUNT)
+    if (index >= (m_ega ? k_video_ar_color_select : VIDEO_ATTRIBUTE_COUNT))
         return;
 
     if (index < k_video_ar_mode && (m_state.attribute_index & 0x20) != 0)
@@ -428,9 +475,10 @@ void Video::WriteAttribute(u8 value, u64 clocks)
     switch (index)
     {
         case k_video_ar_mode:
-            value &= 0xEF;
+            value &= m_ega ? 0x0F : 0xEF;
             break;
         case k_video_ar_overscan:
+            value &= m_ega ? 0x3F : 0xFF;
             break;
         case k_video_ar_plane_enable:
             value &= 0x3F;
@@ -456,7 +504,7 @@ void Video::WriteAttribute(u8 value, u64 clocks)
 
 void Video::WriteSequencer(u8 value, u64 clocks)
 {
-    u8 index = m_state.sequencer_index & (m_cirrus ? 0x1F : 0x07);
+    u8 index = m_state.sequencer_index & (m_cirrus ? 0x1F : (m_ega ? 0x0F : 0x07));
 
     if (index >= VIDEO_SEQUENCER_COUNT)
     {
@@ -466,7 +514,7 @@ void Video::WriteSequencer(u8 value, u64 clocks)
         return;
     }
 
-    value &= k_video_sequencer_masks[index];
+    value &= m_ega ? k_video_ega_sequencer_masks[index] : k_video_sequencer_masks[index];
 
     if (value == m_state.sequencer[index])
         return;
@@ -492,7 +540,7 @@ void Video::WriteGraphics(u8 value, u64 clocks)
         return;
     }
 
-    value &= k_video_graphics_masks[index];
+    value &= m_ega ? k_video_ega_graphics_masks[index] : k_video_graphics_masks[index];
 
     if (value == m_state.graphics[index])
         return;
@@ -517,7 +565,9 @@ void Video::WriteCRTC(u8 value, u64 clocks)
         return;
     }
 
-    if ((m_state.crtc[k_video_cr_retrace_end] & 0x80) != 0)
+    if (m_ega)
+        value &= k_video_ega_crtc_masks[index];
+    else if ((m_state.crtc[k_video_cr_retrace_end] & 0x80) != 0)
     {
         if (index < k_video_cr_overflow)
             return;
@@ -556,13 +606,21 @@ void Video::WriteCRTC(u8 value, u64 clocks)
     }
 }
 
-void Video::WriteMisc(u8 value)
+void Video::WriteMisc(u8 value, u64 clocks)
 {
     if (value == m_state.misc)
         return;
 
+    bool colors = m_ega && ((value ^ m_state.misc) & 0x80) != 0;
+
+    if (colors)
+        RenderLineToBeam(clocks);
+
     m_state.misc = value;
     UpdateMemoryAccess();
+
+    if (colors)
+        UpdateColorCaches();
 }
 
 // A color reaches the DAC with its third component
@@ -651,6 +709,120 @@ u8 Video::PeekCRTC() const
         default:
             return 0xFF;
     }
+}
+
+u8 Video::PeekEGA(u16 port, u64 clocks) const
+{
+    switch (port)
+    {
+        case 0x3C2:
+        {
+            u32 shift = 3 - ((m_state.misc >> 2) & 0x03);
+            return (m_state.vertical_interrupt ? 0x80 : 0x00) | (((k_video_ega_switches >> shift) & 0x01) << 4);
+        }
+        case 0x3B5:
+        case 0x3D5:
+            return IsCRTCBlockSelected(port) ? PeekEGACRTC() : 0xFF;
+        case 0x3BA:
+        case 0x3DA:
+            return IsCRTCBlockSelected(port) ? (u8)(GetSyncStatus(clocks) | GetEGAVideoStatus(clocks)) : 0xFF;
+        default:
+            return 0xFF;
+    }
+}
+
+u8 Video::PeekEGACRTC() const
+{
+    u8 index = m_state.crtc_index;
+
+    if (index >= k_video_cr_start_high && index <= k_video_cr_cursor_low)
+        return m_state.crtc[index];
+
+    return (index == k_video_cr_retrace_start || index == k_video_cr_retrace_end) ? 0x00 : 0xFF;
+}
+
+u8 Video::GetEGAVideoStatus(u64 clocks) const
+{
+    u32 line = m_state.event_line;
+
+    if (!m_state.running || line >= m_state.display_lines || clocks >= m_display_end_clocks || IsScreenBlank())
+        return 0x00;
+
+    u64 elapsed = clocks > m_line_start_clocks ? clocks - m_line_start_clocks : 0;
+    u32 dot = (u32)((elapsed * m_state.frame_dot_clock) / GDOX_MACHINE_CLOCK_RATE);
+    u32 pixel_dots = MAX(m_canvas_h_divider * m_canvas_zoom, 1U);
+    u8 select = m_state.attribute[k_video_ar_plane_enable];
+    u8 color = m_state.attribute[PeekPixelValue((int)(dot / pixel_dots)) & select & 0x0F] & 0x3F;
+
+    switch ((select >> 4) & 0x03)
+    {
+        case 0:
+            return (u8)(((color & 0x04) << 3) | ((color & 0x01) << 4));
+        case 1:
+            return (u8)(((color & 0x08) << 2) | ((color & 0x02) << 3));
+        case 2:
+            return (u8)(color & 0x30);
+        default:
+            return 0x00;
+    }
+}
+
+u8 Video::PeekPixelValue(int x) const
+{
+    const u8* vram = m_state.vram;
+    u32 row = m_state.row_scan;
+    u32 count_shift = GetCountShift();
+    u8 clocking = m_state.sequencer[k_video_sr_clocking];
+
+    if (IsTextMode())
+    {
+        bool extended = (m_state.sequencer[k_video_sr_memory_mode] & 0x02) != 0;
+        u8 map = extended ? m_state.character_map : m_state.character_map & 0x30;
+        u8 mode = m_state.attribute[k_video_ar_mode];
+        int width = (clocking & 0x01) != 0 ? 8 : 9;
+        int shifted = x + GetPixelPan(true, false);
+        u32 address = m_state.row_address + ((u32)(shifted / width) >> count_shift);
+        int bit = shifted % width;
+        u32 base = GetPlaneBase(GetCRTCOffset(address, row));
+        u8 character = vram[base];
+        u8 attribute = vram[base + 1];
+        u32 font_a = ((map >> 2) & 0x03) * 0x4000 + ((map & 0x20) != 0 ? 0x2000 : 0);
+        u32 font_b = (map & 0x03) * 0x4000 + ((map & 0x10) != 0 ? 0x2000 : 0);
+        u32 font = ((attribute & 0x08) != 0 ? font_a : font_b) + (u32)character * 32 + row;
+        u32 bits = (u32)vram[GetPlaneBase(font) + 2] << 1;
+
+        if ((mode & 0x04) != 0 && (character & 0xE0) == 0xC0)
+            bits |= (bits >> 1) & 0x01;
+
+        if (((bits >> (8 - bit)) & 0x01) != 0)
+            return attribute & 0x0F;
+
+        return (mode & 0x08) != 0 ? (attribute >> 4) & 0x07 : attribute >> 4;
+    }
+
+    u32 load_mask = (clocking & 0x10) != 0 ? 0x03 : ((clocking & 0x04) != 0 ? 0x01 : 0x00);
+    int shifted = x + GetPixelPan(false, false);
+    u32 column = (u32)(shifted / 8);
+    int skip = shifted % 8;
+    u32 load = column & ~load_mask;
+    u32 rotate = column & load_mask;
+    const u8* planes = vram + GetPlaneBase(GetCRTCOffset(m_state.row_address + (load >> count_shift), row));
+    u8 plane0 = planes[rotate & 0x03];
+    u8 plane1 = planes[(rotate + 1) & 0x03];
+    u8 plane2 = planes[(rotate + 2) & 0x03];
+    u8 plane3 = planes[(rotate + 3) & 0x03];
+
+    if (GetShiftFormat() == VIDEO_FORMAT_CGA)
+    {
+        int shift = 6 - (skip & 0x03) * 2;
+        u8 low = skip < 4 ? plane0 : plane1;
+        u8 high = skip < 4 ? plane2 : plane3;
+        return (u8)(((low >> shift) & 0x03) | (((high >> shift) & 0x03) << 2));
+    }
+
+    int shift = 7 - skip;
+    return (u8)(((plane0 >> shift) & 0x01) | (((plane1 >> shift) & 0x01) << 1) | (((plane2 >> shift) & 0x01) << 2) |
+        (((plane3 >> shift) & 0x01) << 3));
 }
 
 // Past SR06 and GR08, a locked Cirrus reads FFh
@@ -853,6 +1025,12 @@ void Video::RunNextEvent()
 // The address counters run on their own: a change of the offset or the line compare works from the next line
 void Video::FinishLine()
 {
+    if (m_cga)
+    {
+        FinishCGALine();
+        return;
+    }
+
     u32 line = m_state.event_line;
 
     RenderRow(line);
@@ -891,6 +1069,12 @@ void Video::FinishLine()
 
 void Video::LatchFrameTiming()
 {
+    if (m_cga)
+    {
+        LatchCGATiming();
+        return;
+    }
+
     u32 display = ((u32)m_state.crtc[k_video_cr_horizontal_display] + 1) * GetCharacterClockDots();
     u32 retrace = GetVerticalRetraceStart();
     u32 retrace_length = (m_state.crtc[k_video_cr_retrace_end] - retrace) & 0x0F;
@@ -910,7 +1094,16 @@ void Video::StartFrame(u64 clocks)
     m_state.frame_start_clocks = clocks;
     m_state.event_line = 0;
 
-    if (m_state.running)
+    if (m_state.running && m_cga)
+    {
+        LatchFrameTiming();
+        m_state.start_address = m_mc6845->GetStartAddress();
+        m_state.row_address = m_state.start_address;
+        m_state.row_scan = 0;
+        m_state.row_repeat = false;
+        m_state.pan_reset = false;
+    }
+    else if (m_state.running)
     {
         LatchFrameTiming();
         m_state.row_address = m_state.start_address;
@@ -937,6 +1130,10 @@ void Video::CompleteFrame()
     m_display_height = m_canvas_height;
     m_frame_ready = true;
     m_state.frame_count++;
+
+    if (m_cga)
+        return;
+
     m_state.start_address = (GetStartAddress() + ((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03)) & GetCounterMask();
 
     if (blink != GetBlinkPhase() && (m_state.attribute[k_video_ar_mode] & 0x09) == 0x09)
@@ -1028,6 +1225,12 @@ void Video::SynchronizeVRAMWrite()
 // The canvas is the active area in pixels as the program addresses them, doubled up to dots with native resolution off
 void Video::UpdateGeometry()
 {
+    if (m_state.running && m_cga)
+    {
+        UpdateCGAGeometry();
+        return;
+    }
+
     if (!m_state.running)
     {
         m_render_width = GDOX_FRAME_BUFFER_WIDTH;
@@ -1087,6 +1290,9 @@ void Video::UpdateGeometry()
     u32 monitor_dots = pixel_dots / GetExtendedClockMultiplier();
     m_canvas_width = (int)(((u32)m_render_width * monitor_dots) / m_canvas_zoom);
     m_canvas_height = m_render_height * (int)m_canvas_v_divider;
+
+    if (m_ega && !IsEGA350Lines())
+        m_canvas_height *= 2;
 }
 
 void Video::UpdateIRQ()
@@ -1147,6 +1353,18 @@ void Video::UpdateAttributeColors()
 
 void Video::UpdateColorCaches()
 {
+    if (m_cga)
+    {
+        UpdateCGAColors();
+        return;
+    }
+
+    if (m_ega)
+    {
+        UpdateEGAColors();
+        return;
+    }
+
     for (int i = 0; i < VIDEO_DAC_COUNT; i++)
     {
         const u8* color = m_state.dac[i];
@@ -1156,6 +1374,38 @@ void Video::UpdateColorCaches()
 
     for (int i = 0; i < VIDEO_DAC_COUNT; i++)
         m_dac_colors[i] = m_dac_rgb[i & m_state.pel_mask];
+
+    UpdateAttributeColors();
+}
+
+void Video::UpdateEGAColors()
+{
+    bool high = IsEGA350Lines();
+
+    for (int i = 0; i < VIDEO_DAC_COUNT; i++)
+    {
+        u32 color = (u32)i & (VIDEO_EGA_COLOR_COUNT - 1);
+        u32 red;
+        u32 green;
+        u32 blue;
+
+        if (high)
+        {
+            red = ((color >> 1) & 0x02) | ((color >> 5) & 0x01);
+            green = (color & 0x02) | ((color >> 4) & 0x01);
+            blue = ((color << 1) & 0x02) | ((color >> 3) & 0x01);
+        }
+        else
+        {
+            u32 intensity = (color >> 4) & 0x01;
+            red = ((color >> 1) & 0x02) | intensity;
+            green = (color & 0x17) == 0x06 ? 0x01 : (color & 0x02) | intensity;
+            blue = ((color << 1) & 0x02) | intensity;
+        }
+
+        m_dac_rgb[i] = ToXRGB((u8)(red * 0x55), (u8)(green * 0x55), (u8)(blue * 0x55));
+        m_dac_colors[i] = m_dac_rgb[i];
+    }
 
     UpdateAttributeColors();
 }
@@ -1225,12 +1475,14 @@ void Video::SaveState(std::ostream& stream)
 {
     StateSerializer serializer(stream);
     Serialize(serializer, GDOX_SAVESTATE_VERSION);
+    m_mc6845->SaveState(stream);
 }
 
 void Video::LoadState(std::istream& stream, int version)
 {
     StateSerializer serializer(stream);
     Serialize(serializer, version);
+    m_mc6845->LoadState(stream, version);
     SanitizeState();
 }
 
@@ -1280,13 +1532,37 @@ void Video::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.hidden_dac);
     G_SERIALIZE(serializer, m_state.hidden_dac_reads);
     G_SERIALIZE_ARRAY(serializer, &m_state.dac_extended[0][0], sizeof(m_state.dac_extended));
+    G_SERIALIZE_ARRAY(serializer, m_state.ega_position, 2);
+    G_SERIALIZE(serializer, m_state.cga_mode);
+    G_SERIALIZE(serializer, m_state.cga_color);
 }
 
 void Video::SanitizeState()
 {
-    m_state.sequencer_index &= m_cirrus ? 0xFF : 0x07;
+    m_state.sequencer_index &= m_cirrus ? 0xFF : (m_ega ? 0x0F : 0x07);
     m_state.graphics_index &= m_cirrus ? 0x3F : 0x0F;
-    m_state.crtc_index &= 0x3F;
+    m_state.crtc_index &= m_ega ? 0x1F : 0x3F;
+    m_state.ega_position[0] &= 0x03;
+    m_state.ega_position[1] &= 0x03;
+    m_state.cga_mode &= 0x3F;
+    m_state.cga_color &= 0x3F;
+
+    if (m_ega)
+    {
+        for (int i = 0; i < VIDEO_SEQUENCER_COUNT; i++)
+            m_state.sequencer[i] &= k_video_ega_sequencer_masks[i];
+
+        for (int i = 0; i < VIDEO_GRAPHICS_COUNT; i++)
+            m_state.graphics[i] &= k_video_ega_graphics_masks[i];
+
+        for (int i = 0; i < VIDEO_CRTC_COUNT; i++)
+            m_state.crtc[i] &= k_video_ega_crtc_masks[i];
+
+        m_state.attribute[k_video_ar_mode] &= 0x0F;
+        m_state.attribute[k_video_ar_overscan] &= 0x3F;
+        m_state.attribute[k_video_ar_color_select] = 0;
+    }
+
     m_state.hidden_dac_reads = MIN(m_state.hidden_dac_reads, (u8)4);
     m_wide_counter = m_cirrus && (m_state.crtc[k_video_cr_extended_display] & 0x02) != 0;
     m_extended = m_cirrus && (m_state.sequencer[k_video_sr_extended] & 0x01) != 0;

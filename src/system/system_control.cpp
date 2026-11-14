@@ -74,20 +74,25 @@ void SystemControl::ApplyShadow()
         return;
 
     u32 rom_end = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_rom_end << 12), k_system_control_shadow_bios);
+    u32 rom_start = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_rom_start << 12), rom_end);
     u32 free_end = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_free_end << 12), k_system_control_shadow_bios);
     bool locked = m_state.shadow_locked && m_shadow_control;
     u8* ram = m_memory->GetMainRAM();
     free_end = MAX(free_end, rom_end);
 
-    if (locked && rom_end > k_system_control_shadow_start)
-        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_SHADOW_ROM, k_system_control_shadow_start,
-            rom_end - k_system_control_shadow_start, ram + k_system_control_shadow_start, NULL);
+    if (locked && rom_end > rom_start)
+        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_SHADOW_ROM, rom_start, rom_end - rom_start, ram + rom_start, NULL);
 
     if (locked && free_end > rom_end)
         m_memory->SetRegionSpan(GDOX_DEBUG_REGION_UPPER_MEMORY, rom_end, free_end - rom_end, NULL, NULL);
 
-    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_ROM, locked && rom_end > k_system_control_shadow_start);
+    if (locked && rom_start > k_system_control_shadow_start)
+        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_LOW_UPPER_MEMORY, k_system_control_shadow_start,
+            rom_start - k_system_control_shadow_start, NULL, NULL);
+
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_ROM, locked && rom_end > rom_start);
     m_memory->SetRegionMapped(GDOX_DEBUG_REGION_UPPER_MEMORY, locked && free_end > rom_end);
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_LOW_UPPER_MEMORY, locked && rom_start > k_system_control_shadow_start);
     m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_BIOS, locked);
 }
 
@@ -203,6 +208,9 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
             break;
         case 0x0405:
             m_state.shadow_free_end = value;
+            break;
+        case 0x0407:
+            m_state.shadow_rom_start = value;
             break;
         case 0x0406:
             previous = m_state.shadow_locked ? 1 : 0;
@@ -346,6 +354,7 @@ void SystemControl::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.fpu_error);
     G_SERIALIZE(serializer, m_state.keyboard_a20);
     G_SERIALIZE(serializer, m_state.reset_a20);
+    G_SERIALIZE(serializer, m_state.shadow_rom_start);
     G_SERIALIZE(serializer, m_state.shadow_rom_end);
     G_SERIALIZE(serializer, m_state.shadow_free_end);
     G_SERIALIZE(serializer, m_state.shadow_locked);

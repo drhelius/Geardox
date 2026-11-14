@@ -1324,6 +1324,9 @@ void Memory::UpdateCPUPage(u32 page, const DebugRegion* region)
 
 u8 Memory::GetBusClass(const GDOX_Debug_Memory_Region& info)
 {
+    if ((info.flags & GDOX_DEBUG_REGION_ISA8) != 0)
+        return GDOX_BUS_ISA8;
+
     switch (info.id)
     {
         case GDOX_DEBUG_REGION_MAIN_RAM:

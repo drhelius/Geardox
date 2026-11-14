@@ -36,7 +36,11 @@
 #define VIDEO_GRAPHICS_EXT_COUNT 64
 #define VIDEO_CRTC_EXT_COUNT 64
 #define VIDEO_DAC_EXT_COUNT 16
+#define VIDEO_CGA_VRAM_SIZE 0x4000
+#define VIDEO_EGA_COLOR_COUNT 64
+#define VIDEO_COMPOSITE_TAPS 5
 
+class MC6845;
 class Memory;
 class PIC;
 class TraceLogger;
@@ -90,6 +94,9 @@ public:
         u8 hidden_dac;
         u8 hidden_dac_reads;
         u8 dac_extended[VIDEO_DAC_EXT_COUNT][3];
+        u8 ega_position[2];
+        u8 cga_mode;
+        u8 cga_color;
         u32 latch;
         bool vertical_interrupt;
         bool running;
@@ -165,7 +172,19 @@ public:
     bool IsDirectMapped() const;
     void UpdateVRAMMapping();
     int GetCard() const;
+    int GetFamily() const;
     bool IsCirrus() const;
+    bool IsEGA() const;
+    bool IsCGA() const;
+    MC6845* GetMC6845();
+    bool IsEGA350Lines() const;
+    u8 GetEGASwitches() const;
+    u32 GetCGAColor(int index) const;
+    bool IsCGAGraphics() const;
+    bool IsCGAHighResolution() const;
+    void SetCGAOutput(int output);
+    int GetCGAOutput() const;
+    bool IsCGAComposite() const;
     bool IsUnlocked() const;
     u32 GetVRAMSize() const;
     bool IsExtendedMode() const;
@@ -204,18 +223,47 @@ public:
     static void PokePlane1Callback(void* device, u32 offset, u8 value);
     static void PokePlane2Callback(void* device, u32 offset, u8 value);
     static void PokePlane3Callback(void* device, u32 offset, u8 value);
+    static u8 ReadCGACallback(void* device, u32 offset);
+    static u8 PeekCGACallback(void* device, u32 offset);
+    static void WriteCGACallback(void* device, u32 offset, u8 value);
+    static u16 ReadCGA16Callback(void* device, u32 offset);
+    static u32 ReadCGA32Callback(void* device, u32 offset);
+    static void WriteCGA16Callback(void* device, u32 offset, u16 value);
+    static void WriteCGA32Callback(void* device, u32 offset, u32 value);
 
 private:
     void WriteAttribute(u8 value, u64 clocks);
     void WriteSequencer(u8 value, u64 clocks);
     void WriteGraphics(u8 value, u64 clocks);
     void WriteCRTC(u8 value, u64 clocks);
-    void WriteMisc(u8 value);
+    void WriteMisc(u8 value, u64 clocks);
     void WriteDAC(u8 value, u64 clocks);
     u8 ReadDAC();
     u8 PeekSequencer() const;
     u8 PeekGraphics() const;
     u8 PeekCRTC() const;
+    u8 PeekEGA(u16 port, u64 clocks) const;
+    u8 PeekEGACRTC() const;
+    u8 GetEGAVideoStatus(u64 clocks) const;
+    u8 PeekPixelValue(int x) const;
+    u8 PeekCGA(u16 port, u64 clocks) const;
+    void WriteCGA(u16 port, u8 value, u64 clocks);
+    void WriteCGAMode(u8 value, u64 clocks);
+    void WriteCGAColor(u8 value, u64 clocks);
+    void LatchCGATiming();
+    void FinishCGALine();
+    void UpdateCGAGeometry();
+    void UpdateCGAColors();
+    void BuildCompositeTables();
+    void UpdateEGAColors();
+    u32 GetCGACharacterDots() const;
+    void RenderCGA(u32* destination, int x, int end);
+    void RenderCGAPixels(u32* destination, int x, int end, const u32* colors);
+    void RenderCGAComposite(u32* destination, int x, int end);
+    void RenderCGAText(u32* destination, int x, int end, const u32* colors);
+    template<bool high>
+    void RenderCGAGraphics(u32* destination, int x, int end, const u32* colors);
+    void TraceCGAWrite(u16 port, u8 value, u64 clocks);
     void WriteCirrusSequencer(u8 index, u8 value, u64 clocks);
     void WriteCirrusGraphics(u8 index, u8 value, u64 clocks);
     void WriteCirrusCRTC(u8 index, u8 value, u64 clocks);
@@ -326,7 +374,18 @@ private:
     u32 m_direct_low[2][256];
     u32 m_direct_high[2][256];
     int m_card;
+    int m_family;
     bool m_cirrus;
+    bool m_ega;
+    bool m_cga;
+    MC6845* m_mc6845;
+    u32 m_cga_colors[16];
+    int m_cga_output;
+    bool m_cga_composite;
+    u64 m_composite_pairs[2][2][4][256];
+    u64 m_composite_single[2][4][16];
+    u8 m_composite_clamp[1 << 15];
+    u8 m_composite_line[GDOX_MAX_FRAME_BUFFER_WIDTH + VIDEO_COMPOSITE_TAPS * 2];
     bool m_local_bus;
     u32 m_vram_size;
     u32 m_vram_mask;
@@ -347,6 +406,12 @@ private:
 static const u32 k_video_dot_clock_25 = 25175000;
 static const u32 k_video_dot_clock_28 = 28322000;
 static const u32 k_video_reference_clock = 14318180;
+static const u32 k_video_dot_clock_14 = 14318180;
+static const u32 k_video_dot_clock_16 = 16257000;
+static const u32 k_video_cga_base = 0xB8000;
+static const u32 k_video_cga_window_size = 0x8000;
+static const u32 k_video_cga_vsync_lines = 16;
+static const u8 k_video_ega_switches = 0x09;
 static const u32 k_video_aperture_base = 0x00F00000;
 static const u8 k_video_cirrus_id = 0x98;
 static const u8 k_video_cirrus_unlock = 0x12;
@@ -359,6 +424,14 @@ static const u32 k_video_text_blink_shift = 4;
 
 static const u8 k_video_sequencer_masks[VIDEO_SEQUENCER_COUNT] = { 0x03, 0x3D, 0x0F, 0x3F, 0x0E };
 static const u8 k_video_graphics_masks[VIDEO_GRAPHICS_COUNT] = { 0x0F, 0x0F, 0x0F, 0x1F, 0x03, 0x7B, 0x0F, 0x0F, 0xFF };
+
+static const u8 k_video_ega_sequencer_masks[VIDEO_SEQUENCER_COUNT] = { 0x03, 0x0F, 0x0F, 0x0F, 0x07 };
+static const u8 k_video_ega_graphics_masks[VIDEO_GRAPHICS_COUNT] = { 0x0F, 0x0F, 0x0F, 0x1F, 0x07, 0x3F, 0x0F, 0x0F, 0xFF };
+static const u8 k_video_ega_crtc_masks[VIDEO_CRTC_COUNT] =
+{
+    0xFF, 0xFF, 0xFF, 0x7F, 0xFF, 0xFF, 0xFF, 0x1F, 0x1F, 0x1F, 0x1F, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0x3F, 0xFF, 0xFF, 0x1F, 0xFF, 0x1F, 0xFF, 0xFF
+};
 
 static const int k_video_sr_reset = 0x00;
 static const int k_video_sr_clocking = 0x01;

@@ -66,7 +66,7 @@ void Video::RenderRowPart(int row, int x, int end)
 
     if (IsScreenBlank())
     {
-        u32 color = (m_state.attribute_index & 0x20) == 0 ? GetOverscanColor() : ToXRGB(0, 0, 0);
+        u32 color = !m_cga && (m_state.attribute_index & 0x20) == 0 ? GetOverscanColor() : ToXRGB(0, 0, 0);
 
         for (int i = x; i < end; i++)
             destination[i] = color;
@@ -90,6 +90,12 @@ void Video::RenderRowPart(int row, int x, int end)
 
 void Video::RenderPixels(u32* destination, int x, int end)
 {
+    if (m_cga)
+    {
+        RenderCGA(destination, x, end);
+        return;
+    }
+
     if (m_extended)
     {
         switch (m_extended_format)
@@ -185,6 +191,12 @@ void Video::RenderText(u32* destination, int x, int end)
     u32 underline = m_state.crtc[k_video_cr_underline] & 0x1F;
     u32 cursor = GetCursorAddress();
     bool cursor_on = (cursor_start & 0x20) == 0 && GetCursorPhase() && row >= (u32)(cursor_start & 0x1F) && row <= cursor_end;
+
+    if (m_ega)
+    {
+        u32 start = cursor_start & 0x1F;
+        cursor_on = GetCursorPhase() && (cursor_end > start ? row >= start && row < cursor_end : row >= start || row < cursor_end);
+    }
     bool blink = (mode & 0x08) != 0;
     bool blink_phase = GetBlinkPhase();
     bool line_graphics = (mode & 0x04) != 0;

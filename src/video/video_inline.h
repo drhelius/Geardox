@@ -21,6 +21,7 @@
 #define VIDEO_INLINE_H
 
 #include "video.h"
+#include "mc6845.h"
 #include "../system/scheduler.h"
 
 INLINE void Video::Synchronize(u64 clocks)
@@ -44,8 +45,17 @@ INLINE void Video::SynchronizeVRAM()
 // A 10-bit ISA decode, the caller drops the upper address lines
 INLINE bool Video::Decodes(u16 port) const
 {
+    if (m_cga)
+        return port >= 0x3D0 && port <= 0x3DC;
+
     if (port >= 0x3C0 && port <= 0x3CF)
+    {
+        if (m_ega)
+            return port <= 0x3C2 || port == 0x3C4 || port == 0x3C5 || port == 0x3CA || port == 0x3CC || port == 0x3CE ||
+                port == 0x3CF;
+
         return port != 0x3CB && port != 0x3CD;
+    }
 
     return port == 0x3B4 || port == 0x3B5 || port == 0x3BA || port == 0x3D4 || port == 0x3D5 || port == 0x3DA;
 }
@@ -163,6 +173,9 @@ INLINE bool Video::IsPacked() const
 // The attribute index with bit 5 clear hands the palette to the CPU and the screen shows the overscan color
 INLINE bool Video::IsScreenBlank() const
 {
+    if (m_cga)
+        return (m_state.cga_mode & 0x08) == 0;
+
     return (m_state.sequencer[k_video_sr_clocking] & 0x20) != 0 ||
         (m_state.sequencer[k_video_sr_reset] & 0x03) != 0x03 ||
         (m_state.crtc[k_video_cr_mode] & 0x80) == 0 ||
@@ -312,17 +325,34 @@ INLINE u32 Video::GetExtendedClockMultiplier() const
 
 INLINE u32 Video::GetLineDots() const
 {
-    return ((u32)m_state.crtc[k_video_cr_horizontal_total] + 5) * GetCharacterClockDots();
+    if (m_cga)
+        return m_mc6845->GetHorizontalTotal() * GetCGACharacterDots();
+
+    return ((u32)m_state.crtc[k_video_cr_horizontal_total] + (m_ega ? 2 : 5)) * GetCharacterClockDots();
 }
 
 INLINE u32 Video::GetTotalLines() const
 {
+    if (m_cga)
+        return m_mc6845->GetTotalLines();
+
     return GetVerticalTotal() + 2;
+}
+
+INLINE u32 Video::GetCGACharacterDots() const
+{
+    return (m_state.cga_mode & 0x01) != 0 ? 8 : 16;
 }
 
 // Clock selects 2 and 3 are external clocks, which a plain VGA doesn't have; the Cirrus has four synthesizers
 INLINE u32 Video::GetDotClock() const
 {
+    if (m_cga)
+        return k_video_dot_clock_14;
+
+    if (m_ega)
+        return (m_state.misc & 0x0C) == 0x04 ? k_video_dot_clock_16 : k_video_dot_clock_14;
+
     if (m_cirrus)
         return GetVideoClock((m_state.misc >> 2) & 0x03);
 
@@ -377,11 +407,13 @@ INLINE u32 Video::GetBeamDot(u64 clocks) const
 // so the line comes from it, and every edge but the end of the display on a line has an event of its own
 INLINE u8 Video::GetSyncStatus(u64 clocks) const
 {
+    u8 pen = (m_ega || m_cga) ? 0x04 : 0x00;
+
     if (!m_state.running)
-        return 0x01;
+        return 0x01 | pen;
 
     u32 line = m_state.event_line;
-    u8 status = 0x01;
+    u8 status = 0x01 | pen;
 
     if (line < m_state.display_lines && clocks < m_display_end_clocks)
         status = 0x00;
@@ -402,9 +434,64 @@ INLINE int Video::GetCard() const
     return m_card;
 }
 
+INLINE int Video::GetFamily() const
+{
+    return m_family;
+}
+
 INLINE bool Video::IsCirrus() const
 {
     return m_cirrus;
+}
+
+INLINE bool Video::IsEGA() const
+{
+    return m_ega;
+}
+
+INLINE bool Video::IsCGA() const
+{
+    return m_cga;
+}
+
+INLINE MC6845* Video::GetMC6845()
+{
+    return m_mc6845;
+}
+
+INLINE bool Video::IsEGA350Lines() const
+{
+    return (m_state.misc & 0x80) != 0;
+}
+
+INLINE u8 Video::GetEGASwitches() const
+{
+    return k_video_ega_switches;
+}
+
+INLINE u32 Video::GetCGAColor(int index) const
+{
+    return m_cga_colors[index & 0x0F];
+}
+
+INLINE bool Video::IsCGAGraphics() const
+{
+    return (m_state.cga_mode & 0x02) != 0;
+}
+
+INLINE bool Video::IsCGAHighResolution() const
+{
+    return (m_state.cga_mode & 0x10) != 0;
+}
+
+INLINE int Video::GetCGAOutput() const
+{
+    return m_cga_output;
+}
+
+INLINE bool Video::IsCGAComposite() const
+{
+    return m_cga && m_cga_composite;
 }
 
 // SR06 holds 12h with the extensions unlocked

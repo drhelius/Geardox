@@ -573,7 +573,31 @@ enum GDOX_Video_Card
     GDOX_VIDEO_CARD_VGA = 0,
     GDOX_VIDEO_CARD_GD5428,
     GDOX_VIDEO_CARD_GD5428_VLB,
+    GDOX_VIDEO_CARD_CGA,
+    GDOX_VIDEO_CARD_EGA,
     GDOX_VIDEO_CARD_COUNT
+};
+
+enum GDOX_CGA_Output
+{
+    GDOX_CGA_OUTPUT_AUTO = 0,
+    GDOX_CGA_OUTPUT_RGB,
+    GDOX_CGA_OUTPUT_COMPOSITE,
+    GDOX_CGA_OUTPUT_COUNT
+};
+
+struct GDOX_CGA_Output_Info
+{
+    const char* name;
+    const char* id;
+};
+
+enum GDOX_Video_Family
+{
+    GDOX_VIDEO_FAMILY_VGA = 0,
+    GDOX_VIDEO_FAMILY_CIRRUS,
+    GDOX_VIDEO_FAMILY_EGA,
+    GDOX_VIDEO_FAMILY_CGA
 };
 
 // A VL-Bus card's memory cycles, read and write, in bus clocks past the 2 of a bus cycle, in 1/256 clocks
@@ -582,9 +606,11 @@ struct GDOX_Video_Card_Info
     const char* name;
     const char* id;
     u32 memory_size;
-    bool cirrus;
+    u8 family;
     bool local_bus;
     u16 local_bus_cycle[2];
+    bool isa8;
+    u16 isa8_wait_ns[2];
 };
 
 struct GDOX_Sound_Card_Info

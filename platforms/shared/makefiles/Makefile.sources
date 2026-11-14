@@ -174,5 +174,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/video/video.cpp \
     $(SRC_DIR)/video/video_memory.cpp \
     $(SRC_DIR)/video/video_render.cpp \
+    $(SRC_DIR)/video/video_cga.cpp \
+    $(SRC_DIR)/video/mc6845.cpp \
     $(SRC_DIR)/osd/osd_canvas.cpp \
     $(SRC_DIR)/osd/key_mapper.cpp

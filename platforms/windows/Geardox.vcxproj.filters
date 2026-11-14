@@ -385,6 +385,12 @@
     <ClCompile Include="..\..\src\video\video_render.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\video\video_cga.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\mc6845.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\osd\osd_canvas.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -612,6 +618,8 @@
     <ClInclude Include="..\..\src\system\i8254_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\mc6845.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\mc6845_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\vgm_recorder.h"><Filter>src</Filter></ClInclude>

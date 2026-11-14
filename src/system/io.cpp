@@ -443,6 +443,7 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
         case 0x0404:
         case 0x0405:
         case 0x0406:
+        case 0x0407:
             // Shadow register for SeaBIOS
             if (m_system_control->Decodes(port))
                 m_system_control->Write(port, value, context.clocks);

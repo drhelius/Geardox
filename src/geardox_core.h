@@ -274,6 +274,7 @@ private:
     std::string m_game_name;
     bool m_game;
     GDOX_Machine_Bus_Waits m_card_bus_waits;
+    GDOX_Machine_Bus_Timing m_card_bus_timing;
     GDOX_Machine_Config m_machine_config;
     GDOX_Machine_Config m_pending_machine_config;
     GDOX_Machine_Report m_machine_report;

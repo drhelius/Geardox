@@ -98,6 +98,8 @@
     <ClCompile Include="..\..\src\video\video.cpp" />
     <ClCompile Include="..\..\src\video\video_memory.cpp" />
     <ClCompile Include="..\..\src\video\video_render.cpp" />
+    <ClCompile Include="..\..\src\video\video_cga.cpp" />
+    <ClCompile Include="..\..\src\video\mc6845.cpp" />
     <ClCompile Include="..\..\src\osd\osd_canvas.cpp" />
     <ClCompile Include="..\..\src\osd\key_mapper.cpp" />
     <ClCompile Include="..\..\src\audio\vgm_recorder.cpp" />
@@ -356,6 +358,8 @@
     <ClInclude Include="..\..\src\system\i8254_inline.h" />
     <ClInclude Include="..\..\src\video\video.h" />
     <ClInclude Include="..\..\src\video\video_inline.h" />
+    <ClInclude Include="..\..\src\video\mc6845.h" />
+    <ClInclude Include="..\..\src\video\mc6845_inline.h" />
     <ClInclude Include="..\..\src\media\firmware_inline.h" />
     <ClInclude Include="..\..\src\geardox.h" />
     <ClInclude Include="..\..\src\geardox_core.h" />

@@ -28,9 +28,9 @@ public:
     Firmware();
     ~Firmware();
     void Init();
-    void Load(bool cirrus);
+    void Load(int family);
     bool IsReady() const;
-    bool IsCirrus() const;
+    int GetFamily() const;
     const GDOX_Firmware_Info& GetInfo(GDOX_Firmware_Type type) const;
     const u8* GetSystemRom() const;
     const u8* GetVGARom() const;
@@ -45,7 +45,7 @@ private:
     const u8* m_system_rom;
     const u8* m_vga_rom;
     bool m_ready;
-    bool m_cirrus;
+    int m_family;
 };
 
 #include "firmware_inline.h"

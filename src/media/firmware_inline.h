@@ -22,9 +22,9 @@ INLINE bool Firmware::IsReady() const
     return m_ready;
 }
 
-INLINE bool Firmware::IsCirrus() const
+INLINE int Firmware::GetFamily() const
 {
-    return m_cirrus;
+    return m_family;
 }
 
 INLINE const GDOX_Firmware_Info& Firmware::GetInfo(GDOX_Firmware_Type type) const

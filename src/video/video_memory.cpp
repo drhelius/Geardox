@@ -402,6 +402,9 @@ u32 Video::GetApertureSize() const
 
 void Video::UpdateVRAMMapping()
 {
+    if (m_cga)
+        return;
+
     m_mapped_size = GetDirectWriteSize();
     m_mapped_bank = m_bank_low;
     m_memory->SetRegionHandlerRange(GDOX_DEBUG_REGION_VIDEO_APERTURE, m_mapped_size,

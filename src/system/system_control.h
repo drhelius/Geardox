@@ -47,6 +47,7 @@ public:
         bool fpu_error;
         bool keyboard_a20;
         bool reset_a20;
+        u8 shadow_rom_start;
         u8 shadow_rom_end;
         u8 shadow_free_end;
         bool shadow_locked;

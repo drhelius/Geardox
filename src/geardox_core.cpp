@@ -99,6 +99,7 @@ GeardoxCore::GeardoxCore()
     m_machine_settings.model = k_machine_default_model;
     m_game = false;
     memset(&m_card_bus_waits, 0, sizeof(m_card_bus_waits));
+    memset(&m_card_bus_timing, 0, sizeof(m_card_bus_timing));
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
@@ -2220,7 +2221,8 @@ void GeardoxCore::ResolveMachineConfig()
 // hole at 15M-16M" of 486 board setups: RAM there is lost and extended memory stops at 15 MB
 bool GeardoxCore::HasMemoryHole() const
 {
-    return k_video_cards[m_machine_config.video_card].cirrus && (m_machine_config.ram_size >= 16 * 1024 * 1024);
+    return (k_video_cards[m_machine_config.video_card].family == GDOX_VIDEO_FAMILY_CIRRUS) &&
+        (m_machine_config.ram_size >= 16 * 1024 * 1024);
 }
 
 void GeardoxCore::LoadMachineFirmware()
@@ -2228,12 +2230,12 @@ void GeardoxCore::LoadMachineFirmware()
     if (!IsValidPointer(m_firmware))
         return;
 
-    bool cirrus = k_video_cards[m_pending_machine_config.video_card].cirrus;
+    int family = k_video_cards[m_pending_machine_config.video_card].family;
 
-    if (m_firmware->IsReady() && (m_firmware->IsCirrus() == cirrus))
+    if (m_firmware->IsReady() && (m_firmware->GetFamily() == family))
         return;
 
-    m_firmware->Load(cirrus);
+    m_firmware->Load(family);
 
     if (IsValidPointer(m_i386))
         m_i386->ResetDisassembler();
@@ -2308,7 +2310,8 @@ void GeardoxCore::ApplyFirmwareDevices()
     m_system_control->SetPowerOnA20(true);
     m_system_control->SetShadowControl(true);
     m_firmware_config->SetEnabled(true);
-    m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size);
+    m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size,
+        m_firmware->GetFamily() == GDOX_VIDEO_FAMILY_CGA);
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
     m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole());
     m_firmware_config->SetGameTarget(m_game_target);
@@ -2337,6 +2340,9 @@ void GeardoxCore::ApplyBusTiming()
     const GDOX_Video_Card_Info& card = k_video_cards[m_machine_config.video_card];
     u32 cpu_clock_rate = GetEffectiveCPUClockRate();
 
+    const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
+    u32 bus_clock_rate = profile.cpu_clock_rate / cpu.bus_ratio;
+
     // A VL-Bus card's memory runs on the CPU's bus at its own waits, an ISA card keeps the model's
     if (IsValidPointer(waits) && card.local_bus)
     {
@@ -2346,11 +2352,23 @@ void GeardoxCore::ApplyBusTiming()
         waits = &m_card_bus_waits;
     }
 
-    const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
+    if (IsValidPointer(timing) && card.isa8)
+    {
+        m_card_bus_timing = *timing;
+
+        for (int k = 0; k < 2; k++)
+        {
+            u32 wait = (u32)(((u64)card.isa8_wait_ns[k] * bus_clock_rate * 256 + 500000000) / 1000000000);
+            m_card_bus_timing.isa8_byte[k] = (u16)MIN((u32)timing->isa8_byte[k] + wait, 0xFFFFU);
+            m_card_bus_timing.isa8_word[k] = (u16)MIN((u32)timing->isa8_word[k] + wait * 2, 0xFFFFU);
+        }
+
+        timing = &m_card_bus_timing;
+    }
 
     // The board caches DRAM and its shadow copies; the VGA window, ROMs and the ISA bus stay on the bus
     m_i386->SetBoardCache(true, 1U << GDOX_BUS_DRAM);
-    m_i386->SetBusTiming(timing, waits, cpu.bus_width, cpu_clock_rate, profile.cpu_clock_rate / cpu.bus_ratio);
+    m_i386->SetBusTiming(timing, waits, cpu.bus_width, cpu_clock_rate, bus_clock_rate);
 }
 
 // The board's DRAM covers the hole below 1 MB too: the BIOS runs from its copy at E0000h or F0000h, with the
@@ -2378,26 +2396,48 @@ void GeardoxCore::InitMemoryMap()
         Error("Unable to map the system BIOS");
 
     u32 video_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_VIDEO;
+    u32 window_flags = video_flags | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY |
+        (k_video_cards[m_machine_config.video_card].isa8 ? GDOX_DEBUG_REGION_ISA8 : 0);
 
-    if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "VGA Window", k_video_max_window_size,
-        map.conventional_size, video_flags | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_MAPPED |
-        GDOX_DEBUG_REGION_OVERLAY, m_video, Video::ReadWindowCallback, Video::WriteWindowCallback,
-        Video::PeekWindowCallback) ||
-        !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::WriteWindow16Callback,
-        Video::WriteWindow32Callback) ||
-        !m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::ReadWindow16Callback,
-        Video::ReadWindow32Callback))
-        Error("Unable to map the VGA window");
+    if (m_video->IsCGA())
+    {
+        u8* vram = m_video->GetVRAM();
 
-    if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_0, "VGA Plane 0", VIDEO_PLANE_SIZE, 0, video_flags,
-        m_video, Video::PeekPlane0Callback, Video::PokePlane0Callback, Video::PeekPlane0Callback) ||
-        !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_1, "VGA Plane 1", VIDEO_PLANE_SIZE, 0, video_flags,
-        m_video, Video::PeekPlane1Callback, Video::PokePlane1Callback, Video::PeekPlane1Callback) ||
-        !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_2, "VGA Plane 2", VIDEO_PLANE_SIZE, 0, video_flags,
-        m_video, Video::PeekPlane2Callback, Video::PokePlane2Callback, Video::PeekPlane2Callback) ||
-        !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_3, "VGA Plane 3", VIDEO_PLANE_SIZE, 0, video_flags,
-        m_video, Video::PeekPlane3Callback, Video::PokePlane3Callback, Video::PeekPlane3Callback))
-        Error("Unable to register the VGA planes");
+        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "CGA Memory", k_video_cga_window_size,
+            k_video_cga_base, window_flags, m_video, Video::ReadCGACallback, Video::WriteCGACallback,
+            Video::PeekCGACallback) ||
+            !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::WriteCGA16Callback,
+            Video::WriteCGA32Callback) ||
+            !m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::ReadCGA16Callback,
+            Video::ReadCGA32Callback) ||
+            !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_VRAM, "CGA VRAM", vram, vram, VIDEO_CGA_VRAM_SIZE, 0,
+            video_flags) ||
+            !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_OPEN_BUS, "No Video Memory", NULL, NULL,
+            k_video_cga_base - map.conventional_size, map.conventional_size, GDOX_DEBUG_REGION_MAPPED |
+            GDOX_DEBUG_REGION_OVERLAY))
+            Error("Unable to map the CGA memory");
+    }
+    else
+    {
+        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VIDEO_APERTURE, "VGA Window", k_video_max_window_size,
+            map.conventional_size, window_flags, m_video, Video::ReadWindowCallback, Video::WriteWindowCallback,
+            Video::PeekWindowCallback) ||
+            !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::WriteWindow16Callback,
+            Video::WriteWindow32Callback) ||
+            !m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_VIDEO_APERTURE, Video::ReadWindow16Callback,
+            Video::ReadWindow32Callback))
+            Error("Unable to map the VGA window");
+
+        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_0, "VGA Plane 0", VIDEO_PLANE_SIZE, 0, video_flags,
+            m_video, Video::PeekPlane0Callback, Video::PokePlane0Callback, Video::PeekPlane0Callback) ||
+            !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_1, "VGA Plane 1", VIDEO_PLANE_SIZE, 0, video_flags,
+            m_video, Video::PeekPlane1Callback, Video::PokePlane1Callback, Video::PeekPlane1Callback) ||
+            !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_2, "VGA Plane 2", VIDEO_PLANE_SIZE, 0, video_flags,
+            m_video, Video::PeekPlane2Callback, Video::PokePlane2Callback, Video::PeekPlane2Callback) ||
+            !m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VGA_PLANE_3, "VGA Plane 3", VIDEO_PLANE_SIZE, 0, video_flags,
+            m_video, Video::PeekPlane3Callback, Video::PokePlane3Callback, Video::PeekPlane3Callback))
+            Error("Unable to register the VGA planes");
+    }
 
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_MAIN_RAM, "Main RAM", main_ram, main_ram,
         m_memory->GetMainRAMSize(), 0, ram_flags | GDOX_DEBUG_REGION_MAPPED))
@@ -2425,6 +2465,8 @@ void GeardoxCore::InitMemoryMap()
         NULL, 0x1000, k_upper_memory_start, shadow_flags) ||
         !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL, 0x1000, k_upper_memory_start,
         GDOX_DEBUG_REGION_OVERLAY) ||
+        !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_LOW_UPPER_MEMORY, "Upper Memory Below ROMs", NULL, NULL, 0x1000,
+        k_upper_memory_start, GDOX_DEBUG_REGION_OVERLAY) ||
         !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_BIOS, "Shadow BIOS", main_ram + k_system_control_shadow_bios,
         NULL, 0x10000, k_system_control_shadow_bios, shadow_flags))
         Error("Unable to register the shadow regions");
@@ -2486,7 +2528,10 @@ void GeardoxCore::InitCMOS()
 
     m_rtc->WriteRAM(0x10, (u8)((m_machine_config.floppy_type[0] << 4) | m_machine_config.floppy_type[1]));
     m_rtc->WriteRAM(0x12, (u8)((hard_disk_0 ? 0xF0 : 0x00) | (hard_disk_1 ? 0x0F : 0x00)));
-    m_rtc->WriteRAM(0x14, (u8)((m_machine_config.fpu ? 0x02 : 0x00) | (drives > 0 ? 0x01 | ((drives - 1) << 6) : 0x00)));
+    u8 display = k_video_cards[m_machine_config.video_card].family == GDOX_VIDEO_FAMILY_CGA ? 0x20 : 0x00;
+
+    m_rtc->WriteRAM(0x14, (u8)((m_machine_config.fpu ? 0x02 : 0x00) | display |
+        (drives > 0 ? 0x01 | ((drives - 1) << 6) : 0x00)));
     m_rtc->WriteRAM(0x15, 0x80);
     m_rtc->WriteRAM(0x16, 0x02);
     m_rtc->WriteRAM(0x17, (u8)extended_kb);

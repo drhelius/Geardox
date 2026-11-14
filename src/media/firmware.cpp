@@ -36,20 +36,44 @@ void Firmware::Init()
     InitPointer(m_system_rom);
     InitPointer(m_vga_rom);
     m_ready = false;
-    m_cirrus = false;
+    m_family = GDOX_VIDEO_FAMILY_VGA;
 }
 
-// SeaBIOS and SeaVGABIOS built from the pinned SeaBIOS commit, compiled in. The VGA BIOS is built for the card:
-// SeaVGABIOS for a plain VGA or for the Cirrus Logic GD5428
-void Firmware::Load(bool cirrus)
+// SeaBIOS and SeaVGABIOS built from the pinned SeaBIOS commit, compiled in. The video BIOS is built for the card:
+// SeaVGABIOS for a plain VGA, the Cirrus Logic GD5428, an IBM EGA or an IBM CGA
+void Firmware::Load(int family)
 {
+    const char* name = "SeaVGABIOS";
+    u32 size = k_seabios_vgabios_size;
+
     m_system_rom = k_seabios_bios;
-    m_vga_rom = cirrus ? k_seabios_vgabios_cirrus : k_seabios_vgabios;
-    m_cirrus = cirrus;
+    m_vga_rom = k_seabios_vgabios;
+    m_family = family;
+
+    switch (family)
+    {
+        case GDOX_VIDEO_FAMILY_CIRRUS:
+            m_vga_rom = k_seabios_vgabios_cirrus;
+            size = k_seabios_vgabios_cirrus_size;
+            name = "SeaVGABIOS CL-GD5428";
+            break;
+        case GDOX_VIDEO_FAMILY_EGA:
+            m_vga_rom = k_seabios_vgabios_ega;
+            size = k_seabios_vgabios_ega_size;
+            name = "SeaVGABIOS EGA";
+            break;
+        case GDOX_VIDEO_FAMILY_CGA:
+            m_vga_rom = k_seabios_vgabios_cga;
+            size = k_seabios_vgabios_cga_size;
+            name = "SeaVGABIOS CGA";
+            break;
+        default:
+            m_family = GDOX_VIDEO_FAMILY_VGA;
+            break;
+    }
 
     SetInfo(GDOX_FIRMWARE_SYSTEM_BIOS, "SeaBIOS", m_system_rom, k_seabios_bios_size);
-    SetInfo(GDOX_FIRMWARE_VGA_BIOS, cirrus ? "SeaVGABIOS CL-GD5428" : "SeaVGABIOS", m_vga_rom,
-        cirrus ? k_seabios_vgabios_cirrus_size : k_seabios_vgabios_size);
+    SetInfo(GDOX_FIRMWARE_VGA_BIOS, name, m_vga_rom, size);
 
     m_ready = true;
     Log("Firmware loaded: built-in %s, %s", m_info[GDOX_FIRMWARE_SYSTEM_BIOS].name, m_info[GDOX_FIRMWARE_VGA_BIOS].name);

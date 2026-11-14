@@ -72,6 +72,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "machine", "cdrom_speed", DESCRIPTOR_CD_SPEED, NULL, 0, 0 },
     { "machine", "drive_timing", DESCRIPTOR_CHOICE, "real,fast", 0, 0 },
     { "machine", "video", DESCRIPTOR_VIDEO, NULL, 0, 0 },
+    { "machine", "cga_output", DESCRIPTOR_CHOICE, "auto,rgb,composite", 0, 0 },
     { "sound", "card", DESCRIPTOR_SOUND, NULL, 0, 0 },
     { "sound", "irq", DESCRIPTOR_CHOICE, "5,7", 0, 0 },
     { "sound", "dma", DESCRIPTOR_CHOICE, "1,3", 0, 0 },
@@ -1023,6 +1024,14 @@ void GameDescriptor::Build()
     {
         if (Get("input", "joystick") == k_joysticks[i].id)
             info.joystick = i;
+    }
+
+    info.cga_output = -1;
+
+    for (int i = 0; Has("machine", "cga_output") && (i < GDOX_CGA_OUTPUT_COUNT); i++)
+    {
+        if (Get("machine", "cga_output") == k_cga_outputs[i].id)
+            info.cga_output = i;
     }
 
     info.midi = -1;
