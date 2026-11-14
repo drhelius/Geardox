@@ -1709,11 +1709,19 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
+        bool found = false;
+
         for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
         {
             if (strcmp(var.value, k_joysticks[i].id) == 0)
+            {
                 joystick_type = (GDOX_Joystick_Type)i;
+                found = true;
+            }
         }
+
+        if (!found)
+            log_cb(RETRO_LOG_WARN, "Unknown joystick %s, keeping %s\n", var.value, k_joysticks[joystick_type].id);
 
         if (!game_active || !game_disk.GetDescriptor().Has("input", "joystick"))
             core->GetInput()->SetJoystickType(joystick_type);
