@@ -296,6 +296,8 @@ private:
     int m_display_height;
     int m_render_width;
     int m_render_height;
+    int m_canvas_width;
+    int m_canvas_height;
     int m_partial_row;
     int m_partial_x;
     bool m_native_resolution;

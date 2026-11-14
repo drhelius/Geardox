@@ -49,6 +49,8 @@ Video::Video()
     m_display_height = GDOX_FRAME_BUFFER_HEIGHT;
     m_render_width = GDOX_FRAME_BUFFER_WIDTH;
     m_render_height = GDOX_FRAME_BUFFER_HEIGHT;
+    m_canvas_width = GDOX_FRAME_BUFFER_WIDTH;
+    m_canvas_height = GDOX_FRAME_BUFFER_HEIGHT;
     m_partial_row = -1;
     m_partial_x = 0;
     m_native_resolution = true;
@@ -931,8 +933,8 @@ void Video::CompleteFrame()
 
     m_frame_width = m_render_width;
     m_frame_height = m_render_height;
-    m_display_width = m_render_width;
-    m_display_height = (m_render_width * 3) / 4;
+    m_display_width = m_canvas_width;
+    m_display_height = m_canvas_height;
     m_frame_ready = true;
     m_state.frame_count++;
     m_state.start_address = (GetStartAddress() + ((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03)) & GetCounterMask();
@@ -1030,6 +1032,8 @@ void Video::UpdateGeometry()
     {
         m_render_width = GDOX_FRAME_BUFFER_WIDTH;
         m_render_height = GDOX_FRAME_BUFFER_HEIGHT;
+        m_canvas_width = GDOX_FRAME_BUFFER_WIDTH;
+        m_canvas_height = GDOX_FRAME_BUFFER_HEIGHT;
         m_canvas_h_divider = 1;
         m_canvas_v_divider = 1;
         m_canvas_zoom = 1;
@@ -1079,6 +1083,10 @@ void Video::UpdateGeometry()
 
     m_render_width = (int)MIN(width * m_canvas_zoom, (u32)GDOX_MAX_FRAME_BUFFER_WIDTH);
     m_render_height = (int)CLAMP(height, 1U, (u32)GDOX_MAX_FRAME_BUFFER_HEIGHT);
+
+    u32 monitor_dots = pixel_dots / GetExtendedClockMultiplier();
+    m_canvas_width = (int)(((u32)m_render_width * monitor_dots) / m_canvas_zoom);
+    m_canvas_height = m_render_height * (int)m_canvas_v_divider;
 }
 
 void Video::UpdateIRQ()

@@ -1622,8 +1622,22 @@ static void get_video_recording_size(const GDOX_Runtime_Info& runtime, int* widt
             ratio = (float)runtime.display_width / (float)runtime.display_height;
     }
 
-    *height = runtime.display_height * config_video.recording_scale;
-    *width = (int)roundf((float)*height * ratio);
+    int base_width = runtime.display_width;
+    int base_height = runtime.display_height;
+
+    if (runtime.display_width * runtime.screen_height == runtime.display_height * runtime.screen_width)
+    {
+        base_width = runtime.screen_width;
+        base_height = runtime.screen_height;
+    }
+
+    if ((float)base_width > (float)base_height * ratio)
+        base_height = (int)roundf((float)base_width / ratio);
+    else
+        base_width = (int)roundf((float)base_height * ratio);
+
+    *width = base_width * config_video.recording_scale;
+    *height = base_height * config_video.recording_scale;
     *width += *width & 1;
     *height += *height & 1;
 }

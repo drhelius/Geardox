@@ -705,28 +705,30 @@ static void main_window(void)
     int base_width = runtime.display_width;
     int base_height = runtime.display_height;
 
-    int w_corrected, h_corrected;
+    if (runtime.display_width * runtime.screen_height == runtime.display_height * runtime.screen_width)
+    {
+        base_width = runtime.screen_width;
+        base_height = runtime.screen_height;
+    }
+
+    int w_corrected = base_width;
+    int h_corrected = base_height;
     int scale_multiplier = 0;
+
+    if (selected_ratio != 0)
+    {
+        if ((float)base_width > (float)base_height * ratio)
+            h_corrected = (int)round(base_width / ratio);
+        else
+            w_corrected = (int)round(base_height * ratio);
+    }
 
     if (config_debug.debug)
     {
         scale_multiplier = config_debug.scale;
-        w_corrected = selected_ratio == 0 ? base_width : (int)round(base_height * ratio);
-        h_corrected = base_height;
     }
     else
     {
-        if (selected_ratio == 0)
-        {
-            w_corrected = base_width;
-            h_corrected = base_height;
-        }
-        else
-        {
-            w_corrected = (int)round(base_height * ratio);
-            h_corrected = base_height;
-        }
-
         switch (config_video.scale)
         {
         case 0:
