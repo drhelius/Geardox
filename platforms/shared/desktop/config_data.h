@@ -197,6 +197,15 @@ struct config_Input_Gamepad
     int gamepad_throttle_axis;
 };
 
+struct config_Input_Gamepad_Keys
+{
+    int use;
+    int mouse;
+    int mouse_speed;
+    int dead_zone;
+    int targets[GDOX_GAMEPAD_INPUT_COUNT];
+};
+
 enum config_HotkeyIndex
 {
     config_HotkeyIndex_GameFocus = 0,
@@ -376,8 +385,9 @@ EXTERN config_Video config_video;
 EXTERN config_Audio config_audio;
 EXTERN config_Rewind config_rewind;
 EXTERN config_Input config_input;
-EXTERN config_Input_Gamepad config_input_gamepad[GDOX_MAX_GAMEPADS];
-EXTERN config_Input_Gamepad_Shortcuts config_input_gamepad_shortcuts[GDOX_MAX_GAMEPADS];
+EXTERN config_Input_Gamepad config_input_gamepad;
+EXTERN config_Input_Gamepad_Shortcuts config_input_gamepad_shortcuts;
+EXTERN config_Input_Gamepad_Keys config_input_gamepad_keys[GDOX_MAX_GAMEPADS];
 EXTERN config_Hotkey config_hotkeys[config_HotkeyIndex_COUNT];
 EXTERN config_Debug config_debug;
 

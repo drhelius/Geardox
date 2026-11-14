@@ -607,6 +607,21 @@ void emu_host_hotkey_used(void)
         geardox->DiscardDeferredHostKeys();
 }
 
+int emu_get_built_in_key(int usage)
+{
+    if (!IsValidPointer(geardox) || !KeyMap::IsHostKey((u16)usage))
+        return GDOX_KEY_NONE;
+
+    const GDOX_Key_Map_Entry& entry = geardox->GetKeyMap()->GetLayerEntry(GDOX_KEY_MAP_BUILT_IN, (u16)usage);
+    return (entry.set && (entry.count > 0)) ? (int)entry.keys[0] : (int)GDOX_KEY_NONE;
+}
+
+void emu_gamepad_update(int pad, const GDOX_Gamepad_State& state, const GDOX_Gamepad_Mapping& mapping)
+{
+    if (IsValidPointer(geardox))
+        geardox->GetGamepadKeys()->Update(pad, state, mapping);
+}
+
 bool emu_has_pointer(void)
 {
     return IsValidPointer(geardox) && !emu_is_empty() && (geardox->GetMachineConfig().mouse != GDOX_MOUSE_NONE);

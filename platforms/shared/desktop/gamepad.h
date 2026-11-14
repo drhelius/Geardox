@@ -49,9 +49,17 @@ EXTERN void gamepad_load_mappings(void);
 EXTERN void gamepad_add(void);
 EXTERN void gamepad_remove(SDL_JoystickID instance_id);
 EXTERN void gamepad_assign(int slot, SDL_JoystickID instance_id);
-EXTERN void gamepad_check_shortcuts(int controller);
+EXTERN void gamepad_check_shortcuts(void);
 EXTERN bool gamepad_get_button(SDL_Gamepad* controller, int mapping);
 EXTERN int gamepad_get_detected(Gamepad_Detected_Info* out_list, int max_count);
+EXTERN int gamepad_get_use(int pad);
+EXTERN void gamepad_set_use(int pad, int use);
+EXTERN int gamepad_get_mouse(int pad);
+EXTERN void gamepad_set_mouse(int pad, int mouse);
+EXTERN int gamepad_get_target(int pad, int input);
+EXTERN void gamepad_set_target(int pad, int input, int target);
+EXTERN void gamepad_reset_targets(int pad);
+EXTERN void gamepad_update_keys(void);
 
 #undef GAMEPAD_IMPORT
 #undef EXTERN

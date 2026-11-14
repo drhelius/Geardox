@@ -92,6 +92,8 @@ bool gui_init(void)
     gui_shortcut_open_rom = false;
     gui_configured_button = NULL;
     gui_configured_hotkey = NULL;
+    gui_configured_gamepad_pad = 0;
+    gui_configured_gamepad_input = 0;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

@@ -30,6 +30,7 @@
 
 EXTERN void gui_popup_modal_gamepad(int pad);
 EXTERN void gui_popup_modal_hotkey();
+EXTERN void gui_popup_modal_gamepad_key(void);
 EXTERN void gui_popup_modal_about(void);
 EXTERN void gui_popup_modal_load_defaults(void);
 EXTERN void gui_popup_open_physical_cdrom(void);

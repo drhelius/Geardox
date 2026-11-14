@@ -25,6 +25,9 @@ static void process_machine_model(config_Operation operation, int* model);
 static void process_machine_value(config_Operation operation, const char* key, int* value, const int* values, int count);
 static void process_machine_ram(config_Operation operation, int* ram_mb);
 static void process_machine_fpu(config_Operation operation, int* fpu);
+static void process_gamepad_choice(config_Operation operation, const char* section, const char* key, int* value,
+    const GDOX_Gamepad_Info* infos, int count, int default_value);
+static void process_gamepad_target(config_Operation operation, const char* section, int input, int* target);
 
 static inline void process(config_Operation operation)
 {
@@ -361,35 +364,46 @@ static inline void process(config_Operation operation)
     CONFIG_STRING("Input", "KeyboardLayout", config_input.keyboard_layout, "us");
 
     // Gamepad
-    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
-    {
-        char section[32];
-        snprintf(section, sizeof(section), "InputGamepad%d", i + 1);
-        CONFIG_BOOL(section, "GamepadInvertX", config_input_gamepad[i].gamepad_invert_x_axis, false);
-        CONFIG_BOOL(section, "GamepadInvertY", config_input_gamepad[i].gamepad_invert_y_axis, false);
-        CONFIG_INT_RANGE(section, "GamepadDeadZone", config_input_gamepad[i].gamepad_dead_zone, 10, 0, 50);
-        CONFIG_INT(section, "GamepadXAxis", config_input_gamepad[i].gamepad_x_axis, SDL_GAMEPAD_AXIS_LEFTX);
-        CONFIG_INT(section, "GamepadYAxis", config_input_gamepad[i].gamepad_y_axis, SDL_GAMEPAD_AXIS_LEFTY);
-        CONFIG_INT(section, "GamepadThrottleAxis", config_input_gamepad[i].gamepad_throttle_axis,
-            SDL_GAMEPAD_AXIS_RIGHTY);
-        CONFIG_INT(section, "GamepadButton1", config_input_gamepad[i].gamepad_buttons[0], SDL_GAMEPAD_BUTTON_SOUTH);
-        CONFIG_INT(section, "GamepadButton2", config_input_gamepad[i].gamepad_buttons[1], SDL_GAMEPAD_BUTTON_EAST);
-        CONFIG_INT(section, "GamepadButton3", config_input_gamepad[i].gamepad_buttons[2], SDL_GAMEPAD_BUTTON_WEST);
-        CONFIG_INT(section, "GamepadButton4", config_input_gamepad[i].gamepad_buttons[3], SDL_GAMEPAD_BUTTON_NORTH);
-    }
+    CONFIG_BOOL("InputGamepad1", "GamepadInvertX", config_input_gamepad.gamepad_invert_x_axis, false);
+    CONFIG_BOOL("InputGamepad1", "GamepadInvertY", config_input_gamepad.gamepad_invert_y_axis, false);
+    CONFIG_INT_RANGE("InputGamepad1", "GamepadDeadZone", config_input_gamepad.gamepad_dead_zone, 10, 0, 50);
+    CONFIG_INT("InputGamepad1", "GamepadXAxis", config_input_gamepad.gamepad_x_axis, SDL_GAMEPAD_AXIS_LEFTX);
+    CONFIG_INT("InputGamepad1", "GamepadYAxis", config_input_gamepad.gamepad_y_axis, SDL_GAMEPAD_AXIS_LEFTY);
+    CONFIG_INT("InputGamepad1", "GamepadThrottleAxis", config_input_gamepad.gamepad_throttle_axis, SDL_GAMEPAD_AXIS_RIGHTY);
+    CONFIG_INT("InputGamepad1", "GamepadButton1", config_input_gamepad.gamepad_buttons[0], SDL_GAMEPAD_BUTTON_SOUTH);
+    CONFIG_INT("InputGamepad1", "GamepadButton2", config_input_gamepad.gamepad_buttons[1], SDL_GAMEPAD_BUTTON_EAST);
+    CONFIG_INT("InputGamepad1", "GamepadButton3", config_input_gamepad.gamepad_buttons[2], SDL_GAMEPAD_BUTTON_WEST);
+    CONFIG_INT("InputGamepad1", "GamepadButton4", config_input_gamepad.gamepad_buttons[3], SDL_GAMEPAD_BUTTON_NORTH);
 
     // Gamepad shortcuts
+    for (int i = 0; i < config_HotkeyIndex_COUNT; i++)
+    {
+        char key[64];
+        snprintf(key, sizeof(key), "Shortcut%s", hotkey_definitions[i].name);
+        CONFIG_INT("InputGamepadShortcuts1", key, config_input_gamepad_shortcuts.gamepad_shortcuts[i],
+            SDL_GAMEPAD_BUTTON_INVALID);
+    }
+
+    // Gamepad keys
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
     {
         char section[32];
-        snprintf(section, sizeof(section), "InputGamepadShortcuts%d", i + 1);
+        snprintf(section, sizeof(section), "InputGamepad%dKeys", i + 1);
+        config_Input_Gamepad_Keys& keys = config_input_gamepad_keys[i];
+        process_gamepad_choice(operation, section, "Use", &keys.use, k_gamepad_uses, GDOX_GAMEPAD_USE_COUNT,
+            GDOX_GAMEPAD_USE_KEYS);
+        process_gamepad_choice(operation, section, "Mouse", &keys.mouse, k_gamepad_mice, GDOX_GAMEPAD_MOUSE_COUNT,
+            GDOX_GAMEPAD_MOUSE_LEFT_STICK);
+        CONFIG_INT_RANGE(section, "MouseSpeed", keys.mouse_speed, k_gamepad_mouse_speed_default, 1, 15);
+        CONFIG_INT_RANGE(section, "DeadZone", keys.dead_zone, k_gamepad_dead_zone_default, 0, 50);
 
-        for (int j = 0; j < config_HotkeyIndex_COUNT; j++)
-        {
-            char key[64];
-            snprintf(key, sizeof(key), "Shortcut%s", hotkey_definitions[j].name);
-            CONFIG_INT(section, key, config_input_gamepad_shortcuts[i].gamepad_shortcuts[j], SDL_GAMEPAD_BUTTON_INVALID);
-        }
+        if ((keys.use == GDOX_GAMEPAD_USE_JOYSTICK) && (i > 0))
+            keys.use = GDOX_GAMEPAD_USE_OFF;
+        else if ((keys.use == GDOX_GAMEPAD_USE_OFF) && (i == 0))
+            keys.use = GDOX_GAMEPAD_USE_KEYS;
+
+        for (int j = 0; j < GDOX_GAMEPAD_INPUT_COUNT; j++)
+            process_gamepad_target(operation, section, j, &keys.targets[j]);
     }
 
     // Hotkeys
@@ -483,6 +497,54 @@ static void process_machine_value(config_Operation operation, const char* key, i
         if (parsed == values[i])
             *value = parsed;
     }
+}
+
+static void process_gamepad_choice(config_Operation operation, const char* section, const char* key, int* value,
+    const GDOX_Gamepad_Info* infos, int count, int default_value)
+{
+    std::string text = ((*value >= 0) && (*value < count)) ? infos[*value].id : infos[default_value].id;
+    process_string(operation, section, key, &text, infos[default_value].id, false);
+
+    for (size_t i = 0; i < text.size(); i++)
+        text[i] = ((text[i] >= 'A') && (text[i] <= 'Z')) ? (char)(text[i] + 32) : text[i];
+
+    *value = default_value;
+
+    for (int i = 0; i < count; i++)
+    {
+        if (text == infos[i].id)
+            *value = i;
+    }
+}
+
+static void process_gamepad_target(config_Operation operation, const char* section, int input, int* target)
+{
+    GDOX_Gamepad_Mapping defaults;
+    GamepadKeys::GetDefaultMapping(&defaults);
+    const char* id = k_gamepad_inputs[input].id;
+    std::string key;
+    bool upper = true;
+
+    for (int i = 0; id[i] != 0; i++)
+    {
+        if (id[i] == '_')
+        {
+            upper = true;
+            continue;
+        }
+
+        key += (char)((upper && (id[i] >= 'a') && (id[i] <= 'z')) ? id[i] - 32 : id[i]);
+        upper = false;
+    }
+
+    std::string text = GamepadKeys::GetTargetName(*target);
+    process_string(operation, section, key.c_str(), &text, GamepadKeys::GetTargetName(defaults.targets[input]), false);
+
+    for (size_t i = 0; i < text.size(); i++)
+        text[i] = ((text[i] >= 'A') && (text[i] <= 'Z')) ? (char)(text[i] + 32) : text[i];
+
+    int found = GamepadKeys::FindTarget(text.c_str());
+    *target = found >= 0 ? found : defaults.targets[input];
 }
 
 static void process_machine_ram(config_Operation operation, int* ram_mb)

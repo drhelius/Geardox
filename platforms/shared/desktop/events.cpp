@@ -167,7 +167,7 @@ static void input_update(bool check_shortcuts)
     emu_set_mouse_buttons(mouse_buttons);
 
     if (check_shortcuts)
-        gamepad_check_shortcuts(0);
+        gamepad_check_shortcuts();
 }
 
 // The left stick and the D-pad move stick A, the right stick's throttle is stick B's Y
@@ -178,10 +178,10 @@ static GDOX_Joystick_State input_build_joystick(void)
     memset(&state, 0, sizeof(state));
     SDL_Gamepad* gamepad = gamepad_controller[0];
 
-    if (!IsValidPointer(gamepad))
+    if (!IsValidPointer(gamepad) || (gamepad_get_use(0) != GDOX_GAMEPAD_USE_JOYSTICK))
         return state;
 
-    const config_Input_Gamepad& mapping = config_input_gamepad[0];
+    const config_Input_Gamepad& mapping = config_input_gamepad;
     int x = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_x_axis);
     int y = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_y_axis);
     int dead_zone = (mapping.gamepad_dead_zone * 32767) / 100;

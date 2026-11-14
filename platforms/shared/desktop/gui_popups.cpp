@@ -169,6 +169,59 @@ void gui_popup_modal_hotkey()
     }
 }
 
+void gui_popup_modal_gamepad_key(void)
+{
+    gui_center_next_window();
+
+    if (ImGui::BeginPopupModal("Gamepad Key Configuration", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+        gui_dialog_in_use = true;
+        int pad = CLAMP(gui_configured_gamepad_pad, 0, GDOX_MAX_GAMEPADS - 1);
+        int input = CLAMP(gui_configured_gamepad_input, 0, GDOX_GAMEPAD_INPUT_COUNT - 1);
+        int target = -1;
+        ImGui::Text("Press the PC key for %s on Host Gamepad %d...", k_gamepad_inputs[input].name, pad + 1);
+        ImGui::Text("Or choose a mouse button.\n\n");
+        ImGui::Separator();
+
+        int num_keys = 0;
+        const bool* state = SDL_GetKeyboardState(&num_keys);
+
+        for (int sc = SDL_SCANCODE_UNKNOWN + 1; (sc < num_keys) && (target < 0); sc++)
+        {
+            int key = state[sc] ? emu_get_built_in_key(sc) : GDOX_KEY_NONE;
+
+            if (key != GDOX_KEY_NONE)
+                target = key;
+        }
+
+        if (ImGui::Button("Left Click", ImVec2(120, 0)))
+            target = GDOX_GAMEPAD_TARGET_MOUSE_LEFT;
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Right Click", ImVec2(120, 0)))
+            target = GDOX_GAMEPAD_TARGET_MOUSE_RIGHT;
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Middle Click", ImVec2(120, 0)))
+            target = GDOX_GAMEPAD_TARGET_MOUSE_MIDDLE;
+
+        bool cancel = ImGui::Button("Cancel", ImVec2(120, 0));
+
+        if (target >= 0)
+            gamepad_set_target(pad, input, target);
+
+        if (cancel || (target >= 0))
+        {
+            gui_dialog_in_use = false;
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+}
+
 void gui_popup_modal_about(void)
 {
     gui_center_next_window();

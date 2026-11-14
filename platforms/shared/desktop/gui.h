@@ -47,6 +47,8 @@ EXTERN int gui_main_window_height;
 EXTERN int gui_main_menu_height;
 EXTERN int* gui_configured_button;
 EXTERN config_Hotkey* gui_configured_hotkey;
+EXTERN int gui_configured_gamepad_pad;
+EXTERN int gui_configured_gamepad_input;
 EXTERN bool gui_dialog_in_use;
 EXTERN bool gui_shortcut_open_rom;
 

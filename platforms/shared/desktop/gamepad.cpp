@@ -21,6 +21,8 @@
 #include <fstream>
 #include "geardox.h"
 #include "config.h"
+#include "emu.h"
+#include "emu_game.h"
 #include "gui.h"
 #include "gui_notifications.h"
 #include "hotkeys.h"
@@ -29,9 +31,20 @@
 #define GAMEPAD_IMPORT
 #include "gamepad.h"
 
-static bool gamepad_shortcut_prev[GDOX_MAX_GAMEPADS][config_HotkeyIndex_COUNT] = { };
+static bool gamepad_shortcut_prev[config_HotkeyIndex_COUNT] = { };
+
+static const SDL_GamepadButton k_gamepad_key_buttons[GDOX_GAMEPAD_INPUT_LEFT_STICK_UP] =
+{
+    SDL_GAMEPAD_BUTTON_SOUTH, SDL_GAMEPAD_BUTTON_EAST, SDL_GAMEPAD_BUTTON_WEST, SDL_GAMEPAD_BUTTON_NORTH,
+    SDL_GAMEPAD_BUTTON_DPAD_UP, SDL_GAMEPAD_BUTTON_DPAD_DOWN, SDL_GAMEPAD_BUTTON_DPAD_LEFT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT,
+    SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, SDL_GAMEPAD_BUTTON_INVALID,
+    SDL_GAMEPAD_BUTTON_INVALID, SDL_GAMEPAD_BUTTON_LEFT_STICK, SDL_GAMEPAD_BUTTON_RIGHT_STICK, SDL_GAMEPAD_BUTTON_BACK,
+    SDL_GAMEPAD_BUTTON_START
+};
 
 static void notify_gamepad(int player, SDL_Gamepad* controller, bool connected);
+static void read_gamepad_state(SDL_Gamepad* controller, GDOX_Gamepad_State* state);
+static GDOX_Gamepad_Game get_game_gamepad(int pad, bool* open);
 
 bool gamepad_init(void)
 {
@@ -321,21 +334,21 @@ int gamepad_get_detected(Gamepad_Detected_Info* out_list, int max_count)
     return result;
 }
 
-void gamepad_check_shortcuts(int controller)
+void gamepad_check_shortcuts(void)
 {
-    SDL_Gamepad* sdl_controller = gamepad_controller[controller];
+    SDL_Gamepad* sdl_controller = gamepad_controller[0];
     if (!IsValidPointer(sdl_controller))
         return;
 
     for (int i = 0; i < config_HotkeyIndex_COUNT; i++)
     {
-        int button_mapping = config_input_gamepad_shortcuts[controller].gamepad_shortcuts[i];
+        int button_mapping = config_input_gamepad_shortcuts.gamepad_shortcuts[i];
         if (button_mapping == SDL_GAMEPAD_BUTTON_INVALID)
             continue;
 
         bool button_pressed = gamepad_get_button(sdl_controller, button_mapping);
-        bool was_pressed = gamepad_shortcut_prev[controller][i];
-        gamepad_shortcut_prev[controller][i] = button_pressed;
+        bool was_pressed = gamepad_shortcut_prev[i];
+        gamepad_shortcut_prev[i] = button_pressed;
 
         if (button_pressed && !was_pressed)
             gui_hotkey((config_HotkeyIndex)i, true);
@@ -365,10 +378,169 @@ bool gamepad_get_button(SDL_Gamepad* controller, int mapping)
     return false;
 }
 
+int gamepad_get_use(int pad)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+    int use = (open && (game.use >= 0)) ? game.use : config_input_gamepad_keys[pad].use;
+
+    if (pad == 0)
+        return use == GDOX_GAMEPAD_USE_JOYSTICK ? GDOX_GAMEPAD_USE_JOYSTICK : GDOX_GAMEPAD_USE_KEYS;
+
+    return use == GDOX_GAMEPAD_USE_OFF ? GDOX_GAMEPAD_USE_OFF : GDOX_GAMEPAD_USE_KEYS;
+}
+
+void gamepad_set_use(int pad, int use)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+
+    if (!open)
+    {
+        config_input_gamepad_keys[pad].use = use;
+        return;
+    }
+
+    game.use = use;
+    emu_game_set_gamepad(pad, game);
+}
+
+int gamepad_get_mouse(int pad)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+    int mouse = (open && (game.mouse >= 0)) ? game.mouse : config_input_gamepad_keys[pad].mouse;
+    return CLAMP(mouse, 0, GDOX_GAMEPAD_MOUSE_COUNT - 1);
+}
+
+void gamepad_set_mouse(int pad, int mouse)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+
+    if (!open)
+    {
+        config_input_gamepad_keys[pad].mouse = mouse;
+        return;
+    }
+
+    game.mouse = mouse;
+    emu_game_set_gamepad(pad, game);
+}
+
+int gamepad_get_target(int pad, int input)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+    return (open && (game.targets[input] >= 0)) ? game.targets[input] : config_input_gamepad_keys[pad].targets[input];
+}
+
+void gamepad_set_target(int pad, int input, int target)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+
+    if (!open)
+    {
+        config_input_gamepad_keys[pad].targets[input] = target;
+        return;
+    }
+
+    game.targets[input] = target;
+    emu_game_set_gamepad(pad, game);
+}
+
+void gamepad_reset_targets(int pad)
+{
+    bool open = false;
+    GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
+
+    if (!open)
+    {
+        GDOX_Gamepad_Mapping defaults;
+        GamepadKeys::GetDefaultMapping(&defaults);
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+            config_input_gamepad_keys[pad].targets[i] = defaults.targets[i];
+
+        return;
+    }
+
+    const GDOX_Gamepad_Game* base = emu_game_get_base_gamepad(pad);
+
+    for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+        game.targets[i] = base->targets[i];
+
+    emu_game_set_gamepad(pad, game);
+}
+
+void gamepad_update_keys(void)
+{
+    bool active = !gui_in_use && !gui_dialog_in_use && !emu_key_mapper_is_open() && !emu_is_empty();
+
+    for (int pad = 0; pad < GDOX_MAX_GAMEPADS; pad++)
+    {
+        GDOX_Gamepad_State state;
+        memset(&state, 0, sizeof(state));
+        SDL_Gamepad* controller = gamepad_controller[pad];
+        bool keys = gamepad_get_use(pad) == GDOX_GAMEPAD_USE_KEYS;
+
+        if (active && keys && IsValidPointer(controller))
+            read_gamepad_state(controller, &state);
+
+        GDOX_Gamepad_Mapping mapping;
+        mapping.mouse = keys ? gamepad_get_mouse(pad) : (int)GDOX_GAMEPAD_MOUSE_OFF;
+        mapping.mouse_speed = config_input_gamepad_keys[pad].mouse_speed;
+        mapping.dead_zone = config_input_gamepad_keys[pad].dead_zone;
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+            mapping.targets[i] = gamepad_get_target(pad, i);
+
+        emu_gamepad_update(pad, state, mapping);
+    }
+}
+
 static void notify_gamepad(int player, SDL_Gamepad* controller, bool connected)
 {
     const char* name = SDL_GetGamepadName(controller);
     char detail[256];
-    snprintf(detail, sizeof(detail), "Player %d: %s", player + 1, IsValidPointer(name) ? name : "Unknown");
+    snprintf(detail, sizeof(detail), "Host Gamepad %d: %s", player + 1, IsValidPointer(name) ? name : "Unknown");
     gui_notify(gui_NotificationInfo, ICON_MD_GAMEPAD, connected ? "Gamepad connected" : "Gamepad disconnected", detail);
+}
+
+static void read_gamepad_state(SDL_Gamepad* controller, GDOX_Gamepad_State* state)
+{
+    for (int i = 0; i < GDOX_GAMEPAD_INPUT_LEFT_STICK_UP; i++)
+    {
+        bool down = false;
+
+        if (i == GDOX_GAMEPAD_INPUT_L2)
+            down = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > GAMEPAD_VBTN_AXIS_THRESHOLD;
+        else if (i == GDOX_GAMEPAD_INPUT_R2)
+            down = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > GAMEPAD_VBTN_AXIS_THRESHOLD;
+        else
+            down = SDL_GetGamepadButton(controller, k_gamepad_key_buttons[i]);
+
+        if (down)
+            state->buttons |= 1u << i;
+    }
+
+    state->axes[GDOX_GAMEPAD_AXIS_LEFT_X] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTX);
+    state->axes[GDOX_GAMEPAD_AXIS_LEFT_Y] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTY);
+    state->axes[GDOX_GAMEPAD_AXIS_RIGHT_X] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTX);
+    state->axes[GDOX_GAMEPAD_AXIS_RIGHT_Y] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTY);
+}
+
+static GDOX_Gamepad_Game get_game_gamepad(int pad, bool* open)
+{
+    GDOX_Gamepad_Game game;
+    const GDOX_Gamepad_Game* current = emu_game_get_gamepad(pad);
+    *open = IsValidPointer(current);
+
+    if (*open)
+        game = *current;
+    else
+        GamepadKeys::ClearGame(&game);
+
+    return game;
 }

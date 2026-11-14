@@ -121,6 +121,9 @@ static void gamepad_configuration_item(const char* text, int* button, int player
 static void hotkey_configuration_item(const char* text, config_Hotkey* hotkey);
 static void hotkey_configuration_menu(bool debug);
 static void gamepad_device_selector(int player);
+static void menu_input_gamepad(int pad);
+static void gamepad_choice_selector(int pad, bool use);
+static void gamepad_key_item(int pad, int input, float offset);
 static void draw_savestate_slot_info(int slot);
 
 void gui_init_menus(void)
@@ -2061,7 +2064,7 @@ static void menu_input(void)
 
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Joystick"))
+        if (ImGui::BeginMenu("Emulated Joystick"))
         {
             int joystick = emu_game_get_joystick() >= 0 ? emu_game_get_joystick() : config_input.joystick_type;
             float text_width = 0.0f;
@@ -2091,7 +2094,8 @@ static void menu_input(void)
             else if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
-                ImGui::Text("What the host gamepad plays on the game port.");
+                ImGui::Text("What Host Gamepad 1 plays on the game port");
+                ImGui::Text("when it's used as Joystick.");
                 ImGui::Text("Joystick: analog stick, two buttons.");
                 ImGui::Text("Gravis GamePad: eight directions on the D-pad");
                 ImGui::Text("or left stick, four buttons.");
@@ -2104,67 +2108,10 @@ static void menu_input(void)
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Host Gamepad"))
-        {
-            if (!gamepad_controller[0])
-                ImGui::TextDisabled("No gamepad detected");
-            else
-                ImGui::TextDisabled("Gamepad detected");
+        ImGui::Separator();
 
-            ImGui::Separator();
-
-            if (ImGui::BeginMenu("Device"))
-            {
-                gamepad_device_selector(0);
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Stick"))
-            {
-                ImGui::MenuItem("Invert X Axis", "", &config_input_gamepad[0].gamepad_invert_x_axis);
-                ImGui::MenuItem("Invert Y Axis", "", &config_input_gamepad[0].gamepad_invert_y_axis);
-                ImGui::PushItemWidth(200.0f);
-                ImGui::SliderInt("##dead_zone", &config_input_gamepad[0].gamepad_dead_zone, 0, 50, "Dead Zone = %d%%");
-                ImGui::PopItemWidth();
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Button Configuration"))
-            {
-                ImGui::TextDisabled("Game Port Buttons");
-                ImGui::Separator();
-                gamepad_configuration_item("Button 1:", &config_input_gamepad[0].gamepad_buttons[0], 0);
-                gamepad_configuration_item("Button 2:", &config_input_gamepad[0].gamepad_buttons[1], 0);
-                gamepad_configuration_item("Button 3:", &config_input_gamepad[0].gamepad_buttons[2], 0);
-                gamepad_configuration_item("Button 4:", &config_input_gamepad[0].gamepad_buttons[3], 0);
-
-                gui_popup_modal_gamepad(0);
-
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Shortcut Configuration"))
-            {
-                ImGui::TextDisabled("Gamepad Shortcuts");
-                ImGui::Separator();
-
-                for (int i = 0; i < config_HotkeyIndex_COUNT; i++)
-                {
-                    if ((hotkey_definitions[i].flags & HOTKEY_FLAG_GAMEPAD) == 0)
-                        continue;
-
-                    char label[64];
-                    snprintf(label, sizeof(label), "%s:", hotkey_definitions[i].label);
-                    gamepad_configuration_item(label, &config_input_gamepad_shortcuts[0].gamepad_shortcuts[i], 0);
-                }
-
-                gui_popup_modal_gamepad(0);
-
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenu();
-        }
+        menu_input_gamepad(0);
+        menu_input_gamepad(1);
 
         ImGui::EndMenu();
     }
@@ -3059,6 +3006,235 @@ static void gamepad_device_selector(int player)
     }
 
     ImGui::PopItemWidth();
+}
+
+static void menu_input_gamepad(int pad)
+{
+    char title[32];
+    snprintf(title, sizeof(title), "Host Gamepad %d", pad + 1);
+
+    if (!ImGui::BeginMenu(title))
+        return;
+
+    if (!gamepad_controller[pad])
+        ImGui::TextDisabled("No gamepad detected");
+    else
+        ImGui::TextDisabled("Gamepad detected");
+
+    ImGui::Separator();
+
+    if (ImGui::BeginMenu("Device"))
+    {
+        gamepad_device_selector(pad);
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Use As"))
+    {
+        gamepad_choice_selector(pad, true);
+        ImGui::EndMenu();
+    }
+
+    bool keys = gamepad_get_use(pad) == GDOX_GAMEPAD_USE_KEYS;
+    ImGui::Separator();
+
+    if (ImGui::BeginMenu("Key Mapping", keys))
+    {
+        float offset = 0.0f;
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+            offset = MAX(offset, ImGui::CalcTextSize(k_gamepad_inputs[i].name).x);
+
+        offset += ImGui::CalcTextSize(": ").x + ImGui::GetStyle().ItemSpacing.x;
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+        {
+            if ((i == GDOX_GAMEPAD_INPUT_L1) || (i == GDOX_GAMEPAD_INPUT_BACK) || (i == GDOX_GAMEPAD_INPUT_LEFT_STICK_UP) ||
+                (i == GDOX_GAMEPAD_INPUT_DPAD_UP) || (i == GDOX_GAMEPAD_INPUT_RIGHT_STICK_UP))
+                ImGui::Separator();
+
+            gamepad_key_item(pad, i, offset);
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::MenuItem("Reset to Defaults"))
+            gamepad_reset_targets(pad);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("During a game, back to the game's own mapping.");
+            ImGui::EndTooltip();
+        }
+
+        gui_popup_modal_gamepad_key();
+
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Mouse", keys))
+    {
+        if (ImGui::BeginMenu("Move Mouse With"))
+        {
+            gamepad_choice_selector(pad, false);
+            ImGui::EndMenu();
+        }
+
+        ImGui::PushItemWidth(200.0f);
+        ImGui::SliderInt("##gamepad_mouse_speed", &config_input_gamepad_keys[pad].mouse_speed, 1, 15, "Speed = %d");
+        ImGui::SliderInt("##gamepad_mouse_dead_zone", &config_input_gamepad_keys[pad].dead_zone, 0, 50, "Dead Zone = %d%%");
+        ImGui::PopItemWidth();
+        ImGui::EndMenu();
+    }
+
+    if (pad == 0)
+    {
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Stick", !keys))
+        {
+            ImGui::MenuItem("Invert X Axis", "", &config_input_gamepad.gamepad_invert_x_axis);
+            ImGui::MenuItem("Invert Y Axis", "", &config_input_gamepad.gamepad_invert_y_axis);
+            ImGui::PushItemWidth(200.0f);
+            ImGui::SliderInt("##dead_zone", &config_input_gamepad.gamepad_dead_zone, 0, 50, "Dead Zone = %d%%");
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Button Configuration", !keys))
+        {
+            ImGui::TextDisabled("Game Port Buttons");
+            ImGui::Separator();
+            gamepad_configuration_item("Button 1:", &config_input_gamepad.gamepad_buttons[0], 0);
+            gamepad_configuration_item("Button 2:", &config_input_gamepad.gamepad_buttons[1], 0);
+            gamepad_configuration_item("Button 3:", &config_input_gamepad.gamepad_buttons[2], 0);
+            gamepad_configuration_item("Button 4:", &config_input_gamepad.gamepad_buttons[3], 0);
+
+            gui_popup_modal_gamepad(0);
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Shortcut Configuration"))
+        {
+            ImGui::TextDisabled("Gamepad Shortcuts");
+            ImGui::Separator();
+
+            for (int i = 0; i < config_HotkeyIndex_COUNT; i++)
+            {
+                if ((hotkey_definitions[i].flags & HOTKEY_FLAG_GAMEPAD) == 0)
+                    continue;
+
+                char label[64];
+                snprintf(label, sizeof(label), "%s:", hotkey_definitions[i].label);
+                gamepad_configuration_item(label, &config_input_gamepad_shortcuts.gamepad_shortcuts[i], 0);
+            }
+
+            gui_popup_modal_gamepad(0);
+
+            ImGui::EndMenu();
+        }
+    }
+
+    ImGui::EndMenu();
+}
+
+static void gamepad_choice_selector(int pad, bool use)
+{
+    int choices[GDOX_GAMEPAD_MOUSE_COUNT];
+    const GDOX_Gamepad_Info* infos = use ? k_gamepad_uses : k_gamepad_mice;
+    int count = 0;
+
+    if (use)
+    {
+        choices[count++] = GDOX_GAMEPAD_USE_KEYS;
+        choices[count++] = pad == 0 ? GDOX_GAMEPAD_USE_JOYSTICK : GDOX_GAMEPAD_USE_OFF;
+    }
+    else
+    {
+        for (int i = 0; i < GDOX_GAMEPAD_MOUSE_COUNT; i++)
+            choices[count++] = i;
+    }
+
+    int current = use ? gamepad_get_use(pad) : gamepad_get_mouse(pad);
+    float text_width = 0.0f;
+
+    for (int i = 0; i < count; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(infos[choices[i]].name).x);
+
+    char label[32];
+    snprintf(label, sizeof(label), "##gamepad_%s%d", use ? "use" : "mouse", pad + 1);
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo(label, infos[current].name))
+    {
+        for (int i = 0; i < count; i++)
+        {
+            if (!ImGui::Selectable(infos[choices[i]].name, current == choices[i]))
+                continue;
+
+            if (use)
+                gamepad_set_use(pad, choices[i]);
+            else
+                gamepad_set_mouse(pad, choices[i]);
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+
+        if (use)
+        {
+            ImGui::Text("Keyboard and Mouse: each button presses a PC key");
+            ImGui::Text("or clicks, a stick or the D-pad moves the mouse.");
+
+            if (pad == 0)
+                ImGui::Text("Joystick: plays the joystick on the game port.");
+        }
+        else
+        {
+            ImGui::Text("The stick or D-pad that moves the PC's mouse.");
+            ImGui::Text("It sends no keys while it does.");
+        }
+
+        ImGui::Text("During a game, the change is for that game only.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+}
+
+static void gamepad_key_item(int pad, int input, float offset)
+{
+    bool disabled = GamepadKeys::MovesMouse(gamepad_get_mouse(pad), input);
+    int target = gamepad_get_target(pad, input);
+    char label[96];
+
+    ImGui::BeginDisabled(disabled);
+    ImGui::Text("%s:", k_gamepad_inputs[input].name);
+    ImGui::SameLine(offset);
+    snprintf(label, sizeof(label), "%s##gamepad_key%d_%d", disabled ? "Mouse" : GamepadKeys::GetTargetLabel(target), pad,
+        input);
+
+    if (ImGui::Button(label, ImVec2(120, 0)))
+    {
+        gui_configured_gamepad_pad = pad;
+        gui_configured_gamepad_input = input;
+        ImGui::OpenPopup("Gamepad Key Configuration");
+    }
+
+    ImGui::SameLine();
+    snprintf(label, sizeof(label), "X##gamepad_key_clear%d_%d", pad, input);
+
+    if (ImGui::Button(label))
+        gamepad_set_target(pad, input, GDOX_GAMEPAD_TARGET_NONE);
+
+    ImGui::EndDisabled();
 }
 
 static void draw_savestate_slot_info(int slot)

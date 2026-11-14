@@ -42,6 +42,8 @@ static int game_cga_output = -1;
 static int base_cga_output = -1;
 static std::string game_midi_port;
 static std::string base_midi_port;
+static GDOX_Gamepad_Game game_gamepads[GDOX_MAX_GAMEPADS];
+static GDOX_Gamepad_Game base_gamepads[GDOX_MAX_GAMEPADS];
 static bool preparing = false;
 static bool prepared = false;
 static bool write_back_pending = false;
@@ -286,6 +288,10 @@ bool emu_game_close(void)
     game_cga_output = -1;
     game_midi = -1;
     game_midi_port.clear();
+
+    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+        GamepadKeys::ClearGame(&game_gamepads[i]);
+
     emu_update_joystick_type();
     emu_update_cga_output();
     emu_apply_machine_settings();
@@ -426,6 +432,25 @@ void emu_game_apply_machine(void)
     if (game_midi_port != base_midi_port)
         overrides.Set("sound", "midi_port", game_midi_port.c_str());
 
+    for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
+    {
+        const GDOX_Gamepad_Game& gamepad = game_gamepads[p];
+        const GDOX_Gamepad_Game& base = base_gamepads[p];
+        const char* section = GameDescriptor::GetGamepadSection(p);
+
+        if ((gamepad.use != base.use) && (gamepad.use >= 0))
+            overrides.Set(section, "use", k_gamepad_uses[gamepad.use].id);
+
+        if ((gamepad.mouse != base.mouse) && (gamepad.mouse >= 0))
+            overrides.Set(section, "mouse", k_gamepad_mice[gamepad.mouse].id);
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+        {
+            if ((gamepad.targets[i] != base.targets[i]) && (gamepad.targets[i] >= 0))
+                overrides.Set(section, k_gamepad_inputs[i].id, GamepadKeys::GetTargetName(gamepad.targets[i]));
+        }
+    }
+
     if (m.cdrom_speed != b.cdrom_speed)
         overrides.Set("machine", "cdrom_speed", k_cdrom_speeds[m.cdrom_speed].id);
 
@@ -454,6 +479,31 @@ void emu_game_set_joystick(int joystick)
         return;
 
     game_joystick = joystick;
+    emu_game_apply_machine();
+}
+
+const GDOX_Gamepad_Game* emu_game_get_gamepad(int pad)
+{
+    if (!emu_game_is_open() || (pad < 0) || (pad >= GDOX_MAX_GAMEPADS))
+        return NULL;
+
+    return &game_gamepads[pad];
+}
+
+const GDOX_Gamepad_Game* emu_game_get_base_gamepad(int pad)
+{
+    if (!emu_game_is_open() || (pad < 0) || (pad >= GDOX_MAX_GAMEPADS))
+        return NULL;
+
+    return &base_gamepads[pad];
+}
+
+void emu_game_set_gamepad(int pad, const GDOX_Gamepad_Game& gamepad)
+{
+    if (!emu_game_is_open() || (pad < 0) || (pad >= GDOX_MAX_GAMEPADS))
+        return;
+
+    game_gamepads[pad] = gamepad;
     emu_game_apply_machine();
 }
 
@@ -899,6 +949,23 @@ static void update_machines(void)
             stripped.Unset(k_keys[i][0], k_keys[i][1]);
     }
 
+    for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
+    {
+        const char* section = GameDescriptor::GetGamepadSection(p);
+
+        if (overrides.Has(section, "use"))
+            stripped.Unset(section, "use");
+
+        if (overrides.Has(section, "mouse"))
+            stripped.Unset(section, "mouse");
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+        {
+            if (overrides.Has(section, k_gamepad_inputs[i].id))
+                stripped.Unset(section, k_gamepad_inputs[i].id);
+        }
+    }
+
     GameDisk::GetGameSettings(stripped, user, &without, disk.GetSystem());
     base_machine = config_machine;
     overlay_settings(&base_machine, without);
@@ -910,6 +977,12 @@ static void update_machines(void)
     base_midi = stripped.GetInfo().midi;
     game_midi_port = disk.GetDescriptor().GetInfo().midi_port;
     base_midi_port = stripped.GetInfo().midi_port;
+
+    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+    {
+        game_gamepads[i] = disk.GetDescriptor().GetInfo().gamepads[i];
+        base_gamepads[i] = stripped.GetInfo().gamepads[i];
+    }
 }
 
 static void apply_game_settings(void)
