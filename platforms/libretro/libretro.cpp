@@ -112,6 +112,7 @@ static bool audio_buffer_underrun = false;
 
 static int mouse_sensitivity = 5;
 static GDOX_Joystick_Type joystick_type = GDOX_JOYSTICK_GAMEPAD;
+static int cga_output = GDOX_CGA_OUTPUT_AUTO;
 static unsigned input_device = RETRO_DEVICE_PC_JOYSTICK;
 static float mouse_remainder_x = 0.0f;
 static float mouse_remainder_y = 0.0f;
@@ -458,6 +459,7 @@ void retro_deinit(void)
     audio_buffer_active = false;
     mouse_sensitivity = 5;
     joystick_type = GDOX_JOYSTICK_GAMEPAD;
+    cga_output = GDOX_CGA_OUTPUT_AUTO;
     disk_initial_index = 0;
     disk_initial_path.clear();
     floppy_drive = 0;
@@ -1592,6 +1594,7 @@ static bool update_game_options_display(void)
         { "geardox_turbo", "machine", "turbo" }, { "geardox_main_ram", "machine", "ram_mb" },
         { "geardox_fpu", "machine", "fpu" }, { "geardox_floppy_a", "machine", "floppy_a_type" },
         { "geardox_floppy_b", "machine", "floppy_b_type" }, { "geardox_video_card", "machine", "video" },
+        { "geardox_cga_output", "machine", "cga_output" },
         { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
         { "geardox_sound_dma", "sound", "dma" }, { "geardox_mpu", "sound", "mpu" },
         { "geardox_mouse", "input", "mouse" }, { "geardox_joystick", "input", "joystick" },
@@ -1654,6 +1657,21 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
         core->GetVideo()->EnableNativeResolution(strcmp(var.value, "Enabled") == 0);
+    }
+
+    var.key = "geardox_cga_output";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
+        {
+            if (strcmp(var.value, k_cga_outputs[i].id) == 0)
+                cga_output = i;
+        }
+
+        if (!game_active || !game_disk.GetDescriptor().Has("machine", "cga_output"))
+            core->GetVideo()->SetCGAOutput(cga_output);
     }
 
     var.key = "geardox_frameskip";
@@ -3307,6 +3325,9 @@ static bool game_open(const char* path, bool* game)
     if (info.joystick >= 0)
         core->GetInput()->SetJoystickType((GDOX_Joystick_Type)info.joystick);
 
+    if (info.cga_output >= 0)
+        core->GetVideo()->SetCGAOutput(info.cga_output);
+
     core->SetGameTarget(game_target);
     core->SetBootDevice(info.boot_floppy ? GDOX_BOOT_DEVICE_FLOPPY_0 : GDOX_BOOT_DEVICE_HARD_DISK);
     update_core_options_display();
@@ -3342,6 +3363,7 @@ static void game_end(void)
     game_disk.Close();
     core->ClearGameSettings();
     core->SetGameTarget(-1);
+    core->GetVideo()->SetCGAOutput(cga_output);
     update_core_options_display();
 }
 

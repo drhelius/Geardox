@@ -103,6 +103,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "Enabled"
     },
     {
+        "geardox_cga_output",
+        "CGA Output",
+        NULL,
+        "The monitor on the IBM CGA's output. Auto shows composite colour where a game turns on 640x200 with the colour burst, RGB elsewhere.",
+        NULL,
+        "video",
+        {
+            { "auto",      "Auto" },
+            { "rgb",       "RGB Monitor" },
+            { "composite", "Composite Monitor" },
+            { NULL, NULL },
+        },
+        "auto"
+    },
+    {
         "geardox_frameskip",
         "Frameskip",
         NULL,
@@ -408,14 +423,16 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_video_card",
         "Video Card (restart)",
         NULL,
-        "The video card in the machine. Model Default fits a Cirrus Logic GD5428, on the VL-Bus in the 486. The VL-Bus card falls back to the ISA one on the other models.",
+        "The video card in the machine. Model Default fits a Cirrus Logic GD5428, on the VL-Bus in the 486. The VL-Bus card falls back to the ISA one on the other models. The IBM CGA and EGA are 8-bit cards for older games.",
         NULL,
         "system",
         {
             { "auto",       "Model Default" },
             { "vga",        "VGA" },
-            { "gd5428",     "Cirrus Logic GD5428 ISA" },
-            { "gd5428_vlb", "Cirrus Logic GD5428 VL-Bus" },
+            { "gd5428",     "SVGA Cirrus GD5428 ISA" },
+            { "gd5428_vlb", "SVGA Cirrus GD5428 VL-Bus" },
+            { "cga",        "IBM CGA" },
+            { "ega",        "IBM EGA" },
             { NULL, NULL },
         },
         "auto"
