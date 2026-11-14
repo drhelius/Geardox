@@ -1337,7 +1337,7 @@ static void apply_joystick(void)
         bool left = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) != 0;
         bool right = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)) != 0;
 
-        if (joystick_type == GDOX_JOYSTICK_FLIGHTSTICK)
+        if (core->GetInput()->GetJoystickType() == GDOX_JOYSTICK_FLIGHTSTICK)
         {
             int throttle_y = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
             s16 unused;

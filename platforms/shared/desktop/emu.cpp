@@ -1329,6 +1329,11 @@ void emu_update_joystick_type(void)
         (GDOX_Joystick_Type)type : GDOX_JOYSTICK_GAMEPAD);
 }
 
+int emu_get_joystick_type(void)
+{
+    return IsValidPointer(geardox) ? (int)geardox->GetInput()->GetJoystickType() : (int)GDOX_JOYSTICK_GAMEPAD;
+}
+
 void emu_update_cga_output(void)
 {
     if (!IsValidPointer(geardox))

@@ -196,6 +196,7 @@ EXTERN int emu_get_debug_buffer_png(int buffer, int pitch, int format, int start
     Emu_Debug_Buffer_Info& info);
 
 EXTERN void emu_update_joystick_type(void);
+EXTERN int emu_get_joystick_type(void);
 EXTERN void emu_update_cga_output(void);
 EXTERN bool emu_save_screenshot(const char* file_path);
 EXTERN int emu_get_screenshot_png(unsigned char** out_buffer);
