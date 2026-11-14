@@ -166,13 +166,16 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 | Main RAM | 8 MB | Some games want 16 MB. |
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
 | MPU-401 | On | The MIDI port at 330 for General MIDI and MT-32 music. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
-| Video Card | Auto | Cirrus Logic SVGA, with VESA modes. |
+| Video Card | Auto | Cirrus Logic SVGA, with VESA modes. The IBM CGA and EGA are for games written for those cards. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
 | Drive Timing | Auto | Fast for games: seeks, the wait for a sector and a CD's spin-up take a sixteenth of the time. Real keeps the drives' mechanics. |
 
 **Turbo** works at once: off runs the CPU at a third of its speed, for games that are too fast. It's Ctrl+Shift+T, and
 a "TURBO OFF" badge shows while it's off.
+
+With the CGA, **Video > CGA Output** chooses the monitor: Auto shows composite colour when a game asks for it and RGB
+otherwise, and Composite Monitor suits games drawn for a television. It applies at once.
 
 If you change the sound card's IRQ or DMA, the FreeDOS disk doesn't follow. Edit the `SET BLASTER` line with
 `EDIT C:\FDAUTO.BAT`. Games opened with a `.gdox` get the right `BLASTER` automatically.
