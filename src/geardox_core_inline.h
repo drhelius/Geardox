@@ -82,6 +82,16 @@ INLINE Input* GeardoxCore::GetInput()
     return m_input;
 }
 
+INLINE KeyMap* GeardoxCore::GetKeyMap()
+{
+    return m_key_map;
+}
+
+INLINE KeyMapper* GeardoxCore::GetKeyMapper()
+{
+    return m_key_mapper;
+}
+
 INLINE Memory* GeardoxCore::GetMemory()
 {
     return m_memory;

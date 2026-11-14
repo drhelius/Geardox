@@ -30,6 +30,8 @@
 #include "drive/ide_controller.h"
 #include "media/firmware.h"
 #include "input/input.h"
+#include "input/key_map.h"
+#include "input/host_keys.h"
 #include "input/i8042.h"
 #include "input/keyboard.h"
 #include "input/ps2_mouse.h"
@@ -55,12 +57,15 @@
 #include "system/parallel_port.h"
 #include "system/machine_profiles.h"
 #include "video/video.h"
+#include "osd/key_mapper.h"
 
 GeardoxCore::GeardoxCore()
 {
     InitPointer(m_audio);
     InitPointer(m_firmware);
     InitPointer(m_input);
+    InitPointer(m_key_map);
+    InitPointer(m_key_mapper);
     InitPointer(m_media);
     InitPointer(m_memory);
     InitPointer(m_i386);
@@ -113,6 +118,7 @@ GeardoxCore::GeardoxCore()
     m_machine_report = m_pending_machine_report;
     m_powered = false;
     m_paused = false;
+    m_host_hotkeys = false;
     m_debug_step = GDOX_DEBUG_STEP_NONE;
     m_debug_step_resume = false;
     m_debug_interrupt_deferred = false;
@@ -122,6 +128,8 @@ GeardoxCore::~GeardoxCore()
 {
     SafeDelete(m_audio);
     SafeDelete(m_input);
+    SafeDelete(m_key_mapper);
+    SafeDelete(m_key_map);
     SafeDelete(m_media);
     SafeDelete(m_i386);
     SafeDelete(m_x87);
@@ -169,6 +177,12 @@ void GeardoxCore::Init()
 
     if (!IsValidPointer(m_input))
         m_input = new Input();
+
+    if (!IsValidPointer(m_key_map))
+        m_key_map = new KeyMap();
+
+    if (!IsValidPointer(m_key_mapper))
+        m_key_mapper = new KeyMapper();
 
     if (!IsValidPointer(m_media))
         m_media = new Media(m_cdrom_media);
@@ -270,6 +284,8 @@ void GeardoxCore::Init()
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
     m_input->Init();
+    m_key_map->Init(&GeardoxCore::KeyMapCallback, this);
+    m_key_mapper->Init(m_key_map);
     m_trace_logger->Init(&m_scheduler->GetState()->clocks);
     m_profiler->Init(&m_scheduler->GetState()->clocks);
     m_i386->SetTraceLogger(m_trace_logger);
@@ -317,6 +333,14 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
 
     if (sample_count != NULL)
         *sample_count = 0;
+
+    if (m_key_mapper->IsOpen())
+    {
+        if (render)
+            m_key_mapper->Render(frame_buffer);
+
+        return GDOX_RUN_FRAME_READY;
+    }
 
     if (m_paused)
         return GDOX_RUN_PAUSED;
@@ -1152,6 +1176,58 @@ void GeardoxCore::ReleaseAllKeys()
     m_i8042->ReleaseAllKeys();
 }
 
+void GeardoxCore::HostKeyPressed(u16 usage)
+{
+    bool mod = m_key_map->IsHostKeyDown(k_host_key_left_hotkey_mod) || m_key_map->IsHostKeyDown(k_host_key_right_hotkey_mod);
+
+    if (m_host_hotkeys && mod && ((usage == k_host_key_f1) || (usage == k_host_key_f2)))
+    {
+        if (usage == k_host_key_f2)
+            m_key_map->SetEnabled(!m_key_map->IsEnabled());
+        else if (m_key_mapper->IsOpen())
+            m_key_mapper->Close();
+        else
+            m_key_mapper->Open();
+
+        m_key_map->IgnoreHostKey(usage);
+        return;
+    }
+
+    m_key_map->HostKeyPressed(usage);
+
+    if (m_key_mapper->IsOpen())
+        m_key_mapper->HostKey(usage, true);
+}
+
+void GeardoxCore::HostKeyReleased(u16 usage)
+{
+    m_key_map->HostKeyReleased(usage);
+
+    if (m_key_mapper->IsOpen())
+        m_key_mapper->HostKey(usage, false);
+}
+
+void GeardoxCore::ReleaseAllHostKeys()
+{
+    m_key_map->ReleaseAll();
+    m_key_mapper->ReleaseHostKeys();
+}
+
+void GeardoxCore::EnableHostHotkeys(bool enable)
+{
+    m_host_hotkeys = enable;
+}
+
+void GeardoxCore::KeyMapCallback(void* core, GDOX_Keys key, bool pressed)
+{
+    GeardoxCore* geardox = static_cast<GeardoxCore*>(core);
+
+    if (pressed)
+        geardox->KeyPressed(key);
+    else
+        geardox->KeyReleased(key);
+}
+
 bool GeardoxCore::SaveState(const char* path, int index, bool screenshot)
 {
     using namespace std;
@@ -1333,7 +1409,7 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     Debug("Save state header rom crc: 0x%08X", header.rom_crc);
     Debug("Save state header emu build: %s", header.emu_build);
 
-    if (screenshot && IsValidPointer(m_frame_buffer))
+    if (screenshot && IsValidPointer(m_frame_buffer) && !m_key_mapper->IsOpen())
     {
         header.screenshot_width = (u16)m_video->GetFrameWidth();
         header.screenshot_height = (u16)m_video->GetFrameHeight();
@@ -1897,6 +1973,14 @@ void GeardoxCore::GetRuntimeInfo(GDOX_Runtime_Info& runtime_info)
     // A running CRTC paces frames at its VSYNC rate
     if (IsValidPointer(m_video) && m_video->IsRunning())
         runtime_info.frame_time = m_video->GetFrameTime();
+
+    if (IsValidPointer(m_key_mapper) && m_key_mapper->IsOpen())
+    {
+        runtime_info.screen_width = m_key_mapper->GetWidth();
+        runtime_info.screen_height = m_key_mapper->GetHeight();
+        runtime_info.display_width = m_key_mapper->GetDisplayWidth();
+        runtime_info.display_height = m_key_mapper->GetDisplayHeight();
+    }
 
     runtime_info.sample_rate = GDOX_AUDIO_SAMPLE_RATE;
     runtime_info.paused = m_paused;

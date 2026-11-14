@@ -29,6 +29,8 @@
 #include "geardox_core.h"
 #include "input/input.h"
 #include "input/i8042.h"
+#include "input/key_map.h"
+#include "osd/key_mapper.h"
 #include "audio/audio.h"
 #include "cdrom/cdrom_audio.h"
 #include "cdrom/cdrom_media.h"

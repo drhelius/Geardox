@@ -21,6 +21,7 @@
 #include <algorithm>
 #include "game_descriptor.h"
 #include "media_file.h"
+#include "../input/key_map.h"
 #include "../system/machine_profiles.h"
 
 enum Descriptor_Key_Type
@@ -106,7 +107,7 @@ static const char* const k_descriptor_hard_disks[GDOX_MAX_HARD_DISKS] = { NULL, 
 
 static const char* const k_descriptor_sections[] =
 {
-    "geardox", "game", "machine", "sound", "input", "dos", "env", "drives", "run", "config_sys", "autoexec"
+    "geardox", "game", "machine", "sound", "input", "keys", "dos", "env", "drives", "run", "config_sys", "autoexec"
 };
 
 static const int k_descriptor_key_count = (int)(sizeof(k_descriptor_keys) / sizeof(k_descriptor_keys[0]));
@@ -433,6 +434,7 @@ void GameDescriptor::Clear()
     m_path.clear();
     m_values.clear();
     m_env_order.clear();
+    m_keys_order.clear();
     m_config_sys.clear();
     m_autoexec.clear();
     m_has_config_sys = false;
@@ -583,6 +585,28 @@ bool GameDescriptor::ParseLine(const std::string& section, const std::string& li
         return true;
     }
 
+    if (section == "keys")
+    {
+        u16 usage = 0;
+        GDOX_Key_Map_Entry entry;
+        std::string error;
+
+        if (!KeyMap::ParseEntry(key, value, &usage, &entry, &error))
+        {
+            Warn(number, "%s in [keys], ignored", error.c_str());
+            return true;
+        }
+
+        std::string host = KeyMap::GetHostKeyName(usage);
+
+        if (m_values.count("keys." + host) != 0)
+            return Fail(number, "%s is set twice in [keys]", host.c_str());
+
+        m_values["keys." + host] = KeyMap::FormatTargets(entry);
+        m_keys_order.push_back(host);
+        return true;
+    }
+
     const Descriptor_Key* found = find_key(section, key);
 
     if (!IsValidPointer(found))
@@ -617,6 +641,9 @@ void GameDescriptor::Merge(const GameDescriptor& overrides)
         if ((it->first.compare(0, 4, "env.") == 0) && (m_values.count(it->first) == 0))
             m_env_order.push_back(it->first.substr(4));
 
+        if ((it->first.compare(0, 5, "keys.") == 0) && (m_values.count(it->first) == 0))
+            m_keys_order.push_back(it->first.substr(5));
+
         m_values[it->first] = it->second;
     }
 
@@ -646,6 +673,40 @@ bool GameDescriptor::Set(const char* section, const char* key, const char* value
     m_values[std::string(section) + "." + key] = normalized;
     Build();
     return true;
+}
+
+void GameDescriptor::SetKeys(const std::string& text)
+{
+    for (size_t i = 0; i < m_keys_order.size(); i++)
+        m_values.erase("keys." + m_keys_order[i]);
+
+    m_keys_order.clear();
+    size_t start = 0;
+
+    while (start < text.size())
+    {
+        size_t end = text.find('\n', start);
+        end = end == std::string::npos ? text.size() : end;
+        std::string line = trim(text.substr(start, end - start));
+        start = end + 1;
+        size_t equals = line.find('=');
+        u16 usage = 0;
+        GDOX_Key_Map_Entry entry;
+        std::string error;
+
+        if ((equals == std::string::npos) ||
+            !KeyMap::ParseEntry(line.substr(0, equals), line.substr(equals + 1), &usage, &entry, &error))
+            continue;
+
+        std::string host = KeyMap::GetHostKeyName(usage);
+
+        if (m_values.count("keys." + host) == 0)
+            m_keys_order.push_back(host);
+
+        m_values["keys." + host] = KeyMap::FormatTargets(entry);
+    }
+
+    Build();
 }
 
 void GameDescriptor::Unset(const char* section, const char* key)
@@ -710,6 +771,17 @@ std::string GameDescriptor::Write() const
 
                 if (it != m_values.end())
                     body += m_env_order[i] + " = " + it->second + "\n";
+            }
+        }
+
+        if (section == "keys")
+        {
+            for (size_t i = 0; i < m_keys_order.size(); i++)
+            {
+                std::map<std::string, std::string>::const_iterator it = m_values.find("keys." + m_keys_order[i]);
+
+                if (it != m_values.end())
+                    body += m_keys_order[i] + " = " + it->second + "\n";
             }
         }
 
@@ -972,6 +1044,11 @@ void GameDescriptor::Build()
         env.value = Get("env", m_env_order[i].c_str());
         info.env.push_back(env);
     }
+
+    info.keys.clear();
+
+    for (size_t i = 0; i < m_keys_order.size(); i++)
+        info.keys += m_keys_order[i] + " = " + Get("keys", m_keys_order[i].c_str()) + "\n";
 
     info.config_sys = m_config_sys;
     info.autoexec = m_autoexec;

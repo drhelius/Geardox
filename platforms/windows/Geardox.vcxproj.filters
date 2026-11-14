@@ -379,6 +379,12 @@
     <ClCompile Include="..\..\src\video\video_render.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\osd\osd_canvas.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\osd\key_mapper.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\media\media.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -416,6 +422,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\input\game_port.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\input\key_map.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
@@ -616,6 +625,13 @@
     <ClInclude Include="..\..\src\input\serial_mouse_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\game_port.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\game_port_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\host_keys.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\keyboard_keys.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\key_map.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\osd\osd_font.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\osd\osd_canvas.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\osd\key_mapper.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\osd\key_mapper_layout.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\keyboard_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\log.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\media.h"><Filter>src</Filter></ClInclude>

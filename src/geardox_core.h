@@ -35,6 +35,8 @@ class Firmware;
 class I386;
 class X87;
 class Input;
+class KeyMap;
+class KeyMapper;
 class Media;
 class Memory;
 class IO;
@@ -132,6 +134,10 @@ public:
     void KeyPressed(GDOX_Keys key);
     void KeyReleased(GDOX_Keys key);
     void ReleaseAllKeys();
+    void HostKeyPressed(u16 usage);
+    void HostKeyReleased(u16 usage);
+    void ReleaseAllHostKeys();
+    void EnableHostHotkeys(bool enable);
     void Pause(bool paused);
     bool IsPaused();
 
@@ -150,6 +156,8 @@ public:
     Media* GetMedia();
     Audio* GetAudio();
     Input* GetInput();
+    KeyMap* GetKeyMap();
+    KeyMapper* GetKeyMapper();
     Memory* GetMemory();
     I386* GetI386();
     X87* GetX87();
@@ -204,6 +212,7 @@ private:
     static u32 PollPortCallback(void* core, u16 port, int width);
     static void DMADebugCallback(void* cpu, u32 address, u32 size, bool write);
     static void FPUErrorCallback(void* core);
+    static void KeyMapCallback(void* core, GDOX_Keys key, bool pressed);
     void DispatchEvents();
     void Reset();
     void ResetCPU();
@@ -230,6 +239,8 @@ private:
     Audio* m_audio;
     Firmware* m_firmware;
     Input* m_input;
+    KeyMap* m_key_map;
+    KeyMapper* m_key_mapper;
     Media* m_media;
     Memory* m_memory;
     I386* m_i386;
@@ -279,6 +290,7 @@ private:
     bool m_debug_console_log;
     bool m_powered;
     bool m_paused;
+    bool m_host_hotkeys;
     GDOX_Debug_Step m_debug_step;
     bool m_debug_step_resume;
     bool m_debug_interrupt_deferred;

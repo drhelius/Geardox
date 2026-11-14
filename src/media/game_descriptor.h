@@ -121,6 +121,7 @@ struct GDOX_Game_Info
     int midi;
     std::string midi_port;
     std::vector<GDOX_Game_Env> env;
+    std::string keys;
     std::vector<std::string> config_sys;
     std::vector<std::string> autoexec;
 };
@@ -135,6 +136,7 @@ public:
     bool Load(const char* path);
     void Merge(const GameDescriptor& overrides);
     bool Set(const char* section, const char* key, const char* value);
+    void SetKeys(const std::string& text);
     void Unset(const char* section, const char* key);
     bool Has(const char* section, const char* key) const;
     std::string Get(const char* section, const char* key) const;
@@ -161,6 +163,7 @@ private:
     std::string m_path;
     std::map<std::string, std::string> m_values;
     std::vector<std::string> m_env_order;
+    std::vector<std::string> m_keys_order;
     std::vector<std::string> m_config_sys;
     std::vector<std::string> m_autoexec;
     bool m_has_config_sys;

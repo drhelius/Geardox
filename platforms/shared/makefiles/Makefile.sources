@@ -145,6 +145,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/input/ps2_mouse.cpp \
     $(SRC_DIR)/input/serial_mouse.cpp \
     $(SRC_DIR)/input/game_port.cpp \
+    $(SRC_DIR)/input/key_map.cpp \
     $(SRC_DIR)/media/chd_file_adapter.cpp \
     $(SRC_DIR)/media/game_descriptor.cpp \
     $(SRC_DIR)/media/firmware.cpp \
@@ -170,4 +171,6 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/debug_console.cpp \
     $(SRC_DIR)/video/video.cpp \
     $(SRC_DIR)/video/video_memory.cpp \
-    $(SRC_DIR)/video/video_render.cpp
+    $(SRC_DIR)/video/video_render.cpp \
+    $(SRC_DIR)/osd/osd_canvas.cpp \
+    $(SRC_DIR)/osd/key_mapper.cpp
