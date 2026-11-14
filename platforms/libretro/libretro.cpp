@@ -116,7 +116,11 @@ static unsigned input_device = RETRO_DEVICE_PC_JOYSTICK;
 static float mouse_remainder_x = 0.0f;
 static float mouse_remainder_y = 0.0f;
 static bool retro_key_down[RETROK_LAST];
-static int key_references[GDOX_KEY_COUNT];
+static int pointer_last_x = 0;
+static int pointer_last_y = 0;
+static std::string key_map_path;
+static bool key_mapper_was_open = false;
+static bool key_mapping_was_enabled = true;
 
 struct DiskSetImage
 {
@@ -188,14 +192,16 @@ static void clear_input_state(void);
 static void clear_keyboard_state(void);
 static void save_input_state(u8* data);
 static void load_input_state(const u8* data);
-static void sync_keyboard_state(void);
-static void sync_key(GDOX_Keys key);
 static void poll_input(void);
 static void apply_input(void);
 static void apply_joystick(void);
 static void apply_dead_zone(int x, int y, s16& out_x, s16& out_y);
 static void apply_mouse(void);
-static GDOX_Keys key_from_retro_key(unsigned keycode);
+static void apply_key_mapper_pointer(void);
+static u16 usage_from_retro_key(unsigned keycode);
+static void key_map_load(void);
+static void key_map_save(void);
+static void key_map_update(void);
 static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint16_t key_modifiers);
 static bool update_core_options_display(void);
 static void check_variables(void);
@@ -380,6 +386,7 @@ void retro_init(void)
 
     core = new GeardoxCore();
     core->Init();
+    core->EnableHostHotkeys(true);
     core->LockRAMSize(true);
     core->GetRuntimeInfo(runtime_info);
 
@@ -554,6 +561,7 @@ void retro_run(void)
     midi_begin_frame(av_enable);
     core->RunToFrame(frame_buffer, audio_buf, &audio_sample_count, render);
     midi_end_frame(av_enable, audio_sample_count / 2);
+    key_map_update();
     floppy_update();
     hard_disk_update();
     cmos_update();
@@ -603,6 +611,13 @@ void retro_run(void)
 
     video_cb((render || !libretro_supports_dupe) ? frame_buffer : NULL, runtime_info.screen_width,
         runtime_info.screen_height, runtime_info.screen_width * sizeof(u32));
+
+    if (core->GetKeyMapper()->IsOpen())
+    {
+        int frames = MIN((int)(GDOX_AUDIO_SAMPLE_RATE / current_fps), GDOX_AUDIO_BUFFER_SIZE / 2);
+        memset(audio_buf, 0, (size_t)frames * 2 * sizeof(s16));
+        audio_sample_count = frames * 2;
+    }
 
     if (audio_sample_count > 0)
         audio_batch_cb(audio_buf, audio_sample_count / 2);
@@ -682,7 +697,7 @@ bool retro_unserialize(const void *data, size_t size)
     if (loaded)
     {
         load_input_state(buffer + savestate_size);
-        sync_keyboard_state();
+        core->GetKeyMap()->Resync();
         bool changed = core->GetHardDiskStateChanges() != 0;
 
         if (changed && !hard_disk_state_warned)
@@ -797,6 +812,7 @@ static bool load_content(const char* path)
     }
 
     report_machine();
+    key_map_load();
     content_loaded = true;
     midi_notified = false;
     midi_restores = 0;
@@ -863,6 +879,9 @@ static void unload_content(void)
 
     cmos_save();
     cmos_shared_active = false;
+    core->GetKeyMapper()->Close();
+    key_map_save();
+    key_map_path.clear();
     core->EjectMedia();
     core->PowerOff();
 
@@ -1164,39 +1183,12 @@ static void clear_input_state(void)
 static void clear_keyboard_state(void)
 {
     memset(retro_key_down, 0, sizeof(retro_key_down));
-    memset(key_references, 0, sizeof(key_references));
 
     if (core)
+    {
+        core->ReleaseAllHostKeys();
         core->ReleaseAllKeys();
-}
-
-static void sync_keyboard_state(void)
-{
-    for (int i = GDOX_KEY_NONE + 1; i < GDOX_KEY_COUNT; i++)
-    {
-        if ((key_references[i] == 0) && (i != GDOX_KEY_LEFT_CTRL) && (i != GDOX_KEY_RIGHT_CTRL) &&
-            (i != GDOX_KEY_LEFT_SHIFT) && (i != GDOX_KEY_RIGHT_SHIFT))
-            core->KeyReleased((GDOX_Keys)i);
     }
-
-    sync_key(GDOX_KEY_LEFT_CTRL);
-    sync_key(GDOX_KEY_RIGHT_CTRL);
-    sync_key(GDOX_KEY_LEFT_SHIFT);
-    sync_key(GDOX_KEY_RIGHT_SHIFT);
-
-    for (int i = GDOX_KEY_NONE + 1; i < GDOX_KEY_COUNT; i++)
-    {
-        if (key_references[i] > 0)
-            core->KeyPressed((GDOX_Keys)i);
-    }
-}
-
-static void sync_key(GDOX_Keys key)
-{
-    if (key_references[key] > 0)
-        core->KeyPressed(key);
-    else
-        core->KeyReleased(key);
 }
 
 static void save_input_state(u8* data)
@@ -1317,6 +1309,12 @@ static void apply_dead_zone(int x, int y, s16& out_x, s16& out_y)
 
 static void apply_mouse(void)
 {
+    if (core->GetKeyMapper()->IsOpen())
+    {
+        apply_key_mapper_pointer();
+        return;
+    }
+
     float scale = (float)mouse_sensitivity / 6.0f;
     mouse_remainder_x += (float)input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X) * scale;
     mouse_remainder_y += (float)input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y) * scale;
@@ -1341,118 +1339,227 @@ static void apply_mouse(void)
     core->GetInput()->SetMouseButtons(buttons);
 }
 
-static GDOX_Keys key_from_retro_key(unsigned keycode)
+static void apply_key_mapper_pointer(void)
+{
+    KeyMapper* mapper = core->GetKeyMapper();
+    int x = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_X);
+    int y = input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
+    int dx = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
+    int dy = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
+
+    if ((x != pointer_last_x) || (y != pointer_last_y))
+    {
+        pointer_last_x = x;
+        pointer_last_y = y;
+        mapper->SetPointer(((x + 0x7FFF) * mapper->GetWidth()) / 0xFFFE, ((y + 0x7FFF) * mapper->GetHeight()) / 0xFFFE);
+    }
+    else if ((dx != 0) || (dy != 0))
+        mapper->MovePointer(dx, dy);
+
+    u8 buttons = 0;
+
+    if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ||
+        input_state_cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_PRESSED))
+        buttons |= KEY_MAPPER_BUTTON_LEFT;
+
+    if (input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT))
+        buttons |= KEY_MAPPER_BUTTON_RIGHT;
+
+    mapper->SetPointerButtons(buttons);
+}
+
+static void key_map_load(void)
+{
+    KeyMap* key_map = core->GetKeyMap();
+    std::string error;
+    std::vector<u8> data;
+
+    key_map_path = retro_save_directory;
+    append_path_component(key_map_path, (get_save_disk_name(get_file_name(retro_game_path, true)) + ".keys").c_str());
+    key_map->SetEnabled(true);
+    key_map->ClearLayer(GDOX_KEY_MAP_GAME);
+    key_map->ClearLayer(GDOX_KEY_MAP_USER);
+    key_map->SetChanged(false);
+    key_mapper_was_open = false;
+    key_mapping_was_enabled = true;
+    core->GetKeyMapper()->SetTitle(game_active ? game_disk.GetName() : get_file_name(retro_game_path, false).c_str());
+
+    if (game_active && !key_map->SetLayer(GDOX_KEY_MAP_GAME, game_disk.GetDescriptor().GetInfo().keys.c_str(), &error))
+        key_map->ClearLayer(GDOX_KEY_MAP_GAME);
+
+    if (!read_content_file(key_map_path.c_str(), data, CONTENT_MAX_SIZE))
+        return;
+
+    std::string text(data.begin(), data.end());
+
+    if (!key_map->SetLayer(GDOX_KEY_MAP_USER, text.c_str(), &error))
+    {
+        key_map->ClearLayer(GDOX_KEY_MAP_USER);
+        log_cb(RETRO_LOG_ERROR, "Ignoring the key map %s: %s\n", key_map_path.c_str(), error.c_str());
+        show_message(("Key map ignored: " + error).c_str(), 4, RETRO_LOG_ERROR);
+    }
+}
+
+static void key_map_save(void)
+{
+    KeyMap* key_map = core->GetKeyMap();
+
+    if (!key_map->IsChanged() || key_map_path.empty())
+        return;
+
+    key_map->SetChanged(false);
+
+    if (key_map->IsLayerEmpty(GDOX_KEY_MAP_USER))
+    {
+        remove_file(key_map_path.c_str(), IsValidPointer(vfs_interface) && IsValidPointer(vfs_interface->remove));
+        return;
+    }
+
+    std::string text = "[keys]\n" + key_map->GetLayer(GDOX_KEY_MAP_USER);
+
+    if (!write_content_file(key_map_path.c_str(), (const u8*)text.data(), (u32)text.size()))
+    {
+        log_cb(RETRO_LOG_ERROR, "Unable to save the key map %s\n", key_map_path.c_str());
+        show_message("Unable to save the key map", 3, RETRO_LOG_ERROR);
+    }
+}
+
+static void key_map_update(void)
+{
+    bool open = core->GetKeyMapper()->IsOpen();
+    bool enabled = core->GetKeyMap()->IsEnabled();
+
+    if (open && !key_mapper_was_open && midi_output)
+    {
+        MidiOut* midi = core->GetAudio()->GetMidiOut();
+        midi->Silence();
+        midi_write(midi);
+    }
+
+    if (!open && key_mapper_was_open)
+        key_map_save();
+
+    if (enabled != key_mapping_was_enabled)
+        show_message(enabled ? "Key mapping on" : "Key mapping off", 1, RETRO_LOG_INFO);
+
+    key_mapper_was_open = open;
+    key_mapping_was_enabled = enabled;
+}
+
+static u16 usage_from_retro_key(unsigned keycode)
 {
     switch (keycode)
     {
-        case RETROK_a: return GDOX_KEY_A;
-        case RETROK_b: return GDOX_KEY_B;
-        case RETROK_c: return GDOX_KEY_C;
-        case RETROK_d: return GDOX_KEY_D;
-        case RETROK_e: return GDOX_KEY_E;
-        case RETROK_f: return GDOX_KEY_F;
-        case RETROK_g: return GDOX_KEY_G;
-        case RETROK_h: return GDOX_KEY_H;
-        case RETROK_i: return GDOX_KEY_I;
-        case RETROK_j: return GDOX_KEY_J;
-        case RETROK_k: return GDOX_KEY_K;
-        case RETROK_l: return GDOX_KEY_L;
-        case RETROK_m: return GDOX_KEY_M;
-        case RETROK_n: return GDOX_KEY_N;
-        case RETROK_o: return GDOX_KEY_O;
-        case RETROK_p: return GDOX_KEY_P;
-        case RETROK_q: return GDOX_KEY_Q;
-        case RETROK_r: return GDOX_KEY_R;
-        case RETROK_s: return GDOX_KEY_S;
-        case RETROK_t: return GDOX_KEY_T;
-        case RETROK_u: return GDOX_KEY_U;
-        case RETROK_v: return GDOX_KEY_V;
-        case RETROK_w: return GDOX_KEY_W;
-        case RETROK_x: return GDOX_KEY_X;
-        case RETROK_y: return GDOX_KEY_Y;
-        case RETROK_z: return GDOX_KEY_Z;
-        case RETROK_1: return GDOX_KEY_1;
-        case RETROK_2: return GDOX_KEY_2;
-        case RETROK_3: return GDOX_KEY_3;
-        case RETROK_4: return GDOX_KEY_4;
-        case RETROK_5: return GDOX_KEY_5;
-        case RETROK_6: return GDOX_KEY_6;
-        case RETROK_7: return GDOX_KEY_7;
-        case RETROK_8: return GDOX_KEY_8;
-        case RETROK_9: return GDOX_KEY_9;
-        case RETROK_0: return GDOX_KEY_0;
-        case RETROK_RETURN: return GDOX_KEY_RETURN;
-        case RETROK_ESCAPE: return GDOX_KEY_ESCAPE;
-        case RETROK_BACKSPACE: return GDOX_KEY_BACKSPACE;
-        case RETROK_TAB: return GDOX_KEY_TAB;
-        case RETROK_SPACE: return GDOX_KEY_SPACE;
-        case RETROK_MINUS: return GDOX_KEY_MINUS;
-        case RETROK_EQUALS: return GDOX_KEY_EQUALS;
-        case RETROK_LEFTBRACKET: return GDOX_KEY_LEFT_BRACKET;
-        case RETROK_RIGHTBRACKET: return GDOX_KEY_RIGHT_BRACKET;
-        case RETROK_BACKSLASH: return GDOX_KEY_BACKSLASH;
-        case RETROK_SEMICOLON: return GDOX_KEY_SEMICOLON;
-        case RETROK_QUOTE: return GDOX_KEY_APOSTROPHE;
-        case RETROK_BACKQUOTE: return GDOX_KEY_GRAVE;
-        case RETROK_COMMA: return GDOX_KEY_COMMA;
-        case RETROK_PERIOD: return GDOX_KEY_PERIOD;
-        case RETROK_SLASH: return GDOX_KEY_SLASH;
-        case RETROK_OEM_102: return GDOX_KEY_NON_US_BACKSLASH;
-        case RETROK_CAPSLOCK: return GDOX_KEY_CAPS_LOCK;
-        case RETROK_F1: return GDOX_KEY_F1;
-        case RETROK_F2: return GDOX_KEY_F2;
-        case RETROK_F3: return GDOX_KEY_F3;
-        case RETROK_F4: return GDOX_KEY_F4;
-        case RETROK_F5: return GDOX_KEY_F5;
-        case RETROK_F6: return GDOX_KEY_F6;
-        case RETROK_F7: return GDOX_KEY_F7;
-        case RETROK_F8: return GDOX_KEY_F8;
-        case RETROK_F9: return GDOX_KEY_F9;
-        case RETROK_F10: return GDOX_KEY_F10;
-        case RETROK_F11: return GDOX_KEY_F11;
-        case RETROK_F12: return GDOX_KEY_F12;
-        case RETROK_PRINT: return GDOX_KEY_PRINT_SCREEN;
-        case RETROK_SYSREQ: return GDOX_KEY_SYSRQ;
-        case RETROK_SCROLLOCK: return GDOX_KEY_SCROLL_LOCK;
-        case RETROK_PAUSE: return GDOX_KEY_PAUSE;
-        case RETROK_BREAK: return GDOX_KEY_PAUSE;
-        case RETROK_INSERT: return GDOX_KEY_INSERT;
-        case RETROK_HOME: return GDOX_KEY_HOME;
-        case RETROK_PAGEUP: return GDOX_KEY_PAGE_UP;
-        case RETROK_DELETE: return GDOX_KEY_DELETE;
-        case RETROK_END: return GDOX_KEY_END;
-        case RETROK_PAGEDOWN: return GDOX_KEY_PAGE_DOWN;
-        case RETROK_RIGHT: return GDOX_KEY_RIGHT;
-        case RETROK_LEFT: return GDOX_KEY_LEFT;
-        case RETROK_DOWN: return GDOX_KEY_DOWN;
-        case RETROK_UP: return GDOX_KEY_UP;
-        case RETROK_NUMLOCK: return GDOX_KEY_NUM_LOCK;
-        case RETROK_KP_DIVIDE: return GDOX_KEY_KP_DIVIDE;
-        case RETROK_KP_MULTIPLY: return GDOX_KEY_KP_MULTIPLY;
-        case RETROK_KP_MINUS: return GDOX_KEY_KP_MINUS;
-        case RETROK_KP_PLUS: return GDOX_KEY_KP_PLUS;
-        case RETROK_KP_ENTER: return GDOX_KEY_KP_ENTER;
-        case RETROK_KP1: return GDOX_KEY_KP_1;
-        case RETROK_KP2: return GDOX_KEY_KP_2;
-        case RETROK_KP3: return GDOX_KEY_KP_3;
-        case RETROK_KP4: return GDOX_KEY_KP_4;
-        case RETROK_KP5: return GDOX_KEY_KP_5;
-        case RETROK_KP6: return GDOX_KEY_KP_6;
-        case RETROK_KP7: return GDOX_KEY_KP_7;
-        case RETROK_KP8: return GDOX_KEY_KP_8;
-        case RETROK_KP9: return GDOX_KEY_KP_9;
-        case RETROK_KP0: return GDOX_KEY_KP_0;
-        case RETROK_KP_PERIOD: return GDOX_KEY_KP_PERIOD;
-        case RETROK_LCTRL: return GDOX_KEY_LEFT_CTRL;
-        case RETROK_RCTRL: return GDOX_KEY_RIGHT_CTRL;
-        case RETROK_LSHIFT: return GDOX_KEY_LEFT_SHIFT;
-        case RETROK_RSHIFT: return GDOX_KEY_RIGHT_SHIFT;
-        case RETROK_LALT: return GDOX_KEY_LEFT_ALT;
-        case RETROK_RALT: return GDOX_KEY_RIGHT_ALT;
-        case RETROK_LSUPER: return GDOX_KEY_LEFT_GUI;
-        case RETROK_RSUPER: return GDOX_KEY_RIGHT_GUI;
-        case RETROK_MENU: return GDOX_KEY_MENU;
-        default: return GDOX_KEY_NONE;
+        case RETROK_a: return 0x04;
+        case RETROK_b: return 0x05;
+        case RETROK_c: return 0x06;
+        case RETROK_d: return 0x07;
+        case RETROK_e: return 0x08;
+        case RETROK_f: return 0x09;
+        case RETROK_g: return 0x0A;
+        case RETROK_h: return 0x0B;
+        case RETROK_i: return 0x0C;
+        case RETROK_j: return 0x0D;
+        case RETROK_k: return 0x0E;
+        case RETROK_l: return 0x0F;
+        case RETROK_m: return 0x10;
+        case RETROK_n: return 0x11;
+        case RETROK_o: return 0x12;
+        case RETROK_p: return 0x13;
+        case RETROK_q: return 0x14;
+        case RETROK_r: return 0x15;
+        case RETROK_s: return 0x16;
+        case RETROK_t: return 0x17;
+        case RETROK_u: return 0x18;
+        case RETROK_v: return 0x19;
+        case RETROK_w: return 0x1A;
+        case RETROK_x: return 0x1B;
+        case RETROK_y: return 0x1C;
+        case RETROK_z: return 0x1D;
+        case RETROK_1: return 0x1E;
+        case RETROK_2: return 0x1F;
+        case RETROK_3: return 0x20;
+        case RETROK_4: return 0x21;
+        case RETROK_5: return 0x22;
+        case RETROK_6: return 0x23;
+        case RETROK_7: return 0x24;
+        case RETROK_8: return 0x25;
+        case RETROK_9: return 0x26;
+        case RETROK_0: return 0x27;
+        case RETROK_RETURN: return 0x28;
+        case RETROK_ESCAPE: return 0x29;
+        case RETROK_BACKSPACE: return 0x2A;
+        case RETROK_TAB: return 0x2B;
+        case RETROK_SPACE: return 0x2C;
+        case RETROK_MINUS: return 0x2D;
+        case RETROK_EQUALS: return 0x2E;
+        case RETROK_LEFTBRACKET: return 0x2F;
+        case RETROK_RIGHTBRACKET: return 0x30;
+        case RETROK_BACKSLASH: return 0x31;
+        case RETROK_SEMICOLON: return 0x33;
+        case RETROK_QUOTE: return 0x34;
+        case RETROK_BACKQUOTE: return 0x35;
+        case RETROK_COMMA: return 0x36;
+        case RETROK_PERIOD: return 0x37;
+        case RETROK_SLASH: return 0x38;
+        case RETROK_OEM_102: return 0x64;
+        case RETROK_CAPSLOCK: return 0x39;
+        case RETROK_F1: return 0x3A;
+        case RETROK_F2: return 0x3B;
+        case RETROK_F3: return 0x3C;
+        case RETROK_F4: return 0x3D;
+        case RETROK_F5: return 0x3E;
+        case RETROK_F6: return 0x3F;
+        case RETROK_F7: return 0x40;
+        case RETROK_F8: return 0x41;
+        case RETROK_F9: return 0x42;
+        case RETROK_F10: return 0x43;
+        case RETROK_F11: return 0x44;
+        case RETROK_F12: return 0x45;
+        case RETROK_PRINT: return 0x46;
+        case RETROK_SYSREQ: return 0x9A;
+        case RETROK_SCROLLOCK: return 0x47;
+        case RETROK_PAUSE: return 0x48;
+        case RETROK_BREAK: return 0x48;
+        case RETROK_INSERT: return 0x49;
+        case RETROK_HOME: return 0x4A;
+        case RETROK_PAGEUP: return 0x4B;
+        case RETROK_DELETE: return 0x4C;
+        case RETROK_END: return 0x4D;
+        case RETROK_PAGEDOWN: return 0x4E;
+        case RETROK_RIGHT: return 0x4F;
+        case RETROK_LEFT: return 0x50;
+        case RETROK_DOWN: return 0x51;
+        case RETROK_UP: return 0x52;
+        case RETROK_NUMLOCK: return 0x53;
+        case RETROK_KP_DIVIDE: return 0x54;
+        case RETROK_KP_MULTIPLY: return 0x55;
+        case RETROK_KP_MINUS: return 0x56;
+        case RETROK_KP_PLUS: return 0x57;
+        case RETROK_KP_ENTER: return 0x58;
+        case RETROK_KP1: return 0x59;
+        case RETROK_KP2: return 0x5A;
+        case RETROK_KP3: return 0x5B;
+        case RETROK_KP4: return 0x5C;
+        case RETROK_KP5: return 0x5D;
+        case RETROK_KP6: return 0x5E;
+        case RETROK_KP7: return 0x5F;
+        case RETROK_KP8: return 0x60;
+        case RETROK_KP9: return 0x61;
+        case RETROK_KP0: return 0x62;
+        case RETROK_KP_PERIOD: return 0x63;
+        case RETROK_LCTRL: return 0xE0;
+        case RETROK_RCTRL: return 0xE4;
+        case RETROK_LSHIFT: return 0xE1;
+        case RETROK_RSHIFT: return 0xE5;
+        case RETROK_LALT: return 0xE2;
+        case RETROK_RALT: return 0xE6;
+        case RETROK_LSUPER: return 0xE3;
+        case RETROK_RSUPER: return 0xE7;
+        case RETROK_LMETA: return 0xE3;
+        case RETROK_RMETA: return 0xE7;
+        case RETROK_MENU: return 0x65;
+        default: return 0;
     }
 }
 
@@ -1464,31 +1571,17 @@ static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint
     if (!core || keycode >= RETROK_LAST)
         return;
 
-    GDOX_Keys key = key_from_retro_key(keycode);
+    u16 usage = usage_from_retro_key(keycode);
 
-    if (key == GDOX_KEY_NONE)
+    if ((usage == 0) || (retro_key_down[keycode] == down))
         return;
 
+    retro_key_down[keycode] = down;
+
     if (down)
-    {
-        if (retro_key_down[keycode])
-            return;
-
-        retro_key_down[keycode] = true;
-
-        if (key_references[key]++ == 0)
-            core->KeyPressed(key);
-    }
+        core->HostKeyPressed(usage);
     else
-    {
-        if (!retro_key_down[keycode])
-            return;
-
-        retro_key_down[keycode] = false;
-
-        if (key_references[key] > 0 && --key_references[key] == 0)
-            core->KeyReleased(key);
-    }
+        core->HostKeyReleased(usage);
 }
 
 // A descriptor beats the core options it sets, so those are hidden while its game runs (R15-D17, R15-D27)
