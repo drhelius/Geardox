@@ -134,7 +134,7 @@ The game stays on the FreeDOS disk, so it's there the next time you open Geardox
 ## Two Rules That Explain Most Surprises
 
 1. **Hard disks only change at a reset.** If the PC is running, a new hard disk waits, and the notice says "At the
-   next reset". Use **Drives > Hard Disks > Reset to Apply Changes**, or **Geardox > Reset** (Ctrl+R). Floppies and
+   next reset". Use **Drives > Hard Disks > Reset to Apply Changes**, or **Geardox > Reset** (Ctrl+Shift+R). Floppies and
    CDs can be swapped at any time, like on a real PC.
 2. **The PC tries the floppy first, then the hard disk.** A disk left in A: is tried first at a reset. To boot from
    something else, use **Geardox > Reset and Boot From > Floppy 1, Hard Disk or CD-ROM**. With
@@ -171,8 +171,8 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 | CD-ROM Drive | Secondary Master, 4x | |
 | Drive Timing | Auto | Fast for games: seeks, the wait for a sector and a CD's spin-up take a sixteenth of the time. Real keeps the drives' mechanics. |
 
-**Turbo** works at once: off runs the CPU at a third of its speed, for games that are too fast. It's Ctrl+T when the
-keyboard isn't captured, and a "TURBO OFF" badge shows while it's off.
+**Turbo** works at once: off runs the CPU at a third of its speed, for games that are too fast. It's Ctrl+Shift+T, and
+a "TURBO OFF" badge shows while it's off.
 
 If you change the sound card's IRQ or DMA, the FreeDOS disk doesn't follow. Edit the `SET BLASTER` line with
 `EDIT C:\FDAUTO.BAT`. Games opened with a `.gdox` get the right `BLASTER` automatically.
@@ -204,10 +204,23 @@ The music plays in the synth's own audio: Geardox's volume sliders and recording
 
 ## Keyboard, Mouse and Joystick
 
-**The keyboard is captured by default.** Keys go to the PC, so Ctrl+C and the like reach DOS, and only the Quit,
-Fullscreen (F12), Capture Mouse, Capture Keyboard, Keyboard Mapper and Key Mapping hotkeys work. Press **Ctrl+Shift+K** to release the keyboard and
-get every hotkey back, such as Ctrl+S and Ctrl+L for save states or Ctrl+R to reset. Press it again to capture.
-**Input > Keyboard > Paste as Keystrokes** types the clipboard into the PC.
+**Keys go to the PC** while Geardox's window has focus, so Ctrl+C and the like reach DOS. Geardox keeps only its
+hotkeys, which use Ctrl+Shift or Ctrl with an F-key. On macOS, Cmd replaces Ctrl in all of them; on a Mac keyboard the
+F-keys may need Fn. **Input > Keyboard > Paste as Keystrokes** types the clipboard into the PC.
+
+**Game Focus is for playing.** Press **Ctrl+F10**, or go fullscreen with **Alt+Enter**. The mouse is then locked in
+the window, and every hotkey is off except Ctrl+F10, Alt+Enter, Ctrl+F1 and Ctrl+F2, so even a game's own Ctrl and
+F-key combinations reach it. The window title shows it's on. **Ctrl+F10** leaves it, and so do switching to another
+window and leaving fullscreen.
+
+| Hotkey | Does |
+| --- | --- |
+| Ctrl+F10 | Game Focus on and off |
+| Alt+Enter | Fullscreen |
+| Ctrl+F1, Ctrl+F2 | Keyboard mapper, key changes off and on |
+| Ctrl+F9 | Quit (Cmd+Q on macOS) |
+| Ctrl+Shift+S, Ctrl+Shift+L | Save state, load state |
+| Ctrl+Shift+R, Ctrl+Shift+P | Reset, pause |
 
 **If your keyboard isn't a United States one,** choose its layout in **Input > Keyboard > DOS Layout**. Games then
 get DOS set up for it, so `:`, `/` and the rest are where your keys say. See
@@ -224,13 +237,13 @@ see [Keys](GDOX_README.md#remap-keys).
 **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key changes off and on, for instance to type a character's name in
 a game that moves on letters. Every game starts with them on.
 
-**The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, press
-**Ctrl+Shift+M** to lock it inside the window, and again to let it go.
+**The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, Game Focus
+locks it inside the window.
 
 **A gamepad** drives the PC's joystick port. **Input > Joystick** picks what the game sees: a standard joystick, a
 Gravis GamePad (the default) or a CH FlightStick Pro.
 
-All hotkeys can be changed in **Emulator > Hotkeys**.
+All hotkeys can be changed in **Emulator > Hotkeys**, and its **Reset to Defaults** brings these back.
 
 ## Where Geardox Keeps Its Files
 
@@ -261,8 +274,9 @@ In this folder:
 | A hard disk I attached isn't there | Reset. Hard disks only attach at a reset. |
 | The PC boots from a floppy I forgot | Eject it from **Drives > Floppies**, or use **Geardox > Reset and Boot From > Hard Disk**. |
 | My FreeDOS games are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the FreeDOS disk back. |
-| Hotkeys don't work | The keyboard is captured. Press Ctrl+Shift+K. |
-| The game runs too fast | Turn off **Turbo** (Ctrl+T), or pick a 386 in **Emulator > Machine**. |
+| Hotkeys don't work | Game Focus is on, as the window title says. Press Ctrl+F10. |
+| The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
+| The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
 | No music with General MIDI or MT-32 | Start the synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
 | The game asks for expanded memory (EMS) | Open it with a `.gdox` and set `ems_kb`. See [Memory](GDOX_README.md#memory). |
