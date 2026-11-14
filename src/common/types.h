@@ -317,6 +317,19 @@ struct GDOX_Drive_Timing_Info
     const char* id;
 };
 
+enum GDOX_MIDI_Synth
+{
+    GDOX_MIDI_SYNTH_GM = 0,
+    GDOX_MIDI_SYNTH_MT32,
+    GDOX_MIDI_SYNTH_COUNT
+};
+
+struct GDOX_MIDI_Synth_Info
+{
+    const char* name;
+    const char* id;
+};
+
 enum GDOX_Joystick_Type
 {
     GDOX_JOYSTICK_NONE = 0,
@@ -535,6 +548,7 @@ struct GDOX_Machine_Config
     u8 sound_card;
     u8 sound_irq;
     u8 sound_dma;
+    bool mpu;
     u8 mouse;
     u8 cdrom;
     u8 cdrom_speed;
@@ -607,6 +621,7 @@ struct GDOX_Machine_Settings
     int sound_card;
     int sound_irq;
     int sound_dma;
+    int mpu;
     int mouse;
     int cdrom;
     int cdrom_speed;

@@ -36,6 +36,8 @@ static config_Machine game_machine;
 static config_Machine base_machine;
 static int game_joystick = -1;
 static int base_joystick = -1;
+static int game_midi = -1;
+static int base_midi = -1;
 static bool preparing = false;
 static bool prepared = false;
 static bool write_back_pending = false;
@@ -275,6 +277,7 @@ bool emu_game_close(void)
     core->SetGameTarget(-1);
     core->SetBootDevice(saved_boot_device);
     game_joystick = -1;
+    game_midi = -1;
     emu_update_joystick_type();
     emu_apply_machine_settings();
     return true;
@@ -396,11 +399,17 @@ void emu_game_apply_machine(void)
     if (m.sound_dma != b.sound_dma)
         overrides.Set("sound", "dma", std::to_string(m.sound_dma).c_str());
 
+    if (m.mpu != b.mpu)
+        overrides.Set("sound", "mpu", m.mpu != 0 ? "on" : "off");
+
     if (m.mouse != b.mouse)
         overrides.Set("input", "mouse", k_mice[m.mouse].id);
 
     if ((game_joystick != base_joystick) && (game_joystick >= 0))
         overrides.Set("input", "joystick", k_joysticks[game_joystick].id);
+
+    if ((game_midi != base_midi) && (game_midi >= 0))
+        overrides.Set("sound", "midi", k_midi_synths[game_midi].id);
 
     if (m.cdrom_speed != b.cdrom_speed)
         overrides.Set("machine", "cdrom_speed", k_cdrom_speeds[m.cdrom_speed].id);
@@ -429,6 +438,20 @@ void emu_game_set_joystick(int joystick)
         return;
 
     game_joystick = joystick;
+    emu_game_apply_machine();
+}
+
+int emu_game_get_midi(void)
+{
+    return emu_game_is_open() ? game_midi : -1;
+}
+
+void emu_game_set_midi(int synth)
+{
+    if (!emu_game_is_open())
+        return;
+
+    game_midi = synth;
     emu_game_apply_machine();
 }
 
@@ -755,6 +778,7 @@ static void config_to_settings(const config_Machine& machine, GDOX_Machine_Setti
     settings->sound_card = machine.sound_card;
     settings->sound_irq = machine.sound_irq;
     settings->sound_dma = machine.sound_dma;
+    settings->mpu = machine.mpu;
     settings->video_card = machine.video_card;
     settings->mouse = machine.mouse;
     settings->cdrom = machine.cdrom;
@@ -776,6 +800,7 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
     machine->sound_card = game.sound_card >= 0 ? game.sound_card : machine->sound_card;
     machine->sound_irq = game.sound_irq > 0 ? game.sound_irq : machine->sound_irq;
     machine->sound_dma = game.sound_dma > 0 ? game.sound_dma : machine->sound_dma;
+    machine->mpu = game.mpu >= 0 ? game.mpu : machine->mpu;
     machine->video_card = game.video_card >= 0 ? game.video_card : machine->video_card;
     machine->mouse = game.mouse >= 0 ? game.mouse : machine->mouse;
     machine->cdrom = game.cdrom >= 0 ? game.cdrom : machine->cdrom;
@@ -792,7 +817,8 @@ static void update_machines(void)
         { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
         { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
         { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" },
-        { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" }, { "input", "joystick" } };
+        { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" }, { "input", "mouse" },
+        { "input", "joystick" } };
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
     GDOX_Machine_Settings without;
@@ -815,6 +841,8 @@ static void update_machines(void)
     overlay_settings(&base_machine, without);
     game_joystick = disk.GetDescriptor().GetInfo().joystick;
     base_joystick = stripped.GetInfo().joystick;
+    game_midi = disk.GetDescriptor().GetInfo().midi;
+    base_midi = stripped.GetInfo().midi;
 }
 
 static void apply_game_settings(void)

@@ -259,6 +259,7 @@ static inline void process(config_Operation operation)
         k_sound_card_irqs[1]);
     CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
         k_sound_card_dmas[1]);
+    CONFIG_INT_RANGE("Machine", "MPU401", config_machine.mpu, 1, 0, 1);
     CONFIG_INT_RANGE("Machine", "Video", config_machine.video_card, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
         GDOX_VIDEO_CARD_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);
@@ -329,6 +330,14 @@ static inline void process(config_Operation operation)
     CONFIG_FLOAT_RANGE("Audio", "CDDAVolume", config_audio.cdda_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_FLOAT_RANGE("Audio", "BuzzerVolume", config_audio.buzzer_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_INT("Audio", "BufferCount", config_audio.buffer_count, 3);
+#if defined(_WIN32)
+    CONFIG_STRING("Audio", "MIDIGMPort", config_audio.midi_gm_port, "Microsoft GS Wavetable Synth");
+#else
+    CONFIG_STRING("Audio", "MIDIGMPort", config_audio.midi_gm_port, "");
+#endif
+    CONFIG_STRING("Audio", "MIDIMT32Port", config_audio.midi_mt32_port, "");
+    CONFIG_INT_RANGE("Audio", "MIDIDefault", config_audio.midi_default, GDOX_MIDI_SYNTH_GM, 0, GDOX_MIDI_SYNTH_COUNT - 1);
+    CONFIG_BOOL("Audio", "MIDIMute", config_audio.midi_mute, false);
 
     //**************************************
     // Rewind

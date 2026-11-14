@@ -25,6 +25,7 @@
 
 #define MPU401_QUEUE_SIZE 16
 
+class MidiOut;
 class StateSerializer;
 class TraceLogger;
 
@@ -43,6 +44,7 @@ public:
 public:
     MPU401();
     ~MPU401();
+    void Init(MidiOut* midi_out);
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
     u8 Read(u16 port);
@@ -60,10 +62,12 @@ private:
 
 private:
     MPU401_State m_state;
+    MidiOut* m_midi_out;
     TraceLogger* m_trace_logger;
 };
 
 static const u16 k_mpu401_port = 0x0330;
+static const int k_mpu401_irq = 2;
 
 INLINE bool MPU401::IsIRQAsserted() const
 {

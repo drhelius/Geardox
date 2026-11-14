@@ -31,6 +31,7 @@
 #define SOUND_BLASTER_ASP_REGISTERS 256
 
 class DMA;
+class MidiOut;
 class PIC;
 class StateSerializer;
 class TraceLogger;
@@ -132,7 +133,7 @@ public:
 public:
     SoundBlaster();
     ~SoundBlaster();
-    void Init(PIC* pic, DMA* dma);
+    void Init(PIC* pic, DMA* dma, MidiOut* midi_out);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCard(int card, int irq, int dma);
     void Reset(u64 clocks);
@@ -221,6 +222,7 @@ private:
     SoundBlaster_State m_state;
     PIC* m_pic;
     DMA* m_dma;
+    MidiOut* m_midi_out;
     TraceLogger* m_trace_logger;
     u8 m_version_major;
     u8 m_version_minor;

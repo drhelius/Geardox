@@ -18,6 +18,7 @@
  */
 
 #include "sound_blaster.h"
+#include "midi_out.h"
 #include "../system/dma.h"
 #include "../system/machine_profiles.h"
 #include "../system/pic.h"
@@ -89,6 +90,7 @@ SoundBlaster::SoundBlaster()
 {
     InitPointer(m_pic);
     InitPointer(m_dma);
+    InitPointer(m_midi_out);
     InitPointer(m_trace_logger);
     m_version_major = 0;
     m_version_minor = 0;
@@ -104,10 +106,11 @@ SoundBlaster::~SoundBlaster()
 {
 }
 
-void SoundBlaster::Init(PIC* pic, DMA* dma)
+void SoundBlaster::Init(PIC* pic, DMA* dma, MidiOut* midi_out)
 {
     m_pic = pic;
     m_dma = dma;
+    m_midi_out = midi_out;
 
     GDOX_DMA_Endpoint endpoint = { this, DMAReadCallback, DMAWriteCallback, NULL, DMAChangeCallback };
 
@@ -1144,6 +1147,9 @@ void SoundBlaster::WriteMIDI(u8 value)
         entry.midi.source = TRACE_MIDI_SOURCE_DSP;
         m_trace_logger->TraceLog(entry);
     }
+
+    if (IsValidPointer(m_midi_out))
+        m_midi_out->Write(value);
 }
 
 // Creative's reset defaults. Bits 4 and 0 of a CT1345 volume aren't used and read high, as on the one clone documented

@@ -531,6 +531,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "1"
     },
     {
+        "geardox_mpu",
+        "MPU-401 (restart)",
+        NULL,
+        "The MIDI port at 330 that games play General MIDI and MT-32 music through. The Sound Blaster 16 has its own. With the other cards it's a separate MPU-401 card on IRQ 2 (9). Turn on MIDI output in Settings > Audio > MIDI to hear it.",
+        NULL,
+        "system",
+        {
+            { "enabled",  NULL },
+            { "disabled", NULL },
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
         "geardox_descriptor",
         "Game Descriptors (restart)",
         NULL,

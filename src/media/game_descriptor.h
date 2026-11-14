@@ -118,6 +118,7 @@ struct GDOX_Game_Info
     int exit;
     bool boot_floppy;
     int joystick;
+    int midi;
     std::vector<GDOX_Game_Env> env;
     std::vector<std::string> config_sys;
     std::vector<std::string> autoexec;

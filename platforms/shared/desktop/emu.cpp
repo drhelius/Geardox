@@ -35,6 +35,7 @@
 #include "emu_floppy.h"
 #include "emu_game.h"
 #include "emu_hard_disk.h"
+#include "emu_midi.h"
 #include "events.h"
 #include "gui_notifications.h"
 #include "input_macro.h"
@@ -154,6 +155,7 @@ bool emu_init(void)
     emu_floppy_init();
 
     sound_queue_init();
+    emu_midi_init();
 
     for (int i = 0; i < 5; i++)
         InitPointer(emu_savestates_screenshots[i].data);
@@ -173,6 +175,7 @@ bool emu_init(void)
     {
         runahead_destroy();
         rewind_destroy();
+        emu_midi_destroy();
         sound_queue_destroy();
         SafeDelete(geardox);
         destroy_debug();
@@ -213,6 +216,7 @@ void emu_destroy(void)
     runahead_destroy();
     rewind_destroy();
     SafeDelete(mcp_manager);
+    emu_midi_destroy();
     sound_queue_destroy();
     SafeDelete(geardox);
     destroy_debug();
@@ -241,7 +245,10 @@ void emu_update(void)
 #endif
 
     if (emu_is_empty())
+    {
+        emu_midi_idle();
         return;
+    }
 
     geardox->GetAudio()->EnableChannelScopes(config_debug.debug && config_debug.show_opl);
 
@@ -251,6 +258,7 @@ void emu_update(void)
 
     if (rewind_is_active())
     {
+        emu_midi_rewind();
         int to_pop = get_rewind_pop_budget();
 
         if (to_pop > 0)
@@ -283,6 +291,7 @@ void emu_update(void)
             debug_run.stopped = false;
             debug_run.breakpoint_hit = false;
 
+            emu_midi_begin_frame();
             rewind_commit_seek();
 
             GDOX_Run_Result result = geardox->RunToFrame(emu_frame_buffer, audio_buffer, &sample_count, &debug_run);
@@ -320,6 +329,7 @@ void emu_update(void)
     }
     else if (!geardox->IsPaused())
     {
+        emu_midi_begin_frame();
         rewind_commit_seek();
 
         GDOX_Run_Result result = GDOX_RUN_NOT_READY;
@@ -380,6 +390,11 @@ void emu_update(void)
         memset(audio_buffer, 0, silence_count * sizeof(s16));
         sound_queue_write(audio_buffer, silence_count, false);
     }
+
+    if (frame_executed)
+        emu_midi_end_frame(sample_count);
+    else
+        emu_midi_idle();
 
     if (emu_game_update())
         return;
@@ -816,6 +831,7 @@ void emu_apply_machine_settings(void)
     settings.sound_card = config_machine.sound_card;
     settings.sound_irq = config_machine.sound_irq;
     settings.sound_dma = config_machine.sound_dma;
+    settings.mpu = config_machine.mpu;
     settings.video_card = config_machine.video_card;
     settings.mouse = config_machine.mouse;
     settings.cdrom = config_machine.cdrom;
@@ -938,6 +954,7 @@ bool emu_load_state_slot(int index)
     emu_debug_state_restored();
     events_sync_input();
     rewind_reset();
+    emu_midi_state_loaded();
     return true;
 }
 
@@ -961,6 +978,7 @@ bool emu_load_state_file(const char* file_path)
     emu_debug_state_restored();
     events_sync_input();
     rewind_reset();
+    emu_midi_state_loaded();
     return true;
 }
 

@@ -89,6 +89,21 @@ INLINE MPU401* Audio::GetMPU401()
     return m_mpu401;
 }
 
+INLINE MidiOut* Audio::GetMidiOut()
+{
+    return m_midi_out;
+}
+
+INLINE bool Audio::HasMPU() const
+{
+    return m_mpu;
+}
+
+INLINE bool Audio::IsMPUStandalone() const
+{
+    return m_mpu && !m_card_mpu;
+}
+
 INLINE Audio::Audio_State* Audio::GetState()
 {
     return &m_state;
@@ -200,7 +215,7 @@ INLINE bool Audio::Decodes(u16 port) const
         case 0x0E:
             return m_dsp;
         case 0x0F:
-            return m_mpu;
+            return m_card_mpu;
         default:
             return false;
     }

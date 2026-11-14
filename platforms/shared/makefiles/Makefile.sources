@@ -68,6 +68,9 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/gui_game.cpp \
     $(DESKTOP_SRC_DIR)/emu_game.cpp \
     $(DESKTOP_SRC_DIR)/sound_queue.cpp \
+    $(DESKTOP_SRC_DIR)/midi_queue.cpp \
+    $(DESKTOP_SRC_DIR)/midi_port.cpp \
+    $(DESKTOP_SRC_DIR)/emu_midi.cpp \
     $(DESKTOP_SRC_DIR)/single_instance.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_audio.cpp \
@@ -96,6 +99,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/common/profiler.cpp \
     $(SRC_DIR)/common/trace_logger.cpp \
     $(SRC_DIR)/audio/audio.cpp \
+    $(SRC_DIR)/audio/midi_out.cpp \
     $(SRC_DIR)/audio/mpu401.cpp \
     $(SRC_DIR)/audio/opl.cpp \
     $(SRC_DIR)/audio/sound_blaster.cpp \

@@ -21,6 +21,7 @@
 #include "audio.h"
 #include "../cdrom/cdrom_audio.h"
 #include "../system/machine_profiles.h"
+#include "../system/pic.h"
 #include "../system/scheduler.h"
 #include "../common/trace_logger.h"
 #include "../common/state_serializer.h"
@@ -31,7 +32,9 @@ Audio::Audio()
     InitPointer(m_opl[1]);
     InitPointer(m_sound_blaster);
     InitPointer(m_mpu401);
+    InitPointer(m_midi_out);
     InitPointer(m_cdrom_audio);
+    InitPointer(m_pic);
     InitPointer(m_scheduler);
     InitPointer(m_pit);
     InitPointer(m_trace_logger);
@@ -46,6 +49,8 @@ Audio::Audio()
     m_dsp = false;
     m_mixer = false;
     m_mpu = false;
+    m_card_mpu = false;
+    m_mpu_irq = false;
     m_pcm_cutoff = -1.0f;
     m_pcm_lowpass_alpha_q15 = 32768;
     m_fm_gain_left = 32768;
@@ -79,6 +84,7 @@ Audio::Audio()
 Audio::~Audio()
 {
     SafeDelete(m_mpu401);
+    SafeDelete(m_midi_out);
     SafeDelete(m_sound_blaster);
     SafeDelete(m_opl[1]);
     SafeDelete(m_opl[0]);
@@ -89,6 +95,7 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
     m_scheduler = scheduler;
     m_cdrom_audio = cdrom_audio;
     m_pit = pit;
+    m_pic = pic;
 
     for (int i = 0; i < AUDIO_OPL_CHIPS; i++)
     {
@@ -102,7 +109,11 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
     if (!IsValidPointer(m_mpu401))
         m_mpu401 = new MPU401();
 
-    m_sound_blaster->Init(pic, dma);
+    if (!IsValidPointer(m_midi_out))
+        m_midi_out = new MidiOut();
+
+    m_mpu401->Init(m_midi_out);
+    m_sound_blaster->Init(pic, dma, m_midi_out);
     Reset();
 }
 
@@ -113,7 +124,7 @@ void Audio::SetTraceLogger(TraceLogger* trace_logger)
     m_mpu401->SetTraceLogger(trace_logger);
 }
 
-void Audio::SetCard(int card, int irq, int dma)
+void Audio::SetCard(int card, int irq, int dma, bool mpu)
 {
     const GDOX_Sound_Card_Info& info = k_sound_cards[card];
 
@@ -121,7 +132,8 @@ void Audio::SetCard(int card, int irq, int dma)
     m_opl3 = info.opl3;
     m_dsp = info.dsp_major != 0;
     m_mixer = info.mixer != k_sound_blaster_mixer_none;
-    m_mpu = info.mpu;
+    m_mpu = mpu;
+    m_card_mpu = info.mpu;
     m_sound_blaster->SetCard(card, irq, dma);
 
     for (int i = 0; i < AUDIO_OPL_CHIPS; i++)
@@ -137,6 +149,8 @@ void Audio::Reset()
 
     m_sound_blaster->Reset(clocks);
     m_mpu401->Reset();
+    m_midi_out->Reset();
+    UpdateMPUInterrupt();
 
     m_state.sample_clock_counter = 0;
     m_state.pcm_lowpass_left = 0;
@@ -154,6 +168,22 @@ void Audio::Reset()
     UpdateEvent();
 }
 
+// The SB16's MPU shares the card's line (SBG p27). A standalone one drives the bus's IRQ2, which an AT takes as IRQ9
+// (MPU-IPC-T p4)
+void Audio::UpdateMPUInterrupt()
+{
+    bool asserted = m_mpu && m_mpu401->IsIRQAsserted();
+    bool standalone = asserted && !m_card_mpu;
+
+    m_sound_blaster->SetMPUInterrupt(asserted && m_card_mpu);
+
+    if ((standalone != m_mpu_irq) && IsValidPointer(m_pic))
+    {
+        m_mpu_irq = standalone;
+        m_pic->SetIRQLine(k_mpu401_irq, standalone);
+    }
+}
+
 // Status comes from the left chip of a pair at 388h, the way Creative's table reads
 u8 Audio::Read(u16 port, u64 clocks)
 {
@@ -168,7 +198,7 @@ u8 Audio::Read(u16 port, u64 clocks)
     if (IsMPUPort(port))
     {
         u8 value = m_mpu401->Read(port);
-        m_sound_blaster->SetMPUInterrupt(m_mpu401->IsIRQAsserted());
+        UpdateMPUInterrupt();
         return value;
     }
 
@@ -199,10 +229,12 @@ void Audio::Write(u16 port, u8 value, u64 clocks)
         return;
     }
 
+    m_midi_out->SetPosition(m_buffer_index >> 1);
+
     if (IsMPUPort(port))
     {
         m_mpu401->Write(port, value);
-        m_sound_blaster->SetMPUInterrupt(m_mpu401->IsIRQAsserted());
+        UpdateMPUInterrupt();
         return;
     }
 
@@ -459,6 +491,7 @@ void Audio::SaveState(std::ostream& stream)
 
     m_sound_blaster->SaveState(stream);
     m_mpu401->SaveState(stream);
+    m_midi_out->SaveState(stream);
 }
 
 void Audio::LoadState(std::istream& stream, int version)
@@ -471,6 +504,7 @@ void Audio::LoadState(std::istream& stream, int version)
 
     m_sound_blaster->LoadState(stream);
     m_mpu401->LoadState(stream);
+    m_midi_out->LoadState(stream);
     SanitizeState();
 }
 
@@ -563,4 +597,6 @@ void Audio::SanitizeState()
     m_pcm_cutoff = -1.0f;
     UpdatePCMFilter();
     UpdateEvent();
+    m_mpu_irq = false;
+    UpdateMPUInterrupt();
 }

@@ -445,9 +445,16 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `card` | No | The sound card | `none`, `adlib`, `sb15` (Sound Blaster 1.5), `sb20` (2.0), `sbpro` (Pro), `sbpro2` (Pro 2), `sb16` (16) | Your setting (`sb16`) | `card = sbpro` |
 | `irq` | No | The sound card's IRQ | `5`, `7` | Your setting (`5`) | `irq = 7` |
 | `dma` | No | The sound card's 8-bit DMA channel | `1`, `3` | Your setting (`1`) | `dma = 3` |
+| `mpu` | No | The MPU-401 MIDI port at 330. The Sound Blaster 16 has its own, on the card's IRQ. With the other cards it's a separate MPU-401 card on IRQ 2 (9) | `on`, `off` | Your setting (`on`) | `mpu = off` |
+| `midi` | No | The synth the game was set up for in its setup program, which picks the MIDI port it plays through on desktop | `gm` (General MIDI), `mt32` (Roland MT-32) | Your setting (`gm`) | `midi = mt32` |
 
 The sound port is 220 (hexadecimal). The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the
 DOS `BLASTER` variable automatically to match the selected card, IRQ and DMA.
+
+MIDI music plays through a synthesizer outside Geardox: Munt for the MT-32, FluidSynth with a SoundFont or
+Microsoft GS Wavetable Synth for General MIDI, or a real module. On desktop, choose a port for each in
+**Audio > MIDI Out**, and `midi` picks which one the game uses. In RetroArch, turn on MIDI output in
+**Settings > Audio > MIDI**; `midi` has no effect there.
 
 ### `[input]`
 

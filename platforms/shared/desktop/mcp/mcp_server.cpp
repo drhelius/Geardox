@@ -1569,7 +1569,7 @@ json McpServer::BuildToolList()
         {"name", "get_sound_status"},
         {"title", "Get Sound Status"},
         {"description", "Report the sound card: OPL status, timers and channels, the DSP's transfer, IRQ and DMA, "
-            "the mixer's levels and the MPU-401."},
+            "the mixer's levels, the MPU-401, and MIDI out: capture, messages sent, the SysEx log and the port."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},

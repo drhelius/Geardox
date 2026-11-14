@@ -165,6 +165,7 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 | Model | 486DX2 at 66 MHz | The 386 models help with old games that run too fast or crash on a 486. |
 | Main RAM | 8 MB | Some games want 16 MB. |
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
+| MPU-401 | On | The MIDI port at 330 for General MIDI and MT-32 music. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
 | Video Card | Auto | Cirrus Logic SVGA, with VESA modes. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
@@ -175,6 +176,34 @@ keyboard isn't captured, and a "TURBO OFF" badge shows while it's off.
 
 If you change the sound card's IRQ or DMA, the FreeDOS disk doesn't follow. Edit the `SET BLASTER` line with
 `EDIT C:\FDAUTO.BAT`. Games opened with a `.gdox` get the right `BLASTER` automatically.
+
+## MIDI Music
+
+Games set up for **General MIDI** or a **Roland MT-32** send their music to the MPU-401 at port `330`. Geardox
+passes it to a synthesizer outside it, so one has to be running:
+
+- **MT-32:** [Munt](https://sourceforge.net/projects/munt/) (mt32emu-qt) with the MT-32 ROMs in its ROM folder.
+- **General MIDI:** FluidSynth with a General MIDI SoundFont, or **Microsoft GS Wavetable Synth**, which every Windows
+  PC has. On macOS and Linux, FluidSynth makes a MIDI port when started with
+  `fluidsynth -a coreaudio -m coremidi -o midi.portname="FluidSynth GM" SOUNDFONT.sf2` (macOS) or
+  `fluidsynth -m alsa_seq SOUNDFONT.sf2` (Linux).
+- A real module on a USB MIDI interface works too.
+
+Then in **Audio > MIDI Out**:
+
+1. Choose the port for each kind of synth in **General MIDI Port** and **MT-32 Port**. The lists are read again each
+   time they open, so a synth started after Geardox shows up.
+2. In **Synth**, pick the one games use. With a game open, the choice is only that game's. Its `.gdox` can also set it
+   with `midi` under `[sound]`.
+
+The last line of the menu shows where the music is playing in green, or the missing port in red.
+
+A synth that's closed and opened again gets its port back within two seconds, with the game's instruments sent again.
+Pausing, fast-forwarding, rewinding and loading states stop hanging notes. If a game plays MIDI and its port isn't
+set, Geardox says so.
+
+The music plays in the synth's own audio: Geardox's volume sliders and recordings don't include it, and
+**Audio > Mute MIDI** or **Mute All Audio** stop its notes.
 
 ## Keyboard, Mouse and Joystick
 
@@ -227,5 +256,6 @@ In this folder:
 | Hotkeys don't work | The keyboard is captured. Press Ctrl+Shift+K. |
 | The game runs too fast | Turn off **Turbo** (Ctrl+T), or pick a 386 in **Emulator > Machine**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
+| No music with General MIDI or MT-32 | Start the synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
 | The game asks for expanded memory (EMS) | Open it with a `.gdox` and set `ems_kb`. See [Memory](GDOX_README.md#memory). |
 | The FreeDOS disk is broken | **Drives > Hard Disks > Recreate FreeDOS Disk...**. It erases what was on it. |

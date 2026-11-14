@@ -25,6 +25,7 @@
 #include "opl.h"
 #include "sound_blaster.h"
 #include "mpu401.h"
+#include "midi_out.h"
 #include "vgm_recorder.h"
 
 #define AUDIO_OPL_CHIPS 2
@@ -67,7 +68,7 @@ public:
     ~Audio();
     void Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, DMA* dma);
     void SetTraceLogger(TraceLogger* trace_logger);
-    void SetCard(int card, int irq, int dma);
+    void SetCard(int card, int irq, int dma, bool mpu);
     void Reset();
     void Mute(bool mute);
     void SetMasterVolume(float volume);
@@ -91,6 +92,9 @@ public:
     int GetOPLChips() const;
     SoundBlaster* GetSoundBlaster();
     MPU401* GetMPU401();
+    MidiOut* GetMidiOut();
+    bool HasMPU() const;
+    bool IsMPUStandalone() const;
     Audio_State* GetState();
     void SetSourceMute(int source, bool mute);
     bool IsSourceMuted(int source) const;
@@ -114,6 +118,7 @@ private:
     void CaptureChannels(int index);
     bool IsFMPort(u16 port) const;
     bool IsMPUPort(u16 port) const;
+    void UpdateMPUInterrupt();
     void WriteFM(u16 port, u8 value);
     void WriteChip(int chip, u8 port, u8 value);
     void UpdatePCMFilter();
@@ -127,7 +132,9 @@ private:
     OPL* m_opl[AUDIO_OPL_CHIPS];
     SoundBlaster* m_sound_blaster;
     MPU401* m_mpu401;
+    MidiOut* m_midi_out;
     CdRomAudio* m_cdrom_audio;
+    PIC* m_pic;
     Scheduler* m_scheduler;
     PIT* m_pit;
     TraceLogger* m_trace_logger;
@@ -136,6 +143,8 @@ private:
     bool m_dsp;
     bool m_mixer;
     bool m_mpu;
+    bool m_card_mpu;
+    bool m_mpu_irq;
     bool m_mute;
     float m_master_volume;
     float m_fm_volume;

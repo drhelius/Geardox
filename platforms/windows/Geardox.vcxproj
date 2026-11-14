@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\audio\audio.cpp" />
+    <ClCompile Include="..\..\src\audio\midi_out.cpp" />
     <ClCompile Include="..\..\src\audio\mpu401.cpp" />
     <ClCompile Include="..\..\src\audio\opl.cpp" />
     <ClCompile Include="..\..\src\audio\sound_blaster.cpp" />
@@ -172,6 +173,10 @@
       <CompileAs>CompileAsC</CompileAs>
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\emu_midi.cpp" />
+    <ClCompile Include="..\shared\desktop\midi_port.cpp" />
+    <ClCompile Include="..\shared\desktop\midi_port_win32.cpp" />
+    <ClCompile Include="..\shared\desktop\midi_queue.cpp" />
     <ClCompile Include="..\shared\desktop\sound_queue.cpp" />
     <ClCompile Include="..\shared\desktop\application.cpp" />
     <ClCompile Include="..\shared\desktop\application_headless.cpp" />
@@ -260,6 +265,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\audio\audio.h" />
+    <ClInclude Include="..\..\src\audio\midi_out.h" />
+    <ClInclude Include="..\..\src\audio\midi_out_inline.h" />
     <ClInclude Include="..\..\src\audio\mpu401.h" />
     <ClInclude Include="..\..\src\audio\opl.h" />
     <ClInclude Include="..\..\src\audio\opl_inline.h" />
@@ -391,6 +398,9 @@
     <ClInclude Include="..\shared\dependencies\lzma\include\LzmaEnc.h" />
     <ClInclude Include="..\shared\dependencies\zstd\zstddeclib.c" />
     <ClInclude Include="..\shared\desktop\keyboard.h" />
+    <ClInclude Include="..\shared\desktop\emu_midi.h" />
+    <ClInclude Include="..\shared\desktop\midi_port.h" />
+    <ClInclude Include="..\shared\desktop\midi_queue.h" />
     <ClInclude Include="..\shared\desktop\sound_queue.h" />
     <ClInclude Include="..\shared\desktop\single_instance.h" />
     <ClInclude Include="..\shared\desktop\application.h" />
@@ -587,7 +597,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>MaxSpeed</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -597,7 +607,7 @@
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>dependencies\SDL3\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -632,7 +642,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>MaxSpeed</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -642,7 +652,7 @@
       <WarningLevel>Level3</WarningLevel>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>dependencies\SDL3\lib\arm64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -676,7 +686,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -686,7 +696,7 @@
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>dependencies\SDL3\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -716,7 +726,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -726,7 +736,7 @@
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;opengl32.lib;glu32.lib;Shell32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>dependencies\SDL3\lib\arm64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <GenerateDebugInformation>true</GenerateDebugInformation>

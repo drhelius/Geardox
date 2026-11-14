@@ -74,6 +74,8 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "card", DESCRIPTOR_SOUND, NULL, 0, 0 },
     { "sound", "irq", DESCRIPTOR_CHOICE, "5,7", 0, 0 },
     { "sound", "dma", DESCRIPTOR_CHOICE, "1,3", 0, 0 },
+    { "sound", "mpu", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "midi", DESCRIPTOR_CHOICE, "gm,mt32", 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "dos", "memory", DESCRIPTOR_CHOICE, "none,xms,umb,ems", 0, 0 },
@@ -810,6 +812,9 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
     if (parse_number(Get("sound", "dma"), &number))
         settings->sound_dma = number;
 
+    if (Has("sound", "mpu"))
+        settings->mpu = Get("sound", "mpu") == "off" ? 0 : 1;
+
     for (int i = 0; Has("input", "mouse") && (i < GDOX_MOUSE_TYPE_COUNT); i++)
     {
         if (Get("input", "mouse") == k_mice[i].id)
@@ -945,6 +950,14 @@ void GameDescriptor::Build()
     {
         if (Get("input", "joystick") == k_joysticks[i].id)
             info.joystick = i;
+    }
+
+    info.midi = -1;
+
+    for (int i = 0; Has("sound", "midi") && (i < GDOX_MIDI_SYNTH_COUNT); i++)
+    {
+        if (Get("sound", "midi") == k_midi_synths[i].id)
+            info.midi = i;
     }
 
     info.env.clear();

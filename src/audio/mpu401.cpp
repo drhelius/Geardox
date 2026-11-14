@@ -18,6 +18,7 @@
  */
 
 #include "mpu401.h"
+#include "midi_out.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
 
@@ -28,12 +29,18 @@ static const u8 k_mpu401_no_data = 0x80;
 
 MPU401::MPU401()
 {
+    InitPointer(m_midi_out);
     InitPointer(m_trace_logger);
     Reset();
 }
 
 MPU401::~MPU401()
 {
+}
+
+void MPU401::Init(MidiOut* midi_out)
+{
+    m_midi_out = midi_out;
 }
 
 void MPU401::SetTraceLogger(TraceLogger* trace_logger)
@@ -85,6 +92,9 @@ void MPU401::Write(u16 port, u8 value)
             entry.midi.source = TRACE_MIDI_SOURCE_MPU;
             m_trace_logger->TraceLog(entry);
         }
+
+        if (m_state.uart && IsValidPointer(m_midi_out))
+            m_midi_out->Write(value);
 
         return;
     }

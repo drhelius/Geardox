@@ -154,6 +154,18 @@
     <ClCompile Include="..\shared\desktop\gamepad.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\emu_midi.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\midi_port.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\midi_port_win32.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\midi_queue.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\desktop\sound_queue.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
@@ -170,6 +182,9 @@
       <Filter>desktop</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\audio\audio.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\audio\midi_out.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\audio\mpu401.cpp">
@@ -496,6 +511,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\audio\audio.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\midi_out.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\midi_out_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\mpu401.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\opl.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\opl_inline.h"><Filter>src</Filter></ClInclude>
@@ -786,6 +803,15 @@
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\utils.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\emu_midi.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\midi_port.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\midi_queue.h">
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\sound_queue.h">

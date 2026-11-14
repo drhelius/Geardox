@@ -131,6 +131,7 @@ struct config_Machine
     int sound_card;
     int sound_irq;
     int sound_dma;
+    int mpu;
     int video_card;
     int mouse;
     int cdrom;
@@ -166,6 +167,10 @@ struct config_Audio
     float cdda_volume;
     float buzzer_volume;
     int buffer_count;
+    std::string midi_gm_port;
+    std::string midi_mt32_port;
+    int midi_default;
+    bool midi_mute;
 };
 
 struct config_Rewind

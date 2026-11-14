@@ -70,6 +70,13 @@ static bool libretro_supports_bitmasks = false;
 static bool libretro_supports_dupe = false;
 static bool libretro_supports_keyboard = false;
 static bool categories_supported = false;
+static struct retro_midi_interface midi_interface;
+static bool midi_supported = false;
+static bool midi_output = false;
+static bool midi_notified = false;
+static u8 midi_restores = 0;
+static u64 midi_frame_base = 0;
+static u64 midi_last_sample = 0;
 static bool frameskip_threshold_visible = true;
 
 static char retro_save_directory[4096];
@@ -171,6 +178,9 @@ static void show_message(const char* message, unsigned priority, enum retro_log_
 static void get_system_av_info(struct retro_system_av_info* info);
 static void audio_buffer_status(bool active, unsigned occupancy, bool underrun_likely);
 static void update_frameskip(void);
+static void midi_begin_frame(int av_enable);
+static void midi_end_frame(int av_enable, int frame_samples);
+static void midi_write(MidiOut* midi);
 static void set_controller_info(void);
 static void set_input_descriptors(void);
 static int add_input_descriptors(struct retro_input_descriptor* descriptors, int count, unsigned port, const struct retro_input_descriptor* source, int source_count);
@@ -387,6 +397,11 @@ void retro_init(void)
 
     uint64_t quirks = RETRO_SERIALIZATION_QUIRK_ENDIAN_DEPENDENT;
     environ_cb(RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS, &quirks);
+
+    memset(&midi_interface, 0, sizeof(midi_interface));
+    midi_supported = environ_cb(RETRO_ENVIRONMENT_GET_MIDI_INTERFACE, &midi_interface) &&
+        IsValidPointer(midi_interface.output_enabled) && IsValidPointer(midi_interface.write);
+    midi_output = false;
 }
 
 void retro_deinit(void)
@@ -415,6 +430,7 @@ void retro_deinit(void)
     machine_settings.sound_card = GDOX_SOUND_CARD_SB16;
     machine_settings.sound_irq = GDOX_MACHINE_AUTO;
     machine_settings.sound_dma = GDOX_MACHINE_AUTO;
+    machine_settings.mpu = 1;
     machine_settings.mouse = GDOX_MOUSE_PS2;
     machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
     machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
@@ -515,8 +531,10 @@ void retro_run(void)
     bool render = true;
     int av_enable = 0;
 
-    if (environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av_enable))
-        render = (av_enable & 1) != 0;
+    if (!environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av_enable))
+        av_enable = RETRO_AV_ENABLE_VIDEO | RETRO_AV_ENABLE_AUDIO;
+
+    render = (av_enable & RETRO_AV_ENABLE_VIDEO) != 0;
 
     if (render && frameskip_type > 0 && audio_buffer_active)
     {
@@ -533,7 +551,9 @@ void retro_run(void)
 
     audio_sample_count = 0;
     bool powered = core->IsPoweredOn();
+    midi_begin_frame(av_enable);
     core->RunToFrame(frame_buffer, audio_buf, &audio_sample_count, render);
+    midi_end_frame(av_enable, audio_sample_count / 2);
     floppy_update();
     hard_disk_update();
     cmos_update();
@@ -672,6 +692,22 @@ bool retro_unserialize(const void *data, size_t size)
         }
 
         hard_disk_state_warned = changed;
+        int context = RETRO_SAVESTATE_CONTEXT_NORMAL;
+        int av_enable = 0;
+
+        bool fast_states = environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av_enable) &&
+            ((av_enable & RETRO_AV_ENABLE_FAST_SAVESTATES) != 0);
+
+        if (!environ_cb(RETRO_ENVIRONMENT_GET_SAVESTATE_CONTEXT, &context) && fast_states)
+            context = RETRO_SAVESTATE_CONTEXT_RUNAHEAD_SAME_INSTANCE;
+
+        if (context == RETRO_SAVESTATE_CONTEXT_NORMAL)
+        {
+            midi_restores |= 1;
+
+            if (midi_output)
+                core->GetAudio()->GetMidiOut()->Sync();
+        }
     }
 
     return loaded;
@@ -762,6 +798,8 @@ static bool load_content(const char* path)
 
     report_machine();
     content_loaded = true;
+    midi_notified = false;
+    midi_restores = 0;
 
     if (!core->GetMaxSaveStateSize(savestate_size))
         savestate_size = 0;
@@ -805,6 +843,13 @@ static bool load_content(const char* path)
 
 static void unload_content(void)
 {
+    if (midi_output)
+    {
+        MidiOut* midi = core->GetAudio()->GetMidiOut();
+        midi->Silence();
+        midi_write(midi);
+    }
+
     for (int i = 0; i < FDC_DRIVES; i++)
     {
         if (!floppy_flush(i))
@@ -883,6 +928,104 @@ static void report_machine(void)
     }
 
     show_message(message, 2, report.warning_count > 0 ? RETRO_LOG_WARN : RETRO_LOG_INFO);
+}
+
+// The frames RetroArch throws away for runahead have their audio off, and their MIDI goes with it. RetroArch rewinds
+// with ordinary loads, so loads before two frames in a row are a rewind and play no notes
+static void midi_begin_frame(int av_enable)
+{
+    MidiOut* midi = core->GetAudio()->GetMidiOut();
+    bool output = midi_supported && midi_interface.output_enabled();
+    bool fast = false;
+    bool rewinding = midi_restores == 3;
+    midi_restores = (u8)((midi_restores & 1) << 1);
+
+    if (output != midi_output)
+    {
+        midi_output = output;
+        midi->ForgetSynth();
+
+        if (output)
+            midi->Sync();
+        else
+            midi->Clear();
+    }
+
+    if (midi->TakeReset())
+    {
+        midi_notified = false;
+
+        if (output)
+            midi->Sync();
+    }
+
+    if (!environ_cb(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &fast))
+        fast = false;
+
+    MidiOut::MidiOut_Capture capture = MidiOut::MIDI_OUT_CAPTURE_OFF;
+
+    if (output && ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0))
+        capture = fast || rewinding ? MidiOut::MIDI_OUT_CAPTURE_SILENT : MidiOut::MIDI_OUT_CAPTURE_ON;
+
+    MidiOut::MidiOut_Capture current = midi->GetCapture();
+
+    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == MidiOut::MIDI_OUT_CAPTURE_SILENT))
+        midi->Silence();
+    else if ((current == MidiOut::MIDI_OUT_CAPTURE_SILENT) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
+        midi->Sync();
+
+    midi->SetCapture(capture);
+}
+
+static void midi_end_frame(int av_enable, int frame_samples)
+{
+    MidiOut* midi = core->GetAudio()->GetMidiOut();
+
+    if (midi->HasPlayed() && !midi_output && midi_supported && !midi_notified)
+    {
+        midi_notified = true;
+        show_message("This game plays MIDI music. Turn on MIDI output in Settings > Audio > MIDI", 4, RETRO_LOG_INFO);
+    }
+
+    if (midi_output)
+        midi_write(midi);
+    else
+        midi->Clear();
+
+    if ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0)
+        midi_frame_base += (u64)MAX(frame_samples, 0);
+}
+
+// Each message's first byte carries the time since the previous one, from where it fell in the frame's audio
+static void midi_write(MidiOut* midi)
+{
+    int count = midi->GetMessageCount();
+    const MidiOut::MidiOut_Message* messages = midi->GetMessages();
+    const u8* data = midi->GetData();
+
+    for (int i = 0; i < count; i++)
+    {
+        const MidiOut::MidiOut_Message& message = messages[i];
+        u64 sample = message.offset == k_midi_out_immediate ? midi_frame_base : midi_frame_base + message.offset;
+        u32 delta = 0;
+
+        if (sample > midi_last_sample)
+        {
+            delta = (u32)MIN(((sample - midi_last_sample) * 1000000ULL) / GDOX_AUDIO_SAMPLE_RATE, (u64)0xFFFFFFFF);
+            midi_last_sample = sample;
+        }
+
+        for (int j = 0; j < message.size; j++)
+            midi_interface.write(data[message.data + j], j == 0 ? delta : 0);
+    }
+
+    if (count > 0)
+    {
+        if (IsValidPointer(midi_interface.flush))
+            midi_interface.flush();
+
+        midi->Clear();
+    }
 }
 
 static void show_message(const char* message, unsigned priority, enum retro_log_level level)
@@ -1357,8 +1500,9 @@ static bool update_game_options_display(void)
         { "geardox_fpu", "machine", "fpu" }, { "geardox_floppy_a", "machine", "floppy_a_type" },
         { "geardox_floppy_b", "machine", "floppy_b_type" }, { "geardox_video_card", "machine", "video" },
         { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
-        { "geardox_sound_dma", "sound", "dma" }, { "geardox_mouse", "input", "mouse" },
-        { "geardox_joystick", "input", "joystick" }, { "geardox_cdrom_drive", "drives", "cdrom" },
+        { "geardox_sound_dma", "sound", "dma" }, { "geardox_mpu", "sound", "mpu" },
+        { "geardox_mouse", "input", "mouse" }, { "geardox_joystick", "input", "joystick" },
+        { "geardox_cdrom_drive", "drives", "cdrom" },
         { "geardox_cdrom_speed", "machine", "cdrom_speed" }, { "geardox_drive_timing", "machine", "drive_timing" } };
     bool hide = game_active && game_descriptors;
 
@@ -1667,6 +1811,12 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         machine_settings.sound_dma = atoi(var.value);
+
+    var.key = "geardox_mpu";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        machine_settings.mpu = strcmp(var.value, "disabled") == 0 ? 0 : 1;
 
     var.key = "geardox_turbo";
     var.value = NULL;

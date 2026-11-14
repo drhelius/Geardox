@@ -155,6 +155,12 @@ const GDOX_Drive_Timing_Info k_drive_timings[GDOX_DRIVE_TIMING_COUNT] =
 // Fast drives seek, wait for the sector, settle and spin up in a sixteenth of the time. Transfers keep their rate
 const u32 k_drive_timing_dividers[GDOX_DRIVE_TIMING_COUNT] = { 1, 16 };
 
+const GDOX_MIDI_Synth_Info k_midi_synths[GDOX_MIDI_SYNTH_COUNT] =
+{
+    { "General MIDI", "gm" },
+    { "MT-32", "mt32" }
+};
+
 const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 {
     { "None", "none" },
@@ -198,6 +204,7 @@ static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
     settings->sound_card = GDOX_MACHINE_AUTO;
     settings->sound_irq = GDOX_MACHINE_AUTO;
     settings->sound_dma = GDOX_MACHINE_AUTO;
+    settings->mpu = GDOX_MACHINE_AUTO;
     settings->mouse = GDOX_MACHINE_AUTO;
     settings->cdrom = GDOX_MACHINE_AUTO;
     settings->cdrom_speed = GDOX_MACHINE_AUTO;

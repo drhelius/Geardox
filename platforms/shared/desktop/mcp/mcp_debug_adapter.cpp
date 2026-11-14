@@ -62,6 +62,8 @@
 #include "../gui_floppy.h"
 #include "../emu_hard_disk.h"
 #include "../emu_game.h"
+#include "../emu_midi.h"
+#include "../midi_queue.h"
 #include "../gui_game.h"
 #include "../rewind.h"
 #include "../debug/gui_debug_cdrom.h"
@@ -3221,8 +3223,18 @@ json DebugAdapter::GetSoundStatus()
             {"fm", {blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, false) / 32768.0,
                 blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true) / 32768.0}}};
 
-    if (k_sound_cards[machine.sound_card].mpu)
-        result["mpu401"] = {{"uart", mpu->uart}, {"pending", mpu->count}};
+    if (audio->HasMPU())
+        result["mpu401"] = {{"uart", mpu->uart}, {"pending", mpu->count},
+            {"standalone", audio->IsMPUStandalone()}, {"irq", audio->IsMPUStandalone() ? 9 : machine.sound_irq}};
+
+    MidiOut* midi = audio->GetMidiOut();
+    const MidiOut::MidiOut_Stats* stats = midi->GetStats();
+    const MidiOut::MidiOut_Synth& synth = midi->GetState()->machine;
+    static const char* const k_captures[3] = { "off", "on", "silent" };
+    result["midi"] = {{"capture", k_captures[midi->GetCapture()]}, {"messages", stats->messages}, {"bytes", stats->bytes},
+        {"dropped", stats->dropped + midi_queue_get_dropped()}, {"sysex_log", synth.log_size},
+        {"sysex_log_full", synth.log_full}, {"synth", k_midi_synths[emu_midi_get_synth()].id},
+        {"port", emu_midi_get_port()}, {"wanted_port", emu_midi_get_wanted_port()}};
 
     return result;
 }
@@ -4761,7 +4773,8 @@ json DebugAdapter::GetGameInfo()
         { "game", "source" }, { "game", "folder" }, { "game", "free_mb" }, { "machine", "model" },
         { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" }, { "machine", "fpu" },
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
-        { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "input", "mouse" },
+        { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" },
+        { "sound", "mpu" }, { "sound", "midi" }, { "input", "mouse" },
         { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
         { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
@@ -4801,9 +4814,10 @@ json DebugAdapter::GetGameInfo()
             {"ram_mb", config.ram_size / (1024 * 1024)}, {"ram_source", k_sources[report.ram]},
             {"fpu", config.fpu}, {"fpu_source", k_sources[report.fpu]}, {"turbo", m_core->IsTurbo()},
             {"sound_card", k_sound_cards[config.sound_card].id}, {"sound_irq", config.sound_irq},
-            {"sound_dma", config.sound_dma}, {"video", k_video_cards[config.video_card].id},
+            {"sound_dma", config.sound_dma}, {"mpu", config.mpu}, {"video", k_video_cards[config.video_card].id},
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
-                json(k_joysticks[emu_game_get_joystick()].id) : json()}}},
+                json(k_joysticks[emu_game_get_joystick()].id) : json()}, {"midi", emu_game_get_midi() >= 0 ?
+                json(k_midi_synths[emu_game_get_midi()].id) : json()}}},
         {"target", k_targets[emu_game_get_target()]},
         {"keyboard_layout", disk->GetKeyboardLayout()},
         {"system", {{"name", disk->GetSystemName()}, {"id", disk->GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos"},

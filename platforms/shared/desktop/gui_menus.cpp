@@ -35,6 +35,8 @@
 #include "sound_queue.h"
 #include "emu.h"
 #include "emu_game.h"
+#include "emu_midi.h"
+#include "midi_port.h"
 #include "gui_game.h"
 #include "ogl_renderer.h"
 #include "ogl_shader_chain.h"
@@ -66,6 +68,8 @@ static const GuiColor& machine_game_color = cyan;
 static config_Machine* menu_settings = &config_machine;
 static const GuiColor& service_mcp_http_color = green;
 static const GuiColor& service_mcp_stdio_color = amber;
+static const GuiColor& midi_playing_color = green;
+static const GuiColor& midi_stopped_color = red;
 static const GuiColor& video_recording_color = red;
 static const GuiColor& vgm_recording_color = red;
 
@@ -98,6 +102,8 @@ static void menu_input_keyboard_layout(void);
 static void menu_audio(void);
 static void menu_audio_source_mute(const char* label, int source);
 static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
+static void menu_audio_midi(void);
+static void menu_audio_midi_port(const char* label, const char* id, std::string* port);
 static void menu_debug(void);
 static void menu_about(void);
 static void draw_background_color_menu(const char* label, int theme);
@@ -1239,6 +1245,29 @@ static bool menu_machine_sound(void)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Some old games only work with a fixed IRQ or DMA.\nOn the FreeDOS disk, BLASTER in FDAUTO.BAT doesn't follow this.");
 
+    ImGui::Separator();
+    bool mpu = menu_settings->mpu != 0;
+
+    if (ImGui::MenuItem("MPU-401", "", &mpu))
+    {
+        menu_settings->mpu = mpu ? 1 : 0;
+        changed = true;
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+
+        if (k_sound_cards[card].mpu)
+            ImGui::Text("The Sound Blaster 16's MIDI port at 330, on the card's IRQ.");
+        else
+            ImGui::Text("A separate MPU-401 MIDI card at 330, on IRQ 2 (9).");
+
+        ImGui::Text("Games play MIDI music through it, to the port in Audio > MIDI Out.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
     ImGui::EndMenu();
     return changed;
 }
@@ -2022,6 +2051,15 @@ static void menu_audio(void)
         menu_audio_source_mute("Mute PCM", Audio::AUDIO_SOURCE_PCM);
         menu_audio_source_mute("Mute CD-DA", Audio::AUDIO_SOURCE_CDDA);
         menu_audio_source_mute("Mute Buzzer", Audio::AUDIO_SOURCE_BUZZER);
+        ImGui::MenuItem("Mute MIDI", "", &config_audio.midi_mute, config_audio.enable);
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Stops the notes on the MIDI synth.");
+            ImGui::Text("It keeps the game's instruments, so the music comes back right.");
+            ImGui::EndTooltip();
+        }
 
         ImGui::Separator();
 
@@ -2030,6 +2068,8 @@ static void menu_audio(void)
         menu_audio_source_volume("CD-DA Volume", "##cdda_volume", Audio::AUDIO_SOURCE_CDDA, &config_audio.cdda_volume);
         menu_audio_source_volume("Buzzer Volume", "##buzzer_volume", Audio::AUDIO_SOURCE_BUZZER, &config_audio.buzzer_volume);
 
+        ImGui::Separator();
+        menu_audio_midi();
         ImGui::Separator();
 
         if (ImGui::BeginMenu("Buffer Size", config_audio.enable))
@@ -2111,6 +2151,152 @@ static void menu_audio_source_volume(const char* label, const char* id, int sour
 
         ImGui::EndMenu();
     }
+}
+
+static void menu_audio_midi(void)
+{
+    if (!ImGui::BeginMenu("MIDI Out", MidiPort::IsSupported()))
+        return;
+
+    menu_audio_midi_port("General MIDI Port", "##midi_gm_port", &config_audio.midi_gm_port);
+    menu_audio_midi_port("MT-32 Port", "##midi_mt32_port", &config_audio.midi_mt32_port);
+
+    if (ImGui::BeginMenu("Synth"))
+    {
+        int synth = emu_midi_get_synth();
+        float text_width = 0.0f;
+
+        for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
+            text_width = MAX(text_width, ImGui::CalcTextSize(k_midi_synths[i].name).x);
+
+        ImGui::PushItemWidth(get_combo_width(text_width));
+
+        if (ImGui::BeginCombo("##midi_synth", k_midi_synths[synth].name))
+        {
+            for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
+            {
+                if (ImGui::Selectable(k_midi_synths[i].name, synth == i))
+                {
+                    if (emu_game_is_open())
+                        emu_game_set_midi(i);
+                    else
+                        config_audio.midi_default = i;
+
+                    emu_midi_update_port();
+                }
+            }
+
+            ImGui::EndCombo();
+        }
+        else if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("The synth the game was set up for in its setup program.");
+            ImGui::Text("With a game open, the choice is that game's. A .gdox can set it with midi in [sound].");
+            ImGui::EndTooltip();
+        }
+
+        ImGui::PopItemWidth();
+        ImGui::EndMenu();
+    }
+
+    ImGui::Separator();
+
+    const char* port = emu_midi_get_port();
+    const char* wanted = emu_midi_get_wanted_port();
+
+    if (port[0] != 0)
+        ImGui::TextColored(midi_playing_color, "Playing to %s", port);
+    else if (wanted[0] != 0)
+        ImGui::TextColored(midi_stopped_color, "%s not found", wanted);
+    else
+        ImGui::TextColored(midi_stopped_color, "No %s port", k_midi_synths[emu_midi_get_synth()].name);
+
+    ImGui::EndMenu();
+}
+
+// The list is read again each time the submenu opens, so a synth started after Geardox shows up
+static void menu_audio_midi_port(const char* label, const char* id, std::string* port)
+{
+    static std::vector<MidiPortInfo> ports;
+
+    if (!ImGui::BeginMenu(label))
+        return;
+
+    if (ImGui::IsWindowAppearing())
+        MidiPort::ListPorts(ports);
+
+    char missing[MIDI_PORT_NAME_SIZE + 16];
+    const char* preview = "None";
+    float text_width = ImGui::CalcTextSize(preview).x;
+    int selected = -1;
+
+    for (int i = 0; i < (int)ports.size(); i++)
+    {
+        text_width = MAX(text_width, ImGui::CalcTextSize(ports[i].id).x);
+
+        if ((selected < 0) && !port->empty() && MidiPort::IsSamePort(port->c_str(), ports[i].id))
+            selected = i;
+    }
+
+    if (selected >= 0)
+        preview = ports[selected].id;
+    else if (!port->empty())
+    {
+        snprintf(missing, sizeof(missing), "%s (not found)", port->c_str());
+        preview = missing;
+        text_width = MAX(text_width, ImGui::CalcTextSize(missing).x);
+    }
+
+    ImGui::PushItemWidth(get_combo_width(text_width));
+
+    if (ImGui::BeginCombo(id, preview))
+    {
+        if (ImGui::Selectable("None", port->empty()))
+        {
+            port->clear();
+            emu_midi_update_port();
+        }
+
+        for (int i = 0; i < (int)ports.size(); i++)
+        {
+            ImGui::PushID(i);
+
+            if (ImGui::Selectable(ports[i].id, i == selected))
+            {
+                *port = ports[i].id;
+                emu_midi_update_port();
+            }
+
+            ImGui::PopID();
+        }
+
+        if (!port->empty() && (selected < 0))
+            ImGui::Selectable(missing, true, ImGuiSelectableFlags_Disabled);
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+
+        if (port == &config_audio.midi_mt32_port)
+        {
+            ImGui::Text("A Roland MT-32: Munt (mt32emu-qt) with the MT-32 ROMs, or a real one.");
+            ImGui::Text("Games set up for Roland or MT-32 music play here.");
+        }
+        else
+        {
+            ImGui::Text("A General MIDI synth: FluidSynth with a SoundFont, Microsoft GS Wavetable Synth");
+            ImGui::Text("on Windows, or a real module. Games set up for General MIDI play here.");
+        }
+
+        ImGui::Text("Start the synth first: the list is read each time this menu opens.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
 }
 
 static void menu_debug(void)

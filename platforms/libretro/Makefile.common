@@ -28,6 +28,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/common/profiler.cpp \
                 $(SOURCE_DIR)/common/trace_logger.cpp \
                 $(SOURCE_DIR)/audio/audio.cpp \
+                $(SOURCE_DIR)/audio/midi_out.cpp \
                 $(SOURCE_DIR)/audio/mpu401.cpp \
                 $(SOURCE_DIR)/audio/opl.cpp \
                 $(SOURCE_DIR)/audio/sound_blaster.cpp \
