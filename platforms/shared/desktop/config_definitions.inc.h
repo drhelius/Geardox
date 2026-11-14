@@ -18,6 +18,7 @@
  */
 
 #include "config_macros.h"
+#include "hotkeys.h"
 #include "shader_preset.h"
 
 static void process_machine_model(config_Operation operation, int* model);
@@ -355,7 +356,6 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Input", "Joystick", config_input.joystick_type, GDOX_JOYSTICK_GAMEPAD, 0,
         GDOX_JOYSTICK_TYPE_COUNT - 1);
     CONFIG_INT_RANGE("Input", "MouseSensitivity", config_emulator.mouse_sensitivity, 5, 1, 15);
-    CONFIG_BOOL("Input", "CaptureKeyboard", config_emulator.capture_keyboard, true);
     CONFIG_STRING("Input", "KeyboardLayout", config_input.keyboard_layout, "us");
 
     // Gamepad
@@ -381,55 +381,18 @@ static inline void process(config_Operation operation)
     {
         char section[32];
         snprintf(section, sizeof(section), "InputGamepadShortcuts%d", i + 1);
-        CONFIG_INT_ARRAY(section, "Shortcut%d", config_input_gamepad_shortcuts[i].gamepad_shortcuts, config_HotkeyIndex_COUNT, SDL_GAMEPAD_BUTTON_INVALID);
+
+        for (int j = 0; j < config_HotkeyIndex_COUNT; j++)
+        {
+            char key[64];
+            snprintf(key, sizeof(key), "Shortcut%s", hotkey_definitions[j].name);
+            CONFIG_INT(section, key, config_input_gamepad_shortcuts[i].gamepad_shortcuts[j], SDL_GAMEPAD_BUTTON_INVALID);
+        }
     }
 
     // Hotkeys
-    CONFIG_HOTKEY("OpenROM", config_hotkeys[config_HotkeyIndex_OpenROM], SDL_SCANCODE_O, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("ReloadROM", config_hotkeys[config_HotkeyIndex_ReloadROM], SDL_SCANCODE_D, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("Quit", config_hotkeys[config_HotkeyIndex_Quit], SDL_SCANCODE_Q, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("Reset", config_hotkeys[config_HotkeyIndex_Reset], SDL_SCANCODE_R, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("Pause", config_hotkeys[config_HotkeyIndex_Pause], SDL_SCANCODE_P, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("FFWD", config_hotkeys[config_HotkeyIndex_FFWD], SDL_SCANCODE_F, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("Rewind", config_hotkeys[config_HotkeyIndex_Rewind], SDL_SCANCODE_BACKSPACE, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("SaveState", config_hotkeys[config_HotkeyIndex_SaveState], SDL_SCANCODE_S, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("LoadState", config_hotkeys[config_HotkeyIndex_LoadState], SDL_SCANCODE_L, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("Screenshot", config_hotkeys[config_HotkeyIndex_Screenshot], SDL_SCANCODE_X, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("Fullscreen", config_hotkeys[config_HotkeyIndex_Fullscreen], SDL_SCANCODE_F12, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("ShowMainMenu", config_hotkeys[config_HotkeyIndex_ShowMainMenu], SDL_SCANCODE_M, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("DebugStepInto", config_hotkeys[config_HotkeyIndex_DebugStepInto], SDL_SCANCODE_F11, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugStepOver", config_hotkeys[config_HotkeyIndex_DebugStepOver], SDL_SCANCODE_F10, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugStepOut", config_hotkeys[config_HotkeyIndex_DebugStepOut], SDL_SCANCODE_F11, SDL_KMOD_SHIFT);
-    CONFIG_HOTKEY("DebugStepFrame", config_hotkeys[config_HotkeyIndex_DebugStepFrame], SDL_SCANCODE_F6, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugContinue", config_hotkeys[config_HotkeyIndex_DebugContinue], SDL_SCANCODE_F5, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugBreak", config_hotkeys[config_HotkeyIndex_DebugBreak], SDL_SCANCODE_F7, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugRunToCursor", config_hotkeys[config_HotkeyIndex_DebugRunToCursor], SDL_SCANCODE_F8, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugBreakpoint", config_hotkeys[config_HotkeyIndex_DebugBreakpoint], SDL_SCANCODE_F9, SDL_KMOD_NONE);
-    CONFIG_HOTKEY("DebugGoBack", config_hotkeys[config_HotkeyIndex_DebugGoBack], SDL_SCANCODE_BACKSPACE, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("SelectSlot1", config_hotkeys[config_HotkeyIndex_SelectSlot1], SDL_SCANCODE_1, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("SelectSlot2", config_hotkeys[config_HotkeyIndex_SelectSlot2], SDL_SCANCODE_2, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("SelectSlot3", config_hotkeys[config_HotkeyIndex_SelectSlot3], SDL_SCANCODE_3, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("SelectSlot4", config_hotkeys[config_HotkeyIndex_SelectSlot4], SDL_SCANCODE_4, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("SelectSlot5", config_hotkeys[config_HotkeyIndex_SelectSlot5], SDL_SCANCODE_5, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("CaptureMouse", config_hotkeys[config_HotkeyIndex_CaptureMouse], SDL_SCANCODE_M,
-        (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
-    CONFIG_HOTKEY("Mute", config_hotkeys[config_HotkeyIndex_Mute], SDL_SCANCODE_U, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("VideoRecording", config_hotkeys[config_HotkeyIndex_VideoRecording], SDL_SCANCODE_R,
-        (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
-    CONFIG_HOTKEY("CaptureKeyboard", config_hotkeys[config_HotkeyIndex_CaptureKeyboard], SDL_SCANCODE_K,
-        (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
-    CONFIG_HOTKEY("PowerOn", config_hotkeys[config_HotkeyIndex_PowerOn], SDL_SCANCODE_O,
-        (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
-    CONFIG_HOTKEY("PowerOff", config_hotkeys[config_HotkeyIndex_PowerOff], SDL_SCANCODE_F,
-        (SDL_Keymod)(SDL_KMOD_CTRL | SDL_KMOD_SHIFT));
-    CONFIG_HOTKEY("Turbo", config_hotkeys[config_HotkeyIndex_Turbo], SDL_SCANCODE_T, SDL_KMOD_CTRL);
-#if defined(__APPLE__)
-    CONFIG_HOTKEY("KeyboardMapper", config_hotkeys[config_HotkeyIndex_KeyboardMapper], SDL_SCANCODE_F1, SDL_KMOD_GUI);
-    CONFIG_HOTKEY("KeyMapping", config_hotkeys[config_HotkeyIndex_KeyMapping], SDL_SCANCODE_F2, SDL_KMOD_GUI);
-#else
-    CONFIG_HOTKEY("KeyboardMapper", config_hotkeys[config_HotkeyIndex_KeyboardMapper], SDL_SCANCODE_F1, SDL_KMOD_CTRL);
-    CONFIG_HOTKEY("KeyMapping", config_hotkeys[config_HotkeyIndex_KeyMapping], SDL_SCANCODE_F2, SDL_KMOD_CTRL);
-#endif
+    for (int i = 0; i < config_HotkeyIndex_COUNT; i++)
+        CONFIG_HOTKEY(hotkey_definitions[i].name, config_hotkeys[i], hotkey_definitions[i].key, hotkeys_default_mod(i));
 }
 
 //**************************************
@@ -476,7 +439,6 @@ static void after_defaults(void)
     config_emulator.paused = false;
     config_emulator.ffwd = false;
     config_emulator.show_info = false;
-    config_emulator.capture_mouse = false;
 }
 
 static void normalize(void)

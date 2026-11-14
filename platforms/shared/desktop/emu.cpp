@@ -599,6 +599,17 @@ void emu_release_all_host_keys(void)
         geardox->ReleaseAllHostKeys();
 }
 
+void emu_host_hotkey_used(void)
+{
+    if (IsValidPointer(geardox))
+        geardox->DiscardDeferredHostKeys();
+}
+
+bool emu_has_pointer(void)
+{
+    return IsValidPointer(geardox) && !emu_is_empty() && (geardox->GetMachineConfig().mouse != GDOX_MOUSE_NONE);
+}
+
 bool emu_key_mapper_is_open(void)
 {
     return IsValidPointer(geardox) && geardox->GetKeyMapper()->IsOpen();

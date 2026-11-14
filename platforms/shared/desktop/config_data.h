@@ -92,8 +92,6 @@ struct config_Emulator
     bool allow_screensaver;
     int mcp_tcp_port;
     std::string mcp_http_address;
-    bool capture_mouse;
-    bool capture_keyboard;
     int mouse_sensitivity;
     bool floppy_persistence;
     bool floppy_write_protected[config_floppy_drives];
@@ -200,18 +198,31 @@ struct config_Input_Gamepad
 
 enum config_HotkeyIndex
 {
-    config_HotkeyIndex_OpenROM = 0,
+    config_HotkeyIndex_GameFocus = 0,
+    config_HotkeyIndex_KeyboardMapper,
+    config_HotkeyIndex_KeyMapping,
+    config_HotkeyIndex_Fullscreen,
+    config_HotkeyIndex_ShowMainMenu,
+    config_HotkeyIndex_OpenROM,
     config_HotkeyIndex_ReloadROM,
     config_HotkeyIndex_Quit,
+    config_HotkeyIndex_PowerOn,
+    config_HotkeyIndex_PowerOff,
     config_HotkeyIndex_Reset,
     config_HotkeyIndex_Pause,
     config_HotkeyIndex_FFWD,
     config_HotkeyIndex_Rewind,
+    config_HotkeyIndex_Turbo,
     config_HotkeyIndex_SaveState,
     config_HotkeyIndex_LoadState,
+    config_HotkeyIndex_SelectSlot1,
+    config_HotkeyIndex_SelectSlot2,
+    config_HotkeyIndex_SelectSlot3,
+    config_HotkeyIndex_SelectSlot4,
+    config_HotkeyIndex_SelectSlot5,
     config_HotkeyIndex_Screenshot,
-    config_HotkeyIndex_Fullscreen,
-    config_HotkeyIndex_ShowMainMenu,
+    config_HotkeyIndex_VideoRecording,
+    config_HotkeyIndex_Mute,
     config_HotkeyIndex_DebugStepInto,
     config_HotkeyIndex_DebugStepOver,
     config_HotkeyIndex_DebugStepOut,
@@ -221,20 +232,6 @@ enum config_HotkeyIndex
     config_HotkeyIndex_DebugRunToCursor,
     config_HotkeyIndex_DebugBreakpoint,
     config_HotkeyIndex_DebugGoBack,
-    config_HotkeyIndex_SelectSlot1,
-    config_HotkeyIndex_SelectSlot2,
-    config_HotkeyIndex_SelectSlot3,
-    config_HotkeyIndex_SelectSlot4,
-    config_HotkeyIndex_SelectSlot5,
-    config_HotkeyIndex_CaptureMouse,
-    config_HotkeyIndex_Mute,
-    config_HotkeyIndex_VideoRecording,
-    config_HotkeyIndex_CaptureKeyboard,
-    config_HotkeyIndex_PowerOn,
-    config_HotkeyIndex_PowerOff,
-    config_HotkeyIndex_Turbo,
-    config_HotkeyIndex_KeyboardMapper,
-    config_HotkeyIndex_KeyMapping,
     config_HotkeyIndex_COUNT
 };
 
