@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Builds SeaBIOS and SeaVGABIOS from the pinned commit plus geardox.patch, and writes seabios.cpp with both images
+# Builds SeaBIOS and SeaVGABIOS from the pinned commit plus geardox.patch, and writes seabios.cpp with the images
 # Needs an i386 capable GCC and binutils: i686-elf-gcc on macOS, the system GCC on x86 Linux (CROSS_PREFIX="")
 
 set -e
@@ -37,8 +37,11 @@ build_rom()
 build_rom bios.config bios.bin
 build_rom vgabios.config vgabios.bin
 build_rom vgabios_cirrus.config vgabios.bin vgabios_cirrus.bin
+build_rom vgabios_ega.config vgabios.bin vgabios_ega.bin
+build_rom vgabios_cga.config vgabios.bin vgabios_cga.bin
 
-"$PYTHON" - "$WORK_DIR/bios.bin" "$WORK_DIR/vgabios.bin" "$WORK_DIR/vgabios_cirrus.bin" "$SCRIPT_DIR/seabios.cpp" "$VERSION" << 'PYTHON_EOF'
+"$PYTHON" - "$WORK_DIR/bios.bin" "$WORK_DIR/vgabios.bin" "$WORK_DIR/vgabios_cirrus.bin" "$WORK_DIR/vgabios_ega.bin" \
+    "$WORK_DIR/vgabios_cga.bin" "$SCRIPT_DIR/seabios.cpp" "$VERSION" << 'PYTHON_EOF'
 import sys
 
 header = """/*
@@ -62,13 +65,19 @@ def array(name, data):
 bios = open(sys.argv[1], "rb").read()
 vga = open(sys.argv[2], "rb").read()
 cirrus = open(sys.argv[3], "rb").read()
+ega = open(sys.argv[4], "rb").read()
+cga = open(sys.argv[5], "rb").read()
 
-with open(sys.argv[4], "w") as out:
+with open(sys.argv[6], "w") as out:
     out.write(header)
-    out.write('\nconst char* const k_seabios_version = "%s";\n' % sys.argv[5])
+    out.write('\nconst char* const k_seabios_version = "%s";\n' % sys.argv[7])
     out.write("\n" + array("k_seabios_bios", bios) + "\n")
     out.write("\n" + array("k_seabios_vgabios", vga) + "\n")
     out.write("\n" + array("k_seabios_vgabios_cirrus", cirrus) + "\n")
+    out.write("\n" + array("k_seabios_vgabios_ega", ega) + "\n")
+    out.write("\n" + array("k_seabios_vgabios_cga", cga) + "\n")
 PYTHON_EOF
 
-echo "Built SeaBIOS $VERSION: bios.bin $(wc -c < "$WORK_DIR/bios.bin") bytes, vgabios.bin $(wc -c < "$WORK_DIR/vgabios.bin") bytes, vgabios_cirrus.bin $(wc -c < "$WORK_DIR/vgabios_cirrus.bin") bytes"
+echo "Built SeaBIOS $VERSION: bios.bin $(wc -c < "$WORK_DIR/bios.bin") bytes, vgabios.bin $(wc -c < "$WORK_DIR/vgabios.bin") bytes," \
+    "vgabios_cirrus.bin $(wc -c < "$WORK_DIR/vgabios_cirrus.bin") bytes, vgabios_ega.bin $(wc -c < "$WORK_DIR/vgabios_ega.bin") bytes," \
+    "vgabios_cga.bin $(wc -c < "$WORK_DIR/vgabios_cga.bin") bytes"
