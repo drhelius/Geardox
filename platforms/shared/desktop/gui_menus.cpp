@@ -1339,6 +1339,7 @@ static bool menu_machine_video(void)
         ImGui::Text("Model Default: a Cirrus Logic GD5428,");
         ImGui::Text("on the VL-Bus on 486s, ISA otherwise.");
         ImGui::Text("Models without a local bus get the ISA card.");
+        ImGui::Text("The IBM CGA and EGA are 8-bit cards for older games.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
@@ -1781,6 +1782,46 @@ static void menu_video(void)
             ImGui::Text("Output one pixel per game pixel, as shaders expect.");
             ImGui::Text("When disabled, zoomed modes are output at monitor resolution.");
             ImGui::EndTooltip();
+        }
+
+        if (ImGui::BeginMenu("CGA Output"))
+        {
+            int output = emu_game_get_cga_output() >= 0 ? emu_game_get_cga_output() : config_video.cga_output;
+            float text_width = 0.0f;
+
+            for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
+                text_width = MAX(text_width, ImGui::CalcTextSize(k_cga_outputs[i].name).x);
+
+            ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+            if (ImGui::BeginCombo("##cga_output", k_cga_outputs[output].name))
+            {
+                for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
+                {
+                    if (ImGui::Selectable(k_cga_outputs[i].name, output == i))
+                    {
+                        if (emu_game_is_open())
+                            emu_game_set_cga_output(i);
+                        else
+                            config_video.cga_output = i;
+
+                        emu_update_cga_output();
+                    }
+                }
+
+                ImGui::EndCombo();
+            }
+            else if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("The monitor on the IBM CGA's output.");
+                ImGui::Text("Auto: composite colour where a game turns on");
+                ImGui::Text("640x200 with the colour burst, RGB elsewhere.");
+                ImGui::EndTooltip();
+            }
+
+            ImGui::PopItemWidth();
+            ImGui::EndMenu();
         }
 
         ImGui::Separator();

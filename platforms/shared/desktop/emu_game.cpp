@@ -38,6 +38,8 @@ static int game_joystick = -1;
 static int base_joystick = -1;
 static int game_midi = -1;
 static int base_midi = -1;
+static int game_cga_output = -1;
+static int base_cga_output = -1;
 static std::string game_midi_port;
 static std::string base_midi_port;
 static bool preparing = false;
@@ -132,6 +134,7 @@ bool emu_game_start(void)
         disk.Close();
         core->ClearGameSettings();
         emu_update_joystick_type();
+        emu_update_cga_output();
         return false;
     }
 
@@ -186,6 +189,7 @@ bool emu_game_start(void)
     core->SetGameTarget(target);
     core->SetBootDevice(disk.GetDescriptor().GetInfo().boot_floppy ? GDOX_BOOT_DEVICE_FLOPPY_0 : GDOX_BOOT_DEVICE_HARD_DISK);
     emu_update_joystick_type();
+    emu_update_cga_output();
     config_push_recent_game(disk.GetDescriptorPath());
 
     if (disk.WasRecovered() || (disk.GetRefusedPath()[0] != 0))
@@ -279,9 +283,11 @@ bool emu_game_close(void)
     core->SetGameTarget(-1);
     core->SetBootDevice(saved_boot_device);
     game_joystick = -1;
+    game_cga_output = -1;
     game_midi = -1;
     game_midi_port.clear();
     emu_update_joystick_type();
+    emu_update_cga_output();
     emu_apply_machine_settings();
     return true;
 }
@@ -411,6 +417,9 @@ void emu_game_apply_machine(void)
     if ((game_joystick != base_joystick) && (game_joystick >= 0))
         overrides.Set("input", "joystick", k_joysticks[game_joystick].id);
 
+    if ((game_cga_output != base_cga_output) && (game_cga_output >= 0))
+        overrides.Set("machine", "cga_output", k_cga_outputs[game_cga_output].id);
+
     if ((game_midi != base_midi) && (game_midi >= 0))
         overrides.Set("sound", "midi", k_midi_synths[game_midi].id);
 
@@ -431,6 +440,7 @@ void emu_game_apply_machine(void)
 
     apply_game_settings();
     emu_update_joystick_type();
+    emu_update_cga_output();
 }
 
 int emu_game_get_joystick(void)
@@ -444,6 +454,20 @@ void emu_game_set_joystick(int joystick)
         return;
 
     game_joystick = joystick;
+    emu_game_apply_machine();
+}
+
+int emu_game_get_cga_output(void)
+{
+    return emu_game_is_open() ? game_cga_output : -1;
+}
+
+void emu_game_set_cga_output(int output)
+{
+    if (!emu_game_is_open())
+        return;
+
+    game_cga_output = output;
     emu_game_apply_machine();
 }
 
@@ -488,6 +512,7 @@ bool emu_game_reset_settings(void)
     update_machines();
     apply_game_settings();
     emu_update_joystick_type();
+    emu_update_cga_output();
     return true;
 }
 
@@ -854,9 +879,9 @@ static void update_machines(void)
     static const char* const k_keys[][2] = {
         { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
         { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
-        { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" },
-        { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" }, { "sound", "midi_port" },
-        { "input", "mouse" }, { "input", "joystick" } };
+        { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
+        { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" },
+        { "sound", "midi_port" }, { "input", "mouse" }, { "input", "joystick" } };
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
     GDOX_Machine_Settings without;
@@ -879,6 +904,8 @@ static void update_machines(void)
     overlay_settings(&base_machine, without);
     game_joystick = disk.GetDescriptor().GetInfo().joystick;
     base_joystick = stripped.GetInfo().joystick;
+    game_cga_output = disk.GetDescriptor().GetInfo().cga_output;
+    base_cga_output = stripped.GetInfo().cga_output;
     game_midi = disk.GetDescriptor().GetInfo().midi;
     base_midi = stripped.GetInfo().midi;
     game_midi_port = disk.GetDescriptor().GetInfo().midi_port;

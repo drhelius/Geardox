@@ -47,6 +47,8 @@ EXTERN bool emu_game_update(void);
 EXTERN config_Machine* emu_game_get_machine(void);
 EXTERN void emu_game_apply_machine(void);
 EXTERN int emu_game_get_joystick(void);
+EXTERN int emu_game_get_cga_output(void);
+EXTERN void emu_game_set_cga_output(int output);
 EXTERN int emu_game_get_midi(void);
 EXTERN void emu_game_set_midi(int synth);
 EXTERN const char* emu_game_get_midi_port(void);

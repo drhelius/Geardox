@@ -144,6 +144,7 @@ struct config_Video
     int scale_manual;
     int ratio;
     bool native_resolution;
+    int cga_output;
     bool fps;
     int sync_mode;
     float background_color[config_Theme_Count][3];

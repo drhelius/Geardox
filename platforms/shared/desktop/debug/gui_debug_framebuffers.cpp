@@ -49,7 +49,24 @@ void gui_debug_window_vram_viewer(void)
     ImGui::SetNextWindowSize(ImVec2(680, 520), ImGuiCond_FirstUseEver);
     ImGui::Begin("VRAM Viewer", &config_debug.show_vram_viewer);
 
-    if (ImGui::BeginTabBar("##vram_viewer_tabs"))
+    if (emu_get_core()->GetVideo()->IsCGA())
+    {
+        if (ImGui::BeginTabBar("##vram_viewer_cga_tabs"))
+        {
+            if (ImGui::BeginTabItem("CGA MEMORY"))
+            {
+                draw_controls();
+                ImGui::Separator();
+                ImGui::PushFont(gui_default_font);
+                draw_image(emu_debug_framebuffer_info);
+                ImGui::PopFont();
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
+    }
+    else if (ImGui::BeginTabBar("##vram_viewer_tabs"))
     {
         static const char* const k_tabs[Emu_Debug_Buffer_Count] = { "PLANE 0", "PLANE 1", "PLANE 2", "PLANE 3", "PLANAR",
             "256 COLORS", "TEXT", "LINEAR" };

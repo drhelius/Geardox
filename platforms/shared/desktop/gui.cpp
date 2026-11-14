@@ -171,6 +171,7 @@ void gui_apply_settings(void)
     emu_set_dynarec(config_emulator.dynarec);
     emu_apply_bios_settings();
     emu_set_native_resolution(config_video.native_resolution);
+    emu_update_cga_output();
     emu_apply_machine_settings();
 }
 

@@ -376,6 +376,17 @@ static const char* const k_debug_crtc_register_names[25] =
     "V DISP END", "OFFSET", "UNDERLINE", "V BLANK ST", "V BLANK END", "MODE", "LINE CMP"
 };
 
+static const char* const k_debug_mc6845_register_names[18] =
+{
+    "H TOTAL", "H DISPLAYED", "H SYNC POS", "SYNC WIDTH", "V TOTAL", "V ADJUST", "V DISPLAYED", "V SYNC POS",
+    "INTERLACE", "MAX SCAN", "CURSOR ST", "CURSOR END", "START HI", "START LO", "CURSOR HI", "CURSOR LO", "PEN HI", "PEN LO"
+};
+
+static const char* const k_debug_cga_register_names[2] =
+{
+    "MODE", "COLOR"
+};
+
 static const char* const k_debug_attribute_register_names[21] =
 {
     "PAL 0", "PAL 1", "PAL 2", "PAL 3", "PAL 4", "PAL 5", "PAL 6", "PAL 7", "PAL 8", "PAL 9", "PAL A", "PAL B", "PAL C",

@@ -34,6 +34,8 @@
 #include "debug/gui_debug_trace_logger.h"
 #include "emu_floppy.h"
 #include "emu_game.h"
+#include "osd/osd_font.h"
+#include "video/mc6845.h"
 #include "emu_hard_disk.h"
 #include "emu_midi.h"
 #include "events.h"
@@ -1312,6 +1314,15 @@ void emu_update_joystick_type(void)
         (GDOX_Joystick_Type)type : GDOX_JOYSTICK_GAMEPAD);
 }
 
+void emu_update_cga_output(void)
+{
+    if (!IsValidPointer(geardox))
+        return;
+
+    int output = emu_game_get_cga_output() >= 0 ? emu_game_get_cga_output() : config_video.cga_output;
+    geardox->GetVideo()->SetCGAOutput(output);
+}
+
 bool emu_save_screenshot(const char* file_path)
 {
     if (!IsValidPointer(file_path) || file_path[0] == '\0' || !IsValidPointer(emu_frame_buffer))
@@ -1525,9 +1536,93 @@ static void debug_decode_text(u32* pixels, const Emu_Debug_Buffer_Info& info)
     }
 }
 
+static void debug_decode_cga(u32* pixels, Emu_Debug_Buffer_Info& info)
+{
+    Video* video = geardox->GetVideo();
+    Video::Video_State* state = video->GetState();
+    MC6845* crtc = video->GetMC6845();
+    const u8* vram = video->GetVRAM();
+    u8 mode = state->cga_mode;
+    u8 color = state->cga_color;
+    int columns = MAX((int)crtc->GetHorizontalDisplayed(), 1);
+
+    memset(&info, 0, sizeof(info));
+    info.cell_width = 8;
+    info.cell_height = (mode & 0x02) != 0 ? 1 : 8;
+    info.pitch = columns;
+
+    if ((mode & 0x02) == 0)
+    {
+        int rows = MIN(VIDEO_CGA_VRAM_SIZE / (columns * 2), EMU_DEBUG_FRAMEBUFFER_HEIGHT / 8);
+        info.width = MIN(columns * 8, EMU_DEBUG_FRAMEBUFFER_WIDTH);
+        info.height = rows * 8;
+
+        for (int row = 0; row < rows; row++)
+        {
+            for (int column = 0; column < info.width / 8; column++)
+            {
+                u32 offset = ((u32)(row * columns + column) * 2) & (VIDEO_CGA_VRAM_SIZE - 1);
+                u8 attribute = vram[offset + 1];
+                u32 foreground = debug_rgba(video->GetCGAColor(attribute & 0x0F));
+                u32 background = debug_rgba(video->GetCGAColor((attribute >> 4) & ((mode & 0x20) != 0 ? 0x07 : 0x0F)));
+
+                for (int y = 0; y < 8; y++)
+                {
+                    u8 bits = k_osd_font_8[vram[offset] * 8 + y];
+                    u32* line = pixels + (row * 8 + y) * EMU_DEBUG_FRAMEBUFFER_WIDTH + column * 8;
+
+                    for (int x = 0; x < 8; x++)
+                        line[x] = ((bits >> (7 - x)) & 0x01) != 0 ? foreground : background;
+                }
+            }
+        }
+    }
+    else
+    {
+        bool high = (mode & 0x10) != 0;
+        u32 palette[4];
+        u32 intensity = (color & 0x10) != 0 ? 0x08 : 0x00;
+        u32 base = (mode & 0x04) != 0 ? 0x03 : ((color & 0x20) != 0 ? 0x03 : 0x02);
+
+        palette[0] = debug_rgba(video->GetCGAColor(high ? 0 : color & 0x0F));
+        palette[1] = debug_rgba(video->GetCGAColor(high ? color & 0x0F : base | intensity));
+        palette[2] = debug_rgba(video->GetCGAColor(((mode & 0x04) != 0 ? 0x04 : base + 2) | intensity));
+        palette[3] = debug_rgba(video->GetCGAColor(((mode & 0x04) != 0 ? 0x07 : base + 4) | intensity));
+        info.pitch = 80;
+        info.width = 640;
+        info.height = 200;
+        info.window_width = 640;
+        info.window_height = 200;
+
+        for (int y = 0; y < 200; y++)
+        {
+            const u8* source = vram + ((y & 0x01) << 13) + (y >> 1) * 80;
+            u32* line = pixels + y * EMU_DEBUG_FRAMEBUFFER_WIDTH;
+
+            for (int x = 0; x < 640; x++)
+            {
+                u8 data = source[x >> 3];
+                line[x] = high ? palette[(data >> (7 - (x & 0x07))) & 0x01] :
+                    palette[(data >> (6 - ((x >> 1) & 0x03) * 2)) & 0x03];
+            }
+        }
+
+        return;
+    }
+
+    info.window_width = columns * 8;
+    info.window_height = (int)state->display_lines;
+}
+
 void emu_debug_decode_buffer(int buffer, int pitch, int format, int start, u8* output, Emu_Debug_Buffer_Info& info)
 {
     u32* pixels = (u32*)output;
+
+    if (geardox->GetVideo()->IsCGA())
+    {
+        debug_decode_cga(pixels, info);
+        return;
+    }
 
     if (buffer == Emu_Debug_Buffer_Linear)
     {
