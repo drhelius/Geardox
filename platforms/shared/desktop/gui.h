@@ -147,6 +147,7 @@ EXTERN void gui_load_state_after_media(int slot, const char* path);
 EXTERN void gui_set_style(void);
 EXTERN void gui_set_error_message(const char* message);
 EXTERN void gui_center_next_window(void);
+EXTERN float gui_get_combo_width(float text_width);
 EXTERN bool gui_has_open_window(void);
 
 #undef GUI_IMPORT

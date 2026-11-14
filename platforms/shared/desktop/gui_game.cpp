@@ -215,21 +215,32 @@ static void menu_dos(bool open, bool loading)
     bool imported = msdos[0] != 0;
     int system = open ? emu_game_get_system() : (imported ? GDOX_GAME_SYSTEM_MSDOS : GDOX_GAME_SYSTEM_FREEDOS);
 
-    if (ImGui::MenuItem(imported ? msdos : "MS-DOS", NULL, system == GDOX_GAME_SYSTEM_MSDOS, open && imported && !loading))
-        set_system(GDOX_GAME_SYSTEM_MSDOS);
+    const char* names[2] = { imported ? msdos : "MS-DOS", "FreeDOS" };
+    int selected = system == GDOX_GAME_SYSTEM_MSDOS ? 0 : 1;
+    float text_width = MAX(ImGui::CalcTextSize(names[0]).x, ImGui::CalcTextSize(names[1]).x);
 
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", !imported ? "Import your own MS-DOS first." : open ?
-            "This game boots your MS-DOS. A change closes the game, saving its changes, and opens it again." :
+    ImGui::BeginDisabled(!open || loading);
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##game_system", names[selected]))
+    {
+        if (ImGui::Selectable(names[0], selected == 0, imported ? 0 : ImGuiSelectableFlags_Disabled))
+            set_system(GDOX_GAME_SYSTEM_MSDOS);
+
+        if (!imported && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("Import your own MS-DOS first.");
+
+        if (ImGui::Selectable(names[1], selected == 1))
+            set_system(GDOX_GAME_SYSTEM_FREEDOS);
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", open ? "The DOS this game boots. A change closes the game, saving its changes, and opens it again." :
             "With a game open, the DOS it boots.");
 
-    if (ImGui::MenuItem("FreeDOS", NULL, system == GDOX_GAME_SYSTEM_FREEDOS, open && !loading))
-        set_system(GDOX_GAME_SYSTEM_FREEDOS);
-
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", open ? "This game boots FreeDOS. A change closes the game, saving its changes, and opens it again." :
-            "With a game open, the DOS it boots.");
-
+    ImGui::PopItemWidth();
+    ImGui::EndDisabled();
     ImGui::Separator();
 
     if (ImGui::MenuItem("Import MS-DOS...", NULL, false, !loading))
@@ -282,18 +293,34 @@ static void menu_options(void)
 {
     if (ImGui::BeginMenu("Save Games To"))
     {
-        if (ImGui::MenuItem("The Game's Folder", NULL, config_game.write_back == 0))
-            config_game.write_back = 0;
+        static const char* const k_places[2] = { "The Game's Folder", "Geardox's Save Folder" };
+        static const char* const k_tooltips[2] =
+        {
+            "What a game changes goes back to its own folder.\nA ZIP or a read-only folder always uses the save folder.",
+            "The game's folder stays untouched: its changes are kept in Geardox's save folder\nand laid over the game every time it runs."
+        };
+        int selected = config_game.write_back != 0 ? 1 : 0;
+        float text_width = MAX(ImGui::CalcTextSize(k_places[0]).x, ImGui::CalcTextSize(k_places[1]).x);
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("What a game changes goes back to its own folder.\nA ZIP or a read-only folder always uses the save folder.");
+        ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-        if (ImGui::MenuItem("Geardox's Save Folder", NULL, config_game.write_back == 1))
-            config_game.write_back = 1;
+        if (ImGui::BeginCombo("##write_back", k_places[selected]))
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                if (ImGui::Selectable(k_places[i], selected == i))
+                    config_game.write_back = i;
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The game's folder stays untouched: its changes are kept in Geardox's save folder\nand laid over the game every time it runs.");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", k_tooltips[i]);
+            }
 
+            ImGui::EndCombo();
+        }
+        else if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", k_tooltips[selected]);
+
+        ImGui::PopItemWidth();
         ImGui::EndMenu();
     }
 

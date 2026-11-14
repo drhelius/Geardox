@@ -95,7 +95,9 @@ static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t te
 static void menu_boot_device(void);
 static void draw_machine_profile_tooltip(GDOX_Machine_Model model);
 static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size);
-static float get_combo_width(float text_width);
+static float get_combo_items_width(const char* items);
+static bool menu_machine_sound_resource(const char* name, const char* id, const u8* values, int* setting, bool enabled);
+static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media);
 static void menu_video(void);
 static void menu_input(void);
 static void menu_input_keyboard_layout(void);
@@ -207,8 +209,9 @@ static void menu_geardox(void)
 
             if (ImGui::BeginMenu("Speed"))
             {
-                ImGui::PushItemWidth(100.0f);
-                ImGui::Combo("##fwd", &config_emulator.ffwd_speed, "X 1.5\0X 2\0X 2.5\0X 3\0Unlimited\0\0");
+                const char* speeds = "X 1.5\0X 2\0X 2.5\0X 3\0Unlimited\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(speeds));
+                ImGui::Combo("##fwd", &config_emulator.ffwd_speed, speeds);
                 ImGui::PopItemWidth();
                 ImGui::EndMenu();
             }
@@ -239,8 +242,9 @@ static void menu_geardox(void)
 
         if (ImGui::BeginMenu("Run-Ahead"))
         {
-            ImGui::PushItemWidth(140.0f);
-            ImGui::Combo("##runahead", &config_emulator.runahead, "Disabled\0" "1 Frame\0" "2 Frames\0" "3 Frames\0\0");
+            const char* frames = "Disabled\0" "1 Frame\0" "2 Frames\0" "3 Frames\0\0";
+            ImGui::PushItemWidth(get_combo_items_width(frames));
+            ImGui::Combo("##runahead", &config_emulator.runahead, frames);
             ImGui::PopItemWidth();
 
             if (ImGui::IsItemHovered())
@@ -269,8 +273,9 @@ static void menu_geardox(void)
 
             if (ImGui::BeginMenu("Slot"))
             {
-                ImGui::PushItemWidth(100.0f);
-                ImGui::Combo("##slot", &config_emulator.save_slot, "Slot 1\0Slot 2\0Slot 3\0Slot 4\0Slot 5\0\0");
+                const char* slots = "Slot 1\0Slot 2\0Slot 3\0Slot 4\0Slot 5\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(slots));
+                ImGui::Combo("##slot", &config_emulator.save_slot, slots);
                 ImGui::PopItemWidth();
 
                 ImGui::Separator();
@@ -349,18 +354,18 @@ static void menu_geardox(void)
 
             if (ImGui::BeginMenu("Aspect Ratio", !is_recording))
             {
-                ImGui::PushItemWidth(190.0f);
-                ImGui::Combo("##video_recording_ratio", &config_video.recording_ratio,
-                    "Follow Screen\0Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+                const char* ratios = "Follow Screen\0Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(ratios));
+                ImGui::Combo("##video_recording_ratio", &config_video.recording_ratio, ratios);
                 ImGui::PopItemWidth();
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Quality", !is_recording))
             {
-                ImGui::PushItemWidth(200.0f);
-                ImGui::Combo("##video_recording_quality", &config_video.recording_quality,
-                    "Low\0Medium\0High\0Lossless (Uncompressed)\0Lossless (Compressed)\0\0");
+                const char* qualities = "Low\0Medium\0High\0Lossless (Uncompressed)\0Lossless (Compressed)\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(qualities));
+                ImGui::Combo("##video_recording_quality", &config_video.recording_quality, qualities);
                 ImGui::PopItemWidth();
                 if (ImGui::IsItemHovered())
                 {
@@ -518,6 +523,37 @@ static void menu_cdrom(void)
     ImGui::EndMenu();
 }
 
+static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media)
+{
+    if (!ImGui::IsItemHovered())
+        return;
+
+    ImGui::BeginTooltip();
+
+    if (IsValidPointer(about))
+        ImGui::Text("%s", about);
+
+    switch ((Directory_Location)option)
+    {
+        case Directory_Location_Default:
+            ImGui::Text("%s", config_root_path);
+            break;
+        case Directory_Location_ROM:
+            if (!media)
+                ImGui::Text("Next to each disk image.");
+            else if (emu_is_empty())
+                ImGui::Text("The folder of the disk or CD in use.");
+            else
+                ImGui::Text("%s", get_current_media_directory_text());
+            break;
+        case Directory_Location_Custom:
+            ImGui::Text("%s", custom);
+            break;
+    }
+
+    ImGui::EndTooltip();
+}
+
 static bool media_menu_actions_enabled(void)
 {
     if (emu_is_empty())
@@ -545,29 +581,22 @@ static void menu_emulator(void)
         {
             if (ImGui::BeginMenu("Save States"))
             {
-                ImGui::PushItemWidth(220.0f);
+                const char* locations = "Default Location\0Same as ROM\0Custom Location\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(locations));
 
-                if (ImGui::Combo("##savestate_option", &config_emulator.savestates_dir_option,
-                    "Default Location\0Same as ROM\0Custom Location\0\0"))
+                if (ImGui::Combo("##savestate_option", &config_emulator.savestates_dir_option, locations))
                 {
                     update_savestates_data();
                 }
 
+                draw_directory_tooltip(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str(), NULL, true);
+                ImGui::PopItemWidth();
+
                 switch ((Directory_Location)config_emulator.savestates_dir_option)
                 {
                     case Directory_Location_Default:
-                    {
-                        ImGui::Text("%s", config_root_path);
-                        break;
-                    }
-
                     case Directory_Location_ROM:
-                    {
-                        if (!emu_is_empty())
-                            ImGui::Text("%s", get_current_media_directory_text());
-
                         break;
-                    }
 
                     case Directory_Location_Custom:
                     {
@@ -593,21 +622,17 @@ static void menu_emulator(void)
 
             if (ImGui::BeginMenu("Save Files"))
             {
-                ImGui::PushItemWidth(220.0f);
-                ImGui::Combo("##savefiles_option", &config_emulator.savefiles_dir_option,
-                    "Default Location\0Same as Disk\0Custom Location\0\0");
-
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Where working copies of floppies and CHD hard disks, and the CMOS of each machine, are saved.\nThe CMOS uses the default location with Same as Disk.");
+                const char* locations = "Default Location\0Same as Disk\0Custom Location\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(locations));
+                ImGui::Combo("##savefiles_option", &config_emulator.savefiles_dir_option, locations);
+                draw_directory_tooltip(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str(),
+                    "Where working copies of floppies and CHD hard disks, and the CMOS of each machine, are saved.\n"
+                    "The CMOS uses the default location with Same as Disk.", false);
+                ImGui::PopItemWidth();
 
                 switch ((Directory_Location)config_emulator.savefiles_dir_option)
                 {
                     case Directory_Location_Default:
-                    {
-                        ImGui::Text("%s", config_root_path);
-                        break;
-                    }
-
                     case Directory_Location_ROM:
                         break;
 
@@ -634,24 +659,17 @@ static void menu_emulator(void)
 
             if (ImGui::BeginMenu("Screenshots"))
             {
-                ImGui::PushItemWidth(220.0f);
-                ImGui::Combo("##screenshots_option", &config_emulator.screenshots_dir_option, "Default Location\0Same as ROM\0Custom Location\0\0");
+                const char* locations = "Default Location\0Same as ROM\0Custom Location\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(locations));
+                ImGui::Combo("##screenshots_option", &config_emulator.screenshots_dir_option, locations);
+                draw_directory_tooltip(config_emulator.screenshots_dir_option, config_emulator.screenshots_path.c_str(), NULL, true);
+                ImGui::PopItemWidth();
 
                 switch ((Directory_Location)config_emulator.screenshots_dir_option)
                 {
                     case Directory_Location_Default:
-                    {
-                        ImGui::Text("%s", config_root_path);
-                        break;
-                    }
-
                     case Directory_Location_ROM:
-                    {
-                        if (!emu_is_empty())
-                            ImGui::Text("%s", get_current_media_directory_text());
-
                         break;
-                    }
 
                     case Directory_Location_Custom:
                     {
@@ -677,24 +695,17 @@ static void menu_emulator(void)
 
             if (ImGui::BeginMenu("Video Recordings"))
             {
-                ImGui::PushItemWidth(220.0f);
-                ImGui::Combo("##video_recordings_option", &config_emulator.video_recordings_dir_option, "Default Location\0Same as ROM\0Custom Location\0\0");
+                const char* locations = "Default Location\0Same as ROM\0Custom Location\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(locations));
+                ImGui::Combo("##video_recordings_option", &config_emulator.video_recordings_dir_option, locations);
+                draw_directory_tooltip(config_emulator.video_recordings_dir_option, config_emulator.video_recordings_path.c_str(), NULL, true);
+                ImGui::PopItemWidth();
 
                 switch ((Directory_Location)config_emulator.video_recordings_dir_option)
                 {
                     case Directory_Location_Default:
-                    {
-                        ImGui::Text("%s", config_root_path);
-                        break;
-                    }
-
                     case Directory_Location_ROM:
-                    {
-                        if (!emu_is_empty())
-                            ImGui::Text("%s", get_current_media_directory_text());
-
                         break;
-                    }
 
                     case Directory_Location_Custom:
                     {
@@ -975,7 +986,7 @@ static bool menu_machine_model(void)
 
     snprintf(preview, sizeof(preview), "%s", k_machine_profiles[menu_settings->model].name);
 
-    ImGui::PushItemWidth(get_combo_width(MAX(cpu_column + cpu_width, ImGui::CalcTextSize(preview).x)));
+    ImGui::PushItemWidth(gui_get_combo_width(MAX(cpu_column + cpu_width, ImGui::CalcTextSize(preview).x)));
 
     if (ImGui::BeginCombo("##machine_model", preview))
     {
@@ -1031,6 +1042,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
     char auto_label[32];
     snprintf(auto_label, sizeof(auto_label), "Model Default (%d MHz)", menu_settings->cpu_mhz == GDOX_MACHINE_AUTO ? in_use : original);
     const char* preview = auto_label;
+    text_width = ImGui::CalcTextSize(auto_label).x;
 
     for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
     {
@@ -1042,7 +1054,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
             preview = labels[i];
     }
 
-    ImGui::PushItemWidth(get_combo_width(text_width));
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
     if (ImGui::BeginCombo("##machine_cpu_speed", preview))
     {
@@ -1104,7 +1116,7 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
     if (menu_settings->ram_mb != in_use)
         snprintf(preview, sizeof(preview), "%d MB, %d MB on the %s", menu_settings->ram_mb, in_use, profile.name);
 
-    ImGui::PushItemWidth(get_combo_width(MAX(text_width, ImGui::CalcTextSize(preview).x)));
+    ImGui::PushItemWidth(gui_get_combo_width(MAX(text_width, ImGui::CalcTextSize(preview).x)));
 
     if (ImGui::BeginCombo("##machine_ram", preview))
     {
@@ -1146,7 +1158,12 @@ static bool menu_machine_floppy(int drive)
     bool changed = false;
     int& type = menu_settings->floppy_type[drive];
 
-    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(labels[2]).x));
+    float text_width = 0.0f;
+
+    for (int i = 0; i < GDOX_FLOPPY_TYPE_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
     if (ImGui::BeginCombo(drive == 0 ? "##machine_floppy_a" : "##machine_floppy_b", labels[type]))
     {
@@ -1186,7 +1203,12 @@ static bool menu_machine_sound(void)
     bool changed = false;
     int& card = menu_settings->sound_card;
 
-    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(k_sound_cards[GDOX_SOUND_CARD_SBPRO2].name).x));
+    float text_width = 0.0f;
+
+    for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_sound_cards[i].name).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
     if (ImGui::BeginCombo("##machine_sound_card", k_sound_cards[card].name))
     {
@@ -1211,39 +1233,14 @@ static bool menu_machine_sound(void)
 
     ImGui::PopItemWidth();
     ImGui::Separator();
-    ImGui::BeginDisabled(k_sound_cards[card].dsp_major == 0);
-    ImGui::TextDisabled("IRQ");
 
-    for (int i = 0; i < 2; i++)
-    {
-        char label[16];
-        snprintf(label, sizeof(label), "IRQ %d", k_sound_card_irqs[i]);
+    if (menu_machine_sound_resource("IRQ", "##machine_sound_irq", k_sound_card_irqs, &menu_settings->sound_irq,
+        k_sound_cards[card].dsp_major != 0))
+        changed = true;
 
-        if (ImGui::MenuItem(label, "", menu_settings->sound_irq == k_sound_card_irqs[i]))
-        {
-            menu_settings->sound_irq = k_sound_card_irqs[i];
-            changed = true;
-        }
-    }
-
-    ImGui::TextDisabled("DMA");
-
-    for (int i = 0; i < 2; i++)
-    {
-        char label[16];
-        snprintf(label, sizeof(label), "DMA %d", k_sound_card_dmas[i]);
-
-        if (ImGui::MenuItem(label, "", menu_settings->sound_dma == k_sound_card_dmas[i]))
-        {
-            menu_settings->sound_dma = k_sound_card_dmas[i];
-            changed = true;
-        }
-    }
-
-    ImGui::EndDisabled();
-
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Some old games only work with a fixed IRQ or DMA.\nOn the FreeDOS disk, BLASTER in FDAUTO.BAT doesn't follow this.");
+    if (menu_machine_sound_resource("DMA", "##machine_sound_dma", k_sound_card_dmas, &menu_settings->sound_dma,
+        k_sound_cards[card].dsp_major != 0))
+        changed = true;
 
     ImGui::Separator();
     bool mpu = menu_settings->mpu != 0;
@@ -1272,6 +1269,54 @@ static bool menu_machine_sound(void)
     return changed;
 }
 
+static bool menu_machine_sound_resource(const char* name, const char* id, const u8* values, int* setting, bool enabled)
+{
+    if (!ImGui::BeginMenu(name, enabled))
+        return false;
+
+    bool changed = false;
+    char labels[2][16];
+    int selected = 0;
+    float text_width = 0.0f;
+
+    for (int i = 0; i < 2; i++)
+    {
+        snprintf(labels[i], sizeof(labels[i]), "%s %d", name, values[i]);
+        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+
+        if (*setting == values[i])
+            selected = i;
+    }
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo(id, labels[selected]))
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            if (ImGui::Selectable(labels[i], selected == i))
+            {
+                *setting = values[i];
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Some old games only work with a fixed IRQ or DMA.");
+        ImGui::Text("On the FreeDOS disk, BLASTER in FDAUTO.BAT doesn't follow this.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+    return changed;
+}
+
 static bool menu_machine_video(void)
 {
     if (!ImGui::BeginMenu("Video Card"))
@@ -1286,7 +1331,12 @@ static bool menu_machine_video(void)
         k_video_cards[local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428].name);
     const char* preview = card == GDOX_MACHINE_AUTO ? default_label : k_video_cards[card].name;
 
-    ImGui::PushItemWidth(get_combo_width(ImGui::CalcTextSize(default_label).x));
+    float text_width = ImGui::CalcTextSize(default_label).x;
+
+    for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_video_cards[i].name).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
     if (ImGui::BeginCombo("##machine_video_card", preview))
     {
@@ -1329,28 +1379,38 @@ static bool menu_machine_mouse(void)
         return false;
 
     bool changed = false;
+    int mouse = CLAMP(menu_settings->mouse, 0, GDOX_MOUSE_TYPE_COUNT - 1);
+    float text_width = 0.0f;
 
     for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_mice[i].name).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##machine_mouse", k_mice[mouse].name))
     {
-        if (ImGui::MenuItem(k_mice[i].name, "", menu_settings->mouse == i))
+        for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
         {
-            menu_settings->mouse = i;
-            changed = true;
+            if (ImGui::Selectable(k_mice[i].name, mouse == i))
+            {
+                menu_settings->mouse = i;
+                changed = true;
+            }
         }
+
+        ImGui::EndCombo();
     }
-
-    ImGui::Separator();
-    ImGui::TextDisabled("Reset the emulator to apply changes");
-
-    if (ImGui::IsItemHovered())
+    else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
         ImGui::Text("PS/2 reports up to 200 times a second and leaves the COM ports free.");
         ImGui::Text("Serial is a Microsoft mouse on COM1, as on 1989 PCs.");
         ImGui::Text("DOS mouse drivers find either.");
+        ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
 
+    ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
 }
@@ -1361,28 +1421,38 @@ static bool menu_machine_cdrom_drive(void)
         return false;
 
     bool changed = false;
+    int cdrom = CLAMP(menu_settings->cdrom, 0, GDOX_CDROM_POSITION_COUNT - 1);
+    float text_width = 0.0f;
 
     for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_cdrom_positions[i].name).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##machine_cdrom_drive", k_cdrom_positions[cdrom].name))
     {
-        if (ImGui::MenuItem(k_cdrom_positions[i].name, "", menu_settings->cdrom == i))
+        for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
         {
-            menu_settings->cdrom = i;
-            changed = true;
+            if (ImGui::Selectable(k_cdrom_positions[i].name, cdrom == i))
+            {
+                menu_settings->cdrom = i;
+                changed = true;
+            }
         }
+
+        ImGui::EndCombo();
     }
-
-    ImGui::Separator();
-    ImGui::TextDisabled("Reset the emulator to apply changes");
-
-    if (ImGui::IsItemHovered())
+    else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
         ImGui::Text("An ATAPI CD-ROM drive on the IDE cable. The position it takes is closed to hard disks.");
         ImGui::Text("Secondary Master leaves the primary channel to the hard disks.");
         ImGui::Text("Primary Slave is where a 1994 PC with a one-channel card put its CD-ROM.");
+        ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
 
+    ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
 }
@@ -1393,33 +1463,43 @@ static bool menu_machine_drive_timing(void)
         return false;
 
     bool changed = false;
-
-    if (ImGui::MenuItem("Auto", "", menu_settings->drive_timing < 0))
-    {
-        menu_settings->drive_timing = GDOX_MACHINE_AUTO;
-        changed = true;
-    }
+    int timing = menu_settings->drive_timing < GDOX_DRIVE_TIMING_COUNT ? menu_settings->drive_timing : GDOX_MACHINE_AUTO;
+    float text_width = ImGui::CalcTextSize("Auto").x;
 
     for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_drive_timings[i].name).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##machine_drive_timing", timing < 0 ? "Auto" : k_drive_timings[timing].name))
     {
-        if (ImGui::MenuItem(k_drive_timings[i].name, "", menu_settings->drive_timing == i))
+        if (ImGui::Selectable("Auto", timing < 0))
         {
-            menu_settings->drive_timing = i;
+            menu_settings->drive_timing = GDOX_MACHINE_AUTO;
             changed = true;
         }
+
+        for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
+        {
+            if (ImGui::Selectable(k_drive_timings[i].name, timing == i))
+            {
+                menu_settings->drive_timing = i;
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
     }
-
-    ImGui::Separator();
-    ImGui::TextDisabled("Reset the emulator to apply changes");
-
-    if (ImGui::IsItemHovered())
+    else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
         ImGui::Text("How long disk, floppy and CD-ROM seeks, rotation and spin-up take.");
         ImGui::Text("Auto is fast for games and real otherwise. Transfers keep their rate.");
+        ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
 
+    ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
 }
@@ -1430,26 +1510,37 @@ static bool menu_machine_cdrom_speed(void)
         return false;
 
     bool changed = false;
+    int speed = CLAMP(menu_settings->cdrom_speed, 0, GDOX_CDROM_SPEED_COUNT - 1);
+    float text_width = 0.0f;
 
     for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_cdrom_speeds[i].name).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##machine_cdrom_speed", k_cdrom_speeds[speed].name))
     {
-        if (ImGui::MenuItem(k_cdrom_speeds[i].name, "", menu_settings->cdrom_speed == i))
+        for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
         {
-            menu_settings->cdrom_speed = i;
-            changed = true;
+            if (ImGui::Selectable(k_cdrom_speeds[i].name, speed == i))
+            {
+                menu_settings->cdrom_speed = i;
+                changed = true;
+            }
         }
+
+        ImGui::EndCombo();
     }
-
-    ImGui::Separator();
-    ImGui::TextDisabled("Reset the emulator to apply changes");
-
-    if (ImGui::IsItemHovered())
+    else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
         ImGui::Text("How fast the drive spins, so how long a seek or a read takes.");
         ImGui::Text("Games that stream from the disc may want 4x or more.");
+        ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
+
+    ImGui::PopItemWidth();
 
     ImGui::EndMenu();
     return changed;
@@ -1474,7 +1565,7 @@ static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
         snprintf(preview, sizeof(preview), "%s, none on the %s", labels[1], profile.name);
 
     float text_width = MAX(ImGui::CalcTextSize(labels[1]).x, ImGui::CalcTextSize(preview).x);
-    ImGui::PushItemWidth(get_combo_width(text_width));
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
     ImGui::BeginDisabled(integrated);
 
     if (ImGui::BeginCombo("##machine_fpu", preview))
@@ -1617,9 +1708,14 @@ static void get_machine_summary(const GDOX_Machine_Config& config, char* text, s
         card ? get_machine_fpu_name(config.cpu) : "", config.ram_size / (1024 * 1024));
 }
 
-static float get_combo_width(float text_width)
+static float get_combo_items_width(const char* items)
 {
-    return text_width + (ImGui::GetStyle().FramePadding.x * 2.0f) + ImGui::GetFrameHeight();
+    float text_width = 0.0f;
+
+    for (const char* item = items; *item != 0; item += strlen(item) + 1)
+        text_width = MAX(text_width, ImGui::CalcTextSize(item).x);
+
+    return gui_get_combo_width(text_width);
 }
 
 static void menu_video(void)
@@ -1638,8 +1734,9 @@ static void menu_video(void)
 #if !defined(__APPLE__)
         if (ImGui::BeginMenu("Fullscreen Mode", !is_recording))
         {
-            ImGui::PushItemWidth(130.0f);
-            if (ImGui::Combo("##fullscreen_mode", &config_emulator.fullscreen_mode, "Borderless\0Exclusive\0\0") &&
+            const char* modes = "Borderless\0Exclusive\0\0";
+            ImGui::PushItemWidth(get_combo_items_width(modes));
+            if (ImGui::Combo("##fullscreen_mode", &config_emulator.fullscreen_mode, modes) &&
                 config_emulator.fullscreen)
             {
                 application_trigger_fullscreen(true);
@@ -1673,10 +1770,10 @@ static void menu_video(void)
 
         if (ImGui::BeginMenu("Scale"))
         {
-            ImGui::PushItemWidth(250.0f);
-            ImGui::Combo("##scale", &config_video.scale,
-                "Integer Scale (Auto)\0Integer Scale (Manual)\0"
-                "Scale to Window Height\0Scale to Window Width & Height\0\0");
+            const char* scales = "Integer Scale (Auto)\0Integer Scale (Manual)\0"
+                "Scale to Window Height\0Scale to Window Width & Height\0\0";
+            ImGui::PushItemWidth(get_combo_items_width(scales));
+            ImGui::Combo("##scale", &config_video.scale, scales);
 
             if (config_video.scale == 1)
                 ImGui::SliderInt("##scale_manual", &config_video.scale_manual, 1, 20);
@@ -1687,8 +1784,9 @@ static void menu_video(void)
 
         if (ImGui::BeginMenu("Aspect Ratio"))
         {
-            ImGui::PushItemWidth(190.0f);
-            ImGui::Combo("##ratio", &config_video.ratio, "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+            const char* ratios = "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0";
+            ImGui::PushItemWidth(get_combo_items_width(ratios));
+            ImGui::Combo("##ratio", &config_video.ratio, ratios);
             ImGui::PopItemWidth();
             ImGui::EndMenu();
         }
@@ -1709,14 +1807,13 @@ static void menu_video(void)
         if (ImGui::BeginMenu("Vertical Sync"))
         {
 #if defined(_WIN32)
-            ImGui::PushItemWidth(220.0f);
-
-            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, "Disabled\0Fixed Vertical Sync\0Variable Refresh Rate (VRR)\0\0"))
+            const char* sync_modes = "Disabled\0Fixed Vertical Sync\0Variable Refresh Rate (VRR)\0\0";
 #else
-            ImGui::PushItemWidth(100.0f);
-
-            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, "Disabled\0Enabled\0\0"))
+            const char* sync_modes = "Disabled\0Enabled\0\0";
 #endif
+            ImGui::PushItemWidth(get_combo_items_width(sync_modes));
+
+            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, sync_modes))
             {
                 if (config_video.sync_mode != config_VideoSync_Disabled)
                 {
@@ -1755,9 +1852,10 @@ static void menu_video(void)
 
         if (ImGui::BeginMenu("Theme"))
         {
-            ImGui::PushItemWidth(100.0f);
+            const char* themes = "Light\0Dark\0\0";
+            ImGui::PushItemWidth(get_combo_items_width(themes));
 
-            if (ImGui::Combo("##theme", &config_emulator.theme, "Light\0Dark\0\0"))
+            if (ImGui::Combo("##theme", &config_emulator.theme, themes))
             {
                 gui_set_style();
             }
@@ -1815,15 +1913,41 @@ static void menu_input_keyboard_layout(void)
         return;
     }
 
+    int selected = 0;
+    float text_width = 0.0f;
+
     for (int i = 0; i < k_keyboard_layout_count; i++)
     {
-        if (ImGui::MenuItem(k_keyboard_layouts[i].name, NULL, config_input.keyboard_layout == k_keyboard_layouts[i].id))
-            config_input.keyboard_layout = k_keyboard_layouts[i].id;
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_keyboard_layouts[i].name).x);
 
-        if (i == 0)
-            ImGui::Separator();
+        if (config_input.keyboard_layout == k_keyboard_layouts[i].id)
+            selected = i;
     }
 
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##keyboard_layout", k_keyboard_layouts[selected].name, ImGuiComboFlags_HeightLarge))
+    {
+        for (int i = 0; i < k_keyboard_layout_count; i++)
+        {
+            if (ImGui::Selectable(k_keyboard_layouts[i].name, selected == i))
+                config_input.keyboard_layout = k_keyboard_layouts[i].id;
+
+            if (i == 0)
+                ImGui::Separator();
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("The layout of your keyboard, for DOS in games: Geardox loads KEYB with it.");
+        ImGui::Text("From the next game opened. A game's .gdox can set its own with keyboard = under [dos].");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
     ImGui::EndMenu();
 }
 
@@ -1898,26 +2022,34 @@ static void menu_input(void)
         if (ImGui::BeginMenu("Joystick"))
         {
             int joystick = emu_game_get_joystick() >= 0 ? emu_game_get_joystick() : config_input.joystick_type;
+            float text_width = 0.0f;
 
             for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
+                text_width = MAX(text_width, ImGui::CalcTextSize(k_joysticks[i].name).x);
+
+            ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+            if (ImGui::BeginCombo("##joystick", k_joysticks[joystick].name))
             {
-                if (ImGui::MenuItem(k_joysticks[i].name, "", joystick == i))
+                for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
                 {
-                    if (emu_game_is_open())
-                        emu_game_set_joystick(i);
-                    else
-                        config_input.joystick_type = i;
+                    if (ImGui::Selectable(k_joysticks[i].name, joystick == i))
+                    {
+                        if (emu_game_is_open())
+                            emu_game_set_joystick(i);
+                        else
+                            config_input.joystick_type = i;
 
-                    emu_update_joystick_type();
+                        emu_update_joystick_type();
+                    }
                 }
+
+                ImGui::EndCombo();
             }
-
-            ImGui::Separator();
-            ImGui::TextDisabled("What the host gamepad plays on the game port");
-
-            if (ImGui::IsItemHovered())
+            else if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
+                ImGui::Text("What the host gamepad plays on the game port.");
                 ImGui::Text("Joystick: an analog stick with two buttons.");
                 ImGui::Text("Gravis GamePad: eight directions and four buttons, the D-pad and left stick.");
                 ImGui::Text("CH FlightStick Pro: stick, throttle on the right stick,");
@@ -1925,6 +2057,7 @@ static void menu_input(void)
                 ImGui::EndTooltip();
             }
 
+            ImGui::PopItemWidth();
             ImGui::EndMenu();
         }
 
@@ -2169,7 +2302,7 @@ static void menu_audio_midi(void)
         for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
             text_width = MAX(text_width, ImGui::CalcTextSize(k_midi_synths[i].name).x);
 
-        ImGui::PushItemWidth(get_combo_width(text_width));
+        ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
         if (ImGui::BeginCombo("##midi_synth", k_midi_synths[synth].name))
         {
@@ -2248,7 +2381,7 @@ static void menu_audio_midi_port(const char* label, const char* id, std::string*
         text_width = MAX(text_width, ImGui::CalcTextSize(missing).x);
     }
 
-    ImGui::PushItemWidth(get_combo_width(text_width));
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
     if (ImGui::BeginCombo(id, preview))
     {
@@ -2406,9 +2539,9 @@ static void menu_debug(void)
 
             if (ImGui::BeginMenu("Aspect Ratio", config_debug.debug))
             {
-                ImGui::PushItemWidth(190.0f);
-                ImGui::Combo("##debug_ratio", &config_debug.ratio,
-                    "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0");
+                const char* ratios = "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(ratios));
+                ImGui::Combo("##debug_ratio", &config_debug.ratio, ratios);
                 ImGui::PopItemWidth();
                 ImGui::EndMenu();
             }
@@ -2537,9 +2670,10 @@ static void menu_debug(void)
 
         if (ImGui::BeginMenu("Font Size", config_debug.debug))
         {
-            ImGui::PushItemWidth(110.0f);
+            const char* sizes = "Very Small\0Small\0Medium\0Large\0\0";
+            ImGui::PushItemWidth(get_combo_items_width(sizes));
 
-            if (ImGui::Combo("##font", &config_debug.font_size, "Very Small\0Small\0Medium\0Large\0\0"))
+            if (ImGui::Combo("##font", &config_debug.font_size, sizes))
             {
                 gui_default_font = gui_default_fonts[config_debug.font_size];
             }
