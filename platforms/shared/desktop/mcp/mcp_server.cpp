@@ -1419,8 +1419,8 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_crtc_status"},
         {"title", "Get CRTC Status"},
-        {"description", "Read the VGA CRTC: mode, timing, frame size, beam position, scanout counters, cursor and vertical "
-            "interrupt."},
+        {"description", "Read the CRTC: mode, timing, frame size, beam position, scanout counters, cursor and vertical "
+            "interrupt. With a CGA it reads the 6845, which has no vertical interrupt."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1432,7 +1432,8 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_crtc_registers"},
         {"title", "Get CRTC Registers"},
-        {"description", "Read the 25 CRTC registers with their names, the index and the CR00-CR07 write protection."},
+        {"description", "Read the 25 CRTC registers with their names, the index and the CR00-CR07 write protection. With "
+            "a CGA, the 6845's 18 registers."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1444,14 +1445,15 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "write_crtc_register"},
         {"title", "Write CRTC Register"},
-        {"description", "Write a CRTC register like the CPU, so the write protection, timing and trace logger see it."},
+        {"description", "Write a CRTC register like the CPU, so the write protection, timing and trace logger see it. "
+            "With a CGA, R0-R17 of the 6845."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
             {"properties", {
                 {"register", {
                     {"type", "integer"},
-                    {"description", "CR00-CR18."},
+                    {"description", "CR00-CR18, or R0-R17 with a CGA."},
                     {"minimum", 0},
                     {"maximum", 24}
                 }},
@@ -1469,7 +1471,8 @@ json McpServer::BuildToolList()
         {"title", "Get Video Output Status"},
         {"description", "Read the VGA paths around the CRTC: memory window, chain-4, odd/even, direct writes, write pipeline, "
             "attribute controller and DAC state. It names the video card and, with a Cirrus card, adds the extended mode, "
-            "pixel format, video clocks, banks, linear aperture, pitch and start."},
+            "pixel format, video clocks, banks, linear aperture, pitch and start. An ega object adds the monitor's lines and "
+            "colors, the switches and the status mux; a cga object the mode and color registers and the output."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1483,7 +1486,7 @@ json McpServer::BuildToolList()
         {"title", "Get VGA Registers"},
         {"description", "Read the miscellaneous, feature, sequencer, graphics, CRTC and attribute registers as hex arrays. "
             "With a Cirrus card a cirrus object adds the lock, SR00-SR1F, GR00-GR3F, CR19-CR27 (crtc, from crtc_first) and "
-            "the hidden DAC."},
+            "the hidden DAC. With a CGA, crtc6845 and the mode and color registers instead."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1496,7 +1499,8 @@ json McpServer::BuildToolList()
         {"name", "get_palettes"},
         {"title", "Get Palettes"},
         {"description", "Read the palettes with RGB888 colors: the 16 attribute colors as they reach the screen and the 256 "
-            "DAC entries with their 6-bit components."},
+            "DAC entries with their 6-bit components. An EGA has the monitor's 64 colors instead of a DAC; a CGA its 16 "
+            "RGB colors."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1514,8 +1518,9 @@ json McpServer::BuildToolList()
         {"name", "get_frame_buffer"},
         {"title", "Get Frame Buffer"},
         {"description", "Decode the whole video memory as PNG from CRTC address 0: one plane, planar, 256 colors or text, "
-            "to find off-screen graphics. With a Cirrus card, linear decodes it byte by byte from start in 8, 15 (5:5:5), "
-            "16 (5:6:5) or 24 (8:8:8) bits per pixel; format, pitch and start default to the current mode."},
+            "to find off-screen graphics. A CGA's 16 KB decode in its current mode whatever the buffer. With a Cirrus "
+            "card, linear decodes it byte by byte from start in 8, 15 (5:5:5), 16 (5:6:5) or 24 (8:8:8) bits per pixel; "
+            "format, pitch and start default to the current mode."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1550,7 +1555,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_text_screen"},
         {"title", "Get Text Screen"},
-        {"description", "Read a VGA text mode screen as characters, with the cursor position and optionally the attribute "
+        {"description", "Read a text mode screen as characters, with the cursor position and optionally the attribute "
             "bytes in hex. Use it instead of a screenshot to know what the screen says."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {

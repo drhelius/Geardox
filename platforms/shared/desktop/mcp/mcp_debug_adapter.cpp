@@ -48,6 +48,7 @@
 #include "system/io.h"
 #include "audio/audio.h"
 #include "video/video.h"
+#include "video/mc6845.h"
 #include "cdrom/cdrom_audio.h"
 #include "cdrom/cdrom_media.h"
 #include "drive/fdc.h"
@@ -2235,6 +2236,16 @@ json DebugAdapter::GetPITStatus()
 
 static const char* video_mode_name(Video* video)
 {
+    if (video->IsCGA())
+    {
+        u8 mode = video->GetState()->cga_mode;
+
+        if ((mode & 0x02) == 0)
+            return (mode & 0x01) != 0 ? "text_80" : "text_40";
+
+        return (mode & 0x10) != 0 ? "graphics_640x200" : "graphics_320x200";
+    }
+
     if (video->IsTextMode())
         return "text";
 
@@ -2267,7 +2278,7 @@ json DebugAdapter::GetCRTCStatus()
     u8 status = video->GetSyncStatus(clocks);
     const u8* crtc = state->crtc;
 
-    return {
+    json result = {
         {"running", state->running},
         {"mode", video_mode_name(video)},
         {"block", (state->misc & 0x01) != 0 ? "color" : "mono"},
@@ -2316,12 +2327,54 @@ json DebugAdapter::GetCRTCStatus()
             {"enabled", (crtc[k_video_cr_retrace_end] & 0x20) == 0}
         }}
     };
+
+    if (video->IsCGA())
+        return GetCGACRTCStatus(result);
+
+    return result;
+}
+
+json DebugAdapter::GetCGACRTCStatus(json result)
+{
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
+    MC6845* mc6845 = video->GetMC6845();
+    const u8* r = mc6845->GetState()->registers;
+
+    result["block"] = "color";
+    result["scanout"] = {
+        {"start_address", Hex(mc6845->GetStartAddress(), 4)},
+        {"latched_start", Hex(state->start_address, 4)},
+        {"row_address", Hex(state->row_address & 0x3FFF, 4)},
+        {"row_scan", state->row_scan},
+        {"row_lines", mc6845->GetRowLines()}
+    };
+    result["cursor"] = {
+        {"address", Hex(mc6845->GetCursorAddress(), 4)},
+        {"start", r[k_mc6845_cursor_start] & 0x1F},
+        {"end", r[k_mc6845_cursor_end]},
+        {"disabled", !mc6845->IsCursorShown()}
+    };
+    result.erase("vertical_interrupt");
+    return result;
 }
 
 json DebugAdapter::GetCRTCRegisters()
 {
-    Video::Video_State* state = m_core->GetVideo()->GetState();
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
     json registers = json::array();
+
+    if (video->IsCGA())
+    {
+        const MC6845::MC6845_State* crtc = video->GetMC6845()->GetState();
+
+        for (int i = 0; i < MC6845_REGISTER_COUNT; i++)
+            registers.push_back({{"index", Hex(i, 2)}, {"name", k_debug_mc6845_register_names[i]},
+                {"value", Hex(crtc->registers[i], 2)}});
+
+        return {{"chip", "6845"}, {"index", Hex(crtc->index, 2)}, {"registers", registers}};
+    }
 
     for (int i = 0; i < VIDEO_CRTC_COUNT; i++)
         registers.push_back({{"index", Hex(i, 2)}, {"name", k_debug_crtc_register_names[i]}, {"value", Hex(state->crtc[i], 2)}});
@@ -2335,12 +2388,33 @@ json DebugAdapter::GetCRTCRegisters()
 
 json DebugAdapter::WriteCRTCRegister(int reg, u8 value)
 {
+    Video* video = m_core->GetVideo();
+    u64 clocks = m_core->GetScheduler()->GetClocks();
+
+    if (video->IsCGA())
+    {
+        if (reg < 0 || reg >= MC6845_REGISTER_COUNT)
+            return {{"error", "Register must be 0-17"}};
+
+        MC6845* mc6845 = video->GetMC6845();
+        u8 saved = mc6845->GetIndex();
+
+        video->Write(0x3D4, (u8)reg, clocks);
+        video->Write(0x3D5, value, clocks);
+        video->Write(0x3D4, saved, clocks);
+
+        return {
+            {"success", true},
+            {"register", Hex(reg, 2)},
+            {"name", k_debug_mc6845_register_names[reg]},
+            {"value", Hex(mc6845->GetRegister(reg), 2)}
+        };
+    }
+
     if (reg < 0 || reg >= VIDEO_CRTC_COUNT)
         return {{"error", "Register must be 0-24"}};
 
-    Video* video = m_core->GetVideo();
     Video::Video_State* state = video->GetState();
-    u64 clocks = m_core->GetScheduler()->GetClocks();
     u16 port = (state->misc & 0x01) != 0 ? 0x3D4 : 0x3B4;
     u8 saved = state->crtc_index;
 
@@ -2414,6 +2488,47 @@ json DebugAdapter::GetVideoOutputStatus()
         }}
     };
 
+    if (video->IsEGA())
+    {
+        static const char* const k_mux[4] = { "red_blue", "secondary_blue_green", "secondary_red_secondary_green", "none" };
+
+        result["ega"] = {
+            {"monitor_lines", video->IsEGA350Lines() ? 350 : 200},
+            {"monitor_colors", video->IsEGA350Lines() ? 64 : 16},
+            {"switches", Hex(video->GetEGASwitches(), 1)},
+            {"sensed_switch", 4 - ((state->misc >> 2) & 0x03)},
+            {"status_mux", k_mux[(state->attribute[k_video_ar_plane_enable] >> 4) & 0x03]},
+            {"graphics_position", {state->ega_position[0], state->ega_position[1]}},
+            {"dot_clock_hz", video->GetCurrentDotClock()}
+        };
+    }
+
+    if (video->IsCGA())
+    {
+        u8 mode = state->cga_mode;
+        u8 color = state->cga_color;
+
+        result.erase("memory");
+        result.erase("pipeline");
+        result.erase("attribute");
+        result.erase("dac");
+        result["cga"] = {
+            {"mode", Hex(mode, 2)},
+            {"color", Hex(color, 2)},
+            {"columns_80", (mode & 0x01) != 0},
+            {"graphics", (mode & 0x02) != 0},
+            {"black_and_white", (mode & 0x04) != 0},
+            {"video_enabled", (mode & 0x08) != 0},
+            {"high_resolution", (mode & 0x10) != 0},
+            {"blink", (mode & 0x20) != 0},
+            {"color_index", color & 0x0F},
+            {"intense_palette", (color & 0x10) != 0},
+            {"palette", (color >> 5) & 0x01},
+            {"output", video->IsCGAComposite() ? "composite" : "rgb"},
+            {"output_setting", k_cga_outputs[video->GetCGAOutput()].id}
+        };
+    }
+
     if (video->IsCirrus())
     {
         static const char* const k_formats[8] = { "palette", "grey", "332", "555", "555_mixed", "565", "888", "blank" };
@@ -2453,7 +2568,21 @@ json DebugAdapter::GetVGARegisters()
     Video* video = m_core->GetVideo();
     Video::Video_State* state = video->GetState();
 
+    if (video->IsCGA())
+    {
+        const MC6845::MC6845_State* crtc = video->GetMC6845()->GetState();
+
+        return {
+            {"card", k_video_cards[video->GetCard()].id},
+            {"crtc6845", {{"index", Hex(crtc->index, 2)}, {"registers", VideoRegisterArray(crtc->registers,
+                MC6845_REGISTER_COUNT)}}},
+            {"mode", Hex(state->cga_mode, 2)},
+            {"color", Hex(state->cga_color, 2)}
+        };
+    }
+
     json result = {
+        {"card", k_video_cards[video->GetCard()].id},
         {"misc", Hex(state->misc, 2)},
         {"feature", Hex(state->feature, 2)},
         {"sequencer", VideoRegisterArray(state->sequencer, VIDEO_SEQUENCER_COUNT)},
@@ -2461,6 +2590,12 @@ json DebugAdapter::GetVGARegisters()
         {"crtc", VideoRegisterArray(state->crtc, VIDEO_CRTC_COUNT)},
         {"attribute", VideoRegisterArray(state->attribute, VIDEO_ATTRIBUTE_COUNT)}
     };
+
+    if (video->IsEGA())
+        result["ega"] = {
+            {"graphics_position", {state->ega_position[0], state->ega_position[1]}},
+            {"readable", "only CR0C-CR0F, the input status registers and the light pen read back on the card"}
+        };
 
     if (video->IsCirrus())
     {
@@ -2487,6 +2622,21 @@ json DebugAdapter::GetPalettes(const std::string& palette)
     if (palette != "all" && palette != "attribute" && palette != "dac")
         return {{"error", "palette must be all, attribute or dac"}};
 
+    if (video->IsCGA())
+    {
+        json entries = json::array();
+
+        for (int i = 0; i < 16; i++)
+        {
+            snprintf(color, sizeof(color), "#%06X", video->GetCGAColor(i) & 0xFFFFFF);
+            entries.push_back({{"index", i}, {"rgb", color}});
+        }
+
+        result["cga"] = entries;
+        result["color"] = Hex(state->cga_color, 2);
+        return result;
+    }
+
     if (palette != "dac")
     {
         json entries = json::array();
@@ -2508,7 +2658,13 @@ json DebugAdapter::GetPalettes(const std::string& palette)
     {
         json entries = json::array();
 
-        for (int i = 0; i < VIDEO_DAC_COUNT; i++)
+        for (int i = 0; video->IsEGA() && i < VIDEO_EGA_COLOR_COUNT; i++)
+        {
+            snprintf(color, sizeof(color), "#%06X", video->GetDACColor(i) & 0xFFFFFF);
+            entries.push_back({{"index", i}, {"rgb", color}});
+        }
+
+        for (int i = 0; !video->IsEGA() && i < VIDEO_DAC_COUNT; i++)
         {
             snprintf(color, sizeof(color), "#%06X", video->GetDACColor(i) & 0xFFFFFF);
             entries.push_back({
@@ -2520,8 +2676,16 @@ json DebugAdapter::GetPalettes(const std::string& palette)
             });
         }
 
-        result["dac"] = entries;
-        result["pel_mask"] = Hex(state->pel_mask, 2);
+        if (video->IsEGA())
+        {
+            result["monitor"] = entries;
+            result["monitor_lines"] = video->IsEGA350Lines() ? 350 : 200;
+        }
+        else
+        {
+            result["dac"] = entries;
+            result["pel_mask"] = Hex(state->pel_mask, 2);
+        }
     }
 
     return result;
@@ -2593,6 +2757,9 @@ json DebugAdapter::GetTextScreen(bool attributes)
     Video* video = m_core->GetVideo();
     Video::Video_State* state = video->GetState();
 
+    if (video->IsCGA())
+        return GetCGATextScreen(attributes);
+
     if (!state->running || !video->IsTextMode())
         return {{"error", "The VGA is not in a text mode"}};
 
@@ -2636,6 +2803,63 @@ json DebugAdapter::GetTextScreen(bool attributes)
             {"disabled", (crtc[k_video_cr_cursor_start] & 0x20) != 0},
             {"column", pitch != 0 ? (int)((cursor - start) & 0xFFFF) % pitch : 0},
             {"row", pitch != 0 ? (int)((cursor - start) & 0xFFFF) / pitch : 0}
+        }},
+        {"lines", lines}
+    };
+
+    if (attributes)
+        result["attributes"] = colors;
+
+    return result;
+}
+
+json DebugAdapter::GetCGATextScreen(bool attributes)
+{
+    Video* video = m_core->GetVideo();
+    Video::Video_State* state = video->GetState();
+    MC6845* mc6845 = video->GetMC6845();
+
+    if (!state->running || video->IsCGAGraphics())
+        return {{"error", "The CGA is not in a text mode"}};
+
+    const u8* vram = video->GetVRAM();
+    int columns = (int)mc6845->GetHorizontalDisplayed();
+    int rows = (int)(state->display_lines / mc6845->GetRowLines());
+    u32 start = mc6845->GetStartAddress();
+    u32 cursor = mc6845->GetCursorAddress();
+    json lines = json::array();
+    json colors = json::array();
+
+    for (int row = 0; row < rows; row++)
+    {
+        std::string line;
+        std::string attribute_line;
+
+        for (int column = 0; column < columns; column++)
+        {
+            u32 offset = ((start + (u32)(row * columns + column)) * 2) & (VIDEO_CGA_VRAM_SIZE - 1);
+            u8 character = vram[offset];
+
+            line += character >= 0x20 && character < 0x7F ? (char)character : (character == 0 ? ' ' : '.');
+
+            if (attributes)
+                attribute_line += Hex(vram[offset + 1], 2);
+        }
+
+        line.erase(line.find_last_not_of(' ') + 1);
+        lines.push_back(line);
+
+        if (attributes)
+            colors.push_back(attribute_line);
+    }
+
+    json result = {
+        {"columns", columns},
+        {"rows", rows},
+        {"cursor", {
+            {"disabled", !mc6845->IsCursorShown()},
+            {"column", columns != 0 ? (int)((cursor - start) & 0x3FFF) % columns : 0},
+            {"row", columns != 0 ? (int)((cursor - start) & 0x3FFF) / columns : 0}
         }},
         {"lines", lines}
     };

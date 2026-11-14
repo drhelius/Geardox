@@ -229,6 +229,7 @@ public:
     json GetSerialStatus();
     json GetParallelStatus();
     json GetCRTCStatus();
+    json GetCGACRTCStatus(json result);
     json GetCRTCRegisters();
     json WriteCRTCRegister(int reg, u8 value);
     json GetVideoOutputStatus();
@@ -236,6 +237,7 @@ public:
     json GetPalettes(const std::string& palette);
     json GetFrameBuffer(const std::string& buffer, int pitch, int format, int start);
     json GetTextScreen(bool attributes);
+    json GetCGATextScreen(bool attributes);
     json GetBiosLog(int max_bytes);
 
     // Audio hardware
