@@ -295,6 +295,35 @@ lines for the same key. **Save Descriptor As...** writes both into its `[keys]`.
 Keys bound like WASD above no longer type their letters. **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key
 changes off and on, to name a character or a saved game.
 
+## Use a Gamepad
+
+Gamepads press the PC's keys and move its mouse. Without settings, the D-pad sends the cursor keys, the left stick
+moves the mouse, A and B click, X is Space, Y is Left Ctrl, L1 is Left Alt, R1 is Left Shift, Back is Esc and Start
+is Enter. `[pad1]` changes the first gamepad for the game, here for the same dungeon crawler:
+
+```ini
+[pad1]
+dpad_up = kp_8
+dpad_down = kp_2
+dpad_left = kp_7
+dpad_right = kp_9
+l1 = kp_4
+r1 = kp_6
+```
+
+Buttons without a line keep your own settings, so the left stick still moves the mouse and A and B still click.
+`[pad2]` is the second gamepad, for games where two players share the keyboard. For a game played with a joystick,
+`use = joystick` in `[pad1]` makes the first gamepad the PC's joystick instead.
+
+On desktop, **Input > Host Gamepad 1 > Key Mapping** does the same while the game runs: click a button's row, then
+press the PC key or choose a mouse button. Changes made during a game are kept with its settings, and **Save
+Descriptor As...** writes them into its `[pad1]` and `[pad2]`.
+
+RetroArch ignores `[pad1]` and `[pad2]`. Set the port's device type to **Keyboard and Mouse** in **Quick Menu >
+Controls > Port 1 Controls**, give each button a key there, and save a game remap file; those keys also go through the
+game's `[keys]`. The options **Gamepad 1 Moves Mouse With** and **Gamepad 1 Mouse Buttons** pick what drives the
+mouse. For joystick games, choose **PC Joystick** as the device type.
+
 ## Use Your Own MS-DOS
 
 Geardox includes FreeDOS and needs nothing else. If you own MS-DOS, games can run on it instead. Geardox doesn't
@@ -390,6 +419,7 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | `[sound]` | No | The sound card and its IRQ and DMA |
 | `[input]` | No | The mouse and the joystick |
 | `[keys]` | No | Your keys and the PC keys they press |
+| `[pad1]`, `[pad2]` | No | The first and second gamepads: the PC keys and mouse buttons they press, and what moves the mouse |
 | `[dos]` | No | DOS memory management and other DOS settings |
 | `[env]` | No | DOS environment variables |
 | `[config_sys]`, `[autoexec]` | No | Extra DOS startup lines |
@@ -491,13 +521,13 @@ and `midi_port` can name any other. In RetroArch, turn on MIDI output in **Setti
 
 ### `[input]`
 
-Like `[machine]`, these settings follow your own Geardox settings when left out. On desktop, the joystick is in the
-**Input** menu.
+Like `[machine]`, these settings follow your own Geardox settings when left out. On desktop, the joystick is
+**Input > Emulated Joystick**.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
 | `mouse` | No | The mouse. The DOS mouse driver loads only when there is one | `none`, `ps2`, `serial` (COM1) | Your setting (`ps2`) | `mouse = serial` |
-| `joystick` | No | The joystick on the game port | `none`, `standard` (2 buttons), `gamepad` (Gravis GamePad), `flightstick` (CH FlightStick Pro) | Your setting (`gamepad`) | `joystick = flightstick` |
+| `joystick` | No | The joystick on the game port, which the first gamepad drives with `use = joystick` in `[pad1]` | `none`, `standard` (2 buttons), `gamepad` (Gravis GamePad), `flightstick` (CH FlightStick Pro) | Your setting (`gamepad`) | `joystick = flightstick` |
 
 ### `[keys]`
 
@@ -519,6 +549,22 @@ Your keys: `a` to `z`, `0` to `9`, `f1` to `f24`, `return`, `escape`, `backspace
 PC keys: the same names for the keys a PC keyboard has, `left_gui`, `right_gui` and `menu` being its Windows keys,
 plus `sysrq` (Alt+Print Screen). A PC has no `f13` to `f24`, `kp_equals`, `kp_comma`, `kp_00`, `kp_000`, `help`,
 `international` or `lang` keys, and `non_us_hash` is its `backslash`.
+
+### `[pad1]` and `[pad2]`
+
+The first and second gamepads, on desktop only. See [Use a gamepad](#use-a-gamepad). Settings left out follow your
+own, from **Input > Host Gamepad 1** and **Host Gamepad 2**. A button with a name Geardox doesn't know is ignored with a warning.
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `use` | No | What the gamepad drives | `keys` (keyboard and mouse); `joystick` in `[pad1]`, `off` in `[pad2]` | Your setting (`keys`) | `use = joystick` |
+| `mouse` | No | What moves the PC's mouse. It sends no keys while it does | `off`, `left_stick`, `right_stick`, `dpad` | Your setting (`left_stick`) | `mouse = off` |
+| A button | No | The PC key it presses, or a mouse button | A PC key as in `[keys]`, `mouse_left`, `mouse_right`, `mouse_middle`, or `none` | Your setting | `a = space` |
+
+Buttons, by their place on the gamepad as on an Xbox one: `a`, `b`, `x`, `y`, `dpad_up`, `dpad_down`, `dpad_left`,
+`dpad_right`, `l1`, `r1`, `l2`, `r2`, `l3`, `r3`, `back`, `start`, `left_stick_up`, `left_stick_down`,
+`left_stick_left`, `left_stick_right`, `right_stick_up`, `right_stick_down`, `right_stick_left` and
+`right_stick_right`.
 
 ### `[dos]`
 

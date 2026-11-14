@@ -243,8 +243,16 @@ a game that moves on letters. Every game starts with them on.
 **The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, Game Focus
 locks it inside the window.
 
-**A gamepad** drives the PC's joystick port. **Input > Joystick** picks what the game sees: a standard joystick, a
-Gravis GamePad (the default) or a CH FlightStick Pro.
+**A gamepad** presses the PC's keys and moves its mouse. Out of the box, the D-pad sends the cursor keys, the left
+stick moves the mouse, A and B click, X is Space, Y is Ctrl, L1 is Alt, R1 is Shift, Back is Esc and Start is Enter.
+**Input > Host Gamepad 1 > Key Mapping** changes them: click a button's row, then press the PC key or choose a mouse
+button. **Mouse** in the same menu picks what moves the mouse, or nothing. During a game, these changes are for that
+game only, and a descriptor can set them too; see [Gamepads](GDOX_README.md#use-a-gamepad). **Host Gamepad 2** works
+the same, for games where two players share the keyboard.
+
+**For joystick games,** set **Input > Host Gamepad 1 > Use As** to **Joystick**. That gamepad then drives the PC's
+joystick port, and **Input > Emulated Joystick** picks what the game sees: a standard joystick, a Gravis GamePad (the
+default) or a CH FlightStick Pro.
 
 All hotkeys can be changed in **Emulator > Hotkeys**, and its **Reset to Defaults** brings these back.
 
