@@ -68,6 +68,7 @@ static bool open_physical_cdrom = false;
 static const GuiColor& machine_warning_color = amber;
 static const GuiColor& machine_game_color = cyan;
 static config_Machine* menu_settings = &config_machine;
+static std::vector<MidiPortInfo> midi_ports;
 static const GuiColor& service_mcp_http_color = green;
 static const GuiColor& service_mcp_stdio_color = amber;
 static const GuiColor& midi_playing_color = green;
@@ -107,8 +108,9 @@ static void menu_audio(void);
 static void menu_audio_source_mute(const char* label, int source);
 static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
 static void menu_audio_midi(void);
-static bool menu_audio_midi_port(const char* label, const char* id, std::string* port, const char* none, bool enabled,
-    const char* tooltip);
+static bool menu_audio_midi_port(const char* label, const char* id, std::string* port, const char* tooltip);
+static void menu_audio_midi_game_synth(void);
+static int find_midi_port(const char* port);
 static void menu_debug(void);
 static void menu_about(void);
 static void draw_background_color_menu(const char* label, int theme);
@@ -2267,61 +2269,17 @@ static void menu_audio_midi(void)
     if (!ImGui::BeginMenu("MIDI Out", MidiPort::IsSupported()))
         return;
 
-    if (menu_audio_midi_port("General MIDI Port", "##midi_gm_port", &config_audio.midi_gm_port, "None", true,
-        "A General MIDI, GS or XG synth or module.\nPlays games set up for General MIDI, GS or XG."))
+    if (menu_audio_midi_port("General MIDI Port", "##midi_gm_port", &config_audio.midi_gm_port,
+        "A General MIDI, GS or XG synth or module.\nPlays games set up for General MIDI, GS or XG.\n"
+        "With no MT-32 port, plays MT-32 games too."))
         emu_midi_update_port();
 
-    if (menu_audio_midi_port("MT-32 Port", "##midi_mt32_port", &config_audio.midi_mt32_port, "None", true,
-        "An MT-32 emulator, or a real MT-32,\nCM-32L or LAPC-I.\nPlays games set up for Roland MT-32."))
+    if (menu_audio_midi_port("MT-32 Port", "##midi_mt32_port", &config_audio.midi_mt32_port,
+        "An MT-32 emulator, or a real MT-32,\nCM-32L or LAPC-I.\nPlays games set up for Roland MT-32.\n"
+        "With no GM port, plays General MIDI games too."))
         emu_midi_update_port();
 
-    if (ImGui::BeginMenu("Synth"))
-    {
-        int synth = emu_midi_get_synth();
-        float text_width = 0.0f;
-
-        for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
-            text_width = MAX(text_width, ImGui::CalcTextSize(k_midi_synths[i].name).x);
-
-        ImGui::PushItemWidth(gui_get_combo_width(text_width));
-
-        if (ImGui::BeginCombo("##midi_synth", k_midi_synths[synth].name))
-        {
-            for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
-            {
-                if (ImGui::Selectable(k_midi_synths[i].name, synth == i))
-                {
-                    if (emu_game_is_open())
-                        emu_game_set_midi(i);
-                    else
-                        config_audio.midi_default = i;
-
-                    emu_midi_update_port();
-                }
-            }
-
-            ImGui::EndCombo();
-        }
-        else if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The synth chosen in the game's setup,\nwhich picks its port.\n"
-                "With a game open, it's that game's.\nA .gdox sets it with midi in [sound].");
-
-        ImGui::PopItemWidth();
-        ImGui::EndMenu();
-    }
-
-    std::string game_port = emu_game_get_midi_port();
-    const char* synth_port = emu_midi_get_synth_port();
-    char default_label[MIDI_PORT_NAME_SIZE + 16];
-    snprintf(default_label, sizeof(default_label), "Default (%s)", synth_port[0] != 0 ? synth_port : "None");
-
-    if (menu_audio_midi_port("Game Port", "##midi_game_port", &game_port, default_label, emu_game_is_open(),
-        "Any port, for the open game only.\nDefault is its Synth's port."))
-    {
-        emu_game_set_midi_port(game_port.c_str());
-        emu_midi_update_port();
-    }
-
+    menu_audio_midi_game_synth();
     ImGui::Separator();
 
     const char* port = emu_midi_get_port();
@@ -2332,44 +2290,31 @@ static void menu_audio_midi(void)
     else if (wanted[0] != 0)
         ImGui::TextColored(midi_stopped_color, "%s not found", wanted);
     else
-        ImGui::TextColored(midi_stopped_color, "No %s port", k_midi_synths[emu_midi_get_synth()].name);
+        ImGui::TextColored(midi_stopped_color, "No MIDI port");
 
     ImGui::EndMenu();
 }
 
 // The list is read again each time the submenu opens, so a synth started after Geardox shows up
-static bool menu_audio_midi_port(const char* label, const char* id, std::string* port, const char* none, bool enabled,
-    const char* tooltip)
+static bool menu_audio_midi_port(const char* label, const char* id, std::string* port, const char* tooltip)
 {
-    static std::vector<MidiPortInfo> ports;
-
-    if (!ImGui::BeginMenu(label, enabled))
-    {
-        if (!enabled && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", tooltip);
-
+    if (!ImGui::BeginMenu(label))
         return false;
-    }
 
     if (ImGui::IsWindowAppearing())
-        MidiPort::ListPorts(ports);
+        MidiPort::ListPorts(midi_ports);
 
     bool changed = false;
     char missing[MIDI_PORT_NAME_SIZE + 16];
-    const char* preview = none;
-    float text_width = ImGui::CalcTextSize(none).x;
-    int selected = -1;
+    const char* preview = "None";
+    float text_width = ImGui::CalcTextSize(preview).x;
+    int selected = find_midi_port(port->c_str());
 
-    for (int i = 0; i < (int)ports.size(); i++)
-    {
-        text_width = MAX(text_width, ImGui::CalcTextSize(ports[i].id).x);
-
-        if ((selected < 0) && !port->empty() && MidiPort::IsSamePort(port->c_str(), ports[i].id))
-            selected = i;
-    }
+    for (int i = 0; i < (int)midi_ports.size(); i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(midi_ports[i].id).x);
 
     if (selected >= 0)
-        preview = ports[selected].id;
+        preview = midi_ports[selected].id;
     else if (!port->empty())
     {
         snprintf(missing, sizeof(missing), "%s (not found)", port->c_str());
@@ -2381,19 +2326,19 @@ static bool menu_audio_midi_port(const char* label, const char* id, std::string*
 
     if (ImGui::BeginCombo(id, preview))
     {
-        if (ImGui::Selectable(none, port->empty()))
+        if (ImGui::Selectable("None", port->empty()))
         {
             port->clear();
             changed = true;
         }
 
-        for (int i = 0; i < (int)ports.size(); i++)
+        for (int i = 0; i < (int)midi_ports.size(); i++)
         {
             ImGui::PushID(i);
 
-            if (ImGui::Selectable(ports[i].id, i == selected))
+            if (ImGui::Selectable(midi_ports[i].id, i == selected))
             {
-                *port = ports[i].id;
+                *port = midi_ports[i].id;
                 changed = true;
             }
 
@@ -2411,6 +2356,116 @@ static bool menu_audio_midi_port(const char* label, const char* id, std::string*
     ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
+}
+
+static void menu_audio_midi_game_synth(void)
+{
+    if (!ImGui::BeginMenu("Game Synth"))
+        return;
+
+    bool game = emu_game_is_open();
+
+    if (game && ImGui::IsWindowAppearing())
+        MidiPort::ListPorts(midi_ports);
+
+    int synth = emu_midi_get_synth();
+    std::string game_port = emu_game_get_midi_port();
+    int selected = find_midi_port(game_port.c_str());
+    char labels[GDOX_MIDI_SYNTH_COUNT][MIDI_PORT_NAME_SIZE + 16];
+    char missing[MIDI_PORT_NAME_SIZE + 16];
+    float text_width = 0.0f;
+
+    for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
+    {
+        const char* port = emu_midi_get_synth_port(i);
+        snprintf(labels[i], sizeof(labels[i]), "%s (%s)", k_midi_synths[i].name, port[0] != 0 ? port : "None");
+        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+    }
+
+    for (int i = 0; game && (i < (int)midi_ports.size()); i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(midi_ports[i].id).x);
+
+    const char* preview = labels[synth];
+
+    if (selected >= 0)
+        preview = midi_ports[selected].id;
+    else if (!game_port.empty())
+    {
+        snprintf(missing, sizeof(missing), "%s (not found)", game_port.c_str());
+        preview = missing;
+        text_width = MAX(text_width, ImGui::CalcTextSize(missing).x);
+    }
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##midi_game_synth", preview))
+    {
+        for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
+        {
+            if (ImGui::Selectable(labels[i], game_port.empty() && (synth == i)))
+            {
+                if (game)
+                    emu_game_set_midi(i, "");
+                else
+                    config_audio.midi_default = i;
+
+                emu_midi_update_port();
+            }
+        }
+
+        if (game)
+        {
+            ImGui::Separator();
+
+            for (int i = 0; i < (int)midi_ports.size(); i++)
+            {
+                ImGui::PushID(i);
+
+                if (ImGui::Selectable(midi_ports[i].id, i == selected))
+                {
+                    emu_game_set_midi(emu_game_get_midi(), midi_ports[i].id);
+                    emu_midi_update_port();
+                }
+
+                ImGui::PopID();
+            }
+
+            if (!game_port.empty() && (selected < 0))
+                ImGui::Selectable(missing, true, ImGuiSelectableFlags_Disabled);
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("What the game was set up for, which picks");
+        ImGui::Text("its port, or any port for this game only.");
+        ImGui::Text("With no game open, the default for games.");
+        ImGui::Text("A .gdox sets it with midi or midi_port in [sound].");
+
+        if (game)
+        {
+            ImGui::Text("Start the synth first:");
+            ImGui::Text("ports are read when this menu opens.");
+        }
+
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+}
+
+static int find_midi_port(const char* port)
+{
+    for (int i = 0; (port[0] != 0) && (i < (int)midi_ports.size()); i++)
+    {
+        if (MidiPort::IsSamePort(port, midi_ports[i].id))
+            return i;
+    }
+
+    return -1;
 }
 
 static void menu_debug(void)

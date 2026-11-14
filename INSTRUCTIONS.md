@@ -190,11 +190,11 @@ Then in **Audio > MIDI Out**:
 
 1. Choose the port for each kind of music: **General MIDI Port** for General MIDI, GS and XG synths, and **MT-32 Port**
    for an MT-32, CM-32L or LAPC-I, or an emulator of one. The lists are read again each time they open, so a synth
-   started after Geardox shows up.
-2. In **Synth**, pick what the game was set up for. With a game open, the choice is only that game's. Its `.gdox` can
-   also set it with `midi` under `[sound]`.
-3. With a game open, **Game Port** sends it to any port, for example an SC-55 for one game and an MU2000 for another.
-   **Default** follows its Synth.
+   started after Geardox shows up. With only one synth, set just its port: every game plays through it.
+2. In **Game Synth**, pick what the game was set up for in its setup program, General MIDI or MT-32. With a game open,
+   the choice is only that game's, and it can also be any port, for example an SC-55 for one game and an MU2000 for
+   another. With no game open, it's the default for games. A `.gdox` can set it with `midi` or `midi_port` under
+   `[sound]`.
 
 The last line of the menu shows where the music is playing in green, or the missing port in red.
 

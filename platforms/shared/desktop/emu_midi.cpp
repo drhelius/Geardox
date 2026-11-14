@@ -168,16 +168,18 @@ int emu_midi_get_synth(void)
     return synth >= 0 ? synth : CLAMP(config_audio.midi_default, 0, GDOX_MIDI_SYNTH_COUNT - 1);
 }
 
-const char* emu_midi_get_synth_port(void)
+const char* emu_midi_get_synth_port(int synth)
 {
-    return emu_midi_get_synth() == GDOX_MIDI_SYNTH_MT32 ? config_audio.midi_mt32_port.c_str() :
-        config_audio.midi_gm_port.c_str();
+    bool mt32 = synth == GDOX_MIDI_SYNTH_MT32;
+    const std::string& port = mt32 ? config_audio.midi_mt32_port : config_audio.midi_gm_port;
+    const std::string& other = mt32 ? config_audio.midi_gm_port : config_audio.midi_mt32_port;
+    return !port.empty() ? port.c_str() : other.c_str();
 }
 
 const char* emu_midi_get_wanted_port(void)
 {
     const char* port = emu_game_get_midi_port();
-    return port[0] != 0 ? port : emu_midi_get_synth_port();
+    return port[0] != 0 ? port : emu_midi_get_synth_port(emu_midi_get_synth());
 }
 
 const char* emu_midi_get_port(void)
@@ -256,7 +258,7 @@ static void notify(void)
 
     if (wanted[0] == 0)
     {
-        snprintf(message, sizeof(message), "This game is playing %s music, and no %s port is set", synth, synth);
+        snprintf(message, sizeof(message), "This game is playing %s music, and no MIDI port is set", synth);
         gui_notify(gui_NotificationWarning, ICON_MD_MUSIC_NOTE, message, "Choose one in Audio > MIDI Out.", "midi");
     }
     else

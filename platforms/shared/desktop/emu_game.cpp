@@ -526,27 +526,19 @@ int emu_game_get_midi(void)
     return emu_game_is_open() ? game_midi : -1;
 }
 
-void emu_game_set_midi(int synth)
+void emu_game_set_midi(int synth, const char* port)
 {
     if (!emu_game_is_open())
         return;
 
     game_midi = synth;
+    game_midi_port = port;
     emu_game_apply_machine();
 }
 
 const char* emu_game_get_midi_port(void)
 {
     return emu_game_is_open() ? game_midi_port.c_str() : "";
-}
-
-void emu_game_set_midi_port(const char* port)
-{
-    if (!emu_game_is_open())
-        return;
-
-    game_midi_port = port;
-    emu_game_apply_machine();
 }
 
 bool emu_game_has_overrides(void)
