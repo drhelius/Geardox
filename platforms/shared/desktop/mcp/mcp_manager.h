@@ -42,6 +42,7 @@ struct DelayedButtonRelease
     u8 joystick_buttons;
     u8 joystick_hat;
     GDOX_Keys key;
+    int host_key;
     u64 release_at_frame;
 };
 
@@ -263,7 +264,9 @@ public:
         {
             if (emu_frame_counter >= m_delayed_releases[i].release_at_frame)
             {
-                if (m_delayed_releases[i].key != GDOX_KEY_NONE)
+                if (m_delayed_releases[i].host_key >= 0)
+                    emu_host_key_released(m_delayed_releases[i].host_key);
+                else if (m_delayed_releases[i].key != GDOX_KEY_NONE)
                     emu_key_released(m_delayed_releases[i].key);
                 else
                     m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons,
@@ -470,6 +473,7 @@ private:
             release.joystick_buttons = result["__release_buttons"];
             release.joystick_hat = result["__release_hat"];
             release.key = GDOX_KEY_NONE;
+            release.host_key = -1;
             release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
             m_delayed_releases.push_back(release);
             result.erase("__delayed_release");
@@ -485,9 +489,22 @@ private:
             release.joystick_buttons = 0;
             release.joystick_hat = 0;
             release.key = key;
+            release.host_key = -1;
             release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
             m_delayed_releases.push_back(release);
             result.erase("__delayed_key_release");
+        }
+
+        if (result.contains("__delayed_host_release"))
+        {
+            DelayedButtonRelease release;
+            release.joystick_buttons = 0;
+            release.joystick_hat = 0;
+            release.key = GDOX_KEY_NONE;
+            release.host_key = result["__delayed_host_release"];
+            release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
+            m_delayed_releases.push_back(release);
+            result.erase("__delayed_host_release");
         }
     }
 

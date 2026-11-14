@@ -65,7 +65,9 @@ enum gui_ShortCutEvent
     gui_ShortcutDebugBreakpoint,
     gui_ShortcutDebugGoBack,
     gui_ShortcutShowMainMenu,
-    gui_ShortcutTurbo
+    gui_ShortcutTurbo,
+    gui_ShortcutKeyboardMapper,
+    gui_ShortcutKeyMapping
 };
 
 struct gui_HotkeyMapping
@@ -75,7 +77,7 @@ struct gui_HotkeyMapping
     bool allow_repeat;
 };
 
-#define GUI_HOTKEY_MAP_COUNT 31
+#define GUI_HOTKEY_MAP_COUNT 33
 
 const gui_HotkeyMapping gui_hotkey_map[GUI_HOTKEY_MAP_COUNT] = {
     {gui_ShortcutOpenROM, config_HotkeyIndex_OpenROM, false},
@@ -99,6 +101,8 @@ const gui_HotkeyMapping gui_hotkey_map[GUI_HOTKEY_MAP_COUNT] = {
     {gui_ShortcutFullscreen, config_HotkeyIndex_Fullscreen, false},
     {gui_ShortcutCaptureMouse, config_HotkeyIndex_CaptureMouse, false},
     {gui_ShortcutCaptureKeyboard, config_HotkeyIndex_CaptureKeyboard, false},
+    {gui_ShortcutKeyboardMapper, config_HotkeyIndex_KeyboardMapper, false},
+    {gui_ShortcutKeyMapping, config_HotkeyIndex_KeyMapping, false},
     {gui_ShortcutShowMainMenu, config_HotkeyIndex_ShowMainMenu, false},
     {gui_ShortcutDebugStepInto, config_HotkeyIndex_DebugStepInto, true},
     {gui_ShortcutDebugStepOver, config_HotkeyIndex_DebugStepOver, true},

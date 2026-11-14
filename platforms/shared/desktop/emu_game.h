@@ -63,6 +63,8 @@ EXTERN const char* emu_game_get_saves_path(void);
 EXTERN bool emu_game_has_setup(void);
 EXTERN GameDisk* emu_game_get_disk(void);
 EXTERN std::string emu_game_get_msdos_path(void);
+EXTERN std::string emu_game_get_key_map_path(void);
+EXTERN const char* emu_game_get_keys(void);
 EXTERN const char* emu_game_get_msdos_name(void);
 EXTERN bool emu_game_import_msdos(const char* path, std::string* message);
 EXTERN bool emu_game_remove_msdos(void);

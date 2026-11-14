@@ -528,7 +528,25 @@ bool emu_game_save_descriptor(const char* path)
         }
     }
 
+    out.SetKeys(emu_get_core()->GetKeyMap()->GetMerged());
     return out.WriteFile(path);
+}
+
+std::string emu_game_get_key_map_path(void)
+{
+    if (!emu_game_is_open())
+        return "";
+
+    char name[GDOX_MAX_PATH];
+    char path[GDOX_MAX_PATH];
+    get_filename_without_extension(disk.GetOverridesPath(), name, sizeof(name));
+    join_path(get_save_directory().c_str(), (std::string(name) + ".keys").c_str(), path, sizeof(path));
+    return path;
+}
+
+const char* emu_game_get_keys(void)
+{
+    return emu_game_is_open() ? disk.GetDescriptor().GetInfo().keys.c_str() : "";
 }
 
 bool emu_game_retry_write_back(void)
