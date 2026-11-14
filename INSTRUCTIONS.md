@@ -205,13 +205,24 @@ The music plays in the synth's own audio: Geardox's volume sliders and recording
 ## Keyboard, Mouse and Joystick
 
 **The keyboard is captured by default.** Keys go to the PC, so Ctrl+C and the like reach DOS, and only the Quit,
-Fullscreen (F12), Capture Mouse and Capture Keyboard hotkeys work. Press **Ctrl+Shift+K** to release the keyboard and
+Fullscreen (F12), Capture Mouse, Capture Keyboard, Keyboard Mapper and Key Mapping hotkeys work. Press **Ctrl+Shift+K** to release the keyboard and
 get every hotkey back, such as Ctrl+S and Ctrl+L for save states or Ctrl+R to reset. Press it again to capture.
 **Input > Keyboard > Paste as Keystrokes** types the clipboard into the PC.
 
 **If your keyboard isn't a United States one,** choose its layout in **Input > Keyboard > DOS Layout**. Games then
 get DOS set up for it, so `:`, `/` and the rest are where your keys say. See
 [Keyboard layout](GDOX_README.md#keyboard-layout).
+
+**To move a key,** press **Ctrl+F1** (**Cmd+F1** on macOS). The PC stops and a picture of its keyboard appears. Click a
+PC key, then press the key of your keyboard that should drive it, on its own. The PC key stays selected for more keys of
+yours; click it again to deselect it. Each PC key lists the keys that drive it, built-in ones first: click the **x** on
+one to remove it, or right click the PC key to remove all but the built-in ones. Red keys are ones no key of yours
+reaches. Press the same hotkey again, or click **Close**, to go back to the game. Changes are kept for that game only,
+beside its other files. A descriptor can set them too, including one key that sends several, such as Ctrl, Alt and Del;
+see [Keys](GDOX_README.md#remap-keys).
+
+**Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key changes off and on, for instance to type a character's name in
+a game that moves on letters. Every game starts with them on.
 
 **The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, press
 **Ctrl+Shift+M** to lock it inside the window, and again to let it go.

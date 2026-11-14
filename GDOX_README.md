@@ -265,6 +265,36 @@ When `ems_kb` is specified and `ram_mb` is omitted, Geardox can increase the emu
 requirement.
 The advanced `memory` and `ems_frame` settings control the DOS memory manager; see [Memory modes](#memory-modes).
 
+## Remap Keys
+
+A game with keys hardcoded, such as a dungeon crawler that moves on the numeric keypad, can get the cursor keys and
+WASD too. Each line of `[keys]` names one of your keys and the PC key it presses:
+
+```ini
+[keys]
+up = kp_8
+down = kp_2
+left = kp_7
+right = kp_9
+w = kp_8
+s = kp_2
+a = kp_4
+d = kp_6
+q = kp_7
+e = kp_9
+```
+
+Keys without a line keep their usual job, so the keypad still works. A key can press up to four PC keys together,
+joined with `+`, such as `f13 = left_ctrl + left_alt + delete`, or nothing at all: `grave = none`.
+
+The same can be done while the game runs: **Ctrl+F1** (**Cmd+F1** on macOS) opens the keyboard mapper, a picture of
+the PC keyboard where you click a PC key and press the key of yours that should drive it. Those changes are kept for
+that game in a `.keys` file in Geardox's save folder (RetroArch: its save directory), and win over the descriptor's
+lines for the same key. **Save Descriptor As...** writes both into its `[keys]`.
+
+Keys bound like WASD above no longer type their letters. **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key
+changes off and on, to name a character or a saved game.
+
 ## Use Your Own MS-DOS
 
 Geardox includes FreeDOS and needs nothing else. If you own MS-DOS, games can run on it instead. Geardox doesn't
@@ -359,6 +389,7 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | `[machine]` | No | The emulated PC: model, CPU speed, RAM, coprocessor, floppy and CD-ROM drive types, and video card |
 | `[sound]` | No | The sound card and its IRQ and DMA |
 | `[input]` | No | The mouse and the joystick |
+| `[keys]` | No | Your keys and the PC keys they press |
 | `[dos]` | No | DOS memory management and other DOS settings |
 | `[env]` | No | DOS environment variables |
 | `[config_sys]`, `[autoexec]` | No | Extra DOS startup lines |
@@ -466,6 +497,27 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | --- | --- | --- | --- | --- | --- |
 | `mouse` | No | The mouse. The DOS mouse driver loads only when there is one | `none`, `ps2`, `serial` (COM1) | Your setting (`ps2`) | `mouse = serial` |
 | `joystick` | No | The joystick on the game port | `none`, `standard` (2 buttons), `gamepad` (Gravis GamePad), `flightstick` (CH FlightStick Pro) | Your setting (`gamepad`) | `joystick = flightstick` |
+
+### `[keys]`
+
+Each line names one of your keys, as a USB keyboard reports it, whatever your layout. See [Remap keys](#remap-keys).
+A line with a name Geardox doesn't know, or more than four PC keys, is ignored with a warning.
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| A key of yours | No | The PC keys it presses, in order, released in reverse | One to four PC keys joined with `+`, or `none` | Its own PC key | `up = kp_8` |
+
+Your keys: `a` to `z`, `0` to `9`, `f1` to `f24`, `return`, `escape`, `backspace`, `tab`, `space`, `minus`, `equals`,
+`left_bracket`, `right_bracket`, `backslash`, `non_us_hash`, `semicolon`, `apostrophe`, `grave`, `comma`, `period`,
+`slash`, `non_us_backslash`, `caps_lock`, `print_screen`, `scroll_lock`, `pause`, `insert`, `home`, `page_up`,
+`delete`, `end`, `page_down`, `up`, `down`, `left`, `right`, `num_lock`, `kp_0` to `kp_9`, `kp_divide`,
+`kp_multiply`, `kp_minus`, `kp_plus`, `kp_enter`, `kp_period`, `kp_equals`, `kp_comma`, `kp_00`, `kp_000`, `menu`,
+`help`, `sysreq`, `international1` to `international5`, `lang1` to `lang5`, `left_ctrl`, `right_ctrl`, `left_shift`,
+`right_shift`, `left_alt`, `right_alt`, `left_gui` and `right_gui` (Windows or Command).
+
+PC keys: the same names for the keys a PC keyboard has, `left_gui`, `right_gui` and `menu` being its Windows keys,
+plus `sysrq` (Alt+Print Screen). A PC has no `f13` to `f24`, `kp_equals`, `kp_comma`, `kp_00`, `kp_000`, `help`,
+`international` or `lang` keys, and `non_us_hash` is its `backslash`.
 
 ### `[dos]`
 
