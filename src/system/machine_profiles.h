@@ -215,7 +215,7 @@ static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
 static inline const char* get_machine_fpu_name(GDOX_Machine_CPU cpu)
 {
     if (k_machine_cpus[cpu].fpu)
-        return "integrated";
+        return "Integrated";
 
     return k_machine_cpus[cpu].family >= 4 ? "487SX" : "80387";
 }
