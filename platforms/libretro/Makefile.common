@@ -75,6 +75,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/input/serial_mouse.cpp \
                 $(SOURCE_DIR)/input/game_port.cpp \
                 $(SOURCE_DIR)/input/key_map.cpp \
+                $(SOURCE_DIR)/input/gamepad_keys.cpp \
                 $(SOURCE_DIR)/media/chd_file_adapter.cpp \
                 $(SOURCE_DIR)/media/game_descriptor.cpp \
                 $(SOURCE_DIR)/media/firmware.cpp \

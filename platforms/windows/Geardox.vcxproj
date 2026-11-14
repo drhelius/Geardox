@@ -59,6 +59,7 @@
     <ClCompile Include="..\..\src\input\serial_mouse.cpp" />
     <ClCompile Include="..\..\src\input\game_port.cpp" />
     <ClCompile Include="..\..\src\input\key_map.cpp" />
+    <ClCompile Include="..\..\src\input\gamepad_keys.cpp" />
     <ClCompile Include="..\..\src\system\memory.cpp" />
     <ClCompile Include="..\..\src\system\io.cpp" />
     <ClCompile Include="..\..\src\system\pic.cpp" />
@@ -379,6 +380,7 @@
     <ClInclude Include="..\..\src\input\host_keys.h" />
     <ClInclude Include="..\..\src\input\keyboard_keys.h" />
     <ClInclude Include="..\..\src\input\key_map.h" />
+    <ClInclude Include="..\..\src\input\gamepad_keys.h" />
     <ClInclude Include="..\..\src\osd\osd_font.h" />
     <ClInclude Include="..\..\src\osd\osd_canvas.h" />
     <ClInclude Include="..\..\src\osd\key_mapper.h" />

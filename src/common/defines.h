@@ -37,7 +37,7 @@
     #define GDOX_DEBUG 1
 #endif
 
-#define GDOX_MAX_GAMEPADS 1
+#define GDOX_MAX_GAMEPADS 2
 #define GDOX_MAX_FLOPPY_DRIVES 2
 #define GDOX_MAX_HARD_DISKS 4
 

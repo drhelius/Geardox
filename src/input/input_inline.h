@@ -44,6 +44,12 @@ INLINE void Input::SetInjectedMouseButtons(u8 buttons)
     UpdateMouseButtons();
 }
 
+INLINE void Input::SetGamepadMouseButtons(u8 buttons)
+{
+    m_gamepad_mouse_buttons = buttons;
+    UpdateMouseButtons();
+}
+
 INLINE u8 Input::GetMouseButtons() const
 {
     return m_state.mouse_buttons;

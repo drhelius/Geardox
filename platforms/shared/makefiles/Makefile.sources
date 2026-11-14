@@ -148,6 +148,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/input/serial_mouse.cpp \
     $(SRC_DIR)/input/game_port.cpp \
     $(SRC_DIR)/input/key_map.cpp \
+    $(SRC_DIR)/input/gamepad_keys.cpp \
     $(SRC_DIR)/media/chd_file_adapter.cpp \
     $(SRC_DIR)/media/game_descriptor.cpp \
     $(SRC_DIR)/media/firmware.cpp \

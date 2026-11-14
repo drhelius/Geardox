@@ -49,6 +49,7 @@ public:
     void ClearMouseInput();
     void SetMouseButtons(u8 buttons);
     void SetInjectedMouseButtons(u8 buttons);
+    void SetGamepadMouseButtons(u8 buttons);
     u8 GetMouseButtons() const;
     void SetJoystickState(const GDOX_Joystick_State& state);
     void SetInjectedJoystickState(const GDOX_Joystick_State& state, bool axes);
@@ -70,6 +71,7 @@ private:
     Input_State m_state;
     u8 m_physical_mouse_buttons;
     u8 m_injected_mouse_buttons;
+    u8 m_gamepad_mouse_buttons;
     GDOX_Joystick_State m_physical_joystick;
     GDOX_Joystick_State m_injected_joystick;
     bool m_injected_axes;

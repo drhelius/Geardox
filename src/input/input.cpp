@@ -46,6 +46,7 @@ void Input::Reset()
     memset(&m_injected_joystick, 0, sizeof(m_injected_joystick));
     m_physical_mouse_buttons = 0;
     m_injected_mouse_buttons = 0;
+    m_gamepad_mouse_buttons = 0;
     m_injected_axes = false;
 }
 
@@ -90,7 +91,7 @@ void Input::SanitizeState()
 void Input::UpdateMouseButtons()
 {
     u8 previous = m_state.mouse_buttons;
-    m_state.mouse_buttons = m_physical_mouse_buttons | m_injected_mouse_buttons;
+    m_state.mouse_buttons = m_physical_mouse_buttons | m_injected_mouse_buttons | m_gamepad_mouse_buttons;
 
     if (unlikely(previous != m_state.mouse_buttons))
         TraceChange(TRACE_INPUT_DEVICE_MOUSE, m_state.mouse_buttons, previous);

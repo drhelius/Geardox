@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 #include "../common/common.h"
+#include "../input/gamepad_keys.h"
 
 #define GDOX_GAME_DESCRIPTOR_VERSION 1
 #define GDOX_GAME_DESCRIPTOR_MAX_SIZE (64 * 1024)
@@ -121,6 +122,7 @@ struct GDOX_Game_Info
     int cga_output;
     int midi;
     std::string midi_port;
+    GDOX_Gamepad_Game gamepads[GDOX_MAX_GAMEPADS];
     std::vector<GDOX_Game_Env> env;
     std::string keys;
     std::vector<std::string> config_sys;
@@ -152,6 +154,7 @@ public:
     const GDOX_Game_Info& GetInfo() const;
     static bool IsDescriptor(const char* path);
     static const char* GetHardDiskKey(int id);
+    static const char* GetGamepadSection(int pad);
     static int GetEMSRAM(int ems_kb, int model, bool cirrus, int system);
 
 private:

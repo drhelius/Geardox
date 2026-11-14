@@ -35,6 +35,7 @@ class Firmware;
 class I386;
 class X87;
 class Input;
+class GamepadKeys;
 class KeyMap;
 class KeyMapper;
 class Media;
@@ -159,6 +160,7 @@ public:
     Input* GetInput();
     KeyMap* GetKeyMap();
     KeyMapper* GetKeyMapper();
+    GamepadKeys* GetGamepadKeys();
     Memory* GetMemory();
     I386* GetI386();
     X87* GetX87();
@@ -214,6 +216,8 @@ private:
     static void DMADebugCallback(void* cpu, u32 address, u32 size, bool write);
     static void FPUErrorCallback(void* core);
     static void KeyMapCallback(void* core, GDOX_Keys key, bool pressed);
+    static void GamepadKeyCallback(void* core, GDOX_Keys key, bool pressed);
+    void UpdateHeldKey(GDOX_Keys key);
     void DispatchEvents();
     void Reset();
     void ResetCPU();
@@ -242,6 +246,7 @@ private:
     Input* m_input;
     KeyMap* m_key_map;
     KeyMapper* m_key_mapper;
+    GamepadKeys* m_gamepad_keys;
     Media* m_media;
     Memory* m_memory;
     I386* m_i386;
@@ -293,6 +298,8 @@ private:
     bool m_powered;
     bool m_paused;
     bool m_host_hotkeys;
+    bool m_mapped_keys[GDOX_KEY_COUNT];
+    bool m_gamepad_keys_down[GDOX_KEY_COUNT];
     GDOX_Debug_Step m_debug_step;
     bool m_debug_step_resume;
     bool m_debug_interrupt_deferred;

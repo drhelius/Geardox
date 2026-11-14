@@ -29,6 +29,7 @@
 #include "geardox_core.h"
 #include "input/input.h"
 #include "input/i8042.h"
+#include "input/gamepad_keys.h"
 #include "input/key_map.h"
 #include "osd/key_mapper.h"
 #include "audio/audio.h"

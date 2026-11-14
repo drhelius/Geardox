@@ -21,6 +21,7 @@
 #include <algorithm>
 #include "game_descriptor.h"
 #include "media_file.h"
+#include "../input/gamepad_keys.h"
 #include "../input/key_map.h"
 #include "../system/machine_profiles.h"
 
@@ -42,7 +43,8 @@ enum Descriptor_Key_Type
     DESCRIPTOR_FRAME,
     DESCRIPTOR_DOS_VERSION,
     DESCRIPTOR_DOS_DIR,
-    DESCRIPTOR_KEYBOARD
+    DESCRIPTOR_KEYBOARD,
+    DESCRIPTOR_GAMEPAD_TARGET
 };
 
 struct Descriptor_Key
@@ -81,6 +83,10 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "midi_port", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
+    { "pad1", "use", DESCRIPTOR_CHOICE, "keys,joystick", 0, 0 },
+    { "pad1", "mouse", DESCRIPTOR_CHOICE, "off,left_stick,right_stick,dpad", 0, 0 },
+    { "pad2", "use", DESCRIPTOR_CHOICE, "keys,off", 0, 0 },
+    { "pad2", "mouse", DESCRIPTOR_CHOICE, "off,left_stick,right_stick,dpad", 0, 0 },
     { "dos", "memory", DESCRIPTOR_CHOICE, "none,xms,umb,ems", 0, 0 },
     { "dos", "ems_kb", DESCRIPTOR_NUMBER, NULL, 16, 32768 },
     { "dos", "ems_frame", DESCRIPTOR_FRAME, NULL, 0, 0 },
@@ -105,10 +111,13 @@ static const Descriptor_Key k_descriptor_keys[] =
 };
 
 static const char* const k_descriptor_hard_disks[GDOX_MAX_HARD_DISKS] = { NULL, "hdd_primary_slave", NULL, "hdd_secondary_slave" };
+static const char* const k_descriptor_gamepads[GDOX_MAX_GAMEPADS] = { "pad1", "pad2" };
+static const Descriptor_Key k_descriptor_gamepad_target = { NULL, NULL, DESCRIPTOR_GAMEPAD_TARGET, NULL, 0, 0 };
 
 static const char* const k_descriptor_sections[] =
 {
-    "geardox", "game", "machine", "sound", "input", "keys", "dos", "env", "drives", "run", "config_sys", "autoexec"
+    "geardox", "game", "machine", "sound", "input", "keys", "pad1", "pad2", "dos", "env", "drives", "run", "config_sys",
+    "autoexec"
 };
 
 static const int k_descriptor_key_count = (int)(sizeof(k_descriptor_keys) / sizeof(k_descriptor_keys[0]));
@@ -276,6 +285,17 @@ static bool check_dos_dir(const std::string& value, std::string* normalized)
     return true;
 }
 
+static bool is_gamepad_section(const std::string& section)
+{
+    for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
+    {
+        if (section == k_descriptor_gamepads[i])
+            return true;
+    }
+
+    return false;
+}
+
 static const Descriptor_Key* find_key(const std::string& section, const std::string& key)
 {
     for (int i = 0; i < k_descriptor_key_count; i++)
@@ -283,6 +303,9 @@ static const Descriptor_Key* find_key(const std::string& section, const std::str
         if ((section == k_descriptor_keys[i].section) && (key == k_descriptor_keys[i].key))
             return &k_descriptor_keys[i];
     }
+
+    if (is_gamepad_section(section) && (GamepadKeys::FindInput(key.c_str()) >= 0))
+        return &k_descriptor_gamepad_target;
 
     return NULL;
 }
@@ -413,6 +436,8 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
         }
         case DESCRIPTOR_DOS_DIR:
             return check_dos_dir(value, normalized);
+        case DESCRIPTOR_GAMEPAD_TARGET:
+            return GamepadKeys::FindTarget(text.c_str()) >= 0;
         case DESCRIPTOR_DOS_VERSION:
             return (text.size() == 4) && (text[0] >= '1') && (text[0] <= '9') && (text[1] == '.') &&
                 (text[2] >= '0') && (text[2] <= '9') && (text[3] >= '0') && (text[3] <= '9');
@@ -624,8 +649,16 @@ bool GameDescriptor::ParseLine(const std::string& section, const std::string& li
     std::string normalized;
 
     if (!check_value(*found, value, &normalized))
+    {
+        if (found->type == DESCRIPTOR_GAMEPAD_TARGET)
+        {
+            Warn(number, "Unknown key %s for %s in [%s], ignored", value.c_str(), key.c_str(), section.c_str());
+            return true;
+        }
+
         return Fail(number, "Bad value for %s in [%s]: %s%s", key.c_str(), section.c_str(), value.c_str(),
             found->type == DESCRIPTOR_DOS_DIR ? ", expected a folder of C: such as C:\\GAME" : "");
+    }
 
     m_values[id] = normalized;
     return true;
@@ -786,6 +819,14 @@ std::string GameDescriptor::Write() const
             }
         }
 
+        for (int i = 0; is_gamepad_section(section) && (i < GDOX_GAMEPAD_INPUT_COUNT); i++)
+        {
+            std::map<std::string, std::string>::const_iterator it = m_values.find(section + "." + k_gamepad_inputs[i].id);
+
+            if (it != m_values.end())
+                body += std::string(k_gamepad_inputs[i].id) + " = " + it->second + "\n";
+        }
+
         bool raw = (section == "config_sys") || (section == "autoexec");
         const std::vector<std::string>& lines = section == "config_sys" ? m_config_sys : m_autoexec;
 
@@ -926,6 +967,11 @@ const char* GameDescriptor::GetHardDiskKey(int id)
     return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? k_descriptor_hard_disks[id] : NULL;
 }
 
+const char* GameDescriptor::GetGamepadSection(int pad)
+{
+    return (pad >= 0) && (pad < GDOX_MAX_GAMEPADS) ? k_descriptor_gamepads[pad] : NULL;
+}
+
 // JEMM makes EMS from extended memory, less the HMA, its DMA buffer, the UMBs and itself (JEMM Readme.txt §3), and
 // R14's hole takes 15-16 MB with a Cirrus card. MS-DOS's EMM386 leaves 1472K to 1488K less EMS free than RAM, measured
 // with MEM (docs/27 §6.3). The smallest size of the model that leaves the game its EMS
@@ -1043,6 +1089,25 @@ void GameDescriptor::Build()
     }
 
     info.midi_port = Get("sound", "midi_port");
+
+    for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
+    {
+        GDOX_Gamepad_Game& gamepad = info.gamepads[p];
+        const char* section = k_descriptor_gamepads[p];
+        GamepadKeys::ClearGame(&gamepad);
+
+        if (Has(section, "use"))
+            gamepad.use = GamepadKeys::FindUse(Get(section, "use").c_str());
+
+        if (Has(section, "mouse"))
+            gamepad.mouse = GamepadKeys::FindMouse(Get(section, "mouse").c_str());
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+        {
+            if (Has(section, k_gamepad_inputs[i].id))
+                gamepad.targets[i] = GamepadKeys::FindTarget(Get(section, k_gamepad_inputs[i].id).c_str());
+        }
+    }
 
     info.env.clear();
 

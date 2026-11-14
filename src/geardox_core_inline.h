@@ -92,6 +92,11 @@ INLINE KeyMapper* GeardoxCore::GetKeyMapper()
     return m_key_mapper;
 }
 
+INLINE GamepadKeys* GeardoxCore::GetGamepadKeys()
+{
+    return m_gamepad_keys;
+}
+
 INLINE Memory* GeardoxCore::GetMemory()
 {
     return m_memory;

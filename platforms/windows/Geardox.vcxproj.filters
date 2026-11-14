@@ -439,6 +439,9 @@
     <ClCompile Include="..\..\src\input\key_map.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\input\gamepad_keys.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\dependencies\libchdr\src\libchdr_bitstream.c">
       <Filter>dependencies\libchdr\src</Filter>
     </ClCompile>
@@ -642,6 +645,7 @@
     <ClInclude Include="..\..\src\input\host_keys.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\keyboard_keys.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\input\key_map.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\input\gamepad_keys.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\osd\osd_font.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\osd\osd_canvas.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\osd\key_mapper.h"><Filter>src</Filter></ClInclude>
