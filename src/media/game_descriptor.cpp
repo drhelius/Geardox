@@ -328,7 +328,7 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
             if (!parse_number(text, &number) || (number < key.min) || (number > key.max))
                 return false;
 
-            *normalized = std::to_string(number);
+            *normalized = int_to_string(number);
             return true;
         case DESCRIPTOR_MODEL:
             return find_model(text) >= 0;
@@ -749,7 +749,7 @@ std::string GameDescriptor::Write() const
         std::string body;
 
         if (section == "geardox")
-            body += "version = " + std::to_string(GDOX_GAME_DESCRIPTOR_VERSION) + "\n";
+            body += "version = " + int_to_string(GDOX_GAME_DESCRIPTOR_VERSION) + "\n";
 
         for (int k = 0; k < k_descriptor_key_count; k++)
         {
@@ -956,7 +956,7 @@ bool GameDescriptor::Fail(int line, const char* format, ...)
     vsnprintf(text, sizeof(text), format, args);
     va_end(args);
     m_error_line = line;
-    m_error = line > 0 ? "Line " + std::to_string(line) + ": " + text : std::string(text);
+    m_error = line > 0 ? "Line " + int_to_string(line) + ": " + text : std::string(text);
     m_values.clear();
     Build();
     return false;
@@ -969,7 +969,7 @@ void GameDescriptor::Warn(int line, const char* format, ...)
     va_start(args, format);
     vsnprintf(text, sizeof(text), format, args);
     va_end(args);
-    m_warnings.push_back("Line " + std::to_string(line) + ": " + text);
+    m_warnings.push_back("Line " + int_to_string(line) + ": " + text);
 }
 
 void GameDescriptor::Build()

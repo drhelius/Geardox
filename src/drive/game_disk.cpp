@@ -2034,7 +2034,7 @@ void GameDisk::NoteStartupFile(FatImage* image, const FatImage_File* file, const
             note += (i > 0 ? "; " : "") + added[i];
 
         if (added.size() > k_game_disk_startup_lines)
-            note += "; and " + std::to_string(added.size() - k_game_disk_startup_lines) + " more";
+            note += "; and " + int_to_string((int)(added.size() - k_game_disk_startup_lines)) + " more";
 
         note += std::string(". Lines the game needs go in ") + section + ".";
     }
