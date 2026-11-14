@@ -339,7 +339,6 @@ void gui_debug_memory_reset(void)
 
 void gui_debug_memory_goto(const GDOX_Debug_Memory_Address& address)
 {
-    config_debug.show_memory = true;
     navigate_to(address);
 }
 
@@ -451,8 +450,6 @@ void gui_debug_window_memory(void)
         ImGui::EndPopup();
     }
 
-    draw_bookmark_popup();
-
     const char* provider_message = memory_provider.GetLastMessage();
 
     if (provider_message[0] != 0)
@@ -472,6 +469,8 @@ void gui_debug_memory_auxiliary_windows(void)
 
     if (show_breakpoints)
         draw_breakpoints_window();
+
+    draw_bookmark_popup();
 }
 
 void gui_debug_memory_copy(void)
@@ -2221,6 +2220,8 @@ static int watch_size_bytes(int size)
 
 static void navigate_to(const GDOX_Debug_Memory_Address& address)
 {
+    config_debug.show_memory = true;
+
     MemEditor* editor = active_editor();
 
     if (!IsValidPointer(editor))
