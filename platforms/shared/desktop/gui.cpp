@@ -731,12 +731,7 @@ static void main_window(void)
     int scale_multiplier = 0;
 
     if (selected_ratio != 0)
-    {
-        if ((float)base_width > (float)base_height * ratio)
-            h_corrected = (int)round(base_width / ratio);
-        else
-            w_corrected = (int)round(base_height * ratio);
-    }
+        w_corrected = (int)round(base_height * ratio);
 
     if (config_debug.debug)
     {
