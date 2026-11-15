@@ -434,6 +434,7 @@ static void before_read(int file_version)
 static void after_read(int file_version)
 {
     UNUSED(file_version);
+    hotkeys_validate();
     sync_shader_preset_parameter_defaults();
 }
 
