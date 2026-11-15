@@ -120,11 +120,12 @@ const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
 // 3D-Bench x1.22 (R14 §8.2)
 const GDOX_Video_Card_Info k_video_cards[GDOX_VIDEO_CARD_COUNT] =
 {
-    { "VGA", "vga", 0x40000, GDOX_VIDEO_FAMILY_VGA, false, { 0, 0 }, false, { 0, 0 } },
-    { "SVGA Cirrus GD5428 ISA", "gd5428", 0x100000, GDOX_VIDEO_FAMILY_CIRRUS, false, { 0, 0 }, false, { 0, 0 } },
-    { "SVGA Cirrus GD5428 VL-Bus", "gd5428_vlb", 0x100000, GDOX_VIDEO_FAMILY_CIRRUS, true, { 16 * 256, 5 * 256 }, false, { 0, 0 } },
-    { "IBM CGA", "cga", 0x4000, GDOX_VIDEO_FAMILY_CGA, false, { 0, 0 }, true, { 740, 740 } },
-    { "IBM EGA", "ega", 0x40000, GDOX_VIDEO_FAMILY_EGA, false, { 0, 0 }, true, { 1270, 1270 } }
+    { "IBM CGA", "cga", 0x4000, GDOX_VIDEO_FAMILY_CGA, false, { 0, 0 }, true, { 740, 740 }, false },
+    { "IBM EGA", "ega", 0x40000, GDOX_VIDEO_FAMILY_EGA, false, { 0, 0 }, true, { 1270, 1270 }, false },
+    { "VGA", "vga", 0x40000, GDOX_VIDEO_FAMILY_VGA, false, { 0, 0 }, false, { 0, 0 }, false },
+    { "SVGA Cirrus GD5428 ISA", "gd5428", 0x100000, GDOX_VIDEO_FAMILY_CIRRUS, false, { 0, 0 }, false, { 0, 0 }, false },
+    { "SVGA Cirrus GD5428 VL-Bus", "gd5428_vlb", 0x100000, GDOX_VIDEO_FAMILY_CIRRUS, true, { 16 * 256, 5 * 256 }, false, { 0, 0 }, false },
+    { "SVGA Cirrus GD5446 PCI", "gd5446", 0x200000, GDOX_VIDEO_FAMILY_CIRRUS, false, { 16 * 256, 5 * 256 }, false, { 0, 0 }, true }
 };
 
 const GDOX_Sound_Card_Info k_sound_cards[GDOX_SOUND_CARD_COUNT] =

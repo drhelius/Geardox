@@ -1995,6 +1995,9 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     if (k_video_cards[config.video_card].local_bus && ((profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) == 0))
         config.video_card = GDOX_VIDEO_CARD_GD5428;
 
+    if (k_video_cards[config.video_card].pci && ((profile.features & GDOX_MACHINE_FEATURE_PCI) == 0))
+        config.video_card = GDOX_VIDEO_CARD_GD5428;
+
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
 }
@@ -2275,6 +2278,7 @@ void GeardoxCore::ResolveMachineConfig()
     int drive_timing = pick_setting(game.drive_timing, user.drive_timing, -1, &source);
     int video_card = pick_setting(game.video_card, user.video_card, -1, &source);
     bool local_bus = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
+    bool pci = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_PCI) != 0;
 
     config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = (u8)pick_setting(game.sound_irq, user.sound_irq, 0, &source);
@@ -2293,7 +2297,8 @@ void GeardoxCore::ResolveMachineConfig()
     if ((video_card >= 0) && (video_card < GDOX_VIDEO_CARD_COUNT))
         config.video_card = (u8)video_card;
     else
-        config.video_card = local_bus ? (u8)GDOX_VIDEO_CARD_GD5428_VLB : (u8)GDOX_VIDEO_CARD_GD5428;
+        config.video_card = pci ? (u8)GDOX_VIDEO_CARD_GD5446 :
+            local_bus ? (u8)GDOX_VIDEO_CARD_GD5428_VLB : (u8)GDOX_VIDEO_CARD_GD5428;
 
     report.title = m_game ? m_game_name.c_str() : NULL;
     report.warning_count = 0;
@@ -2312,6 +2317,9 @@ void GeardoxCore::ResolveMachineConfig()
 
     if ((video_card == GDOX_VIDEO_CARD_GD5428_VLB) && (config.video_card != GDOX_VIDEO_CARD_GD5428_VLB))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no VL-Bus slot");
+
+    if ((video_card == GDOX_VIDEO_CARD_GD5446) && (config.video_card != GDOX_VIDEO_CARD_GD5446))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no PCI slot");
 
     if ((report.ram == GDOX_MACHINE_SOURCE_GAME) && ((u32)ram_mb * megabyte != config.ram_size))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
@@ -2333,7 +2341,7 @@ void GeardoxCore::ResolveMachineConfig()
 bool GeardoxCore::HasMemoryHole() const
 {
     return (k_video_cards[m_machine_config.video_card].family == GDOX_VIDEO_FAMILY_CIRRUS) &&
-        (m_machine_config.ram_size >= 16 * 1024 * 1024);
+        !k_video_cards[m_machine_config.video_card].pci && (m_machine_config.ram_size >= 16 * 1024 * 1024);
 }
 
 bool GeardoxCore::HasPCIBus() const
@@ -2348,11 +2356,13 @@ void GeardoxCore::LoadMachineFirmware()
 
     int family = k_video_cards[m_pending_machine_config.video_card].family;
     bool pci = (k_machine_profiles[m_pending_machine_config.model].features & GDOX_MACHINE_FEATURE_PCI) != 0;
+    bool pci_video = k_video_cards[m_pending_machine_config.video_card].pci;
 
-    if (m_firmware->IsReady() && (m_firmware->GetFamily() == family) && (m_firmware->IsPCI() == pci))
+    if (m_firmware->IsReady() && (m_firmware->GetFamily() == family) && (m_firmware->IsPCI() == pci) &&
+        (m_firmware->IsPCIVideo() == pci_video))
         return;
 
-    m_firmware->Load(family, pci);
+    m_firmware->Load(family, pci, pci_video);
 
     if (IsValidPointer(m_i386))
         m_i386->ResetDisassembler();
@@ -2393,7 +2403,10 @@ void GeardoxCore::ApplyMachineConfig()
 
     if (IsValidPointer(m_pci_bus))
     {
+        bool pci_video = HasPCIBus() && k_video_cards[m_machine_config.video_card].pci;
         m_pci_bus->SetEnabled(HasPCIBus());
+        m_pci_bus->RegisterDevice(k_pci_device_slot, pci_video ? m_video : NULL, pci_video ? &Video::ReadConfigCallback : NULL,
+            pci_video ? &Video::WriteConfigCallback : NULL);
         m_piix->SetEnabled(HasPCIBus());
         m_system_control->SetPageControl(HasPCIBus());
     }
@@ -2438,7 +2451,7 @@ void GeardoxCore::ApplyFirmwareDevices()
     m_system_control->SetShadowControl(true);
     m_firmware_config->SetEnabled(true);
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size,
-        m_firmware->GetFamily() == GDOX_VIDEO_FAMILY_CGA);
+        m_firmware->GetFamily() == GDOX_VIDEO_FAMILY_CGA, m_firmware->IsPCIVideo());
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
     m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole());
     m_firmware_config->SetGameTarget(m_game_target);
@@ -2471,7 +2484,7 @@ void GeardoxCore::ApplyBusTiming()
     u32 bus_clock_rate = profile.bus_clock_rate;
 
     // A VL-Bus card's memory runs on the CPU's bus at its own waits, an ISA card keeps the model's
-    if (IsValidPointer(waits) && card.local_bus)
+    if (IsValidPointer(waits) && (card.local_bus || card.pci))
     {
         m_card_bus_waits = *waits;
         m_card_bus_waits.vram_cycle[0] = card.local_bus_cycle[0];

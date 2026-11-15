@@ -38,11 +38,12 @@ void Firmware::Init()
     m_ready = false;
     m_family = GDOX_VIDEO_FAMILY_VGA;
     m_pci = false;
+    m_pci_video = false;
 }
 
 // SeaBIOS and SeaVGABIOS built from the pinned SeaBIOS commit, compiled in. The system BIOS is built for the board,
-// the video BIOS for the card: SeaVGABIOS for a plain VGA, the Cirrus Logic GD5428, an IBM EGA or an IBM CGA
-void Firmware::Load(int family, bool pci)
+// the video BIOS for the card: SeaVGABIOS for a plain VGA, the Cirrus Logic GD5428 or GD5446, an IBM EGA or an IBM CGA
+void Firmware::Load(int family, bool pci, bool pci_video)
 {
     const char* name = "SeaVGABIOS";
     u32 size = k_seabios_vgabios_size;
@@ -51,13 +52,14 @@ void Firmware::Load(int family, bool pci)
     m_vga_rom = k_seabios_vgabios;
     m_family = family;
     m_pci = pci;
+    m_pci_video = pci_video && family == GDOX_VIDEO_FAMILY_CIRRUS;
 
     switch (family)
     {
         case GDOX_VIDEO_FAMILY_CIRRUS:
-            m_vga_rom = k_seabios_vgabios_cirrus;
-            size = k_seabios_vgabios_cirrus_size;
-            name = "SeaVGABIOS CL-GD5428";
+            m_vga_rom = m_pci_video ? k_seabios_vgabios_cirrus_pci : k_seabios_vgabios_cirrus;
+            size = m_pci_video ? k_seabios_vgabios_cirrus_pci_size : k_seabios_vgabios_cirrus_size;
+            name = m_pci_video ? "SeaVGABIOS CL-GD5446" : "SeaVGABIOS CL-GD5428";
             break;
         case GDOX_VIDEO_FAMILY_EGA:
             m_vga_rom = k_seabios_vgabios_ega;

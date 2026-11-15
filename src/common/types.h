@@ -585,11 +585,12 @@ enum GDOX_Sound_Card
 
 enum GDOX_Video_Card
 {
-    GDOX_VIDEO_CARD_VGA = 0,
+    GDOX_VIDEO_CARD_CGA = 0,
+    GDOX_VIDEO_CARD_EGA,
+    GDOX_VIDEO_CARD_VGA,
     GDOX_VIDEO_CARD_GD5428,
     GDOX_VIDEO_CARD_GD5428_VLB,
-    GDOX_VIDEO_CARD_CGA,
-    GDOX_VIDEO_CARD_EGA,
+    GDOX_VIDEO_CARD_GD5446,
     GDOX_VIDEO_CARD_COUNT
 };
 
@@ -626,6 +627,7 @@ struct GDOX_Video_Card_Info
     u16 local_bus_cycle[2];
     bool isa8;
     u16 isa8_wait_ns[2];
+    bool pci;
 };
 
 struct GDOX_Sound_Card_Info

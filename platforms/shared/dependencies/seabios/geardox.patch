@@ -1154,16 +1154,19 @@
  #include "output.h" // dprintf
  #include "stdvga.h" // VGAREG_SEQU_ADDRESS
  #include "string.h" // memset16_far
-@@ -21,7 +22,7 @@
+@@ -21,7 +22,10 @@
   ****************************************************************/
  
  /* VGA */
 -static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0xffff};
 +static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0x4a0b,0x5b0c,0x2b1b,0x2f1c,0xffff};
++#if CONFIG_VGA_PCI
++static u16 cseq_vga_5446[] VAR16 = {0x0007,0x0012,0x0013,0x660b,0x5b0c,0x3b1b,0x2f1c,0xffff};
++#endif
  static u16 cgraph_vga[] VAR16 = {0x0009,0x000a,0x000b,0xffff};
  static u16 ccrtc_vga[] VAR16 = {0x001a,0x001b,0x001d,0xffff};
  
-@@ -33,7 +34,7 @@ static u16 cgraph_svgacolor[] VAR16 = {
+@@ -33,7 +37,7 @@ static u16 cgraph_svgacolor[] VAR16 = {
  };
  /* 640x480x8 */
  static u16 cseq_640x480x8[] VAR16 = {
@@ -1172,7 +1175,7 @@
      0x580b,0x580c,0x580d,0x580e,
      0x0012,0x0013,0x2017,
      0x331b,0x331c,0x331d,0x331e,
-@@ -47,9 +48,18 @@ static u16 ccrtc_640x480x8[] VAR16 = {
+@@ -47,9 +51,18 @@ static u16 ccrtc_640x480x8[] VAR16 = {
      0x001a,0x221b,0x001d,
      0xffff
  };
@@ -1192,7 +1195,7 @@
      0x580b,0x580c,0x580d,0x580e,
      0x0012,0x0013,0x2017,
      0x331b,0x331c,0x331d,0x331e,
-@@ -63,25 +73,25 @@ static u16 ccrtc_640x480x16[] VAR16 = {
+@@ -63,25 +76,25 @@ static u16 ccrtc_640x480x16[] VAR16 = {
      0x001a,0x221b,0x001d,
      0xffff
  };
@@ -1226,7 +1229,7 @@
      0x230b,0x230c,0x230d,0x230e,
      0x0012,0x0013,0x2017,
      0x141b,0x141c,0x141d,0x141e,
-@@ -96,7 +106,7 @@ static u16 ccrtc_800x600x8[] VAR16 = {
+@@ -96,7 +109,7 @@ static u16 ccrtc_800x600x8[] VAR16 = {
  };
  /* 800x600x16 */
  static u16 cseq_800x600x16[] VAR16 = {
@@ -1235,7 +1238,7 @@
      0x230b,0x230c,0x230d,0x230e,
      0x0012,0x0013,0x2017,
      0x141b,0x141c,0x141d,0x141e,
-@@ -111,7 +121,7 @@ static u16 ccrtc_800x600x16[] VAR16 = {
+@@ -111,7 +124,7 @@ static u16 ccrtc_800x600x16[] VAR16 = {
  };
  /* 800x600x24 */
  static u16 cseq_800x600x24[] VAR16 = {
@@ -1244,7 +1247,7 @@
      0x230b,0x230c,0x230d,0x230e,
      0x0012,0x0013,0x2017,
      0x141b,0x141c,0x141d,0x141e,
-@@ -126,7 +136,7 @@ static u16 ccrtc_800x600x24[] VAR16 = {
+@@ -126,7 +139,7 @@ static u16 ccrtc_800x600x24[] VAR16 = {
  };
  /* 1024x768x8 */
  static u16 cseq_1024x768x8[] VAR16 = {
@@ -1253,7 +1256,7 @@
      0x760b,0x760c,0x760d,0x760e,
      0x0012,0x0013,0x2017,
      0x341b,0x341c,0x341d,0x341e,
-@@ -141,7 +151,7 @@ static u16 ccrtc_1024x768x8[] VAR16 = {
+@@ -141,7 +154,7 @@ static u16 ccrtc_1024x768x8[] VAR16 = {
  };
  /* 1024x768x16 */
  static u16 cseq_1024x768x16[] VAR16 = {
@@ -1262,7 +1265,7 @@
      0x760b,0x760c,0x760d,0x760e,
      0x0012,0x0013,0x2017,
      0x341b,0x341c,0x341d,0x341e,
-@@ -156,7 +166,7 @@ static u16 ccrtc_1024x768x16[] VAR16 = {
+@@ -156,7 +169,7 @@ static u16 ccrtc_1024x768x16[] VAR16 = {
  };
  /* 1024x768x24 */
  static u16 cseq_1024x768x24[] VAR16 = {
@@ -1271,16 +1274,27 @@
      0x760b,0x760c,0x760d,0x760e,
      0x0012,0x0013,0x2017,
      0x341b,0x341c,0x341d,0x341e,
-@@ -171,7 +181,7 @@ static u16 ccrtc_1024x768x24[] VAR16 = {
+@@ -171,22 +184,22 @@ static u16 ccrtc_1024x768x24[] VAR16 = {
  };
  /* 1280x1024x8 */
  static u16 cseq_1280x1024x8[] VAR16 = {
 -    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x1107,
+-    0x760b,0x760c,0x760d,0x760e,
 +    0x0300,0x2101,0x0f02,0x0003,0x0e04,0x0107,
-     0x760b,0x760c,0x760d,0x760e,
++    0x710b,0x710c,0x710d,0x710e,
      0x0012,0x0013,0x2017,
-     0x341b,0x341c,0x341d,0x341e,
-@@ -186,7 +196,7 @@ static u16 ccrtc_1280x1024x8[] VAR16 = {
+-    0x341b,0x341c,0x341d,0x341e,
++    0x1e1b,0x1e1c,0x1e1d,0x1e1e,
+     0xffff
+ };
+ static u16 ccrtc_1280x1024x8[] VAR16 = {
+-    0x2911,0xc300,0x9f01,0x9f02,0x8603,0x8304,0x9405,0x2406,0xf707,
++    0x2211,0xce00,0x9f01,0x9f02,0x9203,0xa604,0x1405,0x1306,0xb207,
+     0x6009,0x000c,0x000d,
+-    0x0310,0xff12,0xa013,0x4014,0xff15,0x2416,0xc317,0xff18,
++    0x0010,0xff12,0xa013,0x4014,0x0015,0x1416,0xc717,0xff18,
+     0x001a,0x221b,0x001d,
+     0xffff
  };
  /* 1280x1024x16 */
  static u16 cseq_1280x1024x16[] VAR16 = {
@@ -1289,7 +1303,7 @@
      0x760b,0x760c,0x760d,0x760e,
      0x0012,0x0013,0x2017,
      0x341b,0x341c,0x341d,0x341e,
-@@ -202,7 +212,7 @@ static u16 ccrtc_1280x1024x16[] VAR16 = {
+@@ -202,7 +215,7 @@ static u16 ccrtc_1280x1024x16[] VAR16 = {
  
  /* 1600x1200x8 */
  static u16 cseq_1600x1200x8[] VAR16 = {
@@ -1298,7 +1312,7 @@
      0x760b,0x760c,0x760d,0x760e,
      0x0012,0x0013,0x2017,
      0x341b,0x341c,0x341d,0x341e,
-@@ -227,6 +237,8 @@ struct cirrus_mode_s {
+@@ -227,6 +240,8 @@ struct cirrus_mode_s {
  };
  
  static struct cirrus_mode_s cirrus_modes[] VAR16 = {
@@ -1307,7 +1321,7 @@
      {0x5f,0x101,{MM_PACKED,640,480,8,8,16,SEG_GRAPH},0x00,
       cseq_640x480x8,cgraph_svgacolor,ccrtc_640x480x8},
      {0x64,0x111,{MM_DIRECT,640,480,16,8,16,SEG_GRAPH},0xe1,
-@@ -276,13 +288,25 @@ is_cirrus_mode(struct vgamode_s *vmode_g)
+@@ -276,13 +291,25 @@ is_cirrus_mode(struct vgamode_s *vmode_g)
              && vmode_g <= &cirrus_modes[ARRAY_SIZE(cirrus_modes)-1].info);
  }
  
@@ -1335,7 +1349,7 @@
              return &table_g->info;
          table_g++;
      }
-@@ -295,7 +319,7 @@ clext_list_modes(u16 seg, u16 *dest, u16 *last)
+@@ -295,7 +322,7 @@ clext_list_modes(u16 seg, u16 *dest, u16 *last)
      int i;
      for (i=0; i<ARRAY_SIZE(cirrus_modes) && dest<last; i++) {
          u16 mode = GET_GLOBAL(cirrus_modes[i].vesamode);
@@ -1344,7 +1358,7 @@
              continue;
          SET_FARVAR(seg, *dest, mode);
          dest++;
-@@ -372,9 +396,9 @@ clext_set_displaystart(struct vgamode_s *curmode_g, int val)
+@@ -372,9 +399,9 @@ clext_set_displaystart(struct vgamode_s *curmode_g, int val)
      val = val * stdvga_vram_ratio(curmode_g) / 4;
      stdvga_crtc_write(crtc_addr, 0x0d, val);
      stdvga_crtc_write(crtc_addr, 0x0c, val >> 8);
@@ -1356,16 +1370,60 @@
      return 0;
  }
  
-@@ -460,6 +484,8 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+@@ -403,12 +430,23 @@ cirrus_switch_mode_setregs(u16 *data, u16 port)
+     }
+ }
+ 
++#if CONFIG_VGA_PCI
++static int cirrus_is_5446(void);
++#endif
++
+ static void
+ cirrus_switch_mode(struct cirrus_mode_s *table)
+ {
+     // Unlock cirrus special
+     stdvga_sequ_write(0x06, 0x12);
++#if CONFIG_VGA_PCI
++    u16 *seq = GET_GLOBAL(table->seq);
++    if (seq == cseq_vga && cirrus_is_5446())
++        seq = cseq_vga_5446;
++    cirrus_switch_mode_setregs(seq, VGAREG_SEQU_ADDRESS);
++#else
+     cirrus_switch_mode_setregs(GET_GLOBAL(table->seq), VGAREG_SEQU_ADDRESS);
++#endif
+     cirrus_switch_mode_setregs(GET_GLOBAL(table->graph), VGAREG_GRDC_ADDRESS);
+     cirrus_switch_mode_setregs(GET_GLOBAL(table->crtc), stdvga_get_crtc());
+ 
+@@ -460,6 +498,13 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
      struct cirrus_mode_s *table_g = container_of(
          vmode_g, struct cirrus_mode_s, info);
      cirrus_switch_mode(table_g);
 +    // The linear aperture in MB, SR07 bits 7-4, in every extended mode
++#if CONFIG_VGA_PCI
++    u32 lfb = GET_GLOBAL(VBE_framebuffer);
++    stdvga_sequ_mask(0x07, 0xf0, lfb > 0x00ffffff ? 0xf0 : lfb >> 16);
++#else
 +    stdvga_sequ_mask(0x07, 0xf0, GET_GLOBAL(VBE_framebuffer) >> 16);
++#endif
      if (GET_GLOBAL(vmode_g->memmodel) == MM_PACKED && !(flags & MF_NOPALETTE))
          stdvga_set_packed_palette();
      if (!(flags & MF_NOCLEARMEM))
-@@ -604,6 +630,32 @@ cirrus_get_memsize(void)
+@@ -479,6 +524,14 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+ // of CR27 may not return the chip id.
+ static u8 cirrus_chip_id VAR16;
+ 
++#if CONFIG_VGA_PCI
++static int
++cirrus_is_5446(void)
++{
++    return GET_GLOBAL(cirrus_chip_id) == 0xb8;
++}
++#endif
++
+ static void
+ clext_101280(struct bregs *regs)
+ {
+@@ -604,6 +657,32 @@ cirrus_get_memsize(void)
      return 0x04 << x;
  }
  
@@ -1398,7 +1456,7 @@
  int
  clext_setup(void)
  {
-@@ -632,6 +684,8 @@ clext_setup(void)
+@@ -632,6 +711,8 @@ clext_setup(void)
      if (CONFIG_VGA_PCI && bdf >= 0)
          lfb_addr = (pci_config_readl(bdf, PCI_BASE_ADDRESS_0)
                      & PCI_BASE_ADDRESS_MEM_MASK);

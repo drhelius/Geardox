@@ -28,10 +28,11 @@ public:
     Firmware();
     ~Firmware();
     void Init();
-    void Load(int family, bool pci);
+    void Load(int family, bool pci, bool pci_video);
     bool IsReady() const;
     int GetFamily() const;
     bool IsPCI() const;
+    bool IsPCIVideo() const;
     const GDOX_Firmware_Info& GetInfo(GDOX_Firmware_Type type) const;
     const u8* GetSystemRom() const;
     const u8* GetVGARom() const;
@@ -48,6 +49,7 @@ private:
     bool m_ready;
     int m_family;
     bool m_pci;
+    bool m_pci_video;
 };
 
 #include "firmware_inline.h"

@@ -38,12 +38,13 @@ build_rom bios.config bios.bin
 build_rom bios_pci.config bios.bin bios_pci.bin
 build_rom vgabios.config vgabios.bin
 build_rom vgabios_cirrus.config vgabios.bin vgabios_cirrus.bin
+build_rom vgabios_cirrus_pci.config vgabios.bin vgabios_cirrus_pci.bin
 build_rom vgabios_ega.config vgabios.bin vgabios_ega.bin
 build_rom vgabios_cga.config vgabios.bin vgabios_cga.bin
 
 "$PYTHON" - "$SCRIPT_DIR/seabios.cpp" "$VERSION" "k_seabios_bios=$WORK_DIR/bios.bin" \
     "k_seabios_bios_pci=$WORK_DIR/bios_pci.bin" "k_seabios_vgabios=$WORK_DIR/vgabios.bin" \
-    "k_seabios_vgabios_cirrus=$WORK_DIR/vgabios_cirrus.bin" \
+    "k_seabios_vgabios_cirrus=$WORK_DIR/vgabios_cirrus.bin" "k_seabios_vgabios_cirrus_pci=$WORK_DIR/vgabios_cirrus_pci.bin" \
     "k_seabios_vgabios_ega=$WORK_DIR/vgabios_ega.bin" \
     "k_seabios_vgabios_cga=$WORK_DIR/vgabios_cga.bin" << 'PYTHON_EOF'
 import sys
@@ -76,5 +77,6 @@ PYTHON_EOF
 
 echo "Built SeaBIOS $VERSION: bios.bin $(wc -c < "$WORK_DIR/bios.bin") bytes, bios_pci.bin $(wc -c < "$WORK_DIR/bios_pci.bin") bytes," \
     "vgabios.bin $(wc -c < "$WORK_DIR/vgabios.bin") bytes," \
-    "vgabios_cirrus.bin $(wc -c < "$WORK_DIR/vgabios_cirrus.bin") bytes, vgabios_ega.bin $(wc -c < "$WORK_DIR/vgabios_ega.bin") bytes," \
+    "vgabios_cirrus.bin $(wc -c < "$WORK_DIR/vgabios_cirrus.bin") bytes," \
+    "vgabios_cirrus_pci.bin $(wc -c < "$WORK_DIR/vgabios_cirrus_pci.bin") bytes, vgabios_ega.bin $(wc -c < "$WORK_DIR/vgabios_ega.bin") bytes," \
     "vgabios_cga.bin $(wc -c < "$WORK_DIR/vgabios_cga.bin") bytes"

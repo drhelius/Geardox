@@ -82,6 +82,7 @@ Video::Video()
     memset(m_composite_line, 0, sizeof(m_composite_line));
     BuildCompositeTables();
     m_local_bus = false;
+    m_pci = false;
     m_vram_size = VIDEO_VGA_VRAM_SIZE;
     m_vram_mask = VIDEO_VGA_VRAM_SIZE - 1;
     m_plane_mask = (VIDEO_VGA_VRAM_SIZE >> 2) - 1;
@@ -159,7 +160,7 @@ void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
 // A card change takes effect at the next reset
 void Video::SetCard(int card)
 {
-    const GDOX_Video_Card_Info& info = k_video_cards[(card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : 0];
+    const GDOX_Video_Card_Info& info = k_video_cards[(card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : GDOX_VIDEO_CARD_VGA];
 
     m_card = (card >= 0 && card < GDOX_VIDEO_CARD_COUNT) ? card : GDOX_VIDEO_CARD_VGA;
     m_family = info.family;
@@ -167,6 +168,7 @@ void Video::SetCard(int card)
     m_ega = info.family == GDOX_VIDEO_FAMILY_EGA;
     m_cga = info.family == GDOX_VIDEO_FAMILY_CGA;
     m_local_bus = info.local_bus;
+    m_pci = info.pci;
     m_vram_size = MIN(info.memory_size, (u32)VIDEO_VRAM_SIZE);
     m_vram_mask = m_vram_size - 1;
     m_plane_mask = (m_vram_size >> 2) - 1;
@@ -182,10 +184,10 @@ void Video::Reset()
     if (m_cirrus)
     {
         for (int i = VIDEO_SEQUENCER_COUNT; i < VIDEO_SEQUENCER_EXT_COUNT; i++)
-            m_state.sequencer[i] = k_video_cirrus_sequencer_reset[i];
+            m_state.sequencer[i] = m_pci ? k_video_cirrus_5446_sequencer_reset[i] : k_video_cirrus_sequencer_reset[i];
 
-        m_state.sequencer[k_video_sr_config] = (m_local_bus ? 0x05 : 0x07) << 3;
-        m_state.crtc[k_video_cr_id] = k_video_cirrus_id;
+        m_state.sequencer[k_video_sr_config] = m_pci ? 0x00 : (m_local_bus ? 0x05 : 0x07) << 3;
+        m_state.crtc[k_video_cr_id] = m_pci ? k_video_cirrus_5446_id : k_video_cirrus_id;
     }
 
     m_extended = false;
@@ -1052,7 +1054,7 @@ void Video::FinishLine()
             m_state.row_scan = (m_state.row_scan + 1) & 0x1F;
     }
 
-    if (line == GetLineCompare())
+    if (line == GetLineCompare() * GetVerticalScale())
     {
         m_state.row_address = 0;
         m_state.row_scan = 0;
@@ -1076,14 +1078,15 @@ void Video::LatchFrameTiming()
     }
 
     u32 display = ((u32)m_state.crtc[k_video_cr_horizontal_display] + 1) * GetCharacterClockDots();
-    u32 retrace = GetVerticalRetraceStart();
-    u32 retrace_length = (m_state.crtc[k_video_cr_retrace_end] - retrace) & 0x0F;
+    u32 scale = GetVerticalScale();
+    u32 retrace = GetVerticalRetraceStart() * scale;
+    u32 retrace_length = ((m_state.crtc[k_video_cr_retrace_end] - GetVerticalRetraceStart()) & 0x0F) * scale;
 
     m_state.frame_line_dots = GetLineDots();
     m_state.frame_display_dots = MIN(display, m_state.frame_line_dots);
-    m_state.frame_lines = GetTotalLines();
+    m_state.frame_lines = GetTotalLines() * scale;
     m_state.frame_dot_clock = GetDotClock();
-    m_state.display_lines = MIN(GetVerticalDisplayEnd() + 1, m_state.frame_lines);
+    m_state.display_lines = MIN((GetVerticalDisplayEnd() + 1) * scale, m_state.frame_lines);
     m_state.retrace_start = retrace;
     m_state.retrace_end = MIN(retrace + (retrace_length != 0 ? retrace_length : 16), m_state.frame_lines);
     m_state.ready_line = MIN(MAX(retrace, m_state.display_lines), m_state.frame_lines);
@@ -1535,10 +1538,83 @@ void Video::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE_ARRAY(serializer, m_state.ega_position, 2);
     G_SERIALIZE(serializer, m_state.cga_mode);
     G_SERIALIZE(serializer, m_state.cga_color);
+
+    if (m_pci)
+    {
+        G_SERIALIZE(serializer, m_state.pci_command);
+        G_SERIALIZE(serializer, m_state.pci_base);
+        G_SERIALIZE(serializer, m_state.pci_line);
+    }
+}
+
+u8 Video::ReadConfigCallback(void* device, u8 function, u8 offset)
+{
+    return ((Video*)device)->ReadConfig(function, offset);
+}
+
+void Video::WriteConfigCallback(void* device, u8 function, u8 offset, u8 value)
+{
+    ((Video*)device)->WriteConfig(function, offset, value);
+}
+
+u8 Video::ReadConfig(u8 function, u8 offset) const
+{
+    if (function != 0)
+        return 0xFF;
+
+    switch (offset)
+    {
+        case 0x00:
+            return 0x13;
+        case 0x01:
+            return 0x10;
+        case 0x02:
+            return 0xB8;
+        case 0x04:
+            return m_state.pci_command;
+        case 0x07:
+            return 0x02;
+        case 0x0B:
+            return 0x03;
+        case 0x10:
+        case 0x11:
+        case 0x12:
+        case 0x13:
+            return (u8)(m_state.pci_base >> ((offset - 0x10) * 8));
+        case 0x3C:
+            return m_state.pci_line;
+        default:
+            return 0x00;
+    }
+}
+
+void Video::WriteConfig(u8 function, u8 offset, u8 value)
+{
+    if (function != 0)
+        return;
+
+    switch (offset)
+    {
+        case 0x04:
+            m_state.pci_command = value & 0x23;
+            UpdateAperture();
+            break;
+        case 0x13:
+            m_state.pci_base = ((u32)value << 24) & k_video_pci_base_mask;
+            UpdateAperture();
+            break;
+        case 0x3C:
+            m_state.pci_line = value;
+            break;
+        default:
+            break;
+    }
 }
 
 void Video::SanitizeState()
 {
+    m_state.pci_command &= 0x23;
+    m_state.pci_base &= k_video_pci_base_mask;
     m_state.sequencer_index &= m_cirrus ? 0xFF : (m_ega ? 0x0F : 0x07);
     m_state.graphics_index &= m_cirrus ? 0x3F : 0x0F;
     m_state.crtc_index &= m_ega ? 0x1F : 0x3F;

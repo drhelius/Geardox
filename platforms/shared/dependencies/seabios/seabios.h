@@ -17,6 +17,8 @@ extern const uint8_t k_seabios_vgabios[];
 extern const uint32_t k_seabios_vgabios_size;
 extern const uint8_t k_seabios_vgabios_cirrus[];
 extern const uint32_t k_seabios_vgabios_cirrus_size;
+extern const uint8_t k_seabios_vgabios_cirrus_pci[];
+extern const uint32_t k_seabios_vgabios_cirrus_pci_size;
 extern const uint8_t k_seabios_vgabios_ega[];
 extern const uint32_t k_seabios_vgabios_ega_size;
 extern const uint8_t k_seabios_vgabios_cga[];

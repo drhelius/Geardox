@@ -213,6 +213,11 @@ INLINE u32 Video::GetVerticalTotal() const
     return m_state.crtc[k_video_cr_vertical_total] | ((overflow & 0x01) << 8) | ((overflow & 0x20) << 4);
 }
 
+INLINE u32 Video::GetVerticalScale() const
+{
+    return m_pci && (m_state.crtc[k_video_cr_mode] & 0x04) != 0 ? 2 : 1;
+}
+
 INLINE u32 Video::GetVerticalDisplayEnd() const
 {
     u8 overflow = m_state.crtc[k_video_cr_overflow];

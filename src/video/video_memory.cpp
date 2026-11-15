@@ -435,6 +435,9 @@ void Video::UpdateAperture()
 
     m_aperture_base = field << 20;
 
+    if (m_pci)
+        m_aperture_base = field != 0 && (m_state.pci_command & 0x02) != 0 ? m_state.pci_base : 0;
+
     if (m_aperture_base != 0)
         m_memory->SetRegionSpan(GDOX_DEBUG_REGION_LINEAR_VRAM, m_aperture_base, GetApertureSize(), NULL,
             m_aperture_mapped != 0 ? m_state.vram : NULL);

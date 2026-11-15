@@ -23,7 +23,7 @@
 #include <iostream>
 #include "../common/common.h"
 
-#define VIDEO_VRAM_SIZE 0x100000
+#define VIDEO_VRAM_SIZE 0x200000
 #define VIDEO_VGA_VRAM_SIZE 0x40000
 #define VIDEO_PLANE_SIZE 0x10000
 #define VIDEO_PLANE_COUNT 4
@@ -117,6 +117,9 @@ public:
         bool row_repeat;
         bool pan_reset;
         u8 character_map;
+        u8 pci_command;
+        u32 pci_base;
+        u8 pci_line;
     };
 
 public:
@@ -160,6 +163,7 @@ public:
     u32 GetAttributeColor(int index) const;
     u32 GetOverscanColor() const;
     u32 GetVerticalTotal() const;
+    u32 GetVerticalScale() const;
     u32 GetVerticalDisplayEnd() const;
     u32 GetVerticalRetraceStart() const;
     u32 GetLineCompare() const;
@@ -210,6 +214,10 @@ public:
     static u32 ReadWindow32Callback(void* device, u32 offset);
     static void WriteWindow16Callback(void* device, u32 offset, u16 value);
     static void WriteWindow32Callback(void* device, u32 offset, u32 value);
+    static u8 ReadConfigCallback(void* device, u8 function, u8 offset);
+    static void WriteConfigCallback(void* device, u8 function, u8 offset, u8 value);
+    u8 ReadConfig(u8 function, u8 offset) const;
+    void WriteConfig(u8 function, u8 offset, u8 value);
     static u8 ReadLinearCallback(void* device, u32 offset);
     static u8 PeekLinearCallback(void* device, u32 offset);
     static void WriteLinearCallback(void* device, u32 offset, u8 value);
@@ -389,6 +397,7 @@ private:
     u8 m_composite_clamp[1 << 15];
     u8 m_composite_line[GDOX_MAX_FRAME_BUFFER_WIDTH + VIDEO_COMPOSITE_TAPS * 2];
     bool m_local_bus;
+    bool m_pci;
     u32 m_vram_size;
     u32 m_vram_mask;
     u32 m_plane_mask;
@@ -416,6 +425,8 @@ static const u32 k_video_cga_vsync_lines = 16;
 static const u8 k_video_ega_switches = 0x09;
 static const u32 k_video_aperture_base = 0x00F00000;
 static const u8 k_video_cirrus_id = 0x98;
+static const u8 k_video_cirrus_5446_id = 0xB8;
+static const u32 k_video_pci_base_mask = 0xFE000000;
 static const u8 k_video_cirrus_unlock = 0x12;
 static const u32 k_video_min_line_dots = 64;
 static const u32 k_video_min_lines = 16;
@@ -498,6 +509,12 @@ static const u8 k_video_cirrus_sequencer_reset[VIDEO_SEQUENCER_EXT_COUNT] =
 {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x4A, 0x5B, 0x45, 0x7E, 0x10,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2B, 0x2F, 0x30, 0x33, 0x1C
+};
+
+static const u8 k_video_cirrus_5446_sequencer_reset[VIDEO_SEQUENCER_EXT_COUNT] =
+{
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x66, 0x5B, 0x45, 0x7E, 0x18,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3B, 0x2F, 0x30, 0x33, 0x1C
 };
 
 static const int k_video_ar_mode = 0x10;

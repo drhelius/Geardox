@@ -33,6 +33,7 @@ static const char* const k_firmware_config_file_names[FIRMWARE_CONFIG_FILE_COUNT
     "vgaroms/vgabios.bin", "etc/show-boot-menu", "etc/boot-menu-wait", "etc/e820", "opt/geardox/target"
 };
 static const char* const k_firmware_config_cga_bios_name = "opt/geardox/cgabios.bin";
+static const char* const k_firmware_config_pci_bios_name = "pci1013,00b8.rom";
 
 FirmwareConfig::FirmwareConfig()
 {
@@ -40,6 +41,7 @@ FirmwareConfig::FirmwareConfig()
     InitPointer(m_vga_bios);
     m_vga_bios_size = 0;
     m_cga_bios = false;
+    m_pci_bios = false;
     memset(m_e820, 0, sizeof(m_e820));
     m_e820_size = 0;
     m_game_target = 0;
@@ -64,11 +66,12 @@ void FirmwareConfig::Reset()
     m_state.offset = 0;
 }
 
-void FirmwareConfig::SetVGABIOS(const u8* data, u32 size, bool cga)
+void FirmwareConfig::SetVGABIOS(const u8* data, u32 size, bool cga, bool pci)
 {
     m_vga_bios = data;
     m_vga_bios_size = IsValidPointer(data) ? size : 0;
     m_cga_bios = cga;
+    m_pci_bios = pci;
     BuildDirectory();
 }
 
@@ -232,8 +235,14 @@ void FirmwareConfig::BuildDirectory()
         entry[3] = (u8)sizes[i];
         entry[4] = (u8)(selector >> 8);
         entry[5] = (u8)selector;
-        strncpy_fit((char*)entry + 8, (i == 0 && m_cga_bios) ? k_firmware_config_cga_bios_name : k_firmware_config_file_names[i],
-            FIRMWARE_CONFIG_FILE_ENTRY_SIZE - 8);
+        const char* name = k_firmware_config_file_names[i];
+
+        if (i == 0 && m_cga_bios)
+            name = k_firmware_config_cga_bios_name;
+        else if (i == 0 && m_pci_bios)
+            name = k_firmware_config_pci_bios_name;
+
+        strncpy_fit((char*)entry + 8, name, FIRMWARE_CONFIG_FILE_ENTRY_SIZE - 8);
     }
 
     m_directory[3] = (u8)count;

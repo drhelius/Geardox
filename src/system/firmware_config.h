@@ -47,7 +47,7 @@ public:
     void Reset();
     void SetEnabled(bool enabled);
     bool IsEnabled() const;
-    void SetVGABIOS(const u8* data, u32 size, bool cga);
+    void SetVGABIOS(const u8* data, u32 size, bool cga, bool pci);
     void SetBootMenu(bool show, u16 wait_ms);
     void SetMemoryHole(u32 ram_size, bool hole);
     void SetGameTarget(int target);
@@ -71,6 +71,7 @@ private:
     const u8* m_vga_bios;
     u32 m_vga_bios_size;
     bool m_cga_bios;
+    bool m_pci_bios;
     u8 m_show_menu[2];
     u8 m_menu_wait[2];
     u8 m_e820[FIRMWARE_CONFIG_E820_ENTRIES * FIRMWARE_CONFIG_E820_ENTRY_SIZE];

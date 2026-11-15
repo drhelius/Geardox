@@ -32,6 +32,11 @@ INLINE bool Firmware::IsPCI() const
     return m_pci;
 }
 
+INLINE bool Firmware::IsPCIVideo() const
+{
+    return m_pci_video;
+}
+
 INLINE const GDOX_Firmware_Info& Firmware::GetInfo(GDOX_Firmware_Type type) const
 {
     return m_info[type];
