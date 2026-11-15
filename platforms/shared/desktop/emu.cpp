@@ -193,6 +193,7 @@ bool emu_init(void)
     mcp_manager->Init(geardox);
 
     emu_frame_counter = 0;
+    emu_video_frame_counter = 0;
     emu_audio_sync = true;
     emu_audio_rate_control = false;
     emu_audio_ratio = 1.0f;
@@ -274,6 +275,7 @@ void emu_update(void)
     {
         geardox->RunToFrame(emu_frame_buffer, audio_buffer, &sample_count);
         emu_frame_stale = false;
+        emu_video_frame_counter++;
         memset(audio_buffer, 0, GDOX_AUDIO_QUEUE_SIZE * sizeof(s16));
         sound_queue_write(audio_buffer, GDOX_AUDIO_QUEUE_SIZE, false);
         emu_midi_idle();
@@ -288,8 +290,8 @@ void emu_update(void)
         emu_midi_rewind();
         int to_pop = get_rewind_pop_budget();
 
-        if (to_pop > 0)
-            rewind_pop(to_pop);
+        if ((to_pop > 0) && rewind_pop(to_pop))
+            emu_video_frame_counter++;
 
         int silence_count = GDOX_AUDIO_QUEUE_SIZE;
         memset(audio_buffer, 0, silence_count * sizeof(s16));
@@ -381,6 +383,7 @@ void emu_update(void)
         if (frame_completed)
         {
             emu_frame_counter++;
+            emu_video_frame_counter++;
             emu_frame_stale = false;
             emu_floppy_update();
             emu_hard_disk_update();

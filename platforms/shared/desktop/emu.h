@@ -97,6 +97,7 @@ EXTERN u8* emu_debug_framebuffer;
 EXTERN Emu_Debug_Buffer_Info emu_debug_framebuffer_info;
 EXTERN bool emu_debug_disable_breakpoints;
 EXTERN u64 emu_frame_counter;
+EXTERN u64 emu_video_frame_counter;
 EXTERN bool emu_frame_stale;
 EXTERN u32 emu_machine_generation;
 EXTERN bool emu_video_recording_frame_pending;
