@@ -30,6 +30,7 @@
 
 EXTERN void midi_queue_init(void);
 EXTERN void midi_queue_destroy(void);
+EXTERN bool midi_queue_prepare(void);
 EXTERN bool midi_queue_open(const char* id);
 EXTERN void midi_queue_close(void);
 EXTERN bool midi_queue_is_open(void);

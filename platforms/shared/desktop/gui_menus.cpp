@@ -70,6 +70,7 @@ static const GuiColor& machine_warning_color = amber;
 static const GuiColor& machine_game_color = cyan;
 static config_Machine* menu_settings = &config_machine;
 static std::vector<MidiPortInfo> midi_ports;
+static bool midi_ports_pending = false;
 static const GuiColor& service_mcp_http_color = green;
 static const GuiColor& service_mcp_stdio_color = amber;
 static const GuiColor& midi_playing_color = green;
@@ -111,6 +112,7 @@ static void menu_audio_midi(void);
 static bool menu_audio_midi_port(const char* label, const char* id, std::string* port, const char* tooltip);
 static void menu_audio_midi_game_synth(void);
 static int find_midi_port(const char* port);
+static void update_midi_ports(void);
 static void menu_debug(void);
 static void menu_about(void);
 static void draw_background_color_menu(const char* label, int theme);
@@ -2216,6 +2218,8 @@ static void menu_audio_midi(void)
     if (!ImGui::BeginMenu("MIDI Out", MidiPort::IsSupported()))
         return;
 
+    emu_midi_prepare();
+
     if (menu_audio_midi_port("General MIDI Port", "##midi_gm_port", &config_audio.midi_gm_port,
         "A General MIDI, GS or XG synth or module.\nPlays games set up for General MIDI, GS or XG.\n"
         "With no MT-32 port, plays MT-32 games too."))
@@ -2248,8 +2252,7 @@ static bool menu_audio_midi_port(const char* label, const char* id, std::string*
     if (!ImGui::BeginMenu(label))
         return false;
 
-    if (ImGui::IsWindowAppearing())
-        MidiPort::ListPorts(midi_ports);
+    update_midi_ports();
 
     bool changed = false;
     char missing[MIDI_PORT_NAME_SIZE + 16];
@@ -2312,8 +2315,8 @@ static void menu_audio_midi_game_synth(void)
 
     bool game = emu_game_is_open();
 
-    if (game && ImGui::IsWindowAppearing())
-        MidiPort::ListPorts(midi_ports);
+    if (game)
+        update_midi_ports();
 
     int synth = emu_midi_get_synth();
     std::string game_port = emu_game_get_midi_port();
@@ -2413,6 +2416,18 @@ static int find_midi_port(const char* port)
     }
 
     return -1;
+}
+
+static void update_midi_ports(void)
+{
+    if (ImGui::IsWindowAppearing())
+        midi_ports_pending = true;
+
+    if (midi_ports_pending && emu_midi_prepare())
+    {
+        MidiPort::ListPorts(midi_ports);
+        midi_ports_pending = false;
+    }
 }
 
 static void menu_debug(void)

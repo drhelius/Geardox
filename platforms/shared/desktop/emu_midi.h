@@ -36,6 +36,7 @@ EXTERN void emu_midi_idle(void);
 EXTERN void emu_midi_rewind(void);
 EXTERN void emu_midi_state_loaded(void);
 EXTERN void emu_midi_update_port(void);
+EXTERN bool emu_midi_prepare(void);
 EXTERN int emu_midi_get_synth(void);
 EXTERN const char* emu_midi_get_synth_port(int synth);
 EXTERN const char* emu_midi_get_wanted_port(void);

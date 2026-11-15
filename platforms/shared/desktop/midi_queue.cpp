@@ -40,8 +40,10 @@ static SDL_Mutex* midi_queue_mutex = NULL;
 static SDL_Mutex* midi_queue_port_mutex = NULL;
 static SDL_Condition* midi_queue_condition = NULL;
 static bool midi_queue_quit = false;
+static bool midi_queue_preparing = false;
 static MidiPort midi_queue_port;
 static SDL_AtomicInt midi_queue_lost;
+static SDL_AtomicInt midi_queue_ready;
 static Midi_Queue_Entry midi_queue_entries[MIDI_QUEUE_ENTRIES];
 static u8 midi_queue_data[MIDI_QUEUE_DATA_SIZE];
 static int midi_queue_head = 0;
@@ -61,7 +63,9 @@ void midi_queue_init(void)
     midi_queue_port_mutex = SDL_CreateMutex();
     midi_queue_condition = SDL_CreateCondition();
     midi_queue_quit = false;
+    midi_queue_preparing = false;
     SDL_SetAtomicInt(&midi_queue_lost, 0);
+    SDL_SetAtomicInt(&midi_queue_ready, 0);
     midi_queue_clear();
 
     if (IsValidPointer(midi_queue_mutex) && IsValidPointer(midi_queue_port_mutex) && IsValidPointer(midi_queue_condition))
@@ -97,6 +101,18 @@ void midi_queue_destroy(void)
     midi_queue_condition = NULL;
     midi_queue_port_mutex = NULL;
     midi_queue_mutex = NULL;
+}
+
+bool midi_queue_prepare(void)
+{
+    if (!IsValidPointer(midi_queue_thread) || (SDL_GetAtomicInt(&midi_queue_ready) != 0))
+        return true;
+
+    SDL_LockMutex(midi_queue_mutex);
+    midi_queue_preparing = true;
+    SDL_SignalCondition(midi_queue_condition);
+    SDL_UnlockMutex(midi_queue_mutex);
+    return false;
 }
 
 bool midi_queue_open(const char* id)
@@ -269,6 +285,17 @@ static int SDLCALL midi_queue_run(void* data)
 
     while (!midi_queue_quit)
     {
+        if (midi_queue_preparing)
+        {
+            SDL_UnlockMutex(midi_queue_mutex);
+            std::vector<MidiPortInfo> ports;
+            MidiPort::ListPorts(ports);
+            SDL_SetAtomicInt(&midi_queue_ready, 1);
+            SDL_LockMutex(midi_queue_mutex);
+            midi_queue_preparing = false;
+            continue;
+        }
+
         if (midi_queue_count == 0)
         {
             SDL_WaitConditionTimeout(midi_queue_condition, midi_queue_mutex, 100);

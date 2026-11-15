@@ -111,7 +111,7 @@ void emu_midi_end_frame(int sample_count)
 
     midi_queue_frame(midi, sample_count / 2);
 
-    if (midi->HasPlayed() && !midi_queue_is_open() && !emu_midi_notified)
+    if ((emu_midi_last_try != 0) && midi->HasPlayed() && !midi_queue_is_open() && !emu_midi_notified)
         notify();
 }
 
@@ -162,6 +162,11 @@ void emu_midi_update_port(void)
         update_port(midi, true);
 }
 
+bool emu_midi_prepare(void)
+{
+    return midi_queue_prepare();
+}
+
 int emu_midi_get_synth(void)
 {
     int synth = emu_game_get_midi();
@@ -198,6 +203,10 @@ static MidiOut* get_midi(void)
 static void update_port(MidiOut* midi, bool force)
 {
     const char* wanted = emu_midi_get_wanted_port();
+
+    if ((wanted[0] != 0) && !midi_queue_prepare())
+        return;
+
     u64 now = SDL_GetTicksNS();
     bool due = force || (emu_midi_last_try == 0) || ((now - emu_midi_last_try) >= k_emu_midi_retry_ns);
 
