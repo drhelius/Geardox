@@ -39,7 +39,8 @@ INLINE bool IdeController::Decodes(u16 port) const
         return false;
 
     int channel = GetChannel(port);
-    return IsDeviceAttached(channel * IDE_CHANNEL_DISKS) || IsDeviceAttached((channel * IDE_CHANNEL_DISKS) + 1);
+    return ((m_decode >> channel) & 1) != 0 &&
+        (IsDeviceAttached(channel * IDE_CHANNEL_DISKS) || IsDeviceAttached((channel * IDE_CHANNEL_DISKS) + 1));
 }
 
 // Only the data register is 16 bits wide, the device asserts -I/O CS16 for it alone

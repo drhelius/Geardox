@@ -51,6 +51,7 @@ public:
         u8 shadow_rom_end;
         u8 shadow_free_end;
         bool shadow_locked;
+        u8 upper_pages[64];
     };
 
 public:
@@ -61,7 +62,10 @@ public:
     void SetPowerOnA20(bool port_92);
     void SetFPU(X87* fpu);
     void SetShadowControl(bool enabled);
+    void SetPageControl(bool enabled);
     void ApplyShadow();
+    u8 GetUpperPage(u32 page) const;
+    void SetUpperPages(u32 first, u32 count, u8 access);
     void Reset();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -82,6 +86,7 @@ public:
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
 
 private:
+    void LockShadow();
     void UpdateA20();
     void TraceWrite(u16 port, u8 value, u8 previous);
     void Serialize(StateSerializer& serializer);
@@ -94,6 +99,7 @@ private:
     PIT* m_pit;
     X87* m_x87;
     bool m_shadow_control;
+    bool m_page_control;
     bool m_power_off_requested;
     TraceLogger* m_trace_logger;
     bool m_power_on_a20_port_92;
@@ -106,6 +112,12 @@ static const int k_system_control_fpu_irq = 13;
 static const u32 k_system_control_shadow_start = 0xC0000;
 static const u32 k_system_control_shadow_bios = 0xF0000;
 static const u32 k_system_control_shadow_id = 0x584F4447;
+static const u32 k_system_control_upper_pages = 64;
+static const u32 k_system_control_bios_page = 48;
+static const u8 k_system_control_page_open = 0x00;
+static const u8 k_system_control_page_read = 0x01;
+static const u8 k_system_control_page_write = 0x02;
+static const u8 k_system_control_page_ram = 0x03;
 
 #include "system_control_inline.h"
 

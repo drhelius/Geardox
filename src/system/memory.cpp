@@ -93,6 +93,22 @@ INLINE bool Memory::IsCPUPage(u32 page) const
     return !m_a20_enabled && (page & ~0xFFU) == 0x100 && ((page << 12) & ~m_map_address_mask) == 0;
 }
 
+INLINE u64 Memory::GetSpanPages(const DebugRegion& region, u64 start, u64 end)
+{
+    u64 base = region.info.physical_base;
+    u64 first = (MAX(start, base) - base) >> 12;
+    u64 last = (MIN(end, base + region.info.size) - 1 - base) >> 12;
+    u64 count = last - first + 1;
+
+    return (count >= 64 ? ~0ULL : (1ULL << count) - 1) << first;
+}
+
+INLINE bool Memory::HoldsPage(const DebugRegion& region, u64 address)
+{
+    return (region.info.flags & GDOX_DEBUG_REGION_PAGED) == 0 ||
+        ((region.pages >> ((address - region.info.physical_base) >> 12)) & 1) != 0;
+}
+
 INLINE const Memory::DebugRegion* Memory::FindMappedSpan(u32 physical, u32 size) const
 {
     if (size == 0 || (u64)physical + size > 0x100000000ULL)
@@ -115,6 +131,14 @@ INLINE const Memory::DebugRegion* Memory::FindMappedSpan(u32 physical, u32 size)
     if (!IsValidPointer(found) || span_end > (u64)found->info.physical_base + found->info.size)
         return NULL;
 
+    if ((found->info.flags & GDOX_DEBUG_REGION_PAGED) != 0)
+    {
+        u64 span = GetSpanPages(*found, bus_address, span_end);
+
+        if ((found->pages & span) != span)
+            return NULL;
+    }
+
     bool found_overlay = (found->info.flags & GDOX_DEBUG_REGION_OVERLAY) != 0;
 
     // A region with priority over the one found must not start inside this span
@@ -131,7 +155,9 @@ INLINE const Memory::DebugRegion* Memory::FindMappedSpan(u32 physical, u32 size)
         bool overlay = (region.info.flags & GDOX_DEBUG_REGION_OVERLAY) != 0;
         u64 start = region.info.physical_base;
 
-        if (overlay == found_overlay && start < span_end && start + region.info.size > bus_address)
+        if (overlay == found_overlay && start < span_end && start + region.info.size > bus_address &&
+            ((region.info.flags & GDOX_DEBUG_REGION_PAGED) == 0 ||
+            (region.pages & GetSpanPages(region, bus_address, span_end)) != 0))
             return NULL;
     }
 
@@ -144,7 +170,9 @@ INLINE const Memory::DebugRegion* Memory::FindMappedSpan(u32 physical, u32 size)
 
             if ((region.info.flags & (GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY)) ==
                 (GDOX_DEBUG_REGION_MAPPED | GDOX_DEBUG_REGION_OVERLAY) &&
-                start < span_end && start + region.info.size > bus_address)
+                start < span_end && start + region.info.size > bus_address &&
+                ((region.info.flags & GDOX_DEBUG_REGION_PAGED) == 0 ||
+                (region.pages & GetSpanPages(region, bus_address, span_end)) != 0))
                 return NULL;
         }
     }
@@ -547,6 +575,43 @@ bool Memory::SetRegionWideReadHandlers(int id, GDOX_Memory_Read16_Fn read16, GDO
 }
 
 // A banked view switches on or off, only the host pages it covers are rebuilt
+bool Memory::SetRegionPages(int id, u64 pages)
+{
+    DebugRegion* region = FindRegion(id);
+
+    if (!IsValidPointer(region) || region->info.size > 64 * 0x1000)
+        return false;
+
+    if ((region->info.flags & GDOX_DEBUG_REGION_PAGED) != 0 && region->pages == pages)
+        return true;
+
+    region->info.flags |= GDOX_DEBUG_REGION_PAGED;
+    region->pages = pages;
+    m_region_generation++;
+    RemapRange(region->info.physical_base, region->info.size);
+    return true;
+}
+
+bool Memory::SetRegionOverlay(int id, bool overlay)
+{
+    DebugRegion* region = FindRegion(id);
+
+    if (!IsValidPointer(region))
+        return false;
+
+    if (((region->info.flags & GDOX_DEBUG_REGION_OVERLAY) != 0) == overlay)
+        return true;
+
+    if (overlay)
+        region->info.flags |= GDOX_DEBUG_REGION_OVERLAY;
+    else
+        region->info.flags &= ~GDOX_DEBUG_REGION_OVERLAY;
+
+    m_region_generation++;
+    RemapRange(region->info.physical_base, region->info.size);
+    return true;
+}
+
 bool Memory::SetRegionMapped(int id, bool mapped)
 {
     DebugRegion* region = FindRegion(id);
@@ -1123,6 +1188,9 @@ const Memory::DebugRegion* Memory::FindMappedRegion(u32 bus_address) const
         if ((region.info.flags & GDOX_DEBUG_REGION_MAPPED) == 0 || (u64)bus_address < start || (u64)bus_address >= end)
             continue;
 
+        if (!HoldsPage(region, bus_address))
+            continue;
+
         if ((region.info.flags & GDOX_DEBUG_REGION_OVERLAY) != 0)
             return &region;
 
@@ -1144,6 +1212,9 @@ Memory::DebugRegion* Memory::FindMappedRegion(u32 bus_address)
         u64 end = start + region.info.size;
 
         if ((region.info.flags & GDOX_DEBUG_REGION_MAPPED) == 0 || (u64)bus_address < start || (u64)bus_address >= end)
+            continue;
+
+        if (!HoldsPage(region, bus_address))
             continue;
 
         if ((region.info.flags & GDOX_DEBUG_REGION_OVERLAY) != 0)

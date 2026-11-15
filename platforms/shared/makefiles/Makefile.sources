@@ -177,6 +177,9 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/parallel_port.cpp \
     $(SRC_DIR)/system/scheduler.cpp \
     $(SRC_DIR)/system/system_control.cpp \
+    $(SRC_DIR)/system/pci_bus.cpp \
+    $(SRC_DIR)/system/i82437fx.cpp \
+    $(SRC_DIR)/system/piix.cpp \
     $(SRC_DIR)/system/firmware_config.cpp \
     $(SRC_DIR)/system/debug_console.cpp \
     $(SRC_DIR)/video/video.cpp \

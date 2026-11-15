@@ -51,6 +51,9 @@
 #include "system/pit.h"
 #include "system/scheduler.h"
 #include "system/system_control.h"
+#include "system/pci_bus.h"
+#include "system/i82437fx.h"
+#include "system/piix.h"
 #include "system/mc146818.h"
 #include "system/firmware_config.h"
 #include "system/debug_console.h"
@@ -77,6 +80,9 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_pit);
     InitPointer(m_dma);
     InitPointer(m_system_control);
+    InitPointer(m_pci_bus);
+    InitPointer(m_i82437fx);
+    InitPointer(m_piix);
     InitPointer(m_i8042);
     InitPointer(m_keyboard);
     InitPointer(m_ps2_mouse);
@@ -147,6 +153,9 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_i8042);
     SafeDelete(m_keyboard);
     SafeDelete(m_ps2_mouse);
+    SafeDelete(m_piix);
+    SafeDelete(m_i82437fx);
+    SafeDelete(m_pci_bus);
     SafeDelete(m_serial_ports);
     SafeDelete(m_parallel_port);
     SafeDelete(m_game_port);
@@ -241,6 +250,15 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_rtc))
         m_rtc = new MC146818();
 
+    if (!IsValidPointer(m_pci_bus))
+        m_pci_bus = new PciBus();
+
+    if (!IsValidPointer(m_i82437fx))
+        m_i82437fx = new I82437fx();
+
+    if (!IsValidPointer(m_piix))
+        m_piix = new Piix();
+
     if (!IsValidPointer(m_firmware_config))
         m_firmware_config = new FirmwareConfig();
 
@@ -286,8 +304,15 @@ void GeardoxCore::Init()
     m_video->Init(m_pic, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler, m_dma);
     m_ide->Init(m_pic, m_scheduler, m_cdrom_media, m_cdrom_audio, m_audio);
+    m_pci_bus->Init();
+    m_i82437fx->Init(m_system_control);
+    m_i82437fx->SetHoleCallback(this, &GeardoxCore::MemoryHoleCallback);
+    m_piix->Init(m_system_control, m_ide);
+    m_pci_bus->RegisterDevice(k_pci_device_host_bridge, m_i82437fx, &I82437fx::ReadCallback, &I82437fx::WriteCallback);
+    m_pci_bus->RegisterDevice(k_pci_device_piix, m_piix, &Piix::ReadCallback, &Piix::WriteCallback);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
-        m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port);
+        m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port, m_pci_bus,
+        m_piix);
     m_i386->Init(m_memory, m_io);
     m_video->SetStartCycles(m_i386->GetStartCyclesPointer());
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
@@ -658,6 +683,11 @@ void GeardoxCore::DMADebugCallback(void* cpu, u32 address, u32 size, bool write)
 void GeardoxCore::FPUErrorCallback(void* core)
 {
     ((GeardoxCore*)core)->m_system_control->SetFPUError();
+}
+
+void GeardoxCore::MemoryHoleCallback(void* core, bool hole)
+{
+    ((GeardoxCore*)core)->m_memory->SetRegionOverlay(GDOX_DEBUG_REGION_LINEAR_VRAM, hole);
 }
 
 // A port access moves machine time up to the start of its instruction and then to the access, running the events
@@ -1412,6 +1442,13 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_ide->SaveState(stream);
     m_x87->SaveState(stream);
 
+    if (HasPCIBus())
+    {
+        m_pci_bus->SaveState(stream);
+        m_i82437fx->SaveState(stream);
+        m_piix->SaveState(stream);
+    }
+
     if (stream.fail())
     {
         Error("Failed to serialize save state");
@@ -1721,6 +1758,13 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_fdc->LoadState(stream, header.version);
     m_ide->LoadState(stream, header.version);
     m_x87->LoadState(stream);
+
+    if (HasPCIBus())
+    {
+        m_pci_bus->LoadState(stream, header.version);
+        m_i82437fx->LoadState(stream, header.version);
+        m_piix->LoadState(stream, header.version);
+    }
 
     if (stream.fail())
     {
@@ -2125,6 +2169,13 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_ide))
         m_ide->Reset();
 
+    if (IsValidPointer(m_pci_bus))
+    {
+        m_pci_bus->Reset();
+        m_i82437fx->Reset(m_machine_config.ram_size, HasMemoryHole());
+        m_piix->Reset();
+    }
+
     InitCMOS();
     ApplyBootDevice();
     InitMemoryMap();
@@ -2202,7 +2253,8 @@ void GeardoxCore::ResolveMachineConfig()
 
     config.model = known_model ? (GDOX_Machine_Model)model : k_machine_default_model;
     config.cpu_clock_rate = cpu_mhz > 0 ? (u32)cpu_mhz * 1000000 : 0;
-    config.ram_size = (u32)(ram_mb > 0 ? ram_mb : k_machine_default_ram_mb) * megabyte;
+    bool pci_board = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_PCI) != 0;
+    config.ram_size = (u32)(ram_mb > 0 ? ram_mb : (pci_board ? k_machine_pci_default_ram_mb : k_machine_default_ram_mb)) * megabyte;
     config.ide = HasHardDisks();
     config.fpu = fpu != 0;
     config.speed_mode = speed_mode != 0 ? 1 : 0;
@@ -2284,17 +2336,23 @@ bool GeardoxCore::HasMemoryHole() const
         (m_machine_config.ram_size >= 16 * 1024 * 1024);
 }
 
+bool GeardoxCore::HasPCIBus() const
+{
+    return (k_machine_profiles[m_machine_config.model].features & GDOX_MACHINE_FEATURE_PCI) != 0;
+}
+
 void GeardoxCore::LoadMachineFirmware()
 {
     if (!IsValidPointer(m_firmware))
         return;
 
     int family = k_video_cards[m_pending_machine_config.video_card].family;
+    bool pci = (k_machine_profiles[m_pending_machine_config.model].features & GDOX_MACHINE_FEATURE_PCI) != 0;
 
-    if (m_firmware->IsReady() && (m_firmware->GetFamily() == family))
+    if (m_firmware->IsReady() && (m_firmware->GetFamily() == family) && (m_firmware->IsPCI() == pci))
         return;
 
-    m_firmware->Load(family);
+    m_firmware->Load(family, pci);
 
     if (IsValidPointer(m_i386))
         m_i386->ResetDisassembler();
@@ -2332,6 +2390,13 @@ void GeardoxCore::ApplyMachineConfig()
 
     if (IsValidPointer(m_video))
         m_video->SetCard(m_machine_config.video_card);
+
+    if (IsValidPointer(m_pci_bus))
+    {
+        m_pci_bus->SetEnabled(HasPCIBus());
+        m_piix->SetEnabled(HasPCIBus());
+        m_system_control->SetPageControl(HasPCIBus());
+    }
 
     if (IsValidPointer(m_i8042))
         m_i8042->SetMouse(m_machine_config.mouse == GDOX_MOUSE_PS2 ? m_ps2_mouse : NULL);
@@ -2520,15 +2585,14 @@ void GeardoxCore::InitMemoryMap()
         copy_size, copy_base, ram_flags))
         Error("Unable to register the BIOS copy");
 
-    // SeaBIOS' shadow register maps these at the end of POST: the ROMs and the F segment read-only, nothing between
+    // The upper memory map takes the pages of these: the ROMs and the F segment read-only, nothing in the free ones
     u32 shadow_flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_EXECUTABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_OVERLAY;
+    u32 shadow_size = k_system_control_shadow_bios - k_upper_memory_start;
 
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_ROM, "Shadow ROMs", main_ram + k_upper_memory_start,
-        NULL, 0x1000, k_upper_memory_start, shadow_flags) ||
-        !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL, 0x1000, k_upper_memory_start,
-        GDOX_DEBUG_REGION_OVERLAY) ||
-        !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_LOW_UPPER_MEMORY, "Upper Memory Below ROMs", NULL, NULL, 0x1000,
-        k_upper_memory_start, GDOX_DEBUG_REGION_OVERLAY) ||
+        NULL, shadow_size, k_upper_memory_start, shadow_flags) ||
+        !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_UPPER_MEMORY, "Upper Memory", NULL, NULL,
+        shadow_size + 0x10000, k_upper_memory_start, GDOX_DEBUG_REGION_OVERLAY) ||
         !m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_SHADOW_BIOS, "Shadow BIOS", main_ram + k_system_control_shadow_bios,
         NULL, 0x10000, k_system_control_shadow_bios, shadow_flags))
         Error("Unable to register the shadow regions");

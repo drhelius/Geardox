@@ -74,6 +74,9 @@
     <ClCompile Include="..\..\src\system\serial_ports.cpp" />
     <ClCompile Include="..\..\src\system\parallel_port.cpp" />
     <ClCompile Include="..\..\src\system\system_control.cpp" />
+    <ClCompile Include="..\..\src\system\pci_bus.cpp" />
+    <ClCompile Include="..\..\src\system\i82437fx.cpp" />
+    <ClCompile Include="..\..\src\system\piix.cpp" />
     <ClCompile Include="..\..\src\system\firmware_config.cpp" />
     <ClCompile Include="..\..\src\system\debug_console.cpp" />
     <ClCompile Include="..\..\src\system\scheduler.cpp" />
@@ -329,6 +332,9 @@
     <ClInclude Include="..\..\src\system\parallel_port.h" />
     <ClInclude Include="..\..\src\system\system_control.h" />
     <ClInclude Include="..\..\src\system\system_control_inline.h" />
+    <ClInclude Include="..\..\src\system\pci_bus.h" />
+    <ClInclude Include="..\..\src\system\i82437fx.h" />
+    <ClInclude Include="..\..\src\system\piix.h" />
     <ClInclude Include="..\..\src\system\firmware_config.h" />
     <ClInclude Include="..\..\src\system\firmware_config_inline.h" />
     <ClInclude Include="..\..\src\system\debug_console.h" />

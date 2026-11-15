@@ -46,6 +46,9 @@ class PIC;
 class PIT;
 class Scheduler;
 class SystemControl;
+class PciBus;
+class I82437fx;
+class Piix;
 class I8042;
 class Keyboard;
 class PS2Mouse;
@@ -169,6 +172,7 @@ public:
     PIT* GetPIT();
     DMA* GetDMA();
     SystemControl* GetSystemControl();
+    PciBus* GetPciBus();
     I8042* GetI8042();
     Keyboard* GetKeyboard();
     PS2Mouse* GetPS2Mouse();
@@ -215,6 +219,7 @@ private:
     static u32 PollPortCallback(void* core, u16 port, int width);
     static void DMADebugCallback(void* cpu, u32 address, u32 size, bool write);
     static void FPUErrorCallback(void* core);
+    static void MemoryHoleCallback(void* core, bool hole);
     static void KeyMapCallback(void* core, GDOX_Keys key, bool pressed);
     static void GamepadKeyCallback(void* core, GDOX_Keys key, bool pressed);
     void UpdateHeldKey(GDOX_Keys key);
@@ -225,6 +230,7 @@ private:
     void ResolveMachineConfig();
     void ApplyHardDisks();
     bool HasMemoryHole() const;
+    bool HasPCIBus() const;
     void LoadMachineFirmware();
     void ApplyMachineConfig();
     void ApplyCPUSpeed();
@@ -256,6 +262,9 @@ private:
     PIT* m_pit;
     DMA* m_dma;
     SystemControl* m_system_control;
+    PciBus* m_pci_bus;
+    I82437fx* m_i82437fx;
+    Piix* m_piix;
     I8042* m_i8042;
     Keyboard* m_keyboard;
     PS2Mouse* m_ps2_mouse;

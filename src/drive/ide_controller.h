@@ -55,6 +55,7 @@ public:
     void SetDelayDivider(u32 divider);
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
+    void SetDecode(u8 channels);
     bool Decodes(u16 port) const;
     bool IsDataPort(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -107,6 +108,7 @@ private:
     IdeController_State m_state;
     bool m_irq_out[IDE_CHANNELS];
     u64 m_event_clocks;
+    u8 m_decode;
 };
 
 static const u8 k_ide_control_srst = 0x04;

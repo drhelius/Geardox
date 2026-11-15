@@ -316,6 +316,15 @@
     <ClCompile Include="..\..\src\system\system_control.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\system\pci_bus.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\i82437fx.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system\piix.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\firmware_config.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -605,6 +614,9 @@
     <ClInclude Include="..\..\src\system\parallel_port.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\pci_bus.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\i82437fx.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\piix.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\firmware_config.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\firmware_config_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\debug_console.h"><Filter>src</Filter></ClInclude>

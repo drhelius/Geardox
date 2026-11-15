@@ -69,6 +69,8 @@ public:
     bool SetRegionSpan(int id, u32 physical_base, u32 size, const u8* read_data, u8* write_data);
     bool SetRegionData(int id, const u8* read_data, u8* write_data);
     bool SetRegionHandlerRange(int id, u32 offset, u32 size, bool reads);
+    bool SetRegionPages(int id, u64 pages);
+    bool SetRegionOverlay(int id, bool overlay);
     int GetDebugRegionCount() const;
     bool GetDebugRegion(int index, GDOX_Debug_Memory_Region& region) const;
     void DebugReadRegionBlock(int id, u32 offset, u8* data, GDOX_Debug_Memory_Status* status, u32 size) const;
@@ -131,6 +133,7 @@ private:
         u32 handler_offset;
         u32 handler_size;
         bool handler_reads;
+        u64 pages;
     };
 
     const DebugRegion* FindRegion(int id) const;
@@ -138,6 +141,8 @@ private:
     const DebugRegion* FindMappedRegion(u32 bus_address) const;
     DebugRegion* FindMappedRegion(u32 bus_address);
     const DebugRegion* FindMappedSpan(u32 physical, u32 size) const;
+    static u64 GetSpanPages(const DebugRegion& region, u64 start, u64 end);
+    static bool HoldsPage(const DebugRegion& region, u64 address);
     const DebugRegion* FindPageSpan(u32 physical, u32 size) const;
     const u8* FindReadSpan(u32 physical, u32 size, const DebugRegion*& region) const;
     bool IsHandlerSpan(const DebugRegion* region, u32 offset, u32 size) const;

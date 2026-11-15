@@ -37,18 +37,20 @@ void Firmware::Init()
     InitPointer(m_vga_rom);
     m_ready = false;
     m_family = GDOX_VIDEO_FAMILY_VGA;
+    m_pci = false;
 }
 
-// SeaBIOS and SeaVGABIOS built from the pinned SeaBIOS commit, compiled in. The video BIOS is built for the card:
-// SeaVGABIOS for a plain VGA, the Cirrus Logic GD5428, an IBM EGA or an IBM CGA
-void Firmware::Load(int family)
+// SeaBIOS and SeaVGABIOS built from the pinned SeaBIOS commit, compiled in. The system BIOS is built for the board,
+// the video BIOS for the card: SeaVGABIOS for a plain VGA, the Cirrus Logic GD5428, an IBM EGA or an IBM CGA
+void Firmware::Load(int family, bool pci)
 {
     const char* name = "SeaVGABIOS";
     u32 size = k_seabios_vgabios_size;
 
-    m_system_rom = k_seabios_bios;
+    m_system_rom = pci ? k_seabios_bios_pci : k_seabios_bios;
     m_vga_rom = k_seabios_vgabios;
     m_family = family;
+    m_pci = pci;
 
     switch (family)
     {
@@ -72,7 +74,8 @@ void Firmware::Load(int family)
             break;
     }
 
-    SetInfo(GDOX_FIRMWARE_SYSTEM_BIOS, "SeaBIOS", m_system_rom, k_seabios_bios_size);
+    SetInfo(GDOX_FIRMWARE_SYSTEM_BIOS, pci ? "SeaBIOS 430FX" : "SeaBIOS", m_system_rom,
+        pci ? k_seabios_bios_pci_size : k_seabios_bios_size);
     SetInfo(GDOX_FIRMWARE_VGA_BIOS, name, m_vga_rom, size);
 
     m_ready = true;

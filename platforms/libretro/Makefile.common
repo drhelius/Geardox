@@ -103,6 +103,9 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/system/parallel_port.cpp \
                 $(SOURCE_DIR)/system/scheduler.cpp \
                 $(SOURCE_DIR)/system/system_control.cpp \
+                $(SOURCE_DIR)/system/pci_bus.cpp \
+                $(SOURCE_DIR)/system/i82437fx.cpp \
+                $(SOURCE_DIR)/system/piix.cpp \
                 $(SOURCE_DIR)/system/firmware_config.cpp \
                 $(SOURCE_DIR)/system/debug_console.cpp \
                 $(SOURCE_DIR)/video/video.cpp \

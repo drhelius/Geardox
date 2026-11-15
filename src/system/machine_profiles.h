@@ -26,6 +26,7 @@
 #define GDOX_MACHINE_CPU_SPEED_COUNT 13
 #define GDOX_MACHINE_RAM_SIZE_COUNT 8
 #define GDOX_MACHINE_FEATURE_LOCAL_BUS 0x01
+#define GDOX_MACHINE_FEATURE_PCI 0x02
 #define GDOX_MACHINE_ISA_CLOCK_RATE 8333333
 
 // ISA cycles in BCLKs at the model's bus clock, less the 2 clocks of a bus cycle, in 1/256 bus clocks
@@ -107,11 +108,11 @@ const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
     { "486DX2-66", "486dx2_66", "Generic 486DX2 AT", "1992", true, GDOX_MACHINE_CPU_80486DX2, GDOX_MACHINE_FPU_INTEGRATED, 66000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486, 33000000, 0 },
     { "486SX-33", "486sx_33", "Generic 486SX AT", "1992", true, GDOX_MACHINE_CPU_80486SX, GDOX_MACHINE_FPU_SOCKET, 33000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486, 33000000, 0 },
     { "486DX4-100", "486dx4_100", "Generic 486DX4 AT", "1994", true, GDOX_MACHINE_CPU_80486DX4, GDOX_MACHINE_FPU_INTEGRATED, 100000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_486, 2, &k_machine_bus_486dx4, 33333333, 0 },
-    { "Pentium 75", "pentium_75", "Generic Pentium AT", "1994", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 75000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_pentium, 2, &k_machine_bus_p5_50, 50000000, 0x00000521 },
-    { "Pentium 90", "pentium_90", "Generic Pentium AT", "1994", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 90000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_pentium, 2, &k_machine_bus_p5_60, 60000000, 0x00000521 },
-    { "Pentium 133", "pentium_133", "Generic Pentium AT", "1995", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 133333333, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_pentium, 2, &k_machine_bus_p5_66, 66666667, 0x00000525 },
-    { "Pentium 166", "pentium_166", "Generic Pentium AT", "1996", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 166666667, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_pentium, 2, &k_machine_bus_p5_66, 66666667, 0x0000052C },
-    { "Pentium 200", "pentium_200", "Generic Pentium AT", "1996", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 200000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_LOCAL_BUS, k_machine_ram_pentium, 2, &k_machine_bus_p5_66, 66666667, 0x0000052C }
+    { "Pentium 75", "pentium_75", "Generic Pentium 430FX", "1994", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 75000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_PCI, k_machine_ram_pentium, 2, &k_machine_bus_p5_50, 50000000, 0x00000521 },
+    { "Pentium 90", "pentium_90", "Generic Pentium 430FX", "1994", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 90000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_PCI, k_machine_ram_pentium, 2, &k_machine_bus_p5_60, 60000000, 0x00000521 },
+    { "Pentium 133", "pentium_133", "Generic Pentium 430FX", "1995", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 133333333, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_PCI, k_machine_ram_pentium, 2, &k_machine_bus_p5_66, 66666667, 0x00000525 },
+    { "Pentium 166", "pentium_166", "Generic Pentium 430FX", "1996", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 166666667, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_PCI, k_machine_ram_pentium, 2, &k_machine_bus_p5_66, 66666667, 0x0000052C },
+    { "Pentium 200", "pentium_200", "Generic Pentium 430FX", "1996", true, GDOX_MACHINE_CPU_PENTIUM, GDOX_MACHINE_FPU_INTEGRATED, 200000000, GDOX_MACHINE_MAP_32BIT, GDOX_MACHINE_FEATURE_PCI, k_machine_ram_pentium, 2, &k_machine_bus_p5_66, 66666667, 0x0000052C }
 };
 
 // The ISA cards keep the model's VGA waits. The VL-Bus card's: reads at 16 bus clocks fit TOPBENCH's video RAM column
@@ -198,6 +199,7 @@ const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 
 const GDOX_Machine_Model k_machine_default_model = GDOX_MACHINE_486DX2_66;
 const int k_machine_default_ram_mb = 8;
+const int k_machine_pci_default_ram_mb = 16;
 
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {

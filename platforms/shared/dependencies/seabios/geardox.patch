@@ -9,6 +9,23 @@
      vgasrc/clext.c vgasrc/svgamodes.c vgasrc/atiext.c vgasrc/bochsvga.c vgasrc/geodevga.c \
      src/fw/coreboot.c vgasrc/cbvga.c vgasrc/bochsdisplay.c vgasrc/ramfb.c
  
+--- seabios-28aa463/src/Kconfig
++++ seabios/src/Kconfig
+@@ -34,6 +34,14 @@ endchoice
+             Support virtual hardware when the code detects it is
+             running on an emulator.
+ 
++    config GEARDOX_PCI
++        depends on QEMU
++        bool "Geardox 430FX board"
++        default n
++        help
++            Support Geardox's 430FX board: the 82437FX host bridge, the
++            82371FB PIIX at device 7 and the PCI slots at devices 8 to 11.
++
+     config XEN
+         depends on QEMU
+         bool "Support Xen HVM"
 --- seabios-28aa463/src/apm.c
 +++ seabios/src/apm.c
 @@ -86,12 +86,16 @@ handle_155306(struct bregs *regs)
@@ -149,6 +166,121 @@
      default:   disk_13XX(regs, drive_fl); break;
      }
  }
+--- seabios-28aa463/src/fw/pciinit.c
++++ seabios/src/fw/pciinit.c
+@@ -342,12 +342,20 @@ static const struct pci_device_id pci_device_tbl[] = {
+                piix_isa_bridge_setup),
+     PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH9_LPC,
+                mch_isa_bridge_setup),
++#if CONFIG_GEARDOX_PCI
++    PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371FB_0,
++               piix_isa_bridge_setup),
++#endif
+ 
+     /* STORAGE IDE */
+     PCI_DEVICE_CLASS(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371SB_1,
+                      PCI_CLASS_STORAGE_IDE, piix_ide_setup),
+     PCI_DEVICE_CLASS(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB,
+                      PCI_CLASS_STORAGE_IDE, piix_ide_setup),
++#if CONFIG_GEARDOX_PCI
++    PCI_DEVICE_CLASS(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371FB_1,
++                     PCI_CLASS_STORAGE_IDE, piix_ide_setup),
++#endif
+     PCI_DEVICE_CLASS(PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_STORAGE_IDE,
+                      storage_ide_setup),
+ 
+@@ -515,6 +523,10 @@ static const struct pci_device_id pci_platform_tbl[] = {
+                i440fx_mem_addr_setup),
+     PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_Q35_MCH,
+                mch_mem_addr_setup),
++#if CONFIG_GEARDOX_PCI
++    PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437,
++               i440fx_mem_addr_setup),
++#endif
+     PCI_DEVICE_END
+ };
+ 
+--- seabios-28aa463/src/fw/pirtable.c
++++ seabios/src/fw/pirtable.c
+@@ -12,6 +12,70 @@
+ #include "string.h" // checksum
+ #include "util.h" // PirAddr
+ 
++#if CONFIG_GEARDOX_PCI
++// Geardox's 430FX board: the PIIX at device 7 and four slots at devices 8 to 11, each pin rotated by its device
++struct pir_table {
++    struct pir_header pir;
++    struct pir_slot slots[5];
++} PACKED;
++
++static struct pir_table PIR_TABLE = {
++    .pir = {
++        .version = 0x0100,
++        .size = sizeof(struct pir_table),
++        .router_devfunc = 7<<3,
++        .compatible_devid = 0x122e8086,
++    },
++    .slots = {
++        {
++            .dev = 7<<3,
++            .links = {
++                {.link = 0x62, .bitmap = 0xdef8}, // INTA#
++                {.link = 0x63, .bitmap = 0xdef8}, // INTB#
++                {.link = 0x60, .bitmap = 0xdef8}, // INTC#
++                {.link = 0x61, .bitmap = 0xdef8}, // INTD#
++            },
++            .slot_nr = 0, // embedded
++        }, {
++            .dev = 8<<3,
++            .links = {
++                {.link = 0x63, .bitmap = 0xdef8}, // INTA#
++                {.link = 0x60, .bitmap = 0xdef8}, // INTB#
++                {.link = 0x61, .bitmap = 0xdef8}, // INTC#
++                {.link = 0x62, .bitmap = 0xdef8}, // INTD#
++            },
++            .slot_nr = 1,
++        }, {
++            .dev = 9<<3,
++            .links = {
++                {.link = 0x60, .bitmap = 0xdef8}, // INTA#
++                {.link = 0x61, .bitmap = 0xdef8}, // INTB#
++                {.link = 0x62, .bitmap = 0xdef8}, // INTC#
++                {.link = 0x63, .bitmap = 0xdef8}, // INTD#
++            },
++            .slot_nr = 2,
++        }, {
++            .dev = 10<<3,
++            .links = {
++                {.link = 0x61, .bitmap = 0xdef8}, // INTA#
++                {.link = 0x62, .bitmap = 0xdef8}, // INTB#
++                {.link = 0x63, .bitmap = 0xdef8}, // INTC#
++                {.link = 0x60, .bitmap = 0xdef8}, // INTD#
++            },
++            .slot_nr = 3,
++        }, {
++            .dev = 11<<3,
++            .links = {
++                {.link = 0x62, .bitmap = 0xdef8}, // INTA#
++                {.link = 0x63, .bitmap = 0xdef8}, // INTB#
++                {.link = 0x60, .bitmap = 0xdef8}, // INTC#
++                {.link = 0x61, .bitmap = 0xdef8}, // INTD#
++            },
++            .slot_nr = 4,
++        },
++    }
++};
++#else
+ struct pir_table {
+     struct pir_header pir;
+     struct pir_slot slots[6];
+@@ -88,6 +152,7 @@ static struct pir_table PIR_TABLE = {
+         },
+     }
+ };
++#endif
+ 
+ void
+ pirtable_setup(void)
 --- seabios-28aa463/src/fw/shadow.c
 +++ seabios/src/fw/shadow.c
 @@ -113,6 +113,35 @@ make_bios_readonly_intel(u16 bdf, u32 pam0)

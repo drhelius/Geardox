@@ -35,6 +35,7 @@ SystemControl::SystemControl()
     memset(&m_state, 0, sizeof(m_state));
     m_power_on_a20_port_92 = true;
     m_shadow_control = false;
+    m_page_control = false;
     m_power_off_requested = false;
 }
 
@@ -66,34 +67,73 @@ void SystemControl::SetShadowControl(bool enabled)
     m_shadow_control = enabled;
 }
 
+void SystemControl::SetPageControl(bool enabled)
+{
+    m_page_control = enabled;
+}
+
 // Locked, the option ROMs and the F segment are read-only shadow RAM and the free space between the ROMs and SeaBIOS'
 // low zone has nothing there, for UMB managers. Unlocked, C0000h-FFFFFh is plain RAM
+void SystemControl::LockShadow()
+{
+    u32 rom_end = MIN((u32)m_state.shadow_rom_end, k_system_control_bios_page);
+    u32 rom_start = MIN((u32)m_state.shadow_rom_start, rom_end);
+    u32 free_end = MAX(MIN((u32)m_state.shadow_free_end, k_system_control_bios_page), rom_end);
+    bool locked = m_state.shadow_locked && m_shadow_control;
+
+    for (u32 page = 0; page < k_system_control_upper_pages; page++)
+    {
+        u8 access = k_system_control_page_ram;
+
+        if (locked && (page >= k_system_control_bios_page || (page >= rom_start && page < rom_end)))
+            access = k_system_control_page_read;
+        else if (locked && (page < rom_start || (page >= rom_end && page < free_end)))
+            access = k_system_control_page_open;
+
+        m_state.upper_pages[page] = access;
+    }
+}
+
 void SystemControl::ApplyShadow()
 {
     if (!IsValidPointer(m_memory))
         return;
 
-    u32 rom_end = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_rom_end << 12), k_system_control_shadow_bios);
-    u32 rom_start = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_rom_start << 12), rom_end);
-    u32 free_end = MIN(k_system_control_shadow_start + ((u32)m_state.shadow_free_end << 12), k_system_control_shadow_bios);
-    bool locked = m_state.shadow_locked && m_shadow_control;
-    u8* ram = m_memory->GetMainRAM();
-    free_end = MAX(free_end, rom_end);
+    u64 read_only = 0;
+    u64 open = 0;
 
-    if (locked && rom_end > rom_start)
-        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_SHADOW_ROM, rom_start, rom_end - rom_start, ram + rom_start, NULL);
+    for (u32 page = 0; page < k_system_control_upper_pages; page++)
+    {
+        u8 access = m_state.upper_pages[page];
 
-    if (locked && free_end > rom_end)
-        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_UPPER_MEMORY, rom_end, free_end - rom_end, NULL, NULL);
+        if (access == k_system_control_page_read || (access == k_system_control_page_open && page >= k_system_control_bios_page))
+            read_only |= 1ULL << page;
+        else if (access == k_system_control_page_open)
+            open |= 1ULL << page;
+    }
 
-    if (locked && rom_start > k_system_control_shadow_start)
-        m_memory->SetRegionSpan(GDOX_DEBUG_REGION_LOW_UPPER_MEMORY, k_system_control_shadow_start,
-            rom_start - k_system_control_shadow_start, NULL, NULL);
+    u64 rom_pages = read_only & ((1ULL << k_system_control_bios_page) - 1);
+    u64 bios_pages = read_only >> k_system_control_bios_page;
 
-    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_ROM, locked && rom_end > rom_start);
-    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_UPPER_MEMORY, locked && free_end > rom_end);
-    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_LOW_UPPER_MEMORY, locked && rom_start > k_system_control_shadow_start);
-    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_BIOS, locked);
+    m_memory->SetRegionPages(GDOX_DEBUG_REGION_SHADOW_ROM, rom_pages);
+    m_memory->SetRegionPages(GDOX_DEBUG_REGION_SHADOW_BIOS, bios_pages);
+    m_memory->SetRegionPages(GDOX_DEBUG_REGION_UPPER_MEMORY, open);
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_ROM, rom_pages != 0);
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_SHADOW_BIOS, bios_pages != 0);
+    m_memory->SetRegionMapped(GDOX_DEBUG_REGION_UPPER_MEMORY, open != 0);
+}
+
+u8 SystemControl::GetUpperPage(u32 page) const
+{
+    return page < k_system_control_upper_pages ? m_state.upper_pages[page] : k_system_control_page_ram;
+}
+
+void SystemControl::SetUpperPages(u32 first, u32 count, u8 access)
+{
+    for (u32 page = first; page < first + count && page < k_system_control_upper_pages; page++)
+        m_state.upper_pages[page] = access & k_system_control_page_ram;
+
+    ApplyShadow();
 }
 
 // SeaBIOS gates A20 through port 92h only and other BIOSes through the 8042. As the two OR together,
@@ -111,6 +151,7 @@ void SystemControl::Reset()
     m_state.keyboard_a20 = !m_power_on_a20_port_92;
     m_power_off_requested = false;
     UpdateA20();
+    LockShadow();
     ApplyShadow();
 }
 
@@ -215,6 +256,7 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
         case 0x0406:
             previous = m_state.shadow_locked ? 1 : 0;
             m_state.shadow_locked = (value & 0x01) != 0;
+            LockShadow();
             ApplyShadow();
             break;
         case 0x0408:
@@ -358,6 +400,9 @@ void SystemControl::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.shadow_rom_end);
     G_SERIALIZE(serializer, m_state.shadow_free_end);
     G_SERIALIZE(serializer, m_state.shadow_locked);
+
+    if (m_page_control)
+        G_SERIALIZE_ARRAY(serializer, m_state.upper_pages, k_system_control_upper_pages);
 }
 
 void SystemControl::SanitizeState()
@@ -365,5 +410,12 @@ void SystemControl::SanitizeState()
     m_state.port_61 &= 0x0F;
     m_state.port_92 &= 0x03;
     UpdateA20();
+
+    if (!m_page_control)
+        LockShadow();
+
+    for (u32 page = 0; page < k_system_control_upper_pages; page++)
+        m_state.upper_pages[page] &= k_system_control_page_ram;
+
     ApplyShadow();
 }

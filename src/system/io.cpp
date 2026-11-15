@@ -29,6 +29,8 @@
 #include "pic.h"
 #include "pit.h"
 #include "parallel_port.h"
+#include "pci_bus.h"
+#include "piix.h"
 #include "scheduler.h"
 #include "serial_ports.h"
 #include "system_control.h"
@@ -54,6 +56,8 @@ IO::IO()
     InitPointer(m_serial_ports);
     InitPointer(m_parallel_port);
     InitPointer(m_game_port);
+    InitPointer(m_pci_bus);
+    InitPointer(m_piix);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -64,7 +68,7 @@ IO::~IO()
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
     IdeController* ide, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
     DebugConsole* debug_console, I8042* i8042, DMA* dma, SerialPorts* serial_ports, ParallelPort* parallel_port,
-    GamePort* game_port)
+    GamePort* game_port, PciBus* pci_bus, Piix* piix)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -83,6 +87,8 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_serial_ports = serial_ports;
     m_parallel_port = parallel_port;
     m_game_port = game_port;
+    m_pci_bus = pci_bus;
+    m_piix = piix;
     Reset();
 }
 
@@ -169,6 +175,19 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
             if (m_debug_console->Decodes(port))
                 return m_debug_console->Read();
             break;
+        case 0x04D0:
+        case 0x04D1:
+        case 0x0CF9:
+            if (m_piix->Decodes(port))
+                return m_piix->ReadPort(port);
+            break;
+        case 0x0CFC:
+        case 0x0CFD:
+        case 0x0CFE:
+        case 0x0CFF:
+            if (m_pci_bus->Decodes(port))
+                return m_pci_bus->ReadData(port);
+            break;
         case 0x0404:
         case 0x0405:
         case 0x0406:
@@ -249,6 +268,17 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
         case 0x0402:
             value = m_debug_console->Read();
             return m_debug_console->Decodes(port);
+        case 0x04D0:
+        case 0x04D1:
+        case 0x0CF9:
+            value = m_piix->Decodes(port) ? m_piix->ReadPort(port) : 0xFF;
+            return m_piix->Decodes(port);
+        case 0x0CFC:
+        case 0x0CFD:
+        case 0x0CFE:
+        case 0x0CFF:
+            value = m_pci_bus->Decodes(port) ? m_pci_bus->ReadData(port) : 0xFF;
+            return m_pci_bus->Decodes(port);
         case 0x0510:
         case 0x0511:
             value = m_firmware_config->Peek(port);
@@ -439,6 +469,19 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             // Debug console
             if (m_debug_console->Decodes(port))
                 m_debug_console->Write(value);
+            break;
+        case 0x04D0:
+        case 0x04D1:
+        case 0x0CF9:
+            if (m_piix->Decodes(port))
+                m_piix->WritePort(port, value);
+            break;
+        case 0x0CFC:
+        case 0x0CFD:
+        case 0x0CFE:
+        case 0x0CFF:
+            if (m_pci_bus->Decodes(port))
+                m_pci_bus->WriteData(port, value);
             break;
         case 0x0404:
         case 0x0405:

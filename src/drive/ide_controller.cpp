@@ -30,6 +30,12 @@ IdeController::IdeController()
     memset(m_irq_out, 0, sizeof(m_irq_out));
     m_event_clocks = GDOX_NO_EVENT;
     m_cdrom_slot = -1;
+    m_decode = 0x03;
+}
+
+void IdeController::SetDecode(u8 channels)
+{
+    m_decode = channels;
 }
 
 IdeController::~IdeController()

@@ -27,6 +27,11 @@ INLINE int Firmware::GetFamily() const
     return m_family;
 }
 
+INLINE bool Firmware::IsPCI() const
+{
+    return m_pci;
+}
+
 INLINE const GDOX_Firmware_Info& Firmware::GetInfo(GDOX_Firmware_Type type) const
 {
     return m_info[type];

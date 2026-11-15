@@ -22,6 +22,7 @@
 
 #include "io.h"
 #include "firmware_config.h"
+#include "pci_bus.h"
 #include "../drive/ide_controller.h"
 
 // The IDE data port answers with -I/O CS16, every other port is 8 bits wide
@@ -37,6 +38,9 @@ INLINE u16 IO::Read16(u16 port, GDOX_Bus_Access_Context& context)
 
 INLINE u32 IO::Read32(u16 port, GDOX_Bus_Access_Context& context)
 {
+    if (port == k_pci_bus_address_port && m_pci_bus->IsEnabled())
+        return m_pci_bus->ReadAddress();
+
     u32 value = Read16(port, context);
     value |= (u32)Read16((u16)(port + 2), context) << 16;
     return value;
@@ -63,6 +67,12 @@ INLINE void IO::Write16(u16 port, u16 value, GDOX_Bus_Access_Context& context)
 
 INLINE void IO::Write32(u16 port, u32 value, GDOX_Bus_Access_Context& context)
 {
+    if (port == k_pci_bus_address_port && m_pci_bus->IsEnabled())
+    {
+        m_pci_bus->WriteAddress(value);
+        return;
+    }
+
     Write16(port, (u16)value, context);
     Write16((u16)(port + 2), (u16)(value >> 16), context);
 }

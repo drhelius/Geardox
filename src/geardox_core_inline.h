@@ -137,6 +137,11 @@ INLINE SystemControl* GeardoxCore::GetSystemControl()
     return m_system_control;
 }
 
+INLINE PciBus* GeardoxCore::GetPciBus()
+{
+    return m_pci_bus;
+}
+
 INLINE I8042* GeardoxCore::GetI8042()
 {
     return m_i8042;
