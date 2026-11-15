@@ -33,7 +33,6 @@ OEM_NAME = b"FRDOS5.1"
 VERSION = "FreeDOS 1.4, kernel 2043, FreeCOM 0.86a"
 
 FILES = [
-    ("freecom", "COMMAND.COM", BIN + "COMMAND.COM"),
     (KERNEL, "SYS.COM", BIN + "SYS.COM"),
     (KERNEL, "COUNTRY.SYS", BIN + "COUNTRY.SYS"),
     ("attrib", "ATTRIB.COM", BIN + "ATTRIB.COM"),
@@ -179,8 +178,17 @@ def kernel_without_sign_on():
     struct.pack_into("<H", trailer, 28, sp)
     return config + packed + bytes(trailer)
 
+def command_without_title():
+    data = read_member("freecom", "COMMAND.COM")
+
+    if data.count(b"\x00TITLE\x00") != 1:
+        sys.exit("COMMAND.COM has no TITLE command to remove")
+
+    return data.replace(b"\x00TITLE\x00", b"\x00\x01ITLE\x00")
+
 def disk_files():
     files = [(target, read_member(package, name)) for package, name, target in FILES]
+    files.append((BIN + "COMMAND.COM", command_without_title()))
     files.append(("KERNEL.SYS", kernel_without_sign_on()))
     files.append(("FREEDOS/COPYING.TXT", text_file("COPYING")))
     files.append(("FREEDOS/ARTISTIC.TXT", read_license("jemm", "DOC/JEMM/ARTISTIC.TXT")))

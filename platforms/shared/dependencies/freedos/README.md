@@ -14,7 +14,9 @@ They live in `src/dos`, with their own `build.sh`.
 ## What's on the disk
 
 `KERNEL.SYS` is the kernel's `KERNL386.SYS`, because every Geardox model is a 386 or better, without its sign-on: `build.sh` unpacks it, empties the sign-on's format string and packs it
-again. Everything else is a program from the packages, in `\FREEDOS\BIN`, and the license texts are in `\FREEDOS`.
+again. `COMMAND.COM` is FreeCOM's with its internal `TITLE` command made unreachable (`build.sh` turns the name's first
+letter in the command table into 01h), so a game's own `TITLE.EXE` runs, as in MS-DOS. Everything else is a program
+from the packages, in `\FREEDOS\BIN`, and the license texts are in `\FREEDOS`.
 `CONFIG.SYS` and `AUTOEXEC.BAT` aren't in the ZIP: Geardox writes them for each disk it makes, the built-in FreeDOS disk
 and game disks alike. Geardox also adds GDXRUN and POWEROFF to `\FREEDOS\BIN` from `src/dos`.
 
