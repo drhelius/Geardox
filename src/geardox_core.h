@@ -134,6 +134,7 @@ public:
     bool IsPowerOffRequested() const;
     void AcknowledgePowerOff();
     void SetDebugConsole(bool enabled, bool log);
+    void SetGameTiming(int mask);
 
     void KeyPressed(GDOX_Keys key);
     void KeyReleased(GDOX_Keys key);
@@ -304,6 +305,7 @@ private:
     int m_game_target;
     bool m_debug_console_enabled;
     bool m_debug_console_log;
+    int m_game_timing;
     bool m_powered;
     bool m_paused;
     bool m_host_hotkeys;

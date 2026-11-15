@@ -61,7 +61,7 @@ INLINE void Scheduler::AddCycles(u32 cycles)
 // Clocks to run before returning: a whole slice, cut short by the next event or the limit, never zero
 INLINE u32 Scheduler::GetSliceClocks(u64 limit) const
 {
-    u64 end = MIN(MIN(m_state.clocks + k_scheduler_slice_clocks, m_next_event_clocks), limit);
+    u64 end = MIN(MIN(m_state.clocks + m_slice_clocks, m_next_event_clocks), limit);
     return end > m_state.clocks ? (u32)(end - m_state.clocks) : 1;
 }
 

@@ -466,6 +466,7 @@ public:
     void SetCPU(const GDOX_Machine_CPU_Info& info);
     void SetResetSignature(u32 signature);
     void SetTimeStampSource(const u64* cycles);
+    void SetGameTiming(bool blocks, bool interrupts);
     bool IsI486() const;
     bool IsI586() const;
     u64 GetTimeStamp() const;
@@ -959,6 +960,7 @@ private:
     static uintptr_t DynarecDivideSlow(I386* cpu, uintptr_t value, uintptr_t form);
     static void DynarecDivide(I386* cpu, uintptr_t value, uintptr_t form);
     static void DynarecEscape(I386* cpu, uintptr_t host, uintptr_t form, uintptr_t eip, uintptr_t fewest);
+    static void Dynarec586Wait(I386* cpu, uintptr_t before, uintptr_t weight, uintptr_t busy, uintptr_t first_mask);
     void GetEscapeClocks(const InstructionContext& c, u32& fewest, u32& most) const;
     template<bool i486>
     static uintptr_t DynarecSlowStore(I386* cpu, uintptr_t value, uintptr_t site);
@@ -1718,6 +1720,8 @@ private:
     u32 m_cache_test_registers[3];
     bool m_i586;
     bool m_i586_timing;
+    bool m_game_blocks;
+    bool m_game_interrupts;
     u32 m_586_pair;
     u32 m_586_fraction;
     u32 m_586_folded;

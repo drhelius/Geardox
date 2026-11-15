@@ -2629,6 +2629,14 @@ bool I386::EscapeCoprocessor()
 }
 
 #if !defined(GDOX_DISABLE_DYNAREC)
+void I386::Dynarec586Wait(I386* cpu, uintptr_t before, uintptr_t weight, uintptr_t busy, uintptr_t first_mask)
+{
+    u32 agi = (cpu->m_486_written & first_mask) != 0 ? 1 : 0;
+    cpu->Fold586To((u32)weight);
+    cpu->m_io_start_cycles = cpu->m_dynarec_start + cpu->m_dynarec_clocks - agi + (u32)before;
+    cpu->m_dynarec_clocks += cpu->Wait586FPU(cpu->m_io_start_cycles, (u32)busy);
+}
+
 // EscapeCoprocessor past its checks, with the operand at host, its offset in the first temp, and the x87's clocks past
 // the fewest the block counted. form: the opcode, ModR/M from bit 8, the operand size from bit 16, 32-bit operands at
 // bit 20, protected mode at bit 21, a store at bit 22, clocks that depend on the data at bit 23 and the segment from

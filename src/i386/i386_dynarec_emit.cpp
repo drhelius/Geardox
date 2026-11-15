@@ -3873,6 +3873,18 @@ void DynarecEmitter::EmitEscape(Instruction& instruction)
         return;
     }
 
+    if (IsX87Load(c))
+    {
+        EmitX87Load(instruction, first_mask);
+        return;
+    }
+
+    if (IsX87Store(c))
+    {
+        EmitX87Store(instruction, first_mask);
+        return;
+    }
+
     if (c.memory_operand)
     {
         size = X87::GetMemoryOperandSize(c.opcode, c.modrm, c.operand_size == 4, write);
@@ -3935,6 +3947,281 @@ u8 DynarecEmitter::EmitEscapeOperand(Instruction& instruction, u32 size, int acc
     }
 
     return segment;
+}
+
+bool DynarecEmitter::IsX87Load(const I386::InstructionContext& c) const
+{
+    if (!k_dynarec_x87_moves || !c.memory_operand || c.reg != 0 ||
+        (c.opcode != 0xD9 && c.opcode != 0xDD && c.opcode != 0xDB && c.opcode != 0xDF))
+        return false;
+
+    if (m_i586)
+        return true;
+
+    u32 fewest = 0;
+    u32 most = 0;
+    m_cpu->GetEscapeClocks(c, fewest, most);
+    return fewest == most;
+}
+
+void DynarecEmitter::EmitX87Load(Instruction& instruction, u32 first_mask)
+{
+    const I386::InstructionContext& c = instruction.context;
+    intptr_t state = (intptr_t)((const u8*)m_cpu->m_x87->GetState() - (const u8*)m_cpu->m_x87);
+    intptr_t status = state + (intptr_t)offsetof(X87::X87_State, status);
+    intptr_t tag = state + (intptr_t)offsetof(X87::X87_State, tag);
+    intptr_t significand = (intptr_t)offsetof(X87::X87_Register, significand);
+    intptr_t exponent = (intptr_t)offsetof(X87::X87_Register, sign_exponent);
+    jit_node* fallback = instruction.fallback;
+    bool integer = c.opcode == 0xDB || c.opcode == 0xDF;
+    u32 size = c.opcode == 0xDD ? 8 : c.opcode == 0xDF ? 2 : 4;
+    u8 segment = EmitEscapeOperand(instruction, size, DYNAREC_READ);
+
+    if (size == 8)
+    {
+        LoadHost(DR_T4, DR_T0, 32);
+        jit_addi(DR_T0, DR_T0, 4);
+        LoadHost(DR_T1, DR_T0, 32);
+        jit_lshi(DR_T1, DR_T1, 32);
+        jit_orr(DR_T4, DR_T4, DR_T1);
+    }
+    else
+        LoadHost(DR_T4, DR_T0, (int)size * 8);
+
+    jit_node* zero = NULL;
+
+    if (integer)
+    {
+        if (size == 2)
+            jit_extr_s(DR_T4, DR_T4);
+#if __WORDSIZE == 64
+        else
+            jit_extr_i(DR_T4, DR_T4);
+#endif
+
+        jit_movi(DR_X0, 0);
+        jit_movi(DR_X1, 0);
+        zero = jit_beqi(DR_T4, 0);
+        jit_node* positive = jit_bgti(DR_T4, 0);
+        jit_movi(DR_X1, 0x8000);
+        jit_negr(DR_T4, DR_T4);
+        jit_patch(positive);
+        jit_clzr(DR_T1, DR_T4);
+        jit_lshr(DR_X0, DR_T4, DR_T1);
+        jit_rsbi(DR_T1, DR_T1, 16383 + 63);
+        jit_orr(DR_X1, DR_X1, DR_T1);
+    }
+    else
+    {
+        int mantissa_bits = size == 8 ? 52 : 23;
+        jit_word_t field = size == 8 ? 0x7FF : 0xFF;
+        jit_word_t bias = size == 8 ? 16383 - 1023 : 16383 - 127;
+
+        jit_rshi_u(DR_X1, DR_T4, size * 8 - 16);
+        jit_andi(DR_X1, DR_X1, 0x8000);
+        jit_movi(DR_X0, 0);
+        jit_lshi(DR_T1, DR_T4, 64 - (int)size * 8 + 1);
+        zero = jit_beqi(DR_T1, 0);
+        jit_rshi_u(DR_T2, DR_T4, mantissa_bits);
+        jit_andi(DR_T2, DR_T2, field);
+        jit_patch_at(jit_beqi(DR_T2, 0), fallback);
+        jit_patch_at(jit_beqi(DR_T2, field), fallback);
+        jit_addi(DR_T2, DR_T2, bias);
+        jit_orr(DR_X1, DR_X1, DR_T2);
+        jit_lshi(DR_X0, DR_T4, 64 - mantissa_bits);
+        jit_rshi_u(DR_X0, DR_X0, 1);
+        jit_movi(DR_T1, (jit_word_t)0x8000000000000000ULL);
+        jit_orr(DR_X0, DR_X0, DR_T1);
+    }
+
+    jit_patch(zero);
+
+    jit_ldxi(DR_T0, DR_CPU, Offset(&m_cpu->m_x87));
+    jit_ldxi_us(DR_T1, DR_T0, status);
+    jit_rshi_u(DR_T2, DR_T1, 11);
+    jit_andi(DR_T2, DR_T2, 7);
+    jit_ldxi_us(DR_T3, DR_T0, tag);
+    jit_addi(DR_T2, DR_T2, 7);
+    jit_andi(DR_T2, DR_T2, 7);
+    jit_lshi(DR_T4, DR_T2, 1);
+    jit_rshr_u(DR_T4, DR_T3, DR_T4);
+    jit_andi(DR_T4, DR_T4, 3);
+    jit_patch_at(jit_bnei(DR_T4, 3), fallback);
+
+    if (m_i586)
+    {
+        EmitX87Wait(instruction, first_mask);
+        jit_ldxi(DR_T0, DR_CPU, Offset(&m_cpu->m_x87));
+        jit_ldxi_us(DR_T1, DR_T0, status);
+        jit_rshi_u(DR_T2, DR_T1, 11);
+        jit_addi(DR_T2, DR_T2, 7);
+        jit_andi(DR_T2, DR_T2, 7);
+    }
+
+    jit_lshi(DR_T4, DR_T2, 1);
+    jit_movi(DR_T0, 3);
+    jit_lshr(DR_T4, DR_T0, DR_T4);
+    jit_comr(DR_T4, DR_T4);
+    jit_andr(DR_T3, DR_T3, DR_T4);
+    jit_andi(DR_T1, DR_T1, ~0x3A00);
+    jit_lshi(DR_T4, DR_T2, 11);
+    jit_orr(DR_T1, DR_T1, DR_T4);
+    jit_ldxi(DR_T0, DR_CPU, Offset(&m_cpu->m_x87));
+    jit_stxi_s(status, DR_T0, DR_T1);
+    jit_stxi_s(tag, DR_T0, DR_T3);
+    EmitX87Address(DR_T4, DR_T0, DR_T2);
+    jit_stxi(significand, DR_T4, DR_X0);
+    jit_stxi_s(exponent, DR_T4, DR_X1);
+    jit_movi(DR_T1, (jit_word_t)(((c.opcode & 7) << 8) | c.modrm));
+    jit_stxi_s(state + (intptr_t)offsetof(X87::X87_State, opcode), DR_T0, DR_T1);
+    jit_ldxi_us(DR_T1, DR_CPU, Offset(&m_cpu->m_state.segments[I386_SEGMENT_CS].selector));
+    jit_stxi_s(state + (intptr_t)offsetof(X87::X87_State, instruction_selector), DR_T0, DR_T1);
+    jit_movi(DR_T1, (jit_word_t)c.start_eip);
+    jit_stxi_i(state + (intptr_t)offsetof(X87::X87_State, instruction_offset), DR_T0, DR_T1);
+    jit_ldxi_us(DR_T1, DR_CPU, Offset(&m_cpu->m_state.segments[segment].selector));
+    jit_stxi_s(state + (intptr_t)offsetof(X87::X87_State, operand_selector), DR_T0, DR_T1);
+    LoadTemp(DR_T1, 0);
+    jit_stxi_i(state + (intptr_t)offsetof(X87::X87_State, operand_offset), DR_T0, DR_T1);
+}
+
+bool DynarecEmitter::IsX87Store(const I386::InstructionContext& c) const
+{
+    if (!k_dynarec_x87_moves || !c.memory_operand || (c.reg != 2 && c.reg != 3) || (c.opcode != 0xD9 && c.opcode != 0xDD))
+        return false;
+
+    if (m_i586)
+        return true;
+
+    u32 fewest = 0;
+    u32 most = 0;
+    m_cpu->GetEscapeClocks(c, fewest, most);
+    return fewest == most;
+}
+
+void DynarecEmitter::EmitX87Store(Instruction& instruction, u32 first_mask)
+{
+    const I386::InstructionContext& c = instruction.context;
+    intptr_t state = (intptr_t)((const u8*)m_cpu->m_x87->GetState() - (const u8*)m_cpu->m_x87);
+    intptr_t status = state + (intptr_t)offsetof(X87::X87_State, status);
+    intptr_t tag = state + (intptr_t)offsetof(X87::X87_State, tag);
+    intptr_t significand = (intptr_t)offsetof(X87::X87_Register, significand);
+    intptr_t exponent = (intptr_t)offsetof(X87::X87_Register, sign_exponent);
+    jit_node* fallback = instruction.fallback;
+    bool pop = c.reg == 3;
+    bool wide = c.opcode == 0xDD;
+    int mantissa_bits = wide ? 52 : 23;
+    jit_word_t bias = wide ? 16383 - 1023 : 16383 - 127;
+    jit_word_t largest = wide ? 2046 : 254;
+    u8 segment = EmitEscapeOperand(instruction, wide ? 8 : 4, DYNAREC_WRITE);
+
+    StoreTemp(3, DR_T0);
+    jit_ldxi(DR_T0, DR_CPU, Offset(&m_cpu->m_x87));
+    jit_ldxi_us(DR_T1, DR_T0, status);
+    jit_rshi_u(DR_T2, DR_T1, 11);
+    jit_andi(DR_T2, DR_T2, 7);
+    jit_ldxi_us(DR_T3, DR_T0, tag);
+    jit_lshi(DR_T4, DR_T2, 1);
+    jit_rshr_u(DR_T4, DR_T3, DR_T4);
+    jit_andi(DR_T4, DR_T4, 3);
+    jit_patch_at(jit_beqi(DR_T4, 3), fallback);
+    EmitX87Address(DR_T4, DR_T0, DR_T2);
+    jit_ldxi(DR_X0, DR_T4, significand);
+    jit_ldxi_us(DR_X1, DR_T4, exponent);
+
+    jit_andi(DR_T4, DR_X1, 0x7FFF);
+    jit_andi(DR_X1, DR_X1, 0x8000);
+    jit_lshi(DR_X1, DR_X1, wide ? 48 : 16);
+    jit_node* nonzero = jit_bnei(DR_T4, 0);
+    jit_patch_at(jit_bnei(DR_X0, 0), fallback);
+    jit_node* zero = jit_jmpi();
+    jit_patch(nonzero);
+    jit_patch_at(jit_bgei(DR_X0, 0), fallback);
+    jit_subi(DR_T4, DR_T4, bias);
+    jit_patch_at(jit_blei(DR_T4, 0), fallback);
+    jit_patch_at(jit_bgti(DR_T4, largest), fallback);
+    jit_andi(DR_T0, DR_X0, (jit_word_t)((1ULL << (63 - mantissa_bits)) - 1));
+    jit_patch_at(jit_bnei(DR_T0, 0), fallback);
+    jit_lshi(DR_T4, DR_T4, mantissa_bits);
+    jit_orr(DR_X1, DR_X1, DR_T4);
+    jit_lshi(DR_X0, DR_X0, 1);
+    jit_rshi_u(DR_X0, DR_X0, 64 - mantissa_bits);
+    jit_orr(DR_X1, DR_X1, DR_X0);
+    jit_patch(zero);
+
+    if (m_i586)
+        EmitX87Wait(instruction, first_mask);
+
+    LoadTemp(DR_T0, 3);
+    StoreHost(DR_T0, DR_X1, 32, DR_T1);
+
+    if (wide)
+    {
+        jit_rshi_u(DR_T2, DR_X1, 32);
+        jit_addi(DR_T0, DR_T0, 4);
+        StoreHost(DR_T0, DR_T2, 32, DR_T1);
+    }
+
+    jit_ldxi(DR_T0, DR_CPU, Offset(&m_cpu->m_x87));
+    jit_ldxi_us(DR_T1, DR_T0, status);
+    jit_andi(DR_T1, DR_T1, ~0x0200);
+
+    if (pop)
+    {
+        jit_rshi_u(DR_T2, DR_T1, 11);
+        jit_andi(DR_T2, DR_T2, 7);
+        jit_ldxi_us(DR_T3, DR_T0, tag);
+        jit_lshi(DR_T4, DR_T2, 1);
+        jit_movi(DR_X0, 3);
+        jit_lshr(DR_T4, DR_X0, DR_T4);
+        jit_orr(DR_T3, DR_T3, DR_T4);
+        jit_stxi_s(tag, DR_T0, DR_T3);
+        jit_addi(DR_T2, DR_T2, 1);
+        jit_andi(DR_T2, DR_T2, 7);
+        jit_andi(DR_T1, DR_T1, ~0x3800);
+        jit_lshi(DR_T2, DR_T2, 11);
+        jit_orr(DR_T1, DR_T1, DR_T2);
+    }
+
+    jit_stxi_s(status, DR_T0, DR_T1);
+    jit_movi(DR_T1, (jit_word_t)(((c.opcode & 7) << 8) | c.modrm));
+    jit_stxi_s(state + (intptr_t)offsetof(X87::X87_State, opcode), DR_T0, DR_T1);
+    jit_ldxi_us(DR_T1, DR_CPU, Offset(&m_cpu->m_state.segments[I386_SEGMENT_CS].selector));
+    jit_stxi_s(state + (intptr_t)offsetof(X87::X87_State, instruction_selector), DR_T0, DR_T1);
+    jit_movi(DR_T1, (jit_word_t)c.start_eip);
+    jit_stxi_i(state + (intptr_t)offsetof(X87::X87_State, instruction_offset), DR_T0, DR_T1);
+    jit_ldxi_us(DR_T1, DR_CPU, Offset(&m_cpu->m_state.segments[segment].selector));
+    jit_stxi_s(state + (intptr_t)offsetof(X87::X87_State, operand_selector), DR_T0, DR_T1);
+    LoadTemp(DR_T1, 0);
+    jit_stxi_i(state + (intptr_t)offsetof(X87::X87_State, operand_offset), DR_T0, DR_T1);
+}
+
+void DynarecEmitter::EmitX87Wait(Instruction& instruction, u32 first_mask)
+{
+    u32 busy = 0;
+    m_cpu->Get586EscapeClocks(instruction.context, busy);
+
+    jit_ldxi(DR_T0, DR_CPU, Offset(&m_cpu->m_tsc_source));
+    jit_ldr(DR_T0, DR_T0);
+    jit_ldxi(DR_T1, DR_CPU, Offset(&m_cpu->m_tsc_offset));
+    jit_addr(DR_T0, DR_T0, DR_T1);
+    jit_ldxi(DR_T1, DR_CPU, Offset(&m_cpu->m_bus_context));
+    LoadU32(DR_T1, DR_T1, (intptr_t)offsetof(GDOX_Bus_Access_Context, synchronized_cycles));
+    jit_subr(DR_T0, DR_T0, DR_T1);
+    LoadU32(DR_T1, DR_CPU, Offset(&m_cpu->m_dynarec_start));
+    jit_addr(DR_T0, DR_T0, DR_T1);
+    LoadU32(DR_T1, DR_CPU, Offset(&m_cpu->m_dynarec_clocks));
+    jit_addr(DR_T0, DR_T0, DR_T1);
+    jit_addi(DR_T0, DR_T0, (jit_word_t)instruction.before - (first_mask != 0 ? 1 : 0));
+    jit_ldxi(DR_T1, DR_CPU, Offset(&m_cpu->m_586_fpu_free));
+    jit_node* free = jit_bler_u(DR_T1, DR_T0);
+    jit_prepare();
+    jit_pushargr(DR_CPU);
+    jit_pushargi((jit_word_t)instruction.before);
+    jit_pushargi((jit_word_t)instruction.weight_before);
+    jit_pushargi((jit_word_t)busy);
+    jit_pushargi((jit_word_t)first_mask);
+    jit_finishi((jit_pointer_t)&I386::Dynarec586Wait);
+    jit_patch(free);
 }
 
 // FLD ST(i), FXCH, FST and FSTP ST(i), FCHS, FABS, FLD1, FLDZ and FNSTSW AX: no arithmetic, so compiled on the x87's

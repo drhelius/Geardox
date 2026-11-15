@@ -140,6 +140,8 @@ I386::I386()
     m_i486 = false;
     m_i586 = false;
     m_i586_timing = false;
+    m_game_blocks = false;
+    m_game_interrupts = false;
     m_586_fraction = 0;
     m_586_folded = 0;
     m_586_site_weight = 0;
@@ -1673,7 +1675,7 @@ bool I386::DeliverException(const I386_Pending_Exception& exception, u32 return_
         {
             result.exception = true;
             result.exception_vector = current.vector;
-            result.end_batch = true;
+            result.end_batch = !m_game_interrupts;
             m_state.last_exception_vector = current.vector;
             m_last_exception.valid = true;
             m_last_exception.vector = current.vector;

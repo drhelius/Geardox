@@ -189,7 +189,7 @@ INLINE bool I386::RunFastStep(I386_Run_Result& total, GDOX_Bus_Access_Context& c
 
     if (unlikely(m_step.end_batch || context.end_batch || m_state.halted || m_state.shutdown))
     {
-        // Exceptions and software interrupts always end the batch
+        // Exceptions and software interrupts end the batch, unless the board's game timing keeps them in it
         if (m_step.exception)
             CopyStepException(total);
 

@@ -250,6 +250,11 @@ private:
     bool IsEscapeNative(const I386::InstructionContext& c) const;
     void EmitEscape(Instruction& instruction);
     u8 EmitEscapeOperand(Instruction& instruction, u32 size, int access);
+    bool IsX87Load(const I386::InstructionContext& c) const;
+    void EmitX87Load(Instruction& instruction, u32 first_mask);
+    bool IsX87Store(const I386::InstructionContext& c) const;
+    void EmitX87Store(Instruction& instruction, u32 first_mask);
+    void EmitX87Wait(Instruction& instruction, u32 first_mask);
     void EmitX87Ready(jit_node* fallback);
     void EmitLoadControlWord(Instruction& instruction);
     bool IsX87Move(const I386::InstructionContext& c) const;

@@ -122,6 +122,7 @@ GeardoxCore::GeardoxCore()
     m_game_target = -1;
     m_debug_console_enabled = true;
     m_debug_console_log = false;
+    m_game_timing = GDOX_MACHINE_AUTO;
     ResolveMachineConfig();
     m_machine_config = m_pending_machine_config;
     m_machine_report = m_pending_machine_report;
@@ -1153,6 +1154,11 @@ void GeardoxCore::AcknowledgePowerOff()
 {
     if (IsValidPointer(m_system_control))
         m_system_control->AcknowledgePowerOff();
+}
+
+void GeardoxCore::SetGameTiming(int mask)
+{
+    m_game_timing = mask;
 }
 
 void GeardoxCore::SetDebugConsole(bool enabled, bool log)
@@ -2404,6 +2410,10 @@ void GeardoxCore::ApplyMachineConfig()
     if (IsValidPointer(m_pci_bus))
     {
         bool pci_video = HasPCIBus() && k_video_cards[m_machine_config.video_card].pci;
+        u32 timing = !HasPCIBus() ? 0 : m_game_timing < 0 ? GDOX_GAME_TIMING_ALL : (u32)m_game_timing;
+        m_i386->SetGameTiming((timing & GDOX_GAME_TIMING_BLOCKS) != 0, (timing & GDOX_GAME_TIMING_INTERRUPTS) != 0);
+        m_scheduler->SetSliceClocks((timing & GDOX_GAME_TIMING_SLICES) != 0 ? k_machine_game_slice_clocks :
+            k_scheduler_slice_clocks);
         m_pci_bus->SetEnabled(HasPCIBus());
         m_pci_bus->RegisterDevice(k_pci_device_slot, pci_video ? m_video : NULL, pci_video ? &Video::ReadConfigCallback : NULL,
             pci_video ? &Video::WriteConfigCallback : NULL);

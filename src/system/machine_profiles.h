@@ -29,6 +29,11 @@
 #define GDOX_MACHINE_FEATURE_PCI 0x02
 #define GDOX_MACHINE_ISA_CLOCK_RATE 8333333
 
+#define GDOX_GAME_TIMING_BLOCKS 0x01
+#define GDOX_GAME_TIMING_INTERRUPTS 0x02
+#define GDOX_GAME_TIMING_SLICES 0x04
+#define GDOX_GAME_TIMING_ALL 0x07
+
 // ISA cycles in BCLKs at the model's bus clock, less the 2 clocks of a bus cycle, in 1/256 bus clocks
 #define GDOX_MACHINE_ISA_WAIT(bclks, rate) ((u16)(((u64)((bclks) * 256.0 * (rate)) / GDOX_MACHINE_ISA_CLOCK_RATE) - 512))
 #define GDOX_MACHINE_ISA16(rate) GDOX_MACHINE_ISA_WAIT(3, rate)
@@ -201,6 +206,7 @@ const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 const GDOX_Machine_Model k_machine_default_model = GDOX_MACHINE_486DX2_66;
 const int k_machine_default_ram_mb = 8;
 const int k_machine_pci_default_ram_mb = 16;
+const u32 k_machine_game_slice_clocks = 40000;
 
 const GDOX_Machine_Model k_machine_release_order[GDOX_MACHINE_RELEASE_ORDER_COUNT] =
 {

@@ -235,6 +235,9 @@ void I386::CheckDynarecMemory()
 template<int timing>
 INLINE bool I386::FitsDynarecBlock(const DynarecBlock& block, u64 used, u32 budget) const
 {
+    if (timing == I386_TIMING_586 && m_game_blocks)
+        return used < budget;
+
     if ((timing & I386_TIMING_BUS) == 0)
         return used + block.fit_clocks < budget;
 

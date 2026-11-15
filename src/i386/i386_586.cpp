@@ -54,6 +54,12 @@ void I386::SetTimeStampSource(const u64* cycles)
     m_tsc_source = cycles;
 }
 
+void I386::SetGameTiming(bool blocks, bool interrupts)
+{
+    m_game_blocks = blocks;
+    m_game_interrupts = interrupts;
+}
+
 bool I386::OPCodes0F_RDTSC()
 {
     if (!m_i586)

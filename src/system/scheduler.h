@@ -57,6 +57,7 @@ public:
     void Init();
     void Reset();
     void SetCPUClockRate(u32 rate);
+    void SetSliceClocks(u32 clocks);
     u64 GetClocks() const;
     const u64* GetCyclesPointer() const;
     void AddClocks(u32 clocks);
@@ -83,6 +84,7 @@ private:
     u64 m_next_event_clocks;
     Scheduler_Event m_next_event;
     u32 m_cpu_clock_rate;
+    u32 m_slice_clocks;
 };
 
 // Longest CPU run before control returns to the main loop

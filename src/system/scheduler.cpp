@@ -31,6 +31,12 @@ Scheduler::Scheduler()
     m_next_event_clocks = GDOX_NO_EVENT;
     m_next_event = SCHEDULER_EVENT_PIT;
     m_cpu_clock_rate = GDOX_MACHINE_CLOCK_RATE;
+    m_slice_clocks = k_scheduler_slice_clocks;
+}
+
+void Scheduler::SetSliceClocks(u32 clocks)
+{
+    m_slice_clocks = clocks;
 }
 
 Scheduler::~Scheduler()
