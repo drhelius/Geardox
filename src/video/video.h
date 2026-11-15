@@ -143,6 +143,8 @@ public:
     int GetFrameHeight() const;
     int GetDisplayWidth() const;
     int GetDisplayHeight() const;
+    u32 GetCanvasHDivider() const;
+    u32 GetCGABorderColor() const;
     void SetFrameSize(int frame_width, int frame_height, int display_width, int display_height);
     float GetFrameTime() const;
     void EnableNativeResolution(bool enable);

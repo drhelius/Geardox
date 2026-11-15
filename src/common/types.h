@@ -85,6 +85,14 @@ struct GDOX_Runtime_Info
     float frame_time;
     int sample_rate;
     bool paused;
+    float pixel_clock;
+    float line_rate;
+    int source_lines;
+    u8 border_color[3];
+    bool border_valid;
+    int system_type;
+    int video_mode;
+    bool composite;
 };
 
 enum GDOX_Run_Result

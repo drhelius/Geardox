@@ -2015,6 +2015,40 @@ void GeardoxCore::GetRuntimeInfo(GDOX_Runtime_Info& runtime_info)
 
     runtime_info.sample_rate = GDOX_AUDIO_SAMPLE_RATE;
     runtime_info.paused = m_paused;
+    runtime_info.pixel_clock = 0.0f;
+    runtime_info.line_rate = 0.0f;
+    runtime_info.source_lines = runtime_info.screen_height;
+    runtime_info.border_color[0] = 0;
+    runtime_info.border_color[1] = 0;
+    runtime_info.border_color[2] = 0;
+    runtime_info.border_valid = false;
+    runtime_info.system_type = IsValidPointer(m_video) ? m_video->GetCard() : 0;
+    runtime_info.video_mode = 0;
+    runtime_info.composite = false;
+
+    if (!IsValidPointer(m_video) || !m_video->IsRunning() || (IsValidPointer(m_key_mapper) && m_key_mapper->IsOpen()))
+        return;
+
+    Video::Video_State* video_state = m_video->GetState();
+    u32 dot_clock = video_state->frame_dot_clock;
+    u32 h_divider = MAX(m_video->GetCanvasHDivider(), 1U);
+    bool cga = m_video->GetCard() == GDOX_VIDEO_CARD_CGA;
+    u32 border = cga ? m_video->GetCGABorderColor() : m_video->GetOverscanColor();
+
+    runtime_info.pixel_clock = (float)((double)dot_clock / (double)h_divider / 1000000.0);
+
+    if (video_state->frame_line_dots > 0)
+        runtime_info.line_rate = (float)((double)dot_clock / (double)video_state->frame_line_dots / 1000.0);
+
+    if (video_state->display_lines > 0)
+        runtime_info.source_lines = (int)video_state->display_lines;
+
+    runtime_info.border_color[0] = (u8)((border >> 16) & 0xFF);
+    runtime_info.border_color[1] = (u8)((border >> 8) & 0xFF);
+    runtime_info.border_color[2] = (u8)(border & 0xFF);
+    runtime_info.border_valid = true;
+    runtime_info.video_mode = (cga ? ((video_state->cga_mode & 0x02) == 0) : m_video->IsTextMode()) ? 0 : 1;
+    runtime_info.composite = m_video->IsCGAComposite();
 }
 
 void GeardoxCore::Reset()

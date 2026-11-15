@@ -90,6 +90,16 @@ INLINE int Video::GetDisplayHeight() const
     return m_display_height;
 }
 
+INLINE u32 Video::GetCanvasHDivider() const
+{
+    return m_canvas_h_divider;
+}
+
+INLINE u32 Video::GetCGABorderColor() const
+{
+    return m_cga_colors[m_state.cga_color & 0x0F];
+}
+
 // Milliseconds between vertical retraces with the timing latched at the start of the frame
 INLINE float Video::GetFrameTime() const
 {
