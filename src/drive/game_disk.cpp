@@ -74,6 +74,40 @@ static std::string slashes(const std::string& path)
     return result;
 }
 
+static std::string collapse(const std::string& path)
+{
+    std::vector<std::string> parts;
+    size_t start = 0;
+
+    while (start <= path.size())
+    {
+        size_t end = path.find('/', start);
+
+        if (end == std::string::npos)
+            end = path.size();
+
+        std::string part = path.substr(start, end - start);
+        start = end + 1;
+
+        if (part == "..")
+        {
+            if (parts.empty())
+                return std::string();
+
+            parts.pop_back();
+        }
+        else if (!part.empty() && (part != "."))
+            parts.push_back(part);
+    }
+
+    std::string result;
+
+    for (size_t i = 0; i < parts.size(); i++)
+        result += (i > 0 ? "/" : "") + parts[i];
+
+    return result;
+}
+
 static std::string backslashes(const std::string& path)
 {
     std::string result(path);
@@ -1225,7 +1259,7 @@ static void add_run(std::string* out, const std::string& base, const std::string
 
         *out += target.substr(0, 2) + "\r\n";
         *out += "CD \\" + inside + "\r\n";
-        *out += std::string(batch ? "CALL " : "") + program;
+        *out += std::string(batch ? "CALL " : "") + target;
         *out += rest.empty() ? "\r\n" : " " + rest + "\r\n";
         *out += "C:\r\n";
         return;
@@ -1518,7 +1552,9 @@ bool GameDisk::ResolveMedia(const std::string& value, std::string* path)
     if (exists(*path))
         return true;
 
-    if (m_source_zip && !is_absolute(value) && ExtractFromZip(m_zip_prefix + slashes(value), path))
+    std::string inner = m_source_zip && !is_absolute(value) ? collapse(m_zip_prefix + slashes(value)) : std::string();
+
+    if (!inner.empty() && ExtractFromZip(inner, path))
         return true;
 
     return Fail("%s isn't there: %s", m_descriptor.GetInfo().name.c_str(), value.c_str());
