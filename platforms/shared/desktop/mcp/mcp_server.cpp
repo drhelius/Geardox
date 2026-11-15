@@ -1078,9 +1078,9 @@ json McpServer::BuildToolList()
             {"properties", {
                 {"name", {
                     {"type", "string"},
-                    {"description", "EAX, EBX, ECX, EDX, ESI, EDI, EBP, ESP, EIP, EFLAGS, CR0, CR2, CR3, DR0-DR7, "
-                        "TR3-TR5 (486), TR6, TR7, CS, DS, ES, FS, GS, SS, LDTR, TR, GDTR_BASE, GDTR_LIMIT, IDTR_BASE or "
-                        "IDTR_LIMIT."}
+                    {"description", "EAX, EBX, ECX, EDX, ESI, EDI, EBP, ESP, EIP, EFLAGS, CR0, CR2, CR3, CR4 (Pentium), "
+                        "DR0-DR7, TR3-TR5 (486), TR6, TR7, CS, DS, ES, FS, GS, SS, LDTR, TR, GDTR_BASE, GDTR_LIMIT, "
+                        "IDTR_BASE or IDTR_LIMIT."}
                 }},
                 {"value", {
                     {"type", "string"},

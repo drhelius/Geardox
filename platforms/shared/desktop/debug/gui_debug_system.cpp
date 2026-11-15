@@ -29,6 +29,7 @@
 #include "system/pit.h"
 #include "system/scheduler.h"
 #include "system/system_control.h"
+#include "system/pci_bus.h"
 #include "system/debug_console.h"
 #include "../config.h"
 #include "../emu.h"
@@ -54,6 +55,7 @@ static void goto_physical(u32 address);
 static void draw_vector_tooltip(u8 vector);
 static void draw_pic_column(const I8259::I8259_State* chip, bool master, int row);
 static void draw_alarm_byte(u8 value);
+static void draw_pci(GeardoxCore* core);
 static void rtc_write_callback(u16 address, u8 value, void* user_data);
 
 void gui_debug_window_pic(void)
@@ -469,6 +471,8 @@ void gui_debug_window_system_control(void)
         ImGui::EndTable();
     }
 
+    draw_pci(core);
+
     ImGui::PopFont();
 
     ImGui::End();
@@ -638,6 +642,67 @@ void gui_debug_window_bios_log(void)
 
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+static void draw_pci(GeardoxCore* core)
+{
+    PciBus* bus = core->GetPciBus();
+
+    if (!bus->IsEnabled())
+        return;
+
+    SystemControl* system_control = core->GetSystemControl();
+    static const char k_access[4] = { '-', 'R', 'W', 'M' };
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "PCI"); ImGui::Separator();
+    ImGui::TextColored(violet, "CONFADD"); ImGui::SameLine();
+    ImGui::TextColored(white, "$%08X", bus->ReadAddress());
+    ImGui::TextColored(violet, "UPPER MEMORY"); ImGui::SameLine();
+    ImGui::TextColored(gray, "(- open, R read-only, W write-only, M RAM)");
+
+    for (u32 row = 0; row < k_system_control_upper_pages / 16; row++)
+    {
+        char pages[17];
+
+        for (u32 i = 0; i < 16; i++)
+            pages[i] = k_access[system_control->GetUpperPage(row * 16 + i) & 0x03];
+
+        pages[16] = 0;
+        ImGui::TextColored(violet, "%05X", 0xC0000 + row * 0x10000); ImGui::SameLine();
+        ImGui::TextColored(white, "%s", pages);
+    }
+
+    for (int device = 0; device <= k_pci_bus_last_device; device++)
+    {
+        for (int function = 0; bus->HasDevice(device) && function < 8; function++)
+        {
+            u16 vendor = (u16)(bus->PeekConfig(device, (u8)function, 0) | (bus->PeekConfig(device, (u8)function, 1) << 8));
+            u16 id = (u16)(bus->PeekConfig(device, (u8)function, 2) | (bus->PeekConfig(device, (u8)function, 3) << 8));
+
+            if (vendor == 0xFFFF)
+                continue;
+
+            char label[32];
+            snprintf(label, sizeof(label), "%02X.%d  %04X:%04X##pci_%d_%d", device, function, vendor, id, device, function);
+
+            if (!ImGui::TreeNode(label))
+                continue;
+
+            for (int row = 0; row < 16; row++)
+            {
+                ImGui::TextColored(violet, "%02X", row * 16);
+
+                for (int i = 0; i < 16; i++)
+                {
+                    u8 value = bus->PeekConfig(device, (u8)function, (u8)(row * 16 + i));
+                    ImGui::SameLine();
+                    ImGui::TextColored(value == 0 ? gray : white, "%02X", value);
+                }
+            }
+
+            ImGui::TreePop();
+        }
+    }
 }
 
 static void draw_alarm_byte(u8 value)

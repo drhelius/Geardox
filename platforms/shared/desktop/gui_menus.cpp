@@ -48,6 +48,7 @@
 #include "rewind.h"
 #include "events.h"
 #include "game_focus.h"
+#include "debug/gui_debug_i386.h"
 #include "hotkeys.h"
 #include "input_macro.h"
 
@@ -819,14 +820,14 @@ static void menu_machine(void)
     const GDOX_Machine_Report& report = core->GetPendingMachineReport();
     const GDOX_Machine_Profile& profile = k_machine_profiles[core->GetPendingMachineConfig().model];
     bool changed = false;
-    char summary[128];
+    char summary[320];
 
     get_machine_summary(machine, summary, sizeof(summary));
     ImGui::TextDisabled("%s", summary);
 
     if (running && core->IsMachineConfigPending())
     {
-        char pending[128];
+        char pending[320];
         get_machine_summary(core->GetPendingMachineConfig(), pending, sizeof(pending));
 
         if (strcmp(pending, summary) != 0)
@@ -949,13 +950,16 @@ static bool menu_machine_model(void)
     bool changed = false;
     float name_width = 0.0f;
     float cpu_width = 0.0f;
-    char cpu[32];
+    char cpu[64];
     char preview[64];
+    I386_Dynarec_Info dynarec;
+    emu_get_core()->GetI386()->GetDynarecInfo(dynarec);
 
     for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
     {
         const GDOX_Machine_Profile& profile = k_machine_profiles[k_machine_release_order[i]];
-        snprintf(cpu, sizeof(cpu), "%s %d MHz", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000));
+        snprintf(cpu, sizeof(cpu), "%s %d MHz%s", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000),
+            !dynarec.available && (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0 ? ", needs dynarec" : "");
         name_width = MAX(name_width, ImGui::CalcTextSize(profile.name).x);
         cpu_width = MAX(cpu_width, ImGui::CalcTextSize(cpu).x);
     }
@@ -972,7 +976,9 @@ static bool menu_machine_model(void)
         {
             GDOX_Machine_Model model = k_machine_release_order[i];
             const GDOX_Machine_Profile& profile = k_machine_profiles[model];
-            snprintf(cpu, sizeof(cpu), "%s %d MHz", k_machine_cpus[profile.cpu].name, (int)(profile.cpu_clock_rate / 1000000));
+            snprintf(cpu, sizeof(cpu), "%s %d MHz%s", k_machine_cpus[profile.cpu].name,
+                (int)(profile.cpu_clock_rate / 1000000),
+                !dynarec.available && (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0 ? ", needs dynarec" : "");
 
             ImGui::BeginDisabled(!profile.emulated);
 
@@ -1308,9 +1314,10 @@ static bool menu_machine_video(void)
     int& card = menu_settings->video_card;
     const GDOX_Machine_Profile& profile = k_machine_profiles[emu_get_core()->GetPendingMachineConfig().model];
     bool local_bus = (profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
+    bool pci = (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0;
     char default_label[64];
     snprintf(default_label, sizeof(default_label), "Model Default (%s)",
-        k_video_cards[local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428].name);
+        k_video_cards[pci ? GDOX_VIDEO_CARD_GD5446 : local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428].name);
     const char* preview = card == GDOX_MACHINE_AUTO ? default_label : k_video_cards[card].name;
 
     float text_width = ImGui::CalcTextSize(default_label).x;
@@ -1659,6 +1666,16 @@ static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
         ImGui::TextDisabled("Not emulated yet");
     }
 
+    I386_Dynarec_Info dynarec;
+    emu_get_core()->GetI386()->GetDynarecInfo(dynarec);
+
+    if (!dynarec.available && (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0)
+    {
+        ImGui::Separator();
+        ImGui::Text("No dynarec on this host: the interpreter");
+        ImGui::Text("runs it at a fraction of its speed");
+    }
+
     ImGui::EndTooltip();
 }
 
@@ -1693,9 +1710,35 @@ static void menu_boot_device(void)
 static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size)
 {
     bool card = config.fpu && !k_machine_cpus[config.cpu].fpu;
-    snprintf(text, text_size, "%s · %s %u MHz%s%s · %u MB", k_machine_profiles[config.model].name,
-        k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000, card ? " + " : "",
-        card ? get_machine_fpu_name(config.cpu) : "", config.ram_size / (1024 * 1024));
+    const GDOX_Sound_Card_Info& sound = k_sound_cards[config.sound_card];
+    char audio[64];
+    char mouse[48];
+    char cdrom[48];
+
+    if (sound.dsp_major != 0)
+        snprintf(audio, sizeof(audio), "%s, IRQ %u, DMA %u", sound.name, config.sound_irq, config.sound_dma);
+    else
+        snprintf(audio, sizeof(audio), "%s", config.sound_card == GDOX_SOUND_CARD_NONE ? "No sound card" : sound.name);
+
+    if (config.mpu)
+        strncat_fit(audio, sound.mpu ? ", MPU-401" : " · MPU-401", sizeof(audio));
+
+    if (config.mouse == GDOX_MOUSE_NONE)
+        snprintf(mouse, sizeof(mouse), "No mouse");
+    else
+        snprintf(mouse, sizeof(mouse), "%s mouse", k_mice[config.mouse].name);
+
+    if (config.cdrom == GDOX_CDROM_NONE)
+        snprintf(cdrom, sizeof(cdrom), "No CD-ROM");
+    else
+        snprintf(cdrom, sizeof(cdrom), "CD-ROM %s, %s", k_cdrom_speeds[config.cdrom_speed].name,
+            k_cdrom_positions[config.cdrom].name);
+
+    snprintf(text, text_size, "%s · %s %u MHz%s%s · %u MB\n%s · %s\n%s · %s · %d floppy drive%s",
+        k_machine_profiles[config.model].name, k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000,
+        card ? " + " : "", card ? get_machine_fpu_name(config.cpu) : "", config.ram_size / (1024 * 1024),
+        k_video_cards[config.video_card].name, audio, mouse, cdrom, config.floppy_drives,
+        config.floppy_drives == 1 ? "" : "s");
 }
 
 static float get_combo_items_width(const char* items)
@@ -2555,7 +2598,10 @@ static void menu_debug(void)
 
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Intel 80386", config_debug.debug))
+        char cpu_menu[64];
+        snprintf(cpu_menu, sizeof(cpu_menu), "%s###debug_cpu", gui_debug_i386_cpu_name());
+
+        if (ImGui::BeginMenu(cpu_menu, config_debug.debug))
         {
             ImGui::MenuItem("Show Status", "", &config_debug.show_processor);
             ImGui::MenuItem("Show System Registers", "", &config_debug.show_processor_details);
@@ -2567,7 +2613,10 @@ static void menu_debug(void)
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Intel 80387", config_debug.debug))
+        char fpu_menu[64];
+        snprintf(fpu_menu, sizeof(fpu_menu), "%s###debug_fpu", gui_debug_i386_fpu_name());
+
+        if (ImGui::BeginMenu(fpu_menu, config_debug.debug))
         {
             ImGui::MenuItem("Show Status", "", &config_debug.show_x87);
             ImGui::EndMenu();

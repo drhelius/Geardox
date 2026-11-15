@@ -509,15 +509,15 @@ options in RetroArch. The **Default** column shows what those are unless you cha
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
-| `model` | No | The emulated PC | `386sx_20`, `386dx_33`, `486sx_33`, `486dx2_66`, `486dx4_100` | Your setting (`486dx2_66`) | `model = 386dx_33` |
-| `cpu_mhz` | No | The CPU clock, in MHz | `16`, `20`, `25`, `33`, `40`, `50`, `66`, `100` | Your setting (the model's own clock: 20, 33, 66 or 100) | `cpu_mhz = 25` |
+| `model` | No | The emulated PC. The Pentiums are on a PCI board | `386sx_20`, `386dx_33`, `486sx_33`, `486dx2_66`, `486dx4_100`, `pentium_75`, `pentium_90`, `pentium_133`, `pentium_166`, `pentium_200` | Your setting (`486dx2_66`) | `model = 386dx_33` |
+| `cpu_mhz` | No | The CPU clock, in MHz | `16`, `20`, `25`, `33`, `40`, `50`, `66`, `75`, `90`, `100`, `133`, `166`, `200` | Your setting (the model's own clock: 20, 33, 66, 100, or the Pentium's) | `cpu_mhz = 25` |
 | `turbo` | No | The turbo switch. `off` runs the CPU at a third of its clock, for games that run too fast | `on`, `off` | Your setting (`on`) | `turbo = off` |
-| `ram_mb` | No | Memory, in MB | `1`, `2`, `4`, `8`, `16` on the 386s; `4`, `8`, `16`, `32`, `64` on the 486s | Your setting (`8`), raised if needed to fit `ems_kb` | `ram_mb = 16` |
+| `ram_mb` | No | Memory, in MB | `1`, `2`, `4`, `8`, `16` on the 386s; `4`, `8`, `16`, `32`, `64` on the 486s; `8`, `16`, `32`, `64`, `128` on the Pentiums | Your setting (`8`, `16` on the Pentiums), raised if needed to fit `ems_kb` | `ram_mb = 16` |
 | `fpu` | No | The math coprocessor on the 386s, or the 487SX on the 486SX. The 486DX2 and 486DX4 always have one built in | `none`, `80387` | Your setting (`80387`) | `fpu = none` |
 | `floppy_a_type`, `floppy_b_type` | No | The floppy drive types | `360k`, `720k`, `1200k`, `1440k`, `2880k` | Your setting (detected from the disk in the drive) | `floppy_a_type = 1200k` |
 | `cdrom_speed` | No | The CD-ROM drive speed | `1x`, `2x`, `4x`, `8x` | Your setting (`4x`) | `cdrom_speed = 2x` |
 | `drive_timing` | No | How long the drives' mechanics take: seeks, the wait for a sector to come round, and spinning up a CD. `fast` takes a sixteenth of the time, so games load sooner; `real` is for programs that time the drive. Transfers keep their speed either way | `real`, `fast` | Your setting (Auto, which is `fast` for games) | `drive_timing = real` |
-| `video` | No | The video card. `cga` and `ega` are IBM's own cards, for games written for them | `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486s only), `cga`, `ega` | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486s) | `video = cga` |
+| `video` | No | The video card. `cga` and `ega` are IBM's own cards, for games written for them | `cga`, `ega`, `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486s only), `gd5446` (Cirrus PCI, Pentiums only) | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486s, `gd5446` on the Pentiums) | `video = cga` |
 | `cga_output` | No | The monitor on the CGA. `auto` shows composite colour when the game turns on 640x200 with the colour burst, and RGB otherwise; `composite` is for games drawn for a composite monitor | `auto`, `rgb`, `composite` | Your setting (`auto`) | `cga_output = composite` |
 
 ### `[sound]`

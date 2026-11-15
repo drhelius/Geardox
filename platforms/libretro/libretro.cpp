@@ -2219,7 +2219,8 @@ static void check_variables(void)
             core->GetI386()->EnableDynarec(dynarec == 1);
 
             if (dynarec == 1 && !core->GetI386()->IsDynarecEnabled())
-                log_cb(RETRO_LOG_WARN, "Dynarec unavailable, the CPU runs in the interpreter\n");
+                log_cb(RETRO_LOG_WARN, "Dynarec unavailable, the CPU runs in the interpreter, the Pentium models at a "
+                    "fraction of their speed\n");
         }
     }
 #endif

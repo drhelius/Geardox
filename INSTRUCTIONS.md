@@ -180,11 +180,11 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| Model | 486DX2 at 66 MHz | The 386 models help with old games that run too fast or crash on a 486. |
-| Main RAM | 8 MB | Some games want 16 MB. |
+| Model | 486DX2 at 66 MHz | The 386 models help with old games that run too fast or crash on a 486. The Pentiums, 75 to 200 MHz on a PCI board, are for games like Quake that want more speed. |
+| Main RAM | 8 MB, 16 MB on the Pentiums | Some games want 16 MB. |
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
 | MPU-401 | On | The MIDI port at 330 for General MIDI and MT-32 music. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
-| Video Card | Auto | Cirrus Logic SVGA, with VESA modes. The IBM CGA and EGA are for games written for those cards. |
+| Video Card | Auto | Cirrus Logic SVGA, with VESA modes: the GD5428 on the 386s and 486s, the PCI GD5446 with 2 MB and modes up to 1280x1024 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
 | Drive Timing | Auto | Fast for games: seeks, the wait for a sector and a CD's spin-up take a sixteenth of the time. Real keeps the drives' mechanics. |
