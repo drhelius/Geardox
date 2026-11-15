@@ -27,7 +27,13 @@ Geardox builds a fresh C: drive with the game and DOS on it, turns the PC on and
 game, you're at the DOS prompt. Your saves go back into the game's folder, so they're there next time. A game in a ZIP
 saves to Geardox's save folder instead, and the ZIP is never changed.
 
-If the game has no `.gdox` yet:
+Many games need no `.gdox` at all. When a folder or ZIP has none, Geardox looks the game up in its built-in game
+database and, when it recognises it, starts it with the right settings and says **Recognised from the game database**.
+A `.gdox` in the folder always wins, and **Game > Use Game Database** turns recognition off. You can also open a game's
+program, its `.EXE`, `.COM` or `.BAT`: Geardox opens the game in its folder, or runs that program if it doesn't know
+the game. When a folder holds more than one game, such as a collection, Geardox asks which one to play.
+
+If Geardox doesn't recognise the game and it has no `.gdox` yet:
 
 1. Choose **Game > New Game Descriptor...**.
 2. Pick the game's folder.

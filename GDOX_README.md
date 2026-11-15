@@ -16,6 +16,11 @@ included FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 
 ## Start with a Game Folder
 
+Many games need no descriptor. When a folder or ZIP has none, Geardox looks the game up in its built-in game database,
+which recognises a game by its files wherever they sit: the folder you open, a folder inside it or inside a ZIP. A
+recognised game starts as if it had its descriptor, and Geardox says **Recognised from the game database**. A
+descriptor in the folder always wins, and **Game > Use Game Database** turns recognition off.
+
 To create a descriptor for an installed DOS game:
 
 1. Choose **Game > New Game Descriptor...** in Geardox.
@@ -119,7 +124,10 @@ You can also put the descriptor at the top level of the ZIP, alongside the game 
 
 ### A Game That Needs a CD
 
-Add `cdrom` under `[drives]` to attach a disc image. Supported formats are `.cue`, `.iso` and `.chd`.
+Add `cdrom` under `[drives]` to attach a disc image. Supported formats are `.cue`, `.iso` and `.chd`, and Geardox
+also recognises a CUE sheet or a disc image by its content under any other name, such as the `.ins` and `.gog` files
+of some digital releases. A folder can be the CD too: write it with a trailing slash, `cdrom = DATA/`, and give the
+disc's name with `cdrom_label` if the game checks it. Geardox builds the disc from the folder each time it changes.
 For example, with this layout:
 
 ```text
@@ -373,6 +381,7 @@ in the save folder.
 | Problem | What to check |
 | --- | --- |
 | The descriptor will not open | The error message identifies invalid or missing settings. Every descriptor requires `version = 1` in `[geardox]` and `folder` in `[game]`, written as a DOS path such as `C:\ORION`. |
+| The game database recognises a game but its settings don't suit your copy | Create a descriptor for it with **Game > New Game Descriptor...**: a descriptor in the folder always wins. **Game > Use Game Database** turns recognition off. |
 | Geardox cannot find the game folder or ZIP | Check `source` under `[game]`. Relative paths start from the descriptor's folder, and paths should not have surrounding quotes. |
 | "Bad command or filename" | Check `exe` under `[run]`. It starts from the game's folder inside DOS; include any subfolder inside your folder or ZIP. |
 | "Please run SETUP" or a missing configuration file | Run the game's setup using **Game > Boot To > Setup**, or start it from **DOS Prompt**. |
@@ -389,7 +398,8 @@ in the save folder.
 
 ## Other Ways to Open a Game
 
-On the command line, pass a descriptor, a folder containing one, or a ZIP containing one:
+On the command line, pass a descriptor, a folder or ZIP containing one or one the game database recognises, or a
+game's program:
 
 ```sh
 geardox "Master of Orion.gdox"
@@ -403,9 +413,14 @@ while the game runs. **Game Descriptors (restart): Disabled** turns descriptor h
 chooses between your own MS-DOS, when imported, and FreeDOS. **Built-in DOS Disk (restart)** does the same for
 the disk that boots with no hard disk in the content.
 
-A folder or ZIP can contain several descriptors at its top level, for example for different episodes of a game.
-The desktop asks which one to use; RetroArch selects the first in name order. A folder or ZIP without a descriptor
-is opened as a plain hard disk source, without the automatic game setup described here.
+A folder or ZIP can contain several descriptors at its top level, for example for different episodes of a game, or
+several games the database recognises, for example a collection. The desktop asks which one to use; RetroArch opens
+the first in name order, or the one **Game In Folder (restart)** picks. In RetroArch, **Game Database (restart):
+Disabled** turns recognition off. A folder or ZIP without a descriptor that the database doesn't recognise is opened as
+a plain hard disk source, without the automatic game setup described here.
+
+Opening a game's program, its `.EXE`, `.COM` or `.BAT`, opens the game in that program's folder: its descriptor, or the
+game the database recognises there. Otherwise Geardox runs that program from the folder, with the default settings.
 
 ## Settings Reference
 
@@ -456,7 +471,7 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | --- | --- | --- | --- | --- | --- |
 | `name` | No | The game's title, shown in the window title and used for save state names and the C: volume label | Text | The descriptor's file name | `name = Master of Orion` |
 | `folder` | Yes | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it. Each folder name has up to 8 characters, plus an optional 3-character extension, and no spaces. The first folder cannot be `FREEDOS` or `TEMP` | — | `folder = C:\ORION` |
-| `source` | No | The game's files on your computer | A folder or a `.zip` file | The folder or ZIP containing the descriptor | `source = Orion.zip` |
+| `source` | No | The game's files on your computer | A folder, a `.zip` file, or a folder inside a ZIP | The folder or ZIP containing the descriptor | `source = Orion.zip` or `source = Collection.zip/ORION` |
 | `free_mb` | No | Free space on C: for saves and other files the game creates, in MB | `16` to `1024` | `64` | `free_mb = 256` |
 
 ### `[run]`
@@ -483,7 +498,8 @@ game's hard disks use, Geardox moves it to the Secondary Master for that game.
 | `floppy_a`, `floppy_b` | No | Floppy disk images for drives A: and B:. The first disk is inserted; the others can be swapped in | Image paths, comma separated | None | `floppy_a = Disk1.img, Disk2.img` |
 | `hdd_primary_slave` | No | An extra hard disk on the Primary Slave, D:. Its changes stay in its own disk image instead of being copied back to the folder or ZIP | A folder, ZIP or hard disk image | None | `hdd_primary_slave = Extras.zip` |
 | `hdd_secondary_slave` | No | An extra hard disk on the Secondary Slave: E:, or D: without `hdd_primary_slave`. Its changes stay in its own disk image, as with `hdd_primary_slave` | A folder, ZIP or hard disk image | None | `hdd_secondary_slave = Data` |
-| `cdrom` | No | CD images for a CD-ROM drive on the Secondary Master. Images inside the game's ZIP are extracted automatically | `.cue`, `.iso` or `.chd` paths, comma separated, or one `.m3u` playlist | None | `cdrom = Discs/WAR2.cue` |
+| `cdrom` | No | CD images for a CD-ROM drive on the Secondary Master. Images inside the game's ZIP are extracted automatically | `.cue`, `.iso` or `.chd` paths, comma separated, one `.m3u` playlist, a CUE sheet or disc image under another name, or a folder ending in `/` | None | `cdrom = Discs/WAR2.cue` |
+| `cdrom_label` | No | The volume name of a CD built from a folder | Up to 32 letters, digits and `_` | The folder's name | `cdrom_label = WAR2` |
 
 ### `[machine]`
 
