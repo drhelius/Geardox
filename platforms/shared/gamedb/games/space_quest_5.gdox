@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest V: The Next Mutation
+folder = C:\SIERRA\SQ5
+
+[run]
+exe = SIERRA.EXE

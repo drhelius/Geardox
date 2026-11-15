@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Quake: Dissolution of Eternity
+folder = C:\
+
+[run]
+exe = QUAKE.EXE
+args = -game rogue
+
+[machine]
+model = 486dx4_100

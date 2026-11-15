@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Spelljammer: Pirates of Realmspace
+folder = C:\
+
+[run]
+exe = SPELLJAM\SJ.EXE
+cwd = SPELLJAM
+setup = SPELLJAM\SOUND.EXE
+
+[machine]
+model = 386sx_20
+
+[dos]
+ems_kb = 1024

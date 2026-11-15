@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima V: Warriors of Destiny
+folder = C:\
+
+[run]
+exe = ULTIMA.EXE
+
+[machine]
+model = 386sx_20

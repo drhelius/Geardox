@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = The Settlers II Gold Edition
+folder = C:\
+
+[run]
+exe = S2.EXE
+setup = SETUP.EXE
+
+[machine]
+ram_mb = 16

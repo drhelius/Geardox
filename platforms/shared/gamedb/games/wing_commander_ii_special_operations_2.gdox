@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Wing Commander II - Special Operations 2
+folder = C:\
+
+[run]
+exe = SO2.EXE
+setup = INSTALL2.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 1024

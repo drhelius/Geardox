@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Lands of Lore: The Throne of Chaos
+folder = C:\
+
+[run]
+exe = LOLCD.EXE
+setup = SETUP.EXE
+
+[dos]
+ems_kb = 1024

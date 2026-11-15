@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Call of Cthulhu: Prisoner of Ice
+folder = C:\
+
+[run]
+exe = CD\ICE640.EXE
+setup = CD\ICE640.EXE -config

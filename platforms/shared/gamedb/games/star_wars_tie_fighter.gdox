@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Wars: TIE Fighter
+folder = C:\
+
+[run]
+exe = TIE.EXE
+setup = INSTALL.EXE
+
+[dos]
+ems_kb = 2048

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima Worlds of Adventure 2: Martian Dreams
+folder = C:\MARTIAN
+
+[run]
+exe = MARTIAN.EXE
+setup = INSTALL.EXE
+
+[dos]
+ems_kb = 1024

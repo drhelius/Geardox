@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Descent 2
+folder = C:\
+
+[run]
+exe = DESCENT2.EXE
+setup = SETUP.EXE

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Tomb Raider
+folder = C:\
+
+[run]
+exe = TOMBRAID\TOMB.EXE
+setup = TOMBRAID\SETUP.EXE

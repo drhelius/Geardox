@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest I: The Sarien Encounter (AGI)
+folder = C:\
+
+[run]
+exe = SQ.COM

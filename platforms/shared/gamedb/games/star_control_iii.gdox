@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Control III
+folder = C:\STARCON3
+
+[run]
+exe = SC3.EXE
+setup = SETSOUND.EXE
+
+[machine]
+model = 486dx4_100
+ram_mb = 32

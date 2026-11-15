@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Quest for Glory: Hero's Quest (EGA)
+folder = C:\EGA
+
+[run]
+exe = SCIV.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 386dx_33

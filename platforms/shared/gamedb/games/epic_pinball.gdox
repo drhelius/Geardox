@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Epic Pinball: The Complete Collection
+folder = C:\
+
+[run]
+exe = PINBALL.EXE
+setup = SETUP.EXE

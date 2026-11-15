@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Moonstone: A Hard Days Knight
+folder = C:\
+
+[run]
+exe = MS.EXE
+
+[machine]
+model = 386dx_33

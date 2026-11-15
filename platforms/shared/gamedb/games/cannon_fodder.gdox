@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Cannon Fodder
+folder = C:\
+
+[run]
+exe = CF_ENG.EXE
+args = /f
+
+[machine]
+model = 386dx_33
+
+[autoexec]
+INTRO.EXE

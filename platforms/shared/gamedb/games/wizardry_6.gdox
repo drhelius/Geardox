@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Wizardry 6: Bane of the Cosmic Forge
+folder = C:\
+
+[run]
+exe = WROOT.EXE

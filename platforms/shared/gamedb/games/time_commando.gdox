@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Time Commando
+folder = C:\
+
+[run]
+exe = TIMECO.EXE
+setup = SETSOUND.BAT
+
+[machine]
+ram_mb = 32

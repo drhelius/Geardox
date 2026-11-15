@@ -80,6 +80,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/input/key_map.cpp \
                 $(SOURCE_DIR)/input/gamepad_keys.cpp \
                 $(SOURCE_DIR)/media/chd_file_adapter.cpp \
+                $(SOURCE_DIR)/media/game_database.cpp \
                 $(SOURCE_DIR)/media/game_descriptor.cpp \
                 $(SOURCE_DIR)/media/firmware.cpp \
                 $(SOURCE_DIR)/media/media.cpp \

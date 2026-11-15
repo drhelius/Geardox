@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima VII: The Black Gate + The Forge of Virtue
+folder = C:\
+
+[run]
+exe = ULTIMA7.COM
+setup = INSTALL.EXE
+
+[machine]
+model = 486sx_33

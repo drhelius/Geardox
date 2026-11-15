@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Eye of the Beholder
+folder = C:\
+
+[run]
+exe = START.EXE

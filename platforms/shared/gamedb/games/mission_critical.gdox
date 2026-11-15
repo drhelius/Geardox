@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Mission Critical
+folder = C:\
+
+[run]
+exe = MISSION.EXE
+setup = SETSOUND.EXE

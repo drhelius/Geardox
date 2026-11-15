@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = King's Quest III: To Heir Is Human
+folder = C:\
+
+[run]
+exe = SIERRA.COM

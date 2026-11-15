@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Alone in the Dark 2
+folder = C:\
+
+[machine]
+model = 486sx_33
+ram_mb = 32
+
+[dos]
+ems_kb = 1024
+
+[run]
+exe = INDARK2\AITD2.EXE
+setup = INDARK2\INSTALL.EXE

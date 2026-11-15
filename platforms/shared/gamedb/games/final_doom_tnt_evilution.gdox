@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Final Doom: TNT Evilution
+folder = C:\TNT
+
+[run]
+exe = DOOM2.EXE
+setup = SETUP.EXE

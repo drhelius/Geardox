@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = SimCity 2000 Special Edition
+folder = C:\
+
+[run]
+exe = SC2K.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 486sx_33

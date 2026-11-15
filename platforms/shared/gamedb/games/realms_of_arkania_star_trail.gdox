@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Realms of Arkania: Star Trail
+folder = C:\
+
+[run]
+exe = STAR.EXE
+setup = SOUND.BAT
+
+[machine]
+model = 486sx_33
+
+[dos]
+ems_kb = 1024

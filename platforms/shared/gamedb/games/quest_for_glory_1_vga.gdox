@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Quest for Glory: So You Want To Be A Hero (VGA)
+folder = C:\
+
+[run]
+exe = SCIDHUV.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 1024

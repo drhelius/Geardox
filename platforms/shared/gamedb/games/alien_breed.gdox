@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Alien Breed
+folder = C:\
+
+[run]
+exe = ALIEN.EXE
+setup = CONFIG.EXE
+
+[machine]
+model = 386sx_20

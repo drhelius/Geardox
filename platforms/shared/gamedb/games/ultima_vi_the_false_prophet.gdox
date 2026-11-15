@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima VI: The False Prophet
+folder = C:\
+
+[run]
+exe = ULTIMA6.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 386sx_20

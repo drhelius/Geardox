@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Blake Stone: Aliens of Gold
+folder = C:\
+
+[run]
+exe = BS_AOG.EXE

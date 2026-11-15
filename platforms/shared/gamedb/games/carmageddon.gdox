@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Carmageddon
+folder = C:\CARMA
+free_mb = 1024
+
+[machine]
+ram_mb = 64
+
+[run]
+exe = VOODO2C.EXE
+args = -novoodoo
+setup = SNDSETUP.EXE

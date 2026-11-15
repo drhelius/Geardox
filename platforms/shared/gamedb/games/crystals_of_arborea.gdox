@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Crystals of Arborea
+folder = C:\
+
+[run]
+exe = START.EXE
+
+[dos]
+ems_kb = 1024

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Wing Commander III: Heart of the Tiger
+folder = C:\
+
+[machine]
+ram_mb = 32
+
+[run]
+exe = D:\WC3.EXE
+setup = D:\WC3.EXE -install

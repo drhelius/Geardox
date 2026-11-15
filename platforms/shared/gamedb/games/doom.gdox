@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = The Ultimate DOOM
+folder = C:\
+
+[run]
+exe = DOOM.EXE
+setup = SETUP.EXE

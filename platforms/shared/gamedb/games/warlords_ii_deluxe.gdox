@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Warlords II Deluxe
+folder = C:\
+
+[run]
+exe = WAR2.BAT
+setup = INSTALL.EXE
+
+[dos]
+ems_kb = 5120

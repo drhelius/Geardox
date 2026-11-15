@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Imperium Galactica
+folder = C:\
+
+[run]
+exe = IMPERIUM.EXE
+setup = INSTALL.EXE

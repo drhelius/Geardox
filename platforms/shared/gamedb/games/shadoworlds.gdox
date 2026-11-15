@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Shadoworlds
+folder = C:\CD
+
+[run]
+exe = D:\SW.EXE
+
+[dos]
+ems_kb = 1024

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Links 386 Pro
+folder = C:\
+
+[run]
+exe = GOLF.BAT
+setup = INSTALL.EXE

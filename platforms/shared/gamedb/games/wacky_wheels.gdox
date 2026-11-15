@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Wacky Wheels
+folder = C:\
+
+[machine]
+model = 486dx4_100
+
+[run]
+exe = WW.EXE
+setup = SETUP.EXE

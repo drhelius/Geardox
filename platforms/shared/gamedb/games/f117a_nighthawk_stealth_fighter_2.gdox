@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = F-117A Nighthawk Stealth Fighter 2.0
+folder = C:\
+
+[run]
+exe = F117.COM
+setup = SETUP.EXE
+
+[machine]
+model = 386dx_33

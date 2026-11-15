@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima VII - Serpent Isle
+folder = C:\
+
+[run]
+exe = SERPENT.COM
+setup = INSTALL.EXE
+
+[machine]
+model = 486sx_33

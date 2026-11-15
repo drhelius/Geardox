@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = King's Quest
+folder = C:\
+
+[run]
+exe = KQ1.COM

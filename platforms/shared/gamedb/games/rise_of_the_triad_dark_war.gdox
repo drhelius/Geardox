@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Rise of the Triad: Dark War
+folder = C:\
+
+[run]
+exe = ROTT.EXE
+setup = SETUP.EXE

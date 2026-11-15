@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Ravenloft: Strahd's Possession
+folder = C:\
+
+[run]
+exe = RLOFT\R.EXE
+setup = RLOFT\SINSTALL.EXE

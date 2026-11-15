@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Wars: X-Wing
+folder = C:\
+
+[run]
+exe = BWING.EXE
+setup = INSTALL.EXE
+
+[dos]
+ems_kb = 1024

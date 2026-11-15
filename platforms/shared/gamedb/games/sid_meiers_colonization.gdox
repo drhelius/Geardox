@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Sid Meier's Colonization
+folder = C:\MPS
+
+[run]
+exe = COLONIZE\OPENING.EXE
+args = -g
+
+[machine]
+model = 386dx_33
+ram_mb = 32
+
+[dos]
+ems_kb = 1024

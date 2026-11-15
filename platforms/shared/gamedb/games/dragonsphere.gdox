@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Dragonsphere
+folder = C:\
+
+[run]
+exe = DRAGON\DRAGON.BAT
+cwd = DRAGON
+setup = DRAGON\INSTALL.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 2048

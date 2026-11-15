@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = The Dark Queen of Krynn
+folder = C:\
+
+[run]
+exe = DQK.EXE
+args = SB220 SI7 RB330
+setup = INSTALL.EXE

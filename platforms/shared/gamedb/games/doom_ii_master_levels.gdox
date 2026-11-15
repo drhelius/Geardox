@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = DOOM II: Master Levels
+folder = C:\
+
+[run]
+exe = MASTER\DOOMIT.BAT
+setup = DOOM2\SETUP.EXE

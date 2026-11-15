@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Privateer 2: The Darkening
+folder = C:\
+
+[run]
+exe = DARK.EXE
+setup = SETSOUND.EXE

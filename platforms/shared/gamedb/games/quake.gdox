@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Quake
+folder = C:\
+
+[run]
+exe = QUAKE.EXE
+
+[machine]
+model = 486dx4_100

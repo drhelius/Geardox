@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Indiana Jones and the Fate of Atlantis
+folder = C:\
+
+[run]
+exe = ATLANTIS.EXE

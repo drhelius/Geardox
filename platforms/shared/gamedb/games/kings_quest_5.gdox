@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = King's Quest V: Absence Makes the Heart Go Yonder
+folder = C:\
+
+[run]
+exe = SIERRA.EXE
+
+[dos]
+ems_kb = 1024

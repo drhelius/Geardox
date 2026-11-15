@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Pools of Darkness
+folder = C:\
+
+[run]
+exe = START.BAT

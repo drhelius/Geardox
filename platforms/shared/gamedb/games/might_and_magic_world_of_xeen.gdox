@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Might and Magic: World of Xeen
+folder = C:\
+
+[run]
+exe = XEEN.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 486sx_33

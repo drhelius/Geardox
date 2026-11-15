@@ -1,0 +1,20 @@
+[geardox]
+version = 1
+
+[game]
+name = Theme Park
+folder = C:\
+
+[run]
+exe = GAME\MAIN.EXE
+args = -cC:/game/ -dC:/THEME.CD/ -l3
+cwd = GAME
+setup = CONFIG\MAIN.EXE
+
+[machine]
+model = 386dx_33
+ram_mb = 16
+
+[autoexec]
+CD \GAME
+INTRO -C:/THEME.CD

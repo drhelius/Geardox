@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Populous II: Trials of the Olympian Gods
+folder = C:\
+
+[run]
+exe = GO.BAT
+
+[machine]
+model = 486sx_33
+
+[dos]
+ems_kb = 1024

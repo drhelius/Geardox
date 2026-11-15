@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Jazz Jackrabbit Holiday Hare '95
+folder = C:\HH95
+
+[run]
+exe = JAZZ.EXE
+setup = SETUP.EXE

@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = DragonStrike
+folder = C:\
+
+[run]
+exe = DS\DSTRIKE.EXE
+cwd = DS
+
+[machine]
+model = 386dx_33
+
+[autoexec]
+C:\PAUSE6K.COM
+C:\ENTER4.COM

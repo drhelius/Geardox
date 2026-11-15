@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Wars: X-Wing Collector's CD
+folder = C:\
+
+[run]
+exe = BWING.EXE
+setup = INSTALL.EXE

@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Dark Sun: Shattered Lands
+folder = C:\
+
+[run]
+exe = DSUN.EXE
+setup = SOUND_DS.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 1024

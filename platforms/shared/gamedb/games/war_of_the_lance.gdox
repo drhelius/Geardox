@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = War of the Lance
+folder = C:\
+
+[run]
+exe = WL\START.EXE
+cwd = WL
+
+[machine]
+model = 386sx_20
+turbo = off

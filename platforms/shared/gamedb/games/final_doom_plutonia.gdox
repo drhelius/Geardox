@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Final DOOM: The Plutonia Experiment
+folder = C:\
+
+[run]
+exe = PLUTONIA\FINAL.EXE
+args = -config ..\default.cfg
+setup = SETUP.EXE

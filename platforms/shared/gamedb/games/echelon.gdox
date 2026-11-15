@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = ECHELON
+folder = C:\ECH
+
+[run]
+exe = ECHELON.EXE

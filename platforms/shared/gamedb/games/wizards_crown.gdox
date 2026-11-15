@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Wizard's Crown
+folder = C:\
+
+[run]
+exe = WC.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = King's Quest 2 - Romancing the Throne
+folder = C:\
+
+[run]
+exe = SIERRA.COM

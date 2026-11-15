@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Demon's Winter
+folder = C:\
+
+[run]
+exe = DEMON.EXE

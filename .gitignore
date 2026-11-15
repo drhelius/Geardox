@@ -49,6 +49,7 @@ desktop.ini
 # Misc files
 tests/
 *.ini
+!platforms/shared/gamedb/gamedb.ini
 *.cfg
 *.zip
 !platforms/shared/dependencies/freedos/packages/*.zip

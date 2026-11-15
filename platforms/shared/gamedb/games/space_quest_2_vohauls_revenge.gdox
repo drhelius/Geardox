@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest II: Vohaul's Revenge
+folder = C:\
+
+[run]
+exe = SIERRA.COM

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Heroes of Might and Magic
+folder = C:\
+
+[run]
+exe = HEROES.EXE
+setup = SETUP.EXE

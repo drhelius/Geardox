@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima II: The Revenge of the Enchantress
+folder = C:\
+
+[run]
+exe = ULTIMAII.EXE
+
+[machine]
+model = 386sx_20
+turbo = off
+video = cga

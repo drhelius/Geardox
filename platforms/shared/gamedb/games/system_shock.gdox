@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = System Shock
+folder = C:\SSHOCK
+
+[run]
+exe = SSHOCK.EXE
+setup = INSTALL.EXE
+
+[machine]
+ram_mb = 32

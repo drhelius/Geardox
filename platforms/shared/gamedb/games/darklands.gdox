@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Darklands
+folder = C:\DARKLAND
+
+[run]
+exe = DARKLAND.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 176

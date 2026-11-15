@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Worms United
+folder = C:\
+
+[machine]
+model = 486sx_33
+
+[run]
+exe = WORMS.BAT

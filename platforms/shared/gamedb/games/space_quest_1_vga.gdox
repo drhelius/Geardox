@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest I: The Sarien Encounter (VGA)
+folder = C:\
+
+[run]
+exe = VGA\SCIDHUV.EXE
+cwd = VGA
+setup = VGA\INSTALL.EXE

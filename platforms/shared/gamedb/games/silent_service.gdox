@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Silent Service
+folder = C:\
+
+[run]
+exe = SSERVICE.EXE
+
+[machine]
+model = 386sx_20
+turbo = off
+video = vga

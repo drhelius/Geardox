@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Crusader: No Remorse
+folder = C:\
+
+[machine]
+ram_mb = 32
+
+[run]
+exe = CRUSADER.EXE
+setup = INSTALL.EXE

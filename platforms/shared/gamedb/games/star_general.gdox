@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Star General
+folder = C:\STARGEN
+
+[machine]
+ram_mb = 16
+
+[run]
+exe = SGDOS.EXE
+setup = SOUND.EXE

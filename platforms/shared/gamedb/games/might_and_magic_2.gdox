@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Might and Magic 2 - Gates to Another World
+folder = C:\
+
+[machine]
+model = 386dx_33
+
+[run]
+exe = MM2.EXE

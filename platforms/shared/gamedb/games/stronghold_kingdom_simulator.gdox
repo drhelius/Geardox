@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Stronghold: Kingdom Simulator
+folder = C:\STRONG
+
+[run]
+exe = STRONG.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 1024

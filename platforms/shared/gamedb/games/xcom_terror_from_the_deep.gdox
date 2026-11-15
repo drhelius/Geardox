@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = X-COM: Terror from the Deep
+folder = C:\
+free_mb = 1024
+
+[run]
+exe = TERROR.COM
+setup = SETUP.EXE
+
+[machine]
+model = 486sx_33

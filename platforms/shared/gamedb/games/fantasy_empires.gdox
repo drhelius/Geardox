@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Fantasy Empires
+folder = C:\FANTASY
+
+[run]
+exe = FANTASY.EXE
+setup = SOUND.EXE
+
+[machine]
+model = 386dx_33

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Champions of Krynn
+folder = C:\
+
+[run]
+exe = START.EXE

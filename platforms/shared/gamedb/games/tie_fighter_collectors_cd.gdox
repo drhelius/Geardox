@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Wars: TIE Fighter Collector's CD
+folder = C:\
+
+[input]
+joystick = standard
+
+[run]
+exe = TIE.EXE
+setup = INSTALL.EXE

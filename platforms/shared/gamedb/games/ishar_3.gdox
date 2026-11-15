@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ishar 3 - The Seven Gates of Infinity
+folder = C:\
+
+[machine]
+model = 386dx_33
+
+[run]
+exe = START.EXE
+args = START.STP

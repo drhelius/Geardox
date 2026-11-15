@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = X-COM: UFO Defense
+folder = C:\
+
+[run]
+exe = GO.BAT
+setup = SETUP.EXE
+
+[machine]
+model = 486sx_33

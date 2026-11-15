@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Gunship
+folder = C:\
+
+[machine]
+model = 486sx_33
+
+[run]
+exe = GUNSHIP\GS\RUNGS.COM

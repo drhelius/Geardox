@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = The Summoning
+folder = C:\SUMMON
+
+[run]
+exe = SUMMON.COM
+setup = SETUP.COM
+
+[machine]
+model = 386dx_33

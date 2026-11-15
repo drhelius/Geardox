@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Starflight 2
+folder = C:\
+
+[run]
+exe = SF2.BAT

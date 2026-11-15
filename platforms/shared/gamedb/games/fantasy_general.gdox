@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Fantasy General
+folder = C:\
+
+[run]
+exe = EXE\BARENA.EXE
+args = n
+setup = EXE\SETSOUND.EXE

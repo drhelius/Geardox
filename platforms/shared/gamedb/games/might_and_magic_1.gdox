@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Might and Magic: Book One
+folder = C:\
+
+[run]
+exe = MM.EXE
+setup = GRAPHSET.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

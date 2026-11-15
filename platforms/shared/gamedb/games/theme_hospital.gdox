@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Theme Hospital
+folder = C:\
+
+[run]
+exe = HOSPITAL.EXE
+setup = SOUND\SETSOUND.EXE

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Archimedean Dynasty
+folder = C:\
+
+[machine]
+ram_mb = 64
+
+[run]
+exe = AD2.EXE
+setup = SETSOUND.BAT

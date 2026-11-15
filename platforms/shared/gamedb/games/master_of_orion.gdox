@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Master of Orion
+folder = C:\
+
+[run]
+exe = ORION.EXE
+setup = INSTALL.EXE -S
+
+[dos]
+ems_kb = 1040

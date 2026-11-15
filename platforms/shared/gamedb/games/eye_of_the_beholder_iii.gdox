@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Eye of the Beholder III: Assault on Myth Drannor
+folder = C:\
+
+[machine]
+ram_mb = 64
+
+[run]
+exe = AESOP.EXE
+args = eye start
+setup = SOUND.EXE

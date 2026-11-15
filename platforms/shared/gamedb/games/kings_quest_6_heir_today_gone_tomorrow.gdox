@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = King's Quest VI: Heir Today, Gone Tomorrow
+folder = C:\
+
+[run]
+exe = SIERRA.EXE

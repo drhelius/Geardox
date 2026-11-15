@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Hillsfar
+folder = C:\
+
+[run]
+exe = MAIN.EXE

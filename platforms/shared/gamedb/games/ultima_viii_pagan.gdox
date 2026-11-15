@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima VIII: Pagan
+folder = C:\
+
+[run]
+exe = U8.EXE
+setup = INSTALL.EXE

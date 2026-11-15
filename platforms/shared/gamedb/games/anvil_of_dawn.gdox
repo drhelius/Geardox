@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Anvil of Dawn
+folder = C:\
+
+[run]
+exe = ANVIL.EXE
+setup = SETUP.EXE

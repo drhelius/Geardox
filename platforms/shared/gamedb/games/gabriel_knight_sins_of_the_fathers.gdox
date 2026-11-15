@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Gabriel Knight: Sins of the Fathers
+folder = C:\
+
+[run]
+exe = SIERRA.EXE
+
+[machine]
+model = 486dx4_100

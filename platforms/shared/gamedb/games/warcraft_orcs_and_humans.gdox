@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Warcraft: Orcs and Humans
+folder = C:\
+
+[run]
+exe = WAR.EXE
+setup = SETUP.EXE

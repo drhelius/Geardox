@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = King's Quest IV: The Perils of Rosella
+folder = C:\SIERRA\KQ4
+
+[run]
+exe = SCIV.EXE

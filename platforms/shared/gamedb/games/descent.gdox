@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Descent
+folder = C:\
+
+[run]
+exe = DESCENT.BAT
+setup = SETUP.EXE

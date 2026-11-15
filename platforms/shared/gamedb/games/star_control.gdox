@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Control
+folder = C:\
+
+[run]
+exe = STARCON.EXE
+setup = KEYS.EXE

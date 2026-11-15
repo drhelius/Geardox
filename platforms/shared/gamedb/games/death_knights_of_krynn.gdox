@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Death Knights of Krynn
+folder = C:\
+
+[run]
+exe = START.EXE

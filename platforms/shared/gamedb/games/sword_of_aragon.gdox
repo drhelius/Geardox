@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Sword of Aragon
+folder = C:\
+
+[run]
+exe = SWORD.EXE

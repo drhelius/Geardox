@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Master of Orion II
+folder = C:\
+
+[run]
+exe = ORION2.EXE
+setup = SETSOUND.EXE
+
+[machine]
+ram_mb = 16

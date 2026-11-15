@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Albion
+folder = C:\
+
+[run]
+exe = ALBION.EXE
+setup = SETUP.EXE

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Crusader: No Regret
+folder = C:\
+
+[machine]
+ram_mb = 32
+
+[run]
+exe = REGRET.EXE
+setup = INSTALL.EXE

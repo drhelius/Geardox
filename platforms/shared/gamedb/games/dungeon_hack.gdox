@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Dungeon Hack
+folder = C:\
+
+[run]
+exe = HACK.BAT
+setup = SOUND.EXE
+
+[machine]
+model = 386dx_33
+
+[dos]
+ems_kb = 1024

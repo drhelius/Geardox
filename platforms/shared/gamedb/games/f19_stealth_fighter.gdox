@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = F-19 Stealth Fighter
+folder = C:\
+
+[run]
+exe = F19.COM

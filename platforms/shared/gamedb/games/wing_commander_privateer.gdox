@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Wing Commander: Privateer
+folder = C:\
+
+[run]
+exe = PRIV.EXE
+
+[dos]
+ems_kb = 1024

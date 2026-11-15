@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Links: The Challenge of Golf
+folder = C:\
+
+[run]
+exe = LINKS.BAT

@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Ishar - Legend of the Fortress
+folder = C:\
+
+[run]
+exe = START.EXE
+
+[machine]
+model = 386dx_33

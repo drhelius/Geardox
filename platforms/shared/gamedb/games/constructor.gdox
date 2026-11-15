@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Constructor
+folder = C:\
+
+[run]
+exe = GAME.EXE
+setup = SETSOUND.BAT
+
+[machine]
+ram_mb = 32

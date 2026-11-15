@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Quest for Glory 3: Wages of War
+folder = C:\
+
+[run]
+exe = SIERRA.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 386dx_33

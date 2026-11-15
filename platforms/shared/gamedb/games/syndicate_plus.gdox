@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Syndicate Plus
+folder = C:\
+
+[run]
+exe = SYND.EXE
+
+[machine]
+model = 386dx_33

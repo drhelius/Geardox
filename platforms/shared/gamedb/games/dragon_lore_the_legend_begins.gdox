@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Dragon Lore: The Legend Begins
+folder = C:\
+
+[run]
+exe = TALES.EXE
+args = AMR S162225 HIM WRIC:\
+
+[machine]
+model = 386dx_33

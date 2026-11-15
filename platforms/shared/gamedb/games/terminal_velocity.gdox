@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Terminal Velocity
+folder = C:\
+
+[run]
+exe = TV.EXE
+setup = SETUP.EXE

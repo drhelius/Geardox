@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Wolfenstein 3D
+folder = C:\
+
+[machine]
+model = 486sx_33
+
+[run]
+exe = WOLF3D.EXE

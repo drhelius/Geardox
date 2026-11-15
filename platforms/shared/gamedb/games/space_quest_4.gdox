@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest 4: Roger Wilco and the Time Rippers
+folder = C:\
+
+[run]
+exe = SIERRA.EXE

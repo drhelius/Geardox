@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Might and Magic - Swords of Xeen
+folder = C:\
+
+[run]
+exe = SWORDS.EXE
+
+[machine]
+ram_mb = 32
+
+[dos]
+ems_kb = 1024

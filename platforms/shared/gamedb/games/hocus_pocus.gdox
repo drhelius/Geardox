@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Hocus Pocus
+folder = C:\
+
+[run]
+exe = HOCUS.EXE
+setup = SETUP.EXE
+
+[machine]
+model = 386sx_20

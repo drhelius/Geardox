@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Might and Magic III: Isles of Terra
+folder = C:\
+
+[run]
+exe = MM3.COM
+setup = INSTALL.EXE
+
+[machine]
+model = 386dx_33

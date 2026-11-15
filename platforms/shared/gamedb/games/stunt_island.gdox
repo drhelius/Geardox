@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Stunt Island
+folder = C:\
+
+[run]
+exe = STUNT.EXE
+setup = INSTALL.EXE -S

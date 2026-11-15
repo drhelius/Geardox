@@ -155,6 +155,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/input/key_map.cpp \
     $(SRC_DIR)/input/gamepad_keys.cpp \
     $(SRC_DIR)/media/chd_file_adapter.cpp \
+    $(SRC_DIR)/media/game_database.cpp \
     $(SRC_DIR)/media/game_descriptor.cpp \
     $(SRC_DIR)/media/firmware.cpp \
     $(SRC_DIR)/media/media.cpp \

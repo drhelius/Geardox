@@ -1,0 +1,18 @@
+[geardox]
+version = 1
+
+[game]
+name = Wing Commander
+folder = C:\
+
+[run]
+exe = WC.EXE
+
+[machine]
+model = 386sx_20
+
+[input]
+joystick = standard
+
+[dos]
+ems_kb = 1024

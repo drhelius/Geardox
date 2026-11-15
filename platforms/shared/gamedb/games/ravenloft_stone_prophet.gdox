@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Ravenloft: Stone Prophet
+folder = C:\
+
+[run]
+exe = PROPHET\SP.EXE
+setup = PROPHET\SOUND_PM.EXE

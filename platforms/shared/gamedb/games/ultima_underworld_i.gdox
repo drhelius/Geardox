@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima Underworld: The Stygian Abyss
+folder = C:\
+
+[run]
+exe = D:\UW.BAT
+
+[dos]
+ems_kb = 1024
+
+[input]
+joystick = none

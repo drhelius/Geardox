@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Wing Commander: Privateer - Righteous Fire
+folder = C:\
+
+[run]
+exe = PRIV.EXE
+args = r
+
+[dos]
+ems_kb = 1024

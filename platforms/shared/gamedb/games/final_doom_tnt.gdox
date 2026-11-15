@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Final DOOM: TNT Evilution
+folder = C:\
+
+[run]
+exe = TNT\FINAL.EXE
+args = -config ..\default.cfg
+setup = SETUP.EXE

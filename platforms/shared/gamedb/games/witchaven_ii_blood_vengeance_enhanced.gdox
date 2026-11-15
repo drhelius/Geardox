@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Witchaven II: Blood Vengeance (Enhanced)
+folder = C:\WHAVEN2
+
+[run]
+exe = EGWH2.EXE
+setup = EGSETUP.EXE

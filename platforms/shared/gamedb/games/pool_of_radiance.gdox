@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Pool of Radiance
+folder = C:\POOLRAD
+
+[run]
+exe = START.EXE

@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Starflight
+folder = C:\STARFLT
+
+[run]
+exe = PLAY\STARFLT.COM
+
+[machine]
+model = 386sx_20
+turbo = off
+
+[autoexec]
+IF NOT EXIST C:\STARFLT\PLAY\STARA.COM COPY C:\STARFLT\START\*.* C:\STARFLT\PLAY

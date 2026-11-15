@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Wars: Dark Forces
+folder = C:\
+
+[run]
+exe = DARK.EXE
+setup = SETUP.EXE

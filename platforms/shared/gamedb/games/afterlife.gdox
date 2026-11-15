@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Afterlife
+folder = C:\ALIFE
+
+[run]
+exe = AFTERDOS.BAT
+setup = SETUPDOS.EXE
+
+[machine]
+ram_mb = 16

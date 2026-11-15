@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Dragons of Flame
+folder = C:\FLAME
+
+[run]
+exe = START.COM
+
+[machine]
+model = 386sx_20
+turbo = off

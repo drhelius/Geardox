@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Heretic: Shadow of the Serpent Riders
+folder = C:\
+
+[run]
+exe = HERETIC.EXE
+setup = SETUP.EXE

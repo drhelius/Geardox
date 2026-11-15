@@ -1,0 +1,19 @@
+[geardox]
+version = 1
+
+[game]
+name = Realms of Arkania: Blade of Destiny
+folder = C:\
+
+[run]
+exe = BLADEM.EXE
+setup = SOUNDSET.EXE
+
+[machine]
+model = 486sx_33
+
+[dos]
+ems_kb = 1024
+
+[autoexec]
+INTRO

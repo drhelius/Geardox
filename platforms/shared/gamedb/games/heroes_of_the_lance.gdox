@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Heroes of the Lance
+folder = C:\HL
+
+[machine]
+model = 386sx_20
+turbo = off
+
+[run]
+exe = START.EXE

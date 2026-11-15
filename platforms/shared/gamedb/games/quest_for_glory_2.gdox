@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Quest for Glory 2: Trial by Fire
+folder = C:\
+
+[run]
+exe = SCIV.EXE
+setup = INST.EXE
+
+[machine]
+model = 386dx_33

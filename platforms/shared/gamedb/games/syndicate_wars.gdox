@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Syndicate Wars
+folder = C:\
+
+[run]
+exe = SWARS\MAIN.EXE
+args = /w /g
+cwd = SWARS
+setup = SWARS\SETSOUND.EXE

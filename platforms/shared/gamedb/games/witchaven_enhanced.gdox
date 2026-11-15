@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Witchaven (Enhanced)
+folder = C:\WHAVEN
+
+[run]
+exe = EGWH1.EXE
+setup = EGSETUP.EXE

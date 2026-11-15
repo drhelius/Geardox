@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Shadow Sorcerer
+folder = C:\SHADOW
+
+[run]
+exe = SS.BAT
+
+[machine]
+model = 386sx_20

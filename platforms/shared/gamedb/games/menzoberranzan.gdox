@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Menzoberranzan
+folder = C:\
+
+[run]
+exe = M.EXE
+setup = SOUND_PM.EXE

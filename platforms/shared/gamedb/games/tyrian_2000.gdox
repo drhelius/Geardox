@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Tyrian 2000
+folder = C:\
+
+[run]
+exe = TYRIAN.EXE
+setup = SETUP.EXE
+
+[machine]
+ram_mb = 32

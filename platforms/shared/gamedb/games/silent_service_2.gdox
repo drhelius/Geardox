@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Silent Service II
+folder = C:\SILENT
+
+[run]
+exe = SILENT.BAT

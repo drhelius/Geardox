@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Control 2
+folder = C:\
+
+[run]
+exe = STARCON2.COM
+setup = KEYS.EXE
+
+[machine]
+model = 386sx_20

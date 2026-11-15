@@ -25,6 +25,7 @@
     <ClCompile Include="..\..\src\audio\opl.cpp" />
     <ClCompile Include="..\..\src\audio\sound_blaster.cpp" />
     <ClCompile Include="..\..\src\media\firmware.cpp" />
+    <ClCompile Include="..\..\src\media\game_database.cpp" />
     <ClCompile Include="..\..\src\media\game_descriptor.cpp" />
     <ClCompile Include="..\..\src\i386\i386.cpp" />
     <ClCompile Include="..\..\src\i386\i386_486.cpp" />
@@ -289,6 +290,8 @@
     <ClInclude Include="..\..\src\common\bit_ops.h" />
     <ClInclude Include="..\..\src\common\common.h" />
     <ClInclude Include="..\..\src\media\crc.h" />
+    <ClInclude Include="..\..\src\media\game_database.h" />
+    <ClInclude Include="..\..\src\media\game_db.h" />
     <ClInclude Include="..\..\src\media\game_descriptor.h" />
     <ClInclude Include="..\..\src\common\defines.h" />
     <ClInclude Include="..\..\src\media\firmware.h" />

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Quest for Glory IV: Shadows of Darkness
+folder = C:\
+
+[run]
+exe = SIERRA.EXE
+setup = INSTALL.EXE
+
+[machine]
+model = 386dx_33

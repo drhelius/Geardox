@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Alone in the Dark 3
+folder = C:\
+
+[machine]
+model = 486sx_33
+ram_mb = 32
+
+[dos]
+ems_kb = 1024
+
+[run]
+exe = INDARK3\AITD3.EXE
+setup = INDARK3\INSTALL.EXE

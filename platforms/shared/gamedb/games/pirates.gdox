@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Pirates!
+folder = C:\
+
+[run]
+exe = PIR.EXE
+
+[autoexec]
+STUFFIT.COM +1 '1' +1 '1' +0 '3' +0 '1' +0 '2'

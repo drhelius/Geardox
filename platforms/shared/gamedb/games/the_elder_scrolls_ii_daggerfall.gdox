@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = The Elder Scrolls II: Daggerfall
+folder = C:\
+
+[run]
+exe = FALL.EXE
+args = Z.CFG
+setup = SETUP.EXE
+
+[machine]
+ram_mb = 64

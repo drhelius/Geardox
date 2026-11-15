@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Blake Stone: Planet Strike
+folder = C:\
+
+[run]
+exe = BS_FIRE.EXE
+setup = SETBLAST.EXE

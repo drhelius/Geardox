@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Jagged Alliance
+folder = C:\
+
+[run]
+exe = JA.EXE
+setup = SETSOUND.EXE

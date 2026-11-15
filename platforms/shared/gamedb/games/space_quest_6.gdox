@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest 6: Roger Wilco in the Spinal Frontier
+folder = C:\
+
+[run]
+exe = SIERRA.EXE

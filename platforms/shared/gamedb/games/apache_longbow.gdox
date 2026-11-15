@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Apache Longbow
+folder = C:\
+
+[machine]
+ram_mb = 32
+
+[run]
+exe = APACHE.EXE

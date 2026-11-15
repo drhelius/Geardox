@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Shadow Warrior: Twin Dragon
+folder = C:\
+
+[run]
+exe = DRAGON\SW.EXE
+cwd = DRAGON
+setup = DRAGON\SETUP.EXE
+
+[machine]
+ram_mb = 32

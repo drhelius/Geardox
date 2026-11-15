@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Questron II
+folder = C:\
+
+[run]
+exe = START.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

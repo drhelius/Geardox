@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Populous
+folder = C:\
+
+[run]
+exe = POPULOUS.EXE
+args = Vga Roland MT-32
+
+[machine]
+model = 386dx_33

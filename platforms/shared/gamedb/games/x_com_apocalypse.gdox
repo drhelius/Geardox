@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = X-COM: Apocalypse
+folder = C:\
+
+[run]
+exe = XCOMAPOC.EXE
+setup = SETUP.EXE

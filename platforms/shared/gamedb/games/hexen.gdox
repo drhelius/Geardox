@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Hexen: Beyond Heretic
+folder = C:\
+
+[run]
+exe = HEXEN.EXE
+setup = SETUP.EXE

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima I: The First Age of Darkness
+folder = C:\
+
+[run]
+exe = ULTIMA.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

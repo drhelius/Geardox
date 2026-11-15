@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = DOOM II: Hell on Earth
+folder = C:\DOOM2
+
+[run]
+exe = DOOM2.EXE
+setup = SETUP.EXE

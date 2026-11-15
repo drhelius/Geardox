@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Control 2 Super-Melee
+folder = C:\
+
+[run]
+exe = MELEE.COM
+setup = KEYS.EXE
+
+[machine]
+model = 386sx_20

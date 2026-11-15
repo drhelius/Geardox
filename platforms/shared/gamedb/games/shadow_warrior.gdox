@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Shadow Warrior
+folder = C:\
+
+[run]
+exe = SW.EXE
+setup = SETUP.EXE
+
+[machine]
+ram_mb = 32

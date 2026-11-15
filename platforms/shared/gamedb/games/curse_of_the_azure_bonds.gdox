@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Curse of the Azure Bonds
+folder = C:\
+
+[run]
+exe = START.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest III: The Pirates of Pestulon
+folder = C:\
+
+[run]
+exe = SCIV.EXE

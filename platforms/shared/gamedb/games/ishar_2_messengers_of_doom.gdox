@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Ishar 2 - Messengers of Doom
+folder = C:\
+
+[run]
+exe = START.EXE
+
+[machine]
+model = 386dx_33

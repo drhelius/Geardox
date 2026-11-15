@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Maniac Mansion
+folder = C:\
+
+[run]
+exe = MANIAC.EXE

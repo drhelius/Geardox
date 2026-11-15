@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Quake: Scourge of Armagon
+folder = C:\
+
+[run]
+exe = QUAKE.EXE
+args = -game hipnotic
+
+[machine]
+model = 486dx4_100

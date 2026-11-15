@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Alone in the Dark
+
+folder = C:\
+
+[machine]
+model = 386dx_33
+
+[run]
+exe = INDARK\INDARK.EXE
+setup = INDARK\INSTALL.EXE

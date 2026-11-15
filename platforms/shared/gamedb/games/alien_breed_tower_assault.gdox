@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Alien Breed: Tower Assault
+folder = C:\
+
+[run]
+exe = TA.EXE
+setup = SETSOUND.EXE
+
+[machine]
+model = 386sx_20
+ram_mb = 16

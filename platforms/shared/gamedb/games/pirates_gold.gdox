@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Pirates! Gold
+folder = C:\
+
+[machine]
+ram_mb = 32
+
+[run]
+exe = D:\PIRATESG.CD\PIRATESG.EXE
+
+[autoexec]
+LH D:\PIRATESG.CD\CDPATCH.EXE

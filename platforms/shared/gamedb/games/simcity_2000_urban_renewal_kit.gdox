@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = SimCity 2000 Urban Renewal Kit
+folder = C:\
+
+[run]
+exe = SCURK.COM
+setup = INSTALL.EXE
+
+[machine]
+model = 486sx_33

@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Treasures of the Savage Frontier
+folder = C:\
+
+[run]
+exe = START.BAT
+
+[dos]
+ems_kb = 1024

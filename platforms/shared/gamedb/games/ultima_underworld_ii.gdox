@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima Underworld II
+folder = C:\
+
+[run]
+exe = D:\UW2.BAT
+setup = D:\INSTALL2.EXE
+
+[dos]
+ems_kb = 1024

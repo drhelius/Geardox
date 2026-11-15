@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Hexen: Deathkings of the Dark Citadel
+folder = C:\
+
+[run]
+exe = HEXENDK.EXE
+setup = SETUP.EXE

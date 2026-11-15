@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima IV: Quest of the Avatar
+folder = C:\
+
+[machine]
+model = 386sx_20
+turbo = off
+
+[run]
+exe = ULTIMA.COM

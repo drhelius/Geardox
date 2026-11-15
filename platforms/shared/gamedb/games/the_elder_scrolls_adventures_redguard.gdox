@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = The Elder Scrolls Adventures: Redguard
+folder = C:\
+free_mb = 512
+
+[machine]
+ram_mb = 64
+
+[input]
+joystick = none
+
+[run]
+exe = REDGUARD\RGFX.EXE
+setup = REDGUARD\SOUND\SETSOUND.EXE

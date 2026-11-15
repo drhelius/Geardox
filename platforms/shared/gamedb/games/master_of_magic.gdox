@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Master of Magic
+folder = C:\
+
+[run]
+exe = MAGIC.EXE
+
+[dos]
+ems_kb = 2765

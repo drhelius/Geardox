@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Heroes of Might and Magic 2: Gold
+folder = C:\
+
+[run]
+exe = HEROES2.EXE
+setup = INSTALL.EXE
