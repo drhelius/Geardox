@@ -400,7 +400,7 @@ u8* FloppyImage::CreateBlank(FloppyImage_Blank type, bool formatted, u32* image_
     u32 root_sector = 1 + (2 * format.fat_sectors);
     u32 data_sector = root_sector + ((format.root_entries * 32) / sector_size);
     memset(raw, k_floppy_data_filler, geometry.size);
-    memset(raw, 0, data_sector * sector_size);
+    memset(raw, 0, (size_t)data_sector * sector_size);
     memcpy(raw, k_floppy_pc_boot_jump, sizeof(k_floppy_pc_boot_jump));
     memcpy(raw + 3, k_floppy_pc_oem, 8);
     write_u16_le(raw + 11, (u16)sector_size);
