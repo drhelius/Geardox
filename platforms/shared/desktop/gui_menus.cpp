@@ -96,8 +96,8 @@ static bool menu_machine_cdrom_speed(void);
 static bool menu_machine_drive_timing(void);
 static bool menu_machine_floppy(int drive);
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile);
-static void menu_machine_hardware(GDOX_Machine_Model model);
-static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t text_size);
+static void menu_machine_hardware(const GDOX_Machine_Config& config);
+static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, size_t text_size);
 static void menu_boot_device(void);
 static void draw_machine_profile_tooltip(GDOX_Machine_Model model);
 static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size);
@@ -820,14 +820,14 @@ static void menu_machine(void)
     const GDOX_Machine_Report& report = core->GetPendingMachineReport();
     const GDOX_Machine_Profile& profile = k_machine_profiles[core->GetPendingMachineConfig().model];
     bool changed = false;
-    char summary[320];
+    char summary[128];
 
     get_machine_summary(machine, summary, sizeof(summary));
     ImGui::TextDisabled("%s", summary);
 
     if (running && core->IsMachineConfigPending())
     {
-        char pending[320];
+        char pending[128];
         get_machine_summary(core->GetPendingMachineConfig(), pending, sizeof(pending));
 
         if (strcmp(pending, summary) != 0)
@@ -882,7 +882,7 @@ static void menu_machine(void)
     if (menu_machine_drive_timing())
         changed = true;
 
-    menu_machine_hardware(core->GetPendingMachineConfig().model);
+    menu_machine_hardware(core->GetPendingMachineConfig());
 
     ImGui::Separator();
 
@@ -1130,13 +1130,13 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
     return changed;
 }
 
+static const char* const k_floppy_labels[GDOX_FLOPPY_TYPE_COUNT] =
+{
+    "Auto", "360 KB 5.25", "1.2 MB 5.25", "720 KB 3.5", "1.44 MB 3.5", "2.88 MB 3.5"
+};
+
 static bool menu_machine_floppy(int drive)
 {
-    static const char* const labels[GDOX_FLOPPY_TYPE_COUNT] =
-    {
-        "Auto", "360 KB 5.25", "1.2 MB 5.25", "720 KB 3.5", "1.44 MB 3.5", "2.88 MB 3.5"
-    };
-
     if (!ImGui::BeginMenu(drive == 0 ? "Floppy A" : "Floppy B"))
         return false;
 
@@ -1146,15 +1146,15 @@ static bool menu_machine_floppy(int drive)
     float text_width = 0.0f;
 
     for (int i = 0; i < GDOX_FLOPPY_TYPE_COUNT; i++)
-        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_floppy_labels[i]).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo(drive == 0 ? "##machine_floppy_a" : "##machine_floppy_b", labels[type]))
+    if (ImGui::BeginCombo(drive == 0 ? "##machine_floppy_a" : "##machine_floppy_b", k_floppy_labels[type]))
     {
         for (int i = 0; i < GDOX_FLOPPY_TYPE_COUNT; i++)
         {
-            if (ImGui::Selectable(labels[i], type == i))
+            if (ImGui::Selectable(k_floppy_labels[i], type == i))
             {
                 type = i;
                 changed = true;
@@ -1616,13 +1616,13 @@ static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile)
     return profile.cpu == GDOX_MACHINE_CPU_80486SX ? "487SX, optional" : "80387, optional";
 }
 
-static void menu_machine_hardware(GDOX_Machine_Model model)
+static void menu_machine_hardware(const GDOX_Machine_Config& config)
 {
     if (!ImGui::BeginMenu("Summary"))
         return;
 
     char hardware[1024];
-    get_machine_hardware(model, hardware, sizeof(hardware));
+    get_machine_hardware(config, hardware, sizeof(hardware));
     ImVec2 size = ImGui::CalcTextSize(hardware);
     ImVec2 padding = ImGui::GetStyle().FramePadding;
 
@@ -1632,12 +1632,58 @@ static void menu_machine_hardware(GDOX_Machine_Model model)
     ImGui::EndMenu();
 }
 
-static void get_machine_hardware(GDOX_Machine_Model model, char* text, size_t text_size)
+static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, size_t text_size)
 {
-    const GDOX_Machine_Profile& profile = k_machine_profiles[model];
+    const GDOX_Machine_Profile& profile = k_machine_profiles[config.model];
+    const GDOX_Video_Card_Info& video = k_video_cards[config.video_card];
+    const GDOX_Sound_Card_Info& sound = k_sound_cards[config.sound_card];
+    char fpu[48];
+    char sound_text[80];
+    char cdrom[48];
+    char floppies[48] = "";
 
-    snprintf(text, text_size, "CPU: %s at %d MHz\nFPU: %s\nFloppy drives: %d", k_machine_cpus[profile.cpu].name,
-        (int)(profile.cpu_clock_rate / 1000000), get_machine_fpu_text(profile), profile.floppy_drives);
+    if (profile.fpu == GDOX_MACHINE_FPU_INTEGRATED)
+        snprintf(fpu, sizeof(fpu), "integrated");
+    else if (profile.fpu == GDOX_MACHINE_FPU_NONE)
+        snprintf(fpu, sizeof(fpu), "none, no socket");
+    else
+        snprintf(fpu, sizeof(fpu), "%s, %s", get_machine_fpu_name(config.cpu), config.fpu ? "fitted" : "socket empty");
+
+    const char* fm = sound.opl3 ? "OPL3" : sound.opl_chips > 1 ? "two OPL2" : "OPL2";
+
+    if (config.sound_card == GDOX_SOUND_CARD_NONE)
+        snprintf(sound_text, sizeof(sound_text), "none");
+    else if (sound.dsp_major == 0)
+        snprintf(sound_text, sizeof(sound_text), "%s, %s", sound.name, fm);
+    else
+        snprintf(sound_text, sizeof(sound_text), "%s, IRQ %u, DMA %u, %s", sound.name, config.sound_irq,
+            config.sound_dma, fm);
+
+    if (config.cdrom == GDOX_CDROM_NONE)
+        snprintf(cdrom, sizeof(cdrom), "none");
+    else
+        snprintf(cdrom, sizeof(cdrom), "%s, %s", k_cdrom_speeds[config.cdrom_speed].name,
+            k_cdrom_positions[config.cdrom].name);
+
+    for (int i = 0; i < config.floppy_drives; i++)
+    {
+        strncat_fit(floppies, i == 0 ? "" : ", ", sizeof(floppies));
+        strncat_fit(floppies, k_floppy_labels[config.floppy_type[i]], sizeof(floppies));
+    }
+
+    const char* slots = (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0 ? "ISA and PCI" :
+        (profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0 ? "ISA and VL-Bus" : "ISA";
+    u32 video_kb = video.memory_size / 1024;
+
+    snprintf(text, text_size, "Model: %s, %s (%s)\nCPU: %s at %u MHz\nFPU: %s\nRAM: %u MB, %s address bus\n"
+        "Bus: %u MHz, %s slots\nVideo: %s, %u %s\nSound: %s\nMIDI: %s\nMouse: %s\nHard disks: %s\nCD-ROM: %s\n"
+        "Floppy drives: %s\nDrive timing: %s", profile.name, profile.models, profile.released,
+        k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000, fpu, config.ram_size / (1024 * 1024),
+        k_machine_memory_maps[profile.map].name, profile.bus_clock_rate / 1000000, slots, video.name,
+        video_kb >= 1024 ? video_kb / 1024 : video_kb, video_kb >= 1024 ? "MB" : "KB", sound_text,
+        config.mpu ? "MPU-401" : "none", config.mouse == GDOX_MOUSE_NONE ? "none" : k_mice[config.mouse].name,
+        config.ide ? "IDE" : "none", cdrom, config.floppy_drives > 0 ? floppies : "none",
+        k_drive_timings[config.drive_timing < GDOX_DRIVE_TIMING_COUNT ? config.drive_timing : 0].name);
 }
 
 static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
@@ -1710,35 +1756,9 @@ static void menu_boot_device(void)
 static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size)
 {
     bool card = config.fpu && !k_machine_cpus[config.cpu].fpu;
-    const GDOX_Sound_Card_Info& sound = k_sound_cards[config.sound_card];
-    char audio[64];
-    char mouse[48];
-    char cdrom[48];
-
-    if (sound.dsp_major != 0)
-        snprintf(audio, sizeof(audio), "%s, IRQ %u, DMA %u", sound.name, config.sound_irq, config.sound_dma);
-    else
-        snprintf(audio, sizeof(audio), "%s", config.sound_card == GDOX_SOUND_CARD_NONE ? "No sound card" : sound.name);
-
-    if (config.mpu)
-        strncat_fit(audio, sound.mpu ? ", MPU-401" : " · MPU-401", sizeof(audio));
-
-    if (config.mouse == GDOX_MOUSE_NONE)
-        snprintf(mouse, sizeof(mouse), "No mouse");
-    else
-        snprintf(mouse, sizeof(mouse), "%s mouse", k_mice[config.mouse].name);
-
-    if (config.cdrom == GDOX_CDROM_NONE)
-        snprintf(cdrom, sizeof(cdrom), "No CD-ROM");
-    else
-        snprintf(cdrom, sizeof(cdrom), "CD-ROM %s, %s", k_cdrom_speeds[config.cdrom_speed].name,
-            k_cdrom_positions[config.cdrom].name);
-
-    snprintf(text, text_size, "%s · %s %u MHz%s%s · %u MB\n%s · %s\n%s · %s · %d floppy drive%s",
-        k_machine_profiles[config.model].name, k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000,
-        card ? " + " : "", card ? get_machine_fpu_name(config.cpu) : "", config.ram_size / (1024 * 1024),
-        k_video_cards[config.video_card].name, audio, mouse, cdrom, config.floppy_drives,
-        config.floppy_drives == 1 ? "" : "s");
+    snprintf(text, text_size, "%s · %s %u MHz%s%s · %u MB", k_machine_profiles[config.model].name,
+        k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000, card ? " + " : "",
+        card ? get_machine_fpu_name(config.cpu) : "", config.ram_size / (1024 * 1024));
 }
 
 static float get_combo_items_width(const char* items)
