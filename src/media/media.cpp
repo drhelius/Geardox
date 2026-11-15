@@ -158,7 +158,17 @@ bool Media::LoadMedia(const char* file_path)
     else if (strcmp(extension, "zip") == 0)
         ok = LoadCdRomFromZipFile(file_path) || (!m_media_info.cdrom && LoadFile(file_path));
     else
-        ok = LoadFile(file_path);
+    {
+        GDOX_CdRomFileKind kind = CdRomMedia::ProbeFile(file_path);
+
+        if (kind != GDOX_CDROM_FILE_UNKNOWN)
+        {
+            m_media_info.cdrom = true;
+            ok = m_cdrom_media->LoadProbedFromFile(file_path, kind, m_preload_cdrom);
+        }
+        else
+            ok = LoadFile(file_path);
+    }
 
     if (!ok)
     {

@@ -26,6 +26,15 @@
 #include "cdrom_common.h"
 #include "cdrom_image.h"
 
+enum GDOX_CdRomFileKind
+{
+    GDOX_CDROM_FILE_UNKNOWN,
+    GDOX_CDROM_FILE_CUE,
+    GDOX_CDROM_FILE_ISO,
+    GDOX_CDROM_FILE_RAW_MODE1,
+    GDOX_CDROM_FILE_RAW_MODE2
+};
+
 class CdRomCueBinImage;
 class CdRomChdImage;
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
@@ -55,6 +64,9 @@ public:
     bool LoadCueFromFile(const char* path, bool preload);
     bool LoadChdFromFile(const char* path, bool preload);
     bool LoadIsoFromFile(const char* path, bool preload);
+    bool LoadRawFromFile(const char* path, bool mode2, bool preload);
+    bool LoadProbedFromFile(const char* path, GDOX_CdRomFileKind kind, bool preload);
+    static GDOX_CdRomFileKind ProbeFile(const char* path);
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     bool LoadPhysicalDrive(const char* device_id, bool preload);
     bool HasPhysicalDriveError();

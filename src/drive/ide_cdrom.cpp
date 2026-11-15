@@ -964,11 +964,13 @@ void IdeCdRom::CommandReadCD(u32 lba, u32 count, u8 type, u8 flags, u8 sub, u64 
         {
             s32 track = GetTrackIndex(next);
             bool audio = (track >= 0) && (m_cdrom_media->GetTrackType((u8)track) == GDOX_CDROM_AUDIO_TRACK);
+            bool mode2 = (track >= 0) && TrackTypeIsMode2(m_cdrom_media->GetTrackType((u8)track));
 
             if (next == lba)
                 first_audio = audio;
 
-            if ((type >= 3) || (type == 1 && !audio) || (type == 2 && audio))
+            if ((type == 3) || (type == 5) || (type >= 6) || (type == 1 && !audio) || (type == 2 && (audio || mode2)) ||
+                (type == 4 && !mode2))
             {
                 Fail(clocks, k_ide_cdrom_sense_illegal, 0x64, 0);
                 SetSenseInfo(next);
@@ -1073,6 +1075,7 @@ u32 IdeCdRom::GetSectorBytes(u32 lba) const
 
     s32 track = m_cdrom_media->FindTrackFromLBA(lba, true);
     bool audio = (track >= 0) && (m_cdrom_media->GetTrackType((u8)track) == GDOX_CDROM_AUDIO_TRACK);
+    bool mode2 = (track >= 0) && TrackTypeIsMode2(m_cdrom_media->GetTrackType((u8)track));
     u8 flags = m_state.read_flags;
     u32 size = 0;
 
@@ -1082,8 +1085,9 @@ u32 IdeCdRom::GetSectorBytes(u32 lba) const
     {
         size += (flags & 0x80) != 0 ? 12 : 0;
         size += ((flags >> 5) & 0x03) != 0 && ((flags >> 5) & 0x03) != 0x02 ? 4 : 0;
+        size += mode2 && (((flags >> 5) & 0x03) >= 0x02) ? 8 : 0;
         size += (flags & 0x10) != 0 ? k_cdrom_sector_size : 0;
-        size += (flags & 0x08) != 0 ? 288 : 0;
+        size += (flags & 0x08) != 0 ? (mode2 ? 280 : 288) : 0;
     }
 
     u8 errors = (flags >> 1) & 0x03;
@@ -1100,6 +1104,7 @@ bool IdeCdRom::BuildSector(u32 lba, u8* buffer)
 
     s32 track = m_cdrom_media->FindTrackFromLBA(lba, true);
     bool audio = (track >= 0) && (m_cdrom_media->GetTrackType((u8)track) == GDOX_CDROM_AUDIO_TRACK);
+    bool mode2 = (track >= 0) && TrackTypeIsMode2(m_cdrom_media->GetTrackType((u8)track));
     u8 flags = m_state.read_flags;
     u32 size = GetSectorBytes(lba);
     u8* out = buffer;
@@ -1144,16 +1149,25 @@ bool IdeCdRom::BuildSector(u32 lba, u8* buffer)
             out += 4;
         }
 
+        if (mode2 && (headers >= 0x02))
+        {
+            memcpy(out, raw + 16, 8);
+            out += 8;
+        }
+
+        u32 data_offset = mode2 ? 24 : 16;
+
         if ((flags & 0x10) != 0)
         {
-            memcpy(out, raw + 16, k_cdrom_sector_size);
+            memcpy(out, raw + data_offset, k_cdrom_sector_size);
             out += k_cdrom_sector_size;
         }
 
         if ((flags & 0x08) != 0)
         {
-            memcpy(out, raw + 16 + k_cdrom_sector_size, 288);
-            out += 288;
+            u32 ecc_size = mode2 ? 280 : 288;
+            memcpy(out, raw + data_offset + k_cdrom_sector_size, ecc_size);
+            out += ecc_size;
         }
     }
 

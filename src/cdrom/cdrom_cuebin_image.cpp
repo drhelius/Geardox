@@ -81,13 +81,6 @@ bool CdRomCueBinImage::LoadFromFile(const char* path, bool preload)
     CdRomCueBinImage::Reset();
     GatherPaths(path);
 
-    if (strcmp(m_file_extension, "cue") != 0)
-    {
-        Error("Invalid file extension %s. Expected .cue", m_file_extension);
-        m_ready = false;
-        return m_ready;
-    }
-
     MediaFile* file = MediaFile::OpenFile(path);
 
     if (file)
@@ -157,6 +150,18 @@ bool CdRomCueBinImage::LoadFromIsoFile(const char* path, bool preload)
 {
     Log("Loading ISO from %s...", path);
 
+    return LoadFromSingleTrack(path, "MODE1/2048", preload);
+}
+
+bool CdRomCueBinImage::LoadFromRawFile(const char* path, bool mode2, bool preload)
+{
+    Log("Loading raw CD image from %s...", path);
+
+    return LoadFromSingleTrack(path, mode2 ? "MODE2/2352" : "MODE1/2352", preload);
+}
+
+bool CdRomCueBinImage::LoadFromSingleTrack(const char* path, const char* track_type, bool preload)
+{
     if (!IsValidPointer(path))
     {
         Error("Invalid path %s", path);
@@ -168,7 +173,9 @@ bool CdRomCueBinImage::LoadFromIsoFile(const char* path, bool preload)
 
     std::string cue = "FILE \"";
     cue += m_file_name;
-    cue += "\" BINARY\nTRACK 01 MODE1/2048\nINDEX 01 00:00:00\n";
+    cue += "\" BINARY\nTRACK 01 ";
+    cue += track_type;
+    cue += "\nINDEX 01 00:00:00\n";
 
     return LoadFromCueData(path, (const u8*)cue.c_str(), cue.size(), preload, ResolveNormalFile, this);
 }
@@ -291,9 +298,9 @@ bool CdRomCueBinImage::ReadSector(u32 lba, u8* buffer)
         return false;
     }
 
-    if (sector_size == 2352)
+    if (sector_size != 2048)
     {
-        if (!checked_add_u64(byte_offset, 16, &byte_offset))
+        if (!checked_add_u64(byte_offset, TrackTypeDataOffset(track.type), &byte_offset))
             return false;
         sector_size = 2048;
     }
@@ -332,7 +339,8 @@ bool CdRomCueBinImage::ReadRawSector2352(u32 lba, u8* buffer)
 
     const Track& track = m_toc.tracks[(size_t)track_index];
 
-    if (track.type != GDOX_CDROM_DATA_TRACK_MODE1_2352)
+    if ((track.type != GDOX_CDROM_DATA_TRACK_MODE1_2352) && (track.type != GDOX_CDROM_DATA_TRACK_MODE2_2352) &&
+        (track.type != GDOX_CDROM_DATA_TRACK_MODE2_2336))
         return CdRomImage::ReadRawSector2352(lba, buffer);
 
     ImgFile* img_file = m_track_files[(size_t)track_index].img_file;
@@ -355,6 +363,12 @@ bool CdRomCueBinImage::ReadRawSector2352(u32 lba, u8* buffer)
     m_current_sector = lba + 1;
     if (m_current_sector >= m_toc.sector_count)
         m_current_sector = m_toc.sector_count - 1;
+
+    if (track.type == GDOX_CDROM_DATA_TRACK_MODE2_2336)
+    {
+        FillRawHeader(lba, 0x02, buffer);
+        return ReadFromImgFile(img_file, byte_offset, buffer + 16, 2336);
+    }
 
     return ReadFromImgFile(img_file, byte_offset, buffer, 2352);
 }
@@ -1052,6 +1066,16 @@ bool CdRomCueBinImage::ParseCueFile(const char* cue_content)
             {
                 current_parsed_track.type = GDOX_CDROM_DATA_TRACK_MODE1_2352;
                 Debug("Found TRACK %d: DATA (MODE1/2352)", current_parsed_track.number);
+            }
+            else if (type_str == "mode2/2352")
+            {
+                current_parsed_track.type = GDOX_CDROM_DATA_TRACK_MODE2_2352;
+                Debug("Found TRACK %d: DATA (MODE2/2352)", current_parsed_track.number);
+            }
+            else if (type_str == "mode2/2336")
+            {
+                current_parsed_track.type = GDOX_CDROM_DATA_TRACK_MODE2_2336;
+                Debug("Found TRACK %d: DATA (MODE2/2336)", current_parsed_track.number);
             }
             else if (type_str.find("mode2/") != string::npos)
             {
@@ -1775,7 +1799,7 @@ void CdRomCueBinImage::CalculateCRC()
 
     for (size_t i = 0; i < track_count; i++)
     {
-        if (m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2048 || m_toc.tracks[i].type == GDOX_CDROM_DATA_TRACK_MODE1_2352)
+        if (m_toc.tracks[i].type != GDOX_CDROM_AUDIO_TRACK)
         {
             first_data_track = &m_toc.tracks[i];
             first_data_track_file = &m_track_files[i];
@@ -1831,9 +1855,9 @@ void CdRomCueBinImage::CalculateCRC()
             break;
         }
 
-        if (first_data_track->sector_size == 2352)
+        if (first_data_track->sector_size != 2048)
         {
-            if (!checked_add_u64(file_offset, 16, &file_offset))
+            if (!checked_add_u64(file_offset, TrackTypeDataOffset(first_data_track->type), &file_offset))
                 break;
         }
 

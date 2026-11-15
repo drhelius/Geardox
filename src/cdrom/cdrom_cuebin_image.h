@@ -113,6 +113,7 @@ public:
     virtual void Reset() override;
     virtual bool LoadFromFile(const char* path, bool preload) override;
     bool LoadFromIsoFile(const char* path, bool preload);
+    bool LoadFromRawFile(const char* path, bool mode2, bool preload);
     virtual bool ReadSector(u32 lba, u8* buffer) override;
     virtual bool ReadRawSector2352(u32 lba, u8* buffer) override;
     virtual bool ReadSamples(u32 lba, u32 offset, s16* buffer, u32 count) override;
@@ -125,6 +126,7 @@ protected:
         bool preload, GDOX_CdRomCueFileResolver resolver, void* resolver_user_data);
 
 private:
+    bool LoadFromSingleTrack(const char* path, const char* track_type, bool preload);
     static MediaFile* ResolveNormalFile(const char* reference, char* resolved_path, size_t resolved_path_size, void* user_data);
     void InitImgFile(ImgFile* img_file);
     void InitParsedCueTrack(ParsedCueTrack& track);

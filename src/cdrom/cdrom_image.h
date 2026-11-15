@@ -75,6 +75,7 @@ public:
 protected:
     void GatherPaths(const char* path);
     void InitTrack(Track& track);
+    void FillRawHeader(u32 lba, u8 mode, u8* buffer);
 
 protected:
     TableOfContents m_toc;

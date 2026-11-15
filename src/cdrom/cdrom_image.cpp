@@ -36,6 +36,13 @@ bool CdRomImage::ReadRawSector2352(u32 lba, u8* buffer)
     if (!m_ready || !IsValidPointer(buffer) || (lba >= m_toc.sector_count) || IsAudioSector(lba))
         return false;
 
+    FillRawHeader(lba, 0x01, buffer);
+
+    return ReadSector(lba, buffer + 16);
+}
+
+void CdRomImage::FillRawHeader(u32 lba, u8 mode, u8* buffer)
+{
     GDOX_CdRomMSF msf;
     LbaToMsf(lba + 150, &msf);
 
@@ -44,9 +51,7 @@ bool CdRomImage::ReadRawSector2352(u32 lba, u8* buffer)
     buffer[12] = DecToBcd(msf.minutes);
     buffer[13] = DecToBcd(msf.seconds);
     buffer[14] = DecToBcd(msf.frames);
-    buffer[15] = 0x01;
-
-    return ReadSector(lba, buffer + 16);
+    buffer[15] = mode;
 }
 
 void CdRomImage::Init()

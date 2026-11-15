@@ -22,8 +22,9 @@
 
 #include "../common/common.h"
 
-static const u32 k_cdrom_track_type_size[3] = { 2352, 2048, 2352};
-static const char* const k_cdrom_track_type_name[3] = { "AUDIO", "MODE1/2048", "MODE1/2352" };
+static const u32 k_cdrom_track_type_size[5] = { 2352, 2048, 2352, 2352, 2336 };
+static const u32 k_cdrom_track_type_data_offset[5] = { 16, 0, 16, 24, 8 };
+static const char* const k_cdrom_track_type_name[5] = { "AUDIO", "MODE1/2048", "MODE1/2352", "MODE2/2352", "MODE2/2336" };
 
 static const u8 k_cdrom_control_pre_emphasis = 0x01;
 static const u8 k_cdrom_control_copy_permitted = 0x02;
@@ -34,12 +35,24 @@ enum GDOX_CdRomTrackType
 {
     GDOX_CDROM_AUDIO_TRACK,
     GDOX_CDROM_DATA_TRACK_MODE1_2048,
-    GDOX_CDROM_DATA_TRACK_MODE1_2352
+    GDOX_CDROM_DATA_TRACK_MODE1_2352,
+    GDOX_CDROM_DATA_TRACK_MODE2_2352,
+    GDOX_CDROM_DATA_TRACK_MODE2_2336
 };
 
 INLINE u32 TrackTypeSectorSize(GDOX_CdRomTrackType type)
 {
     return k_cdrom_track_type_size[type];
+}
+
+INLINE u32 TrackTypeDataOffset(GDOX_CdRomTrackType type)
+{
+    return k_cdrom_track_type_data_offset[type];
+}
+
+INLINE bool TrackTypeIsMode2(GDOX_CdRomTrackType type)
+{
+    return (type == GDOX_CDROM_DATA_TRACK_MODE2_2352) || (type == GDOX_CDROM_DATA_TRACK_MODE2_2336);
 }
 
 INLINE const char* TrackTypeName(GDOX_CdRomTrackType type)
