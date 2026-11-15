@@ -134,6 +134,7 @@ public:
     bool AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
         const std::vector<std::string>& pinned, bool shsucdx);
     bool AddMemoryFile(const char* path, const std::string& data, u8 attributes);
+    bool PatchFile(const char* path, u64 offset, const std::string& before, const std::string& after);
     void FinishGame(const char* label, u64 free_size, const u8* boot_sector);
     const FatImage_Entry& GetEntry(u32 index) const;
     void ListEntries(std::vector<FatImage_Listed>* listed) const;
@@ -151,6 +152,8 @@ private:
     bool ScanZip();
     u32 AddEntry(u32 directory, const std::string& name, bool is_directory);
     int FindChild(u32 directory, const std::string& name) const;
+    bool FindParent(const char* path, u32* directory, std::string* name) const;
+    bool ReadEntry(const FatImage_Entry& entry, std::string* data);
     void RemoveChild(u32 directory, u32 index);
     bool WalkOverlay(const std::string& path, u32 directory, int depth);
     void LeaveOutReserved(const std::vector<std::string>& reserved);

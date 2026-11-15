@@ -16,6 +16,8 @@ ID = re.compile(r"^[a-z0-9_]+$")
 LABEL = re.compile(r"^r[0-9]+$")
 PART = re.compile(r"^[A-Z0-9_$~!#%&'(){}@^`\-]{1,8}(\.[A-Z0-9_$~!#%&'(){}@^`\-]{1,3})?$")
 CRC = re.compile(r"^[0-9A-F]{8}$")
+HEX = re.compile(r"^[0-9A-F]+$")
+BYTES = re.compile(r"^([0-9A-F]{2})+$")
 RELEASE_SECTIONS = ("sound", "drives")
 SINGLE_MIN = 64 * 1024
 errors = []
@@ -102,8 +104,9 @@ for entry, keys in read_index(os.path.join(script_dir, "gamedb.ini")):
         label, rest = key.split(".", 1)
         if label not in labels:
             fail("[%s]: %s belongs to no release" % (entry, key))
-        elif rest not in ("layout", "when") and not (rest.count(".") == 1 and rest.split(".")[0] in RELEASE_SECTIONS):
-            fail("[%s]: %s isn't rN.layout, rN.when or rN.sound/drives.<key>" % (entry, key))
+        elif rest not in ("layout", "when", "patch") and not (rest.count(".") == 1 and
+                                                             rest.split(".")[0] in RELEASE_SECTIONS):
+            fail("[%s]: %s isn't rN.layout, rN.when, rN.patch or rN.sound/drives.<key>" % (entry, key))
     for label in labels:
         where = "[%s] %s" % (entry, label)
         if not LABEL.match(label):
@@ -121,6 +124,21 @@ for entry, keys in read_index(os.path.join(script_dir, "gamedb.ini")):
                 fail("%s: layout rule '%s' isn't SRC > DST" % (where, rule.strip()))
                 continue
             rules.append("%s>%s" % (parts[0], parts[1] or "."))
+        patches = []
+        sizes = dict((path, size) for path, size, crc in sig)
+        for item in values.get(label + ".patch", "").split(","):
+            if not item.strip():
+                continue
+            parts = item.split()
+            if len(parts) != 4 or not HEX.match(parts[1]) or not BYTES.match(parts[2]) or not BYTES.match(parts[3]) \
+                    or len(parts[2]) != len(parts[3]) or parts[2] == parts[3]:
+                fail("%s: patch '%s' isn't PATH, hex offset, old and new bytes of one length" % (where, item.strip()))
+            elif parts[0] not in sizes:
+                fail("%s: patch %s isn't one of the release's files" % (where, parts[0]))
+            elif int(parts[1], 16) + len(parts[2]) // 2 > sizes[parts[0]]:
+                fail("%s: patch %s at %s goes past the file's end" % (where, parts[0], parts[1]))
+            else:
+                patches.append(" ".join(parts))
         settings = {}
         for key, value in keys:
             if key.startswith(label + ".") and key.count(".") == 2 and key.split(".")[1] in RELEASE_SECTIONS:
@@ -128,11 +146,11 @@ for entry, keys in read_index(os.path.join(script_dir, "gamedb.ini")):
         if when and "sound" not in settings:
             fail("%s: a when condition with no sound settings" % where)
         fragment = "".join("[%s]\n%s\n" % (s, "\n".join(lines)) for s, lines in sorted(settings.items()))
-        releases.append((index, label, sig, when, ";".join(rules), fragment))
+        releases.append((index, label, sig, when, ";".join(rules), ";".join(patches), fragment))
 
 sets = {}
 shared = []
-for index, label, sig, when, rules, fragment in releases:
+for index, label, sig, when, rules, patches, fragment in releases:
     key = frozenset(sig)
     for other in sets:
         if other == key or other <= key or key <= other:
@@ -160,13 +178,13 @@ def literal(text):
 files = []
 keys = []
 release_rows = []
-for number, (index, label, sig, when, rules, fragment) in enumerate(releases):
+for number, (index, label, sig, when, rules, patches, fragment) in enumerate(releases):
     first = len(files)
     for path, size, crc in sig + when:
         files.append((size, crc, path))
     for path, size, crc in sig:
         keys.append((size, int(crc, 16), number))
-    release_rows.append((index, first, len(sig), len(when), rules, fragment))
+    release_rows.append((index, first, len(sig), len(when), rules, patches, fragment))
 keys.sort()
 
 header = """/*
@@ -208,6 +226,7 @@ struct GDOX_DB_Release
     u8 file_count;
     u8 when_count;
     const char* layout;
+    const char* patches;
     const char* settings;
 };
 
@@ -233,9 +252,11 @@ with open(output, "w") as out:
         out.write("    { \"%s\", %s,\n        %s },\n" % (entry, literal(name), literal(text)))
     out.write("};\n\nconst int k_game_database_entry_count = %d;\n" % len(entries))
     out.write("\nconst GDOX_DB_Release k_game_database_releases[] =\n{\n")
-    for index, first, count, when, rules, fragment in release_rows:
-        out.write("    { %d, %d, %d, %d, %s, %s },\n" % (index, first, count, when, literal(rules) if rules else "NULL",
-                                                       literal(fragment) if fragment else "NULL"))
+    for index, first, count, when, rules, patches, fragment in release_rows:
+        out.write("    { %d, %d, %d, %d, %s, %s, %s },\n" % (index, first, count, when,
+                                                           literal(rules) if rules else "NULL",
+                                                           literal(patches) if patches else "NULL",
+                                                           literal(fragment) if fragment else "NULL"))
     out.write("};\n\nconst int k_game_database_release_count = %d;\n" % len(release_rows))
     out.write("\nconst GDOX_DB_File k_game_database_files[] =\n{\n")
     for size, crc, path in files:

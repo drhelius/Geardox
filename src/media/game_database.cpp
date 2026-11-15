@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <map>
+#include <sstream>
 #include "game_database.h"
 #include "game_db.h"
 #include "media_file.h"
@@ -502,6 +503,63 @@ void GameDatabase::GetLayout(int release, std::vector<GameDatabase_Rule>* rules)
             std::string last = (slash == std::string::npos) ? rule.source : rule.source.substr(slash + 1);
             rule.file = (last.find('.') != std::string::npos) && !rule.target.empty();
             rules->push_back(rule);
+        }
+
+        start = end + 1;
+    }
+}
+
+static bool hex_bytes(const std::string& text, std::string* bytes)
+{
+    bytes->clear();
+
+    if ((text.size() % 2) != 0)
+        return false;
+
+    for (size_t i = 0; i < text.size(); i += 2)
+    {
+        char* end = NULL;
+        std::string pair = text.substr(i, 2);
+        long value = strtol(pair.c_str(), &end, 16);
+
+        if (*end != '\0')
+            return false;
+
+        bytes->push_back((char)value);
+    }
+
+    return !bytes->empty();
+}
+
+void GameDatabase::GetPatches(int release, std::vector<GameDatabase_Patch>* patches)
+{
+    patches->clear();
+
+    if ((release < 0) || (release >= k_game_database_release_count) ||
+        !IsValidPointer(k_game_database_releases[release].patches))
+        return;
+
+    std::string text(k_game_database_releases[release].patches);
+    size_t start = 0;
+
+    while (start <= text.size())
+    {
+        size_t end = text.find(';', start);
+
+        if (end == std::string::npos)
+            end = text.size();
+
+        std::istringstream item(text.substr(start, end - start));
+        std::string offset;
+        std::string before;
+        std::string after;
+        GameDatabase_Patch patch;
+
+        if ((item >> patch.path >> offset >> before >> after) && hex_bytes(before, &patch.before) &&
+            hex_bytes(after, &patch.after) && (patch.before.size() == patch.after.size()))
+        {
+            patch.offset = (u32)strtoul(offset.c_str(), NULL, 16);
+            patches->push_back(patch);
         }
 
         start = end + 1;

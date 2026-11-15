@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include "../common/common.h"
+#include "../media/game_database.h"
 #include "../media/game_descriptor.h"
 #include "dos_import.h"
 #include "fat_image.h"
@@ -168,6 +169,7 @@ private:
     bool m_source_zip;
     std::string m_zip_prefix;
     std::vector<FatImage_Rule> m_layout;
+    std::vector<GameDatabase_Patch> m_patches;
     bool m_database;
     bool m_release_settings;
     bool m_withheld_settings;

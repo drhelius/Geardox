@@ -37,6 +37,7 @@ struct GDOX_DB_Release
     u8 file_count;
     u8 when_count;
     const char* layout;
+    const char* patches;
     const char* settings;
 };
 
@@ -2895,414 +2896,414 @@ const int k_game_database_entry_count = 214;
 
 const GDOX_DB_Release k_game_database_releases[] =
 {
-    { 0, 0, 2, 1, NULL, "[sound]\n"
+    { 0, 0, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 1, 3, 2, 0, NULL, "[drives]\n"
+    { 1, 3, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 2, 5, 2, 1, NULL, "[sound]\n"
+    { 2, 5, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 3, 8, 2, 0, NULL, NULL },
-    { 4, 10, 2, 0, NULL, "[drives]\n"
+    { 3, 8, 2, 0, NULL, NULL, NULL },
+    { 4, 10, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 5, 12, 2, 1, NULL, "[drives]\n"
+    { 5, 12, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 6, 15, 2, 1, NULL, "[drives]\n"
+    { 6, 15, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 7, 18, 2, 1, NULL, "[drives]\n"
+    { 7, 18, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = Anvil.dat\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 8, 21, 2, 0, NULL, "[drives]\n"
+    { 8, 21, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = DATA/\n" },
-    { 9, 23, 2, 0, NULL, "[drives]\n"
+    { 9, 23, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 10, 25, 2, 0, NULL, "[drives]\n"
+    { 10, 25, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 11, 27, 2, 0, NULL, NULL },
-    { 12, 29, 2, 0, NULL, NULL },
-    { 13, 31, 2, 0, NULL, "[drives]\n"
+    { 11, 27, 2, 0, NULL, NULL, NULL },
+    { 12, 29, 2, 0, NULL, NULL, NULL },
+    { 13, 31, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/\n" },
-    { 13, 33, 2, 0, NULL, "[drives]\n"
+    { 13, 33, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/\n" },
-    { 14, 35, 2, 1, NULL, "[sound]\n"
+    { 14, 35, 2, 1, NULL, NULL, "[sound]\n"
         "card = sb15\n" },
-    { 15, 38, 2, 0, NULL, NULL },
-    { 16, 40, 2, 0, NULL, "[drives]\n"
+    { 15, 38, 2, 0, NULL, NULL, NULL },
+    { 16, 40, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n" },
-    { 17, 42, 2, 0, NULL, "[drives]\n"
+    { 17, 42, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = SPLAT.DAT\n" },
-    { 18, 44, 2, 0, NULL, NULL },
-    { 19, 46, 2, 0, NULL, "[drives]\n"
+    { 18, 44, 2, 0, NULL, NULL, NULL },
+    { 19, 46, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CONST.GOG\n" },
-    { 20, 48, 2, 0, NULL, "[drives]\n"
+    { 20, 48, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 21, 50, 2, 0, NULL, "[drives]\n"
+    { 21, 50, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 22, 52, 2, 0, NULL, NULL },
-    { 23, 54, 2, 0, NULL, NULL },
-    { 24, 56, 2, 1, NULL, "[sound]\n"
+    { 22, 52, 2, 0, NULL, NULL, NULL },
+    { 23, 54, 2, 0, NULL, NULL, NULL },
+    { 24, 56, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 25, 59, 2, 1, NULL, "[sound]\n"
+    { 25, 59, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 25, 62, 2, 1, NULL, "[sound]\n"
+    { 25, 62, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 26, 65, 2, 1, NULL, "[drives]\n"
+    { 26, 65, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "card = sbpro2\n" },
-    { 27, 68, 2, 0, NULL, NULL },
-    { 28, 70, 2, 0, NULL, NULL },
-    { 29, 72, 2, 0, NULL, NULL },
-    { 30, 74, 2, 0, NULL, NULL },
-    { 31, 76, 2, 1, NULL, "[drives]\n"
+    { 27, 68, 2, 0, NULL, NULL, NULL },
+    { 28, 70, 2, 0, NULL, NULL, NULL },
+    { 29, 72, 2, 0, NULL, NULL, NULL },
+    { 30, 74, 2, 0, NULL, NULL, NULL },
+    { 31, 76, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = DESCENT_II.inst\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 32, 79, 2, 1, NULL, "[sound]\n"
+    { 32, 79, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 33, 82, 3, 1, NULL, "[sound]\n"
+    { 33, 82, 3, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 34, 86, 2, 1, NULL, "[sound]\n"
+    { 34, 86, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 35, 89, 3, 1, NULL, "[sound]\n"
+    { 35, 89, 3, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 36, 93, 2, 1, NULL, "[sound]\n"
+    { 36, 93, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 37, 96, 2, 0, NULL, NULL },
-    { 38, 98, 2, 1, NULL, "[drives]\n"
+    { 37, 96, 2, 0, NULL, NULL, NULL },
+    { 38, 98, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 39, 101, 2, 0, NULL, NULL },
-    { 40, 103, 2, 1, NULL, "[sound]\n"
+    { 39, 101, 2, 0, NULL, NULL, NULL },
+    { 40, 103, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 41, 106, 2, 0, NULL, "[drives]\n"
+    { 41, 106, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 42, 108, 2, 0, NULL, "[drives]\n"
+    { 42, 108, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 43, 110, 2, 0, NULL, NULL },
-    { 44, 112, 2, 1, NULL, "[sound]\n"
+    { 43, 110, 2, 0, NULL, NULL, NULL },
+    { 44, 112, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 45, 115, 2, 0, NULL, NULL },
-    { 46, 117, 2, 1, NULL, "[sound]\n"
+    { 45, 115, 2, 0, NULL, NULL, NULL },
+    { 46, 117, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 47, 120, 2, 1, NULL, "[sound]\n"
+    { 47, 120, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 48, 123, 2, 0, NULL, NULL },
-    { 49, 125, 2, 0, NULL, NULL },
-    { 50, 127, 2, 1, NULL, "[sound]\n"
+    { 48, 123, 2, 0, NULL, NULL, NULL },
+    { 49, 125, 2, 0, NULL, NULL, NULL },
+    { 50, 127, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro2\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 51, 130, 2, 0, NULL, "[drives]\n"
+    { 51, 130, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 52, 132, 2, 1, NULL, "[sound]\n"
+    { 52, 132, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 53, 135, 2, 1, NULL, "[sound]\n"
+    { 53, 135, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 54, 138, 2, 1, NULL, "[sound]\n"
+    { 54, 138, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 55, 141, 2, 1, NULL, "[sound]\n"
+    { 55, 141, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 56, 144, 2, 0, NULL, "[sound]\n"
+    { 56, 144, 2, 0, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 57, 146, 2, 1, NULL, "[sound]\n"
+    { 57, 146, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 58, 149, 2, 0, NULL, NULL },
-    { 59, 151, 2, 0, NULL, "[drives]\n"
+    { 58, 149, 2, 0, NULL, NULL, NULL },
+    { 59, 151, 2, 0, NULL, NULL, "[drives]\n"
         "floppy_a = GS720K.img\n" },
-    { 60, 153, 2, 1, NULL, "[sound]\n"
+    { 60, 153, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 61, 156, 2, 0, NULL, "[drives]\n"
+    { 61, 156, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = homm1.gog\n" },
-    { 62, 158, 2, 1, NULL, "[drives]\n"
+    { 62, 158, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = homm2.ins\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 63, 161, 2, 0, NULL, NULL },
-    { 64, 163, 2, 1, NULL, "[drives]\n"
+    { 63, 161, 2, 0, NULL, NULL, NULL },
+    { 64, 163, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 65, 166, 2, 1, NULL, "[drives]\n"
+    { 65, 166, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 66, 169, 2, 0, NULL, NULL },
-    { 67, 171, 2, 0, NULL, NULL },
-    { 68, 173, 2, 0, NULL, NULL },
-    { 69, 175, 2, 0, "OTHER>.", NULL },
-    { 70, 177, 2, 0, "_OTHER>.", NULL },
-    { 71, 179, 2, 0, NULL, NULL },
-    { 72, 181, 2, 0, NULL, NULL },
-    { 73, 183, 2, 0, NULL, NULL },
-    { 74, 185, 2, 0, NULL, "[drives]\n"
+    { 66, 169, 2, 0, NULL, NULL, NULL },
+    { 67, 171, 2, 0, NULL, NULL, NULL },
+    { 68, 173, 2, 0, NULL, NULL, NULL },
+    { 69, 175, 2, 0, "OTHER>.", NULL, NULL },
+    { 70, 177, 2, 0, "_OTHER>.", NULL, NULL },
+    { 71, 179, 2, 0, NULL, NULL, NULL },
+    { 72, 181, 2, 0, NULL, NULL, NULL },
+    { 73, 183, 2, 0, NULL, NULL, NULL },
+    { 74, 185, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 75, 187, 2, 1, NULL, "[drives]\n"
+    { 75, 187, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = JA1.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 76, 190, 2, 1, NULL, "[sound]\n"
+    { 76, 190, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 77, 193, 2, 1, NULL, "[sound]\n"
+    { 77, 193, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 78, 196, 2, 0, NULL, NULL },
-    { 79, 198, 2, 0, NULL, NULL },
-    { 80, 200, 2, 0, NULL, NULL },
-    { 81, 202, 2, 0, NULL, NULL },
-    { 82, 204, 2, 0, NULL, NULL },
-    { 83, 206, 2, 0, NULL, NULL },
-    { 84, 208, 2, 0, NULL, NULL },
-    { 85, 210, 2, 1, NULL, "[drives]\n"
+    { 78, 196, 2, 0, NULL, NULL, NULL },
+    { 79, 198, 2, 0, NULL, NULL, NULL },
+    { 80, 200, 2, 0, NULL, NULL, NULL },
+    { 81, 202, 2, 0, NULL, NULL, NULL },
+    { 82, 204, 2, 0, NULL, NULL, NULL },
+    { 83, 206, 2, 0, NULL, NULL, NULL },
+    { 84, 208, 2, 0, NULL, NULL, NULL },
+    { 85, 210, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 86, 213, 2, 0, NULL, NULL },
-    { 87, 215, 2, 1, "CLOUD_SAVES>.", "[sound]\n"
+    { 86, 213, 2, 0, NULL, NULL, NULL },
+    { 87, 215, 2, 1, "CLOUD_SAVES>.", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 88, 218, 2, 0, NULL, NULL },
-    { 89, 220, 2, 0, NULL, NULL },
-    { 89, 222, 2, 0, NULL, NULL },
-    { 90, 224, 2, 0, NULL, NULL },
-    { 90, 226, 2, 1, NULL, "[sound]\n"
+    { 88, 218, 2, 0, NULL, NULL, NULL },
+    { 89, 220, 2, 0, NULL, NULL, NULL },
+    { 89, 222, 2, 0, NULL, NULL, NULL },
+    { 90, 224, 2, 0, NULL, NULL, NULL },
+    { 90, 226, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 91, 229, 2, 2, NULL, "[sound]\n"
+    { 91, 229, 2, 2, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 92, 233, 2, 1, NULL, "[drives]\n"
+    { 92, 233, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 93, 236, 2, 0, NULL, NULL },
-    { 94, 238, 2, 0, NULL, NULL },
-    { 95, 240, 2, 1, NULL, "[sound]\n"
+    { 93, 236, 2, 0, NULL, NULL, NULL },
+    { 94, 238, 2, 0, NULL, NULL, NULL },
+    { 95, 240, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 96, 243, 2, 1, NULL, "[sound]\n"
+    { 96, 243, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 97, 246, 2, 1, NULL, "[drives]\n"
+    { 97, 246, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME1.INS, GAME2.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 98, 249, 2, 1, NULL, "[sound]\n"
+    { 98, 249, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 99, 252, 2, 0, NULL, NULL },
-    { 100, 254, 2, 0, NULL, NULL },
-    { 101, 256, 2, 1, NULL, "[drives]\n"
+    { 99, 252, 2, 0, NULL, NULL, NULL },
+    { 100, 254, 2, 0, NULL, NULL, NULL },
+    { 101, 256, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = DATA.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 102, 259, 2, 0, NULL, NULL },
-    { 103, 261, 2, 0, NULL, NULL },
-    { 104, 263, 2, 0, NULL, NULL },
-    { 105, 265, 2, 0, NULL, NULL },
-    { 106, 267, 2, 0, NULL, NULL },
-    { 106, 269, 2, 0, NULL, NULL },
-    { 107, 271, 2, 0, NULL, "[drives]\n"
+    { 102, 259, 2, 0, NULL, NULL, NULL },
+    { 103, 261, 2, 0, NULL, NULL, NULL },
+    { 104, 263, 2, 0, NULL, NULL, NULL },
+    { 105, 265, 2, 0, NULL, NULL, NULL },
+    { 106, 267, 2, 0, NULL, NULL, NULL },
+    { 106, 269, 2, 0, NULL, NULL, NULL },
+    { 107, 271, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.CUE\n" },
-    { 108, 273, 2, 0, NULL, "[drives]\n"
+    { 108, 273, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAMED.CUE\n" },
-    { 109, 275, 2, 0, NULL, "[drives]\n"
+    { 109, 275, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAMEA.CUE\n" },
-    { 110, 277, 2, 0, NULL, NULL },
-    { 111, 279, 2, 0, NULL, NULL },
-    { 112, 281, 2, 0, NULL, NULL },
-    { 113, 283, 2, 0, NULL, NULL },
-    { 114, 285, 2, 0, NULL, NULL },
-    { 115, 287, 2, 0, NULL, NULL },
-    { 116, 289, 2, 1, NULL, "[drives]\n"
+    { 110, 277, 2, 0, NULL, NULL, NULL },
+    { 111, 279, 2, 0, NULL, NULL, NULL },
+    { 112, 281, 2, 0, NULL, NULL, NULL },
+    { 113, 283, 2, 0, NULL, NULL, NULL },
+    { 114, 285, 2, 0, NULL, NULL, NULL },
+    { 115, 287, 2, 0, NULL, NULL, NULL },
+    { 116, 289, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GOG.GAME\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 117, 292, 2, 1, NULL, "[drives]\n"
+    { 117, 292, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 118, 295, 2, 0, NULL, "[drives]\n"
+    { 118, 295, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 119, 297, 2, 1, NULL, "[sound]\n"
+    { 119, 297, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 120, 300, 2, 1, NULL, "[sound]\n"
+    { 120, 300, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 121, 303, 2, 0, NULL, NULL },
-    { 122, 305, 2, 0, NULL, NULL },
-    { 123, 307, 2, 0, NULL, NULL },
-    { 124, 309, 2, 0, NULL, NULL },
-    { 125, 311, 2, 1, NULL, "[sound]\n"
+    { 121, 303, 2, 0, NULL, NULL, NULL },
+    { 122, 305, 2, 0, NULL, NULL, NULL },
+    { 123, 307, 2, 0, NULL, NULL, NULL },
+    { 124, 309, 2, 0, NULL, NULL, NULL },
+    { 125, 311, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 126, 314, 2, 1, NULL, "[sound]\n"
+    { 126, 314, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 127, 317, 2, 1, "WANTON.DAT>SW.EXE", "[sound]\n"
+    { 127, 317, 2, 1, "WANTON.DAT>SW.EXE", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 128, 320, 1, 0, NULL, "[drives]\n"
+    { 128, 320, 1, 0, NULL, NULL, "[drives]\n"
         "cdrom = SHADOW.img\n" },
-    { 129, 321, 2, 0, NULL, NULL },
-    { 130, 323, 2, 1, NULL, "[drives]\n"
+    { 129, 321, 2, 0, NULL, NULL, NULL },
+    { 130, 323, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = COLONIZE/COLONIZE.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 131, 326, 1, 0, NULL, NULL },
-    { 132, 327, 2, 0, NULL, NULL },
-    { 133, 329, 2, 1, NULL, "[drives]\n"
+    { 131, 326, 1, 0, NULL, NULL, NULL },
+    { 132, 327, 2, 0, NULL, NULL, NULL },
+    { 133, 329, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SC2000SE.DAT\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 134, 332, 2, 1, NULL, "[drives]\n"
+    { 134, 332, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SC2000SE.DAT\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 135, 335, 2, 0, NULL, NULL },
-    { 136, 337, 2, 1, NULL, "[sound]\n"
+    { 135, 335, 2, 0, NULL, NULL, NULL },
+    { 136, 337, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 137, 340, 2, 0, NULL, NULL },
-    { 138, 342, 2, 0, NULL, NULL },
-    { 139, 344, 2, 0, NULL, NULL },
-    { 140, 346, 2, 0, NULL, NULL },
-    { 141, 348, 2, 0, NULL, NULL },
-    { 142, 350, 2, 0, NULL, NULL },
-    { 143, 352, 2, 1, NULL, "[sound]\n"
+    { 137, 340, 2, 0, NULL, NULL, NULL },
+    { 138, 342, 2, 0, NULL, NULL, NULL },
+    { 139, 344, 2, 0, NULL, NULL, NULL },
+    { 140, 346, 2, 0, NULL, NULL, NULL },
+    { 141, 348, 2, 0, NULL, NULL, NULL },
+    { 142, 350, 2, 0, NULL, NULL, NULL },
+    { 143, 352, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro2\n"
         "irq = 7\n" },
-    { 144, 355, 2, 0, NULL, NULL },
-    { 145, 357, 2, 0, NULL, NULL },
-    { 146, 359, 2, 0, NULL, NULL },
-    { 147, 361, 2, 1, NULL, "[drives]\n"
+    { 144, 355, 2, 0, NULL, NULL, NULL },
+    { 145, 357, 2, 0, NULL, NULL, NULL },
+    { 146, 359, 2, 0, NULL, NULL, NULL },
+    { 147, 361, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 148, 364, 2, 0, NULL, NULL },
-    { 149, 366, 2, 0, NULL, NULL },
-    { 150, 368, 2, 0, NULL, NULL },
-    { 151, 370, 2, 1, NULL, "[drives]\n"
+    { 148, 364, 2, 0, NULL, NULL, NULL },
+    { 149, 366, 2, 0, NULL, NULL, NULL },
+    { 150, 368, 2, 0, NULL, NULL, NULL },
+    { 151, 370, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 152, 373, 2, 0, "STARFLT>.", NULL },
-    { 153, 375, 2, 0, NULL, NULL },
-    { 154, 377, 2, 0, NULL, NULL },
-    { 155, 379, 2, 1, NULL, "[sound]\n"
+    { 152, 373, 2, 0, "STARFLT>.", NULL, NULL },
+    { 153, 375, 2, 0, NULL, NULL, NULL },
+    { 154, 377, 2, 0, NULL, NULL, NULL },
+    { 155, 379, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 156, 382, 2, 0, NULL, NULL },
-    { 157, 384, 2, 1, NULL, "[sound]\n"
+    { 156, 382, 2, 0, NULL, NULL, NULL },
+    { 157, 384, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 158, 387, 2, 1, NULL, "[sound]\n"
+    { 158, 387, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 159, 390, 2, 0, NULL, "[drives]\n"
+    { 159, 390, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = SWARS/GAME.INS\n" },
-    { 160, 392, 2, 0, NULL, NULL },
-    { 161, 394, 2, 0, NULL, "[drives]\n"
+    { 160, 392, 2, 0, NULL, NULL, NULL },
+    { 161, 394, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/SystemShock.bin\n" },
-    { 162, 396, 2, 0, NULL, NULL },
-    { 163, 398, 2, 0, NULL, NULL },
-    { 164, 400, 2, 2, NULL, "[drives]\n"
+    { 162, 396, 2, 0, NULL, NULL, NULL },
+    { 163, 398, 2, 0, NULL, NULL, NULL },
+    { 164, 400, 2, 2, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 165, 404, 2, 0, NULL, "[drives]\n"
+    { 165, 404, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = ./\n" },
-    { 166, 406, 2, 1, NULL, "[sound]\n"
+    { 166, 406, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 167, 409, 2, 1, NULL, "[drives]\n"
+    { 167, 409, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SETTLERS2.ins\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 168, 412, 2, 0, NULL, NULL },
-    { 169, 414, 2, 0, NULL, NULL },
-    { 170, 416, 2, 1, NULL, "[sound]\n"
+    { 168, 412, 2, 0, NULL, NULL, NULL },
+    { 169, 414, 2, 0, NULL, NULL, NULL },
+    { 170, 416, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 171, 419, 2, 1, NULL, "[drives]\n"
+    { 171, 419, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 172, 422, 2, 0, NULL, "[drives]\n"
+    { 172, 422, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n" },
-    { 173, 424, 2, 1, NULL, "[drives]\n"
+    { 173, 424, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 174, 427, 2, 0, NULL, NULL },
-    { 175, 429, 2, 0, NULL, NULL },
-    { 176, 431, 2, 1, NULL, "[sound]\n"
+    { 174, 427, 2, 0, NULL, NULL, NULL },
+    { 175, 429, 2, 0, NULL, NULL, NULL },
+    { 176, 431, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 177, 434, 2, 1, NULL, "[sound]\n"
+    { 177, 434, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 178, 437, 2, 0, NULL, NULL },
-    { 179, 439, 2, 0, NULL, NULL },
-    { 180, 441, 2, 0, NULL, NULL },
-    { 181, 443, 2, 0, NULL, NULL },
-    { 182, 445, 2, 1, NULL, "[sound]\n"
+    { 178, 437, 2, 0, NULL, NULL, NULL },
+    { 179, 439, 2, 0, NULL, NULL, NULL },
+    { 180, 441, 2, 0, NULL, NULL, NULL },
+    { 181, 443, 2, 0, NULL, NULL, NULL },
+    { 182, 445, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 183, 448, 2, 1, NULL, "[drives]\n"
+    { 183, 448, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 184, 451, 2, 1, NULL, "[drives]\n"
+    { 184, 451, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 185, 454, 2, 0, NULL, NULL },
-    { 186, 456, 2, 0, NULL, NULL },
-    { 187, 458, 2, 1, NULL, "[sound]\n"
+    { 185, 454, 2, 0, NULL, NULL, NULL },
+    { 186, 456, 2, 0, NULL, NULL, NULL },
+    { 187, 458, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 187, 461, 2, 1, NULL, "[sound]\n"
+    { 187, 461, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 187, 464, 2, 1, NULL, "[sound]\n"
+    { 187, 464, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 188, 467, 2, 1, NULL, "[sound]\n"
+    { 188, 467, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 189, 470, 2, 0, NULL, NULL },
-    { 190, 472, 2, 1, NULL, "[drives]\n"
+    { 189, 470, 2, 0, NULL, NULL, NULL },
+    { 190, 472, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = WAR1.CUE\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 191, 475, 2, 1, NULL, "[sound]\n"
+    { 191, 475, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 192, 478, 2, 0, NULL, NULL },
-    { 193, 480, 2, 0, NULL, NULL },
-    { 194, 482, 2, 0, NULL, NULL },
-    { 194, 484, 2, 0, NULL, NULL },
-    { 195, 486, 2, 0, NULL, NULL },
-    { 196, 488, 2, 0, NULL, NULL },
-    { 197, 490, 2, 0, NULL, NULL },
-    { 198, 492, 2, 0, NULL, NULL },
-    { 199, 494, 2, 0, NULL, "[drives]\n"
+    { 192, 478, 2, 0, NULL, NULL, NULL },
+    { 193, 480, 2, 0, NULL, NULL, NULL },
+    { 194, 482, 2, 0, NULL, NULL, NULL },
+    { 194, 484, 2, 0, NULL, NULL, NULL },
+    { 195, 486, 2, 0, NULL, NULL, NULL },
+    { 196, 488, 2, 0, NULL, NULL, NULL },
+    { 197, 490, 2, 0, NULL, NULL, NULL },
+    { 198, 492, 2, 0, NULL, NULL, NULL },
+    { 199, 494, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = DATA.DAT\n" },
-    { 200, 496, 2, 0, NULL, "[drives]\n"
+    { 200, 496, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 201, 498, 2, 0, NULL, "[drives]\n"
+    { 201, 498, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 202, 500, 2, 0, NULL, NULL },
-    { 203, 502, 2, 1, NULL, "[sound]\n"
+    { 202, 500, 2, 0, NULL, NULL, NULL },
+    { 203, 502, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 204, 505, 2, 1, NULL, "[sound]\n"
+    { 204, 505, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 205, 508, 2, 1, NULL, "[sound]\n"
+    { 205, 508, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 206, 511, 2, 1, NULL, "[sound]\n"
+    { 206, 511, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 207, 514, 2, 0, NULL, NULL },
-    { 208, 516, 2, 0, NULL, NULL },
-    { 209, 518, 2, 0, NULL, NULL },
-    { 210, 520, 2, 0, NULL, "[drives]\n"
+    { 207, 514, 2, 0, NULL, NULL, NULL },
+    { 208, 516, 2, 0, NULL, NULL, NULL },
+    { 209, 518, 2, 0, NULL, NULL, NULL },
+    { 210, 520, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = WORMS.DAT\n" },
-    { 211, 522, 2, 1, NULL, "[drives]\n"
+    { 211, 522, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = CD/XCOM.cue\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 212, 525, 2, 1, NULL, "[sound]\n"
+    { 212, 525, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 213, 528, 2, 1, NULL, "[sound]\n"
+    { 213, 528, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
 };
 

@@ -633,6 +633,8 @@ bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
         m_layout.push_back(rule);
     }
 
+    GameDatabase::GetPatches(match.release, &m_patches);
+
     std::string root = match.root;
 
     while (!root.empty() && (root[root.size() - 1] == '/'))
@@ -816,6 +818,7 @@ void GameDisk::Close()
     m_source.clear();
     m_zip_prefix.clear();
     m_layout.clear();
+    m_patches.clear();
     m_database = false;
     m_release_settings = false;
     m_withheld_settings = false;
@@ -1527,6 +1530,15 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
         return Fail("Unable to read the game's saves: %s", m_overlay.c_str());
 
     image->ApplyLayout(m_layout);
+
+    for (size_t i = 0; i < m_patches.size(); i++)
+    {
+        const GameDatabase_Patch& patch = m_patches[i];
+        std::string path = info.folder.empty() ? patch.path : slashes(info.folder) + "/" + patch.path;
+
+        if (!image->PatchFile(path.c_str(), patch.offset, patch.before, patch.after))
+            Log("%s: the release's patch to %s doesn't apply to this copy", info.name.c_str(), patch.path.c_str());
+    }
 
     if (msdos && !image->AddMSDOS((const u8*)m_msdos.zip.data(), m_msdos.zip.size(), info.system_hidden,
         system->reserved, pinned, !HasCDExtension()))

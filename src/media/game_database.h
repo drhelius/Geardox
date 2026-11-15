@@ -47,6 +47,14 @@ struct GameDatabase_Rule
     bool file;
 };
 
+struct GameDatabase_Patch
+{
+    std::string path;
+    u32 offset;
+    std::string before;
+    std::string after;
+};
+
 class GameDatabase
 {
 public:
@@ -62,6 +70,7 @@ public:
     static int GetEntry(int release);
     static const char* GetSettings(int release);
     static void GetLayout(int release, std::vector<GameDatabase_Rule>* rules);
+    static void GetPatches(int release, std::vector<GameDatabase_Patch>* patches);
 };
 
 #endif /* GAME_DATABASE_H */

@@ -1152,21 +1152,11 @@ void FatImage::LeaveOutReserved(const std::vector<std::string>& reserved)
 
 bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attributes)
 {
-    std::string rest(path);
     u32 directory = 0;
-    size_t slash = rest.find('/');
+    std::string rest;
 
-    while (slash != std::string::npos)
-    {
-        int found = FindChild(directory, rest.substr(0, slash));
-
-        if ((found < 0) || !m_entries[found].directory)
-            return false;
-
-        directory = (u32)found;
-        rest = rest.substr(slash + 1);
-        slash = rest.find('/');
-    }
+    if (!FindParent(path, &directory, &rest))
+        return false;
 
     int existing = FindChild(directory, rest);
 
@@ -1180,6 +1170,34 @@ bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attri
     m_entries[entry].crc = (u32)mz_crc32(0, (const u8*)data.data(), data.size());
     m_entries[entry].attributes = attributes;
     m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    return true;
+}
+
+bool FatImage::PatchFile(const char* path, u64 offset, const std::string& before, const std::string& after)
+{
+    u32 directory = 0;
+    std::string name;
+
+    if (!FindParent(path, &directory, &name))
+        return false;
+
+    int found = FindChild(directory, name);
+
+    if ((found < 0) || m_entries[found].directory || (before.size() != after.size()) ||
+        (offset + before.size() > m_entries[found].size))
+        return false;
+
+    FatImage_Entry& entry = m_entries[found];
+    std::string data;
+
+    if (!ReadEntry(entry, &data) || (data.compare((size_t)offset, before.size(), before) != 0))
+        return false;
+
+    data.replace((size_t)offset, after.size(), after);
+    m_memory.push_back(data);
+    entry.memory = (int)m_memory.size() - 1;
+    entry.crc = (u32)mz_crc32(0, (const u8*)data.data(), data.size());
+    entry.origin = FAT_IMAGE_ORIGIN_SYSTEM;
     return true;
 }
 
@@ -1239,6 +1257,61 @@ int FatImage::FindChild(u32 directory, const std::string& name) const
     }
 
     return -1;
+}
+
+bool FatImage::FindParent(const char* path, u32* directory, std::string* name) const
+{
+    std::string rest(path);
+    size_t slash = rest.find('/');
+    *directory = 0;
+
+    while (slash != std::string::npos)
+    {
+        int found = FindChild(*directory, rest.substr(0, slash));
+
+        if ((found < 0) || !m_entries[found].directory)
+            return false;
+
+        *directory = (u32)found;
+        rest = rest.substr(slash + 1);
+        slash = rest.find('/');
+    }
+
+    *name = rest;
+    return true;
+}
+
+bool FatImage::ReadEntry(const FatImage_Entry& entry, std::string* data)
+{
+    if (entry.memory >= 0)
+    {
+        *data = m_memory[entry.memory];
+        return true;
+    }
+
+    if (entry.source.empty())
+    {
+        size_t size = 0;
+        mz_zip_archive* zip = entry.origin == FAT_IMAGE_ORIGIN_SYSTEM ? &m_system_zip : &m_zip;
+        void* bytes = mz_zip_reader_extract_to_heap(zip, entry.zip_index, &size, 0);
+
+        if (!IsValidPointer(bytes))
+            return false;
+
+        data->assign((const char*)bytes, size);
+        mz_free(bytes);
+        return true;
+    }
+
+    MediaFile* file = MediaFile::OpenFile(entry.source.c_str());
+
+    if (!IsValidPointer(file))
+        return false;
+
+    data->resize((size_t)entry.size);
+    bool ok = data->empty() || file->ReadExact(&(*data)[0], entry.size);
+    SafeDelete(file);
+    return ok;
 }
 
 void FatImage::RemoveChild(u32 directory, u32 index)
