@@ -10,6 +10,3 @@ exe = STRONG.EXE
 
 [machine]
 model = 386dx_33
-
-[dos]
-ems_kb = 1024

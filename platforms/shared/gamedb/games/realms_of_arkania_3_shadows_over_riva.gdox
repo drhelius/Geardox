@@ -8,6 +8,3 @@ folder = C:\
 [run]
 exe = RIVA.EXE
 setup = DATA\SETUP.EXE
-
-[dos]
-memory = none

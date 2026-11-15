@@ -7,6 +7,3 @@ folder = C:\
 
 [run]
 exe = GO.BAT
-
-[dos]
-ems_kb = 1024

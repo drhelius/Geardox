@@ -62,7 +62,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[game]\n"
         "name = Afterlife\n"
-        "folder = C:\\ALIFE\n"
+        "folder = C:\\\n"
         "\n"
         "[run]\n"
         "exe = AFTERDOS.BAT\n"
@@ -369,10 +369,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = START.EXE\n"
-        "\n"
-        "[dos]\n"
-        "ems_kb = 1024\n" },
+        "exe = START.EXE\n" },
     { "curse_of_the_azure_bonds", "Curse of the Azure Bonds",
         "[geardox]\n"
         "version = 1\n"
@@ -846,10 +843,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = GO.BAT\n"
-        "\n"
-        "[dos]\n"
-        "ems_kb = 1024\n" },
+        "exe = GO.BAT\n" },
     { "gunship", "Gunship",
         "[geardox]\n"
         "version = 1\n"
@@ -1597,10 +1591,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RIVA.EXE\n"
-        "setup = DATA\\SETUP.EXE\n"
-        "\n"
-        "[dos]\n"
-        "memory = none\n" },
+        "setup = DATA\\SETUP.EXE\n" },
     { "realms_of_arkania_blade_of_destiny", "Realms of Arkania: Blade of Destiny",
         "[geardox]\n"
         "version = 1\n"
@@ -1659,10 +1650,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SAVAGE.EXE\n"
-        "setup = INSTALL.EXE\n"
-        "\n"
-        "[dos]\n"
-        "ems_kb = 1024\n" },
+        "setup = INSTALL.EXE\n" },
     { "secret_of_the_silver_blades", "Secret of the Silver Blades",
         "[geardox]\n"
         "version = 1\n"
@@ -2072,10 +2060,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = STRONG.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n"
-        "\n"
-        "[dos]\n"
-        "ems_kb = 1024\n" },
+        "model = 386dx_33\n" },
     { "stunt_island", "Stunt Island",
         "[geardox]\n"
         "version = 1\n"
@@ -2217,7 +2202,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = ACD.EXE\n"
+        "exe = D:\\ACD.EXE\n"
         "args = -Ssbpdig.adv -IOS220 -IRQS5 -DMAS1 -Mgenmidi.adv -IOM330 -IRQM2 -DMAM1\n"
         "\n"
         "[machine]\n"
@@ -3220,7 +3205,8 @@ const GDOX_DB_Release k_game_database_releases[] =
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 165, 404, 2, 0, NULL, NULL },
+    { 165, 404, 2, 0, NULL, "[drives]\n"
+        "cdrom = ./\n" },
     { 166, 406, 2, 1, NULL, "[sound]\n"
         "irq = 7\n" },
     { 167, 409, 2, 1, NULL, "[drives]\n"

@@ -8,6 +8,3 @@ folder = C:\SAVAGE
 [run]
 exe = SAVAGE.EXE
 setup = INSTALL.EXE
-
-[dos]
-ems_kb = 1024

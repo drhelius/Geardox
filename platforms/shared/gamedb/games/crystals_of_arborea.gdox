@@ -7,6 +7,3 @@ folder = C:\
 
 [run]
 exe = START.EXE
-
-[dos]
-ems_kb = 1024
