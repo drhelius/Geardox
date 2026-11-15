@@ -49,6 +49,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/drive/i82077.cpp \
                 $(SOURCE_DIR)/drive/hard_disk_image.cpp \
                 $(SOURCE_DIR)/drive/fat_image.cpp \
+                $(SOURCE_DIR)/drive/iso_image.cpp \
                 $(SOURCE_DIR)/drive/floppy_disk.cpp \
                 $(SOURCE_DIR)/drive/floppy_image.cpp \
                 $(SOURCE_DIR)/i386/i386.cpp \

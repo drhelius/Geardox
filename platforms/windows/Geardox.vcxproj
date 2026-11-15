@@ -95,6 +95,7 @@
     <ClCompile Include="..\..\src\drive\i82077.cpp" />
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
     <ClCompile Include="..\..\src\drive\fat_image.cpp" />
+    <ClCompile Include="..\..\src\drive\iso_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
     <ClCompile Include="..\..\src\system\i8254.cpp" />
@@ -358,6 +359,7 @@
     <ClInclude Include="..\..\src\drive\ide_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
     <ClInclude Include="..\..\src\drive\fat_image.h" />
+    <ClInclude Include="..\..\src\drive\iso_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\floppy_image.h" />
