@@ -160,6 +160,7 @@ setup = SETUP.EXE
 
 Here, `WAR2.zip` contains the installed game, with `WAR2.EXE` and `SETUP.EXE` at its top level. `Discs/WAR2.cue`
 provides the game's CD. A CUE image also requires its referenced track files, such as `WAR2.bin` in this example.
+Geardox finds them even when the CUE names them with backslashes or in another case, as some digital releases do.
 
 The CD normally appears as D: in DOS. If you also add hard disks with `hdd_primary_slave` or `hdd_secondary_slave`,
 the CD uses the next free letter after them. Geardox loads the CD driver automatically.
