@@ -168,6 +168,7 @@ static GDOX_Boot_Device boot_device = GDOX_BOOT_DEVICE_AUTO;
 static GameDisk game_disk;
 static bool game_active = false;
 static bool game_descriptors = true;
+static int game_pick = 0;
 static bool game_write_folder = false;
 static bool game_freedos_only = false;
 static char game_keyboard_layout[8] = "us";
@@ -559,7 +560,7 @@ void retro_get_system_info(struct retro_system_info *info)
     info->library_version  = GDOX_VERSION;
     info->need_fullpath    = true;
     info->block_extract    = true;
-    info->valid_extensions = "gdox|cue|chd|iso|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3";
+    info->valid_extensions = "gdox|exe|com|bat|cue|ins|chd|iso|gog|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -2122,6 +2123,18 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         game_descriptors = strcmp(var.value, "disabled") != 0;
 
+    var.key = "geardox_game_database";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        GameDisk::SetDatabaseEnabled(strcmp(var.value, "disabled") != 0);
+
+    var.key = "geardox_game_pick";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        game_pick = MAX(atoi(var.value), 1) - 1;
+
     var.key = "geardox_game_target";
     var.value = NULL;
 
@@ -2762,8 +2775,10 @@ static bool get_cdrom_crc(const char* path, u32* crc)
         loaded = media.LoadChdFromFile(path, false);
     else if (ends_with_no_case(path, ".iso"))
         loaded = media.LoadIsoFromFile(path, false);
-    else
+    else if (ends_with_no_case(path, ".cue"))
         loaded = media.LoadCueFromFile(path, false);
+    else
+        loaded = media.LoadProbedFromFile(path, CdRomMedia::ProbeFile(path), false);
 
     if (loaded)
         *crc = media.GetCRC();
@@ -3381,13 +3396,15 @@ static bool game_open(const char* path, bool* game)
 
     *game = true;
 
+    size_t pick = MIN((size_t)game_pick, found.size() - 1);
+
     if (found.size() > 1)
-        log_cb(RETRO_LOG_INFO, "%u game descriptors, the first by name runs: %s\n", (unsigned)found.size(),
-            found[0].inner.empty() ? found[0].path.c_str() : found[0].inner.c_str());
+        log_cb(RETRO_LOG_INFO, "%u games, number %u by name runs: %s\n", (unsigned)found.size(), (unsigned)pick + 1,
+            GameDisk::GetFoundName(found[pick]).c_str());
 
     static char message[1024];
 
-    if (!game_disk.Open(found[0], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str()))
+    if (!game_disk.Open(found[pick], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);
@@ -3417,6 +3434,14 @@ static bool game_open(const char* path, bool* game)
 
     if (game_disk.WasRecovered())
         show_message("The last session didn't end, its changes were saved", 2, RETRO_LOG_WARN);
+
+    if (game_disk.IsFromDatabase())
+    {
+        snprintf(message, sizeof(message), "Recognised from the game database: %s%s", game_disk.GetName(),
+            game_disk.HasReleaseSettings() ? ", with this copy's sound settings" : game_disk.HasWithheldSettings() ?
+            ", with the default sound settings" : "");
+        show_message(message, 1, RETRO_LOG_INFO);
+    }
 
     if (game_disk.GetRefusedPath()[0] != 0)
     {

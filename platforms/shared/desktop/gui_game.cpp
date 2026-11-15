@@ -252,6 +252,12 @@ static void menu_options(void)
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("When a game with on_exit = poweroff quits,\nGeardox closes too.");
+
+    ImGui::MenuItem("Use Game Database", NULL, &config_game.database);
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Recognise a game folder or ZIP without a .gdox\nfrom Geardox's built-in game database.\n"
+            "A .gdox in the folder always wins.");
 }
 
 // The OS shows a folder from a file:// URL, with everything but the path's own characters escaped
@@ -435,13 +441,13 @@ static void popup_choice(void)
     if (!ImGui::BeginPopupModal("Choose a Game", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 
-    ImGui::Text("This holds more than one game descriptor:");
+    ImGui::Text("This holds more than one game:");
     ImGui::Separator();
 
     for (size_t i = 0; i < choices.size(); i++)
     {
         const GameDisk_Found& found = choices[i];
-        std::string name = found.inner.empty() ? get_filename(found.path.c_str()) : found.inner;
+        std::string name = GameDisk::GetFoundName(found);
         ImGui::PushID((int)i);
 
         if (ImGui::Selectable(name.c_str()))

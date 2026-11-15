@@ -78,6 +78,10 @@ public:
     ~GameDisk();
     static bool Find(const char* path, std::vector<GameDisk_Found>* found);
     static bool IsGameContent(const char* path);
+    static bool IsDosProgram(const char* path);
+    static void SetDatabaseEnabled(bool enabled);
+    static bool IsDatabaseEnabled();
+    static std::string GetFoundName(const GameDisk_Found& found);
     bool Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory, bool write_to_folder,
         const char* msdos_path);
     void Close();
@@ -118,8 +122,15 @@ public:
     const char* GetHardDisk(int id) const;
     const GameDisk_Result& GetLastWriteBack() const;
     const char* GetError() const;
+    bool IsFromDatabase() const;
+    bool HasReleaseSettings() const;
+    bool HasWithheldSettings() const;
 
 private:
+    bool OpenFromDatabase(const GameDisk_Found& found);
+    bool BuildFolderCd(const std::string& folder, const std::string& label, std::string* path);
+    bool ExtractEntries(mz_zip_archive* zip, const std::string& wanted, const std::string& folder, bool cue,
+        std::string* path, bool* found);
     bool Fail(const char* format, ...);
     bool IsSystemPath(const std::string& dos_path) const;
     bool HasCDExtension() const;
@@ -155,6 +166,11 @@ private:
     std::string m_overrides_path;
     std::string m_source;
     bool m_source_zip;
+    std::string m_zip_prefix;
+    std::vector<FatImage_Rule> m_layout;
+    bool m_database;
+    bool m_release_settings;
+    bool m_withheld_settings;
     std::string m_overlay;
     std::string m_image;
     std::string m_manifest;

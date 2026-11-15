@@ -53,6 +53,7 @@ struct FatImage_Entry
 {
     std::string name;
     std::string source;
+    std::string host;
     u8 short_name[11];
     bool directory;
     u64 size;
@@ -88,6 +89,13 @@ struct FatImage_File
     u32 first_cluster;
 };
 
+struct FatImage_Rule
+{
+    std::string source;
+    std::string target;
+    bool file;
+};
+
 struct FatImage_Layout
 {
     u32 total;
@@ -119,7 +127,8 @@ public:
     static bool ReadFingerprint(const char* path, u32* fingerprint);
     static void GetImageName(const char* source, std::string* name);
     static void Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report);
-    bool AddGame(const char* source, const char* dir = NULL);
+    bool AddGame(const char* source, const char* dir = NULL, const char* prefix = NULL);
+    bool ApplyLayout(const std::vector<FatImage_Rule>& rules);
     bool AddOverlay(const char* path);
     bool AddFreeDOS(bool hidden, const std::vector<std::string>& reserved);
     bool AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
@@ -191,6 +200,7 @@ private:
     u32 m_left_out;
     u32 m_next_cluster;
     u32 m_base;
+    std::string m_zip_prefix;
     std::vector<std::string> m_memory;
     MediaFile* m_read;
     u64 m_read_offset;

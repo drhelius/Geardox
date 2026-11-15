@@ -580,12 +580,21 @@ void FatImage::Prepare(const char* source, const char* image_path, bool rebuild,
 }
 
 // The game goes in dir on C:, its folders made as the system's. A descriptor in the game's root never reaches its disk
-bool FatImage::AddGame(const char* source, const char* dir)
+bool FatImage::AddGame(const char* source, const char* dir, const char* prefix)
 {
     Clear();
 
     if (!IsValidPointer(source))
         return false;
+
+    if (IsValidPointer(prefix) && (prefix[0] != 0))
+    {
+        m_zip_prefix = upper(prefix);
+        std::replace(m_zip_prefix.begin(), m_zip_prefix.end(), '\\', '/');
+
+        if (m_zip_prefix[m_zip_prefix.size() - 1] != '/')
+            m_zip_prefix += "/";
+    }
 
     std::string path = IsValidPointer(dir) ? dir : "";
     size_t start = 0;
@@ -631,6 +640,109 @@ bool FatImage::AddGame(const char* source, const char* dir)
 
         if (!m_entries[child].directory && ends_with_no_case(m_entries[child].name.c_str(), ".gdox"))
             RemoveChild(m_base, child);
+    }
+
+    return true;
+}
+
+bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
+{
+    for (size_t r = 0; r < rules.size(); r++)
+    {
+        const FatImage_Rule& rule = rules[r];
+        u32 parent = m_base;
+        int source = (int)m_base;
+        std::string host;
+        size_t start = 0;
+
+        while ((source >= 0) && (start < rule.source.size()))
+        {
+            size_t end = rule.source.find('/', start);
+            end = end == std::string::npos ? rule.source.size() : end;
+            parent = (u32)source;
+            source = FindChild(parent, rule.source.substr(start, end - start));
+
+            if (source >= 0)
+                host = !m_entries[source].host.empty() ? m_entries[source].host : (host.empty() ?
+                    m_entries[source].name : host + "/" + m_entries[source].name);
+
+            start = end + 1;
+        }
+
+        if ((source < 0) || ((u32)source == m_base))
+            continue;
+
+        std::string target_folder = rule.target;
+        std::string target_name;
+
+        if (rule.file)
+        {
+            size_t slash = rule.target.find_last_of('/');
+            target_folder = slash == std::string::npos ? std::string() : rule.target.substr(0, slash);
+            target_name = slash == std::string::npos ? rule.target : rule.target.substr(slash + 1);
+
+            if (m_entries[source].directory || target_name.empty())
+                continue;
+        }
+        else if (!m_entries[source].directory)
+            continue;
+
+        u32 destination = m_base;
+        start = 0;
+
+        while (start < target_folder.size())
+        {
+            size_t end = target_folder.find('/', start);
+            end = end == std::string::npos ? target_folder.size() : end;
+            std::string part = target_folder.substr(start, end - start);
+            int found = FindChild(destination, part);
+
+            if ((found >= 0) && !m_entries[found].directory)
+            {
+                RemoveChild(destination, (u32)found);
+                found = -1;
+            }
+
+            destination = found >= 0 ? (u32)found : AddEntry(destination, part, true);
+            start = end + 1;
+        }
+
+        if (destination == (u32)source)
+            continue;
+
+        RemoveChild(parent, (u32)source);
+
+        if (rule.file)
+        {
+            int existing = FindChild(destination, target_name);
+
+            if (existing >= 0)
+                RemoveChild(destination, (u32)existing);
+
+            if (m_entries[source].host.empty())
+                m_entries[source].host = host;
+
+            m_entries[source].name = target_name;
+            m_entries[destination].children.push_back((u32)source);
+            continue;
+        }
+
+        std::vector<u32> children = m_entries[source].children;
+        m_entries[source].children.clear();
+
+        for (size_t i = 0; i < children.size(); i++)
+        {
+            u32 child = children[i];
+            int existing = FindChild(destination, m_entries[child].name);
+
+            if (existing >= 0)
+                RemoveChild(destination, (u32)existing);
+
+            if (m_entries[child].host.empty())
+                m_entries[child].host = host + "/" + m_entries[child].name;
+
+            m_entries[destination].children.push_back(child);
+        }
     }
 
     return true;
@@ -1104,7 +1216,8 @@ void FatImage::ListDirectory(u32 directory, const std::string& dos_path, const s
         const FatImage_Entry& entry = m_entries[index];
         FatImage_Listed item;
         item.dos_path = dos_path.empty() ? pretty_name(entry.short_name) : dos_path + "\\" + pretty_name(entry.short_name);
-        item.host_path = host_path.empty() ? entry.name : host_path + "/" + entry.name;
+        item.host_path = !entry.host.empty() ? entry.host : (host_path.empty() ? entry.name : host_path + "/" +
+            entry.name);
         item.index = index;
         listed->push_back(item);
 
@@ -1466,6 +1579,7 @@ void FatImage::Clear()
     m_system_zip_open = false;
     m_pinned.clear();
     m_pinned_count = 0;
+    m_zip_prefix.clear();
     SafeDelete(m_zip_file);
     m_entries.clear();
     m_entries.resize(1);
@@ -1570,6 +1684,15 @@ bool FatImage::ScanZip()
 
         std::string name(stat.m_filename);
         std::replace(name.begin(), name.end(), '\\', '/');
+
+        if (!m_zip_prefix.empty())
+        {
+            if (upper(name).compare(0, m_zip_prefix.size(), m_zip_prefix) != 0)
+                continue;
+
+            name = name.substr(m_zip_prefix.size());
+        }
+
         std::vector<std::string> parts;
         size_t start = 0;
         bool clutter = false;

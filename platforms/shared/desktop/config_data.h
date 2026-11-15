@@ -123,6 +123,7 @@ struct config_Game
 {
     int write_back;
     bool close_on_power_off;
+    bool database;
     std::string recent[config_max_recent_games];
 };
 

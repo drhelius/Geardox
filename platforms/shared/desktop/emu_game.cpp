@@ -71,11 +71,13 @@ static void prepare_hard_disk(int id);
 
 bool emu_game_is_content(const char* path)
 {
+    GameDisk::SetDatabaseEnabled(config_game.database);
     return GameDisk::IsGameContent(path);
 }
 
 bool emu_game_find(const char* path, std::vector<GameDisk_Found>* found)
 {
+    GameDisk::SetDatabaseEnabled(config_game.database);
     return GameDisk::Find(path, found);
 }
 
@@ -214,6 +216,18 @@ bool emu_game_start(void)
     if (disk.IsFolderReadOnly())
         gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, "The game's folder is read only, saves go to the save folder",
             disk.GetOverlayPath());
+
+    if (disk.IsFromDatabase())
+    {
+        std::string detail = disk.GetName();
+
+        if (disk.HasReleaseSettings())
+            detail += ", with this copy's sound settings";
+        else if (disk.HasWithheldSettings())
+            detail += ", with the default sound settings";
+
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "Recognised from the game database", detail.c_str());
+    }
 
     if (disk.GetLeftOut() != 0)
     {

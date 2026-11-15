@@ -98,7 +98,7 @@ void gui_file_dialog_open_rom(void)
         return;
 
     SDL_DialogFileFilter filters[] = {
-        { "CD-ROM Images", "cue;chd;iso;zip;m3u" }
+        { "CD-ROM Images", "cue;ins;chd;iso;gog;zip;m3u" }
     };
     show_open_file_dialog(FileDialog_OpenMedia, filters, 1);
 }
@@ -297,7 +297,7 @@ void gui_file_dialog_open_game(void)
         return;
 
     SDL_DialogFileFilter filters[] = {
-        { "Game Descriptors and ZIP Files", "gdox;zip" }
+        { "Games: Descriptors, ZIP Files and DOS Programs", "gdox;zip;exe;com;bat" }
     };
     show_open_file_dialog(FileDialog_OpenGame, filters, 1);
 }

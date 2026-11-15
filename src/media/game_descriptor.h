@@ -112,6 +112,7 @@ struct GDOX_Game_Info
     std::string hard_disks[GDOX_MAX_HARD_DISKS];
     std::vector<std::string> floppies[2];
     std::vector<std::string> cds;
+    std::string cdrom_label;
     std::string exe;
     std::string args;
     std::string cwd;

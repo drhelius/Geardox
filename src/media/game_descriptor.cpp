@@ -102,6 +102,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "drives", "hdd_primary_slave", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "drives", "hdd_secondary_slave", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "drives", "cdrom", DESCRIPTOR_LIST, NULL, 0, 0 },
+    { "drives", "cdrom_label", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "exe", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "args", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "cwd", DESCRIPTOR_PATH, NULL, 0, 0 },
@@ -1058,6 +1059,7 @@ void GameDescriptor::Build()
     split_list(Get("drives", "floppy_a"), &info.floppies[0]);
     split_list(Get("drives", "floppy_b"), &info.floppies[1]);
     split_list(Get("drives", "cdrom"), &info.cds);
+    info.cdrom_label = Get("drives", "cdrom_label");
     info.exe = Get("run", "exe");
     info.args = Get("run", "args");
     info.cwd = Get("run", "cwd");

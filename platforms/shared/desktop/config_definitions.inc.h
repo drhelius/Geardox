@@ -235,6 +235,7 @@ static inline void process(config_Operation operation)
     // Games
     CONFIG_INT_RANGE("Game", "WriteBack", config_game.write_back, 0, 0, 1);
     CONFIG_BOOL("Game", "CloseOnPowerOff", config_game.close_on_power_off, false);
+    CONFIG_BOOL("Game", "Database", config_game.database, true);
     CONFIG_STRING_ARRAY("Game", "Recent%d", config_game.recent, config_max_recent_games, "");
 
     // File dialogs

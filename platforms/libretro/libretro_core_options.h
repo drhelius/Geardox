@@ -657,6 +657,40 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "enabled"
     },
     {
+        "geardox_game_database",
+        "Game Database (restart)",
+        NULL,
+        "A game folder or ZIP without a .gdox is recognised from Geardox's built-in game database and opens like one with its .gdox. A .gdox in the folder always wins.",
+        NULL,
+        "system",
+        {
+            { "enabled",  NULL },
+            { "disabled", NULL },
+            { NULL, NULL },
+        },
+        "enabled"
+    },
+    {
+        "geardox_game_pick",
+        "Game In Folder (restart)",
+        NULL,
+        "When a folder or ZIP holds more than one game, which one opens, in the order of their names.",
+        NULL,
+        "system",
+        {
+            { "1", NULL },
+            { "2", NULL },
+            { "3", NULL },
+            { "4", NULL },
+            { "5", NULL },
+            { "6", NULL },
+            { "7", NULL },
+            { "8", NULL },
+            { NULL, NULL },
+        },
+        "1"
+    },
+    {
         "geardox_game_target",
         "Game Runs (restart)",
         NULL,
