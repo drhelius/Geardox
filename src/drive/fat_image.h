@@ -116,7 +116,6 @@ public:
     u64 GetContentSize() const;
     u64 GetRequiredSize(u64 free_size) const;
     bool Write(const char* path, u64 size, bool replace = false);
-    static bool WriteFreeDOS(const char* path, bool replace = false);
     static bool ReadFingerprint(const char* path, u32* fingerprint);
     static void GetImageName(const char* source, std::string* name);
     static void Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report);

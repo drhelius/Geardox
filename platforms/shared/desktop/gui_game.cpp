@@ -46,8 +46,6 @@ static bool open_write_back = false;
 static bool start(const GameDisk_Found& found);
 static void menu_boot(bool enabled);
 static void menu_files(bool open);
-static void menu_dos(bool open, bool loading);
-static void set_system(int system);
 static void menu_options(void);
 static void show_folder(const char* path);
 static bool is_folder(const char* path);
@@ -94,7 +92,6 @@ void gui_game_menu(void)
     ImGui::Separator();
     menu_boot(open && !loading);
     menu_files(open);
-    menu_dos(open, loading);
 
     if (ImGui::MenuItem("Last Save Report...", NULL, false, emu_game_get_last_write_back().done ||
         emu_game_get_last_write_back().refused))
@@ -200,72 +197,7 @@ static void menu_files(bool open)
     ImGui::EndMenu();
 }
 
-// docs/27 §9: the open game's DOS, and the user's own MS-DOS imported once for every game
-static void menu_dos(bool open, bool loading)
-{
-    if (!ImGui::BeginMenu("DOS"))
-    {
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The DOS games boot: the built-in FreeDOS,\nor your imported MS-DOS.");
-
-        return;
-    }
-
-    const char* msdos = emu_game_get_msdos_name();
-    bool imported = msdos[0] != 0;
-    int system = open ? emu_game_get_system() : (imported ? GDOX_GAME_SYSTEM_MSDOS : GDOX_GAME_SYSTEM_FREEDOS);
-
-    const char* names[2] = { imported ? msdos : "MS-DOS", "FreeDOS" };
-    int selected = system == GDOX_GAME_SYSTEM_MSDOS ? 0 : 1;
-    float text_width = MAX(ImGui::CalcTextSize(names[0]).x, ImGui::CalcTextSize(names[1]).x);
-
-    ImGui::BeginDisabled(!open || loading);
-    ImGui::PushItemWidth(gui_get_combo_width(text_width));
-
-    if (ImGui::BeginCombo("##game_system", names[selected]))
-    {
-        if (ImGui::Selectable(names[0], selected == 0, imported ? 0 : ImGuiSelectableFlags_Disabled))
-            set_system(GDOX_GAME_SYSTEM_MSDOS);
-
-        if (!imported && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Import your own MS-DOS first.");
-
-        if (ImGui::Selectable(names[1], selected == 1))
-            set_system(GDOX_GAME_SYSTEM_FREEDOS);
-
-        ImGui::EndCombo();
-    }
-    else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", open ? "The DOS this game boots. Changing it\nsaves, closes and reopens the game." :
-            "The DOS the open game boots.");
-
-    ImGui::PopItemWidth();
-    ImGui::EndDisabled();
-    ImGui::Separator();
-
-    if (ImGui::MenuItem("Import MS-DOS...", NULL, false, !loading))
-        gui_file_dialog_import_msdos();
-
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Your MS-DOS 5.0 to 6.22 Setup disks, any\nlanguage: a disk image or a ZIP of them.\n"
-            "Geardox keeps a copy and boots it in\ngames that don't ask for FreeDOS.");
-
-    if (ImGui::MenuItem("Remove MS-DOS", NULL, false, imported && !loading))
-    {
-        if (emu_game_remove_msdos())
-            gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "MS-DOS removed",
-                "Games boot FreeDOS from the next one opened. Your disks aren't touched.");
-        else
-            gui_notify(gui_NotificationError, NULL, "Unable to remove MS-DOS", emu_game_get_msdos_path().c_str());
-    }
-
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Games go back to FreeDOS.\nYour disks aren't touched.");
-
-    ImGui::EndMenu();
-}
-
-static void set_system(int system)
+void gui_game_set_system(int system)
 {
     GameDisk_Found found;
 
@@ -276,17 +208,6 @@ static void set_system(int system)
 
     if (emu_game_set_system(system))
         start(found);
-}
-
-void gui_game_dialog_import_msdos(const char* path)
-{
-    std::string message;
-
-    if (emu_game_import_msdos(path, &message))
-        gui_notify(gui_NotificationSuccess, ICON_MD_VIDEOGAME_ASSET, (message + " imported").c_str(),
-            "Games boot it from the next one opened, unless they ask for FreeDOS.");
-    else
-        gui_notify(gui_NotificationError, NULL, "MS-DOS not imported", message.c_str());
 }
 
 static void menu_options(void)

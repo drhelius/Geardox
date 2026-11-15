@@ -520,25 +520,6 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
     return ok;
 }
 
-bool FatImage::WriteFreeDOS(const char* path, bool replace)
-{
-    FatImage image;
-
-    if (!image.AddZip(k_freedos_files, k_freedos_files_size))
-        return false;
-
-    int freedos = image.FindChild(0, "FREEDOS");
-    int bin = freedos >= 0 ? image.FindChild((u32)freedos, "BIN") : -1;
-
-    if ((bin < 0) || !image.AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) ||
-        !image.AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size))
-        return false;
-
-    image.Finish();
-    image.SetBootSector(k_freedos_boot);
-    return image.Write(path, k_fat_freedos_size, replace);
-}
-
 bool FatImage::ReadFingerprint(const char* path, u32* fingerprint)
 {
     MediaFile* file = MediaFile::OpenFile(path);
@@ -798,7 +779,7 @@ void FatImage::ApplyDeleted(const std::string& list)
     }
 }
 
-// Laid out as FreeDOS installs itself, with FDCONFIG.SYS and FDAUTO.BAT left to the caller. Hidden, the five entries in
+// Laid out as FreeDOS installs itself, with CONFIG.SYS and AUTOEXEC.BAT left to the caller. Hidden, the five entries in
 // the root are hidden and KERNEL.SYS is also read only and system
 bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 {

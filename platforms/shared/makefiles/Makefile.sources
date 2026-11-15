@@ -69,6 +69,8 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/emu_hard_disk.cpp \
     $(DESKTOP_SRC_DIR)/gui_game.cpp \
     $(DESKTOP_SRC_DIR)/emu_game.cpp \
+    $(DESKTOP_SRC_DIR)/gui_dos.cpp \
+    $(DESKTOP_SRC_DIR)/emu_dos.cpp \
     $(DESKTOP_SRC_DIR)/sound_queue.cpp \
     $(DESKTOP_SRC_DIR)/midi_queue.cpp \
     $(DESKTOP_SRC_DIR)/midi_port.cpp \
@@ -112,6 +114,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/cdrom/cdrom_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_media.cpp \
     $(SRC_DIR)/dos/dos_tools.cpp \
+    $(SRC_DIR)/drive/dos_disk.cpp \
     $(SRC_DIR)/drive/dos_import.cpp \
     $(SRC_DIR)/drive/fdc.cpp \
     $(SRC_DIR)/drive/game_disk.cpp \

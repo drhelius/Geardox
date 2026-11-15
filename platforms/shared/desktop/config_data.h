@@ -52,6 +52,13 @@ enum config_VideoSync
     config_VideoSync_VRR = 2
 };
 
+enum config_BuiltinDOS
+{
+    config_BuiltinDOS_MSDOS = 0,
+    config_BuiltinDOS_FreeDOS = 1,
+    config_BuiltinDOS_None = 2
+};
+
 struct config_Emulator
 {
     bool maximized;
@@ -97,7 +104,7 @@ struct config_Emulator
     bool floppy_write_protected[config_floppy_drives];
     std::string recent_floppies[config_max_recent_floppies];
     int hard_disk_write_protected[GDOX_MAX_HARD_DISKS];
-    bool hard_disk_freedos;
+    int hard_disk_builtin;
     std::string recent_hard_disks[config_max_recent_hard_disks];
 };
 

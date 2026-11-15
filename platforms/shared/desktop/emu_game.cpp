@@ -25,6 +25,7 @@
 #include "emu.h"
 #include "config.h"
 #include "utils.h"
+#include "emu_dos.h"
 #include "emu_floppy.h"
 #include "emu_hard_disk.h"
 #include "gui_notifications.h"
@@ -57,8 +58,6 @@ static std::string last_result_name;
 static bool game_floppies[2] = { false, false };
 static bool game_cdrom = false;
 static GameDisk_Found current_found;
-static std::string msdos_name;
-static bool msdos_checked = false;
 
 static std::string get_save_directory(void);
 static std::string get_games_directory(void);
@@ -91,7 +90,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
         emu_power_off();
 
     if (!disk.Open(found, get_save_directory().c_str(), get_games_directory().c_str(), config_game.write_back == 0,
-        emu_game_get_msdos_path().c_str()))
+        emu_dos_get_msdos_path().c_str()))
     {
         error_text = disk.GetError();
         return false;
@@ -779,60 +778,6 @@ static std::string get_games_directory(void)
     char path[GDOX_MAX_PATH];
     join_path(config_root_path, "games", path, sizeof(path));
     return path;
-}
-
-std::string emu_game_get_msdos_path(void)
-{
-    char path[GDOX_MAX_PATH];
-    join_path(config_root_path, k_dos_import_file, path, sizeof(path));
-    return path;
-}
-
-// The imported MS-DOS's name, read once and again after an import or a removal; empty with none
-const char* emu_game_get_msdos_name(void)
-{
-    if (!msdos_checked)
-    {
-        DosImport_System system;
-        std::string error;
-        std::string path = emu_game_get_msdos_path();
-        u64 size = 0;
-        s64 modified = 0;
-        msdos_checked = true;
-        msdos_name.clear();
-
-        if (MediaFile::GetFileInfo(path.c_str(), &size, &modified))
-        {
-            if (DosImport::Load(path.c_str(), &system, &error))
-                msdos_name = system.name;
-            else
-                Log("%s", error.c_str());
-        }
-    }
-
-    return msdos_name.c_str();
-}
-
-bool emu_game_import_msdos(const char* path, std::string* message)
-{
-    DosImport import;
-    message->clear();
-
-    if (!import.AddSource(path) || (import.Import(emu_game_get_msdos_path().c_str()) != DOS_IMPORT_DONE))
-    {
-        *message = import.GetError();
-        return false;
-    }
-
-    msdos_checked = false;
-    *message = import.GetName();
-    return true;
-}
-
-bool emu_game_remove_msdos(void)
-{
-    msdos_checked = false;
-    return MediaFile::RemoveFile(emu_game_get_msdos_path().c_str());
 }
 
 int emu_game_get_system(void)

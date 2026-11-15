@@ -35,6 +35,7 @@
 #include "drive/floppy_image.h"
 #include "drive/hard_disk_image.h"
 #include "drive/fat_image.h"
+#include "drive/dos_disk.h"
 #include "drive/game_disk.h"
 #include "video/video.h"
 #include "libretro_core_options.h"
@@ -158,7 +159,8 @@ static bool hard_disk_flush_failed = false;
 static bool hard_disk_state_warned = false;
 static std::string hard_disk_working_path[GDOX_MAX_HARD_DISKS];
 static bool hard_disk_image_attached = false;
-static bool freedos_disk = true;
+static int dos_disk = 0;
+static std::string msdos_zip;
 static int floppy_drive = 0;
 static bool floppy_multidrive = false;
 static bool save_disk = false;
@@ -257,9 +259,11 @@ static bool floppy_flush(int floppy);
 static void floppy_update(void);
 static bool hard_disk_attach(const char* path);
 static bool hard_disk_attach_source(const char* path);
-static void hard_disk_attach_freedos(void);
+static void hard_disk_attach_builtin(void);
+static bool hard_disk_make_builtin(const std::string& path, int system);
 static bool hard_disk_is_cdrom_slot(int id);
-static int hard_disk_get_freedos_slot(void);
+static int hard_disk_get_builtin_slot(void);
+static std::string msdos_import(void);
 static void hard_disk_update(void);
 static void cmos_load(void);
 static void cmos_save(void);
@@ -832,6 +836,7 @@ static bool load_content(const char* path)
     set_machine_config();
     disk_clear();
     clear_input_state();
+    msdos_zip = msdos_import();
     bool game = false;
 
     if (!game_open(path, &game) || (!game && !disk_load(path)))
@@ -840,7 +845,7 @@ static bool load_content(const char* path)
         return false;
     }
 
-    hard_disk_attach_freedos();
+    hard_disk_attach_builtin();
     cmos_load();
 
     if (!game)
@@ -2142,11 +2147,11 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         snprintf(game_keyboard_layout, sizeof(game_keyboard_layout), "%s", var.value);
 
-    var.key = "geardox_freedos";
+    var.key = "geardox_dos_disk";
     var.value = NULL;
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-        freedos_disk = strcmp(var.value, "disabled") != 0;
+        dos_disk = strcmp(var.value, "freedos") == 0 ? 1 : (strcmp(var.value, "disabled") == 0 ? 2 : 0);
 
     var.key = "geardox_boot_device";
     var.value = NULL;
@@ -3296,12 +3301,12 @@ static bool hard_disk_attach_source(const char* path)
 
     int id = -1;
 
-    bool freedos_waits = freedos_disk && !hard_disk_image_attached;
+    bool builtin_waits = (dos_disk != 2) && !hard_disk_image_attached;
 
     for (int i = 0; (id < 0) && (i < GDOX_MAX_HARD_DISKS); i++)
     {
         if (!core->GetHardDisk(i)->IsOpen() && !hard_disk_is_cdrom_slot(i) &&
-            !(freedos_waits && (i == hard_disk_get_freedos_slot())))
+            !(builtin_waits && (i == hard_disk_get_builtin_slot())))
             id = i;
     }
 
@@ -3316,18 +3321,14 @@ static bool hard_disk_attach_source(const char* path)
 }
 
 // docs/27 §10: the user's own Setup disks in <system>/geardox/msdos are imported into the save directory, and again
-// when they change. With none there, msdos.zip goes and games run on FreeDOS
-static std::string get_msdos_path(void)
+// when they change. With none there, msdos.zip goes and games and the built-in disk run on FreeDOS
+static std::string msdos_import(void)
 {
     std::string zip(retro_save_directory);
     std::string source(retro_system_directory);
     std::vector<std::string> folders;
     std::vector<std::string> files;
     append_path_component(zip, k_dos_import_file);
-
-    if (game_freedos_only)
-        return "";
-
     append_path_component(source, "geardox");
     append_path_component(source, "msdos");
 
@@ -3386,7 +3387,7 @@ static bool game_open(const char* path, bool* game)
 
     static char message[1024];
 
-    if (!game_disk.Open(found[0], retro_save_directory, NULL, game_write_folder, get_msdos_path().c_str()))
+    if (!game_disk.Open(found[0], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);
@@ -3537,22 +3538,48 @@ static void game_end(void)
     update_core_options_display();
 }
 
-static void hard_disk_attach_freedos(void)
+static void hard_disk_attach_builtin(void)
 {
-    if (!freedos_disk || hard_disk_image_attached)
+    if ((dos_disk == 2) || hard_disk_image_attached)
         return;
 
+    int system = ((dos_disk == 0) && !msdos_zip.empty()) ? (int)GDOX_GAME_SYSTEM_MSDOS : (int)GDOX_GAME_SYSTEM_FREEDOS;
     std::string path(retro_save_directory);
-    append_path_component(path, "FreeDOS.hdd");
+    append_path_component(path, system == GDOX_GAME_SYSTEM_MSDOS ? k_dos_disk_msdos : k_dos_disk_freedos);
 
-    if ((!content_file_exists(path.c_str()) && !FatImage::WriteFreeDOS(path.c_str())) ||
-        !core->AttachHardDisk(hard_disk_get_freedos_slot(), path.c_str(), false, ""))
+    if ((!content_file_exists(path.c_str()) && !hard_disk_make_builtin(path, system)) && (system == GDOX_GAME_SYSTEM_MSDOS))
     {
-        log_cb(RETRO_LOG_ERROR, "Unable to attach the FreeDOS disk %s\n", path.c_str());
+        show_message("Unable to make the built-in MS-DOS disk, FreeDOS booted instead", 3, RETRO_LOG_WARN);
+        system = GDOX_GAME_SYSTEM_FREEDOS;
+        path = retro_save_directory;
+        append_path_component(path, k_dos_disk_freedos);
+    }
+
+    if ((!content_file_exists(path.c_str()) && !hard_disk_make_builtin(path, system)) ||
+        !core->AttachHardDisk(hard_disk_get_builtin_slot(), path.c_str(), false, ""))
+    {
+        log_cb(RETRO_LOG_ERROR, "Unable to attach the built-in disk %s\n", path.c_str());
         return;
     }
 
-    log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", hard_disk_get_freedos_slot(), path.c_str());
+    log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", hard_disk_get_builtin_slot(), path.c_str());
+}
+
+static bool hard_disk_make_builtin(const std::string& path, int system)
+{
+    if (system != GDOX_GAME_SYSTEM_MSDOS)
+        return DosDisk::Write(path.c_str(), system, NULL, game_keyboard_layout, false);
+
+    DosImport_System msdos;
+    std::string error;
+
+    if (!DosImport::Load(msdos_zip.c_str(), &msdos, &error))
+    {
+        log_cb(RETRO_LOG_ERROR, "%s\n", error.c_str());
+        return false;
+    }
+
+    return DosDisk::Write(path.c_str(), system, &msdos, game_keyboard_layout, false);
 }
 
 static bool hard_disk_is_cdrom_slot(int id)
@@ -3560,7 +3587,7 @@ static bool hard_disk_is_cdrom_slot(int id)
     return id == (int)core->GetPendingMachineConfig().cdrom - 1;
 }
 
-static int hard_disk_get_freedos_slot(void)
+static int hard_disk_get_builtin_slot(void)
 {
     return hard_disk_is_cdrom_slot(0) ? 1 : 0;
 }

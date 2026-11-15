@@ -39,6 +39,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_image.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_media.cpp \
                 $(SOURCE_DIR)/dos/dos_tools.cpp \
+                $(SOURCE_DIR)/drive/dos_disk.cpp \
                 $(SOURCE_DIR)/drive/dos_import.cpp \
                 $(SOURCE_DIR)/drive/fdc.cpp \
                 $(SOURCE_DIR)/drive/game_disk.cpp \

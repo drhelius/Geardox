@@ -4002,7 +4002,7 @@ static json hard_disk_json(int id)
     if (info.attached || info.pending_attached)
     {
         bool zip = ends_with_no_case(info.source, ".zip");
-        disk["source"] = info.game ? "game" : info.builtin ? "freedos" : (info.source[0] == 0 ? "image" : (zip ? "zip" : "folder"));
+        disk["source"] = info.game ? "game" : info.builtin ? (info.builtin_system == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos") : (info.source[0] == 0 ? "image" : (zip ? "zip" : "folder"));
 
         if (info.source[0] != 0)
             disk["source_path"] = info.source;

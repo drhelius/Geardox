@@ -643,7 +643,7 @@ static const char * GPL_LICENSE_STR =
 "\nEND OF TERMS AND CONDITIONS";
 
 static const char * FREEDOS_LICENSE_STR =
-"Geardox includes programs from FreeDOS, which it copies to the disk it makes as C:."
+"Geardox includes programs from FreeDOS, which it copies to the disks it makes as C:."
 "\nThey run on the emulated PC. They are separate programs, not part of Geardox, and"
 "\neach keeps its own license and copyright notices."
 "\n"

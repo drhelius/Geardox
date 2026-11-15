@@ -36,6 +36,7 @@
 #include "gui_floppy.h"
 #include "gui_hard_disks.h"
 #include "gui_game.h"
+#include "gui_dos.h"
 #include "utils.h"
 
 enum FileDialogID
@@ -634,7 +635,7 @@ static void process_dialog_result(FileDialogID id, const char* path)
             gui_game_dialog_new_descriptor(path);
             break;
         case FileDialog_ImportMSDOS:
-            gui_game_dialog_import_msdos(path);
+            gui_dos_dialog_import_msdos(path);
             break;
         case FileDialog_SaveScreenshot:
             gui_action_save_screenshot(path);

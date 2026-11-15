@@ -38,6 +38,7 @@
 #include "emu_midi.h"
 #include "midi_port.h"
 #include "gui_game.h"
+#include "gui_dos.h"
 #include "ogl_renderer.h"
 #include "ogl_shader_chain.h"
 #include "shader_preset.h"
@@ -103,7 +104,6 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
 static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media);
 static void menu_video(void);
 static void menu_input(void);
-static void menu_input_keyboard_layout(void);
 static void menu_audio(void);
 static void menu_audio_source_mute(const char* label, int source);
 static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
@@ -155,6 +155,7 @@ void gui_main_menu(void)
     {
         menu_geardox();
         gui_game_menu();
+        gui_dos_menu();
         menu_drives();
         menu_emulator();
         menu_video();
@@ -1285,7 +1286,7 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
     {
         ImGui::BeginTooltip();
         ImGui::Text("For old games that need a fixed IRQ or DMA.");
-        ImGui::Text("BLASTER in the FreeDOS disk's FDAUTO.BAT");
+        ImGui::Text("BLASTER in the built-in disks' AUTOEXEC.BAT");
         ImGui::Text("doesn't follow it.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
@@ -1929,57 +1930,6 @@ static void draw_background_color_menu(const char* label, int theme)
     }
 }
 
-// docs/27 §18: Geardox sends the keys' positions, and DOS needs KEYB to read them as the user's layout
-static void menu_input_keyboard_layout(void)
-{
-    if (!ImGui::BeginMenu("DOS Layout"))
-    {
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Your keyboard's layout for DOS in games,\nloaded with KEYB. From the next game opened.\n"
-                "A .gdox sets its own with keyboard in [dos].");
-
-        return;
-    }
-
-    int selected = 0;
-    float text_width = 0.0f;
-
-    for (int i = 0; i < k_keyboard_layout_count; i++)
-    {
-        text_width = MAX(text_width, ImGui::CalcTextSize(k_keyboard_layouts[i].name).x);
-
-        if (config_input.keyboard_layout == k_keyboard_layouts[i].id)
-            selected = i;
-    }
-
-    ImGui::PushItemWidth(gui_get_combo_width(text_width));
-
-    if (ImGui::BeginCombo("##keyboard_layout", k_keyboard_layouts[selected].name, ImGuiComboFlags_HeightLarge))
-    {
-        for (int i = 0; i < k_keyboard_layout_count; i++)
-        {
-            if (ImGui::Selectable(k_keyboard_layouts[i].name, selected == i))
-                config_input.keyboard_layout = k_keyboard_layouts[i].id;
-
-            if (i == 0)
-                ImGui::Separator();
-        }
-
-        ImGui::EndCombo();
-    }
-    else if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::Text("Your keyboard's layout for DOS in games,");
-        ImGui::Text("loaded with KEYB. From the next game opened.");
-        ImGui::Text("A .gdox sets its own with keyboard in [dos].");
-        ImGui::EndTooltip();
-    }
-
-    ImGui::PopItemWidth();
-    ImGui::EndMenu();
-}
-
 static void menu_input(void)
 {
     if (ImGui::BeginMenu("Input"))
@@ -2050,9 +2000,6 @@ static void menu_input(void)
                     ImGui::EndTooltip();
                 }
             }
-
-            ImGui::Separator();
-            menu_input_keyboard_layout();
 
             ImGui::EndMenu();
         }

@@ -30,6 +30,8 @@
 #include "application.h"
 #include "config.h"
 #include "emu.h"
+#include "emu_dos.h"
+#include "media/game_descriptor.h"
 #include "emu_floppy.h"
 #include "emu_hard_disk.h"
 #include "utils.h"
@@ -39,7 +41,7 @@ static const char* create_sizes = "40 MB\0" "100 MB\0" "250 MB\0" "500 MB\0" "20
 static const char* const k_slot_names[GDOX_MAX_HARD_DISKS] = { "Primary Master", "Primary Slave", "Secondary Master",
     "Secondary Slave" };
 
-static const int k_recreate_freedos = -1;
+static const int k_recreate_builtin = -1;
 
 static bool open_create = false;
 static bool open_quit = false;
@@ -54,8 +56,10 @@ static int source_id = 0;
 static bool source_loading = false;
 static bool source_reset = false;
 static bool source_rebuild = false;
+static int recreate_system = GDOX_GAME_SYSTEM_FREEDOS;
 
-static void freedos_menu(void);
+static void builtin_menu(void);
+static const char* builtin_name(int system);
 static void disk_menu(int id);
 static bool load_source(int id, const char* path, bool rebuild);
 static void confirm_erase(void);
@@ -75,7 +79,7 @@ void gui_hard_disks_menu(void)
         disk_menu(i);
 
     ImGui::Separator();
-    freedos_menu();
+    builtin_menu();
 
     if (!emu_is_empty() && gui_hard_disks_is_pending() && ImGui::MenuItem("Reset to Apply Changes"))
         gui_action_reset();
@@ -115,6 +119,12 @@ void gui_hard_disks_update(void)
 {
     if (emu_hard_disk_take_flush_error())
         gui_notify(gui_NotificationError, NULL, "Unable to save the hard disk changes", "They are kept and retried");
+
+    std::string builtin_error;
+
+    if (emu_hard_disk_take_fallback_error(&builtin_error))
+        gui_notify(gui_NotificationError, NULL, "Unable to make the built-in MS-DOS disk",
+            ("FreeDOS booted instead: " + builtin_error).c_str());
 
     u32 changes = emu_hard_disk_take_state_changes();
 
@@ -161,7 +171,7 @@ bool gui_hard_disks_load(const char* path)
 
 bool gui_hard_disks_load_source(const char* path)
 {
-    emu_hard_disk_boot_freedos();
+    emu_hard_disk_boot_builtin();
     int id = emu_hard_disk_get_free_id();
 
     if (id < 0)
@@ -377,37 +387,53 @@ static void disk_menu(int id)
     ImGui::EndMenu();
 }
 
-static void freedos_menu(void)
+static void builtin_menu(void)
 {
+    static const int k_systems[2] = { GDOX_GAME_SYSTEM_MSDOS, GDOX_GAME_SYSTEM_FREEDOS };
+    static const char* const k_labels[2] = { "Attach Built-in MS-DOS Disk", "Attach Built-in FreeDOS Disk" };
+    static const char* const k_tooltips[2] =
+    {
+        "MS-DOS.hdd, made from your import\nthe first time. In the first free position.",
+        "FreeDOS.hdd, made the first time.\nIn the first free position."
+    };
     bool loading = gui_is_rom_loading() || emu_is_media_loading();
-    bool attached = false;
+    bool imported = emu_dos_get_msdos_name()[0] != 0;
 
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    for (int i = 0; i < 2; i++)
     {
-        Emu_HardDiskInfo info;
-        emu_hard_disk_get_info(i, &info);
-        attached = attached || info.builtin;
+        bool available = (k_systems[i] != GDOX_GAME_SYSTEM_MSDOS) || imported;
+        bool attached = emu_hard_disk_is_builtin_attached(k_systems[i]);
+
+        if (ImGui::MenuItem(k_labels[i], NULL, false, !loading && available && !attached))
+        {
+            int id = emu_hard_disk_get_free_id();
+            std::string error;
+
+            if (id < 0)
+                gui_set_error_message("Every hard disk slot is in use.");
+            else if (emu_hard_disk_attach_builtin(id, k_systems[i]))
+                notify_attached(id, builtin_name(k_systems[i]), "Hard disk attached");
+            else if (emu_hard_disk_take_builtin_error(&error))
+                gui_set_error_message(error.c_str());
+            else
+                gui_set_error_message("Unable to attach the built-in disk.");
+        }
+
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("%s", available ? k_tooltips[i] : "Import your own MS-DOS first.");
     }
+}
 
-    if (ImGui::MenuItem("Attach FreeDOS Disk", NULL, false, !loading && !attached))
-    {
-        int id = emu_hard_disk_get_free_id();
+static const char* builtin_name(int system)
+{
+    return system == GDOX_GAME_SYSTEM_MSDOS ? emu_dos_get_msdos_name() : "FreeDOS";
+}
 
-        if (id < 0)
-            gui_set_error_message("Every hard disk slot is in use.");
-        else if (emu_hard_disk_attach_freedos(id))
-            notify_attached(id, "FreeDOS", "Hard disk attached");
-        else
-            gui_set_error_message("Unable to make the FreeDOS disk.");
-    }
-
-    ImGui::MenuItem("Boot FreeDOS With No Disks", NULL, &config_emulator.hard_disk_freedos);
-
-    if (ImGui::MenuItem("Recreate FreeDOS Disk...", NULL, false, !loading))
-    {
-        confirm_id = k_recreate_freedos;
-        open_confirm = true;
-    }
+void gui_hard_disks_confirm_recreate(int system)
+{
+    recreate_system = system;
+    confirm_id = k_recreate_builtin;
+    open_confirm = true;
 }
 
 static bool load_source(int id, const char* path, bool rebuild)
@@ -434,19 +460,28 @@ static void confirm_erase(void)
 
     bool powered = !emu_is_empty();
 
-    if (powered)
-        gui_action_power_off();
-
-    if (confirm_id == k_recreate_freedos)
+    if (confirm_id == k_recreate_builtin)
     {
-        if (!emu_hard_disk_recreate_freedos())
-            gui_set_error_message("Unable to make a new FreeDOS disk. The old one is untouched.");
+        bool restart = powered && emu_hard_disk_is_builtin_attached(recreate_system);
+        std::string error;
 
-        if (powered)
+        if (restart)
+            gui_action_power_off();
+
+        if (!emu_hard_disk_recreate_builtin(recreate_system))
+        {
+            emu_hard_disk_take_builtin_error(&error);
+            gui_set_error_message(("Unable to make a new built-in disk. The old one is untouched.\n" + error).c_str());
+        }
+
+        if (restart)
             gui_action_power_on();
 
         return;
     }
+
+    if (powered)
+        gui_action_power_off();
 
     Emu_HardDiskInfo info;
     emu_hard_disk_get_info(confirm_id, &info);
@@ -535,9 +570,12 @@ static void draw_confirm_popup(void)
     if (!ImGui::BeginPopupModal("Erase Hard Disk", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 
-    if (confirm_id == k_recreate_freedos)
-        ImGui::Text("This restarts the machine and makes a new FreeDOS disk.\n"
-            "Everything installed on the old one is lost.\n\n");
+    bool restart = !emu_is_empty() && emu_hard_disk_is_builtin_attached(recreate_system);
+
+    if (confirm_id == k_recreate_builtin)
+        ImGui::Text("%s a new built-in %s disk.\nEverything installed on the old one is lost.\n\n",
+            restart ? "This restarts the machine and makes" : "This makes",
+            recreate_system == GDOX_GAME_SYSTEM_MSDOS ? "MS-DOS" : "FreeDOS");
     else
         ImGui::Text("This restarts the machine and makes a new disk from the folder.\n"
             "Everything DOS wrote to this disk is lost, saved games too.\n\n");

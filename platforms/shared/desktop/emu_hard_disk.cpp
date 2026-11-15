@@ -25,8 +25,11 @@
 #include "emu.h"
 #include "config.h"
 #include "utils.h"
+#include "emu_dos.h"
 #include "emu_floppy.h"
+#include "drive/dos_disk.h"
 #include "drive/hard_disk_image.h"
+#include "media/game_descriptor.h"
 #include "media/media_file.h"
 
 static const int k_idle_flush_frames = 120;
@@ -40,11 +43,14 @@ static std::string source_paths[GDOX_MAX_HARD_DISKS];
 static std::string source_images[GDOX_MAX_HARD_DISKS];
 static bool game_disks[GDOX_MAX_HARD_DISKS];
 static Emu_HardDiskSource prepared_source;
-static const char k_freedos_image[] = "FreeDOS.hdd";
+static std::string builtin_error;
+static std::string fallback_error;
 
 static bool valid_id(int id);
 static std::string get_working_path(const char* path);
-static std::string get_freedos_path(void);
+static std::string get_builtin_path(int system);
+static int get_builtin_system(const char* path);
+static bool make_builtin(int system, bool replace);
 static std::string get_source_image_path(const char* path);
 static bool is_generated(int id, const char* path);
 
@@ -164,27 +170,36 @@ bool emu_hard_disk_attach_prepared_source(int id, bool write_protected)
     return true;
 }
 
-void emu_hard_disk_boot_freedos(void)
+void emu_hard_disk_boot_builtin(void)
 {
-    if (config_emulator.hard_disk_freedos && !emu_get_core()->HasHardDisks())
-        emu_hard_disk_attach_freedos(0);
+    int system = emu_dos_get_builtin();
+    int id = emu_hard_disk_get_free_id();
+
+    if ((system < 0) || (id < 0) || emu_get_core()->HasHardDisks())
+        return;
+
+    if (emu_hard_disk_attach_builtin(id, system) || (system != GDOX_GAME_SYSTEM_MSDOS))
+        return;
+
+    fallback_error = builtin_error;
+    builtin_error.clear();
+    emu_hard_disk_attach_builtin(id, GDOX_GAME_SYSTEM_FREEDOS);
 }
 
-bool emu_hard_disk_attach_freedos(int id)
+bool emu_hard_disk_attach_builtin(int id, int system)
 {
-    std::string path = get_freedos_path();
-
+    std::string path = get_builtin_path(system);
     u64 size = 0;
     s64 modified = 0;
 
-    if (!valid_id(id) || (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) && !FatImage::WriteFreeDOS(path.c_str())))
+    if (!valid_id(id) || (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) && !make_builtin(system, false)))
         return false;
 
     return emu_hard_disk_attach(id, path.c_str(), config_emulator.hard_disk_write_protected[id] != 0);
 }
 
 // The old disk only goes once the new one is complete, so a failure leaves it as it was
-bool emu_hard_disk_recreate_freedos(void)
+bool emu_hard_disk_recreate_builtin(int system)
 {
     int id = -1;
 
@@ -193,19 +208,76 @@ bool emu_hard_disk_recreate_freedos(void)
         Emu_HardDiskInfo info;
         emu_hard_disk_get_info(i, &info);
 
-        if (info.builtin)
+        if (info.builtin && (info.builtin_system == system))
             id = i;
     }
 
     if (id >= 0)
         emu_get_core()->DetachHardDisk(id);
 
-    bool written = FatImage::WriteFreeDOS(get_freedos_path().c_str(), true);
+    bool written = make_builtin(system, true);
 
     if (id >= 0)
-        emu_hard_disk_attach_freedos(id);
+        emu_hard_disk_attach_builtin(id, system);
 
     return written;
+}
+
+void emu_hard_disk_swap_builtin(int system)
+{
+    int attached = 0;
+    int id = -1;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        Emu_HardDiskInfo info;
+        emu_hard_disk_get_info(i, &info);
+
+        if (!info.pending_attached)
+            continue;
+
+        attached++;
+
+        if (info.builtin && (info.builtin_system != system) && !info.game)
+            id = i;
+    }
+
+    if ((attached == 1) && (id >= 0))
+        emu_hard_disk_attach_builtin(id, system);
+}
+
+bool emu_hard_disk_is_builtin_attached(int system)
+{
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        Emu_HardDiskInfo info;
+        emu_hard_disk_get_info(i, &info);
+
+        if (info.pending_attached && info.builtin && (info.builtin_system == system))
+            return true;
+    }
+
+    return false;
+}
+
+bool emu_hard_disk_take_builtin_error(std::string* error)
+{
+    if (builtin_error.empty())
+        return false;
+
+    *error = builtin_error;
+    builtin_error.clear();
+    return true;
+}
+
+bool emu_hard_disk_take_fallback_error(std::string* error)
+{
+    if (fallback_error.empty())
+        return false;
+
+    *error = fallback_error;
+    fallback_error.clear();
+    return true;
 }
 
 bool emu_hard_disk_attach(int id, const char* path, bool write_protected)
@@ -336,7 +408,8 @@ bool emu_hard_disk_get_info(int id, Emu_HardDiskInfo* info)
     strncpy_fit(info->path, image->GetPath(), sizeof(info->path));
     strncpy_fit(info->pending_path, core->GetPendingHardDiskPath(id), sizeof(info->pending_path));
     const char* path = info->pending ? info->pending_path : info->path;
-    info->builtin = (path[0] != 0) && (get_freedos_path() == path);
+    info->builtin_system = get_builtin_system(path);
+    info->builtin = info->builtin_system >= 0;
 
     if ((path[0] != 0) && (source_images[id] == path))
         strncpy_fit(info->source, source_paths[id].c_str(), sizeof(info->source));
@@ -345,7 +418,7 @@ bool emu_hard_disk_get_info(int id, Emu_HardDiskInfo* info)
     return true;
 }
 
-// FreeDOS only names the content when it's alone, or every game on it would share its save states
+// A built-in disk only names the content when it's alone, or every game on it would share its save states
 const char* emu_hard_disk_get_content_path(void)
 {
     const char* path = "";
@@ -354,7 +427,7 @@ const char* emu_hard_disk_get_content_path(void)
     {
         HardDiskImage* image = emu_get_core()->GetHardDisk(i);
 
-        if (image->IsOpen() && ((path[0] == 0) || (get_freedos_path() != image->GetPath())))
+        if (image->IsOpen() && ((path[0] == 0) || (get_builtin_system(image->GetPath()) < 0)))
             path = image->GetPath();
     }
 
@@ -396,11 +469,53 @@ static bool valid_id(int id)
     return (id >= 0) && (id < GDOX_MAX_HARD_DISKS);
 }
 
-static std::string get_freedos_path(void)
+static std::string get_builtin_path(int system)
 {
     char path[GDOX_MAX_PATH];
-    join_path(config_root_path, k_freedos_image, path, sizeof(path));
+    join_path(config_root_path, system == GDOX_GAME_SYSTEM_MSDOS ? k_dos_disk_msdos : k_dos_disk_freedos, path,
+        sizeof(path));
     return path;
+}
+
+static int get_builtin_system(const char* path)
+{
+    if (!IsValidPointer(path) || (path[0] == 0))
+        return -1;
+
+    if (get_builtin_path(GDOX_GAME_SYSTEM_FREEDOS) == path)
+        return GDOX_GAME_SYSTEM_FREEDOS;
+
+    return get_builtin_path(GDOX_GAME_SYSTEM_MSDOS) == path ? (int)GDOX_GAME_SYSTEM_MSDOS : -1;
+}
+
+static bool make_builtin(int system, bool replace)
+{
+    std::string path = get_builtin_path(system);
+    const char* layout = config_input.keyboard_layout.c_str();
+
+    if (system != GDOX_GAME_SYSTEM_MSDOS)
+    {
+        if (DosDisk::Write(path.c_str(), system, NULL, layout, replace))
+            return true;
+
+        builtin_error = "Unable to make " + path;
+        return false;
+    }
+
+    DosImport_System msdos;
+    std::string error;
+
+    if (!emu_dos_load_msdos(&msdos, &error))
+    {
+        builtin_error = error.empty() ? std::string("MS-DOS isn't imported") : error;
+        return false;
+    }
+
+    if (DosDisk::Write(path.c_str(), system, &msdos, layout, replace))
+        return true;
+
+    builtin_error = "Unable to make " + path;
+    return false;
 }
 
 // "Same as ROM" means the config folder here: a folder is only read, so nothing goes next to it
@@ -416,7 +531,7 @@ static std::string get_source_image_path(const char* path)
 
 static bool is_generated(int id, const char* path)
 {
-    return (source_images[id] == path) || (get_freedos_path() == path);
+    return (source_images[id] == path) || (get_builtin_system(path) >= 0);
 }
 
 static std::string get_working_path(const char* path)

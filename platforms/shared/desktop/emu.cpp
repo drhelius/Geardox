@@ -756,7 +756,7 @@ bool emu_power_on(void)
 
     gui_debug_trace_logger_reset("power");
     sync_cmos();
-    emu_hard_disk_boot_freedos();
+    emu_hard_disk_boot_builtin();
 
     if (!geardox->PowerOn())
         return false;

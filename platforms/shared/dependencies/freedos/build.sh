@@ -181,8 +181,6 @@ def kernel_without_sign_on():
 def disk_files():
     files = [(target, read_member(package, name)) for package, name, target in FILES]
     files.append(("KERNEL.SYS", kernel_without_sign_on()))
-    files.append(("FDCONFIG.SYS", text_file("FDCONFIG.SYS")))
-    files.append(("FDAUTO.BAT", text_file("FDAUTO.BAT")))
     files.append(("FREEDOS/COPYING.TXT", text_file("COPYING")))
     files.append(("FREEDOS/ARTISTIC.TXT", read_license("jemm", "DOC/JEMM/ARTISTIC.TXT")))
     files.append(("TEMP/", b""))

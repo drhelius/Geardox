@@ -689,7 +689,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_game_dos",
         "Game DOS (restart)",
         NULL,
-        "Your own MS-DOS: put its Setup disk images, or a ZIP of them, in the system folder's geardox/msdos. Geardox imports them once, then games boot it unless their descriptor asks for FreeDOS. FreeDOS here runs every game on FreeDOS. MS-DOS 5.0 to 6.22, in any language.",
+        "Your own MS-DOS: put its Setup disk images, or a ZIP of them, in the system folder's geardox/msdos. Geardox imports them once, then games boot it unless their descriptor asks for FreeDOS. FreeDOS here runs every game on FreeDOS; the built-in disk follows Built-in DOS Disk. MS-DOS 5.0 to 6.22, in any language.",
         NULL,
         "system",
         {
@@ -703,7 +703,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_keyboard_layout",
         "DOS Keyboard Layout (restart)",
         NULL,
-        "The layout of your keyboard, for DOS in games: Geardox loads KEYB with it in the AUTOEXEC.BAT it makes for each game, on FreeDOS or MS-DOS. A game's descriptor can set its own with keyboard = under [dos].",
+        "The layout of your keyboard, for DOS in games: Geardox loads KEYB with it in the AUTOEXEC.BAT it makes for each game, on FreeDOS or MS-DOS, and in a built-in disk when it makes one. A game's descriptor can set its own with keyboard = under [dos].",
         NULL,
         "system",
         {
@@ -726,18 +726,19 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "us"
     },
     {
-        "geardox_freedos",
-        "FreeDOS Disk (restart)",
+        "geardox_dos_disk",
+        "Built-in DOS Disk (restart)",
         NULL,
-        "With no hard disk in the content, the included FreeDOS disk goes on Primary Master. It lives in the save folder as FreeDOS.hdd, and it's yours: Geardox never changes it again. Delete that file for a new one.",
+        "With no hard disk in the content, a built-in DOS disk goes on Primary Master: your MS-DOS when its Setup disks are in the system folder's geardox/msdos, or FreeDOS. They live in the save folder as MS-DOS.hdd and FreeDOS.hdd, and they're yours: Geardox never changes them again. Delete one for a new one.",
         NULL,
         "system",
         {
-            { "enabled",  NULL },
+            { "auto",     "MS-DOS When Found" },
+            { "freedos",  "FreeDOS" },
             { "disabled", NULL },
             { NULL, NULL },
         },
-        "enabled"
+        "auto"
     },
     {
         "geardox_boot_device",

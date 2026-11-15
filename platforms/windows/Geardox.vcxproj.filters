@@ -28,6 +28,12 @@
     <ClCompile Include="..\shared\desktop\emu_game.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\gui_dos.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\emu_dos.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\desktop\gui.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
@@ -346,6 +352,9 @@
     <ClCompile Include="..\..\src\dos\dos_tools.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\dos_disk.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\drive\dos_import.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -604,6 +613,7 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\dos\dos_tools.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\dos_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\dos_import.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fdc.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\game_disk.h"><Filter>src</Filter></ClInclude>
@@ -703,6 +713,12 @@
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\emu_game.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\gui_dos.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\emu_dos.h">
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\gui.h">
