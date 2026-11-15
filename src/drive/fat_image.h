@@ -147,6 +147,7 @@ private:
     bool WalkOverlay(const std::string& path, u32 directory, int depth);
     void LeaveOutReserved(const std::vector<std::string>& reserved);
     bool AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directory, const char* target);
+    bool AddDosTool(u32 directory, const char* name, const u8* data, u32 size);
     void PinEntries();
     void ApplyDeleted(const std::string& list);
     void ListDirectory(u32 directory, const std::string& dos_path, const std::string& host_path,

@@ -979,6 +979,8 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
             out += line + frame + "\r\n";
         }
 
+        out += "DEVICEHIGH=C:\\GEARDOX\\GDXIDLE.SYS\r\n";
+
         if (!info.cds.empty())
             out += "DEVICEHIGH=C:\\GEARDOX\\UDVD2.SYS /D:FDCD0001\r\n";
     }

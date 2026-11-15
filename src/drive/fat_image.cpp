@@ -23,6 +23,7 @@
 #include <set>
 #include "fat_image.h"
 #include "freedos.h"
+#include "../dos/dos_tools.h"
 #include "../media/media_file.h"
 
 static const u32 k_fat_sector_size = 512;
@@ -526,6 +527,14 @@ bool FatImage::WriteFreeDOS(const char* path, bool replace)
     if (!image.AddZip(k_freedos_files, k_freedos_files_size))
         return false;
 
+    int freedos = image.FindChild(0, "FREEDOS");
+    int bin = freedos >= 0 ? image.FindChild((u32)freedos, "BIN") : -1;
+
+    if ((bin < 0) || !image.AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) ||
+        !image.AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size))
+        return false;
+
+    image.Finish();
     image.SetBootSector(k_freedos_boot);
     return image.Write(path, k_fat_freedos_size, replace);
 }
@@ -864,6 +873,9 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     }
 
     mz_zip_reader_end(&zip);
+    int bin = ok ? FindChild(freedos, "BIN") : -1;
+    ok = (bin >= 0) && AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
+        AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size);
 
     if (ok)
     {
@@ -880,7 +892,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
     const std::vector<std::string>& pinned, bool shsucdx)
 {
-    static const char* const k_tools[] = { "GDXRUN.COM", "POWEROFF.COM", "CTMOUSE.EXE", "UDVD2.SYS" };
+    static const char* const k_tools[] = { "CTMOUSE.EXE", "UDVD2.SYS" };
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
     LeaveOutReserved(reserved);
 
@@ -945,7 +957,10 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     u32 geardox = AddEntry(0, "GEARDOX", true);
     m_entries[geardox].attributes = k_fat_attribute_directory | hide;
     m_entries[geardox].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    bool ok = AddFreeDOSFile(&tools, "FREEDOS/COPYING.TXT", geardox, "COPYING.TXT");
+    bool ok = AddFreeDOSFile(&tools, "FREEDOS/COPYING.TXT", geardox, "COPYING.TXT") &&
+        AddDosTool(geardox, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
+        AddDosTool(geardox, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size) &&
+        AddDosTool(geardox, "GDXIDLE.SYS", k_dos_gdxidle, k_dos_gdxidle_size);
 
     for (size_t i = 0; ok && (i < sizeof(k_tools) / sizeof(k_tools[0])); i++)
         ok = AddFreeDOSFile(&tools, (std::string("FREEDOS/BIN/") + k_tools[i]).c_str(), geardox, k_tools[i]);
@@ -987,6 +1002,19 @@ bool FatImage::AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directo
     m_entries[entry].crc = stat.m_crc32;
     m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     get_dos_time((s64)stat.m_time, &m_entries[entry].date, &m_entries[entry].time);
+    return true;
+}
+
+bool FatImage::AddDosTool(u32 directory, const char* name, const u8* data, u32 size)
+{
+    m_memory.push_back(std::string((const char*)data, size));
+    u32 entry = AddEntry(directory, name, false);
+    m_entries[entry].memory = (int)m_memory.size() - 1;
+    m_entries[entry].size = size;
+    m_entries[entry].crc = (u32)mz_crc32(MZ_CRC32_INIT, data, size);
+    m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    m_entries[entry].date = k_dos_tools_date;
+    m_entries[entry].time = k_dos_tools_time;
     return true;
 }
 
@@ -2027,7 +2055,7 @@ bool FatImage::WriteBootSector()
         sector[1] = k_fat_code_offset - 2;
         sector[2] = 0x90;
         memcpy(sector + 3, k_fat_oem, 8);
-        memcpy(sector + k_fat_code_offset, k_freedos_no_system, k_freedos_no_system_size);
+        memcpy(sector + k_fat_code_offset, k_dos_no_system, k_dos_no_system_size);
         write_u16_le(sector + 510, 0xAA55);
     }
 

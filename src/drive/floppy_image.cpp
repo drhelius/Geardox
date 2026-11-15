@@ -19,7 +19,7 @@
 
 #include <new>
 #include "floppy_image.h"
-#include "freedos.h"
+#include "../dos/dos_tools.h"
 #include "../media/crc.h"
 
 struct FloppyImage_Geometry
@@ -415,7 +415,7 @@ u8* FloppyImage::CreateBlank(FloppyImage_Blank type, bool formatted, u32* image_
     write_u16_le(raw + 26, geometry.heads);
     raw[38] = 0x29;
     memcpy(raw + 43, k_floppy_pc_label, 19);
-    memcpy(raw + k_floppy_pc_code_offset, k_freedos_no_system, k_freedos_no_system_size);
+    memcpy(raw + k_floppy_pc_code_offset, k_dos_no_system, k_dos_no_system_size);
     raw[510] = 0x55;
     raw[511] = 0xAA;
 

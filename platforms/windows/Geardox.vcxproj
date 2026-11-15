@@ -84,6 +84,7 @@
     <ClCompile Include="..\..\src\cdrom\cdrom_image.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_media.cpp" />
     <ClCompile Include="..\..\src\cdrom\cdrom_physical_image.cpp" />
+    <ClCompile Include="..\..\src\dos\dos_tools.cpp" />
     <ClCompile Include="..\..\src\drive\dos_import.cpp" />
     <ClCompile Include="..\..\src\drive\fdc.cpp" />
     <ClCompile Include="..\..\src\drive\game_disk.cpp" />
@@ -338,6 +339,7 @@
     <ClInclude Include="..\..\src\cdrom\cdrom_media.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_media_inline.h" />
     <ClInclude Include="..\..\src\cdrom\cdrom_physical_image.h" />
+    <ClInclude Include="..\..\src\dos\dos_tools.h" />
     <ClInclude Include="..\..\src\drive\dos_import.h" />
     <ClInclude Include="..\..\src\drive\fdc.h" />
     <ClInclude Include="..\..\src\drive\game_disk.h" />

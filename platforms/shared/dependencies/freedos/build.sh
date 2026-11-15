@@ -180,11 +180,6 @@ def kernel_without_sign_on():
 
 def disk_files():
     files = [(target, read_member(package, name)) for package, name, target in FILES]
-
-    for tool in ("gdxrun", "poweroff"):
-        source = os.path.join(script_dir, tool + ".asm")
-        files.append((BIN + tool.upper() + ".COM", assemble(source, os.path.join(work_dir, tool + ".com"))))
-
     files.append(("KERNEL.SYS", kernel_without_sign_on()))
     files.append(("FDCONFIG.SYS", text_file("FDCONFIG.SYS")))
     files.append(("FDAUTO.BAT", text_file("FDAUTO.BAT")))
@@ -216,7 +211,6 @@ check_packages()
 files = disk_files()
 boot = boot_sector()
 mbr = master_boot_record()
-no_system = assemble(os.path.join(script_dir, "nosys.asm"), os.path.join(work_dir, "nosys.bin"))
 
 header = """/*
  * The files of the FreeDOS disk and its boot sectors, built for Geardox by build.sh, do not edit
@@ -232,7 +226,6 @@ with open(os.path.join(script_dir, "freedos.cpp"), "w") as out:
     out.write("\n" + array("k_freedos_files", files) + "\n")
     out.write("\n" + array("k_freedos_boot", boot) + "\n")
     out.write("\n" + array("k_freedos_mbr", mbr) + "\n")
-    out.write("\n" + array("k_freedos_no_system", no_system) + "\n")
 
-print("Built %s: %d bytes of files, %d of no system code" % (VERSION, len(files), len(no_system)))
+print("Built %s: %d bytes of files" % (VERSION, len(files)))
 PYTHON_EOF

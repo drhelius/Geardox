@@ -15,7 +15,5 @@ extern const uint8_t k_freedos_boot[];
 extern const uint32_t k_freedos_boot_size;
 extern const uint8_t k_freedos_mbr[];
 extern const uint32_t k_freedos_mbr_size;
-extern const uint8_t k_freedos_no_system[];
-extern const uint32_t k_freedos_no_system_size;
 
 #endif /* FREEDOS_H */

@@ -1,0 +1,79 @@
+#!/bin/bash
+
+set -e
+
+PYTHON=${PYTHON:-python3}
+NASM=${NASM:-nasm}
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+WORK_DIR=$(mktemp -d)
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+"$PYTHON" - "$SCRIPT_DIR" "$WORK_DIR" "$NASM" << 'PYTHON_EOF'
+import os
+import subprocess
+import sys
+
+script_dir, work_dir, nasm = sys.argv[1:4]
+
+FIXED_DATE = (2025, 4, 5, 12, 0, 0)
+
+TOOLS = [
+    ("k_dos_gdxrun", "gdxrun.asm"),
+    ("k_dos_poweroff", "poweroff.asm"),
+    ("k_dos_gdxidle", "gdxidle.asm"),
+    ("k_dos_no_system", "nosys.asm"),
+]
+
+LICENSE = """/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+"""
+
+def assemble(source):
+    output = os.path.join(work_dir, os.path.basename(source) + ".bin")
+    subprocess.check_call([nasm, "-f", "bin", os.path.join(script_dir, source), "-o", output])
+    return open(output, "rb").read()
+
+def array(name, data):
+    lines = ["const u8 %s[] =" % name, "{"]
+
+    for i in range(0, len(data), 16):
+        chunk = ", ".join("0x%02X" % b for b in data[i:i + 16])
+        lines.append("    " + chunk + ("," if i + 16 < len(data) else ""))
+
+    lines.append("};")
+    lines.append("")
+    lines.append("const u32 %s_size = %d;" % (name, len(data)))
+    return "\n".join(lines)
+
+year, month, day, hour, minute, second = FIXED_DATE
+date = ((year - 1980) << 9) | (month << 5) | day
+time = (hour << 11) | (minute << 5) | (second // 2)
+
+with open(os.path.join(script_dir, "dos_tools.cpp"), "w") as out:
+    out.write(LICENSE)
+    out.write('\n#include "dos_tools.h"\n')
+    out.write("\nconst u16 k_dos_tools_date = 0x%04X;\n" % date)
+    out.write("const u16 k_dos_tools_time = 0x%04X;\n" % time)
+
+    for name, source in TOOLS:
+        out.write("\n" + array(name, assemble(source)) + "\n")
+
+print("Built %d DOS tools" % len(TOOLS))
+PYTHON_EOF

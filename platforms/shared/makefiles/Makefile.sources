@@ -111,6 +111,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/cdrom/cdrom_cuebin_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_image.cpp \
     $(SRC_DIR)/cdrom/cdrom_media.cpp \
+    $(SRC_DIR)/dos/dos_tools.cpp \
     $(SRC_DIR)/drive/dos_import.cpp \
     $(SRC_DIR)/drive/fdc.cpp \
     $(SRC_DIR)/drive/game_disk.cpp \
