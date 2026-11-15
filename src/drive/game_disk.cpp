@@ -1527,6 +1527,9 @@ bool GameDisk::ResolveMedia(const std::string& value, std::string* path)
 // A CUE takes its folder in the ZIP with it, for its tracks
 bool GameDisk::BuildFolderCd(const std::string& folder, const std::string& label, std::string* path)
 {
+    if ((folder.size() <= 3) || (folder == directory_of(folder)))
+        return Fail("A drive's root can't be the game's CD: %s", folder.c_str());
+
     IsoImage image;
     image.SetLabel(label.empty() ? file_of(folder).c_str() : label.c_str());
 
