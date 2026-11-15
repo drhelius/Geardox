@@ -378,6 +378,7 @@ struct config_Debug
     bool dis_replace_labels;
     int dis_look_ahead_count;
     bool step_skip_interrupts;
+    int font_type;
     int font_size;
     int scale;
     int ratio;

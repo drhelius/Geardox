@@ -2651,17 +2651,36 @@ static void menu_debug(void)
 
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Font Size", config_debug.debug))
+        if (ImGui::BeginMenu("Font", config_debug.debug))
         {
-            const char* sizes = "Very Small\0Small\0Medium\0Large\0\0";
-            ImGui::PushItemWidth(get_combo_items_width(sizes));
-
-            if (ImGui::Combo("##font", &config_debug.font_size, sizes))
+            if (ImGui::BeginMenu("Type"))
             {
-                gui_default_font = gui_default_fonts[config_debug.font_size];
+                const char* types = "ProggyForever\0ProggyClean\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(types));
+
+                if (ImGui::Combo("##font_type", &config_debug.font_type, types))
+                {
+                    gui_default_font = gui_default_fonts[config_debug.font_type][config_debug.font_size];
+                }
+
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
             }
 
-            ImGui::PopItemWidth();
+            if (ImGui::BeginMenu("Size"))
+            {
+                const char* sizes = "Small\0Medium\0Big\0Large\0\0";
+                ImGui::PushItemWidth(get_combo_items_width(sizes));
+
+                if (ImGui::Combo("##font_size", &config_debug.font_size, sizes))
+                {
+                    gui_default_font = gui_default_fonts[config_debug.font_type][config_debug.font_size];
+                }
+
+                ImGui::PopItemWidth();
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu();
         }
 
