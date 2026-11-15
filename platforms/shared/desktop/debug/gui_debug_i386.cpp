@@ -398,7 +398,7 @@ static void draw_flags(u16 reg_id, u32 value, const I386FlagDefinition* flags, i
         ImGui::BeginDisabled(flags[i].i486 && !cpu->IsI486());
         ImGui::TextColored(orange, "%s", flags[i].name);
         ImGui::SetCursorPosX(value_x);
-        EditableRegister1(reg_id, flags[i].bit, (value & (1U << flags[i].bit)) != 0, I386WriteCallback1, cpu);
+        EditableRegister1(reg_id, flags[i].bit, IS_SET_BIT(value, flags[i].bit), I386WriteCallback1, cpu);
         ImGui::EndDisabled();
         ImGui::EndGroup();
     }

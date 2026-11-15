@@ -482,7 +482,7 @@ static void format_dma(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
         case TRACE_DMA_REQUEST:
             format_event(buffer, size, "DMA", "REQUEST", "CH%u %s  Address:$%06X  Count:$%04X  Mode:$%02X%s", channel,
                 device, entry.dma.address, entry.dma.count, entry.dma.mode,
-                ((entry.dma.mask >> channel) & 0x01) != 0 ? "  MASKED" : "");
+                IS_SET_BIT(entry.dma.mask, channel) ? "  MASKED" : "");
             break;
         case TRACE_DMA_END:
             format_event(buffer, size, "DMA", "END", "CH%u %s  TERMINAL COUNT  Address:$%06X  Count:$%04X", channel, device,
