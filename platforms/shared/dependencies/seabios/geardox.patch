@@ -1027,7 +1027,7 @@
  
  /* VGA */
 -static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0xffff};
-+static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0x660b,0x5b0c,0x3b1b,0x2f1c,0xffff};
++static u16 cseq_vga[] VAR16 = {0x0007,0x0012,0x0013,0x4a0b,0x5b0c,0x2b1b,0x2f1c,0xffff};
  static u16 cgraph_vga[] VAR16 = {0x0009,0x000a,0x000b,0xffff};
  static u16 ccrtc_vga[] VAR16 = {0x001a,0x001b,0x001d,0xffff};
  
@@ -2393,14 +2393,18 @@
      op.y = win.y * cheight;
      op.ylen = winsize.y * cheight;
      op.pixels[0] = ca.attr;
-@@ -384,11 +394,14 @@ gfx_clear_chars(struct vgamode_s *curmode_g, struct cursorpos win
+@@ -382,13 +392,16 @@ gfx_clear_chars(struct vgamode_s *curmode_g, struct cursorpos win
+ 
+ // Return the font for a given character
  struct segoff_s
- get_font_data(u8 c)
+-get_font_data(u8 c)
++get_font_data(struct vgamode_s *curmode_g, u8 c)
  {
 -    int char_height = GET_BDA(char_height);
 +    int char_height = vga_char_height();
      struct segoff_s font;
-     if (char_height == 8 && c >= 128) {
+-    if (char_height == 8 && c >= 128) {
++    if ((CONFIG_VGA_CGA || GET_GLOBAL(curmode_g->memmodel) == MM_CGA) && c >= 128) {
          font = GET_IVT(0x1f);
          c -= 128;
 +    } else if (CONFIG_VGA_CGA) {
@@ -2409,7 +2413,12 @@
      } else {
          font = GET_IVT(0x43);
      }
-@@ -408,7 +421,7 @@ gfx_write_char(struct vgamode_s *curmode_g
+@@ -404,11 +417,11 @@ gfx_write_char(struct vgamode_s *curmode_g
+     if (cp.x >= GET_BDA(video_cols))
+         return;
+ 
+-    struct segoff_s font = get_font_data(ca.car);
++    struct segoff_s font = get_font_data(curmode_g, ca.car);
      struct gfx_op op;
      init_gfx_op(&op, curmode_g);
      op.x = cp.x * 8;
@@ -2427,6 +2436,15 @@
      if (cp.x >= GET_BDA(video_cols) || cheight > ARRAY_SIZE(lines))
          goto fail;
  
+@@ -489,7 +502,7 @@ gfx_read_char(struct vgamode_s *curmode_g, struct cursorpos cp)
+ 
+     // Determine font
+     for (; car<256; car++) {
+-        struct segoff_s font = get_font_data(car);
++        struct segoff_s font = get_font_data(curmode_g, car);
+         if (memcmp_far(GET_SEG(SS), lines
+                        , font.seg, (void*)(font.offset+0), cheight) == 0)
+             return (struct carattr){car, fgattr | (bgattr << 4), 0};
 --- seabios-28aa463/vgasrc/vgahw.h
 +++ seabios/vgasrc/vgahw.h
 @@ -10,6 +10,8 @@
