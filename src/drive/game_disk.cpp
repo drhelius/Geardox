@@ -1773,7 +1773,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 
         std::string destination = entry.overlay ? join(m_overlay, entry.host_path) : GetDestination(entry.host_path);
 
-        if (is_folder(destination) && !MediaFile::RemoveDirectory(destination.c_str()))
+        if (is_folder(destination) && !MediaFile::DeleteDirectory(destination.c_str()))
         {
             result->kept++;
             result->notes.push_back("A folder the game removed isn't empty on the host, kept: " + entry.host_path);

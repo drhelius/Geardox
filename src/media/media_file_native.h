@@ -33,7 +33,7 @@ public:
     static bool GetFileInfo(const char* path, u64* size, s64* modified);
     static bool IsFolderLink(const char* path);
     static bool MakeDirectory(const char* path);
-    static bool RemoveDirectory(const char* path);
+    static bool DeleteDirectory(const char* path);
     static bool SetModified(const char* path, s64 modified);
 
     virtual bool Open(const char* path, bool writable) override;

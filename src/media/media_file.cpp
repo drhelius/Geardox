@@ -153,14 +153,14 @@ bool MediaFile::MakeDirectory(const char* path)
     return MediaFileNative::MakeDirectory(path);
 }
 
-bool MediaFile::RemoveDirectory(const char* path)
+bool MediaFile::DeleteDirectory(const char* path)
 {
 #if defined(__LIBRETRO__)
     if (MediaFileLibretro::HasVfsInterface())
         return MediaFileLibretro::RemoveFile(path);
 #endif
 
-    return MediaFileNative::RemoveDirectory(path);
+    return MediaFileNative::DeleteDirectory(path);
 }
 
 // libretro's VFS can't set a time, so there a file keeps the time it was written

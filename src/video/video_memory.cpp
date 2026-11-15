@@ -321,7 +321,7 @@ void Video::WriteMemory(u32 address, u8 value)
     if (m_chain4)
     {
         base = address & (m_vram_mask & ~0x03U);
-        planes &= m_plane_masks[1 << (address & 0x03)];
+        planes &= m_plane_masks[(size_t)1 << (address & 0x03)];
     }
     else
     {

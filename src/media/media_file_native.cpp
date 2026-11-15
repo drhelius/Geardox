@@ -122,7 +122,7 @@ bool MediaFileNative::MakeDirectory(const char* path)
     return create_directory_if_not_exists(path);
 }
 
-bool MediaFileNative::RemoveDirectory(const char* path)
+bool MediaFileNative::DeleteDirectory(const char* path)
 {
 #if defined(_WIN32)
     return _wrmdir(utf8_to_wstring(path).c_str()) == 0;
