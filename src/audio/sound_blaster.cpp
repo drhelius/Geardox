@@ -1086,7 +1086,13 @@ void SoundBlaster::StartTransfer(u8 format, bool auto_init, bool input, u32 leng
         TraceTransfer();
 
     if (format != SOUND_BLASTER_FORMAT_SILENCE)
+    {
         RequestFrame();
+
+        u64 delay = (u64)k_dma_unit_clocks * m_state.rate_numerator;
+        u64 period = GetPeriod();
+        m_state.phase = delay < period ? period - delay : 0;
+    }
 }
 
 // The DSP counts microseconds: rate = 1,000,000 / (256 - TC)
