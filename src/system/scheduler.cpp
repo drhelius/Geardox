@@ -46,6 +46,8 @@ void Scheduler::Reset()
 {
     m_state.clocks = 0;
     m_state.cycle_remainder = 0;
+    m_state.cycles = 0;
+    m_state.clock_remainder = 0;
 
     for (int i = 0; i < SCHEDULER_EVENT_COUNT; i++)
         m_state.events[i] = GDOX_NO_EVENT;
@@ -57,6 +59,7 @@ void Scheduler::SetCPUClockRate(u32 rate)
 {
     m_cpu_clock_rate = rate > 0 ? rate : GDOX_MACHINE_CLOCK_RATE;
     m_state.cycle_remainder = 0;
+    m_state.clock_remainder = 0;
 }
 
 void Scheduler::SaveState(std::ostream& stream)
@@ -77,12 +80,17 @@ void Scheduler::Serialize(StateSerializer& serializer)
 {
     G_SERIALIZE(serializer, m_state.clocks);
     G_SERIALIZE(serializer, m_state.cycle_remainder);
+    G_SERIALIZE(serializer, m_state.cycles);
+    G_SERIALIZE(serializer, m_state.clock_remainder);
 }
 
 void Scheduler::SanitizeState()
 {
     if (m_state.cycle_remainder >= m_cpu_clock_rate)
         m_state.cycle_remainder = 0;
+
+    if (m_state.clock_remainder >= GDOX_MACHINE_CLOCK_RATE)
+        m_state.clock_remainder = 0;
 
     for (int i = 0; i < SCHEDULER_EVENT_COUNT; i++)
         m_state.events[i] = GDOX_NO_EVENT;

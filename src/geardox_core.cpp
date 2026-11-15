@@ -292,6 +292,7 @@ void GeardoxCore::Init()
     m_video->SetStartCycles(m_i386->GetStartCyclesPointer());
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
     m_i386->SetDecodedPorts(m_io->GetDecodedPorts());
+    m_i386->SetTimeStampSource(m_scheduler->GetCyclesPointer());
     m_input->Init();
     m_key_map->Init(&GeardoxCore::KeyMapCallback, this);
     m_key_mapper->Init(m_key_map);
@@ -2318,6 +2319,9 @@ void GeardoxCore::ApplyMachineConfig()
         const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
         m_x87->Init(cpu.family >= 4 ? X87_FLAVOR_80486 : X87_FLAVOR_80387);
         m_i386->SetCPU(cpu);
+
+        if (profile.reset_signature != 0)
+            m_i386->SetResetSignature(profile.reset_signature);
         m_i386->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
         m_system_control->SetFPU(m_machine_config.fpu ? m_x87 : NULL);
     }
@@ -2399,7 +2403,7 @@ void GeardoxCore::ApplyBusTiming()
     u32 cpu_clock_rate = GetEffectiveCPUClockRate();
 
     const GDOX_Machine_CPU_Info& cpu = k_machine_cpus[m_machine_config.cpu];
-    u32 bus_clock_rate = profile.cpu_clock_rate / cpu.bus_ratio;
+    u32 bus_clock_rate = profile.bus_clock_rate;
 
     // A VL-Bus card's memory runs on the CPU's bus at its own waits, an ISA card keeps the model's
     if (IsValidPointer(waits) && card.local_bus)

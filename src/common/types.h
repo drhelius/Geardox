@@ -392,6 +392,11 @@ enum GDOX_Machine_Model
     GDOX_MACHINE_486DX2_66,
     GDOX_MACHINE_486SX_33,
     GDOX_MACHINE_486DX4_100,
+    GDOX_MACHINE_PENTIUM_75,
+    GDOX_MACHINE_PENTIUM_90,
+    GDOX_MACHINE_PENTIUM_133,
+    GDOX_MACHINE_PENTIUM_166,
+    GDOX_MACHINE_PENTIUM_200,
     GDOX_MACHINE_COUNT
 };
 
@@ -540,6 +545,8 @@ struct GDOX_Machine_Profile
     const u8* ram_sizes_mb;
     int floppy_drives;
     const GDOX_Machine_Bus_Timing* bus_timing;
+    u32 bus_clock_rate;
+    u32 reset_signature;
 };
 
 struct GDOX_Machine_Config

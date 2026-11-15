@@ -47,6 +47,8 @@ public:
         u64 clocks;
         u64 events[SCHEDULER_EVENT_COUNT];
         u32 cycle_remainder;
+        u64 cycles;
+        u32 clock_remainder;
     };
 
 public:
@@ -56,6 +58,7 @@ public:
     void Reset();
     void SetCPUClockRate(u32 rate);
     u64 GetClocks() const;
+    const u64* GetCyclesPointer() const;
     void AddClocks(u32 clocks);
     void AddCycles(u32 cycles);
     u32 GetSliceClocks(u64 limit) const;
