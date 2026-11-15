@@ -10,3 +10,4 @@ model = 486sx_33
 
 [run]
 exe = WL.EXE
+cwd = DATA

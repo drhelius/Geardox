@@ -6,10 +6,16 @@ name = Ultima Underworld: The Stygian Abyss
 folder = C:\
 
 [run]
-exe = D:\UW.BAT
+exe = D:\UW\UW.EXE
 
 [dos]
 ems_kb = 1024
 
 [input]
 joystick = none
+
+[autoexec]
+D:
+SGFIND UNDEROM1
+CDWEDGE 2
+C:

@@ -5,6 +5,9 @@ version = 1
 name = Realms of Arkania 3: Shadows over Riva
 folder = C:\
 
+[machine]
+ram_mb = 16
+
 [run]
 exe = RIVA.EXE
 setup = DATA\SETUP.EXE

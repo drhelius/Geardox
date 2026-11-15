@@ -6,8 +6,14 @@ name = Ultima Underworld II
 folder = C:\
 
 [run]
-exe = D:\UW2.BAT
+exe = D:\UW2\UW2.EXE
 setup = D:\INSTALL2.EXE
 
 [dos]
 ems_kb = 1024
+
+[autoexec]
+D:
+SGFIND UNDEROM2
+CDWEDGE 2
+C:

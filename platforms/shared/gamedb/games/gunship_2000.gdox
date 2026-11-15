@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Gunship 2000
+folder = C:\
+
+[machine]
+model = 386dx_33
+
+[run]
+exe = MPS\GS2000CD\GS2000.COM
+setup = MPS\GS2000CD\SETUP.EXE
