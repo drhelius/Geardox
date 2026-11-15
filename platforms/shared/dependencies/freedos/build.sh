@@ -56,6 +56,7 @@ FILES = [
     ("label", "LABEL.EXE", BIN + "LABEL.EXE"),
     ("lbacache", "LBACACHE.COM", BIN + "LBACACHE.COM"),
     ("mem", "MEM.EXE", BIN + "MEM.EXE"),
+    ("mkeyb", "MKEYB.EXE", BIN + "MKEYB.EXE"),
     ("mode", "MODE.COM", BIN + "MODE.COM"),
     ("more", "MORE.EXE", BIN + "MORE.EXE"),
     ("move", "MOVE.EXE", BIN + "MOVE.EXE"),

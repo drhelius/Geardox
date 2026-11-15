@@ -19,7 +19,8 @@ again. Everything else is a program from the packages, in `\FREEDOS\BIN`, and th
 and game disks alike. Geardox also adds GDXRUN and POWEROFF to `\FREEDOS\BIN` from `src/dos`.
 
 CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. LBACACHE is the read cache a game descriptor's
-`cache = on` loads. Disks on the user's own MS-DOS take CTMOUSE, UDVD2, `COPYING`, and SHSUCDX for MS-DOS 5.0, from
+`cache = on` loads. MKEYB is the small keyboard driver FreeDOS game disks load instead of KEYB when they have no upper
+memory: KEYB leaves a gap of about 28K below its data there, and MKEYB stays under 1K. Disks on the user's own MS-DOS take CTMOUSE, UDVD2, `COPYING`, and SHSUCDX for MS-DOS 5.0, from
 here into their `\GEARDOX`, next to GDXRUN, POWEROFF and GDXIDLE from `src/dos`.
 
 ## Building
@@ -42,5 +43,6 @@ user's, and only a new one gets the new files.
 
 See the `FREEDOS_LICENSE_STR` notice and each package's own texts. `COPYING` is the GNU General Public License, version 2,
 from the kernel package. Nearly every program is under it, most of them with "or any later version". XCOPY is under
-version 2 alone. HIMEMX is under the GPL and/or the Artistic License. JEMM is partly under the Artistic License, kept with
+version 2 alone. MKEYB is under the GPL, with leave to pack its executable with any packer. HIMEMX is under the GPL
+and/or the Artistic License. JEMM is partly under the Artistic License, kept with
 it in `DOC/JEMM/Artistic.txt`, and otherwise in the public domain. Each package holds its binaries, source and notices.

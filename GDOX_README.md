@@ -615,6 +615,13 @@ yours in **DOS > Keyboard Layout**, or with the **DOS Keyboard Layout (restart)*
 then loads KEYB with it in each game's `AUTOEXEC.BAT`, on FreeDOS or MS-DOS, from the next game opened. KEYB loads into
 upper memory when there is some, and costs no conventional memory then.
 
+On FreeDOS with `memory = none` or `xms`, the default, there's no upper memory, and FreeDOS's KEYB would leave about
+30K of conventional memory unusable. Geardox loads MKEYB there instead, a FreeDOS keyboard driver that uses about 1K.
+It types letters, digits and accents as KEYB does, but on several layouts it lacks some AltGr symbols, such as `~` on
+Spanish and Italian, `{ [ ] }` on Italian and Swiss, or `| @` on Swedish and Finnish, and it shows a few accented
+capitals and symbols, such as `€`, as other characters. When a game's setup needs those, use `memory = umb`: KEYB
+then loads high and costs nothing.
+
 `keyboard` under `[dos]` sets a layout for one game, over your setting. The layouts are the ones both DOSes support with
 the VGA's own character set, which has the letters and accents of these languages, such as ñ, ç, ü or å.
 

@@ -1067,7 +1067,12 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     if (strcmp(GetKeyboardLayout(), k_keyboard_layouts[0].id) != 0)
     {
         std::string layout = upper(GetKeyboardLayout());
-        out += "LH KEYB " + layout + (msdos ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" : ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
+        bool low = (info.memory == GDOX_GAME_MEMORY_NONE) || (info.memory == GDOX_GAME_MEMORY_XMS);
+
+        if (!msdos && low)
+            out += "MKEYB " + layout + "\r\n";
+        else
+            out += "LH KEYB " + layout + (msdos ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" : ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
     }
 
     if (machine.mouse != GDOX_MOUSE_NONE)

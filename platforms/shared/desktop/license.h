@@ -649,6 +649,7 @@ static const char * FREEDOS_LICENSE_STR =
 "\n"
 "\nThe kernel, FreeCOM and nearly all the others are under the GNU General Public"
 "\nLicense, version 2 or, for most of them, any later version. XCOPY is under version 2."
+"\nMKEYB is under the GPL, and its executable may be packed with any packer."
 "\nThe text is on that disk as \\FREEDOS\\COPYING.TXT."
 "\n"
 "\nHIMEMX is under the GPL and/or the Artistic License, with changes in the public domain."
