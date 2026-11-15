@@ -326,28 +326,30 @@ mouse. For joystick games, choose **PC Joystick** as the device type.
 
 ## Use Your Own MS-DOS
 
-Geardox includes FreeDOS and needs nothing else. If you own MS-DOS, games can run on it instead. Geardox doesn't
-include MS-DOS: you import your own Setup disks once.
+Geardox includes FreeDOS and needs nothing else. If you own MS-DOS, games and the built-in disk can run on it
+instead. Geardox doesn't include MS-DOS: you import your own Setup disks once.
 
-1. Choose **Game > DOS > Import MS-DOS...**.
+1. Choose **DOS > Import MS-DOS...**.
 2. Select one of the Setup disk images, or a ZIP containing them. When you select an image, Geardox reads every
    image in its folder.
 
 Geardox expands the files as MS-DOS Setup does and keeps its own copy, `msdos.zip`, in its settings folder. Your
 disk images are never changed. Any floppy image format Geardox can open works, and the disks can be in any order.
 
-From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. The game's C: drive
+From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. With nothing attached,
+the PC boots the built-in MS-DOS disk, `MS-DOS.hdd`, made from your import the first time; see
+[Starting with nothing attached](INSTRUCTIONS.md#starting-with-nothing-attached). The game's C: drive
 then has MS-DOS's files instead of FreeDOS's, and the same `CONFIG.SYS` and `AUTOEXEC.BAT`, generated from the
 descriptor (see [Files on the DOS C: drive](#files-on-the-dos-c-drive)). Saves are unaffected: they stay in the game's
 folder or save location whichever DOS runs.
 
-- **One game on FreeDOS:** while the game is open, choose **Game > DOS > FreeDOS**. Geardox closes the game, saving
+- **One game on FreeDOS:** while the game is open, choose **DOS > Game > FreeDOS**. Geardox closes the game, saving
   its changes, and opens it again on FreeDOS. The choice is kept for that game, and **Forget Machine Changes**
-  clears it. **Game > DOS** and your MS-DOS's name, such as **MS-DOS 6.22**, switches it back.
+  clears it. **DOS > Game** and your MS-DOS's name, such as **MS-DOS 6.22**, switches it back.
 - **In a descriptor:** `system = freedos` or `system = msdos` under `[dos]`. A game that asks for MS-DOS doesn't
   start until MS-DOS is imported.
-- **Removing it:** **Game > DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
-  opened.
+- **Removing it:** **DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
+  opened, and so does the built-in disk. `MS-DOS.hdd` stays, with what you installed on it.
 
 **MS-DOS 5.0, 6.0, 6.2, 6.21 and 6.22** can be imported, in any language. Geardox installs the files MS-DOS Setup
 installs, as the Setup disks list them, and leaves out supplemental disks, which Setup never installs. The name shown,
@@ -360,9 +362,11 @@ whole of its EMS aside when it loads: with `memory = ems`, a game gets all the e
 XMS left, unless `ems_kb` asks for less. `cache = on` loads nothing, as 5.0 has no SMARTDRV.EXE.
 
 In RetroArch, put the Setup disk images, or a ZIP of them, in `geardox/msdos` inside RetroArch's system folder.
-Geardox imports them the next time a game loads, and again whenever they change. Removing them goes back to FreeDOS.
+Geardox imports them the next time content loads, and again whenever they change. Removing them goes back to FreeDOS.
 The **Game DOS (restart)** core option set to **FreeDOS** runs games on FreeDOS without removing anything, and
-RetroArch's per-game options make that choice for one game.
+RetroArch's per-game options make that choice for one game. **Built-in DOS Disk (restart)** chooses the disk that
+boots with no hard disk in the content: your MS-DOS when found, FreeDOS, or none. `MS-DOS.hdd` and `FreeDOS.hdd` live
+in the save folder.
 
 ## Troubleshooting
 
@@ -380,7 +384,7 @@ RetroArch's per-game options make that choice for one game.
 | Descriptor changes seem to be ignored | Use **Game > Game Files > Forget Machine Changes** and restart the game. |
 | Saves are not in the game's folder | Check **Game > Game Files > Show Saves Folder**. ZIPs, read-only folders and RetroArch use a separate save location by default. |
 | "This game needs MS-DOS, and none has been imported" | The descriptor has `system = msdos` under `[dos]`. Import your MS-DOS, see [Use your own MS-DOS](#use-your-own-ms-dos), or remove the line to use FreeDOS. |
-| A game works on FreeDOS but not on MS-DOS, or the other way round | Choose the other one with **Game > DOS** while the game is open. The two DOSes leave different amounts of memory, see [Memory modes](#memory-modes). |
+| A game works on FreeDOS but not on MS-DOS, or the other way round | Choose the other one with **DOS > Game** while the game is open. The two DOSes leave different amounts of memory, see [Memory modes](#memory-modes). |
 | After closing, a message says the game changed `AUTOEXEC.BAT` or `CONFIG.SYS` | The game's installer edited them. Geardox writes both again at every launch, so the message lists the lines it added. Copy the ones the game needs into `[autoexec]` or `[config_sys]`. |
 
 ## Other Ways to Open a Game
@@ -396,7 +400,8 @@ geardox --target prompt "Master of Orion.gdox"
 In RetroArch, load the `.gdox` file or a ZIP containing one at its top level. Use **Game Runs (restart)** to choose
 the game, setup or DOS prompt, then restart the content. Machine options controlled by the descriptor are hidden
 while the game runs. **Game Descriptors (restart): Disabled** turns descriptor handling off. **Game DOS (restart)**
-chooses between your own MS-DOS, when imported, and FreeDOS.
+chooses between your own MS-DOS, when imported, and FreeDOS. **Built-in DOS Disk (restart)** does the same for
+the disk that boots with no hard disk in the content.
 
 A folder or ZIP can contain several descriptors at its top level, for example for different episodes of a game.
 The desktop asks which one to use; RetroArch selects the first in name order. A folder or ZIP without a descriptor
@@ -606,7 +611,7 @@ These advanced sections hold DOS startup lines instead of `key = value` settings
 
 Geardox sends the PC the position of each key you press, as a real keyboard does. DOS assumes a United States
 keyboard, so on another layout symbols such as `:`, `/` and `-` land elsewhere until DOS is told the layout. Choose
-yours in **Input > Keyboard > DOS Layout**, or with the **DOS Keyboard Layout (restart)** option in RetroArch. Geardox
+yours in **DOS > Keyboard Layout**, or with the **DOS Keyboard Layout (restart)** option in RetroArch. Geardox
 then loads KEYB with it in each game's `AUTOEXEC.BAT`, on FreeDOS or MS-DOS, from the next game opened. KEYB loads into
 upper memory when there is some, and costs no conventional memory then.
 
@@ -616,8 +621,9 @@ the VGA's own character set, which has the letters and accents of these language
 Games that read the keyboard directly, as most action games do, use the keys' positions and aren't affected. The
 layout matters at the DOS prompt and in games that read typed text.
 
-The FreeDOS disk, `FreeDOS.hdd`, is yours and Geardox doesn't change it. Add a line such as
-`KEYB SP,437,C:\FREEDOS\BIN\KEYBOARD.SYS`, with your layout's code, to its `FDAUTO.BAT` once.
+A built-in disk, `FreeDOS.hdd` or `MS-DOS.hdd`, gets the KEYB line of the layout chosen when it's made. After that
+it's yours and Geardox doesn't change it: edit the `KEYB` line in its `AUTOEXEC.BAT`, or recreate it from the **DOS**
+menu. KEYB loads into upper memory there too.
 
 ### Memory Modes
 
@@ -671,7 +677,8 @@ C:\WINA20.386     As MS-DOS Setup installs it
 C:\CONFIG.SYS     DOS configuration generated from the descriptor
 C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
 C:\DOS            Everything MS-DOS Setup installs there
-C:\GEARDOX        Geardox's tools: the mouse and CD drivers, and the programs that start the game and power off
+C:\GEARDOX        Geardox's tools: the mouse and CD drivers, the programs that start the game and power off,
+                  and GDXIDLE.SYS, which rests the PC while DOS waits for a key as FreeDOS's IDLEHALT does
 C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```

@@ -2,7 +2,7 @@
 
 Geardox is an early-90s PC in a window: a 386 or 486 with a Sound Blaster, VGA or SVGA graphics, floppy drives,
 hard disks and a CD-ROM drive. A real PC needs DOS to run games, so Geardox comes with **FreeDOS built in**. You never
-have to install DOS yourself. If you own MS-DOS, games can run on it instead: see
+have to install DOS yourself. If you own MS-DOS, import it once and games and the built-in disk run on it instead: see
 [Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos).
 
 - [Play a game](#play-a-game)
@@ -23,7 +23,7 @@ The easiest way to play is with a **`.gdox` file**: a small text file that says 
 the PC needs. Drag it onto Geardox, or choose **Game > Open Game...**. If the `.gdox` sits inside the game's folder or
 ZIP, you can drop the folder or ZIP instead, or use **Game > Open Game Folder...**.
 
-Geardox builds a fresh C: drive with the game and FreeDOS on it, turns the PC on and starts the game. When you quit the
+Geardox builds a fresh C: drive with the game and DOS on it, turns the PC on and starts the game. When you quit the
 game, you're at the DOS prompt. Your saves go back into the game's folder, so they're there next time. A game in a ZIP
 saves to Geardox's save folder instead, and the ZIP is never changed.
 
@@ -52,25 +52,36 @@ Everything a `.gdox` can do, from CDs and floppies to memory and sound settings,
 
 ## Starting with Nothing Attached
 
-Geardox turns the PC on when it opens. If no hard disk is attached, it uses the **FreeDOS disk** as C: and boots it,
-and you get a DOS prompt: `C:\>`.
+Geardox turns the PC on when it opens. If no hard disk is attached, it uses a **built-in disk** as C: and boots it,
+and you get a DOS prompt: `C:\>`. There are two, and both can live side by side:
 
-The FreeDOS disk is a file, `FreeDOS.hdd`, in [Geardox's settings folder](#where-geardox-keeps-its-files). It's a
-hard disk of about 500 MB. Geardox makes it the first time and then it's yours: anything you copy or install on it
-stays there, session after session. Updating Geardox never touches it.
+- **The FreeDOS disk,** `FreeDOS.hdd`.
+- **The MS-DOS disk,** `MS-DOS.hdd`, once you've imported your own MS-DOS (see
+  [Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos)). It's then the one that boots.
 
-The disk comes ready for games:
+**DOS > With No Disks** chooses which one boots: your MS-DOS, FreeDOS, or **None**, which leaves the PC with nothing to
+boot. If the other built-in disk is the only hard disk attached, the change takes its place at the next reset.
+
+Each is a file in [Geardox's settings folder](#where-geardox-keeps-its-files), a hard disk of about 500 MB. Geardox
+makes it the first time it's needed and then it's yours: anything you copy or install on it stays there, session after
+session. Updating Geardox never touches it, and neither does importing or removing MS-DOS.
+
+Both disks come ready for games, with the same `CONFIG.SYS` and `AUTOEXEC.BAT` for their own DOS:
 
 - The mouse driver and the CD-ROM driver load at every boot.
 - `BLASTER` is set for the default Sound Blaster 16 (`A220 I5 D1 H5 P330`).
-- Extended memory (XMS) is available through HIMEMX.
+- Extended memory (XMS) and upper memory are on, and the drivers load high: about 615K is free on MS-DOS and 620K
+  on FreeDOS. A program that won't run with a memory manager runs from a `.gdox` with `memory = xms`; see
+  [Memory](GDOX_README.md#memory).
+- KEYB loads your layout from **DOS > Keyboard Layout**, when it isn't United States. The disk takes the layout chosen
+  when it's made.
+- The PC rests while DOS waits for a key, so an idle prompt doesn't keep your computer busy.
 
-To start over, choose **Drives > Hard Disks > Recreate FreeDOS Disk...**. It makes a clean disk and erases everything
-on the old one.
+To start over, choose **DOS > Recreate Built-in MS-DOS Disk...** or **DOS > Recreate Built-in FreeDOS Disk...**. It
+makes a clean disk and erases everything on the old one. A new MS-DOS disk uses the MS-DOS you imported last.
 
-To stop using it, turn off **Drives > Hard Disks > Boot FreeDOS With No Disks**. With nothing attached, the PC then
-has nothing to boot. **Drives > Hard Disks > Attach FreeDOS Disk** puts it back in any free position, for example next
-to a disk of your own.
+**Drives > Hard Disks > Attach Built-in MS-DOS Disk** and **Attach Built-in FreeDOS Disk** put one in any free
+position, for example next to a disk of your own, or both together to copy games from one to the other.
 
 ## Using the DOS Prompt
 
@@ -97,17 +108,17 @@ Drag a file onto the window, or use the **Drives** menu. What happens depends on
 | You drop | What happens |
 | --- | --- |
 | A folder or ZIP with a `.gdox` | The game opens, as in [Play a game](#play-a-game). |
-| A folder or ZIP with no `.gdox` | It becomes a second hard disk, **D:**, next to FreeDOS on C:. Type `D:` and run the game. DOS can write to D:, but those changes stay in Geardox's copy and your folder is never touched. |
-| A hard disk image (`.hdd`, `.img`, fixed-size `.vhd`, `.chd`) | It **replaces FreeDOS as C:** and the PC boots from it. This is for a DOS PC you've already set up. If C: is already one of your own disks, the image takes the next free position. |
+| A folder or ZIP with no `.gdox` | It becomes a second hard disk, **D:**, next to the built-in disk on C:. Type `D:` and run the game. DOS can write to D:, but those changes stay in Geardox's copy and your folder is never touched. |
+| A hard disk image (`.hdd`, `.img`, fixed-size `.vhd`, `.chd`) | It **replaces the built-in disk as C:** and the PC boots from it. This is for a DOS PC you've already set up. If C: is already one of your own disks, the image takes the next free position. |
 | A floppy image (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`) | It goes into drive A: right away, with no restart. |
 | A ZIP of floppy images | One disk goes into A: and the next into B:. **Drives > Floppies > Drive 1 > Disk in Image** swaps in any other. |
-| A CD image (`.cue`, `.iso`, `.chd`) or an `.m3u` list | It goes into the CD drive right away. Under FreeDOS it gets the next free letter, D: or E:. |
+| A CD image (`.cue`, `.iso`, `.chd`) or an `.m3u` list | It goes into the CD drive right away. On a built-in disk it gets the next free letter, D: or E:. |
 
 Where the changes go:
 
 | Disk | What DOS writes |
 | --- | --- |
-| `FreeDOS.hdd` and your `.hdd`, `.img` and `.vhd` images | Written into the image itself. |
+| `FreeDOS.hdd`, `MS-DOS.hdd` and your `.hdd`, `.img` and `.vhd` images | Written into the image itself. |
 | `.chd` hard disks and floppy images | Kept in a working copy in the save folder. The original file stays as it was. Use **Save As...** in the drive's menu to write a floppy out. |
 | A folder or ZIP attached as a disk | Kept in Geardox's copy of the folder. If the folder changes on your computer, **Rebuild From Folder...** in the disk's menu picks that up and drops what DOS wrote. |
 | A game opened with a `.gdox` | Copied back to the game's folder, or to the save folder, when the game ends. |
@@ -117,7 +128,7 @@ Geardox tells you.
 
 ## Installing a Game from Floppies or a CD
 
-You can install a game onto the FreeDOS disk, as on a real PC:
+You can install a game onto the built-in disk, as on a real PC:
 
 1. Start Geardox with nothing attached, so you're at `C:\>`.
 2. Drop the first install floppy, or a ZIP with all of them.
@@ -126,10 +137,10 @@ You can install a game onto the FreeDOS disk, as on a real PC:
    image.
 5. Once it's done, go to the folder it installed to, for example `C:` and then `CD \GAMES\NAME`, and run the game.
 
-For a CD, drop the image, type the CD's letter (`D:` with just the FreeDOS disk) and run its installer. Games that
+For a CD, drop the image, type the CD's letter (`D:` with just the built-in disk) and run its installer. Games that
 play from the CD need it inserted every time you play.
 
-The game stays on the FreeDOS disk, so it's there the next time you open Geardox.
+The game stays on the built-in disk, so it's there the next time you open Geardox.
 
 ## Two Rules That Explain Most Surprises
 
@@ -142,9 +153,10 @@ The game stays on the FreeDOS disk, so it's there the next time you open Geardox
 
 ## While a Game Is Open
 
-The game takes over the PC. It has its own C: with its own copy of DOS, FreeDOS or your imported MS-DOS, so
-`FreeDOS.hdd` isn't used, and anything you installed there isn't available. Your other hard disks are removed, and they don't come back on their own when the
-game ends. Once no disk is attached, the next power on brings the FreeDOS disk back.
+The game takes over the PC. It has its own C: with its own copy of DOS, FreeDOS or your imported MS-DOS, so the
+built-in disks aren't used, and anything you installed there isn't available. Your other hard disks are removed, and
+they don't come back on their own when the game ends. Once no disk is attached, the next power on brings the built-in
+disk back.
 
 The game's `.gdox` can bring its own floppies, extra hard disks and CD. If your CD-ROM drive is set to a position the
 game's hard disks use, it moves to the Secondary Master while the game is open.
@@ -153,7 +165,7 @@ game's hard disks use, it moves to the Secondary Master while the game is open.
 or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
 
 **Emulator > Machine** changes made while a game is open are remembered for that game only. So is the DOS chosen in
-**Game > DOS**, where **Import MS-DOS...** and **Remove MS-DOS** also are.
+**DOS > Game**. The **DOS** menu also has **Import MS-DOS...** and **Remove MS-DOS**.
 
 ## Machine Settings
 
@@ -177,8 +189,8 @@ a "TURBO OFF" badge shows while it's off.
 With the CGA, **Video > CGA Output** chooses the monitor: Auto shows composite colour when a game asks for it and RGB
 otherwise, and Composite Monitor suits games drawn for a television. It applies at once.
 
-If you change the sound card's IRQ or DMA, the FreeDOS disk doesn't follow. Edit the `SET BLASTER` line with
-`EDIT C:\FDAUTO.BAT`. Games opened with a `.gdox` get the right `BLASTER` automatically.
+If you change the sound card's IRQ or DMA, the built-in disks don't follow. Edit the `SET BLASTER` line with
+`EDIT C:\AUTOEXEC.BAT`. Games opened with a `.gdox` get the right `BLASTER` automatically.
 
 ## MIDI Music
 
@@ -225,8 +237,8 @@ window and leaving fullscreen.
 | Ctrl+Shift+S, Ctrl+Shift+L | Save state, load state |
 | Ctrl+Shift+R, Ctrl+Shift+P | Reset, pause |
 
-**If your keyboard isn't a United States one,** choose its layout in **Input > Keyboard > DOS Layout**. Games then
-get DOS set up for it, so `:`, `/` and the rest are where your keys say. See
+**If your keyboard isn't a United States one,** choose its layout in **DOS > Keyboard Layout**. Games then get DOS
+set up for it, so `:`, `/` and the rest are where your keys say, and so does a built-in disk made after the change. See
 [Keyboard layout](GDOX_README.md#keyboard-layout).
 
 **To move a key,** press **Ctrl+F1** (**Cmd+F1** on macOS). The PC stops and a picture of its keyboard appears. Click a
@@ -258,7 +270,7 @@ All hotkeys can be changed in **Emulator > Hotkeys**, and its **Reset to Default
 
 ## Where Geardox Keeps Its Files
 
-Settings, the FreeDOS disk and save files all live in one folder:
+Settings, the built-in disks and save files all live in one folder:
 
 | System | Folder |
 | --- | --- |
@@ -271,7 +283,8 @@ next to it. On macOS, it goes next to the `.app`.
 
 In this folder:
 
-- `FreeDOS.hdd` is the FreeDOS disk.
+- `FreeDOS.hdd` is the built-in FreeDOS disk.
+- `MS-DOS.hdd` is the built-in MS-DOS disk, made from your import the first time it's needed.
 - `msdos.zip` is your imported MS-DOS, when you've imported it.
 - `<name>.<id>.geardox.hdd` files are the disks made from folders and ZIPs.
 - `config.ini` holds your settings.
@@ -284,11 +297,11 @@ In this folder:
 | --- | --- |
 | A hard disk I attached isn't there | Reset. Hard disks only attach at a reset. |
 | The PC boots from a floppy I forgot | Eject it from **Drives > Floppies**, or use **Geardox > Reset and Boot From > Hard Disk**. |
-| My FreeDOS games are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the FreeDOS disk back. |
+| The games I installed are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **DOS > With No Disks** switches back, or attach both to copy them. |
 | Hotkeys don't work | Game Focus is on, as the window title says. Press Ctrl+F10. |
 | The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
 | The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
 | No music with General MIDI or MT-32 | Start the synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
 | The game asks for expanded memory (EMS) | Open it with a `.gdox` and set `ems_kb`. See [Memory](GDOX_README.md#memory). |
-| The FreeDOS disk is broken | **Drives > Hard Disks > Recreate FreeDOS Disk...**. It erases what was on it. |
+| A built-in disk is broken | **DOS > Recreate Built-in MS-DOS Disk...** or **Recreate Built-in FreeDOS Disk...**. It erases what was on it. |

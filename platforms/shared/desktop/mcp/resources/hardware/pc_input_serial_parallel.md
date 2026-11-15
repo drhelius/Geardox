@@ -13,7 +13,7 @@ with `get_input_state`, `get_serial_status` and `get_parallel_status`.
 | COM1, COM2 | 3F8h IRQ 4, 2F8h IRQ 3 | Two 16550A. Nothing on COM2, the serial mouse on COM1 when chosen |
 | LPT1 | 378h IRQ 7 | Output only, nothing attached |
 
-The FreeDOS disk loads CTMOUSE from `FDAUTO.BAT`, which finds either mouse. With no mouse it prints one line at boot.
+The built-in disks load CTMOUSE from `AUTOEXEC.BAT`, which finds either mouse. With no mouse it prints one line at boot.
 
 ---
 
