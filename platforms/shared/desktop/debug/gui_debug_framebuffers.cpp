@@ -287,7 +287,7 @@ static void draw_visible_area(const Emu_Debug_Buffer_Info& info, ImVec2 position
     ImVec2 rect_max(rect_min.x + info.window_width * zoom, rect_min.y + info.window_height * zoom);
 
     draw_list->PushClipRect(position, ImVec2(position.x + info.width * zoom, position.y + info.height * zoom), true);
-    draw_list->AddRect(rect_min, rect_max, ImColor(yellow), 0.0f, ImDrawFlags_None, 2.0f);
+    draw_list->AddRect(rect_min, rect_max, ImColor(yellow), 0.0f, 2.0f, ImDrawFlags_StrokeCenterBiased);
     draw_list->PopClipRect();
 }
 
