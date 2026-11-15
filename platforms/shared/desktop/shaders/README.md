@@ -169,11 +169,9 @@ PC video uniforms, updated every frame:
 - `float LineRate`: horizontal scan rate in kHz, the dot clock divided by the dots in a line. It is `15.70` on the CGA
   and in the EGA 200-line modes, about `21.8` in the EGA 350-line modes (`18.3` to `18.4` in its monochrome modes),
   and `31.47` in all the standard VGA modes. The Cirrus SVGA modes can go higher.
-- `float SourceLines`: number of scanlines the video card draws in a frame, which is what a CRT would show. It equals
-  `OriginalSize.y`, except with `Video > Native Resolution` on in a mode that scans each row twice: the VGA 200-line
-  modes, such as mode 13h, draw `400` monitor lines from `200` texel rows, so `SourceLines` is `400` and
-  `OriginalSize.y` is `200`. Scanline shaders use `SourceLines` instead of `OriginalSize.y` to draw one dark line per
-  monitor line, whether or not `Original` has a row for each of them.
+- `float SourceLines`: number of scanlines a scanline shader draws, one per `Original` row, so it always equals
+  `OriginalSize.y`. With `Video > Native Resolution` on, the VGA 200-line modes such as mode 13h have `200` rows, one
+  per pixel, although the card scans each row twice; with it off they have `400`, one per monitor line.
 - `vec4 BorderColor`: color of the border around the picture as `vec4(r, g, b, 1)`, which `Original` does not include.
   On the CGA it is the border color of the color select register, one of the 16 CGA colors. On the EGA, VGA and
   Cirrus it is the attribute controller's overscan color, through the palette. `vec4(0.0)` while the video is not
@@ -187,8 +185,7 @@ PC video uniforms, updated every frame:
   `Video > CGA Output > Composite Monitor`, or `Auto` with a 640x200 mode that has the color burst on. `0` otherwise.
 
 While the video is not running, such as at power on before the BIOS programs the card, and while the key mapper is
-open, `PixelClock`, `LineRate`, `BorderColor`, `VideoMode` and `CoreFlags` are `0`, and `SourceLines` equals
-`OriginalSize.y`.
+open, `PixelClock`, `LineRate`, `BorderColor`, `VideoMode` and `CoreFlags` are `0`.
 
 `FrameCount`, `SourceHistory`, `PassFeedback0` and `<Alias>Feedback` only advance when the emulator produces a new
 frame, or when rewinding shows an earlier one. Redraws while paused, after a window resize or after a parameter change

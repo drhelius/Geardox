@@ -2094,9 +2094,6 @@ void GeardoxCore::GetRuntimeInfo(GDOX_Runtime_Info& runtime_info)
     if (video_state->frame_line_dots > 0)
         runtime_info.line_rate = (float)((double)dot_clock / (double)video_state->frame_line_dots / 1000.0);
 
-    if (video_state->display_lines > 0)
-        runtime_info.source_lines = (int)video_state->display_lines;
-
     runtime_info.border_color[0] = (u8)((border >> 16) & 0xFF);
     runtime_info.border_color[1] = (u8)((border >> 8) & 0xFF);
     runtime_info.border_color[2] = (u8)(border & 0xFF);
