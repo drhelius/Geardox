@@ -108,10 +108,16 @@ void Keyboard::Receive(u8 value, u64 clocks)
     m_state.send_clocks = GDOX_NO_EVENT;
 }
 
-void Keyboard::KeyPressed(GDOX_Keys key, u64 clocks)
+bool Keyboard::KeyPressed(GDOX_Keys key, u64 clocks)
 {
-    if (!IsValidKey(key) || m_state.keys[key] != 0 || !m_state.scanning)
-        return;
+    if (!IsValidKey(key))
+        return false;
+
+    if (m_state.keys[key] != 0)
+        return true;
+
+    if (!m_state.scanning)
+        return false;
 
     u8 flags = GetMakeFlags(key);
     u8 count = m_state.buffer_count;
@@ -122,7 +128,7 @@ void Keyboard::KeyPressed(GDOX_Keys key, u64 clocks)
         m_state.buffer_count = count;
         QueueOverrun();
         UpdateSend(clocks);
-        return;
+        return false;
     }
 
     m_state.overrun = false;
@@ -145,6 +151,7 @@ void Keyboard::KeyPressed(GDOX_Keys key, u64 clocks)
     }
 
     UpdateSend(clocks);
+    return true;
 }
 
 // A release is never dropped: makes stop at the 16 bytes of the real buffer, the capacity above that is for breaks

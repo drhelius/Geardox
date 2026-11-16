@@ -1234,9 +1234,9 @@ void GeardoxCore::ApplyHardDisks()
     }
 }
 
-void GeardoxCore::KeyPressed(GDOX_Keys key)
+bool GeardoxCore::KeyPressed(GDOX_Keys key)
 {
-    m_i8042->KeyPressed(key);
+    return m_i8042->KeyPressed(key);
 }
 
 void GeardoxCore::KeyReleased(GDOX_Keys key)

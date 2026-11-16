@@ -568,22 +568,15 @@ void emu_set_joystick_state(const GDOX_Joystick_State& state)
         geardox->GetInput()->SetJoystickState(state);
 }
 
-void emu_key_pressed(GDOX_Keys key)
+bool emu_key_pressed(GDOX_Keys key)
 {
-    if (IsValidPointer(geardox))
-        geardox->KeyPressed(key);
+    return IsValidPointer(geardox) && geardox->KeyPressed(key);
 }
 
 void emu_key_released(GDOX_Keys key)
 {
     if (IsValidPointer(geardox))
         geardox->KeyReleased(key);
-}
-
-void emu_release_all_keys(void)
-{
-    if (IsValidPointer(geardox))
-        geardox->ReleaseAllKeys();
 }
 
 void emu_host_key_pressed(int usage)

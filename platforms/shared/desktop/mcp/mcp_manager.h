@@ -89,6 +89,7 @@ struct McpControllerMacroState
     u64 wait_target_frame;
     int command_count;
     int frames_waited;
+    int dropped;
     bool restore_pause;
     u64 breakpoint_stops;
     u32 generation;
@@ -262,9 +263,13 @@ public:
 
         for (size_t i = 0; i < m_delayed_releases.size(); i++)
         {
-            if (m_delayed_releases[i].key != GDOX_KEY_NONE)
-                emu_key_released(m_delayed_releases[i].key);
-            else if (IsValidPointer(m_debug_adapter))
+            if (m_delayed_releases[i].host_key >= 0)
+                emu_host_key_released(m_delayed_releases[i].host_key);
+            else if (!IsValidPointer(m_debug_adapter))
+                continue;
+            else if (m_delayed_releases[i].key != GDOX_KEY_NONE)
+                m_debug_adapter->ReleaseKey(m_delayed_releases[i].key);
+            else
                 m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons, m_delayed_releases[i].joystick_hat);
         }
 
@@ -311,7 +316,7 @@ public:
                 if (m_delayed_releases[i].host_key >= 0)
                     emu_host_key_released(m_delayed_releases[i].host_key);
                 else if (m_delayed_releases[i].key != GDOX_KEY_NONE)
-                    emu_key_released(m_delayed_releases[i].key);
+                    m_debug_adapter->ReleaseKey(m_delayed_releases[i].key);
                 else
                     m_debug_adapter->ReleaseJoystick(m_delayed_releases[i].joystick_buttons,
                         m_delayed_releases[i].joystick_hat);
@@ -686,7 +691,8 @@ private:
         response->result = {
             {"success", true},
             {"characters", m_input_macro.command_count},
-            {"frames_waited", m_input_macro.frames_waited}
+            {"frames_waited", m_input_macro.frames_waited},
+            {"dropped", input_macro_get_dropped()}
         };
 
         reset_input_macro();
@@ -729,6 +735,7 @@ private:
         macro.wait_target_frame = 0;
         macro.command_count = 0;
         macro.frames_waited = 0;
+        macro.dropped = 0;
         macro.restore_pause = false;
         macro.breakpoint_stops = 0;
         macro.generation = 0;
@@ -951,10 +958,10 @@ private:
     {
         if (step.device == MCP_CONTROLLER_MACRO_KEYBOARD)
         {
-            if (pressed)
-                emu_key_pressed((GDOX_Keys)step.code);
-            else
-                emu_key_released((GDOX_Keys)step.code);
+            if (!pressed)
+                m_debug_adapter->ReleaseKey((GDOX_Keys)step.code);
+            else if (!m_debug_adapter->PressKey((GDOX_Keys)step.code))
+                m_controller_macro.dropped++;
         }
         else if (step.device == MCP_CONTROLLER_MACRO_MOUSE)
             m_debug_adapter->SetMouseButton((u8)step.code, pressed);
@@ -1030,8 +1037,11 @@ private:
                 return;
             }
 
+            int dropped = macro.dropped;
             apply_controller_macro_step(step, step.type == MCP_CONTROLLER_MACRO_PRESS);
-            update_controller_macro_held(step);
+
+            if (macro.dropped == dropped)
+                update_controller_macro_held(step);
         }
 
         finish_controller_macro_success();
@@ -1075,7 +1085,8 @@ private:
             {"commands", macro.command_count},
             {"steps", (int)macro.steps.size()},
             {"frames_waited", macro.frames_waited},
-            {"held", (int)macro.held.size()}
+            {"held", (int)macro.held.size()},
+            {"dropped", macro.dropped}
         };
 
         reset_controller_macro();

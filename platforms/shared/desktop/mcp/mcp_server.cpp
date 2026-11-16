@@ -2373,7 +2373,8 @@ json McpServer::BuildToolList()
         {"name", "keyboard_key"},
         {"title", "Keyboard Key"},
         {"description", "Press, release or tap a PC keyboard key by name, e.g. RETURN, SPACE, A, 1, F1, LEFT SHIFT, "
-            "LEFT CTRL, ESCAPE, UP, KP ENTER."},
+            "LEFT CTRL, ESCAPE, UP, KP ENTER. A press the keyboard doesn't take (not scanning, or its buffer full) "
+            "returns dropped true with the reason. Keys stay held until released, even when the window loses focus."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2492,7 +2493,8 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "keyboard_type"},
         {"title", "Keyboard Type"},
-        {"description", "Type ASCII text on the US keyboard (Shift where needed, newline is RETURN), for DOS prompts."},
+        {"description", "Type ASCII text on the US keyboard (Shift where needed, newline is RETURN), for DOS prompts. "
+            "dropped counts the key presses the keyboard didn't take."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2519,7 +2521,8 @@ json McpServer::BuildToolList()
         {"description", "Run a frame-timed input script of tap, press, release and wait commands on the PC keyboard "
             "(key names as keyboard_key), the mouse buttons (left, right, middle) and the joystick (buttons 1-4, up, "
             "down, left, right on stick A, hat_up, hat_down, hat_left, hat_right). A tap holds tap_frames and leaves "
-            "the same gap. Runs frames, kept in rewind; breakpoints stop it and release what it holds."},
+            "the same gap. Runs frames, kept in rewind; breakpoints stop it and release what it holds. dropped counts "
+            "the key presses the keyboard didn't take."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},

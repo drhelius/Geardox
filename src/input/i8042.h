@@ -70,7 +70,7 @@ public:
     void Write(u16 port, u8 value, u64 clocks);
     u64 GetReadStableUntil(u16 port) const;
     void HandleEvent(u64 clocks);
-    void KeyPressed(GDOX_Keys key);
+    bool KeyPressed(GDOX_Keys key);
     void KeyReleased(GDOX_Keys key);
     void ReleaseAllKeys();
     u8 GetStatus() const;

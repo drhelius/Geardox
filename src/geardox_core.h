@@ -137,7 +137,7 @@ public:
     void SetGameTiming(int mask);
     void DebugWritePort(u16 port, u32 value, int size);
 
-    void KeyPressed(GDOX_Keys key);
+    bool KeyPressed(GDOX_Keys key);
     void KeyReleased(GDOX_Keys key);
     void ReleaseAllKeys();
     void HostKeyPressed(u16 usage);

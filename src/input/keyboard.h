@@ -72,7 +72,7 @@ public:
     void Receive(u8 value, u64 clocks);
     bool IsReceiving() const;
     u64 GetReceiveClocks() const;
-    void KeyPressed(GDOX_Keys key, u64 clocks);
+    bool KeyPressed(GDOX_Keys key, u64 clocks);
     void KeyReleased(GDOX_Keys key, u64 clocks);
     void ReleaseAllKeys(u64 clocks);
     bool IsKeyPressed(GDOX_Keys key) const;

@@ -226,6 +226,7 @@ DebugAdapter::DebugAdapter(GeardoxCore* core)
     memset(&m_joystick, 0, sizeof(m_joystick));
     m_joystick_axes = false;
     m_joystick_directions = 0;
+    memset(m_keys, 0, sizeof(m_keys));
     m_mouse_pointer.valid = false;
     m_mouse_pointer.generation = 0;
     m_mouse_pointer.estimated = false;
@@ -6205,26 +6206,50 @@ json DebugAdapter::KeyboardKey(const std::string& key, const std::string& action
     if (!GetKeyCode(key, code))
         return {{"error", "Invalid key name '" + key + "'"}};
 
-    bool delayed_release = false;
-
-    if (action == "press")
-        emu_key_pressed(code);
-    else if (action == "release")
-        emu_key_released(code);
-    else if (action == "press_and_release")
-    {
-        emu_key_pressed(code);
-        delayed_release = true;
-    }
-    else
+    if (action != "press" && action != "release" && action != "press_and_release")
         return {{"error", "Invalid action"}};
 
     json result = {{"success", true}, {"key", gui_debug_key_name(code)}, {"action", action}};
 
-    if (delayed_release)
+    if (action == "release")
+    {
+        ReleaseKey(code);
+        return result;
+    }
+
+    bool held = PressKey(code);
+    result["dropped"] = !held;
+
+    if (!held && !m_core->GetKeyboard()->GetState()->scanning)
+        result["reason"] = "The keyboard is not scanning: the software or the 8042 disabled it";
+    else if (!held)
+        result["reason"] = "The keyboard buffer is full: nothing has read port 60h, so it sent an overrun instead";
+    else if (action == "press_and_release")
         result["__delayed_key_release"] = true;
 
     return result;
+}
+
+bool DebugAdapter::PressKey(GDOX_Keys key)
+{
+    bool held = emu_key_pressed(key);
+    m_keys[key] = m_keys[key] || held;
+    return held;
+}
+
+void DebugAdapter::ReleaseKey(GDOX_Keys key)
+{
+    m_keys[key] = false;
+    emu_key_released(key);
+}
+
+void DebugAdapter::ReleaseKeys()
+{
+    for (int i = 0; i < GDOX_KEY_COUNT; i++)
+    {
+        if (m_keys[i])
+            ReleaseKey((GDOX_Keys)i);
+    }
 }
 
 static json mouse_button_names(u8 buttons)
@@ -6585,6 +6610,7 @@ void DebugAdapter::ClearInjectedInput()
     m_joystick_axes = false;
     m_joystick_directions = 0;
     ApplyJoystickState();
+    ReleaseKeys();
 }
 
 std::string DebugAdapter::Hex(u32 value, int digits) const

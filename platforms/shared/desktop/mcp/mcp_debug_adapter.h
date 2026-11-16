@@ -320,6 +320,9 @@ public:
     bool IsMouseButtonHeld() const;
     json MouseGetCursor();
     json KeyboardKey(const std::string& key, const std::string& action);
+    bool PressKey(GDOX_Keys key);
+    void ReleaseKey(GDOX_Keys key);
+    void ReleaseKeys();
     json GetKeyMap();
     json SetKeyBinding(const std::string& host, const std::string& keys);
     json SetKeyMapping(bool enabled);
@@ -353,6 +356,7 @@ private:
     GDOX_Joystick_State m_joystick;
     bool m_joystick_axes;
     u8 m_joystick_directions;
+    bool m_keys[GDOX_KEY_COUNT];
     McpMousePointer m_mouse_pointer;
 };
 

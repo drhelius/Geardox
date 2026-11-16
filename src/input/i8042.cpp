@@ -136,12 +136,13 @@ void I8042::Write(u16 port, u8 value, u64 clocks)
     UpdateNextEvent();
 }
 
-void I8042::KeyPressed(GDOX_Keys key)
+bool I8042::KeyPressed(GDOX_Keys key)
 {
     u64 clocks = m_scheduler->GetClocks();
     Synchronize(clocks);
-    m_keyboard->KeyPressed(key, clocks);
+    bool held = m_keyboard->KeyPressed(key, clocks);
     UpdateNextEvent();
+    return held;
 }
 
 void I8042::KeyReleased(GDOX_Keys key)
