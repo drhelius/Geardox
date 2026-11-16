@@ -36,6 +36,7 @@ power on.
 ## 3. I/O Map
 
 Board ports decode all 16 address lines. Unused ports read FFh and drop writes. Every access takes ISA I/O time.
+`read_memory` on the I/O PORTS area reads ports without side effects; `write_io_port` writes one as an OUT does.
 
 | Port | Device | Read | Write |
 |---|---|---|---|

@@ -7,9 +7,27 @@
       "mimeType": "text/markdown"
     },
     {
+      "uri": "x87_fpu",
+      "title": "Intel x87 FPU — What MS-DOS Software Relies On",
+      "description": "Which models have an 80387, 487SX or integrated FPU, the register stack and tags, control and status words, exceptions and CR0 NE/MP/EM/TS/ET, #NM, #MF and the IRQ13 path with ports F0h and F1h, FPU detection, FSAVE/FSTENV images, instruction groups and precision, timing, with the MCP tools and trace filters that show it",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "pentium_pci",
+      "title": "Pentium on a 430FX PCI Board — What MS-DOS Software Relies On",
+      "description": "The Pentium 75 to 200 models, CPUID, CR4, RDTSC and the MSRs, the U/V pairing timing, PCI configuration mechanism #1 on the 430FX and PIIX (PAM shadowing, DRAM, PIRQ, ELCR, CF9h, IDE timing), the PCI GD5446 and the SeaBIOS PCI image, with the MCP tools and trace filters that show them",
+      "mimeType": "text/markdown"
+    },
+    {
       "uri": "pc_at_board",
       "title": "PC/AT Board — Memory, I/O, Interrupts, Timers, BIOS and CMOS",
       "description": "Memory map, A20, board I/O ports, the 8259A pair and IRQ vectors, the 8254, reset paths, the built-in SeaBIOS, firmware config, debug console and the MC146818 CMOS",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "dos_bios_services",
+      "title": "BIOS and DOS Services — What MS-DOS Software Relies On",
+      "description": "The IVT, BIOS data area and EBDA, the BIOS, DOS, XMS, EMS, DPMI and mouse interrupts and which built-in software provides them, the PSP, environment, MCB chain and EXEC layout, the memory managers and extenders the built-in disks configure, GDXIDLE, GDXRUN, the boot order and BIOS log, and the MCP breakpoints, trace filters and memory reads that find a game's calls",
       "mimeType": "text/markdown"
     },
     {
@@ -28,6 +46,18 @@
       "uri": "pc_ide_cdrom",
       "title": "IDE and the ATAPI CD-ROM Drive — What MS-DOS Software Relies On",
       "description": "The two IDE channels and their positions, the ATAPI CD-ROM drive: signature, IDENTIFY PACKET, the packet protocol and commands, sense codes, tray and disc, CD audio and timing, with the MCP tools and trace filters that drive and watch it",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "pc_sound",
+      "title": "Sound Cards, FM, MIDI and the PC Speaker — What MS-DOS Software Relies On",
+      "description": "The AdLib and Sound Blaster cards with their ports, IRQ and DMA and BLASTER, the OPL2 and OPL3 FM chips (registers, rhythm, 4-op, timers, detection), the DSP (reset, commands, single-cycle, auto-init and high-speed DMA), the SB Pro and SB16 mixers, CD audio level, the MPU-401 UART and the PC speaker, with the MCP tools and trace filters that drive and watch them",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "pc_floppy_dma",
+      "title": "Floppy Controller and DMA — What MS-DOS Software Relies On",
+      "description": "The 82077 floppy controller (ports, DOR, MSR, commands, ST0-ST3, IRQ 6 and DMA channel 2, drive types and data rates, disk change, write protect, timing, image formats and geometry detection) and the two 8237A DMA controllers (registers, flip-flop, modes, auto-init, cascade, page registers, 64 KB and 128 KB boundaries, channel assignments), with the MCP tools and trace filters that drive and watch them",
       "mimeType": "text/markdown"
     }
   ]

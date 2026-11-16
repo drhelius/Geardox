@@ -95,6 +95,8 @@ bits.
 
 - `mouse_move` moves to a screenshot pixel (it first finds the pointer by moving 32 counts out and back and comparing
   frames) or by counts. `mouse_click` presses left, right or middle.
+- `controller_macro` with `device` `mouse` presses and releases `left`, `right` and `middle` on a frame-timed script,
+  mixed with PC keys and joystick controls; a tap holds `tap_frames` (default 3) and leaves the same gap.
 - `get_input_state` shows the host's pending counts and buttons, and, for a PS/2 mouse, the mode, reporting, rate,
   resolution, scaling, accumulators and queued bytes. For a serial mouse it shows RTS, readiness and the queue.
 - A mouse never read by the software leaves counts pending. `mouse_move` fails after 60 frames of that.
@@ -202,6 +204,9 @@ One port at 201h, decoded at 200h–207h (a Sound Blaster's game port is the sam
 - `joystick_set` injects axes (`ax`, `ay`, `bx`, `by`, -32768..32767, 0 is the centre), buttons 1–4 and the hat. Axes
   replace the host's until `reset`; buttons and hat are ORed with the host's. `device` plugs in another joystick at
   once.
+- `controller_macro` with `device` `joystick` scripts `1`–`4`, `up`, `down`, `left`, `right` (stick A to the edge and
+  back to the centre, which also replaces the host's axes until `joystick_set` `reset`) and `hat_up` to `hat_right`,
+  with `wait` frames between them. It needs a joystick plugged in.
 - `get_input_state` reports the device, the axes and buttons, what was injected, the game port byte (what a read of
   201h returns now) and each axis pulse in microseconds from the last fire, or `open` for an unplugged axis.
 - Trace `input.fires` for each fire with the pulse of each axis, and `input.changes` for host changes.
