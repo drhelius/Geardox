@@ -31,6 +31,7 @@
 #include "gui_filedialogs.h"
 #include "gui_game.h"
 #include "gui_hard_disks.h"
+#include "gui_menus.h"
 #include "gui_notifications.h"
 #include "media/game_descriptor.h"
 
@@ -71,8 +72,14 @@ void gui_dos_dialog_import_msdos(const char* path)
 static void menu_game(bool loading)
 {
     bool open = emu_game_is_open();
+    int source = emu_game_get_source("dos", "system");
+    bool pushed = gui_push_game_source_color(source);
+    bool menu = ImGui::BeginMenu("Game", open && !loading);
 
-    if (!ImGui::BeginMenu("Game", open && !loading))
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    if (!menu)
     {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             ImGui::SetTooltip("%s", open ? "The DOS this game boots. Changing it\nsaves, closes and reopens the game." :
@@ -85,12 +92,25 @@ static void menu_game(bool loading)
     bool imported = msdos[0] != 0;
     const char* names[2] = { imported ? msdos : "MS-DOS", "FreeDOS" };
     int selected = emu_game_get_system() == GDOX_GAME_SYSTEM_MSDOS ? 0 : 1;
-    float text_width = MAX(ImGui::CalcTextSize(names[0]).x, ImGui::CalcTextSize(names[1]).x);
+    std::string game_default = std::string("Game Default (") +
+        names[emu_game_get_base_system() == GDOX_GAME_SYSTEM_MSDOS ? 0 : 1] + ")";
+    float text_width = MAX(MAX(ImGui::CalcTextSize(names[0]).x, ImGui::CalcTextSize(names[1]).x),
+        ImGui::CalcTextSize(game_default.c_str()).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
+    pushed = gui_push_game_source_color(source);
+    bool combo = ImGui::BeginCombo("##game_system", names[selected]);
 
-    if (ImGui::BeginCombo("##game_system", names[selected]))
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    if (combo)
     {
+        if (ImGui::Selectable(game_default.c_str(), source != Emu_Game_Source_Change))
+            gui_game_set_system(-1);
+
+        ImGui::Separator();
+
         if (ImGui::Selectable(names[0], selected == 0, imported ? 0 : ImGuiSelectableFlags_Disabled))
             gui_game_set_system(GDOX_GAME_SYSTEM_MSDOS);
 
@@ -103,7 +123,13 @@ static void menu_game(bool loading)
         ImGui::EndCombo();
     }
     else if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("The DOS this game boots. Changing it\nsaves, closes and reopens the game.");
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("The DOS this game boots. Changing it");
+        ImGui::Text("saves, closes and reopens the game.");
+        gui_draw_game_source_tooltip(source);
+        ImGui::EndTooltip();
+    }
 
     ImGui::PopItemWidth();
     ImGui::EndMenu();

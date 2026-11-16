@@ -752,7 +752,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
 
     if (IsValidPointer(overrides_directory) && (overrides_directory[0] != 0))
     {
-        m_overrides_path = join(trim_trailing(overrides_directory), label + "." + key + ".gdox");
+        m_overrides_path = join(trim_trailing(overrides_directory), label + "." + key + ".gdox.ini");
         u64 size = 0;
         s64 modified = 0;
 
@@ -880,6 +880,11 @@ bool GameDisk::ClearOverrides()
 const GameDescriptor& GameDisk::GetDescriptor() const
 {
     return m_descriptor;
+}
+
+const GameDescriptor& GameDisk::GetBase() const
+{
+    return m_base;
 }
 
 const GameDescriptor& GameDisk::GetOverrides() const

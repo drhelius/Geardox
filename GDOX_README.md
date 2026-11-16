@@ -27,9 +27,10 @@ To create a descriptor for an installed DOS game:
 2. Select the game's folder.
 3. Select the program that starts the game, such as `ORION.EXE` or `PLAY.BAT`.
 
-Geardox saves the descriptor automatically and starts the game. To play again, choose it from
-**Game > Recent Games**. To save a copy of the descriptor in a location of your choice, use
-**Game > Game Files > Save Descriptor As...**.
+Geardox saves the descriptor in the game's folder and starts the game, so opening or dropping the folder finds it
+next time, and so does **Game > Recent Games**. With **Game > Save Games To > Geardox's Save Folder**, or when the
+folder is read only, it goes to Geardox's save folder instead, and Recent Games brings it back. To save a copy of the
+descriptor in a location of your choice, use **Game > Game Files > Save Descriptor As...**.
 
 If the game asks you to run setup first, see [Run setup or use the DOS prompt](#run-setup-or-use-the-dos-prompt).
 
@@ -217,8 +218,10 @@ These locations apply to the game's files. Geardox save states are stored separa
 
 ## Adjust a Game's Settings
 
-On desktop, **Emulator > Machine** changes made while a game is open are saved as settings for that game.
-You can also record settings in the descriptor, for example:
+On desktop, changes made while a game is open are saved as settings for that game: **Emulator > Machine**,
+**Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices, **Audio > MIDI Out > Game
+Synth** and **DOS > Game**. Geardox confirms each one with **Saved for** and the game's name. You can also record
+settings in the descriptor, for example:
 
 ```ini
 [machine]
@@ -234,9 +237,17 @@ Geardox uses settings in this order:
 3. Your general Geardox settings.
 4. Built-in defaults for anything still unspecified.
 
-If an edit to the descriptor seems to have no effect, use **Game > Game Files > Forget Machine Changes**, then
-restart the game. To export the descriptor with your remembered changes included, use
-**Game > Game Files > Save Descriptor As...**.
+While a game is open, the menus colour the settings that are the game's: orange for a change you made for it, violet
+for a setting from its descriptor, blue for one from the game database. Each setting's tooltip says which. The first
+choice in each list, **Game Default**, shows what the game gets without your change and goes back to it.
+**Game > Game Files > Forget This Game's Changes** forgets them all at once. Your key map for the game is kept apart
+and stays.
+
+When you edit a descriptor after changing the same setting in the menus, your change still wins. Geardox says so the
+next time the game opens, once, with the settings involved.
+
+To export the descriptor with your changes included, use **Game > Game Files > Save Descriptor As...**. The changes
+themselves are kept in Geardox's save folder, as `<name>.<id>.gdox.ini` beside the game's disk.
 
 With default settings, Geardox uses a 486DX2 at 66 MHz, 8 MB of RAM, Cirrus VL-Bus video, a Sound Blaster 16
 (IRQ 5, DMA 1), a PS/2 mouse and 4x CD-ROM speed.
@@ -353,8 +364,9 @@ descriptor (see [Files on the DOS C: drive](#files-on-the-dos-c-drive)). Saves a
 folder or save location whichever DOS runs.
 
 - **One game on FreeDOS:** while the game is open, choose **DOS > Game > FreeDOS**. Geardox closes the game, saving
-  its changes, and opens it again on FreeDOS. The choice is kept for that game, and **Forget Machine Changes**
-  clears it. **DOS > Game** and your MS-DOS's name, such as **MS-DOS 6.22**, switches it back.
+  its changes, and opens it again on FreeDOS. The choice is kept for that game, and **Game Default** in the same list
+  or **Forget This Game's Changes** clears it. **DOS > Game** and your MS-DOS's name, such as **MS-DOS 6.22**,
+  switches it back.
 - **In a descriptor:** `system = freedos` or `system = msdos` under `[dos]`. A game that asks for MS-DOS doesn't
   start until MS-DOS is imported.
 - **Removing it:** **DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
@@ -391,7 +403,7 @@ in the save folder.
 | The game asks for expanded memory or EMS | Add `ems_kb = 1024` under `[dos]`, or the required amount in KB. |
 | No sound, or the game hangs when playing sound | Run the game's sound setup and match its card, IRQ and DMA to Geardox. |
 | "Please insert the CD" | Check `cdrom` under `[drives]` and the CD drive letter expected by the game's setup. |
-| Descriptor changes seem to be ignored | Use **Game > Game Files > Forget Machine Changes** and restart the game. |
+| Descriptor changes seem to be ignored | A change made in the menus for this game wins. Its menu shows it in orange: choose **Game Default** there, or **Game > Game Files > Forget This Game's Changes**, then restart the game. |
 | Saves are not in the game's folder | Check **Game > Game Files > Show Saves Folder**. ZIPs, read-only folders and RetroArch use a separate save location by default. |
 | "This game needs MS-DOS, and none has been imported" | The descriptor has `system = msdos` under `[dos]`. Import your MS-DOS, see [Use your own MS-DOS](#use-your-own-ms-dos), or remove the line to use FreeDOS. |
 | A game works on FreeDOS but not on MS-DOS, or the other way round | Choose the other one with **DOS > Game** while the game is open. The two DOSes leave different amounts of memory, see [Memory modes](#memory-modes). |

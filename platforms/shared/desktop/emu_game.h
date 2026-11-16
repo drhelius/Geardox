@@ -32,6 +32,13 @@
     #define EXTERN extern
 #endif
 
+enum Emu_Game_Source
+{
+    Emu_Game_Source_User = 0,
+    Emu_Game_Source_Descriptor,
+    Emu_Game_Source_Change
+};
+
 EXTERN bool emu_game_is_content(const char* path);
 EXTERN bool emu_game_find(const char* path, std::vector<GameDisk_Found>* found);
 EXTERN bool emu_game_open(const GameDisk_Found& found, int target);
@@ -45,13 +52,20 @@ EXTERN void emu_game_set_target(int target);
 EXTERN int emu_game_get_target(void);
 EXTERN bool emu_game_update(void);
 EXTERN config_Machine* emu_game_get_machine(void);
+EXTERN const config_Machine* emu_game_get_base_machine(void);
 EXTERN void emu_game_apply_machine(void);
+EXTERN int emu_game_get_source(const char* section, const char* key);
+EXTERN bool emu_game_is_from_database(void);
 EXTERN int emu_game_get_joystick(void);
+EXTERN int emu_game_get_base_joystick(void);
 EXTERN int emu_game_get_cga_output(void);
+EXTERN int emu_game_get_base_cga_output(void);
 EXTERN void emu_game_set_cga_output(int output);
 EXTERN int emu_game_get_midi(void);
+EXTERN int emu_game_get_base_midi(void);
 EXTERN void emu_game_set_midi(int synth, const char* port);
 EXTERN const char* emu_game_get_midi_port(void);
+EXTERN const char* emu_game_get_base_midi_port(void);
 EXTERN void emu_game_set_joystick(int joystick);
 EXTERN const GDOX_Gamepad_Game* emu_game_get_gamepad(int pad);
 EXTERN const GDOX_Gamepad_Game* emu_game_get_base_gamepad(int pad);
@@ -69,6 +83,7 @@ EXTERN GameDisk* emu_game_get_disk(void);
 EXTERN std::string emu_game_get_key_map_path(void);
 EXTERN const char* emu_game_get_keys(void);
 EXTERN int emu_game_get_system(void);
+EXTERN int emu_game_get_base_system(void);
 EXTERN bool emu_game_set_system(int system);
 EXTERN bool emu_game_get_found(GameDisk_Found* found);
 EXTERN void emu_game_list_programs(const char* folder, std::vector<std::string>* programs);

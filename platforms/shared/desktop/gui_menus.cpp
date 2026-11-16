@@ -68,7 +68,9 @@ static bool choose_video_recordings_path = false;
 static bool open_physical_cdrom = false;
 #endif
 static const GuiColor& machine_warning_color = amber;
-static const GuiColor& machine_game_color = cyan;
+static const GuiColor& machine_game_color = orange;
+static const GuiColor& machine_descriptor_color = violet;
+static const GuiColor& machine_database_color = cornflower;
 static config_Machine* menu_settings = &config_machine;
 static std::vector<MidiPortInfo> midi_ports;
 static bool midi_ports_pending = false;
@@ -102,7 +104,13 @@ static void menu_boot_device(void);
 static void draw_machine_profile_tooltip(GDOX_Machine_Model model);
 static void get_machine_summary(const GDOX_Machine_Config& config, char* text, size_t text_size);
 static float get_combo_items_width(const char* items);
-static bool menu_machine_sound_resource(const char* name, const char* id, const u8* values, int* setting, bool enabled);
+static bool menu_machine_sound_resource(const char* name, const char* id, const char* key, const u8* values, int* setting,
+    int base, bool enabled);
+static ImVec4 get_game_source_color(int source);
+static bool begin_game_menu(const char* label, int source, bool enabled = true);
+static bool begin_game_combo(const char* id, const char* preview, int source);
+static void get_game_default_label(const char* value, char* label, size_t label_size);
+static bool game_default_item(const char* label, int source);
 static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media);
 static void menu_video(void);
 static void menu_input(void);
@@ -174,6 +182,24 @@ void gui_main_menu(void)
     }
 
     file_dialogs();
+}
+
+bool gui_push_game_source_color(int source)
+{
+    if (source == Emu_Game_Source_User)
+        return false;
+
+    ImGui::PushStyleColor(ImGuiCol_Text, get_game_source_color(source));
+    return true;
+}
+
+void gui_draw_game_source_tooltip(int source)
+{
+    if (source == Emu_Game_Source_Change)
+        ImGui::TextColored(get_game_source_color(source), "Changed for this game only.");
+    else if (source == Emu_Game_Source_Descriptor)
+        ImGui::TextColored(get_game_source_color(source), "%s", emu_game_is_from_database() ?
+            "Set by the game database." : "Set by this game's descriptor.");
 }
 
 static void menu_geardox(void)
@@ -640,8 +666,8 @@ static void menu_emulator(void)
                 ImGui::PushItemWidth(get_combo_items_width(locations));
                 ImGui::Combo("##savefiles_option", &config_emulator.savefiles_dir_option, locations);
                 draw_directory_tooltip(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str(),
-                    "Working copies of floppies and CHD disks,\nand each machine's CMOS. With Same as Disk,\n"
-                    "the CMOS stays in the default location.", false);
+                    "Working copies of floppies and CHD disks,\neach machine's CMOS, and each game's disk,\n"
+                    "settings and key map. With Same as Disk,\nthe CMOS and games stay in the default\nlocation.", false);
                 ImGui::PopItemWidth();
 
                 switch ((Directory_Location)config_emulator.savefiles_dir_option)
@@ -888,6 +914,8 @@ static void menu_machine(void)
     ImGui::Separator();
 
     bool turbo = core->IsTurbo();
+    int turbo_source = emu_game_get_source("machine", "turbo");
+    bool pushed = gui_push_game_source_color(turbo_source);
 
     if (ImGui::MenuItem("Turbo", config_hotkeys[config_HotkeyIndex_Turbo].str, &turbo))
     {
@@ -898,9 +926,22 @@ static void menu_machine(void)
             emu_game_apply_machine();
     }
 
+    if (pushed)
+        ImGui::PopStyleColor();
+
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("The board's Turbo button: off runs the CPU\nat a third of its clock, for games too fast.\n"
-            "Applies at once.");
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("The board's Turbo button: off runs the CPU");
+        ImGui::Text("at a third of its clock, for games too fast.");
+        ImGui::Text("Applies at once.");
+        gui_draw_game_source_tooltip(turbo_source);
+
+        if (emu_game_is_open())
+            ImGui::Text("The hotkey changes it for this session only.");
+
+        ImGui::EndTooltip();
+    }
 
     if (ImGui::MenuItem("BIOS Boot Menu", "", &config_emulator.bios_boot_menu))
         emu_apply_bios_settings();
@@ -945,7 +986,9 @@ static void menu_machine(void)
 
 static bool menu_machine_model(void)
 {
-    if (!ImGui::BeginMenu("Model"))
+    int source = emu_game_get_source("machine", "model");
+
+    if (!begin_game_menu("Model", source))
         return false;
 
     bool changed = false;
@@ -953,6 +996,8 @@ static bool menu_machine_model(void)
     float cpu_width = 0.0f;
     char cpu[64];
     char preview[64];
+    char game_default[96];
+    int base = emu_game_get_base_machine()->model;
     I386_Dynarec_Info dynarec;
     emu_get_core()->GetI386()->GetDynarecInfo(dynarec);
 
@@ -968,11 +1013,19 @@ static bool menu_machine_model(void)
     float cpu_column = name_width + ImGui::GetStyle().ItemSpacing.x * 4.0f;
 
     snprintf(preview, sizeof(preview), "%s", k_machine_profiles[menu_settings->model].name);
+    get_game_default_label(k_machine_profiles[base].name, game_default, sizeof(game_default));
+    float text_width = MAX(ImGui::CalcTextSize(preview).x, ImGui::CalcTextSize(game_default).x);
 
-    ImGui::PushItemWidth(gui_get_combo_width(MAX(cpu_column + cpu_width, ImGui::CalcTextSize(preview).x)));
+    ImGui::PushItemWidth(gui_get_combo_width(MAX(cpu_column + cpu_width, text_width)));
 
-    if (ImGui::BeginCombo("##machine_model", preview))
+    if (begin_game_combo("##machine_model", preview, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->model = base;
+            changed = true;
+        }
+
         for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
         {
             GDOX_Machine_Model model = k_machine_release_order[i];
@@ -1006,6 +1059,7 @@ static bool menu_machine_model(void)
         ImGui::Text("The 486DX2-66 suits most games of 1990 to 1995.");
         ImGui::Text("Too fast? A 386, or Turbo off.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1016,18 +1070,25 @@ static bool menu_machine_model(void)
 
 static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
 {
-    if (!ImGui::BeginMenu("CPU Speed"))
+    int source = emu_game_get_source("machine", "cpu_mhz");
+
+    if (!begin_game_menu("CPU Speed", source))
         return false;
 
     bool changed = false;
     int original = (int)(profile.cpu_clock_rate / 1000000);
     int in_use = (int)(emu_get_core()->GetPendingMachineConfig().cpu_clock_rate / 1000000);
+    int base = emu_game_get_base_machine()->cpu_mhz;
     float text_width = 0.0f;
     char labels[GDOX_MACHINE_CPU_SPEED_COUNT][32];
     char auto_label[32];
+    char base_label[32];
+    char game_default[64];
     snprintf(auto_label, sizeof(auto_label), "Model Default (%d MHz)", menu_settings->cpu_mhz == GDOX_MACHINE_AUTO ? in_use : original);
+    snprintf(base_label, sizeof(base_label), "%d MHz", base == GDOX_MACHINE_AUTO ? original : base);
+    get_game_default_label(base_label, game_default, sizeof(game_default));
     const char* preview = auto_label;
-    text_width = ImGui::CalcTextSize(auto_label).x;
+    text_width = MAX(ImGui::CalcTextSize(auto_label).x, ImGui::CalcTextSize(game_default).x);
 
     for (int i = 0; i < GDOX_MACHINE_CPU_SPEED_COUNT; i++)
     {
@@ -1041,8 +1102,14 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##machine_cpu_speed", preview))
+    if (begin_game_combo("##machine_cpu_speed", preview, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->cpu_mhz = base;
+            changed = true;
+        }
+
         if (ImGui::Selectable(auto_label, menu_settings->cpu_mhz == GDOX_MACHINE_AUTO))
         {
             menu_settings->cpu_mhz = GDOX_MACHINE_AUTO;
@@ -1068,6 +1135,7 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
         ImGui::Text("Model Default: the model's original clock.");
         ImGui::Text("Devices keep their real timing at any speed.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1078,7 +1146,13 @@ static bool menu_machine_cpu_speed(const GDOX_Machine_Profile& profile)
 
 static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
 {
-    if (!ImGui::BeginMenu("Main RAM"))
+    int source = emu_game_get_source("machine", "ram_mb");
+    int base = emu_game_get_base_machine()->ram_mb;
+
+    if ((source == Emu_Game_Source_User) && (base != config_machine.ram_mb))
+        source = Emu_Game_Source_Descriptor;
+
+    if (!begin_game_menu("Main RAM", source))
         return false;
 
     GeardoxCore* core = emu_get_core();
@@ -1087,6 +1161,11 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
     float text_width = 0.0f;
     char labels[GDOX_MACHINE_RAM_SIZE_COUNT][32];
     char preview[96] = "";
+    char base_label[32];
+    char game_default[64];
+    snprintf(base_label, sizeof(base_label), "%d MB", base);
+    get_game_default_label(base_label, game_default, sizeof(game_default));
+    text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
     {
@@ -1103,8 +1182,14 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
 
     ImGui::PushItemWidth(gui_get_combo_width(MAX(text_width, ImGui::CalcTextSize(preview).x)));
 
-    if (ImGui::BeginCombo("##machine_ram", preview))
+    if (begin_game_combo("##machine_ram", preview, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->ram_mb = base;
+            changed = true;
+        }
+
         for (int i = 0; i < GDOX_MACHINE_RAM_SIZE_COUNT; i++)
         {
             if (ImGui::Selectable(labels[i], menu_settings->ram_mb == k_machine_ram_sizes_mb[i]))
@@ -1123,6 +1208,7 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
         ImGui::Text("Sizes a model can't take round up.");
         ImGui::Text("Save states and rewind grow with it.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1138,21 +1224,32 @@ static const char* const k_floppy_labels[GDOX_FLOPPY_TYPE_COUNT] =
 
 static bool menu_machine_floppy(int drive)
 {
-    if (!ImGui::BeginMenu(drive == 0 ? "Floppy A" : "Floppy B"))
+    int source = emu_game_get_source("machine", drive == 0 ? "floppy_a_type" : "floppy_b_type");
+
+    if (!begin_game_menu(drive == 0 ? "Floppy A" : "Floppy B", source))
         return false;
 
     bool changed = false;
     int& type = menu_settings->floppy_type[drive];
+    int base = emu_game_get_base_machine()->floppy_type[drive];
+    char game_default[64];
+    get_game_default_label(k_floppy_labels[base], game_default, sizeof(game_default));
 
-    float text_width = 0.0f;
+    float text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < GDOX_FLOPPY_TYPE_COUNT; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(k_floppy_labels[i]).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo(drive == 0 ? "##machine_floppy_a" : "##machine_floppy_b", k_floppy_labels[type]))
+    if (begin_game_combo(drive == 0 ? "##machine_floppy_a" : "##machine_floppy_b", k_floppy_labels[type], source))
     {
+        if (game_default_item(game_default, source))
+        {
+            type = base;
+            changed = true;
+        }
+
         for (int i = 0; i < GDOX_FLOPPY_TYPE_COUNT; i++)
         {
             if (ImGui::Selectable(k_floppy_labels[i], type == i))
@@ -1174,6 +1271,7 @@ static bool menu_machine_floppy(int drive)
         ImGui::Text("A 720 KB disk gets a 1.44 MB drive,");
         ImGui::Text("which reads both.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1184,21 +1282,34 @@ static bool menu_machine_floppy(int drive)
 
 static bool menu_machine_sound(void)
 {
-    if (!ImGui::BeginMenu("Sound Card"))
+    int source = emu_game_get_source("sound", "card");
+    int mpu_source = emu_game_get_source("sound", "mpu");
+    int resource_source = MAX(emu_game_get_source("sound", "irq"), emu_game_get_source("sound", "dma"));
+
+    if (!begin_game_menu("Sound Card", MAX(source, MAX(mpu_source, resource_source))))
         return false;
 
     bool changed = false;
     int& card = menu_settings->sound_card;
+    const config_Machine* base = emu_game_get_base_machine();
+    char game_default[64];
+    get_game_default_label(k_sound_cards[base->sound_card].name, game_default, sizeof(game_default));
 
-    float text_width = 0.0f;
+    float text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(k_sound_cards[i].name).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##machine_sound_card", k_sound_cards[card].name))
+    if (begin_game_combo("##machine_sound_card", k_sound_cards[card].name, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            card = base->sound_card;
+            changed = true;
+        }
+
         for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
         {
             if (ImGui::Selectable(k_sound_cards[i].name, card == i))
@@ -1216,28 +1327,33 @@ static bool menu_machine_sound(void)
         ImGui::Text("Games detect the card.");
         ImGui::Text("The Sound Blaster 16 suits nearly all.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
     ImGui::PopItemWidth();
     ImGui::Separator();
 
-    if (menu_machine_sound_resource("IRQ", "##machine_sound_irq", k_sound_card_irqs, &menu_settings->sound_irq,
-        k_sound_cards[card].dsp_major != 0))
+    if (menu_machine_sound_resource("IRQ", "##machine_sound_irq", "irq", k_sound_card_irqs, &menu_settings->sound_irq,
+        base->sound_irq, k_sound_cards[card].dsp_major != 0))
         changed = true;
 
-    if (menu_machine_sound_resource("DMA", "##machine_sound_dma", k_sound_card_dmas, &menu_settings->sound_dma,
-        k_sound_cards[card].dsp_major != 0))
+    if (menu_machine_sound_resource("DMA", "##machine_sound_dma", "dma", k_sound_card_dmas, &menu_settings->sound_dma,
+        base->sound_dma, k_sound_cards[card].dsp_major != 0))
         changed = true;
 
     ImGui::Separator();
     bool mpu = menu_settings->mpu != 0;
+    bool pushed = gui_push_game_source_color(mpu_source);
 
     if (ImGui::MenuItem("MPU-401", "", &mpu))
     {
         menu_settings->mpu = mpu ? 1 : 0;
         changed = true;
     }
+
+    if (pushed)
+        ImGui::PopStyleColor();
 
     if (ImGui::IsItemHovered())
     {
@@ -1250,6 +1366,7 @@ static bool menu_machine_sound(void)
 
         ImGui::Text("Its music plays to Audio > MIDI Out.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(mpu_source);
         ImGui::EndTooltip();
     }
 
@@ -1257,15 +1374,22 @@ static bool menu_machine_sound(void)
     return changed;
 }
 
-static bool menu_machine_sound_resource(const char* name, const char* id, const u8* values, int* setting, bool enabled)
+static bool menu_machine_sound_resource(const char* name, const char* id, const char* key, const u8* values, int* setting,
+    int base, bool enabled)
 {
-    if (!ImGui::BeginMenu(name, enabled))
+    int source = emu_game_get_source("sound", key);
+
+    if (!begin_game_menu(name, source, enabled))
         return false;
 
     bool changed = false;
     char labels[2][16];
+    char base_label[16];
+    char game_default[48];
     int selected = 0;
-    float text_width = 0.0f;
+    snprintf(base_label, sizeof(base_label), "%s %d", name, base);
+    get_game_default_label(base_label, game_default, sizeof(game_default));
+    float text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < 2; i++)
     {
@@ -1278,8 +1402,14 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo(id, labels[selected]))
+    if (begin_game_combo(id, labels[selected], source))
     {
+        if (game_default_item(game_default, source))
+        {
+            *setting = base;
+            changed = true;
+        }
+
         for (int i = 0; i < 2; i++)
         {
             if (ImGui::Selectable(labels[i], selected == i))
@@ -1298,6 +1428,7 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
         ImGui::Text("BLASTER in the built-in disks' AUTOEXEC.BAT");
         ImGui::Text("doesn't follow it.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1308,7 +1439,9 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
 
 static bool menu_machine_video(void)
 {
-    if (!ImGui::BeginMenu("Video Card"))
+    int source = emu_game_get_source("machine", "video");
+
+    if (!begin_game_menu("Video Card", source))
         return false;
 
     bool changed = false;
@@ -1316,20 +1449,30 @@ static bool menu_machine_video(void)
     const GDOX_Machine_Profile& profile = k_machine_profiles[emu_get_core()->GetPendingMachineConfig().model];
     bool local_bus = (profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
     bool pci = (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0;
+    int model_card = pci ? GDOX_VIDEO_CARD_GD5446 : local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428;
+    int base = emu_game_get_base_machine()->video_card;
     char default_label[64];
-    snprintf(default_label, sizeof(default_label), "Model Default (%s)",
-        k_video_cards[pci ? GDOX_VIDEO_CARD_GD5446 : local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428].name);
+    char game_default[96];
+    snprintf(default_label, sizeof(default_label), "Model Default (%s)", k_video_cards[model_card].name);
+    get_game_default_label(k_video_cards[base == GDOX_MACHINE_AUTO ? model_card : base].name, game_default,
+        sizeof(game_default));
     const char* preview = card == GDOX_MACHINE_AUTO ? default_label : k_video_cards[card].name;
 
-    float text_width = ImGui::CalcTextSize(default_label).x;
+    float text_width = MAX(ImGui::CalcTextSize(default_label).x, ImGui::CalcTextSize(game_default).x);
 
     for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(k_video_cards[i].name).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##machine_video_card", preview))
+    if (begin_game_combo("##machine_video_card", preview, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            card = base;
+            changed = true;
+        }
+
         if (ImGui::Selectable(default_label, card == GDOX_MACHINE_AUTO))
         {
             card = GDOX_MACHINE_AUTO;
@@ -1357,6 +1500,7 @@ static bool menu_machine_video(void)
         ImGui::Text("Models without a local bus get the ISA card.");
         ImGui::Text("The IBM CGA and EGA are 8-bit cards for older games.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1367,20 +1511,31 @@ static bool menu_machine_video(void)
 
 static bool menu_machine_mouse(void)
 {
-    if (!ImGui::BeginMenu("Mouse"))
+    int source = emu_game_get_source("input", "mouse");
+
+    if (!begin_game_menu("Mouse", source))
         return false;
 
     bool changed = false;
     int mouse = CLAMP(menu_settings->mouse, 0, GDOX_MOUSE_TYPE_COUNT - 1);
-    float text_width = 0.0f;
+    int base = CLAMP(emu_game_get_base_machine()->mouse, 0, GDOX_MOUSE_TYPE_COUNT - 1);
+    char game_default[64];
+    get_game_default_label(k_mice[base].name, game_default, sizeof(game_default));
+    float text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(k_mice[i].name).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##machine_mouse", k_mice[mouse].name))
+    if (begin_game_combo("##machine_mouse", k_mice[mouse].name, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->mouse = base;
+            changed = true;
+        }
+
         for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
         {
             if (ImGui::Selectable(k_mice[i].name, mouse == i))
@@ -1399,6 +1554,7 @@ static bool menu_machine_mouse(void)
         ImGui::Text("Serial: a Microsoft mouse on COM1, as on 1989 PCs.");
         ImGui::Text("DOS mouse drivers find either.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1453,20 +1609,32 @@ static bool menu_machine_cdrom_drive(void)
 
 static bool menu_machine_drive_timing(void)
 {
-    if (!ImGui::BeginMenu("Drive Timing"))
+    int source = emu_game_get_source("machine", "drive_timing");
+
+    if (!begin_game_menu("Drive Timing", source))
         return false;
 
     bool changed = false;
     int timing = menu_settings->drive_timing < GDOX_DRIVE_TIMING_COUNT ? menu_settings->drive_timing : GDOX_MACHINE_AUTO;
-    float text_width = ImGui::CalcTextSize("Auto").x;
+    int base = emu_game_get_base_machine()->drive_timing;
+    base = base < GDOX_DRIVE_TIMING_COUNT ? base : GDOX_MACHINE_AUTO;
+    char game_default[64];
+    get_game_default_label(base < 0 ? "Auto" : k_drive_timings[base].name, game_default, sizeof(game_default));
+    float text_width = MAX(ImGui::CalcTextSize("Auto").x, ImGui::CalcTextSize(game_default).x);
 
     for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(k_drive_timings[i].name).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##machine_drive_timing", timing < 0 ? "Auto" : k_drive_timings[timing].name))
+    if (begin_game_combo("##machine_drive_timing", timing < 0 ? "Auto" : k_drive_timings[timing].name, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->drive_timing = base;
+            changed = true;
+        }
+
         if (ImGui::Selectable("Auto", timing < 0))
         {
             menu_settings->drive_timing = GDOX_MACHINE_AUTO;
@@ -1492,6 +1660,7 @@ static bool menu_machine_drive_timing(void)
         ImGui::Text("Auto: fast for games, real otherwise.");
         ImGui::Text("Transfer rates don't change.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1502,20 +1671,31 @@ static bool menu_machine_drive_timing(void)
 
 static bool menu_machine_cdrom_speed(void)
 {
-    if (!ImGui::BeginMenu("CD-ROM Speed"))
+    int source = emu_game_get_source("machine", "cdrom_speed");
+
+    if (!begin_game_menu("CD-ROM Speed", source))
         return false;
 
     bool changed = false;
     int speed = CLAMP(menu_settings->cdrom_speed, 0, GDOX_CDROM_SPEED_COUNT - 1);
-    float text_width = 0.0f;
+    int base = CLAMP(emu_game_get_base_machine()->cdrom_speed, 0, GDOX_CDROM_SPEED_COUNT - 1);
+    char game_default[64];
+    get_game_default_label(k_cdrom_speeds[base].name, game_default, sizeof(game_default));
+    float text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(k_cdrom_speeds[i].name).x);
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##machine_cdrom_speed", k_cdrom_speeds[speed].name))
+    if (begin_game_combo("##machine_cdrom_speed", k_cdrom_speeds[speed].name, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->cdrom_speed = base;
+            changed = true;
+        }
+
         for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
         {
             if (ImGui::Selectable(k_cdrom_speeds[i].name, speed == i))
@@ -1534,6 +1714,7 @@ static bool menu_machine_cdrom_speed(void)
         ImGui::Text("Games that stream from the disc");
         ImGui::Text("may want 4x or more.");
         ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -1545,28 +1726,40 @@ static bool menu_machine_cdrom_speed(void)
 
 static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
 {
-    if (!ImGui::BeginMenu("FPU"))
+    int source = emu_game_get_source("machine", "fpu");
+
+    if (!begin_game_menu("FPU", source))
         return false;
 
     bool changed = false;
     bool in_use = emu_get_core()->GetPendingMachineConfig().fpu;
     bool integrated = profile.fpu == GDOX_MACHINE_FPU_INTEGRATED;
+    int base = emu_game_get_base_machine()->fpu != 0 ? 1 : 0;
     char labels[2][64];
     char preview[96];
+    char game_default[96];
     snprintf(labels[0], sizeof(labels[0]), "None");
     snprintf(labels[1], sizeof(labels[1]), "%s (Default)", get_machine_fpu_name(profile.cpu));
+    get_game_default_label(base != 0 ? get_machine_fpu_name(profile.cpu) : labels[0], game_default, sizeof(game_default));
     snprintf(preview, sizeof(preview), "%s", integrated ? get_machine_fpu_name(profile.cpu) :
         labels[menu_settings->fpu != 0 ? 1 : 0]);
 
     if (!integrated && (menu_settings->fpu != 0) && !in_use)
         snprintf(preview, sizeof(preview), "%s, none on the %s", labels[1], profile.name);
 
-    float text_width = MAX(ImGui::CalcTextSize(labels[1]).x, ImGui::CalcTextSize(preview).x);
+    float text_width = MAX(MAX(ImGui::CalcTextSize(labels[1]).x, ImGui::CalcTextSize(preview).x),
+        ImGui::CalcTextSize(game_default).x);
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
     ImGui::BeginDisabled(integrated);
 
-    if (ImGui::BeginCombo("##machine_fpu", preview))
+    if (begin_game_combo("##machine_fpu", preview, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->fpu = base;
+            changed = true;
+        }
+
         if (ImGui::Selectable(labels[1], menu_settings->fpu != 0))
         {
             menu_settings->fpu = 1;
@@ -1596,6 +1789,7 @@ static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
             ImGui::Text("A few games need one,");
             ImGui::Text("some behave differently with one.");
             ImGui::Text("Reset the emulator to apply changes.");
+            gui_draw_game_source_tooltip(source);
         }
 
         ImGui::EndTooltip();
@@ -1604,6 +1798,54 @@ static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
     ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
+}
+
+static ImVec4 get_game_source_color(int source)
+{
+    if (source == Emu_Game_Source_Change)
+        return machine_game_color;
+
+    return emu_game_is_from_database() ? machine_database_color : machine_descriptor_color;
+}
+
+static bool begin_game_menu(const char* label, int source, bool enabled)
+{
+    bool pushed = gui_push_game_source_color(source);
+    bool open = ImGui::BeginMenu(label, enabled);
+
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    return open;
+}
+
+static bool begin_game_combo(const char* id, const char* preview, int source)
+{
+    bool pushed = gui_push_game_source_color(source);
+    bool open = ImGui::BeginCombo(id, preview);
+
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    return open;
+}
+
+static void get_game_default_label(const char* value, char* label, size_t label_size)
+{
+    if (emu_game_is_open())
+        snprintf(label, label_size, "Game Default (%s)", value);
+    else
+        label[0] = 0;
+}
+
+static bool game_default_item(const char* label, int source)
+{
+    if (label[0] == 0)
+        return false;
+
+    bool selected = ImGui::Selectable(label, source != Emu_Game_Source_Change);
+    ImGui::Separator();
+    return selected;
 }
 
 static const char* get_machine_fpu_text(const GDOX_Machine_Profile& profile)
@@ -1856,18 +2098,30 @@ static void menu_video(void)
             ImGui::EndTooltip();
         }
 
-        if (ImGui::BeginMenu("CGA Output"))
+        int cga_source = emu_game_get_source("machine", "cga_output");
+
+        if (begin_game_menu("CGA Output", cga_source))
         {
             int output = emu_game_get_cga_output() >= 0 ? emu_game_get_cga_output() : config_video.cga_output;
-            float text_width = 0.0f;
+            int base = emu_game_get_base_cga_output();
+            char game_default[64];
+            get_game_default_label(k_cga_outputs[base >= 0 ? base : config_video.cga_output].name, game_default,
+                sizeof(game_default));
+            float text_width = ImGui::CalcTextSize(game_default).x;
 
             for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
                 text_width = MAX(text_width, ImGui::CalcTextSize(k_cga_outputs[i].name).x);
 
             ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-            if (ImGui::BeginCombo("##cga_output", k_cga_outputs[output].name))
+            if (begin_game_combo("##cga_output", k_cga_outputs[output].name, cga_source))
             {
+                if (game_default_item(game_default, cga_source))
+                {
+                    emu_game_set_cga_output(base);
+                    emu_update_cga_output();
+                }
+
                 for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
                 {
                     if (ImGui::Selectable(k_cga_outputs[i].name, output == i))
@@ -1889,6 +2143,7 @@ static void menu_video(void)
                 ImGui::Text("The monitor on the IBM CGA's output.");
                 ImGui::Text("Auto: composite colour where a game turns on");
                 ImGui::Text("640x200 with the colour burst, RGB elsewhere.");
+                gui_draw_game_source_tooltip(cga_source);
                 ImGui::EndTooltip();
             }
 
@@ -2079,18 +2334,30 @@ static void menu_input(void)
 
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Emulated Joystick"))
+        int joystick_source = emu_game_get_source("input", "joystick");
+
+        if (begin_game_menu("Emulated Joystick", joystick_source))
         {
             int joystick = emu_game_get_joystick() >= 0 ? emu_game_get_joystick() : config_input.joystick_type;
-            float text_width = 0.0f;
+            int base = emu_game_get_base_joystick();
+            char game_default[64];
+            get_game_default_label(k_joysticks[base >= 0 ? base : config_input.joystick_type].name, game_default,
+                sizeof(game_default));
+            float text_width = ImGui::CalcTextSize(game_default).x;
 
             for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
                 text_width = MAX(text_width, ImGui::CalcTextSize(k_joysticks[i].name).x);
 
             ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-            if (ImGui::BeginCombo("##joystick", k_joysticks[joystick].name))
+            if (begin_game_combo("##joystick", k_joysticks[joystick].name, joystick_source))
             {
+                if (game_default_item(game_default, joystick_source))
+                {
+                    emu_game_set_joystick(base);
+                    emu_update_joystick_type();
+                }
+
                 for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
                 {
                     if (ImGui::Selectable(k_joysticks[i].name, joystick == i))
@@ -2116,6 +2383,7 @@ static void menu_input(void)
                 ImGui::Text("or left stick, four buttons.");
                 ImGui::Text("CH FlightStick Pro: stick, four buttons,");
                 ImGui::Text("throttle on the right stick, hat on the D-pad.");
+                gui_draw_game_source_tooltip(joystick_source);
                 ImGui::EndTooltip();
             }
 
@@ -2374,7 +2642,9 @@ static bool menu_audio_midi_port(const char* label, const char* id, std::string*
 
 static void menu_audio_midi_game_synth(void)
 {
-    if (!ImGui::BeginMenu("Game Synth"))
+    int source = MAX(emu_game_get_source("sound", "midi"), emu_game_get_source("sound", "midi_port"));
+
+    if (!begin_game_menu("Game Synth", source))
         return;
 
     bool game = emu_game_is_open();
@@ -2399,6 +2669,14 @@ static void menu_audio_midi_game_synth(void)
     for (int i = 0; game && (i < (int)midi_ports.size()); i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(midi_ports[i].id).x);
 
+    int base = emu_game_get_base_midi();
+    std::string base_port = emu_game_get_base_midi_port();
+    char game_default[MIDI_PORT_NAME_SIZE + 48];
+    get_game_default_label(!base_port.empty() ? base_port.c_str() :
+        labels[base >= 0 ? base : CLAMP(config_audio.midi_default, 0, GDOX_MIDI_SYNTH_COUNT - 1)], game_default,
+        sizeof(game_default));
+    text_width = MAX(text_width, ImGui::CalcTextSize(game_default).x);
+
     const char* preview = labels[synth];
 
     if (selected >= 0)
@@ -2412,8 +2690,14 @@ static void menu_audio_midi_game_synth(void)
 
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo("##midi_game_synth", preview))
+    if (begin_game_combo("##midi_game_synth", preview, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            emu_game_set_midi(base, base_port.c_str());
+            emu_midi_update_port();
+        }
+
         for (int i = 0; i < GDOX_MIDI_SYNTH_COUNT; i++)
         {
             if (ImGui::Selectable(labels[i], game_port.empty() && (synth == i)))
@@ -2464,6 +2748,7 @@ static void menu_audio_midi_game_synth(void)
             ImGui::Text("ports are read when this menu opens.");
         }
 
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -3135,7 +3420,13 @@ static void menu_input_gamepad(int pad)
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("Use As"))
+    const char* section = GameDescriptor::GetGamepadSection(pad);
+    int targets_source = Emu_Game_Source_User;
+
+    for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+        targets_source = MAX(targets_source, emu_game_get_source(section, k_gamepad_inputs[i].id));
+
+    if (begin_game_menu("Use As", emu_game_get_source(section, "use")))
     {
         gamepad_choice_selector(pad, true);
         ImGui::EndMenu();
@@ -3144,7 +3435,7 @@ static void menu_input_gamepad(int pad)
     bool keys = gamepad_get_use(pad) == GDOX_GAMEPAD_USE_KEYS;
     ImGui::Separator();
 
-    if (ImGui::BeginMenu("Key Mapping", keys))
+    if (begin_game_menu("Key Mapping", targets_source, keys))
     {
         float offset = 0.0f;
 
@@ -3179,9 +3470,11 @@ static void menu_input_gamepad(int pad)
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("Mouse", keys))
+    int mouse_source = emu_game_get_source(section, "mouse");
+
+    if (begin_game_menu("Mouse", mouse_source, keys))
     {
-        if (ImGui::BeginMenu("Move Mouse With"))
+        if (begin_game_menu("Move Mouse With", mouse_source))
         {
             gamepad_choice_selector(pad, false);
             ImGui::EndMenu();
@@ -3266,7 +3559,12 @@ static void gamepad_choice_selector(int pad, bool use)
     }
 
     int current = use ? gamepad_get_use(pad) : gamepad_get_mouse(pad);
-    float text_width = 0.0f;
+    int source = emu_game_get_source(GameDescriptor::GetGamepadSection(pad), use ? "use" : "mouse");
+    const GDOX_Gamepad_Game* base = emu_game_get_base_gamepad(pad);
+    char game_default[64];
+    get_game_default_label(infos[use ? gamepad_get_base_use(pad) : gamepad_get_base_mouse(pad)].name, game_default,
+        sizeof(game_default));
+    float text_width = ImGui::CalcTextSize(game_default).x;
 
     for (int i = 0; i < count; i++)
         text_width = MAX(text_width, ImGui::CalcTextSize(infos[choices[i]].name).x);
@@ -3275,8 +3573,16 @@ static void gamepad_choice_selector(int pad, bool use)
     snprintf(label, sizeof(label), "##gamepad_%s%d", use ? "use" : "mouse", pad + 1);
     ImGui::PushItemWidth(gui_get_combo_width(text_width));
 
-    if (ImGui::BeginCombo(label, infos[current].name))
+    if (begin_game_combo(label, infos[current].name, source))
     {
+        if (game_default_item(game_default, source))
+        {
+            if (use)
+                gamepad_set_use(pad, base->use);
+            else
+                gamepad_set_mouse(pad, base->mouse);
+        }
+
         for (int i = 0; i < count; i++)
         {
             if (!ImGui::Selectable(infos[choices[i]].name, current == choices[i]))
@@ -3308,7 +3614,7 @@ static void gamepad_choice_selector(int pad, bool use)
             ImGui::Text("It sends no keys while it does.");
         }
 
-        ImGui::Text("During a game, the change is for that game only.");
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
@@ -3319,6 +3625,7 @@ static void gamepad_key_item(int pad, int input, float offset)
 {
     bool disabled = GamepadKeys::MovesMouse(gamepad_get_mouse(pad), input);
     int target = gamepad_get_target(pad, input);
+    int source = emu_game_get_source(GameDescriptor::GetGamepadSection(pad), k_gamepad_inputs[input].id);
     char label[96];
 
     ImGui::BeginDisabled(disabled);
@@ -3326,12 +3633,24 @@ static void gamepad_key_item(int pad, int input, float offset)
     ImGui::SameLine(offset);
     snprintf(label, sizeof(label), "%s##gamepad_key%d_%d", disabled ? "Mouse" : GamepadKeys::GetTargetLabel(target), pad,
         input);
+    bool pushed = gui_push_game_source_color(source);
+    bool clicked = ImGui::Button(label, ImVec2(120, 0));
 
-    if (ImGui::Button(label, ImVec2(120, 0)))
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    if (clicked)
     {
         gui_configured_gamepad_pad = pad;
         gui_configured_gamepad_input = input;
         ImGui::OpenPopup("Gamepad Key Configuration");
+    }
+
+    if (!disabled && (source != Emu_Game_Source_User) && ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        gui_draw_game_source_tooltip(source);
+        ImGui::EndTooltip();
     }
 
     ImGui::SameLine();

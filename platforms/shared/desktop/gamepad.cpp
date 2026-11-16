@@ -45,6 +45,7 @@ static const SDL_GamepadButton k_gamepad_key_buttons[GDOX_GAMEPAD_INPUT_LEFT_STI
 static void notify_gamepad(int player, SDL_Gamepad* controller, bool connected);
 static void read_gamepad_state(SDL_Gamepad* controller, GDOX_Gamepad_State* state);
 static GDOX_Gamepad_Game get_game_gamepad(int pad, bool* open);
+static int get_pad_use(int pad, int use);
 
 bool gamepad_init(void)
 {
@@ -383,11 +384,14 @@ int gamepad_get_use(int pad)
     bool open = false;
     GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
     int use = (open && (game.use >= 0)) ? game.use : config_input_gamepad_keys[pad].use;
+    return get_pad_use(pad, use);
+}
 
-    if (pad == 0)
-        return use == GDOX_GAMEPAD_USE_JOYSTICK ? GDOX_GAMEPAD_USE_JOYSTICK : GDOX_GAMEPAD_USE_KEYS;
-
-    return use == GDOX_GAMEPAD_USE_OFF ? GDOX_GAMEPAD_USE_OFF : GDOX_GAMEPAD_USE_KEYS;
+int gamepad_get_base_use(int pad)
+{
+    const GDOX_Gamepad_Game* base = emu_game_get_base_gamepad(pad);
+    int use = (IsValidPointer(base) && (base->use >= 0)) ? base->use : config_input_gamepad_keys[pad].use;
+    return get_pad_use(pad, use);
 }
 
 void gamepad_set_use(int pad, int use)
@@ -410,6 +414,13 @@ int gamepad_get_mouse(int pad)
     bool open = false;
     GDOX_Gamepad_Game game = get_game_gamepad(pad, &open);
     int mouse = (open && (game.mouse >= 0)) ? game.mouse : config_input_gamepad_keys[pad].mouse;
+    return CLAMP(mouse, 0, GDOX_GAMEPAD_MOUSE_COUNT - 1);
+}
+
+int gamepad_get_base_mouse(int pad)
+{
+    const GDOX_Gamepad_Game* base = emu_game_get_base_gamepad(pad);
+    int mouse = (IsValidPointer(base) && (base->mouse >= 0)) ? base->mouse : config_input_gamepad_keys[pad].mouse;
     return CLAMP(mouse, 0, GDOX_GAMEPAD_MOUSE_COUNT - 1);
 }
 
@@ -529,6 +540,14 @@ static void read_gamepad_state(SDL_Gamepad* controller, GDOX_Gamepad_State* stat
     state->axes[GDOX_GAMEPAD_AXIS_LEFT_Y] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTY);
     state->axes[GDOX_GAMEPAD_AXIS_RIGHT_X] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTX);
     state->axes[GDOX_GAMEPAD_AXIS_RIGHT_Y] = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHTY);
+}
+
+static int get_pad_use(int pad, int use)
+{
+    if (pad == 0)
+        return use == GDOX_GAMEPAD_USE_JOYSTICK ? GDOX_GAMEPAD_USE_JOYSTICK : GDOX_GAMEPAD_USE_KEYS;
+
+    return use == GDOX_GAMEPAD_USE_OFF ? GDOX_GAMEPAD_USE_OFF : GDOX_GAMEPAD_USE_KEYS;
 }
 
 static GDOX_Gamepad_Game get_game_gamepad(int pad, bool* open)

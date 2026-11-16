@@ -58,9 +58,20 @@ static std::string last_result_name;
 static bool game_floppies[2] = { false, false };
 static bool game_cdrom = false;
 static GameDisk_Found current_found;
+static std::vector<std::pair<std::string, std::string> > game_keys;
+static const char k_empty_overrides[] = "[geardox]\nversion = 1\n";
+static const char* const k_game_keys[][2] = {
+    { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
+    { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
+    { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
+    { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" },
+    { "sound", "midi_port" }, { "input", "mouse" }, { "input", "joystick" } };
 
 static std::string get_save_directory(void);
-static std::string get_games_directory(void);
+static const std::vector<std::pair<std::string, std::string> >& get_game_keys(void);
+static bool same_overrides(const GameDescriptor& a, const GameDescriptor& b);
+static void notify_saved(void);
+static void notify_shadowed(void);
 static void config_to_settings(const config_Machine& machine, GDOX_Machine_Settings* settings);
 static void overlay_settings(config_Machine* machine, const GDOX_Machine_Settings& game);
 static void update_machines(void);
@@ -91,7 +102,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
     if (emu_is_powered_on())
         emu_power_off();
 
-    if (!disk.Open(found, get_save_directory().c_str(), get_games_directory().c_str(), config_game.write_back == 0,
+    if (!disk.Open(found, get_save_directory().c_str(), get_save_directory().c_str(), config_game.write_back == 0,
         emu_dos_get_msdos_path().c_str()))
     {
         error_text = disk.GetError();
@@ -243,6 +254,7 @@ bool emu_game_start(void)
                 disk.GetHardDisk(i));
     }
 
+    notify_shadowed();
     Log("Game: %s, %s", disk.GetName(), disk.WasBuilt() ? "disk built" : "disk reused");
     return emu_power_on();
 }
@@ -380,15 +392,43 @@ config_Machine* emu_game_get_machine(void)
     return emu_game_is_open() ? &game_machine : &config_machine;
 }
 
+const config_Machine* emu_game_get_base_machine(void)
+{
+    return emu_game_is_open() ? &base_machine : &config_machine;
+}
+
+int emu_game_get_source(const char* section, const char* key)
+{
+    if (!emu_game_is_open())
+        return Emu_Game_Source_User;
+
+    if (disk.GetOverrides().Has(section, key))
+        return Emu_Game_Source_Change;
+
+    return disk.GetBase().Has(section, key) ? Emu_Game_Source_Descriptor : Emu_Game_Source_User;
+}
+
+bool emu_game_is_from_database(void)
+{
+    return emu_game_is_open() && disk.IsFromDatabase();
+}
+
 // Machine menu changes during a game go to its overrides: only what differs from the descriptor over the user's
 void emu_game_apply_machine(void)
 {
     if (!emu_game_is_open())
         return;
 
-    GameDescriptor overrides;
-    static const char k_empty[] = "[geardox]\nversion = 1\n";
-    overrides.Parse("", k_empty, sizeof(k_empty) - 1);
+    GameDescriptor before = disk.GetOverrides();
+    GameDescriptor overrides = before;
+    const std::vector<std::pair<std::string, std::string> >& keys = get_game_keys();
+
+    if (overrides.IsEmpty())
+        overrides.Parse("", k_empty_overrides, sizeof(k_empty_overrides) - 1);
+
+    for (size_t i = 0; i < keys.size(); i++)
+        overrides.Unset(keys[i].first.c_str(), keys[i].second.c_str());
+
     const config_Machine& m = game_machine;
     const config_Machine& b = base_machine;
     static const char* const k_floppy_types[GDOX_FLOPPY_TYPE_COUNT] = { "", "360k", "1200k", "720k", "1440k", "2880k" };
@@ -470,11 +510,13 @@ void emu_game_apply_machine(void)
     if ((m.drive_timing != b.drive_timing) && (m.drive_timing >= 0))
         overrides.Set("machine", "drive_timing", k_drive_timings[m.drive_timing].id);
 
-    if (disk.GetOverrides().Has("dos", "system"))
-        overrides.Set("dos", "system", disk.GetOverrides().Get("dos", "system").c_str());
-
-    if (!disk.SaveOverrides(overrides))
-        gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
+    if (!same_overrides(before, overrides))
+    {
+        if (disk.SaveOverrides(overrides))
+            notify_saved();
+        else
+            gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
+    }
 
     apply_game_settings();
     emu_update_joystick_type();
@@ -484,6 +526,11 @@ void emu_game_apply_machine(void)
 int emu_game_get_joystick(void)
 {
     return emu_game_is_open() ? game_joystick : -1;
+}
+
+int emu_game_get_base_joystick(void)
+{
+    return emu_game_is_open() ? base_joystick : -1;
 }
 
 void emu_game_set_joystick(int joystick)
@@ -525,6 +572,11 @@ int emu_game_get_cga_output(void)
     return emu_game_is_open() ? game_cga_output : -1;
 }
 
+int emu_game_get_base_cga_output(void)
+{
+    return emu_game_is_open() ? base_cga_output : -1;
+}
+
 void emu_game_set_cga_output(int output)
 {
     if (!emu_game_is_open())
@@ -537,6 +589,11 @@ void emu_game_set_cga_output(int output)
 int emu_game_get_midi(void)
 {
     return emu_game_is_open() ? game_midi : -1;
+}
+
+int emu_game_get_base_midi(void)
+{
+    return emu_game_is_open() ? base_midi : -1;
 }
 
 void emu_game_set_midi(int synth, const char* port)
@@ -552,6 +609,11 @@ void emu_game_set_midi(int synth, const char* port)
 const char* emu_game_get_midi_port(void)
 {
     return emu_game_is_open() ? game_midi_port.c_str() : "";
+}
+
+const char* emu_game_get_base_midi_port(void)
+{
+    return emu_game_is_open() ? base_midi_port.c_str() : "";
 }
 
 bool emu_game_has_overrides(void)
@@ -617,9 +679,11 @@ std::string emu_game_get_key_map_path(void)
     if (!emu_game_is_open())
         return "";
 
+    char settings[GDOX_MAX_PATH];
     char name[GDOX_MAX_PATH];
     char path[GDOX_MAX_PATH];
-    get_filename_without_extension(disk.GetOverridesPath(), name, sizeof(name));
+    get_filename_without_extension(disk.GetOverridesPath(), settings, sizeof(settings));
+    get_filename_without_extension(settings, name, sizeof(name));
     join_path(get_save_directory().c_str(), (std::string(name) + ".keys").c_str(), path, sizeof(path));
     return path;
 }
@@ -740,19 +804,54 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
     if ((dos_folder == "FREEDOS") || (dos_folder == "TEMP"))
         dos_folder.clear();
 
-    std::string text = "[geardox]\nversion = 1\n\n[game]\nname = " + name + "\nsource = " + source + "\nfolder = C:\\" +
-        dos_folder + "\n\n[run]\nexe = " + program + "\n";
+    error_text.clear();
+    std::string head = "[geardox]\nversion = 1\n\n[game]\nname = " + name + "\n";
+    std::string tail = "folder = C:\\" + dos_folder + "\n\n[run]\nexe = " + program + "\n";
     GameDescriptor descriptor;
+    char file[GDOX_MAX_PATH];
+
+    if (config_game.write_back == 0)
+    {
+        std::string text = head + tail;
+        u64 size = 0;
+        s64 modified = 0;
+        join_path(source.c_str(), (name + ".gdox").c_str(), file, sizeof(file));
+
+        if (MediaFile::GetFileInfo(file, &size, &modified))
+        {
+            error_text = std::string("The game's folder has a ") + name + ".gdox already: open it, or edit it.";
+            return false;
+        }
+
+        if (descriptor.Parse("", text.data(), text.size()) && descriptor.WriteFile(file))
+        {
+            *path = file;
+            return true;
+        }
+    }
+
+    std::string text = head + "source = " + source + "\n" + tail;
 
     if (!descriptor.Parse("", text.data(), text.size()))
+    {
+        error_text = descriptor.GetError();
         return false;
+    }
 
-    std::string directory = get_games_directory();
+    char id[16];
+    std::string directory = get_save_directory();
+    snprintf(id, sizeof(id), "%08X", (u32)mz_crc32(0, (const u8*)source.data(), source.size()));
     create_directory_if_not_exists(directory.c_str());
-    char file[GDOX_MAX_PATH];
-    join_path(directory.c_str(), (name + ".gdox").c_str(), file, sizeof(file));
+    join_path(directory.c_str(), (name + "." + id + ".gdox").c_str(), file, sizeof(file));
     *path = file;
-    return descriptor.WriteFile(file);
+
+    if (!descriptor.WriteFile(file))
+    {
+        error_text = std::string("Unable to write ") + file;
+        return false;
+    }
+
+    return true;
 }
 
 static void prepare_hard_disk(int id)
@@ -787,16 +886,92 @@ static std::string get_save_directory(void)
     return custom ? config_emulator.savefiles_path : std::string(config_root_path);
 }
 
-static std::string get_games_directory(void)
+static const std::vector<std::pair<std::string, std::string> >& get_game_keys(void)
 {
-    char path[GDOX_MAX_PATH];
-    join_path(config_root_path, "games", path, sizeof(path));
-    return path;
+    if (!game_keys.empty())
+        return game_keys;
+
+    for (size_t i = 0; i < sizeof(k_game_keys) / sizeof(k_game_keys[0]); i++)
+        game_keys.push_back(std::make_pair(std::string(k_game_keys[i][0]), std::string(k_game_keys[i][1])));
+
+    for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
+    {
+        std::string section = GameDescriptor::GetGamepadSection(p);
+        game_keys.push_back(std::make_pair(section, std::string("use")));
+        game_keys.push_back(std::make_pair(section, std::string("mouse")));
+
+        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
+            game_keys.push_back(std::make_pair(section, std::string(k_gamepad_inputs[i].id)));
+    }
+
+    return game_keys;
+}
+
+static bool same_overrides(const GameDescriptor& a, const GameDescriptor& b)
+{
+    return (a.IsEmpty() && b.IsEmpty()) || (a.Write() == b.Write());
+}
+
+static void notify_saved(void)
+{
+    std::string name = disk.GetName();
+
+    if (disk.GetOverrides().IsEmpty())
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, (name + " uses its defaults again").c_str(), NULL,
+            "game_settings");
+    else
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, ("Saved for " + name + " only").c_str(),
+            "Game > Game Files forgets this game's changes", "game_settings");
+}
+
+static void notify_shadowed(void)
+{
+    const GameDescriptor& overrides = disk.GetOverrides();
+    const GameDescriptor& base = disk.GetBase();
+    u64 size = 0;
+    s64 descriptor_time = 0;
+    s64 overrides_time = 0;
+    bool editable = current_found.inner.empty() || GameDescriptor::IsDescriptor(current_found.inner.c_str());
+
+    if (overrides.IsEmpty() || disk.IsFromDatabase() || !editable ||
+        !MediaFile::GetFileInfo(disk.GetDescriptorPath(), &size, &descriptor_time) ||
+        !MediaFile::GetFileInfo(disk.GetOverridesPath(), &size, &overrides_time) || (descriptor_time <= overrides_time))
+        return;
+
+    std::vector<std::pair<std::string, std::string> > keys = get_game_keys();
+    keys.push_back(std::make_pair(std::string("dos"), std::string("system")));
+    std::string names;
+
+    for (size_t i = 0; i < keys.size(); i++)
+    {
+        const char* section = keys[i].first.c_str();
+        const char* key = keys[i].second.c_str();
+
+        if (overrides.Has(section, key) && base.Has(section, key) && (overrides.Get(section, key) != base.Get(section, key)))
+            names += (names.empty() ? "" : ", ") + keys[i].first + "." + keys[i].second;
+    }
+
+    if (names.empty())
+        return;
+
+    names += "\nGame > Game Files forgets them";
+    gui_notify(gui_NotificationWarning, ICON_MD_VIDEOGAME_ASSET, "This game's changes override its edited descriptor",
+        names.c_str());
+    disk.SaveOverrides(GameDescriptor(overrides));
 }
 
 int emu_game_get_system(void)
 {
     return disk.IsOpen() ? disk.GetSystem() : -1;
+}
+
+int emu_game_get_base_system(void)
+{
+    if (!disk.IsOpen())
+        return -1;
+
+    int system = disk.GetBase().GetInfo().system;
+    return system >= 0 ? system : disk.HasMSDOS() ? (int)GDOX_GAME_SYSTEM_MSDOS : (int)GDOX_GAME_SYSTEM_FREEDOS;
 }
 
 // The open game's own DOS, kept with its overrides. The disk is built again when the game opens next
@@ -805,13 +980,19 @@ bool emu_game_set_system(int system)
     if (!emu_game_is_open())
         return false;
 
-    GameDescriptor overrides = disk.GetOverrides();
-    static const char k_empty[] = "[geardox]\nversion = 1\n";
+    GameDescriptor before = disk.GetOverrides();
+    GameDescriptor overrides = before;
 
     if (overrides.IsEmpty())
-        overrides.Parse("", k_empty, sizeof(k_empty) - 1);
+        overrides.Parse("", k_empty_overrides, sizeof(k_empty_overrides) - 1);
 
-    overrides.Set("dos", "system", system == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos");
+    if (system < 0)
+        overrides.Unset("dos", "system");
+    else
+        overrides.Set("dos", "system", system == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos");
+
+    if (same_overrides(before, overrides))
+        return true;
 
     if (!disk.SaveOverrides(overrides))
     {
@@ -819,6 +1000,7 @@ bool emu_game_set_system(int system)
         return false;
     }
 
+    notify_saved();
     return true;
 }
 
@@ -877,16 +1059,12 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
 // overrides, so a change can be told from it
 static void update_machines(void)
 {
-    static const char* const k_keys[][2] = {
-        { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
-        { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
-        { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
-        { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" },
-        { "sound", "midi_port" }, { "input", "mouse" }, { "input", "joystick" } };
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
     GDOX_Machine_Settings without;
     const GameDescriptor& overrides = disk.GetOverrides();
+    const GameDescriptor& base = disk.GetBase();
+    const std::vector<std::pair<std::string, std::string> >& keys = get_game_keys();
     GameDescriptor stripped = disk.GetDescriptor();
 
     config_to_settings(config_machine, &user);
@@ -894,27 +1072,18 @@ static void update_machines(void)
     game_machine = config_machine;
     overlay_settings(&game_machine, game);
 
-    for (size_t i = 0; i < sizeof(k_keys) / sizeof(k_keys[0]); i++)
+    for (size_t i = 0; i < keys.size(); i++)
     {
-        if (overrides.Has(k_keys[i][0], k_keys[i][1]))
-            stripped.Unset(k_keys[i][0], k_keys[i][1]);
-    }
+        const char* section = keys[i].first.c_str();
+        const char* key = keys[i].second.c_str();
 
-    for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
-    {
-        const char* section = GameDescriptor::GetGamepadSection(p);
+        if (!overrides.Has(section, key))
+            continue;
 
-        if (overrides.Has(section, "use"))
-            stripped.Unset(section, "use");
-
-        if (overrides.Has(section, "mouse"))
-            stripped.Unset(section, "mouse");
-
-        for (int i = 0; i < GDOX_GAMEPAD_INPUT_COUNT; i++)
-        {
-            if (overrides.Has(section, k_gamepad_inputs[i].id))
-                stripped.Unset(section, k_gamepad_inputs[i].id);
-        }
+        if (base.Has(section, key))
+            stripped.Set(section, key, base.Get(section, key).c_str());
+        else
+            stripped.Unset(section, key);
     }
 
     GameDisk::GetGameSettings(stripped, user, &without, disk.GetSystem());

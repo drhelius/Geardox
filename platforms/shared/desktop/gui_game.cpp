@@ -119,7 +119,9 @@ void gui_game_menu(void)
         gui_file_dialog_new_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Pick a game's folder, then the program\nthat starts it. The descriptor goes to\nGeardox's games folder and opens.");
+        ImGui::SetTooltip("Pick a game's folder, then the program\nthat starts it. The descriptor goes in the\n"
+            "game's folder and opens. With Save Games To\nGeardox's Save Folder, or a read-only folder,\n"
+            "it goes to the save folder.");
 
     ImGui::Separator();
     menu_options();
@@ -182,17 +184,18 @@ static void menu_files(bool open)
         gui_file_dialog_save_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Writes the descriptor with this game's\nMachine changes, as one file.");
+        ImGui::SetTooltip("Writes the descriptor with this game's\nchanges, as one file.");
 
-    if (ImGui::MenuItem("Forget Machine Changes", NULL, false, emu_game_has_overrides()))
+    if (ImGui::MenuItem("Forget This Game's Changes", NULL, false, emu_game_has_overrides()))
     {
         emu_game_reset_settings();
-        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "The game's machine is its descriptor's again",
-            "Restart the game to apply it");
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "The game's changes are forgotten",
+            "Restart the game to apply its defaults", "game_settings");
     }
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Forgets the Machine menu changes\nkept for this game.");
+        ImGui::SetTooltip("Forgets every change kept for this game:\nMachine, CGA Output, Emulated Joystick,\n"
+            "Host Gamepads, Game Synth and its DOS.\nIts key map stays.");
 
     ImGui::EndMenu();
 }
@@ -200,13 +203,14 @@ static void menu_files(bool open)
 void gui_game_set_system(int system)
 {
     GameDisk_Found found;
+    bool changed = (system < 0 ? emu_game_get_base_system() : system) != emu_game_get_system();
 
-    if ((system == emu_game_get_system()) || !emu_game_get_found(&found))
+    if ((!changed && (system >= 0)) || !emu_game_get_found(&found))
         return;
 
     next_target = emu_game_get_target();
 
-    if (emu_game_set_system(system))
+    if (emu_game_set_system(system) && changed)
         start(found);
 }
 
@@ -499,7 +503,7 @@ static void popup_programs(void)
                 gui_load_rom(path.c_str());
             }
             else
-                gui_set_error_message("Unable to write the game descriptor.");
+                gui_set_error_message((std::string("Unable to write the game descriptor:\n") + emu_game_get_error()).c_str());
         }
 
         ImGui::PopID();

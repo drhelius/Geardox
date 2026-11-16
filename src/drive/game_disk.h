@@ -90,6 +90,7 @@ public:
     bool SaveOverrides(const GameDescriptor& overrides);
     bool ClearOverrides();
     const GameDescriptor& GetDescriptor() const;
+    const GameDescriptor& GetBase() const;
     const GameDescriptor& GetOverrides() const;
     void GetGameSettings(const GDOX_Machine_Settings& user, GDOX_Machine_Settings* game) const;
     static void GetGameSettings(const GameDescriptor& descriptor, const GDOX_Machine_Settings& user,

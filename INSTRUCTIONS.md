@@ -39,7 +39,9 @@ If Geardox doesn't recognise the game and it has no `.gdox` yet:
 2. Pick the game's folder.
 3. Pick the program that starts it, such as `GAME.EXE` or `PLAY.BAT`.
 
-Geardox writes the `.gdox` and starts the game. Next time, it's in **Game > Recent Games**.
+Geardox writes the `.gdox` into the game's folder and starts the game. Next time, open the folder again or pick it in
+**Game > Recent Games**. If the folder is read only, or **Game > Save Games To** is **Geardox's Save Folder**, the
+`.gdox` goes to the save folder and Recent Games brings it back.
 
 Many games need their setup program run once, to choose a sound card. **Game > Boot To** restarts the PC into one of
 three places:
@@ -170,8 +172,12 @@ game's hard disks use, it moves to the Secondary Master while the game is open.
 **Game > Close** followed by the game's name turns the PC off and saves what the game changed. Opening another game,
 or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
 
-**Emulator > Machine** changes made while a game is open are remembered for that game only. So is the DOS chosen in
-**DOS > Game**. The **DOS** menu also has **Import MS-DOS...** and **Remove MS-DOS**.
+**Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So
+are **Video > CGA Output**, **Input > Emulated Joystick**, the **Host Gamepad** choices, **Audio > MIDI Out > Game
+Synth** and the DOS chosen in **DOS > Game**. While the game is open, the menus show its settings in colour: orange
+for your changes, violet for what its `.gdox` sets, blue for what the game database sets. **Game Default**, first in
+each list, undoes one change, and **Game > Game Files > Forget This Game's Changes** undoes them all. The **DOS** menu
+also has **Import MS-DOS...** and **Remove MS-DOS**.
 
 ## Machine Settings
 
@@ -293,9 +299,12 @@ In this folder:
 - `MS-DOS.hdd` is the built-in MS-DOS disk, made from your import the first time it's needed.
 - `msdos.zip` is your imported MS-DOS, when you've imported it.
 - `<name>.<id>.geardox.hdd` files are the disks made from folders and ZIPs.
+- `<name>.<id>.gdox.hdd` files are the C: drives games build, and `<name>.<id>.gdox.ini` and `<name>.<id>.keys` keep
+  each game's own settings and key map.
 - `config.ini` holds your settings.
 
-**Emulator > Directories** moves save files, save states, screenshots and recordings somewhere else.
+**Emulator > Directories** moves save files, save states, screenshots and recordings somewhere else. Save Files takes
+the games' disks, settings and key maps with it.
 
 ## Quick Fixes
 

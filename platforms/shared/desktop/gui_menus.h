@@ -34,6 +34,8 @@ EXTERN char gui_mcp_http_address[64];
 
 EXTERN void gui_init_menus(void);
 EXTERN void gui_main_menu(void);
+EXTERN bool gui_push_game_source_color(int source);
+EXTERN void gui_draw_game_source_tooltip(int source);
 
 #undef GUI_MENUS_IMPORT
 #undef EXTERN
