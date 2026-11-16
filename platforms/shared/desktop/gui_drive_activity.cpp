@@ -89,7 +89,7 @@ void gui_drive_activity_render_output(const ImVec2& min, const ImVec2& max)
     draw_list->PushClipRect(min, max, true);
 
     // The Turbo light: shown off, the way the board's LED goes dark
-    if (!emu_is_empty() && !config_machine.turbo)
+    if (!emu_is_empty() && !emu_get_core()->IsTurbo())
     {
         const char* text = ICON_MD_SPEED " TURBO OFF";
         float width = roundf(font->CalcTextSizeA(k_drive_activity_label_size, FLT_MAX, 0.0f, text).x + (k_drive_activity_padding * 2.0f));

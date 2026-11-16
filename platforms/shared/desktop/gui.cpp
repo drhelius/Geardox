@@ -298,8 +298,9 @@ void gui_hotkey(config_HotkeyIndex hotkey, bool pressed)
             config_audio.enable ? "Audio unmuted" : "Audio muted", NULL, "mute", 1500);
         break;
     case config_HotkeyIndex_Turbo:
-        emu_set_turbo(!config_machine.turbo);
-        gui_notify(gui_NotificationInfo, ICON_MD_SPEED, config_machine.turbo ? "Turbo on" : "Turbo off", NULL, "turbo", 1500);
+        emu_set_turbo(!emu_get_core()->IsTurbo());
+        gui_notify(gui_NotificationInfo, ICON_MD_SPEED, emu_get_core()->IsTurbo() ? "Turbo on" : "Turbo off", NULL, "turbo",
+            1500);
         break;
     case config_HotkeyIndex_SaveState:
         gui_action_save_state(NULL);

@@ -1082,7 +1082,9 @@ bool emu_load_state_slot(int index)
     if (!geardox->LoadState(dir, index))
         return false;
 
-    config_machine.turbo = geardox->IsTurbo();
+    if (!emu_game_is_open())
+        config_machine.turbo = geardox->IsTurbo();
+
     restore_state_frame(dir, index);
     emu_floppy_reconcile();
     emu_hard_disk_state_loaded(false);
@@ -1106,7 +1108,9 @@ bool emu_load_state_file(const char* file_path)
     if (emu_is_empty() || !geardox->LoadState(file_path))
         return false;
 
-    config_machine.turbo = geardox->IsTurbo();
+    if (!emu_game_is_open())
+        config_machine.turbo = geardox->IsTurbo();
+
     restore_state_frame(file_path, -1);
     emu_floppy_reconcile();
     emu_hard_disk_state_loaded(false);
