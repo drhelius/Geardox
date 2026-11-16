@@ -4,10 +4,6 @@ A [Model Context Protocol](https://modelcontextprotocol.io/introduction) server 
 
 This server provides tools for game development, rom hacking, translation, reverse engineering, and debugging through standardized MCP protocols compatible with AI agents like Claude Code, Codex and others.
 
-## Downloads
-
-Geardox has no releases yet, so there are no downloads and no MCP Bundles (`.mcpb`) to install. Build Geardox from source with the Makefile of your platform under `platforms/` and use that build in the [Quick Start](#quick-start).
-
 ## Features
 
 - **Full Debugger Access**: Intel 80386, 486 and Pentium registers with the x87 FPU, descriptor tables, paging, memory inspection, execute, data, I/O and interrupt breakpoints, and execution control
@@ -22,7 +18,7 @@ Geardox has no releases yet, so there are no downloads and no MCP Bundles (`.mcp
 - **Symbol Support**: Add, remove, load, list, and look up user symbols, plus automatic labels
 - **Input**: Inspect the PC keyboard, PS/2 or serial mouse and game port joystick, press keys and type text, move and click the mouse to screen pixels, drive the joystick, and run frame-timed input macros
 - **Key Map**: Read and change the host key map and its per-game bindings, press host keys through it, and open or close the keyboard mapper
-- **Game Descriptors**: Load a `.gdox` descriptor, or a folder or ZIP with one, to open its game with its machine and DOS settings, choose whether it runs the game, its setup or the DOS prompt, and read what was applied
+- **Game Descriptors**: Load a `.gdox` descriptor, a folder or ZIP with one or that the game database recognises, or a game's DOS program, to open its game with its machine and DOS settings, choose whether it runs the game, its setup or the DOS prompt, and read what was applied
 - **Bookmarks**: Memory and disassembler bookmarks for navigation
 - **Call Stack**: View calls, interrupts and exceptions with their vectors
 - **Trace Logger**: CPU instruction trace with interleaved hardware events (interrupts, I/O ports, PIC, timers, DMA, video, FM, PCM, mixer, MIDI, CD-ROM, FDC, IDE, keyboard, mouse and joystick, serial, parallel, system), in memory or streamed to disk
@@ -53,7 +49,7 @@ Media and machine can be set at launch too, for example `--cd game.cue --fd1 dis
 
 ### Pause When Inactive
 
-While the MCP server is running, the emulator keeps running when its window loses focus, even with **Pause When Inactive** enabled in the **Emulator** menu. The setting keeps its value and applies again once the server stops. Tools that wait for frames to run (`debug_step_frame`, `controller_macro`, `mouse_move`, `mouse_click`, `keyboard_type`) end with an error if emulation is paused from the GUI while they wait. Losing focus releases the keys the host keyboard holds, but the keys an MCP tool pressed stay held until a tool releases them or the server stops.
+While the MCP server is running, the emulator keeps running when its window loses focus, even with **Pause When Inactive** enabled in the **Emulator** menu. The setting keeps its value and applies again once the server stops. Tools that wait for frames to run (`debug_step_frame`, `controller_macro`, `mouse_move`, `mouse_click`, `keyboard_type`) end with an error if emulation is paused from the GUI while they wait. Losing focus releases the keys the host keyboard holds, but the keys an MCP tool pressed stay held until a tool releases them, `debug_reset` runs or the server stops.
 
 ### Concurrent Clients
 
@@ -100,7 +96,7 @@ Without `--mcp-router`, call every MCP tool directly.
 
 Geardox has its BIOS built in (SeaBIOS and SeaVGABIOS), so there is no firmware to set and nothing to load before starting. With no media attached it boots the built-in FreeDOS hard disk.
 
-[Build Geardox from source](#downloads) for your platform. In the examples below, replace `/path/to/geardox` with the full path to the executable:
+Geardox has no releases yet, so there are no downloads and no MCP Bundles (`.mcpb`) to install. [Build it from source](README.md#build-instructions) for your platform. In the examples below, replace `/path/to/geardox` with the full path to the executable:
 
 - **macOS:** `/path/to/Geardox.app/Contents/MacOS/geardox`
 - **Linux:** `/path/to/geardox`
@@ -332,7 +328,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `debug_step_out` - Run until the current subroutine or interrupt handler returns; with an empty call stack it steps one instruction and adds a `note`
 - `debug_step_frame` - Run complete frames with breakpoints active, then pause; `frames` sets how many (default 1). By default it answers when they finish or a breakpoint stops them, with the `debug_get_status` fields plus `frames` run, `requested_frames` and `breakpoint_hit`, for up to 1800 frames. `wait: false` answers at once and takes up to 216000 frames; poll `debug_get_status` or stop them with `debug_pause`. A reset, state load or rewind during a wait ends it with an error, and so does powering the emulator off
 - `debug_run_to_cursor` - Continue execution until reaching specified address; the stop shows as `run_to` in `debug_get_status`
-- `debug_reset` - Reset the PC; optional `boot` (`floppy1`, `floppy2`, `hard_disk`, `cdrom`) picks the boot device for this reset, and fails with `cdrom` when no CD-ROM drive is fitted. Injected joystick axes, buttons and mouse buttons are cleared
+- `debug_reset` - Reset the PC; optional `boot` (`floppy1`, `floppy2`, `hard_disk`, `cdrom`) picks the boot device for this reset, and fails with `cdrom` when no CD-ROM drive is fitted. Injected joystick axes, buttons, mouse buttons and the keys MCP tools hold are cleared
 - `debug_get_status` - Get debug status: `paused`, `at_breakpoint`, `pc` (linear), `logical_pc`, `mode` (`real`, `protected`, `vm86`), `halted`, `breakpoint`, `media_loading`, `media_ready`, `powered_on`, `frame`
 - `toggle_fast_forward` - Enable or disable fast forward mode with `enabled`; optional `speed` (0: 1.5x, 1: 2x, 2: 2.5x, 3: 3x, 4: Unlimited)
 
@@ -347,7 +343,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 `debug_get_status` reports what stopped execution in `breakpoint`: `kind` (`execute`, `read`, `write`, `access`, `interrupt`, `run_to`), with the space, address and size of the access (`dma` when a DMA transfer made it, `port_name` for an I/O port), or the vector, vector name and source of the interrupt, plus `irq` and `irq_name` for a hardware interrupt and `function` when a software interrupt calls a known BIOS or DOS service.
 
 ### Memory (`memory`)
-- `list_memory_areas` - List memory areas: LINEAR, PHYSICAL, I/O PORTS, and every memory region the machine has (Main RAM, System BIOS, BIOS Copy, CMOS RAM, VGA Plane 0-3, VGA Window or CGA Memory, CGA VRAM, Linear VRAM on a Cirrus card, Shadow ROMs, Shadow BIOS, Upper Memory, and the Media Image, Floppy Image and IDE Disk Buffer of what is inserted), with `id`, `name`, `size`, `unit_size`, `flags` (`readable`, `writable`, `executable`, `rom`, `mapped`, `mmio`, `video`, `audio`, `overlay`), `physical_base`, `group` (`address_space`, `memory`, `rom`, `media`, `cpu_window`) and `description`. An area keeps its `id` when disks are inserted or ejected
+- `list_memory_areas` - List memory areas: LINEAR, PHYSICAL, I/O PORTS, and every memory region the machine has (Main RAM, System BIOS, BIOS Copy, CMOS RAM, VGA Plane 0-3, VGA Window or CGA Memory, CGA VRAM, Linear VRAM on a Cirrus card, No Video Memory on a CGA, Shadow ROMs, Shadow BIOS, Upper Memory, and the Media Image, Floppy N Image and IDE Disk N Buffer of what is inserted), with `id`, `name`, `size`, `unit_size`, `flags` (`readable`, `writable`, `executable`, `rom`, `mapped`, `mmio`, `video`, `audio`, `overlay`), `physical_base`, `group` (`address_space`, `memory`, `rom`, `media`, `cpu_window`) and `description`. An area keeps its `id` when disks are inserted or ejected
 - `read_memory` - Read 1-65536 bytes from a memory area; unmapped or unreadable bytes read as `??`. The LINEAR area takes logical addresses too
 - `write_memory` - Write hex `bytes` to a memory area; optional `repeat` writes them back to back that many times to fill a range, up to 1 MB in total. ROMs and I/O PORTS are read-only; `write_io_port` writes a port
 - `write_io_port` - Write an I/O port as an `OUT` does, between instructions: `port` and `value` in hex, `size` 8 (default), 16 or 32 bits. The device acts on it and the `io.writes` trace logs it; breakpoints don't stop it. Reading the I/O PORTS area doesn't touch devices
@@ -360,7 +356,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `add_memory_watch` - Add watch (tracked memory location), 8, 16, 32 or 64 bits little endian, with optional `notes`; `freeze` holds the value it reads now, written back every frame like a cheat, until `remove_memory_watch`, and turns the debugger on
 - `remove_memory_watch` - Remove memory watch
 - `list_memory_watches` - List all watches in memory area with their values and whether they are frozen
-- `memory_search_capture` - Capture memory snapshot for search comparison; optional `start`, `size` (hex, needed for areas over 64 MB) and `width` (8, 16, 32)
+- `memory_search_capture` - Capture memory snapshot for search comparison; optional `start` and `size` (hex, `size` at most 4000000; both are needed for areas over 64 MB) and `width` (8, 16, 32)
 - `memory_search` - Search memory with operators (<, >, ==, !=, <=, >=), compare types (previous, value, address), and data types (unsigned, signed, hex); returns up to 1000 `[address, value, previous]` rows and `total_matches`
 - `memory_find` - Find hex byte sequences (`hex_bytes`) or text (`text`, up to 512 bytes, optional `case_sensitive`) in memory; optional `start` and `size`; returns up to 100 offsets and `total_matches`
 
@@ -427,7 +423,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `read_hard_disk_sector` - Read the 512-byte sector `lba` of the disk in slot `id` as hex, as the machine sees it, unwritten changes included, without bus traffic
 
 ### Media (`media`)
-- `load_media` - Load a game descriptor, a CD image, a floppy image or a hard disk image from `file_path`. A `.gdox` descriptor, or a folder or ZIP with one in its root, opens its game: its disk on C: built or reused, and the machine powered on, with `target` choosing what runs at boot (`game` by default, `setup` or `prompt`); the answer is `get_game_info`'s. A CD is `.cue`, `.chd`, `.iso`; a floppy (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.d77`, `.d88`, `.hdm`, `.xdf`, `.mfm`, an `.m3u` playlist or a `.zip`) goes in drive 0; a hard disk image (`.hdd`, `.h0`-`.h3`, `.img` or `.hdm` over 8 MB, a fixed `.vhd`, a hard disk `.chd`) attaches to its slot or the first free one and powers on an empty machine. It answers when the load has finished
+- `load_media` - Load a game descriptor, a CD image, a floppy image or a hard disk image from `file_path`. A `.gdox` descriptor, or a folder or ZIP with one in its root, opens its game: its disk on C: built or reused, and the machine powered on, with `target` choosing what runs at boot (`game` by default, `setup` or `prompt`); the answer is `get_game_info`'s. A `.exe`, `.com` or `.bat`, or a folder or ZIP the game database recognises, opens as a game too, and with several games in a folder or ZIP the first by name opens. A CD is `.cue`, `.chd`, `.iso`; a floppy (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.d77`, `.d88`, `.hdm`, `.xdf`, `.mfm`, an `.m3u` playlist or a `.zip`) goes in drive 0; a hard disk image (`.hdd`, `.h0`-`.h3`, `.img` or `.hdm` over 8 MB, a fixed `.vhd`, a hard disk `.chd`) attaches to its slot or the first free one and powers on an empty machine. It answers when the load has finished
 - `eject_cdrom` - Open the CD-ROM tray and eject the CD, even when software prevented removal; the machine keeps running and `load_media` inserts another
 - `close_cdrom_tray` - Close the CD-ROM drive's tray, as the drive's own button does. With a disc inside it spins up and reports a disc change; the machine keeps running
 - `insert_playlist_disc` - Insert playlist disc `index` (from the `get_cdrom_status` playlist) into the empty drive, keeping the machine running; `eject_cdrom` first
@@ -441,7 +437,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `attach_hard_disk` - Attach a raw image of 512-byte sectors (`.hdd`, `.h0`-`.h3`, `.img` over 8 MB, a fixed `.vhd`, a hard disk `.chd`), a folder or a `.zip` to slot `id` (0-3); a folder or ZIP becomes a FAT16 disk that is only read from, and the result has `left_out` and `changed_on_host`. Optional `write_protected`, by default the slot's Write Protected setting. A running machine takes it at the next reset, one that is off at once. `create_size_mb` (1-2047) first creates an image at `file_path`, never replacing an existing file: an empty FAT16 disk (33 MB or more), unless `formatted` is false for a blank disk that needs FDISK and FORMAT
 - `detach_hard_disk` - Detach the disk in slot `id` after writing its changes; on a running machine at the next reset
 - `flush_hard_disks` - Write the changes to the image files now; otherwise they are written about 2 seconds after the machine stops writing
-- `get_game_info` - Describe the game open from a `.gdox` descriptor: the descriptor with its overrides, each key set and its layer (`descriptor` or `override`), the machine in use and where each value came from (`user`, `game`, `model`, `media`) with the sound card, IRQ, DMA, video, mouse, joystick and MIDI, the target (`game`, `setup` or `prompt`), the keyboard layout, the DOS it boots (FreeDOS or the user's imported MS-DOS) and its layer, the source folder, the disk image, whether it was built, recovered or reused, where saves go (`game_folder` or `save_folder`), whether the session is open, and the last write-back with its conflicts. `open` is false with no game
+- `get_game_info` - Describe the open game: its `name`, the descriptor and its path, the overrides file (`overrides_path`), each key set and its layer (`descriptor` or `override`), the machine in use (model, CPU clock, RAM and FPU, each with where the value came from: `user`, `game`, `model` or `media`; then the Turbo button, sound card, IRQ, DMA, MPU-401, video, mouse, joystick, MIDI and MIDI port), the target (`game`, `setup` or `prompt`), the keyboard layout, the DOS it boots (FreeDOS or the user's imported MS-DOS) and its layer, the source folder, the disk image and whether it was `built` or `recovered` (neither means reused), `left_out`, `refused_image`, where saves go (`saves_to`: `game_folder` or `save_folder`, with the `overlay` path), whether the session is open, `write_back_pending`, and the last write-back with its conflicts and notes. `open` is false with no game
 
 ### Capture (`capture`)
 - `get_screenshot` - Capture current screen frame as base64 PNG with its `width` and `height`. Right after a state load it fails until a frame runs when the state has no saved frame or the screen size changed
@@ -584,6 +580,8 @@ Storage changes while tracing is active cleanly stop and restart the logger. Rep
 ## Available MCP Resources
 
 In addition to tools, the MCP server provides documentation resources that AI assistants can access to better understand the MS-DOS PC hardware and programming.
+
+The server reads them from the `mcp/resources/hardware` folder next to the executable (`Contents/Resources` inside `Geardox.app`). `make dist` and `make bundle` put them in the macOS app; with other builds, copy `platforms/shared/desktop/mcp/resources` beside the executable as `mcp/resources`.
 
 In Claude Code, type `@` in your prompt to pick a resource, or reference one directly, for example `@geardox:geardox://hardware/pc_at_board`. Codex reads resources through its built-in MCP resource tools, so ask it to read the ones that are relevant.
 
