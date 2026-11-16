@@ -889,7 +889,7 @@ void Video::WriteCirrusSequencer(u8 index, u8 value, u64 clocks)
     }
 }
 
-// The BitBLT engine isn't emulated: a blit ends as soon as it starts, never busy (R14-D10)
+// The BitBLT engine isn't emulated: a blit ends as soon as it starts, never busy
 void Video::WriteCirrusGraphics(u8 index, u8 value, u64 clocks)
 {
     if (!IsUnlocked())

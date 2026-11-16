@@ -1722,7 +1722,7 @@ static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint
         core->HostKeyReleased(usage);
 }
 
-// A descriptor beats the core options it sets, so those are hidden while its game runs (R15-D17, R15-D27)
+// A descriptor beats the core options it sets, so those are hidden while its game runs
 static bool update_game_options_display(void)
 {
     static const char* const k_options[][3] = {
@@ -3336,8 +3336,8 @@ static bool hard_disk_attach_source(const char* path)
     return true;
 }
 
-// docs/27 §10: the user's own Setup disks in <system>/geardox/msdos are imported into the save directory, and again
-// when they change. With none there, msdos.zip goes and games and the built-in disk run on FreeDOS
+// The user's own Setup disks in <system>/geardox/msdos are imported into the save directory, and again when they
+// change. With none there, msdos.zip goes and games and the built-in disk run on FreeDOS
 static std::string msdos_import(void)
 {
     std::string zip(retro_save_directory);
@@ -3385,7 +3385,7 @@ static std::string msdos_import(void)
     return zip;
 }
 
-// A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop (R15). Images, manifests and
+// A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop. Images, manifests and
 // overlays live in the save directory
 static bool game_open(const char* path, bool* game)
 {

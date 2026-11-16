@@ -41,7 +41,7 @@
 #define GDOX_MACHINE_ISA8_WORD(rate) GDOX_MACHINE_ISA_WAIT(12, rate)
 
 // DRAM read and write waits and a page miss in bus clocks, the VGA's cycle in BCLK, fitted to TOPBENCH's machines,
-// 3D-Bench and Doom (R13 §4.5, R13B). A page miss: data outside the code's row, or a string element changing rows
+// 3D-Bench and Doom. A page miss: data outside the code's row, or a string element changing rows
 // The 486's cache in bus clocks: the average waits of a read and a write it serves, and a code line's fill
 #define GDOX_MACHINE_BUS_WAITS(rate, dram_read, dram_write, page_miss, vga, cache_read, cache_write, cache_fill) \
     { { (page_miss) * 256, (page_miss) * 256 }, { 0, 0 }, { 0, 0 }, 0, 0, { (dram_read) * 256, (dram_write) * 256 }, \
@@ -122,7 +122,7 @@ const GDOX_Machine_Profile k_machine_profiles[GDOX_MACHINE_COUNT] =
 
 // The ISA cards keep the model's VGA waits. The VL-Bus card's: reads at 16 bus clocks fit TOPBENCH's video RAM column
 // to its VL-Bus Cirrus DX2-66 rows, writes at 5 give the change one DX2-66 board saw from ISA to VL-Bus, Doom x1.27 and
-// 3D-Bench x1.22 (R14 §8.2)
+// 3D-Bench x1.22
 const GDOX_Video_Card_Info k_video_cards[GDOX_VIDEO_CARD_COUNT] =
 {
     { "IBM CGA", "cga", 0x4000, GDOX_VIDEO_FAMILY_CGA, false, { 0, 0 }, true, { 740, 740 }, false },

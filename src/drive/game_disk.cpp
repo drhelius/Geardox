@@ -899,7 +899,7 @@ void GameDisk::GetGameSettings(const GDOX_Machine_Settings& user, GDOX_Machine_S
     GetGameSettings(m_descriptor, user, game, GetSystem());
 }
 
-// §7.1 of docs/27: the game's own choice, then MS-DOS when the user imported it, then FreeDOS
+// The game's own choice, then MS-DOS when the user imported it, then FreeDOS
 int GameDisk::GetSystem() const
 {
     int system = m_descriptor.GetInfo().system;
@@ -997,7 +997,8 @@ void GameDisk::GetGameSettings(const GameDescriptor& descriptor, const GDOX_Mach
         game->ram_mb = needed;
 }
 
-// §5.4 steps 2 and 3: write back what a session left open, then build or reuse. Touches nothing of the emulator's
+// Writes back what a session left open, then builds the image or reuses it. Touches nothing of the emulator's, so the
+// loading thread can run it
 bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
 {
     if (!m_open)
@@ -1123,7 +1124,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
     return true;
 }
 
-// §5.4 step 6, after the machine has flushed and let go of the disk
+// The end of a session, after the machine has flushed and let go of the disk: an open session is written back
 bool GameDisk::Finish()
 {
     if (!m_open)
@@ -1154,8 +1155,7 @@ bool GameDisk::IsSessionOpen() const
     return m_open && LoadManifest(&entries, &open, &fingerprint, &mode) && open;
 }
 
-// FreeDOS's lines from its kernel's config.txt and JEMM's Readme.txt (R15 §4.3), MS-DOS's from its own HELP
-// (docs/reference text/dos/msdos_6.22, docs/27 §6.3)
+// FreeDOS's lines from its kernel's config.txt and JEMM's Readme.txt, MS-DOS's from MS-DOS 6.22's own HELP
 std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
 {
     UNUSED(machine);
@@ -1173,7 +1173,7 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
         frame = line;
     }
 
-    // SWITCHES=/F came with MS-DOS 6.0, and HIMEM's memory test, with /TESTMEM to skip it, with 6.2 (docs/27 §19)
+    // SWITCHES=/F came with MS-DOS 6.0, and HIMEM's memory test, with /TESTMEM to skip it, with 6.2
     if (msdos)
         out += m_msdos.version >= 600 ? "SWITCHES=/F\r\nLASTDRIVE=Z\r\n" : "LASTDRIVE=Z\r\n";
     else
@@ -1199,7 +1199,7 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
             out += "DEVICE=C:\\DOS\\EMM386.EXE RAM" + frame + "\r\n";
         else if (info.memory == GDOX_GAME_MEMORY_EMS)
         {
-            // MS-DOS 5's EMM386 sets its EMS aside as it loads, 256K unless told: the game's, or all it finds (docs/27 §19)
+            // MS-DOS 5's EMM386 sets its EMS aside as it loads, 256K unless told: the game's, or all it finds
             snprintf(line, sizeof(line), "DEVICE=C:\\DOS\\EMM386.EXE %d RAM", info.ems_kb > 0 ? ((info.ems_kb + 15) / 16) * 16 : 32768);
             out += line + frame + "\r\n";
         }
@@ -1303,7 +1303,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
 
     out += "PROMPT $P$G\r\n";
 
-    // KEYB with the VGA's code page 437, from MS-DOS's HELP KEYB and FreeDOS's KEYB documents (docs/27 §18)
+    // KEYB with the VGA's code page 437, from MS-DOS's HELP KEYB and FreeDOS's KEYB documents
     if (strcmp(GetKeyboardLayout(), k_keyboard_layouts[0].id) != 0)
     {
         std::string layout = upper(GetKeyboardLayout());
@@ -1721,7 +1721,7 @@ bool GameDisk::LoadManifest(std::vector<GameDisk_Manifest_Entry>* entries, bool*
     system->config_sys.clear();
     system->autoexec.clear();
 
-    // A manifest from before R23 stops at its entries, and its disk is FreeDOS's
+    // An older manifest, without the DOS fields, stops at its entries, and its disk is FreeDOS's
     if (reader.offset == data.size())
         return true;
 
@@ -1906,8 +1906,8 @@ void GameDisk::SetDeleted(const std::string& host_path, bool deleted)
         m_deleted.push_back(host_path);
 }
 
-// §5.5. The image is read whole first and refused if it doesn't add up; then each change goes to the folder or the
-// overlay, and nothing that changed on the host since the build is overwritten
+// The image is read whole first and refused if it doesn't add up; then each change goes to the folder or the overlay,
+// and nothing that changed on the host since the build is overwritten
 bool GameDisk::WriteBack(GameDisk_Result* result)
 {
     result->done = false;
@@ -2282,7 +2282,7 @@ static std::string trim_line(const std::string& line)
     return line.substr(start, line.find_last_not_of(" \t\r\x1A") - start + 1);
 }
 
-// §6.5 of docs/27: the next launch writes CONFIG.SYS and AUTOEXEC.BAT again, so the lines DOS added are named
+// The next launch writes CONFIG.SYS and AUTOEXEC.BAT again, so the lines DOS added are named
 void GameDisk::NoteStartupFile(FatImage* image, const FatImage_File* file, const GameDisk_Manifest_Entry& entry, GameDisk_Result* result)
 {
     std::string name = upper(entry.dos_path);

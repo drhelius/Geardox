@@ -980,7 +980,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     return ok;
 }
 
-// An imported MS-DOS (docs/27 §6): its C/ tree from the user's ZIP, read at Write, IO.SYS and MSDOS.SYS ahead of the
+// An imported MS-DOS: its C/ tree from the user's ZIP, read at Write, IO.SYS and MSDOS.SYS ahead of the
 // label as its boot sector wants, and Geardox' own tools from the FreeDOS files in \GEARDOX
 bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
     const std::vector<std::string>& pinned, bool shsucdx)

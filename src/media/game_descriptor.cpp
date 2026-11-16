@@ -272,7 +272,7 @@ static bool check_dos_dir(const std::string& value, std::string* normalized)
                 return false;
         }
 
-        // The folders either DOS keeps in the root of a game's disk, so a descriptor works on both (docs/27 §6.1)
+        // The folders either DOS keeps in the root of a game's disk, so a descriptor works on both
         if (result.empty() && ((part == "FREEDOS") || (part == "TEMP") || (part == "DOS") || (part == "GEARDOX")))
             return false;
 
@@ -974,8 +974,8 @@ const char* GameDescriptor::GetGamepadSection(int pad)
 }
 
 // JEMM makes EMS from extended memory, less the HMA, its DMA buffer, the UMBs and itself (JEMM Readme.txt §3), and
-// R14's hole takes 15-16 MB with a Cirrus card. MS-DOS's EMM386 leaves 1472K to 1488K less EMS free than RAM, measured
-// with MEM (docs/27 §6.3). The smallest size of the model that leaves the game its EMS
+// the hole for a Cirrus card's linear buffer takes 15-16 MB. MS-DOS's EMM386 leaves 1472K to 1488K less EMS free than
+// RAM, measured with MEM. The smallest size of the model that leaves the game its EMS
 int GameDescriptor::GetEMSRAM(int ems_kb, int model, bool cirrus, int system)
 {
     int reserved_kb = system == GDOX_GAME_SYSTEM_MSDOS ? 1488 : 1024 + 512;

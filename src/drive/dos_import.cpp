@@ -37,9 +37,8 @@ static const u32 k_dos_kwaj_max_size = 8 * 1024 * 1024;
 static const u16 k_dos_kwaj_method_lzh = 3;
 
 // MS-DOS 6's Setup disks, whatever the version or the language: PACKING.LST names every file Setup installs, the
-// compressed ones in KWAJ, and DOSSETUP.INI's [dif-path] puts these in the root (docs/27 §18). MS-DOS 5's compress in
-// SZDD, list each disk's names only as stored, and have the real ones in SETUP.INI and PACKING.LST's install layout
-// (docs/27 §19)
+// compressed ones in KWAJ, and DOSSETUP.INI's [dif-path] puts these in the root. MS-DOS 5's compress in SZDD, list
+// each disk's names only as stored, and have the real ones in SETUP.INI and PACKING.LST's install layout
 static const char k_dos_names_list[] = "PACKING.LST";
 static const char* const k_dos_boot_files[] = { "IO.SYS", "MSDOS.SYS", NULL };
 static const char* const k_dos_root_files[] = { "WINA20.386", NULL };
@@ -387,7 +386,7 @@ static int kwaj_decode(Kwaj_Bits* bits, const Kwaj_Huffman* huffman)
     return -1;
 }
 
-// The four ways a tree's code lengths are stored, from the KWAJ format page (docs/27 §5.3)
+// The four ways a tree's code lengths are stored, from libmspack's SZDD and KWAJ format page
 static bool kwaj_lengths(Kwaj_Bits* bits, u32 type, int symbols, Kwaj_Huffman* huffman)
 {
     u8 lengths[256];
@@ -644,7 +643,7 @@ bool DosImport::ReadFloppy(const u8* raw, u32 size, int image)
     return true;
 }
 
-// KWAJ method 3, written from the format's description (docs/27 §5.3, §16). It stops at the length in the header,
+// KWAJ method 3, written from libmspack's SZDD and KWAJ format page. It stops at the length in the header,
 // as the format has no end marker
 bool DosImport::ExpandKWAJ(const u8* data, size_t size, std::string* out)
 {
@@ -793,7 +792,7 @@ bool DosImport::ExpandSZDD(const u8* data, size_t size, std::string* out)
     return out->size() == length;
 }
 
-// docs/27 §18 and §19: any MS-DOS 6 or 5 Setup set, by the family's rules, named by its own COMMAND.COM
+// Any MS-DOS 6 or 5 Setup set, by the family's rules, named by its own COMMAND.COM
 DosImport_Result DosImport::Import(const char* zip_path)
 {
     m_name.clear();
@@ -901,7 +900,7 @@ DosImport_Result DosImport::Import(const char* zip_path)
     }
 
     // Setup gives the MS-DOS Shell the VGA's files under its own names, and installs no other adapter's: what 5.0's
-    // Setup did on Geardox's VGA (docs/27 §19)
+    // Setup did on Geardox's VGA
     if ((installed.count(k_dos_shell_copies[0]) != 0) && (installed.count(k_dos_shell_copies[2]) != 0) &&
         (installed.count(k_dos_shell_copies[4]) != 0))
     {
