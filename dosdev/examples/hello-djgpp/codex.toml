@@ -1,0 +1,3 @@
+[mcp_servers.geardox]
+command = "geardox"
+args = ["--mcp-stdio", "hello.gdox"]

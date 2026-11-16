@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "make",
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Run",
+            "type": "shell",
+            "command": "make",
+            "args": ["run", "GEARDOX=${config:geardox.path}"],
+            "problemMatcher": []
+        },
+        {
+            "label": "Test",
+            "type": "shell",
+            "command": "make",
+            "args": ["test", "GEARDOX=${config:geardox.path}"],
+            "group": { "kind": "test", "isDefault": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "Geardox: gdb",
+            "type": "shell",
+            "command": "${config:geardox.path}",
+            "args": ["--target", "debug", "--gdb-wait", "--gdb-port", "1234", "--e9", "--exit-on-exit", "hello.gdox"],
+            "dependsOn": "Build",
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "geardox",
+                "pattern": { "regexp": "^ERROR (.*)$", "message": 1 },
+                "background": {
+                    "activeBegins": true,
+                    "beginsPattern": "Geardox",
+                    "endsPattern": "\\[GDB\\] Remote server listening"
+                }
+            }
+        }
+    ]
+}

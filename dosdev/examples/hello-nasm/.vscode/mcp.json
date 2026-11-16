@@ -1,0 +1,9 @@
+{
+    "servers": {
+        "geardox": {
+            "type": "stdio",
+            "command": "geardox",
+            "args": ["--mcp-stdio", "${workspaceFolder}/hello.gdox"]
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Geardox: debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/hello.exe",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "${config:geardox.gdb}",
+            "miDebuggerServerAddress": "127.0.0.1:1234",
+            "stopAtEntry": false,
+            "setupCommands": [
+                { "text": "set gnutarget coff-go32-exe" },
+                { "text": "set pagination off" }
+            ],
+            "preLaunchTask": "Geardox: gdb"
+        }
+    ]
+}

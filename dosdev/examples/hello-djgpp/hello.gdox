@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Hello DJGPP
+folder = C:\HELLODJ
+
+[run]
+exe = BUILD\HELLO.EXE

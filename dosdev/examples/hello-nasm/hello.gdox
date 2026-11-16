@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Hello NASM
+folder = C:\HELLONSM
+
+[run]
+exe = BUILD\HELLO.COM
