@@ -1263,6 +1263,13 @@ void DynarecEmitter::Set586Clocks(Instruction& instruction)
     u32 prefixes = I386::Count486Prefixes(m_cpu->m_passive_bytes, c.next_eip - c.start_eip);
     u32 pairing = I386::Get586Pairing(c, prefixes);
     u32 written = I386::Get486Written(c);
+    u32 stall_prefixes = I386::Count586Prefixes(c, prefixes);
+    u32 accesses = I386::Get586Accesses(c);
+    u32 named = I386::Get586Named(c);
+    u32 address = I386::Get586Address(c);
+    bool packs = named <= 0xFF && address <= 0xFF && written <= 0xFF && stall_prefixes <= 0xF && accesses <= 0xF;
+    instruction.static_pairing = packs ? pairing : k_i586_unknown;
+    instruction.static_packed = named | (address << 8) | (written << 16) | (accesses << 24) | (stall_prefixes << 28);
     u32 implicit = (pairing & (k_i586_push | k_i586_pop)) != 0 ? 1U << I386_REG_ESP : 0;
     u32 kind = pairing >> 24;
     bool native = instruction.kind == DYNAREC_NATIVE;
@@ -2235,7 +2242,7 @@ void DynarecEmitter::EmitBlock()
             m_exit_weight = instruction.weight_before;
             StoreEIP(instruction.context.start_eip);
             CallStep(instruction.next_check, 0, instruction.before, m_timed ? AddBusRun(instruction.bus_before) : NULL, NULL,
-                instruction.weight_before);
+                instruction.weight_before, instruction);
 
             if (instruction.kind == DYNAREC_HELPER_LAST)
                 Exit(i + 1, instruction.before, k_dynarec_exit_end);
@@ -2329,7 +2336,7 @@ void DynarecEmitter::EmitFallback(Instruction& instruction, int index, int last)
     const I386::DynarecBusRun* settle = GetSettleRun(instruction);
     const I386::DynarecBusRun* revert = !instruction.ends_block ? GetAfterRun(instruction) : NULL;
     CallStep(instruction.next_check, instruction.clocks, instruction.before, settle, revert,
-        instruction.weight_before | 0x80000000U);
+        instruction.weight_before | 0x80000000U, instruction);
 
     if (instruction.ends_block)
     {
@@ -2603,7 +2610,7 @@ void DynarecEmitter::StoreEIP(u32 eip)
 
 // Helpers are reached through a register, so the code runs from any executable view
 void DynarecEmitter::CallStep(const I386::DynarecCheck* check, u32 native_clocks, u32 before,
-    const I386::DynarecBusRun* settle, const I386::DynarecBusRun* revert, u32 memory)
+    const I386::DynarecBusRun* settle, const I386::DynarecBusRun* revert, u32 memory, const Instruction& instruction)
 {
     jit_movi(DR_T3, m_cpu->m_i486_timing ? (jit_word_t)(uintptr_t)&I386::DynarecStep<true> :
         (jit_word_t)(uintptr_t)&I386::DynarecStep<false>);
@@ -2615,6 +2622,8 @@ void DynarecEmitter::CallStep(const I386::DynarecCheck* check, u32 native_clocks
     jit_pushargi((jit_word_t)(uintptr_t)settle);
     jit_pushargi((jit_word_t)(uintptr_t)revert);
     jit_pushargi((jit_word_t)memory);
+    jit_pushargi((jit_word_t)(m_i586 ? instruction.static_pairing : k_i586_unknown));
+    jit_pushargi((jit_word_t)(m_i586 ? instruction.static_packed : 0));
     jit_finishr(DR_T3);
     jit_retval(JIT_R0);
 }
