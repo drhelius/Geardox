@@ -2087,7 +2087,7 @@ json McpServer::BuildToolList()
                 {"aspect_ratio", {
                     {"type", "string"},
                     {"description", "screen follows the display settings."},
-                    {"enum", json::array({"screen", "square", "4:3", "16:9"})}
+                    {"enum", json::array({"screen", "square", "4:3", "16:9", "16:10"})}
                 }},
                 {"quality", {
                     {"type", "string"},

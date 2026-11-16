@@ -367,7 +367,8 @@ static void menu_geardox(void)
 
             if (ImGui::BeginMenu("Aspect Ratio", !is_recording))
             {
-                const char* ratios = "Follow Screen\0Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0";
+                const char* ratios = "Follow Screen\0Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0"
+                    "Wide (16:9 DAR)\0Wide (16:10 DAR)\0\0";
                 ImGui::PushItemWidth(get_combo_items_width(ratios));
                 ImGui::Combo("##video_recording_ratio", &config_video.recording_ratio, ratios);
                 ImGui::PopItemWidth();
@@ -1837,7 +1838,7 @@ static void menu_video(void)
 
         if (ImGui::BeginMenu("Aspect Ratio"))
         {
-            const char* ratios = "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0";
+            const char* ratios = "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0Wide (16:10 DAR)\0\0";
             ImGui::PushItemWidth(get_combo_items_width(ratios));
             ImGui::Combo("##ratio", &config_video.ratio, ratios);
             ImGui::PopItemWidth();
@@ -2600,7 +2601,7 @@ static void menu_debug(void)
 
             if (ImGui::BeginMenu("Aspect Ratio", config_debug.debug))
             {
-                const char* ratios = "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0\0";
+                const char* ratios = "Square Pixels (1:1 PAR)\0Standard (4:3 DAR)\0Wide (16:9 DAR)\0Wide (16:10 DAR)\0\0";
                 ImGui::PushItemWidth(get_combo_items_width(ratios));
                 ImGui::Combo("##debug_ratio", &config_debug.ratio, ratios);
                 ImGui::PopItemWidth();

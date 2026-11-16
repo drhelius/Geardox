@@ -173,7 +173,7 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Debug", "FontType", config_debug.font_type, 0, 0, 1);
     CONFIG_INT_RANGE("Debug", "FontSize", config_debug.font_size, 0, 0, 3);
     CONFIG_INT_RANGE("Debug", "Scale", config_debug.scale, 1, 1, 10);
-    CONFIG_INT_RANGE("Debug", "AspectRatio", config_debug.ratio, 0, 0, 2);
+    CONFIG_INT_RANGE("Debug", "AspectRatio", config_debug.ratio, 0, 0, 3);
     CONFIG_BOOL("Debug", "MultiViewport", config_debug.multi_viewport, false);
     CONFIG_BOOL("Debug", "SingleInstance", config_debug.single_instance, false);
 
@@ -284,7 +284,7 @@ static inline void process(config_Operation operation)
     // Display
     CONFIG_INT("Video", "Scale", config_video.scale, 0);
     CONFIG_INT_RANGE("Video", "ScaleManual", config_video.scale_manual, 1, 1, 20);
-    CONFIG_INT_RANGE("Video", "AspectRatio", config_video.ratio, 1, 0, 2);
+    CONFIG_INT_RANGE("Video", "AspectRatio", config_video.ratio, 1, 0, 3);
     CONFIG_BOOL("Video", "NativeResolution", config_video.native_resolution, true);
     CONFIG_INT_RANGE("Video", "CGAOutput", config_video.cga_output, GDOX_CGA_OUTPUT_AUTO, GDOX_CGA_OUTPUT_AUTO,
         GDOX_CGA_OUTPUT_COUNT - 1);
@@ -303,7 +303,7 @@ static inline void process(config_Operation operation)
 
     CONFIG_INT_RANGE("Video", "SyncMode", config_video.sync_mode, config_VideoSync_Fixed, config_VideoSync_Disabled, config_VideoSync_VRR);
     CONFIG_INT_RANGE("Video", "RecordingScale", config_video.recording_scale, 2, 1, 20);
-    CONFIG_INT_RANGE("Video", "RecordingAspectRatio", config_video.recording_ratio, 0, 0, 3);
+    CONFIG_INT_RANGE("Video", "RecordingAspectRatio", config_video.recording_ratio, 0, 0, 4);
     CONFIG_INT_RANGE("Video", "RecordingQuality", config_video.recording_quality, 2, 0, 4);
 
     // Background colors
