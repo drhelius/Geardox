@@ -82,7 +82,7 @@ static void menu_game(bool loading)
     if (!menu)
     {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", open ? "The DOS this game boots. Changing it\nsaves, closes and reopens the game." :
+            ImGui::SetTooltip("%s", open ? "The DOS the game boots.\nChanging it saves, closes and reopens the game." :
                 "Open a game to choose its DOS.");
 
         return;
@@ -125,8 +125,8 @@ static void menu_game(bool loading)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("The DOS this game boots. Changing it");
-        ImGui::Text("saves, closes and reopens the game.");
+        ImGui::Text("The DOS the game boots.");
+        ImGui::Text("Changing it saves, closes and reopens the game.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
@@ -137,8 +137,8 @@ static void menu_game(bool loading)
 
 static void menu_no_disks(void)
 {
-    static const char k_tooltip[] = "The built-in disk that boots when no hard\ndisk is attached. Swaps it at the next\n"
-        "reset when it's the only hard disk.";
+    static const char k_tooltip[] = "The built-in disk that boots without hard disks.\n"
+        "Swaps at the next reset if it's the only hard disk.";
 
     if (!ImGui::BeginMenu("With No Disks"))
     {
@@ -185,8 +185,8 @@ static void menu_no_disks(void)
 
 static void menu_keyboard_layout(void)
 {
-    static const char k_tooltip[] = "Your keyboard's layout for DOS in games,\n"
-        "loaded with KEYB. From the next game opened.\nA .gdox sets its own with keyboard in [dos].\n"
+    static const char k_tooltip[] = "Your keyboard layout for DOS in games, via KEYB.\n"
+        "Applies from the next game opened.\nA .gdox sets its own with keyboard in [dos].\n"
         "New built-in disks load it too.";
 
     if (!ImGui::BeginMenu("Keyboard Layout"))
@@ -256,8 +256,8 @@ static void menu_import(bool loading)
         gui_file_dialog_import_msdos();
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Your MS-DOS 5.0 to 6.22 Setup disks, any\nlanguage: a disk image or a ZIP of them.\n"
-            "Games and the built-in disk boot it,\nunless set to FreeDOS.");
+        ImGui::SetTooltip("Your MS-DOS 5.0 to 6.22 Setup disks, any language.\nA disk image or a ZIP of them.\n"
+            "Games and the built-in disk boot it unless set to FreeDOS.");
 
     if (ImGui::MenuItem("Remove MS-DOS", NULL, false, imported && !loading))
     {
@@ -269,6 +269,5 @@ static void menu_import(bool loading)
     }
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Games and the built-in disk go back to\nFreeDOS. MS-DOS.hdd and your Setup disks\n"
-            "aren't touched.");
+        ImGui::SetTooltip("Games and the built-in disk revert to FreeDOS.\nMS-DOS.hdd and your Setup disks are kept.");
 }

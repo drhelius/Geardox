@@ -199,7 +199,7 @@ void gui_draw_game_source_tooltip(int source)
         ImGui::TextColored(get_game_source_color(source), "Changed for this game only.");
     else if (source == Emu_Game_Source_Descriptor)
         ImGui::TextColored(get_game_source_color(source), "%s", emu_game_is_from_database() ?
-            "Set by the game database." : "Set by this game's descriptor.");
+            "Set by the game database." : "Set by the game descriptor.");
 }
 
 static void menu_geardox(void)
@@ -666,8 +666,9 @@ static void menu_emulator(void)
                 ImGui::PushItemWidth(get_combo_items_width(locations));
                 ImGui::Combo("##savefiles_option", &config_emulator.savefiles_dir_option, locations);
                 draw_directory_tooltip(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str(),
-                    "Working copies of floppies and CHD disks,\neach machine's CMOS, and each game's disk,\n"
-                    "settings and key map. With Same as Disk,\nthe CMOS and games stay in the default\nlocation.", false);
+                    "Working copies of floppies and CHD disks,\neach machine's CMOS,\n"
+                    "and each game's disk, settings and key map.\n"
+                    "With Same as Disk, CMOS and game files use the default.", false);
                 ImGui::PopItemWidth();
 
                 switch ((Directory_Location)config_emulator.savefiles_dir_option)
@@ -862,7 +863,7 @@ static void menu_machine(void)
     }
 
     if (emu_game_is_open())
-        ImGui::TextColored(machine_game_color, "%s: changes here are this game's", emu_game_get_name());
+        ImGui::TextColored(machine_game_color, "Changes apply to %s only", emu_game_get_name());
 
     for (int i = 0; i < report.warning_count; i++)
         ImGui::TextColored(machine_warning_color, "%s", report.warnings[i]);
@@ -932,13 +933,13 @@ static void menu_machine(void)
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("The board's Turbo button: off runs the CPU");
-        ImGui::Text("at a third of its clock, for games too fast.");
-        ImGui::Text("Applies at once.");
+        ImGui::Text("The board's Turbo button. Applies immediately.");
+        ImGui::Text("Off runs the CPU at a third of its clock.");
+        ImGui::Text("Use it for games that run too fast.");
         gui_draw_game_source_tooltip(turbo_source);
 
         if (emu_game_is_open())
-            ImGui::Text("The hotkey changes it for this session only.");
+            ImGui::Text("The hotkey's change isn't saved.");
 
         ImGui::EndTooltip();
     }
@@ -947,7 +948,8 @@ static void menu_machine(void)
         emu_apply_bios_settings();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Esc opens the BIOS boot menu for 2.5 seconds\nat each boot. Reset the emulator to apply changes.");
+        ImGui::SetTooltip("Esc opens the BIOS boot menu at each boot.\nThe prompt waits 2.5 seconds.\n"
+            "Reset the emulator to apply changes.");
 
 #if !defined(GDOX_DISABLE_DYNAREC)
 
@@ -959,12 +961,12 @@ static void menu_machine(void)
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Dynamic recompilation: most games run faster,");
-        ImGui::Text("a few slower. The debugger uses the interpreter");
-        ImGui::Text("while a breakpoint, trace or profile is on.");
+        ImGui::Text("Dynamic recompilation: most games run faster.");
+        ImGui::Text("A few run slower.");
+        ImGui::Text("Breakpoints, traces and profiles use the interpreter.");
 
         if (config_emulator.dynarec && !emu_is_dynarec_enabled())
-            ImGui::TextColored(red, "Not available here, the interpreter runs.");
+            ImGui::TextColored(red, "Unavailable here: the interpreter runs.");
 
         ImGui::EndTooltip();
     }
@@ -1056,8 +1058,8 @@ static bool menu_machine_model(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("The 486DX2-66 suits most games of 1990 to 1995.");
-        ImGui::Text("Too fast? A 386, or Turbo off.");
+        ImGui::Text("The 486DX2-66 suits most 1990-1995 games.");
+        ImGui::Text("Too fast? Pick a 386 or turn Turbo off.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1205,7 +1207,7 @@ static bool menu_machine_ram(const GDOX_Machine_Profile& profile)
     {
         ImGui::BeginTooltip();
         ImGui::Text("8 MB runs nearly every DOS game.");
-        ImGui::Text("Sizes a model can't take round up.");
+        ImGui::Text("Unsupported sizes round up.");
         ImGui::Text("Save states and rewind grow with it.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
@@ -1268,8 +1270,7 @@ static bool menu_machine_floppy(int drive)
     {
         ImGui::BeginTooltip();
         ImGui::Text("Auto: the smallest drive for the disk at power on.");
-        ImGui::Text("A 720 KB disk gets a 1.44 MB drive,");
-        ImGui::Text("which reads both.");
+        ImGui::Text("A 720 KB disk gets a 1.44 MB drive, which reads both.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1325,7 +1326,7 @@ static bool menu_machine_sound(void)
     {
         ImGui::BeginTooltip();
         ImGui::Text("Games detect the card.");
-        ImGui::Text("The Sound Blaster 16 suits nearly all.");
+        ImGui::Text("The Sound Blaster 16 suits nearly every game.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1360,11 +1361,11 @@ static bool menu_machine_sound(void)
         ImGui::BeginTooltip();
 
         if (k_sound_cards[card].mpu)
-            ImGui::Text("The card's MIDI port at 330, on its IRQ.");
+            ImGui::Text("The card's MIDI port at 330h, on its IRQ.");
         else
-            ImGui::Text("A separate MPU-401 at 330, on IRQ 2 (9).");
+            ImGui::Text("A separate MPU-401 at 330h, on IRQ 2 (9).");
 
-        ImGui::Text("Its music plays to Audio > MIDI Out.");
+        ImGui::Text("Music goes to Audio > MIDI Out.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(mpu_source);
         ImGui::EndTooltip();
@@ -1424,9 +1425,8 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("For old games that need a fixed IRQ or DMA.");
-        ImGui::Text("BLASTER in the built-in disks' AUTOEXEC.BAT");
-        ImGui::Text("doesn't follow it.");
+        ImGui::Text("For older games that need a fixed IRQ or DMA.");
+        ImGui::Text("The built-in disks' BLASTER line isn't updated.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1495,10 +1495,10 @@ static bool menu_machine_video(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Model Default: a Cirrus Logic GD5428,");
-        ImGui::Text("on the VL-Bus on 486s, ISA otherwise.");
-        ImGui::Text("Models without a local bus get the ISA card.");
-        ImGui::Text("The IBM CGA and EGA are 8-bit cards for older games.");
+        ImGui::Text("Model Default: a Cirrus Logic GD5446 on Pentiums.");
+        ImGui::Text("A GD5428 on the VL-Bus on 486s, on ISA on 386s.");
+        ImGui::Text("Without the card's slot, the ISA card is used.");
+        ImGui::Text("The IBM CGA and EGA: 8-bit cards for older games.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1550,9 +1550,9 @@ static bool menu_machine_mouse(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("PS/2: up to 200 reports a second, COM ports free.");
+        ImGui::Text("PS/2: up to 200 reports/s, COM ports stay free.");
         ImGui::Text("Serial: a Microsoft mouse on COM1, as on 1989 PCs.");
-        ImGui::Text("DOS mouse drivers find either.");
+        ImGui::Text("DOS mouse drivers detect either.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1593,11 +1593,10 @@ static bool menu_machine_cdrom_drive(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("The ATAPI drive's IDE position,");
-        ImGui::Text("closed to hard disks.");
-        ImGui::Text("Secondary Master: the primary channel stays");
-        ImGui::Text("for hard disks.");
-        ImGui::Text("Primary Slave: as 1994 PCs with one channel.");
+        ImGui::Text("The ATAPI drive's IDE position.");
+        ImGui::Text("Hard disks can't use it.");
+        ImGui::Text("Secondary Master: hard disks keep the primary channel.");
+        ImGui::Text("Primary Slave: as on 1994 single-channel PCs.");
         ImGui::Text("Reset the emulator to apply changes.");
         ImGui::EndTooltip();
     }
@@ -1655,10 +1654,9 @@ static bool menu_machine_drive_timing(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Seek, rotation and spin-up times");
-        ImGui::Text("of disks, floppies and CD-ROMs.");
+        ImGui::Text("Seek, rotation and spin-up times of all drives.");
         ImGui::Text("Auto: fast for games, real otherwise.");
-        ImGui::Text("Transfer rates don't change.");
+        ImGui::Text("Transfer rates are unaffected.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1710,9 +1708,8 @@ static bool menu_machine_cdrom_speed(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Spin speed, so seek and read times.");
-        ImGui::Text("Games that stream from the disc");
-        ImGui::Text("may want 4x or more.");
+        ImGui::Text("The disc's spin speed: sets seek and read times.");
+        ImGui::Text("Games that stream from the disc may need 4x or more.");
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -1786,8 +1783,8 @@ static bool menu_machine_fpu(const GDOX_Machine_Profile& profile)
         else
         {
             ImGui::Text("An 80387 in the 386's socket.");
-            ImGui::Text("A few games need one,");
-            ImGui::Text("some behave differently with one.");
+            ImGui::Text("A few games need one.");
+            ImGui::Text("Some behave differently with one.");
             ImGui::Text("Reset the emulator to apply changes.");
             gui_draw_game_source_tooltip(source);
         }
@@ -1961,8 +1958,8 @@ static void draw_machine_profile_tooltip(GDOX_Machine_Model model)
     if (!dynarec.available && (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0)
     {
         ImGui::Separator();
-        ImGui::Text("No dynarec on this host: the interpreter");
-        ImGui::Text("runs it at a fraction of its speed");
+        ImGui::Text("No dynarec on this host.");
+        ImGui::Text("The interpreter runs it at a fraction of its speed.");
     }
 
     ImGui::EndTooltip();
@@ -2141,8 +2138,8 @@ static void menu_video(void)
             {
                 ImGui::BeginTooltip();
                 ImGui::Text("The monitor on the IBM CGA's output.");
-                ImGui::Text("Auto: composite colour where a game turns on");
-                ImGui::Text("640x200 with the colour burst, RGB elsewhere.");
+                ImGui::Text("Auto: composite colour in 640x200 with colour burst.");
+                ImGui::Text("Other modes use RGB.");
                 gui_draw_game_source_tooltip(cga_source);
                 ImGui::EndTooltip();
             }
@@ -2280,8 +2277,8 @@ static void menu_input(void)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             {
                 ImGui::BeginTooltip();
-                ImGui::Text("Shows the PC keyboard to bind host keys to it,");
-                ImGui::Text("for this game only. The PC stops while it's open.");
+                ImGui::Text("Binds host keys to PC keys, for this game only.");
+                ImGui::Text("The PC pauses while it's open.");
                 ImGui::EndTooltip();
             }
 
@@ -2376,13 +2373,11 @@ static void menu_input(void)
             else if (ImGui::IsItemHovered())
             {
                 ImGui::BeginTooltip();
-                ImGui::Text("What Host Gamepad 1 plays on the game port");
-                ImGui::Text("when it's used as Joystick.");
+                ImGui::Text("What Host Gamepad 1 plays on the game port as Joystick.");
                 ImGui::Text("Joystick: analog stick, two buttons.");
-                ImGui::Text("Gravis GamePad: eight directions on the D-pad");
-                ImGui::Text("or left stick, four buttons.");
-                ImGui::Text("CH FlightStick Pro: stick, four buttons,");
-                ImGui::Text("throttle on the right stick, hat on the D-pad.");
+                ImGui::Text("Gravis GamePad: 8-way D-pad or left stick, four buttons.");
+                ImGui::Text("CH FlightStick Pro: stick and four buttons.");
+                ImGui::Text("Its throttle is the right stick, its hat the D-pad.");
                 gui_draw_game_source_tooltip(joystick_source);
                 ImGui::EndTooltip();
             }
@@ -2448,7 +2443,7 @@ static void menu_audio(void)
         if (ImGui::IsItemHovered())
         {
             ImGui::BeginTooltip();
-            ImGui::Text("Stops the MIDI notes.");
+            ImGui::Text("Silences MIDI notes.");
             ImGui::Text("The synth keeps the game's instruments.");
             ImGui::EndTooltip();
         }
@@ -2553,13 +2548,13 @@ static void menu_audio_midi(void)
     emu_midi_prepare();
 
     if (menu_audio_midi_port("General MIDI Port", "##midi_gm_port", &config_audio.midi_gm_port,
-        "A General MIDI, GS or XG synth or module.\nPlays games set up for General MIDI, GS or XG.\n"
-        "With no MT-32 port, plays MT-32 games too."))
+        "A General MIDI, GS or XG synth or module.\nPlays games set up for GM, GS or XG.\n"
+        "Also plays MT-32 games when no MT-32 port is set."))
         emu_midi_update_port();
 
     if (menu_audio_midi_port("MT-32 Port", "##midi_mt32_port", &config_audio.midi_mt32_port,
-        "An MT-32 emulator, or a real MT-32,\nCM-32L or LAPC-I.\nPlays games set up for Roland MT-32.\n"
-        "With no GM port, plays General MIDI games too."))
+        "An MT-32 emulator, or a real MT-32, CM-32L or LAPC-I.\nPlays games set up for MT-32.\n"
+        "Also plays GM games when no GM port is set."))
         emu_midi_update_port();
 
     menu_audio_midi_game_synth();
@@ -2633,7 +2628,7 @@ static bool menu_audio_midi_port(const char* label, const char* id, std::string*
         ImGui::EndCombo();
     }
     else if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s\nStart the synth first:\nports are read when this menu opens.", tooltip);
+        ImGui::SetTooltip("%s\nStart the synth first.\nPorts are listed when this menu opens.", tooltip);
 
     ImGui::PopItemWidth();
     ImGui::EndMenu();
@@ -2737,15 +2732,15 @@ static void menu_audio_midi_game_synth(void)
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("What the game was set up for, which picks");
-        ImGui::Text("its port, or any port for this game only.");
-        ImGui::Text("With no game open, the default for games.");
+        ImGui::Text("The synth the game was set up for picks the port.");
+        ImGui::Text("Or pick a port for this game only.");
+        ImGui::Text("With no game open: the default for all games.");
         ImGui::Text("A .gdox sets it with midi or midi_port in [sound].");
 
         if (game)
         {
-            ImGui::Text("Start the synth first:");
-            ImGui::Text("ports are read when this menu opens.");
+            ImGui::Text("Start the synth first.");
+            ImGui::Text("Ports are listed when this menu opens.");
         }
 
         gui_draw_game_source_tooltip(source);
@@ -2978,7 +2973,7 @@ static void menu_debug(void)
                 emu_apply_bios_settings();
 
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Copies each line of the BIOS log\nto the emulator log.");
+                ImGui::SetTooltip("Copies each line of the BIOS log to the emulator log.");
 
             ImGui::EndMenu();
         }
@@ -3461,7 +3456,7 @@ static void menu_input_gamepad(int pad)
         if (ImGui::IsItemHovered())
         {
             ImGui::BeginTooltip();
-            ImGui::Text("During a game, back to the game's own mapping.");
+            ImGui::Text("During a game, restores the game's defaults.");
             ImGui::EndTooltip();
         }
 
@@ -3602,16 +3597,16 @@ static void gamepad_choice_selector(int pad, bool use)
 
         if (use)
         {
-            ImGui::Text("Keyboard and Mouse: each button presses a PC key");
-            ImGui::Text("or clicks, a stick or the D-pad moves the mouse.");
+            ImGui::Text("Keyboard and Mouse: buttons press PC keys or click.");
+            ImGui::Text("A stick or the D-pad moves the mouse.");
 
             if (pad == 0)
-                ImGui::Text("Joystick: plays the joystick on the game port.");
+                ImGui::Text("Joystick: the game port joystick.");
         }
         else
         {
             ImGui::Text("The stick or D-pad that moves the PC's mouse.");
-            ImGui::Text("It sends no keys while it does.");
+            ImGui::Text("It sends no keys.");
         }
 
         gui_draw_game_source_tooltip(source);

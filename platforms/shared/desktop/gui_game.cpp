@@ -80,7 +80,7 @@ void gui_game_menu(void)
         gui_file_dialog_open_game();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A .gdox game descriptor,\nor a ZIP with one in its root.");
+        ImGui::SetTooltip("A .gdox game descriptor, or a ZIP with one in its root.");
 
     if (ImGui::MenuItem("Open Game Folder...", NULL, false, !loading))
         gui_file_dialog_open_game_folder();
@@ -110,7 +110,7 @@ void gui_game_menu(void)
         ImGui::PopStyleColor();
 
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s's changes couldn't be saved.\nSee Last Save Report...", emu_game_get_last_write_back_name());
+            ImGui::SetTooltip("%s's changes weren't saved.\nSee Last Save Report...", emu_game_get_last_write_back_name());
     }
 
     ImGui::Separator();
@@ -119,9 +119,8 @@ void gui_game_menu(void)
         gui_file_dialog_new_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Pick a game's folder, then the program\nthat starts it. The descriptor goes in the\n"
-            "game's folder and opens. With Save Games To\nGeardox's Save Folder, or a read-only folder,\n"
-            "it goes to the save folder.");
+        ImGui::SetTooltip("Pick the game's folder and its start program.\nWrites the .gdox there and opens the game.\n"
+            "Read-only folders use the save folder instead.\nSo does Save Games To > Geardox's Save Folder.");
 
     ImGui::Separator();
     menu_options();
@@ -133,7 +132,7 @@ static void menu_boot(bool enabled)
     if (!ImGui::BeginMenu("Boot To", enabled))
     {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Restarts into the game, its setup or the DOS\nprompt. The disk stays as it is.");
+            ImGui::SetTooltip("Restarts into the game, its setup or the DOS prompt.\nThe disk stays as it is.");
 
         return;
     }
@@ -147,8 +146,8 @@ static void menu_boot(bool enabled)
         emu_game_set_target(GDOX_GAME_TARGET_SETUP);
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("%s", emu_game_has_setup() ? "The game's setup, for its sound card or controls.\n"
-            "Ends at the DOS prompt." : "The descriptor names no setup program.");
+        ImGui::SetTooltip("%s", emu_game_has_setup() ? "Runs the game's setup for its sound card or controls.\n"
+            "Ends at the DOS prompt." : "The game descriptor names no setup program.");
 
     if (ImGui::MenuItem("DOS Prompt", NULL, target == GDOX_GAME_TARGET_PROMPT))
         emu_game_set_target(GDOX_GAME_TARGET_PROMPT);
@@ -176,7 +175,7 @@ static void menu_files(bool open)
         show_folder(emu_game_get_saves_path());
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Where the game's changes go when it closes:\n%s", emu_game_get_saves_path());
+        ImGui::SetTooltip("Where the game's changes are saved on close:\n%s", emu_game_get_saves_path());
 
     ImGui::Separator();
 
@@ -184,18 +183,18 @@ static void menu_files(bool open)
         gui_file_dialog_save_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Writes the descriptor with this game's\nchanges, as one file.");
+        ImGui::SetTooltip("Saves one descriptor with the game's changes merged in.");
 
     if (ImGui::MenuItem("Forget This Game's Changes", NULL, false, emu_game_has_overrides()))
     {
         emu_game_reset_settings();
-        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "The game's changes are forgotten",
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "This game's changes were forgotten",
             "Restart the game to apply its defaults", "game_settings");
     }
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Forgets every change kept for this game:\nMachine, CGA Output, Emulated Joystick,\n"
-            "Host Gamepads, Game Synth and its DOS.\nIts key map stays.");
+        ImGui::SetTooltip("Forgets every change made for this game:\nMachine, CGA Output, Emulated Joystick,\n"
+            "Host Gamepads, Game Synth and DOS.\nThe key map is kept.");
 
     ImGui::EndMenu();
 }
@@ -221,8 +220,8 @@ static void menu_options(void)
         static const char* const k_places[2] = { "The Game's Folder", "Geardox's Save Folder" };
         static const char* const k_tooltips[2] =
         {
-            "Changes go back to the game's folder.\nZIPs and read-only folders use the save folder.",
-            "The game's folder stays untouched: changes\nstay in the save folder and are laid over\nthe game each run."
+            "Changes are written back to the game's folder.\nZIPs and read-only folders use the save folder.",
+            "The game's folder is never written.\nChanges in the save folder are laid over it each run."
         };
         int selected = config_game.write_back != 0 ? 1 : 0;
         float text_width = MAX(ImGui::CalcTextSize(k_places[0]).x, ImGui::CalcTextSize(k_places[1]).x);
@@ -250,18 +249,18 @@ static void menu_options(void)
     }
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Where games keep their changes.\nFrom the next game opened.");
+        ImGui::SetTooltip("Where games keep their changes.\nApplies from the next game opened.");
 
     ImGui::MenuItem("Quit When a Game Powers Off", NULL, &config_game.close_on_power_off);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("When a game with on_exit = poweroff quits,\nGeardox closes too.");
+        ImGui::SetTooltip("Closes Geardox when a game with on_exit = poweroff quits.");
 
     ImGui::MenuItem("Use Game Database", NULL, &config_game.database);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Recognise a game folder or ZIP without a .gdox\nfrom Geardox's built-in game database.\n"
-            "A .gdox in the folder always wins.");
+        ImGui::SetTooltip("Identifies game folders and ZIPs without a .gdox\nusing the built-in game database.\n"
+            "A .gdox in the folder always takes priority.");
 }
 
 // The OS shows a folder from a file:// URL, with everything but the path's own characters escaped
@@ -531,7 +530,7 @@ static void popup_write_back(void)
     ImGui::TextColored(cyan, "%s", emu_game_get_last_write_back_name());
 
     if (r.refused)
-        ImGui::TextColored(red, "Nothing was saved: the game's disk didn't add up. It's kept for a retry.");
+        ImGui::TextColored(red, "Nothing was saved: the game's disk couldn't be processed. It's kept for a retry.");
     else
         ImGui::Text("%u files saved, %u deleted, %u folders, %u conflicts, %u not saved", r.written, r.deleted,
             r.directories, r.conflicts, r.kept);

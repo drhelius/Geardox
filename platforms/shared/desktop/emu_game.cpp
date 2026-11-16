@@ -225,7 +225,7 @@ bool emu_game_start(void)
             disk.GetRefusedPath());
 
     if (disk.IsFolderReadOnly())
-        gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, "The game's folder is read only, saves go to the save folder",
+        gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, "The game's folder is read-only: saves go to the save folder",
             disk.GetOverlayPath());
 
     if (disk.IsFromDatabase())
@@ -819,7 +819,7 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
 
         if (MediaFile::GetFileInfo(file, &size, &modified))
         {
-            error_text = std::string("The game's folder has a ") + name + ".gdox already: open it, or edit it.";
+            error_text = std::string("The game's folder already has ") + name + ".gdox: open or edit it instead.";
             return false;
         }
 
@@ -921,7 +921,7 @@ static void notify_saved(void)
             "game_settings");
     else
         gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, ("Saved for " + name + " only").c_str(),
-            "Game > Game Files forgets this game's changes", "game_settings");
+            "Forget them in Game > Game Files", "game_settings");
 }
 
 static void notify_shadowed(void)
@@ -954,8 +954,8 @@ static void notify_shadowed(void)
     if (names.empty())
         return;
 
-    names += "\nGame > Game Files forgets them";
-    gui_notify(gui_NotificationWarning, ICON_MD_VIDEOGAME_ASSET, "This game's changes override its edited descriptor",
+    names += "\nForget them in Game > Game Files";
+    gui_notify(gui_NotificationWarning, ICON_MD_VIDEOGAME_ASSET, "Your changes override the edited game descriptor",
         names.c_str());
     disk.SaveOverrides(GameDescriptor(overrides));
 }

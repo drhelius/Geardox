@@ -393,8 +393,8 @@ static void builtin_menu(void)
     static const char* const k_labels[2] = { "Attach Built-in MS-DOS Disk", "Attach Built-in FreeDOS Disk" };
     static const char* const k_tooltips[2] =
     {
-        "MS-DOS.hdd, made from your import\nthe first time. In the first free position.",
-        "FreeDOS.hdd, made the first time.\nIn the first free position."
+        "MS-DOS.hdd, created from your import on first use.\nIn the first free position.",
+        "FreeDOS.hdd, created on first use.\nIn the first free position."
     };
     bool loading = gui_is_rom_loading() || emu_is_media_loading();
     bool imported = emu_dos_get_msdos_name()[0] != 0;

@@ -208,10 +208,10 @@ static void drive_menu(int drive, int drives)
     if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("On: changes go to a working copy in the");
-        ImGui::Text("save files folder, never to the image.");
-        ImGui::Text("Off: disks go in write protected.");
-        ImGui::Text("From the next disk inserted.");
+        ImGui::Text("On: changes go to a working copy, never to the image.");
+        ImGui::Text("Working copies are kept in the save files folder.");
+        ImGui::Text("Off: disks are inserted write-protected.");
+        ImGui::Text("Applies from the next disk inserted.");
         ImGui::EndTooltip();
     }
 
