@@ -255,6 +255,10 @@ private:
     bool IsX87Store(const I386::InstructionContext& c) const;
     void EmitX87Store(Instruction& instruction, u32 first_mask);
     void EmitX87Wait(Instruction& instruction, u32 first_mask);
+    bool IsX87Direct(const I386::InstructionContext& c) const;
+    void EmitX87Direct(Instruction& instruction, u32 first_mask);
+    void EmitX87DirectCall(Instruction& instruction, u32 first_mask, u8 segment, int host);
+    void EmitX87Pointers(const I386::InstructionContext& c, u8 segment);
     void EmitX87Ready(jit_node* fallback);
     void EmitLoadControlWord(Instruction& instruction);
     bool IsX87Move(const I386::InstructionContext& c) const;

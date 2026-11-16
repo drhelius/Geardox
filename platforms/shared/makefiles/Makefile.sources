@@ -147,6 +147,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/i386/i386_task.cpp \
     $(SRC_DIR)/i386/exec_memory.cpp \
     $(SRC_DIR)/i386/x87.cpp \
+    $(SRC_DIR)/i386/x87_fast.cpp \
     $(SRC_DIR)/input/input.cpp \
     $(SRC_DIR)/input/i8042.cpp \
     $(SRC_DIR)/input/keyboard.cpp \
