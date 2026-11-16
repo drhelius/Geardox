@@ -33,9 +33,13 @@ struct GDOX_Host_Key_Info
 #define GDOX_HOST_LABEL_ALT(side) side " Option"
 #define GDOX_HOST_LABEL_GUI(side) side " Cmd"
 #define GDOX_HOST_HOTKEY_LABEL(key) "Cmd+" key
-#else
+#elif defined(_WIN32)
 #define GDOX_HOST_LABEL_ALT(side) side " Alt"
 #define GDOX_HOST_LABEL_GUI(side) side " Win"
+#define GDOX_HOST_HOTKEY_LABEL(key) "Ctrl+" key
+#else
+#define GDOX_HOST_LABEL_ALT(side) side " Alt"
+#define GDOX_HOST_LABEL_GUI(side) side " Super"
 #define GDOX_HOST_HOTKEY_LABEL(key) "Ctrl+" key
 #endif
 
