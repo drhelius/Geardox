@@ -19,6 +19,7 @@
 
 #include "io.h"
 #include "debug_console.h"
+#include "dev_port.h"
 #include "dma.h"
 #include "firmware_config.h"
 #include "../audio/audio.h"
@@ -58,6 +59,7 @@ IO::IO()
     InitPointer(m_game_port);
     InitPointer(m_pci_bus);
     InitPointer(m_piix);
+    InitPointer(m_dev_port);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -68,7 +70,7 @@ IO::~IO()
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
     IdeController* ide, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
     DebugConsole* debug_console, I8042* i8042, DMA* dma, SerialPorts* serial_ports, ParallelPort* parallel_port,
-    GamePort* game_port, PciBus* pci_bus, Piix* piix)
+    GamePort* game_port, PciBus* pci_bus, Piix* piix, DevPort* dev_port)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -89,6 +91,7 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_game_port = game_port;
     m_pci_bus = pci_bus;
     m_piix = piix;
+    m_dev_port = dev_port;
     Reset();
 }
 
@@ -174,6 +177,15 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
             // Debug console
             if (m_debug_console->Decodes(port))
                 return m_debug_console->Read();
+            break;
+        case 0x00E9:
+            // Program console
+        case 0x0520:
+            // Development control
+        case 0x0521:
+            // Development command stream
+            if (m_dev_port->Decodes(port))
+                return m_dev_port->Read(port);
             break;
         case 0x04D0:
         case 0x04D1:
@@ -268,6 +280,11 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
         case 0x0402:
             value = m_debug_console->Read();
             return m_debug_console->Decodes(port);
+        case 0x00E9:
+        case 0x0520:
+        case 0x0521:
+            value = m_dev_port->Decodes(port) ? m_dev_port->Peek(port) : 0xFF;
+            return m_dev_port->Decodes(port);
         case 0x04D0:
         case 0x04D1:
         case 0x0CF9:
@@ -383,6 +400,11 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
         case 0x0402:
             // Debug console readback
             return m_debug_console->Decodes(port) ? GDOX_NO_EVENT : 0;
+        case 0x00E9:
+            // Program console readback
+        case 0x0520:
+            // Development signature
+            return m_dev_port->Decodes(port) ? GDOX_NO_EVENT : 0;
         case 0x0404:
         case 0x0405:
         case 0x0406:
@@ -469,6 +491,19 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
             // Debug console
             if (m_debug_console->Decodes(port))
                 m_debug_console->Write(value);
+            break;
+        case 0x00E9:
+            // Program console
+            if (m_dev_port->Decodes(port))
+                m_dev_port->Write(port, value);
+            break;
+        case 0x0520:
+            // Development hypercall
+            if (m_dev_port->Decodes(port))
+            {
+                m_dev_port->Write(port, value);
+                context.end_batch = true;
+            }
             break;
         case 0x04D0:
         case 0x04D1:

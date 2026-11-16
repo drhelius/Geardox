@@ -39,6 +39,7 @@
 #include "system/memory.h"
 #include "system/mc146818.h"
 #include "system/debug_console.h"
+#include "system/dev_port.h"
 #include "system/machine_profiles.h"
 
 #endif /* GEARDOX_H */

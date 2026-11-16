@@ -334,6 +334,9 @@
     <ClCompile Include="..\..\src\system\debug_console.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\system\dev_port.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\scheduler.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -624,6 +627,8 @@
     <ClInclude Include="..\..\src\system\firmware_config_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\debug_console.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\debug_console_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\dev_port.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\system\dev_port_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\machine_profiles.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\scheduler.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\scheduler_inline.h"><Filter>src</Filter></ClInclude>

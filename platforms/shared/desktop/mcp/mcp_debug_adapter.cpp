@@ -5304,7 +5304,7 @@ json DebugAdapter::GetGameInfo()
     if (!disk->IsOpen())
         return {{"open", false}};
 
-    static const char* const k_targets[GDOX_GAME_TARGET_COUNT] = { "game", "setup", "prompt" };
+    static const char* const k_targets[GDOX_GAME_TARGET_COUNT] = { "game", "setup", "prompt", "debug" };
     static const char* const k_sources[] = { "user", "game", "model", "media" };
     static const char* const k_keys[][2] = {
         { "game", "source" }, { "game", "folder" }, { "game", "free_mb" }, { "machine", "model" },

@@ -57,6 +57,7 @@
 #include "system/mc146818.h"
 #include "system/firmware_config.h"
 #include "system/debug_console.h"
+#include "system/dev_port.h"
 #include "system/serial_ports.h"
 #include "system/parallel_port.h"
 #include "system/machine_profiles.h"
@@ -92,6 +93,7 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_rtc);
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
+    InitPointer(m_dev_port);
     InitPointer(m_scheduler);
     InitPointer(m_video);
     InitPointer(m_cdrom_media);
@@ -122,6 +124,11 @@ GeardoxCore::GeardoxCore()
     m_game_target = -1;
     m_debug_console_enabled = true;
     m_debug_console_log = false;
+    m_dev_console = false;
+    m_dev_control = false;
+    m_dev_magic_breakpoint = false;
+    m_dev_stop_at_entry = false;
+    m_debug_recheck = false;
     m_game_timing = GDOX_MACHINE_AUTO;
     ResolveMachineConfig();
     m_machine_config = m_pending_machine_config;
@@ -163,6 +170,7 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_rtc);
     SafeDelete(m_firmware_config);
     SafeDelete(m_debug_console);
+    SafeDelete(m_dev_port);
     SafeDelete(m_scheduler);
     SafeDelete(m_video);
     SafeDelete(m_cdrom_audio);
@@ -266,6 +274,9 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_debug_console))
         m_debug_console = new DebugConsole();
 
+    if (!IsValidPointer(m_dev_port))
+        m_dev_port = new DevPort();
+
     if (!IsValidPointer(m_scheduler))
         m_scheduler = new Scheduler();
 
@@ -302,6 +313,8 @@ void GeardoxCore::Init()
     m_rtc->Init(m_pic, m_scheduler);
     m_firmware_config->Init();
     m_debug_console->Init();
+    m_dev_port->Init(m_i386);
+    m_dev_port->SetEventCallback(this, &GeardoxCore::DevPortEventCallback);
     m_video->Init(m_pic, m_scheduler, m_memory);
     m_fdc->Init(m_pic, m_scheduler, m_dma);
     m_ide->Init(m_pic, m_scheduler, m_cdrom_media, m_cdrom_audio, m_audio);
@@ -313,7 +326,7 @@ void GeardoxCore::Init()
     m_pci_bus->RegisterDevice(k_pci_device_piix, m_piix, &Piix::ReadCallback, &Piix::WriteCallback);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
         m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port, m_pci_bus,
-        m_piix);
+        m_piix, m_dev_port);
     m_i386->Init(m_memory, m_io);
     m_video->SetStartCycles(m_i386->GetStartCyclesPointer());
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
@@ -405,14 +418,15 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
         }
     }
     else
-        RunFrame(frame_start);
+        RunFrame<false>(frame_start);
 
     EndFrame(frame_start, sample_buffer, sample_count);
 
     return GDOX_RUN_FRAME_READY;
 }
 
-void GeardoxCore::RunFrame(u64 frame_start)
+template<bool debugger>
+bool GeardoxCore::RunFrame(u64 frame_start)
 {
     if (unlikely(m_debug_interrupt_deferred))
     {
@@ -428,8 +442,17 @@ void GeardoxCore::RunFrame(u64 frame_start)
         GDOX_Bus_Access_Context context = BeginSlice();
 
         I386_Run_Result result = m_i386->RunFor(cycles, context, false, m_pic->IsInterruptPending());
-        CompleteSlice(result, context, slice, false);
+
+        CompleteSlice(result, context, slice, debugger);
+
+        if (debugger && unlikely(m_i386->IsDebuggerHitPending() || m_debug_recheck))
+        {
+            m_debug_recheck = false;
+            return true;
+        }
     }
+
+    return false;
 }
 
 void GeardoxCore::RunDebuggerFrame(u64 frame_start, GDOX_Debug_Run* debug)
@@ -445,8 +468,14 @@ void GeardoxCore::RunDebuggerFrame(u64 frame_start, GDOX_Debug_Run* debug)
 
     if (!m_i386->NeedsDebuggerSteps())
     {
-        RunFrame(frame_start);
-        return;
+        if (!RunFrame<true>(frame_start))
+            return;
+
+        if (m_i386->IsDebuggerHitPending())
+        {
+            AcceptDebuggerHit(debug);
+            return;
+        }
     }
 
     bool regular = debug->stop_on_breakpoint;
@@ -1194,6 +1223,44 @@ void GeardoxCore::SetDebugConsole(bool enabled, bool log)
     ApplyFirmwareDevices();
 }
 
+void GeardoxCore::SetDevelopment(bool console, bool control, bool magic_breakpoint)
+{
+#if defined(GDOX_DISABLE_DISASSEMBLER)
+    console = false;
+    control = false;
+    magic_breakpoint = false;
+#endif
+
+    m_dev_console = console;
+    m_dev_control = control;
+    m_dev_magic_breakpoint = magic_breakpoint;
+    ApplyFirmwareDevices();
+}
+
+void GeardoxCore::SetStopAtEntry(bool stop)
+{
+    m_dev_stop_at_entry = stop;
+}
+
+void GeardoxCore::SetRunCommand(const char* command)
+{
+    m_dev_port->SetRunCommand(command);
+}
+
+void GeardoxCore::DevPortEventCallback(void* core, u8 type)
+{
+    GeardoxCore* self = static_cast<GeardoxCore*>(core);
+    DevPort::DevPort_State* state = self->m_dev_port->GetState();
+
+    if ((type == DEV_PORT_EVENT_BREAK) || ((type == DEV_PORT_EVENT_BASED) && (state->load_flags & DEV_PORT_LOAD_STOP_BASED)))
+        self->m_i386->RequestDebuggerBreak(I386_HIT_REQUEST_PROGRAM);
+    else if ((type == DEV_PORT_EVENT_LOADED) && (self->m_dev_stop_at_entry || (state->load_flags & DEV_PORT_LOAD_STOP)))
+    {
+        self->m_i386->AddRunToBreakpoint(((u32)state->entry_cs << 4) + state->entry_ip);
+        self->m_debug_recheck = true;
+    }
+}
+
 void GeardoxCore::ApplyBootDevice()
 {
     m_boot_device = GDOX_BOOT_DEVICE_AUTO;
@@ -1473,6 +1540,7 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_fdc->SaveState(stream, media);
     m_ide->SaveState(stream);
     m_x87->SaveState(stream);
+    m_dev_port->SaveState(stream);
 
     if (HasPCIBus())
     {
@@ -1790,6 +1858,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_fdc->LoadState(stream, header.version);
     m_ide->LoadState(stream, header.version);
     m_x87->LoadState(stream);
+    m_dev_port->LoadState(stream, header.version);
 
     if (HasPCIBus())
     {
@@ -2189,6 +2258,9 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_debug_console))
         m_debug_console->Reset();
 
+    if (IsValidPointer(m_dev_port))
+        m_dev_port->Reset();
+
     if (IsValidPointer(m_video))
         m_video->Reset();
 
@@ -2490,6 +2562,9 @@ void GeardoxCore::ApplyFirmwareDevices()
     m_firmware_config->SetGameTarget(m_game_target);
     m_debug_console->SetEnabled(m_debug_console_enabled);
     m_debug_console->SetLogOutput(m_debug_console_log);
+    m_dev_port->SetConsoleEnabled(m_dev_console);
+    m_dev_port->SetControlEnabled(m_dev_control);
+    m_i386->SetMagicBreakpoint(m_dev_magic_breakpoint);
     m_io->UpdateDecodedPorts();
 }
 

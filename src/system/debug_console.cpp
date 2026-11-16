@@ -85,6 +85,41 @@ u32 DebugConsole::CopyText(char* buffer, u32 size) const
     return count;
 }
 
+u32 DebugConsole::CopySince(u64 written, char* buffer, u32 size) const
+{
+    if (size == 0)
+        return 0;
+
+    u64 oldest = m_written - m_length;
+    u64 first = MAX(written, oldest);
+    u32 available = first < m_written ? (u32)(m_written - first) : 0;
+    u32 count = MIN(available, size - 1);
+    u32 start = (m_head + (u32)(first - oldest)) % DEBUG_CONSOLE_SIZE;
+
+    for (u32 i = 0; i < count; i++)
+        buffer[i] = m_buffer[(start + i) % DEBUG_CONSOLE_SIZE];
+
+    buffer[count] = 0;
+    return count;
+}
+
+void DebugConsole::Rewind(u64 written)
+{
+    if (written <= m_written)
+    {
+        u64 dropped = m_written - written;
+        m_length = dropped >= m_length ? 0 : m_length - (u32)dropped;
+    }
+    else
+    {
+        m_head = 0;
+        m_length = 0;
+    }
+
+    m_written = written;
+    m_line_length = 0;
+}
+
 void DebugConsole::FlushLine()
 {
     m_line[m_line_length] = 0;

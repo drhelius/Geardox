@@ -32,5 +32,7 @@ extern const u8 k_dos_gdxidle[];
 extern const u32 k_dos_gdxidle_size;
 extern const u8 k_dos_no_system[];
 extern const u32 k_dos_no_system_size;
+extern const u8 k_dos_gdxdbg[];
+extern const u32 k_dos_gdxdbg_size;
 
 #endif /* DOS_TOOLS_H */

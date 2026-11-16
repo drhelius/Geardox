@@ -58,6 +58,7 @@ class GamePort;
 class MC146818;
 class FirmwareConfig;
 class DebugConsole;
+class DevPort;
 class Video;
 class StateSerializer;
 class TraceLogger;
@@ -134,6 +135,9 @@ public:
     bool IsPowerOffRequested() const;
     void AcknowledgePowerOff();
     void SetDebugConsole(bool enabled, bool log);
+    void SetDevelopment(bool console, bool control, bool magic_breakpoint);
+    void SetStopAtEntry(bool stop);
+    void SetRunCommand(const char* command);
     void SetGameTiming(int mask);
     void DebugWritePort(u16 port, u32 value, int size);
 
@@ -184,6 +188,7 @@ public:
     MC146818* GetRTC();
     FirmwareConfig* GetFirmwareConfig();
     DebugConsole* GetDebugConsole();
+    DevPort* GetDevPort();
     Scheduler* GetScheduler();
     Video* GetVideo();
     CdRomMedia* GetCDROMMedia();
@@ -200,7 +205,8 @@ public:
 private:
     template<bool debugger>
     GDOX_Run_Result RunToFrameTemplate(u8* frame_buffer, s16* sample_buffer, int* sample_count, GDOX_Debug_Run* debug, bool render);
-    void RunFrame(u64 frame_start);
+    template<bool debugger>
+    bool RunFrame(u64 frame_start);
     void RunDebuggerFrame(u64 frame_start, GDOX_Debug_Run* debug);
     void RunDebuggerSteps(u64 frame_start, GDOX_Debug_Run* debug);
     bool BeginDebuggerFrame(GDOX_Debug_Run* debug);
@@ -224,6 +230,7 @@ private:
     static void MemoryHoleCallback(void* core, bool hole);
     static void KeyMapCallback(void* core, GDOX_Keys key, bool pressed);
     static void GamepadKeyCallback(void* core, GDOX_Keys key, bool pressed);
+    static void DevPortEventCallback(void* core, u8 type);
     void UpdateHeldKey(GDOX_Keys key);
     void DispatchEvents();
     void Reset();
@@ -276,6 +283,7 @@ private:
     MC146818* m_rtc;
     FirmwareConfig* m_firmware_config;
     DebugConsole* m_debug_console;
+    DevPort* m_dev_port;
     Scheduler* m_scheduler;
     Video* m_video;
     CdRomMedia* m_cdrom_media;
@@ -306,6 +314,11 @@ private:
     int m_game_target;
     bool m_debug_console_enabled;
     bool m_debug_console_log;
+    bool m_dev_console;
+    bool m_dev_control;
+    bool m_dev_magic_breakpoint;
+    bool m_dev_stop_at_entry;
+    bool m_debug_recheck;
     int m_game_timing;
     bool m_powered;
     bool m_paused;

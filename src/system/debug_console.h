@@ -40,6 +40,8 @@ public:
     u8 Read() const;
     void Write(u8 value);
     u32 CopyText(char* buffer, u32 size) const;
+    u32 CopySince(u64 written, char* buffer, u32 size) const;
+    void Rewind(u64 written);
     u32 GetLength() const;
     u64 GetWrittenCount() const;
 

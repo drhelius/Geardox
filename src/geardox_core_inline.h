@@ -187,6 +187,11 @@ INLINE DebugConsole* GeardoxCore::GetDebugConsole()
     return m_debug_console;
 }
 
+INLINE DevPort* GeardoxCore::GetDevPort()
+{
+    return m_dev_port;
+}
+
 INLINE Scheduler* GeardoxCore::GetScheduler()
 {
     return m_scheduler;

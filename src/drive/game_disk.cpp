@@ -1335,7 +1335,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     for (size_t i = 0; i < info.autoexec.size(); i++)
         out += info.autoexec[i] + "\r\n";
 
-    out += "GDXRUN\r\nIF ERRORLEVEL 2 GOTO PROMPT\r\nIF ERRORLEVEL 1 GOTO SETUP\r\n";
+    out += "GDXRUN\r\nIF ERRORLEVEL 3 GOTO DEBUG\r\nIF ERRORLEVEL 2 GOTO PROMPT\r\nIF ERRORLEVEL 1 GOTO SETUP\r\n";
 
     if (!info.exe.empty())
     {
@@ -1344,6 +1344,11 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
         if (info.exit == GDOX_GAME_EXIT_POWEROFF)
             out += "POWEROFF\r\n";
     }
+
+    out += "GOTO PROMPT\r\n:DEBUG\r\nGDXDBG\r\n";
+
+    if (info.exit == GDOX_GAME_EXIT_POWEROFF)
+        out += "POWEROFF\r\n";
 
     out += "GOTO PROMPT\r\n:SETUP\r\n";
 

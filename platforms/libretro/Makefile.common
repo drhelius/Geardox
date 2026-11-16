@@ -109,6 +109,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/system/piix.cpp \
                 $(SOURCE_DIR)/system/firmware_config.cpp \
                 $(SOURCE_DIR)/system/debug_console.cpp \
+                $(SOURCE_DIR)/system/dev_port.cpp \
                 $(SOURCE_DIR)/video/video.cpp \
                 $(SOURCE_DIR)/video/video_memory.cpp \
                 $(SOURCE_DIR)/video/video_render.cpp \

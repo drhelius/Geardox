@@ -183,6 +183,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/piix.cpp \
     $(SRC_DIR)/system/firmware_config.cpp \
     $(SRC_DIR)/system/debug_console.cpp \
+    $(SRC_DIR)/system/dev_port.cpp \
     $(SRC_DIR)/video/video.cpp \
     $(SRC_DIR)/video/video_memory.cpp \
     $(SRC_DIR)/video/video_render.cpp \
