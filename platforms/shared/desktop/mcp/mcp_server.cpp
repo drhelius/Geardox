@@ -1044,7 +1044,8 @@ json McpServer::BuildToolList()
         {"title", "Get Intel 80386 Status"},
         {"description", "Read the CPU: registers, EFLAGS, CS:EIP with linear and physical PC, CR0-CR3, mode, CPL, IOPL, "
             "code and stack size, last exception, segment caches, GDTR/IDTR/LDTR/TR, debug and test registers, the 486's "
-            "AC, CR0 bits and TR3-TR5 on a 486, and the 80387 (stack, CW, SW, tags, last instruction) when one is fitted."},
+            "AC, CR0 bits and TR3-TR5 on a 486, CR4, the TSC and the MSRs on a Pentium, and the x87 (stack, CW, SW, tags, "
+            "last instruction) when one is fitted."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2221,7 +2222,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "list_save_state_slots"},
         {"title", "List Save State Slots"},
-        {"description", "List the 5 save state slots: media name, timestamp and screenshot."},
+        {"description", "List the 5 save state slots: media name, timestamp and whether it has a screenshot."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", true}}},
         {"inputSchema", {
             {"type", "object"},

@@ -918,7 +918,7 @@ static void draw_breakpoints_content(void)
     {
         char name[16];
         char description[64];
-        gui_debug_i386_vector_name(hit.vector, name, sizeof(name), description, sizeof(description));
+        gui_debug_i386_vector_name(hit.vector, name, sizeof(name), description, sizeof(description), true, hit.source);
         ImGui::TextColored(yellow, "INT $%02X %s %s", hit.vector, name, k_sources[hit.source % I386_INTERRUPT_SOURCE_COUNT]);
 
         const char* function = hit.source == I386_INTERRUPT_SOFTWARE ?
@@ -1146,7 +1146,8 @@ static void draw_breakpoints_content(void)
         I386_Interrupt_Breakpoint& breakpoint = (*interrupts)[i];
         char name[16];
         char description[64];
-        gui_debug_i386_vector_name(breakpoint.vector, name, sizeof(name), description, sizeof(description));
+        gui_debug_i386_vector_name(breakpoint.vector, name, sizeof(name), description, sizeof(description), true,
+            breakpoint.source);
 
         ImGui::PushID((int)i + 0x1000);
 
@@ -1905,7 +1906,8 @@ static const char* replace_operand_labels(const I386_Disassembler_Record* record
     char vector_description[64];
 
     if (vector >= 0)
-        gui_debug_i386_vector_name((u8)vector, vector_name, vector_name_size, vector_description, sizeof(vector_description));
+        gui_debug_i386_vector_name((u8)vector, vector_name, vector_name_size, vector_description, sizeof(vector_description),
+            true, I386_INTERRUPT_SOFTWARE);
 
     if (vector >= 0 && config_debug.dis_replace_labels && strcmp(vector_name, "INT") != 0 &&
         record->opcodes[opcode_index(record)] == 0xCD)
@@ -2052,7 +2054,9 @@ void gui_debug_window_call_stack(void)
                 const char* kind = entry->type == I386_CALL_HARDWARE_INTERRUPT ? "IRQ" :
                     (entry->type == I386_CALL_EXCEPTION ? "EXC" : "INT");
 
-                gui_debug_i386_vector_name(entry->vector, name, sizeof(name), description, sizeof(description));
+                gui_debug_i386_vector_name(entry->vector, name, sizeof(name), description, sizeof(description), true,
+                    entry->type == I386_CALL_SOFTWARE_INTERRUPT ? I386_INTERRUPT_SOFTWARE :
+                    entry->type == I386_CALL_HARDWARE_INTERRUPT ? I386_INTERRUPT_HARDWARE : I386_INTERRUPT_EXCEPTION);
                 ImGui::SameLine();
                 ImGui::TextColored(orange, "%s $%02X", kind, entry->vector);
 
@@ -2473,7 +2477,8 @@ static void interrupt_tooltip(const I386_Disassembler_Record* record, int vector
 {
     char name[16];
     char description[64];
-    gui_debug_i386_vector_name((u8)vector, name, sizeof(name), description, sizeof(description));
+    gui_debug_i386_vector_name((u8)vector, name, sizeof(name), description, sizeof(description), true,
+        I386_INTERRUPT_SOFTWARE);
 
     ImGui::BeginTooltip();
     ImGui::TextColored(cyan, "INT $%02X", vector);

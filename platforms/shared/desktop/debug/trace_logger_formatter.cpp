@@ -265,7 +265,9 @@ static void format_interrupt(const GDOX_Trace_Entry& entry, char* buffer, size_t
     u32 from = entry.interrupt.from;
     u32 to = entry.interrupt.to;
 
-    gui_debug_i386_vector_name(vector, name, sizeof(name), description, sizeof(description), false);
+    gui_debug_i386_vector_name(vector, name, sizeof(name), description, sizeof(description), false,
+        entry.event == TRACE_CPU_INTERRUPT_HARDWARE ? I386_INTERRUPT_HARDWARE :
+        entry.event == TRACE_CPU_INTERRUPT_EXCEPTION ? I386_INTERRUPT_EXCEPTION : I386_INTERRUPT_SOFTWARE);
 
     switch (entry.event)
     {

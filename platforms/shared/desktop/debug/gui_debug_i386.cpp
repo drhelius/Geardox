@@ -850,7 +850,8 @@ void gui_debug_window_i386(void)
         {
             char name[16];
             char description[64];
-            gui_debug_i386_vector_name(exception.vector, name, sizeof(name), description, sizeof(description));
+            gui_debug_i386_vector_name(exception.vector, name, sizeof(name), description, sizeof(description), true,
+                I386_INTERRUPT_EXCEPTION);
 
             ImGui::TextColored(red, "$%02X %-5s", exception.vector, name);
 

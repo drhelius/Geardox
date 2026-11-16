@@ -632,7 +632,7 @@ json DebugAdapter::SetInterruptBreakpoint(int vector, const std::string& source)
     m_core->GetI386()->AddInterruptBreakpoint((u8)vector, (u8)index);
     char name[16];
     char description[64];
-    gui_debug_i386_vector_name((u8)vector, name, sizeof(name), description, sizeof(description));
+    gui_debug_i386_vector_name((u8)vector, name, sizeof(name), description, sizeof(description), true, index);
 
     return {{"success", true}, {"vector", hex_text(vector, 2)}, {"vector_name", name},
         {"vector_description", description}, {"source", source}};
@@ -659,7 +659,7 @@ json DebugAdapter::ListInterruptBreakpoints()
         const I386_Interrupt_Breakpoint& item = (*items)[i];
         char name[16];
         char description[64];
-        gui_debug_i386_vector_name(item.vector, name, sizeof(name), description, sizeof(description));
+        gui_debug_i386_vector_name(item.vector, name, sizeof(name), description, sizeof(description), true, item.source);
         list.push_back({{"enabled", item.enabled}, {"vector", hex_text(item.vector, 2)}, {"vector_name", name},
             {"vector_description", description},
             {"source", k_mcp_interrupt_sources[item.source % I386_INTERRUPT_SOURCE_COUNT]}});
@@ -712,7 +712,7 @@ json DebugAdapter::GetBreakpointHit()
     {
         char name[16];
         char description[64];
-        gui_debug_i386_vector_name(hit.vector, name, sizeof(name), description, sizeof(description));
+        gui_debug_i386_vector_name(hit.vector, name, sizeof(name), description, sizeof(description), true, hit.source);
         json result = {{"kind", "interrupt"}, {"vector", hex_text(hit.vector, 2)}, {"vector_name", name},
             {"vector_description", description},
             {"source", k_mcp_interrupt_sources[hit.source % I386_INTERRUPT_SOURCE_COUNT]}};
@@ -1429,7 +1429,8 @@ json DebugAdapter::GetI386Status()
     {
         char name[16];
         char description[64];
-        gui_debug_i386_vector_name(exception.vector, name, sizeof(name), description, sizeof(description));
+        gui_debug_i386_vector_name(exception.vector, name, sizeof(name), description, sizeof(description), true,
+            I386_INTERRUPT_EXCEPTION);
         status["last_exception"] = {
             {"vector", Hex(exception.vector, 2)},
             {"name", name},
@@ -1754,7 +1755,8 @@ json DebugAdapter::GetDisassembly(u32 start_address, u32 end_address, int count,
                 u8 vector = opcode == 0xCD ? record->opcodes[index + 1] : opcode == 0xCC ? 3 : opcode == 0xCE ? 4 : 1;
                 char name[16];
                 char description[64];
-                gui_debug_i386_vector_name(vector, name, sizeof(name), description, sizeof(description));
+                gui_debug_i386_vector_name(vector, name, sizeof(name), description, sizeof(description), true,
+                    I386_INTERRUPT_SOFTWARE);
                 line["vector"] = Hex(vector, 2);
                 line["vector_name"] = name;
                 line["vector_description"] = description;
@@ -1826,7 +1828,9 @@ json DebugAdapter::ListCallStack()
 
             char name[16];
             char description[64];
-            gui_debug_i386_vector_name(entry.vector, name, sizeof(name), description, sizeof(description));
+            gui_debug_i386_vector_name(entry.vector, name, sizeof(name), description, sizeof(description), true,
+                entry.type == I386_CALL_SOFTWARE_INTERRUPT ? I386_INTERRUPT_SOFTWARE :
+                entry.type == I386_CALL_HARDWARE_INTERRUPT ? I386_INTERRUPT_HARDWARE : I386_INTERRUPT_EXCEPTION);
             item["vector_name"] = name;
             item["vector_description"] = description;
         }
@@ -3457,7 +3461,7 @@ json DebugAdapter::GetSoundStatus()
             OPL::OPL_Channel& channel = state->channels[i];
             OPL::OPL_Operator& carrier = state->operators[channel.operators[1]];
 
-            channels.push_back({{"channel", i}, {"f_number", channel.f_number}, {"block", channel.block},
+            channels.push_back({{"channel", i + 1}, {"f_number", channel.f_number}, {"block", channel.block},
                 {"key", carrier.key != 0}, {"connection", channel.connection}, {"feedback", channel.feedback},
                 {"type", channel.type}, {"envelope", carrier.envelope}, {"output", opl->GetChannelOutput(i)}});
         }

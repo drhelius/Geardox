@@ -144,9 +144,26 @@ struct stDebugInterruptName
     const char* description;
 };
 
-// Software interrupts of DOS
+// Software interrupts of the BIOS, DOS and its drivers
 static const stDebugInterruptName k_debug_interrupt_names[] =
 {
+    { 0x05, "PRINT_SCREEN", "BIOS print screen" },
+    { 0x10, "VIDEO", "BIOS video" },
+    { 0x11, "EQUIPMENT", "BIOS equipment list" },
+    { 0x12, "MEMORY_SIZE", "BIOS conventional memory size" },
+    { 0x13, "DISK", "BIOS disk" },
+    { 0x14, "SERIAL", "BIOS serial ports" },
+    { 0x15, "SYSTEM", "BIOS system services" },
+    { 0x16, "KEYBOARD", "BIOS keyboard" },
+    { 0x17, "PRINTER", "BIOS printer" },
+    { 0x18, "BOOT_HOOK", "Diskless boot hook, ROM BASIC" },
+    { 0x19, "BOOTSTRAP", "BIOS bootstrap loader" },
+    { 0x1A, "TIME", "BIOS time and date" },
+    { 0x1B, "CTRL_BREAK", "Ctrl-Break handler" },
+    { 0x1C, "TIMER_TICK", "User timer tick" },
+    { 0x1D, "VIDEO_PARAMS", "Video parameter tables" },
+    { 0x1E, "DISK_PARAMS", "Diskette parameters" },
+    { 0x1F, "GRAPHICS_FONT", "8x8 graphics font" },
     { 0x20, "DOS_EXIT", "DOS terminate program" },
     { 0x21, "DOS", "DOS function call" },
     { 0x22, "DOS_EXIT_ADDR", "DOS terminate address" },
@@ -157,7 +174,12 @@ static const stDebugInterruptName k_debug_interrupt_names[] =
     { 0x27, "DOS_TSR", "DOS terminate and stay resident" },
     { 0x28, "DOS_IDLE", "DOS idle" },
     { 0x29, "DOS_FAST_OUT", "DOS fast console output" },
-    { 0x2F, "MULTIPLEX", "DOS multiplex, MSCDEX" }
+    { 0x2A, "NETWORK", "Network, DOS critical sections" },
+    { 0x2F, "MULTIPLEX", "DOS multiplex, MSCDEX" },
+    { 0x31, "DPMI", "DPMI services" },
+    { 0x33, "MOUSE", "Mouse driver" },
+    { 0x4A, "USER_ALARM", "RTC user alarm handler" },
+    { 0x67, "EMS", "LIM EMS" }
 };
 
 static const int k_debug_interrupt_name_count = sizeof(k_debug_interrupt_names) / sizeof(k_debug_interrupt_names[0]);

@@ -655,7 +655,7 @@ static void print_usage(const char* program)
     print_wrapped("      --ram MB", sizes);
     print_wrapped("      --fpu FPU", "none, 80387");
     print_wrapped("      --sound CARD", "none, adlib, sb15, sb20, sbpro, sbpro2, sb16");
-    print_wrapped("      --video CARD", "auto, vga, gd5428, gd5428_vlb, cga, ega");
+    print_wrapped("      --video CARD", "auto, cga, ega, vga, gd5428, gd5428_vlb, gd5446");
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");
     print_wrapped("      --cdrom DRIVE", "none, pm, ps, sm, ss (primary or secondary, master or slave)");
     print_wrapped("      --joystick DEVICE", "none, standard, gamepad, flightstick");

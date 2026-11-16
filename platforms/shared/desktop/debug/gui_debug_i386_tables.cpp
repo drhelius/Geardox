@@ -157,27 +157,45 @@ void gui_debug_i386_descriptor_flags(const GuiDebugDescriptor& descriptor, char*
 
 // Without the PIC bases a vector names only what it is by itself, for entries logged under other bases
 void gui_debug_i386_vector_name(u8 vector, char* name, size_t name_size, char* description, size_t description_size,
-    bool pic_bases)
+    bool pic_bases, int source)
 {
     GeardoxCore* core = emu_get_core();
     PIC* pic = IsValidPointer(core) && pic_bases ? core->GetPIC() : NULL;
     int irq = -1;
+    int service = -1;
 
     if (IsValidPointer(pic))
     {
         u8 master = pic->GetMaster()->GetState()->icw2 & 0xF8;
         u8 slave = pic->GetSlave()->GetState()->icw2 & 0xF8;
 
-        if (master >= 32 && (vector & 0xF8) == master)
+        if ((master != 0) && ((vector & 0xF8) == master))
             irq = vector & 7;
-        else if (slave >= 32 && (vector & 0xF8) == slave)
+        else if ((slave != 0) && ((vector & 0xF8) == slave))
             irq = 8 + (vector & 7);
     }
 
-    if (vector < 32)
+    for (int i = 0; i < k_debug_interrupt_name_count; i++)
+    {
+        if (k_debug_interrupt_names[i].vector == vector)
+            service = i;
+    }
+
+    bool protected_mode = IsValidPointer(core) && core->GetI386()->GetState()->execution_mode == I386_MODE_PROTECTED;
+    bool unclaimed = (irq < 0) && (service < 0);
+    bool exception = (vector < 32) && ((source == I386_INTERRUPT_EXCEPTION) ||
+        ((source == I386_INTERRUPT_ANY) && (protected_mode || unclaimed)) ||
+        ((source == I386_INTERRUPT_SOFTWARE) && unclaimed));
+
+    if (exception)
     {
         snprintf(name, name_size, "%s", k_debug_exception_names[vector]);
         snprintf(description, description_size, "%s", k_debug_exception_descriptions[vector]);
+    }
+    else if ((service >= 0) && (source != I386_INTERRUPT_HARDWARE))
+    {
+        snprintf(name, name_size, "%s", k_debug_interrupt_names[service].label);
+        snprintf(description, description_size, "%s", k_debug_interrupt_names[service].description);
     }
     else if (irq >= 0)
     {
@@ -186,16 +204,6 @@ void gui_debug_i386_vector_name(u8 vector, char* name, size_t name_size, char* d
     }
     else
     {
-        for (int i = 0; i < k_debug_interrupt_name_count; i++)
-        {
-            if (k_debug_interrupt_names[i].vector == vector)
-            {
-                snprintf(name, name_size, "%s", k_debug_interrupt_names[i].label);
-                snprintf(description, description_size, "%s", k_debug_interrupt_names[i].description);
-                return;
-            }
-        }
-
         snprintf(name, name_size, "INT");
         snprintf(description, description_size, "Software interrupt");
     }
