@@ -59,6 +59,12 @@
       "title": "Floppy Controller and DMA — What MS-DOS Software Relies On",
       "description": "The 82077 floppy controller (ports, DOR, MSR, commands, ST0-ST3, IRQ 6 and DMA channel 2, drive types and data rates, disk change, write protect, timing, image formats and geometry detection) and the two 8237A DMA controllers (registers, flip-flop, modes, auto-init, cascade, page registers, 64 KB and 128 KB boundaries, channel assignments), with the MCP tools and trace filters that drive and watch them",
       "mimeType": "text/markdown"
+    },
+    {
+      "uri": "dos_development",
+      "title": "MS-DOS Development — Program Tracking, Ports and gdb",
+      "description": "Running a program you are writing through GDXDBG, the development ports E9h and 520h and their hypercalls, gdxdbg.h and gdxdbg.inc, the program tools and program symbols, get_dos_status, the magic breakpoint, and the GDB remote server with its address modes and monitor commands",
+      "mimeType": "text/markdown"
     }
   ]
 }

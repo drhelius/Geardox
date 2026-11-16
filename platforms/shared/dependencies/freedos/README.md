@@ -8,7 +8,7 @@ packages in `packages`. Geardox compiles in the result, not the programs' source
 - `k_freedos_boot`: the FAT16 boot sector, assembled from `boot/boot.asm` in the kernel package.
 - `k_freedos_mbr`: the MBR, assembled from `BOOTNORM.ASM` in the FDISK package. Every disk Geardox makes carries it.
 
-Geardox's own DOS programs, GDXRUN, POWEROFF, GDXIDLE and the boot code of a disk with no system, aren't FreeDOS's.
+Geardox's own DOS programs, GDXRUN, GDXDBG, POWEROFF, GDXIDLE and the boot code of a disk with no system, aren't FreeDOS's.
 They live in `src/dos`, with their own `build.sh`.
 
 ## What's on the disk
@@ -18,12 +18,12 @@ again. `COMMAND.COM` is FreeCOM's with its internal `TITLE` command made unreach
 letter in the command table into 01h), so a game's own `TITLE.EXE` runs, as in MS-DOS. Everything else is a program
 from the packages, in `\FREEDOS\BIN`, and the license texts are in `\FREEDOS`.
 `CONFIG.SYS` and `AUTOEXEC.BAT` aren't in the ZIP: Geardox writes them for each disk it makes, the built-in FreeDOS disk
-and game disks alike. Geardox also adds GDXRUN and POWEROFF to `\FREEDOS\BIN` from `src/dos`.
+and game disks alike. Geardox also adds GDXRUN, GDXDBG and POWEROFF to `\FREEDOS\BIN` from `src/dos`.
 
 CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. LBACACHE is the read cache a game descriptor's
 `cache = on` loads. MKEYB is the small keyboard driver FreeDOS game disks load instead of KEYB when they have no upper
 memory: KEYB leaves a gap of about 28K below its data there, and MKEYB stays under 1K. Disks on the user's own MS-DOS take CTMOUSE, UDVD2, `COPYING`, and SHSUCDX for MS-DOS 5.0, from
-here into their `\GEARDOX`, next to GDXRUN, POWEROFF and GDXIDLE from `src/dos`.
+here into their `\GEARDOX`, next to GDXRUN, GDXDBG, POWEROFF and GDXIDLE from `src/dos`.
 
 ## Building
 

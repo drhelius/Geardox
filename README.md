@@ -77,6 +77,7 @@ Outside a game, the mapper's changes go to a `.keys` file named after the conten
   - Lines are `address name`, `name = address`, `name EQU address` or GNU `nm` output (`address type name`, as in `nm -n program.elf > program.sym`).
   - Addresses are linear or `selector:offset`, and comments start with `;` or `#`.
   - GNU ld and NASM map files load too.
+- **MS-DOS Development**: Geardox runs a program you build on the host through GDXDBG, shows where DOS loaded it, what it printed and its exit code in **Debug → Program**, loads its map symbols where DOS put it, and serves gdb from **Debug → GDB Server**. Headless runs work as tests. See [DEV_README.md](DEV_README.md).
 
 ### Command Line Usage
 ```
@@ -96,7 +97,8 @@ Media:
       --fd2 FILE            Floppy image in drive 2
       --load-state SLOT     Load save state slot 1-5, or a state file, once the
                             media is loaded
-      --target TARGET       What a game descriptor runs: game, setup or prompt
+      --target TARGET       What a game descriptor runs: game, setup, prompt or
+                            debug (its program through GDXDBG)
 
 Machine (for this run only, the saved settings stay):
       --model MODEL         386sx_20, 386dx_33, 486sx_33, 486dx2_66,
@@ -113,6 +115,29 @@ Machine (for this run only, the saved settings stay):
                             or slave)
       --joystick DEVICE     none, standard, gamepad, flightstick
 
+Development (Debug turns on for this run only):
+      --run COMMAND         Runs COMMAND in the game descriptor's folder
+                            through GDXDBG, which reports it to the debugger
+      --stop-at-entry       Stops in the debugger at the program's first
+                            instruction
+      --exit-on-exit        Quits when the program exits, with its exit code;
+                            its console output goes to stdout
+      --timeout SECONDS     Quits with exit code 124 when the program hasn't
+                            exited after SECONDS
+      --boot-speed SPEED    max runs unthrottled until the program starts,
+                            normal (default) doesn't
+      --speed SPEED         max runs unthrottled throughout, normal doesn't
+                            (default normal, max for headless runs)
+      --e9                  Port E9h prints the program's characters to the
+                            program console
+      --magic-break         XCHG BX,BX stops in the debugger
+      --no-write-back       The program's writes stay in the save folder, not
+                            the game's folder
+      --gdb                 Starts the GDB remote server on 127.0.0.1
+      --gdb-port N          Port of the GDB remote server (default: 1234)
+      --gdb-wait            Starts the GDB server and holds its first reply
+                            until the program starts
+
 Options:
   -f, --fullscreen          Start in fullscreen mode
   -w, --windowed            Start in windowed mode with menu visible
@@ -121,7 +146,7 @@ Options:
       --mcp-router          Enable compact MCP tool routing
       --mcp-http-address A  HTTP bind address (default: 127.0.0.1)
       --mcp-http-port N     HTTP port for MCP server (default: 7777)
-      --headless            Run without GUI (requires MCP)
+      --headless            Run without GUI (requires MCP, --run or --gdb)
       --portable            Store configuration and user data beside the
                             application
   -v, --version             Display version information
@@ -133,6 +158,16 @@ Options:
 Geardox includes a [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) server that enables AI-assisted debugging through AI agents like Claude Code, Codex and similar. The server provides tools for execution control, memory inspection, breakpoints, disassembly, hardware status, game descriptors, rewind and more. STDIO and HTTP transports are supported, with STDIO preferred.
 
 For complete setup instructions and tool documentation, see [MCP_README.md](MCP_README.md).
+
+### Agent Skills
+
+Geardox provides [Agent Skills](https://agentskills.io/) that teach AI assistants how to effectively use the emulator for specific tasks:
+
+- **[geardox-debugging](skills/geardox-debugging/SKILL.md)** — Game and program debugging, code tracing, breakpoint management, hardware inspection, and reverse engineering.
+- **[geardox-romhacking](skills/geardox-romhacking/SKILL.md)** — Cheat creation, memory searching, data modification, text translation, and game patching.
+- **[geardox-dosdev](skills/geardox-dosdev/SKILL.md)** — MS-DOS program development: build, run through GDXDBG, test headless, read output and exit codes, and debug with the MCP debugger or gdb.
+
+Install with `npx skills add drhelius/geardox`. See the [skills README](skills/README.md) for details.
 
 ## Build Instructions
 

@@ -16,6 +16,7 @@ This server provides tools for game development, rom hacking, translation, rever
 - **Storage Inspection**: CD-ROM TOC, CD audio and disc sectors; floppy drives, track sector lists and sector data; IDE channels and hard disks with their sectors
 - **Text and Graphics Screens**: Read a text mode screen as characters and attributes, decode video memory as PNG planes, planar, 256 colors, text or Cirrus linear modes, and read the VGA, CGA and EGA palettes and registers
 - **Symbol Support**: Add, remove, load, list, and look up user symbols, plus automatic labels
+- **Program Development**: Run a program you are building through GDXDBG, follow where DOS loaded it, its console output and exit code, load its map symbols where DOS put it, and read DOS's memory chain
 - **Input**: Inspect the PC keyboard, PS/2 or serial mouse and game port joystick, press keys and type text, move and click the mouse to screen pixels, drive the joystick, and run frame-timed input macros
 - **Key Map**: Read and change the host key map and its per-game bindings, press host keys through it, and open or close the keyboard mapper
 - **Game Descriptors**: Load a `.gdox` descriptor, a folder or ZIP with one or that the game database recognises, or a game's DOS program, to open its game with its machine and DOS settings, choose whether it runs the game, its setup or the DOS prompt, and read what was applied
@@ -43,7 +44,7 @@ The HTTP transport mode runs the emulator with an embedded web server on `127.0.
 
 ### Headless Mode
 
-Add `--headless` to run without a GUI window. This is useful for servers, CLI agents, or any machine without a display. All MCP tools work identically in headless mode. Requires `--mcp-stdio` or `--mcp-http`.
+Add `--headless` to run without a GUI window. This is useful for servers, CLI agents, or any machine without a display. All MCP tools work identically in headless mode. Requires `--mcp-stdio` or `--mcp-http`, or a development run with `--run`, `--target debug` or `--gdb` ([DEV_README.md](DEV_README.md)).
 
 Media and machine can be set at launch too, for example `--cd game.cue --fd1 disk.img --model pentium_90 --ram 32 --sound sb16 --load-state 1`, or a game descriptor, folder or ZIP as the media argument with `--target game`, `setup` or `prompt`. The machine options (`--model`, `--cpu-mhz`, `--ram`, `--fpu`, `--sound`, `--video`, `--mouse`, `--cdrom`, `--joystick`) apply to that run only; run `geardox --help` for the full list.
 
@@ -340,7 +341,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `set_breakpoint_on_interrupt` - Add or update a break on entry to an interrupt `vector` (0-255), with `source` `any` (default), `exception`, `hardware` or `software`, or on IRQ line `irq` (0-15) when the PIC delivers it, before the handler's first instruction; give `vector` or `irq`, and `source` only with `vector`. An IRQ breakpoint follows the line, not the vector, so it keeps working if the program moves the PIC vector bases (0 timer, 1 keyboard, 4 COM1, 5 or 7 sound card, 6 floppy, 12 PS/2 mouse, 13 FPU, 14 and 15 IDE). `enabled` false keeps it disabled
 - `clear_breakpoint_on_interrupt` - Remove an interrupt breakpoint by `vector` and `source`, or an IRQ breakpoint by `irq`
 
-`debug_get_status` reports what stopped execution in `breakpoint`: `kind` (`execute`, `read`, `write`, `access`, `interrupt`, `run_to`), with the space, address and size of the access (`dma` when a DMA transfer made it, `port_name` for an I/O port), or the vector, vector name and source of the interrupt, plus `irq` and `irq_name` for a hardware interrupt and `function` when a software interrupt calls a known BIOS or DOS service.
+`debug_get_status` reports what stopped execution in `breakpoint`: `kind` (`execute`, `read`, `write`, `access`, `interrupt`, `run_to`, `magic` for the magic breakpoint `XCHG BX,BX`, `program` for a program's break request through the development port), with the space, address and size of the access (`dma` when a DMA transfer made it, `port_name` for an I/O port), or the vector, vector name and source of the interrupt, plus `irq` and `irq_name` for a hardware interrupt and `function` when a software interrupt calls a known BIOS or DOS service.
 
 ### Memory (`memory`)
 - `list_memory_areas` - List memory areas: LINEAR, PHYSICAL, I/O PORTS, and every memory region the machine has (Main RAM, System BIOS, BIOS Copy, CMOS RAM, VGA Plane 0-3, VGA Window or CGA Memory, CGA VRAM, Linear VRAM on a Cirrus card, No Video Memory on a CGA, Shadow ROMs, Shadow BIOS, Upper Memory, and the Media Image, Floppy N Image and IDE Disk N Buffer of what is inserted), with `id`, `name`, `size`, `unit_size`, `flags` (`readable`, `writable`, `executable`, `rom`, `mapped`, `mmio`, `video`, `audio`, `overlay`), `physical_base`, `group` (`address_space`, `memory`, `rom`, `media`, `cpu_window`) and `description`. An area keeps its `id` when disks are inserted or ejected
@@ -376,7 +377,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 ### Symbols (`symbols`)
 - `add_symbol` - Add or rename a user symbol at an address; user symbols take precedence over automatic labels
 - `remove_symbol` - Remove the user symbol at an address
-- `load_symbols` - Load user symbols from a file: `ADDRESS NAME`, `NAME = ADDRESS` (or `EQU`) or GNU `nm` output (`ADDRESS TYPE NAME`) per line, `;` or `#` comments, linear hex or `SSSS:OOOOOOOO` addresses; GNU ld and NASM map files load too
+- `load_symbols` - Load user symbols from a file: `ADDRESS NAME`, `NAME = ADDRESS` (or `EQU`) or GNU `nm` output (`ADDRESS TYPE NAME`) per line, `;` or `#` comments, linear hex or `SSSS:OOOOOOOO` addresses; GNU ld and NASM map files load too; with `program` the file belongs to the running program: `SSSS:OOOO` addresses are relative to its load segment (Borland TLINK, Microsoft LINK and Watcom WLINK maps load too), plain ones to its base, and they go when it exits
 - `list_symbols` - List user symbols and automatic labels a page at a time: optional `filter` (case-insensitive part of the name), `start` and `count` (default 200, max 1000), with `total` and `has_more`. With `name` it returns every symbol with that exact name instead, and with `address` the symbol at that address
 
 ### System Hardware (`hardware_system`)
@@ -423,7 +424,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `read_hard_disk_sector` - Read the 512-byte sector `lba` of the disk in slot `id` as hex, as the machine sees it, unwritten changes included, without bus traffic
 
 ### Media (`media`)
-- `load_media` - Load a game descriptor, a CD image, a floppy image or a hard disk image from `file_path`. A `.gdox` descriptor, or a folder or ZIP with one in its root, opens its game: its disk on C: built or reused, and the machine powered on, with `target` choosing what runs at boot (`game` by default, `setup` or `prompt`); the answer is `get_game_info`'s. A `.exe`, `.com` or `.bat`, or a folder or ZIP the game database recognises, opens as a game too, and with several games in a folder or ZIP the first by name opens. A CD is `.cue`, `.chd`, `.iso`; a floppy (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.d77`, `.d88`, `.hdm`, `.xdf`, `.mfm`, an `.m3u` playlist or a `.zip`) goes in drive 0; a hard disk image (`.hdd`, `.h0`-`.h3`, `.img` or `.hdm` over 8 MB, a fixed `.vhd`, a hard disk `.chd`) attaches to its slot or the first free one and powers on an empty machine. It answers when the load has finished
+- `load_media` - Load a game descriptor, a CD image, a floppy image or a hard disk image from `file_path`. A `.gdox` descriptor, or a folder or ZIP with one in its root, opens its game: its disk on C: built or reused, and the machine powered on, with `target` choosing what runs at boot (`game` by default, `setup`, `prompt`, or `debug` to run the game's program through GDXDBG for the program tools); the answer is `get_game_info`'s. A `.exe`, `.com` or `.bat`, or a folder or ZIP the game database recognises, opens as a game too, and with several games in a folder or ZIP the first by name opens. A CD is `.cue`, `.chd`, `.iso`; a floppy (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.d77`, `.d88`, `.hdm`, `.xdf`, `.mfm`, an `.m3u` playlist or a `.zip`) goes in drive 0; a hard disk image (`.hdd`, `.h0`-`.h3`, `.img` or `.hdm` over 8 MB, a fixed `.vhd`, a hard disk `.chd`) attaches to its slot or the first free one and powers on an empty machine. It answers when the load has finished
 - `eject_cdrom` - Open the CD-ROM tray and eject the CD, even when software prevented removal; the machine keeps running and `load_media` inserts another
 - `close_cdrom_tray` - Close the CD-ROM drive's tray, as the drive's own button does. With a disc inside it spins up and reports a disc change; the machine keeps running
 - `insert_playlist_disc` - Insert playlist disc `index` (from the `get_cdrom_status` playlist) into the empty drive, keeping the machine running; `eject_cdrom` first
@@ -577,6 +578,13 @@ Storage changes while tracing is active cleanly stop and restart the logger. Rep
 - `set_profiler` - Start, stop, or reset the function profiler with `action` (`start`, `stop`, `reset`). `start` turns the debugger on and opens the Profiler debugger window and `stop` closes it. Statistics are only collected while the window is visible (in headless mode, while started) and the debugger runs the machine
 - `get_profiler_data` - Read profiler results: `collecting`, `window_open`, `total_cycles`, `frames`, `function_count`, and per-function `name`, `symbol` (`manual`, `auto` or `none`), `address`, `vector`, `vector_name` and `vector_description` (interrupt handlers), `type` (`call`, `interrupt`, or `root` for code running outside any call), `calls`, `calls_per_frame`, `inclusive_cycles`, `inclusive_percent`, `exclusive_cycles`, `exclusive_percent`, `average_cycles`, `min_cycles`, and `max_cycles`. Average, min and max count completed outermost calls, so a recursive function's inner returns don't skew them. Optional `sort` (`inclusive`, `exclusive`, `calls`, `average`, `max`; highest first), `count` (default 50, max 1000), and `filter` (name or hex address substring)
 
+### Program (`program`)
+- `run_program` - Rebuild the open game's disk from its folder, boot, and run a program through GDXDBG, which reports where DOS loaded it, its console output and its exit code: `command` (program and arguments, relative to the game's folder; default the descriptor's `exe` and `args`) and `stop_at_entry`, which stops at the program's first instruction, or for a DJGPP program with `gdxdbg.c` when it reports its base. Returns at once; poll `get_program_status`
+- `relaunch_game` - Rebuild the disk and run the same program again, keeping the breakpoints, after a host rebuild
+- `get_program_status` - `state` (`none`, `running`, `exited`), `runs`, `path`, `host_path`, `psp`, `entry`, `stack`, `load_segment`, `base` and `base_reported`, `code_size`, `coff`, `symbol_file` and `symbols`, and once it exits `exit_code` and `termination` (`normal`, `ctrl_c`, `critical_error`, `resident`, `not_loaded`)
+- `get_program_output` - Read the program console (DOS console output mirrored by GDXDBG, port E9h and `gdx_printf`): `since` (a character count, the previous answer's `next`) and `max_bytes`; answers `text`, `next`, `written` and `has_more`
+- `get_dos_status` - Read DOS without calling it, once GDXDBG has run: `dos_version`, `indos`, `list_of_lists`, `memory_blocks` (MCB segment, owner and its name, size, free), `chain_valid`, `free_bytes`, `largest_free_bytes` and `program_psp`
+
 ## Available MCP Resources
 
 In addition to tools, the MCP server provides documentation resources that AI assistants can access to better understand the MS-DOS PC hardware and programming.
@@ -599,6 +607,7 @@ Complete technical reference documentation for the MS-DOS PC hardware components
 - **IDE and the ATAPI CD-ROM Drive — What MS-DOS Software Relies On** (`geardox://hardware/pc_ide_cdrom`)
 - **Sound Cards, FM, MIDI and the PC Speaker — What MS-DOS Software Relies On** (`geardox://hardware/pc_sound`)
 - **Floppy Controller and DMA — What MS-DOS Software Relies On** (`geardox://hardware/pc_floppy_dma`)
+- **MS-DOS Development — Program Tracking, Ports and gdb** (`geardox://hardware/dos_development`)
 
 ## How MCP Works in Geardox
 

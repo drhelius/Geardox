@@ -227,10 +227,13 @@ MS-DOS when imported. Game disks are built per game from the descriptor.
 | `AUTOEXEC.BAT` | `PATH`, `TEMP=C:\TEMP`, `DIRCMD=/OGN`, `BLASTER=A220 I5 D1 H5 P330`, `PROMPT $P$G`, KEYB, CTMOUSE, SHSUCDX or MSCDEX | The same, `BLASTER` from the sound card in use, then the game's lines, `GDXRUN` and the game |
 
 - **PATH** is `C:\FREEDOS\BIN` on FreeDOS and `C:\DOS;C:\GEARDOX` on MS-DOS, where `\GEARDOX` holds CTMOUSE, UDVD2,
-  GDXIDLE, GDXRUN, POWEROFF and, for MS-DOS 5.0, SHSUCDX. CTMOUSE finds the PS/2 or the serial mouse.
-- **GDXRUN.COM** reads the firmware config file `opt/geardox/target` and exits with ERRORLEVEL 0 for the game, 1 for setup
-  and 2 for the prompt, which the batch file branches on. `load_media` `target` sets it. **POWEROFF.COM** turns the PC off
-  through APM when a game's `on_exit` asks.
+  GDXIDLE, GDXRUN, GDXDBG, POWEROFF and, for MS-DOS 5.0, SHSUCDX. CTMOUSE finds the PS/2 or the serial mouse.
+- **GDXRUN.COM** reads the firmware config file `opt/geardox/target` and exits with ERRORLEVEL 0 for the game, 1 for setup,
+  2 for the prompt and 3 for debug, which the batch file branches on. `load_media` `target` sets it. **POWEROFF.COM** turns
+  the PC off through APM when a game's `on_exit` asks.
+- **GDXDBG.COM** runs a program for the development tools: debug runs the game's program, or `run_program`'s command,
+  through it. It loads the program with INT 21h AX=4B01h and reports it, its console output and its exit code to
+  Geardox; the `dos_development` resource has the details.
 
 ### 6.3 GDXIDLE.SYS
 
