@@ -10,4 +10,5 @@ exe = SW.EXE
 setup = SETUP.EXE
 
 [machine]
+model = pentium_133
 ram_mb = 32

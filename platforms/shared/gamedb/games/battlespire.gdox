@@ -6,6 +6,7 @@ name = An Elder Scrolls Legend: Battlespire
 folder = C:\
 
 [machine]
+model = pentium_133
 ram_mb = 64
 
 [run]

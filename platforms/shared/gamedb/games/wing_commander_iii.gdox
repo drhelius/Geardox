@@ -6,6 +6,7 @@ name = Wing Commander III: Heart of the Tiger
 folder = C:\
 
 [machine]
+model = pentium_75
 ram_mb = 32
 
 [run]

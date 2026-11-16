@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Duke Nukem 3D
+folder = C:\DUKE3D
+
+[run]
+exe = DUKE3D.EXE
+setup = SETUP.EXE
+
+[machine]
+model = pentium_133

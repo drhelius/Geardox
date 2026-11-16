@@ -11,4 +11,5 @@ cwd = DRAGON
 setup = DRAGON\SETUP.EXE
 
 [machine]
+model = pentium_133
 ram_mb = 32

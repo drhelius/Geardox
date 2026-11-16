@@ -10,4 +10,5 @@ exe = GAME.EXE
 setup = SETSOUND.BAT
 
 [machine]
+model = pentium_75
 ram_mb = 32

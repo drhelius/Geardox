@@ -10,4 +10,5 @@ exe = AFTERDOS.BAT
 setup = SETUPDOS.EXE
 
 [machine]
+model = pentium_75
 ram_mb = 16

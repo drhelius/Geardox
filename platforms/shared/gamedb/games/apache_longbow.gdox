@@ -6,6 +6,7 @@ name = Apache Longbow
 folder = C:\
 
 [machine]
+model = pentium_133
 ram_mb = 32
 
 [run]

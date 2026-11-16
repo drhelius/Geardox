@@ -7,6 +7,7 @@ folder = C:\
 free_mb = 512
 
 [machine]
+model = pentium_133
 ram_mb = 64
 
 [input]

@@ -10,7 +10,7 @@ exe = KEEPER.EXE
 setup = SOUND\SETSOUND.EXE
 
 [machine]
-model = 486dx4_100
+model = pentium_90
 ram_mb = 32
 
 [autoexec]

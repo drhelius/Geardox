@@ -9,4 +9,4 @@ folder = C:\
 exe = QUAKE.EXE
 
 [machine]
-model = 486dx4_100
+model = pentium_133

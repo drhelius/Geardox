@@ -11,4 +11,5 @@ args = Z.CFG
 setup = SETUP.EXE
 
 [machine]
+model = pentium_75
 ram_mb = 64
