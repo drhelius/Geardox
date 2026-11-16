@@ -218,6 +218,7 @@ static void update_floppy_drive(void);
 static bool path_is_cdrom_uri(const char* path);
 static bool path_is_cd_content(const char* path);
 static bool path_is_raw_floppy(const char* path);
+static bool path_is_folder(const char* path);
 static bool disk_load(const char* path);
 static bool game_open(const char* path, bool* game);
 static void game_end(void);
@@ -314,6 +315,10 @@ static bool IsGamepadKeysDevice(unsigned port)
 static std::string get_file_name(const char* path, bool strip_extension)
 {
     std::string name(path);
+
+    while ((name.size() > 1) && ((name[name.size() - 1] == '/') || (name[name.size() - 1] == '\\')))
+        name.resize(name.size() - 1);
+
     size_t separator = name.find_last_of("/\\");
 
     if (separator != std::string::npos)
@@ -560,7 +565,7 @@ void retro_get_system_info(struct retro_system_info *info)
     info->library_version  = GDOX_VERSION;
     info->need_fullpath    = true;
     info->block_extract    = true;
-    info->valid_extensions = "gdox|exe|com|bat|cue|ins|chd|iso|gog|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3";
+    info->valid_extensions = "gdox|exe|com|bat|cue|ins|chd|iso|gog|zip|img|ima|vfd|flp|dsk|d77|d88|hdm|xdf|mfm|bin|m3u|hdd|vhd|h0|h1|h2|h3|/";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
@@ -2262,6 +2267,13 @@ static bool path_is_raw_floppy(const char* path)
         FloppyImage::IsRaw(data.data(), (u32)data.size());
 }
 
+static bool path_is_folder(const char* path)
+{
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+    return MediaFile::ListDirectory(path, folders, files);
+}
+
 static bool disk_load(const char* path)
 {
     if (path[0] != 0 && !disk_add_images(path, disk_images))
@@ -2329,6 +2341,9 @@ static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images)
 {
     if (ends_with_no_case(path, ".m3u"))
         return disk_add_playlist(path, images);
+
+    if (path_is_folder(path))
+        return hard_disk_attach_source(path);
 
     if (HardDiskImage::IsImage(path))
         return hard_disk_attach(path);
