@@ -57,6 +57,10 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "SystemControl", config_debug.show_system_control, false);
     CONFIG_BOOL("Debug", "RTC", config_debug.show_rtc, false);
     CONFIG_BOOL("Debug", "BIOSLog", config_debug.show_bios_log, false);
+    CONFIG_BOOL("Debug", "Program", config_debug.show_program, false);
+    CONFIG_BOOL("Debug", "E9Console", config_debug.dev_e9_console, false);
+    CONFIG_BOOL("Debug", "MagicBreakpoint", config_debug.dev_magic_breakpoint, false);
+    CONFIG_INT_RANGE("Debug", "GDBPort", config_debug.gdb_port, 1234, 1, 65535);
     CONFIG_BOOL("Debug", "MouseJoystick", config_debug.show_mouse_joystick, false);
     CONFIG_BOOL("Debug", "SerialPorts", config_debug.show_serial_ports, false);
     CONFIG_BOOL("Debug", "ParallelPort", config_debug.show_parallel_port, false);

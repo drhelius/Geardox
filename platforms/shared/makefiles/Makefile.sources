@@ -69,6 +69,7 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/emu_hard_disk.cpp \
     $(DESKTOP_SRC_DIR)/gui_game.cpp \
     $(DESKTOP_SRC_DIR)/emu_game.cpp \
+    $(DESKTOP_SRC_DIR)/emu_dev.cpp \
     $(DESKTOP_SRC_DIR)/gui_dos.cpp \
     $(DESKTOP_SRC_DIR)/emu_dos.cpp \
     $(DESKTOP_SRC_DIR)/sound_queue.cpp \
@@ -93,12 +94,15 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_profiler.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_rewind.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_system.cpp \
+    $(DESKTOP_SRC_DIR)/debug/gui_debug_program.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_video.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug_trace_logger.cpp \
     $(DESKTOP_SRC_DIR)/debug/trace_logger_formatter.cpp \
     $(DESKTOP_SRC_DIR)/mcp/mcp_debug_adapter.cpp \
     $(DESKTOP_SRC_DIR)/mcp/mcp_tool_registry.cpp \
     $(DESKTOP_SRC_DIR)/mcp/mcp_server.cpp \
+    $(DESKTOP_SRC_DIR)/gdb/gdb_server.cpp \
+    $(DESKTOP_SRC_DIR)/gdb/gdb_target.cpp \
     $(SRC_DIR)/geardox_core.cpp \
     $(SRC_DIR)/common/profiler.cpp \
     $(SRC_DIR)/common/trace_logger.cpp \

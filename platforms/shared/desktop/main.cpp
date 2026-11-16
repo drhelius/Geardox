@@ -27,6 +27,7 @@
 #include "application_headless.h"
 #include "config.h"
 #include "console_utils.h"
+#include "media/game_descriptor.h"
 
 extern bool g_mcp_stdio_mode;
 extern bool g_mcp_router_enabled;
@@ -129,6 +130,97 @@ int main(int argc, char* argv[])
             {
                 portable = true;
             }
+            else if (strcmp(argv[i], "--run") == 0)
+            {
+                const char* value = option_value(argc, argv, &i);
+
+                if (!value)
+                    return -1;
+
+                app_params.dev.active = true;
+                app_params.dev.debug_target = true;
+                app_params.dev.run_command = value;
+                app_params.game_target = GDOX_GAME_TARGET_DEBUG;
+            }
+            else if (strcmp(argv[i], "--stop-at-entry") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.stop_at_entry = true;
+            }
+            else if (strcmp(argv[i], "--exit-on-exit") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.exit_on_exit = true;
+            }
+            else if ((strcmp(argv[i], "--timeout") == 0) || (strcmp(argv[i], "--gdb-port") == 0))
+            {
+                const char* option = argv[i];
+                const char* value = option_value(argc, argv, &i);
+                char* end = NULL;
+                long number = value ? strtol(value, &end, 10) : 0;
+                bool port = strcmp(option, "--gdb-port") == 0;
+
+                if (!value || !end || (*end != '\0') || (number <= 0) || (port && (number > 65535)))
+                {
+                    fprintf(stderr, "Invalid value for %s\n", option);
+                    return -1;
+                }
+
+                app_params.dev.active = true;
+
+                if (port)
+                    app_params.dev.gdb_port = (int)number;
+                else
+                    app_params.dev.timeout = (int)number;
+            }
+            else if ((strcmp(argv[i], "--boot-speed") == 0) || (strcmp(argv[i], "--speed") == 0))
+            {
+                const char* option = argv[i];
+                const char* value = option_value(argc, argv, &i);
+
+                if (!value || ((strcmp(value, "max") != 0) && (strcmp(value, "normal") != 0)))
+                {
+                    fprintf(stderr, "Invalid value for %s: max or normal\n", option);
+                    return -1;
+                }
+
+                app_params.dev.active = true;
+
+                if (strcmp(option, "--speed") == 0)
+                {
+                    app_params.dev.max_speed = strcmp(value, "max") == 0;
+                    app_params.dev.speed_set = true;
+                }
+                else
+                    app_params.dev.boot_max_speed = strcmp(value, "max") == 0;
+            }
+            else if (strcmp(argv[i], "--e9") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.e9 = true;
+            }
+            else if (strcmp(argv[i], "--magic-break") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.magic_breakpoint = true;
+            }
+            else if (strcmp(argv[i], "--no-write-back") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.no_write_back = true;
+            }
+            else if (strcmp(argv[i], "--gdb") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.gdb = true;
+            }
+            else if (strcmp(argv[i], "--gdb-wait") == 0)
+            {
+                app_params.dev.active = true;
+                app_params.dev.gdb = true;
+                app_params.dev.gdb_wait = true;
+                app_params.dev.stop_at_entry = true;
+            }
             else if (strcmp(argv[i], "--cd") == 0)
             {
                 if (!(app_params.cd_file = option_value(argc, argv, &i)))
@@ -154,6 +246,12 @@ int main(int argc, char* argv[])
                     app_params.game_target = 1;
                 else if (strcmp(value, "prompt") == 0)
                     app_params.game_target = 2;
+                else if (strcmp(value, "debug") == 0)
+                {
+                    app_params.game_target = GDOX_GAME_TARGET_DEBUG;
+                    app_params.dev.active = true;
+                    app_params.dev.debug_target = true;
+                }
                 else
                 {
                     fprintf(stderr, "Invalid value for --target: %s\n", value);
@@ -307,6 +405,9 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (app_params.dev.active && !mcp_stdio_set)
+        emu_dev_split_output();
+
     if (mcp_stdio_set && mcp_http_set)
     {
         printf("Error: Cannot use both --mcp-stdio and --mcp-http at the same time\n");
@@ -342,6 +443,11 @@ int main(int argc, char* argv[])
     else
         app_params.mcp_http_address = config_emulator.mcp_http_address;
 
+    app_params.dev.headless = headless;
+
+    if (headless && app_params.dev.debug_target && !app_params.dev.speed_set)
+        app_params.dev.max_speed = true;
+
     if (headless)
     {
         ret = application_headless_init(app_params);
@@ -353,10 +459,13 @@ int main(int argc, char* argv[])
         }
 
         restore_machine_settings();
-        config_write();
+
+        if (!app_params.dev.active)
+            config_write();
+
         config_destroy();
 
-        return ret;
+        return (ret == 0) && emu_dev_quit_requested() ? emu_dev_get_exit_code() : ret;
     }
 
     const char* forward_file = app_params.rom_file ? app_params.rom_file : app_params.cd_file;
@@ -372,20 +481,22 @@ int main(int argc, char* argv[])
     if (ret == 0)
         application_mainloop();
 
+    bool dev_quit = emu_dev_quit_requested();
+    int dev_exit_code = emu_dev_get_exit_code();
     application_destroy();
 
     restore_machine_settings();
     config_write();
     config_destroy();
 
-    return ret;
+    return (ret == 0) && dev_quit ? dev_exit_code : ret;
 }
 
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
         "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--video",
-        "--mouse", "--cdrom", "--joystick" };
+        "--mouse", "--cdrom", "--joystick", "--run", "--timeout", "--boot-speed", "--speed", "--gdb-port" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
     {
@@ -648,7 +759,7 @@ static void print_usage(const char* program)
     print_wrapped("      --fd1 FILE", "Floppy image in drive 1");
     print_wrapped("      --fd2 FILE", "Floppy image in drive 2");
     print_wrapped("      --load-state SLOT", "Load save state slot 1-5, or a state file, once the media is loaded");
-    print_wrapped("      --target TARGET", "What a game descriptor runs: game, setup or prompt");
+    print_wrapped("      --target TARGET", "What a game descriptor runs: game, setup, prompt or debug (its program through GDXDBG)");
     printf("\nMachine (for this run only, the saved settings stay):\n");
     print_wrapped("      --model MODEL", models);
     print_wrapped("      --cpu-mhz MHZ", speeds);
@@ -659,6 +770,19 @@ static void print_usage(const char* program)
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");
     print_wrapped("      --cdrom DRIVE", "none, pm, ps, sm, ss (primary or secondary, master or slave)");
     print_wrapped("      --joystick DEVICE", "none, standard, gamepad, flightstick");
+    printf("\nDevelopment (Debug turns on for this run only):\n");
+    print_wrapped("      --run COMMAND", "Runs COMMAND in the game descriptor's folder through GDXDBG, which reports it to the debugger");
+    print_wrapped("      --stop-at-entry", "Stops in the debugger at the program's first instruction");
+    print_wrapped("      --exit-on-exit", "Quits when the program exits, with its exit code; its console output goes to stdout");
+    print_wrapped("      --timeout SECONDS", "Quits with exit code 124 when the program hasn't exited after SECONDS");
+    print_wrapped("      --boot-speed SPEED", "max runs unthrottled until the program starts, normal (default) doesn't");
+    print_wrapped("      --speed SPEED", "max runs unthrottled throughout, normal doesn't (default normal, max for headless runs)");
+    print_wrapped("      --e9", "Port E9h prints the program's characters to the program console");
+    print_wrapped("      --magic-break", "XCHG BX,BX stops in the debugger");
+    print_wrapped("      --no-write-back", "The program's writes stay in the save folder, not the game's folder");
+    print_wrapped("      --gdb", "Starts the GDB remote server on 127.0.0.1");
+    print_wrapped("      --gdb-port N", "Port of the GDB remote server (default: 1234)");
+    print_wrapped("      --gdb-wait", "Starts the GDB server and holds its first reply until the program starts");
     printf("\nOptions:\n");
     print_wrapped("  -f, --fullscreen", "Start in fullscreen mode");
     print_wrapped("  -w, --windowed", "Start in windowed mode with menu visible");
@@ -667,7 +791,7 @@ static void print_usage(const char* program)
     print_wrapped("      --mcp-router", "Enable compact MCP tool routing");
     print_wrapped("      --mcp-http-address A", "HTTP bind address (default: 127.0.0.1)");
     print_wrapped("      --mcp-http-port N", "HTTP port for MCP server (default: 7777)");
-    print_wrapped("      --headless", "Run without GUI (requires MCP)");
+    print_wrapped("      --headless", "Run without GUI (requires MCP, --run or --gdb)");
     print_wrapped("      --portable", "Store configuration and user data beside the application");
     print_wrapped("  -v, --version", "Display version information");
     print_wrapped("  -h, --help", "Display this help message");

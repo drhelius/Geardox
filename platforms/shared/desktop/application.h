@@ -23,6 +23,7 @@
 #include <string>
 #include <SDL3/SDL.h>
 #include "geardox.h"
+#include "emu_dev.h"
 
 struct ApplicationParams
 {
@@ -40,6 +41,7 @@ struct ApplicationParams
     bool mcp_tcp_port_set = false;
     std::string mcp_http_address = "127.0.0.1";
     bool mcp_http_address_set = false;
+    Dev_Session_Params dev;
 };
 
 #ifdef APPLICATION_IMPORT

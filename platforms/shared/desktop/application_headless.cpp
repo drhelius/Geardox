@@ -40,9 +40,9 @@ int application_headless_init(const ApplicationParams& params)
     Log("\n%s", GDOX_TITLE_ASCII);
     Log("%s %s Headless Mode", GDOX_TITLE, GDOX_VERSION);
 
-    if (params.mcp_mode < 0)
+    if ((params.mcp_mode < 0) && params.dev.run_command.empty() && !params.dev.debug_target && !params.dev.gdb)
     {
-        Error("Headless mode requires MCP");
+        Error("Headless mode requires MCP, --run, --target debug or --gdb");
         return 1;
     }
 
@@ -64,6 +64,11 @@ int application_headless_init(const ApplicationParams& params)
     gui_debug_init();
     emu_apply_machine_settings();
     emu_power_on();
+
+    emu_dev_start_session(params.dev);
+
+    if (params.dev.gdb)
+        emu_gdb_start(params.dev.gdb_port > 0 ? params.dev.gdb_port : config_debug.gdb_port, params.dev.gdb_wait);
 
     application_load_media(params);
 
@@ -106,7 +111,10 @@ void application_headless_mainloop(void)
         gui_debug_profiler_update_headless();
         gui_finish_loading_rom();
 
-        if (!emu_mcp_is_running())
+        if (emu_dev_quit_requested())
+            break;
+
+        if (!emu_mcp_is_running() && !emu_dev_is_session())
         {
             Log("No service running, exiting headless mode");
             break;
@@ -117,7 +125,7 @@ void application_headless_mainloop(void)
 
         float target_ms = 16.666f;
 
-        if (elapsed_ms < target_ms)
+        if ((elapsed_ms < target_ms) && !emu_dev_wants_max_speed())
             SDL_Delay((Uint32)(target_ms - elapsed_ms));
     }
 }

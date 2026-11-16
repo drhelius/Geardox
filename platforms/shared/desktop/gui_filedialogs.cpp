@@ -19,6 +19,8 @@
 
 #define GUI_FILEDIALOGS_IMPORT
 #include "gui_filedialogs.h"
+#include "emu_dev.h"
+#include "debug/gui_debug_program.h"
 
 #include <SDL3/SDL.h>
 #include <string>
@@ -70,7 +72,9 @@ enum FileDialogID
     FileDialog_SaveLog,
     FileDialog_ChooseTracePath,
     FileDialog_SaveDisassemblerFull,
-    FileDialog_SaveDisassemblerVisible
+    FileDialog_SaveDisassemblerVisible,
+    FileDialog_SaveProgramOutput,
+    FileDialog_LoadProgramSymbols
 };
 
 static FileDialogID pending_dialog_id = FileDialog_None;
@@ -140,6 +144,24 @@ void gui_file_dialog_save_log(void)
 
     SDL_DialogFileFilter filters[] = { { "Log Files", "txt" } };
     show_save_file_dialog(FileDialog_SaveLog, filters, 1);
+}
+
+void gui_file_dialog_save_program_output(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = { { "Text Files", "txt" } };
+    show_save_file_dialog(FileDialog_SaveProgramOutput, filters, 1);
+}
+
+void gui_file_dialog_load_program_symbols(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = { { "Symbol Files", "map;sym;nm;txt" } };
+    show_open_file_dialog(FileDialog_LoadProgramSymbols, filters, 1);
 }
 
 void gui_file_dialog_save_disassembler(bool full)
@@ -478,6 +500,8 @@ static std::string* get_dialog_folder(FileDialogID id)
         case FileDialog_SaveLog:
         case FileDialog_SaveDisassemblerFull:
         case FileDialog_SaveDisassemblerVisible:
+        case FileDialog_SaveProgramOutput:
+        case FileDialog_LoadProgramSymbols:
             return &config_file_dialogs.debug;
         default:
             return NULL;
@@ -555,7 +579,8 @@ static void SDLCALL file_dialog_callback(void* userdata, const char* const* file
         append_extension_if_missing(pending_dialog_path, ".bin");
     else if (id == FileDialog_SaveDebugSettings)
         append_extension_if_missing(pending_dialog_path, ".gdoxdebug");
-    else if (id == FileDialog_SaveLog || id == FileDialog_SaveDisassemblerFull || id == FileDialog_SaveDisassemblerVisible)
+    else if (id == FileDialog_SaveLog || id == FileDialog_SaveDisassemblerFull || id == FileDialog_SaveDisassemblerVisible ||
+        id == FileDialog_SaveProgramOutput)
         append_extension_if_missing(pending_dialog_path, ".txt");
     else if (id == FileDialog_CreateHardDisk)
     {
@@ -673,6 +698,22 @@ static void process_dialog_result(FileDialogID id, const char* path)
             else
                 gui_notify(gui_NotificationError, NULL, "Unable to load debug settings", path);
             break;
+        case FileDialog_SaveProgramOutput:
+            if (gui_debug_program_save_output(path))
+                gui_notify(gui_NotificationSuccess, ICON_MD_DESCRIPTION, "Program console saved", path);
+            else
+                gui_notify(gui_NotificationError, NULL, "Unable to save the program console", path);
+            break;
+        case FileDialog_LoadProgramSymbols:
+        {
+            int count = emu_dev_load_program_symbols(path);
+
+            if (count >= 0)
+                gui_notify(gui_NotificationSuccess, ICON_MD_DESCRIPTION, "Program symbols loaded", path);
+            else
+                gui_notify(gui_NotificationError, NULL, "Unable to load the program symbols", path);
+            break;
+        }
         case FileDialog_SaveLog:
             if (gui_debug_save_log(path))
                 gui_notify(gui_NotificationSuccess, ICON_MD_DESCRIPTION, "Trace log saved", path);

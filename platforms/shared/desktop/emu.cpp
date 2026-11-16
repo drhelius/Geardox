@@ -34,6 +34,9 @@
 #include "debug/gui_debug_trace_logger.h"
 #include "emu_floppy.h"
 #include "emu_game.h"
+#include "emu_dev.h"
+#include "gdb/gdb_server.h"
+#include "gdb/gdb_target.h"
 #include "osd/osd_font.h"
 #include "video/mc6845.h"
 #include "emu_hard_disk.h"
@@ -79,6 +82,8 @@ static s16* audio_buffer = NULL;
 static u8* rgba_frame_buffer = NULL;
 static bool audio_enabled = true;
 static McpManager* mcp_manager = NULL;
+static GdbServer* gdb_server = NULL;
+static GdbTarget* gdb_target = NULL;
 static Uint64 rewind_last_counter = 0;
 static double rewind_pop_accumulator = 0.0;
 static bool video_recording_output = false;
@@ -100,6 +105,7 @@ static std::string key_map_path;
 static void load_media_thread_func(void);
 static void reset_buffers(void);
 static void reset_run_state(void);
+static void gdb_program_event(void* context, u8 type);
 static const char* get_configurated_dir(int option, const char* path);
 static void get_video_recording_size(const GDOX_Runtime_Info& runtime, int* width, int* height);
 static void reset_rewind_timing(void);
@@ -191,6 +197,11 @@ bool emu_init(void)
     }
 
     mcp_manager->Init(geardox);
+    emu_dev_init();
+    gdb_server = new GdbServer();
+    gdb_target = new GdbTarget();
+    gdb_target->Init(geardox, gdb_server);
+    emu_dev_set_listener(gdb_target, gdb_program_event);
 
     emu_frame_counter = 0;
     emu_video_frame_counter = 0;
@@ -203,6 +214,15 @@ bool emu_init(void)
 
 void emu_destroy(void)
 {
+    emu_dev_destroy();
+    emu_dev_set_listener(NULL, NULL);
+
+    if (IsValidPointer(gdb_server))
+        gdb_server->Stop();
+
+    SafeDelete(gdb_target);
+    SafeDelete(gdb_server);
+
     if (loading_thread_active)
     {
         loading_thread.join();
@@ -248,6 +268,11 @@ void emu_update(void)
         return;
 
     emu_mcp_pump_commands();
+    emu_dev_update();
+
+    if (IsValidPointer(gdb_target))
+        gdb_target->Pump();
+
     input_macro_update(Input_Macro_Owner_GUI);
 
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
@@ -1123,6 +1148,7 @@ bool emu_load_state_file(const char* file_path)
 
 void emu_debug_state_restored(void)
 {
+    emu_dev_reset_output();
     geardox->GetI386()->ResetDebuggerExecutionState();
     emu_debug_command = Debug_Command_None;
     emu_debug_step_frames_pending = 0;
@@ -1935,6 +1961,46 @@ int emu_mcp_get_http_port(void)
     return IsValidPointer(mcp_manager) ? mcp_manager->GetTcpPort() : 7777;
 }
 
+bool emu_gdb_start(int port, bool wait)
+{
+    if (!IsValidPointer(gdb_server))
+        return false;
+
+    gdb_target->SetWaitProgram(wait);
+
+    if (!gdb_server->Start(port))
+        return false;
+
+    config_debug.debug = true;
+    return true;
+}
+
+void emu_gdb_stop(void)
+{
+    if (IsValidPointer(gdb_server))
+        gdb_server->Stop();
+}
+
+bool emu_gdb_is_running(void)
+{
+    return IsValidPointer(gdb_server) && gdb_server->IsRunning();
+}
+
+bool emu_gdb_is_connected(void)
+{
+    return IsValidPointer(gdb_server) && gdb_server->IsConnected();
+}
+
+int emu_gdb_get_port(void)
+{
+    return IsValidPointer(gdb_server) && gdb_server->IsRunning() ? gdb_server->GetPort() : config_debug.gdb_port;
+}
+
+static void gdb_program_event(void* context, u8 type)
+{
+    static_cast<GdbTarget*>(context)->OnProgramEvent(type);
+}
+
 void emu_mcp_pump_commands(void)
 {
     if (IsValidPointer(mcp_manager))
@@ -2008,6 +2074,7 @@ const u8* emu_get_rgba_frame(int width, int height)
 
 static void reset_run_state(void)
 {
+    emu_dev_reset_output();
     emu_debug_command = Debug_Command_None;
     emu_debug_pc_changed = true;
     emu_frame_counter = 0;

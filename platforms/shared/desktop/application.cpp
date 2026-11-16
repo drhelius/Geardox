@@ -142,6 +142,11 @@ int application_init(const ApplicationParams& params)
 
     application_apply_settings();
 
+    emu_dev_start_session(params.dev);
+
+    if (params.dev.gdb)
+        emu_gdb_start(params.dev.gdb_port > 0 ? params.dev.gdb_port : config_debug.gdb_port, params.dev.gdb_wait);
+
     application_load_media(params);
 
     if (params.mcp_mode >= 0)
@@ -214,6 +219,9 @@ void application_mainloop(void)
         run_emulator();
         display_render();
         display_frame_throttle();
+
+        if (emu_dev_quit_requested())
+            running = false;
     }
 }
 

@@ -202,11 +202,14 @@
     <ClCompile Include="..\shared\desktop\emu_hard_disk.cpp" />
     <ClCompile Include="..\shared\desktop\gui_game.cpp" />
     <ClCompile Include="..\shared\desktop\emu_game.cpp" />
+    <ClCompile Include="..\shared\desktop\emu_dev.cpp" />
     <ClCompile Include="..\shared\desktop\gui_dos.cpp" />
     <ClCompile Include="..\shared\desktop\emu_dos.cpp" />
     <ClCompile Include="..\shared\desktop\single_instance.cpp" />
     <ClCompile Include="..\shared\desktop\mcp\mcp_debug_adapter.cpp" />
     <ClCompile Include="..\shared\desktop\mcp\mcp_server.cpp" />
+    <ClCompile Include="..\shared\desktop\gdb\gdb_server.cpp" />
+    <ClCompile Include="..\shared\desktop\gdb\gdb_target.cpp" />
     <ClCompile Include="..\shared\desktop\mcp\mcp_tool_registry.cpp" />
     <ClCompile Include="..\shared\desktop\gui_actions.cpp" />
     <ClCompile Include="..\shared\desktop\input_macro.cpp" />
@@ -226,6 +229,7 @@
     <ClCompile Include="..\shared\desktop\debug\gui_debug_video.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_input.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_system.cpp" />
+    <ClCompile Include="..\shared\desktop\debug\gui_debug_program.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_audio.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_cdrom.cpp" />
     <ClCompile Include="..\shared\desktop\debug\gui_debug_floppy.cpp" />
@@ -456,12 +460,15 @@
     <ClInclude Include="..\shared\desktop\emu_hard_disk.h" />
     <ClInclude Include="..\shared\desktop\gui_game.h" />
     <ClInclude Include="..\shared\desktop\emu_game.h" />
+    <ClInclude Include="..\shared\desktop\emu_dev.h" />
     <ClInclude Include="..\shared\desktop\gui_dos.h" />
     <ClInclude Include="..\shared\desktop\emu_dos.h" />
     <ClInclude Include="..\shared\dependencies\json\json.hpp" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_debug_adapter.h" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_manager.h" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_server.h" />
+    <ClInclude Include="..\shared\desktop\gdb\gdb_server.h" />
+    <ClInclude Include="..\shared\desktop\gdb\gdb_target.h" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_tool_registry.h" />
     <ClInclude Include="..\shared\desktop\mcp\mcp_transport.h" />
     <ClInclude Include="..\shared\desktop\gui_actions.h" />
@@ -485,6 +492,7 @@
     <ClInclude Include="..\shared\desktop\debug\gui_debug_video.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_input.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_system.h" />
+    <ClInclude Include="..\shared\desktop\debug\gui_debug_program.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_audio.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_cdrom.h" />
     <ClInclude Include="..\shared\desktop\debug\gui_debug_floppy.h" />

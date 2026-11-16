@@ -63,6 +63,7 @@
 #include "../gui_floppy.h"
 #include "../emu_hard_disk.h"
 #include "../emu_game.h"
+#include "../emu_dev.h"
 #include "../emu_midi.h"
 #include "../midi_queue.h"
 #include "../gui_game.h"
@@ -708,6 +709,10 @@ json DebugAdapter::GetBreakpointHit()
 
     if (!m_core->GetI386()->GetBreakpointHit(hit))
         return json();
+
+    if (hit.request != I386_HIT_REQUEST_NONE)
+        return {{"kind", hit.request == I386_HIT_REQUEST_MAGIC ? "magic" : "program"}, {"space", "linear"},
+            {"address", Hex32(hit.address)}};
 
     if (hit.interrupt)
     {
@@ -1931,8 +1936,25 @@ json DebugAdapter::RemoveSymbol(u32 address)
     return {{"success", true}, {"removed", gui_debug_remove_user_symbol(address)}, {"address", Hex32(address)}};
 }
 
-json DebugAdapter::LoadSymbols(const std::string& file_path)
+json DebugAdapter::LoadSymbols(const std::string& file_path, bool program)
 {
+    if (program)
+    {
+        Dev_Program_Info info;
+        emu_dev_get_program(&info);
+
+        if (info.state != DEV_PORT_PROGRAM_RUNNING)
+            return {{"error", "No program is running: start one with run_program first"}};
+
+        int loaded = emu_dev_load_program_symbols(file_path.c_str());
+
+        if (loaded < 0)
+            return {{"error", "Unable to read " + file_path}};
+
+        return {{"success", true}, {"file_path", file_path}, {"loaded", loaded}, {"program", true},
+            {"base", Hex32(info.base)}, {"load_segment", Hex(info.load_segment, 4)}};
+    }
+
     int skipped = 0;
     int count = gui_debug_load_symbols(file_path.c_str(), &skipped);
 
@@ -1940,6 +1962,173 @@ json DebugAdapter::LoadSymbols(const std::string& file_path)
         return {{"error", "Unable to read " + file_path}};
 
     return {{"success", true}, {"file_path", file_path}, {"loaded", count}, {"skipped", skipped}};
+}
+
+json DebugAdapter::RunProgram(const std::string& command, bool stop_at_entry)
+{
+    if (!emu_game_is_open())
+        return {{"error", "No game descriptor is open: load_media a .gdox for the program's folder first"}};
+
+    if (!emu_dev_run_program(command.c_str(), stop_at_entry))
+        return {{"error", std::string("Unable to relaunch the game: ") + emu_game_get_error()}};
+
+    return {{"success", true}, {"command", command.empty() ? std::string("the descriptor's program") : command},
+        {"stop_at_entry", stop_at_entry}, {"note", "The game's disk is rebuilt from its folder and the machine boots: "
+        "poll get_program_status until state is running or exited"}};
+}
+
+json DebugAdapter::RelaunchGame()
+{
+    if (!emu_dev_relaunch())
+        return {{"error", "No game descriptor is open"}};
+
+    return {{"success", true}, {"note", "Rebuilding the game's disk from its folder and running its program again"}};
+}
+
+json DebugAdapter::GetProgramStatus()
+{
+    static const char* const k_states[3] = { "none", "running", "exited" };
+    Dev_Program_Info info;
+    emu_dev_get_program(&info);
+    json result = {
+        {"state", k_states[info.state % 3]},
+        {"runs", info.runs},
+        {"output_bytes", emu_dev_get_output_count()}
+    };
+
+    if (info.runs == 0)
+        return result;
+
+    result["path"] = info.dos_path;
+    result["host_path"] = info.host_path;
+    result["psp"] = Hex(info.psp, 4);
+    result["entry"] = Hex(info.entry_cs, 4) + ":" + Hex(info.entry_ip, 4);
+    result["stack"] = Hex(info.stack_ss, 4) + ":" + Hex(info.stack_sp, 4);
+    result["load_segment"] = Hex(info.load_segment, 4);
+    result["base"] = Hex32(info.base);
+    result["base_reported"] = info.based;
+    result["code_size"] = info.code_size;
+    result["coff"] = (info.load_flags & DEV_PORT_LOAD_COFF) != 0;
+
+    if (info.based)
+    {
+        result["code_selector"] = Hex(info.code_selector, 4);
+        result["data_selector"] = Hex(info.data_selector, 4);
+    }
+
+    if (!info.symbol_path.empty())
+    {
+        result["symbol_file"] = info.symbol_path;
+        result["symbols"] = info.symbol_count;
+    }
+
+    if (info.state == DEV_PORT_PROGRAM_EXITED)
+    {
+        static const char* const k_types[4] = { "normal", "ctrl_c", "critical_error", "resident" };
+        result["exit_code"] = info.exit_code;
+        result["termination"] = (info.exit_type >= 0) && (info.exit_type < 4) ? k_types[info.exit_type] :
+            info.exit_type == 0xFF ? "not_loaded" : "unknown";
+    }
+
+    return result;
+}
+
+json DebugAdapter::GetProgramOutput(u64 since, int max_bytes)
+{
+    u64 next = since;
+    std::string text = emu_dev_get_output(since, (u32)CLAMP(max_bytes, 1, DEBUG_CONSOLE_SIZE), &next);
+    u64 written = emu_dev_get_output_count();
+
+    return {{"text", text}, {"next", next}, {"written", written}, {"has_more", next < written}};
+}
+
+json DebugAdapter::GetDosStatus()
+{
+    DevPort::DevPort_State* state = m_core->GetDevPort()->GetState();
+
+    if (!state->dos_known)
+        return {{"error", "DOS isn't known yet: run a program through GDXDBG (run_program or the debug target) first"}};
+
+    I386* cpu = m_core->GetI386();
+    u16 list_segment = (u16)(state->dos_list >> 16);
+    u16 list_offset = (u16)state->dos_list;
+    u32 list = ((u32)list_segment << 4) + list_offset;
+    u8 low = 0;
+    u8 high = 0;
+    u8 indos = 0;
+
+    if (!cpu->TryPeekLinear(list - 2, low) || !cpu->TryPeekLinear(list - 1, high))
+        return {{"error", "The DOS list of lists can't be read"}};
+
+    cpu->TryPeekLinear(((state->dos_indos >> 16) << 4) + (state->dos_indos & 0xFFFF), indos);
+
+    u16 segment = (u16)(low | (high << 8));
+    json blocks = json::array();
+    u32 free_paragraphs = 0;
+    u32 largest_free = 0;
+    bool valid = true;
+
+    for (int i = 0; i < 1024; i++)
+    {
+        u32 base = (u32)segment << 4;
+        u8 bytes[16];
+
+        for (int b = 0; b < 16; b++)
+        {
+            if (!cpu->TryPeekLinear(base + b, bytes[b]))
+                valid = false;
+        }
+
+        if (!valid || ((bytes[0] != 0x4D) && (bytes[0] != 0x5A)))
+        {
+            valid = false;
+            break;
+        }
+
+        u16 owner = (u16)(bytes[1] | (bytes[2] << 8));
+        u16 size = (u16)(bytes[3] | (bytes[4] << 8));
+        std::string name;
+
+        for (int b = 8; (b < 16) && (bytes[b] >= 0x20) && (bytes[b] < 0x7F); b++)
+            name += (char)bytes[b];
+
+        json block = {{"mcb", Hex(segment, 4)}, {"owner", Hex(owner, 4)}, {"paragraphs", size}, {"bytes", (u32)size * 16}};
+
+        if (owner == 0)
+        {
+            block["free"] = true;
+            free_paragraphs += size;
+            largest_free = MAX(largest_free, (u32)size);
+        }
+        else if (owner == 8)
+            block["owner_name"] = "DOS";
+        else if (!name.empty())
+            block["owner_name"] = name;
+
+        blocks.push_back(block);
+
+        if (bytes[0] == 0x5A)
+            break;
+
+        segment = (u16)(segment + size + 1);
+    }
+
+    Dev_Program_Info info;
+    emu_dev_get_program(&info);
+    json result = {
+        {"dos_version", std::to_string(state->dos_version & 0xFF) + "." + std::to_string(state->dos_version >> 8)},
+        {"list_of_lists", Hex(list_segment, 4) + ":" + Hex(list_offset, 4)},
+        {"indos", indos},
+        {"memory_blocks", blocks},
+        {"chain_valid", valid},
+        {"free_bytes", free_paragraphs * 16},
+        {"largest_free_bytes", largest_free * 16}
+    };
+
+    if (info.state == DEV_PORT_PROGRAM_RUNNING)
+        result["program_psp"] = Hex(info.psp, 4);
+
+    return result;
 }
 
 // Exact names, or with partial a case-insensitive substring
@@ -5277,10 +5466,10 @@ json DebugAdapter::StartLoadMedia(const std::string& file_path, const std::strin
     if (emu_game_find(file_path.c_str(), &found))
     {
         int game_target = target == "setup" ? GDOX_GAME_TARGET_SETUP : target == "prompt" ? GDOX_GAME_TARGET_PROMPT :
-            GDOX_GAME_TARGET_GAME;
+            target == "debug" ? GDOX_GAME_TARGET_DEBUG : GDOX_GAME_TARGET_GAME;
 
-        if (!target.empty() && (target != "game") && (target != "setup") && (target != "prompt"))
-            return {{"error", "target is game, setup or prompt"}};
+        if (!target.empty() && (target != "game") && (target != "setup") && (target != "prompt") && (target != "debug"))
+            return {{"error", "target is game, setup, prompt or debug"}};
 
         if (!gui_start_game(found[0], game_target))
             return {{"error", std::string("Unable to open the game: ") + emu_game_get_error()}};

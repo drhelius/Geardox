@@ -66,6 +66,7 @@ static std::vector<DisassemblerBookmark> bookmarks;
 static std::map<u32, std::string> user_symbols;
 static std::vector<LogicalSymbol> logical_symbols;
 static std::map<u32, std::string> file_symbols;
+static std::map<u32, std::string> program_symbols;
 static u32 user_symbols_version = 0;
 static bool logical_symbols_stopped = false;
 static std::vector<SymbolRow> symbol_rows;
@@ -227,6 +228,7 @@ void gui_debug_reset_symbols(void)
     user_symbols.clear();
     logical_symbols.clear();
     file_symbols.clear();
+    program_symbols.clear();
     user_symbols_version++;
 }
 
@@ -426,6 +428,96 @@ int gui_debug_load_symbols(const char* file_path, int* skipped)
 
     Log("Loaded %d symbols from %s, %d lines skipped", count, file_path, failed);
     return count;
+}
+
+int gui_debug_load_program_symbols(const char* file_path, u16 load_segment, u32 base)
+{
+    gui_debug_clear_program_symbols();
+
+    FILE* file = fopen_utf8(file_path, "r");
+
+    if (!IsValidPointer(file))
+        return -1;
+
+    char line[512];
+    int count = 0;
+    bool nasm_map = false;
+    bool nasm_labels = false;
+
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
+        char* first = line;
+
+        while (*first == ' ' || *first == '\t' || *first == '\r' || *first == '\n')
+            first++;
+
+        if (*first == 0 || *first == ';' || *first == '#')
+            continue;
+
+        if (strncmp(first, "- NASM Map file", 15) == 0)
+            nasm_map = true;
+
+        if (nasm_map && (*first == '-' || strncmp(first, "Real ", 5) == 0))
+        {
+            nasm_labels = *first != '-';
+            continue;
+        }
+
+        if (nasm_map && !nasm_labels)
+            continue;
+
+        for (char* c = first; *c != 0; c++)
+        {
+            if (((*c == '*') || (*c == '+')) && (c > first) && isxdigit((unsigned char)c[-1]))
+                *c = ' ';
+        }
+
+        char* marker = strstr(first, " Abs ");
+
+        if (!IsValidPointer(marker))
+            marker = strstr(first, " Imp ");
+
+        if (IsValidPointer(marker))
+            memset(marker + 1, ' ', 3);
+
+        u32 address = 0;
+        u16 segment = 0;
+        bool logical = false;
+        char name[64];
+
+        if (!parse_symbol_line(first, nasm_labels, address, logical, segment, name, sizeof(name)))
+            continue;
+
+        u32 linear = logical ? ((u32)(u16)(segment + load_segment) << 4) + address : base + address;
+
+        if (IsValidPointer(gui_debug_get_user_symbol(linear)) && (program_symbols.find(linear) == program_symbols.end()))
+            continue;
+
+        user_symbols[linear] = name;
+        program_symbols[linear] = name;
+        count++;
+    }
+
+    fclose(file);
+    user_symbols_version++;
+    Log("Loaded %d program symbols from %s", count, file_path);
+    return count;
+}
+
+void gui_debug_clear_program_symbols(void)
+{
+    for (std::map<u32, std::string>::iterator it = program_symbols.begin(); it != program_symbols.end(); it++)
+    {
+        std::map<u32, std::string>::iterator user = user_symbols.find(it->first);
+
+        if ((user != user_symbols.end()) && (user->second == it->second))
+            user_symbols.erase(user);
+    }
+
+    if (!program_symbols.empty())
+        user_symbols_version++;
+
+    program_symbols.clear();
 }
 
 void gui_debug_runtocursor(void)

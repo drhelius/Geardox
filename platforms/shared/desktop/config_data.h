@@ -339,6 +339,10 @@ struct config_Debug
     bool show_system_control;
     bool show_rtc;
     bool show_bios_log;
+    bool show_program;
+    bool dev_e9_console;
+    bool dev_magic_breakpoint;
+    int gdb_port;
     bool show_mouse_joystick;
     bool show_serial_ports;
     bool show_parallel_port;

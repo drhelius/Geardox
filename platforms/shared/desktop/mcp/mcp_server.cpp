@@ -1275,7 +1275,9 @@ json McpServer::BuildToolList()
         {"name", "load_symbols"},
         {"title", "Load Symbols"},
         {"description", "Load user symbols from a file: 'ADDRESS NAME', 'NAME = ADDRESS' (or EQU), GNU nm output, or GNU "
-            "ld and NASM maps; ; and # start comments. Addresses are linear hex or SSSS:OOOOOOOO."},
+            "ld and NASM maps; ; and # start comments. Addresses are linear hex or SSSS:OOOOOOOO. With program, the "
+            "file's addresses are the running program's: SSSS:OOOO relative to its load segment (Borland TLINK, "
+            "Microsoft LINK and Watcom WLINK maps too) and plain addresses relative to its base, dropped when it exits."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", true}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1283,9 +1285,85 @@ json McpServer::BuildToolList()
                 {"file_path", {
                     {"type", "string"},
                     {"description", "Absolute path."}
+                }},
+                {"program", {
+                    {"type", "boolean"},
+                    {"description", "Load as the running program's symbols, rebased to where DOS loaded it. Default false."}
                 }}
             }},
             {"required", json::array({"file_path"})}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "run_program"},
+        {"title", "Run Program"},
+        {"description", "Rebuild the open game's disk from its folder, boot and run a program through GDXDBG, which reports "
+            "where DOS loaded it, its console output and its exit code. The game descriptor's program and arguments by "
+            "default. Returns at once: poll get_program_status."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"command", {{"type", "string"}, {"description", "Program and arguments, relative to the game's folder, e.g. 'BUILD\\TEST.EXE -v'. Default: the descriptor's."}}},
+                {"stop_at_entry", {{"type", "boolean"}, {"description", "Stop in the debugger at the program's first instruction (for a DJGPP program with gdxdbg.c, when it reports its base). Default false."}}}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "relaunch_game"},
+        {"title", "Relaunch Game"},
+        {"description", "Rebuild the open game's disk from its folder and run the same program again, keeping the debugger's breakpoints. Use it after a host rebuild."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_program_status"},
+        {"title", "Get Program Status"},
+        {"description", "State of the program GDXDBG runs (none, running, exited): DOS and host path, PSP, entry, load "
+            "segment, base (and whether the program reported it), symbol file, exit code and termination, and the "
+            "program console's size."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_program_output"},
+        {"title", "Get Program Output"},
+        {"description", "Read the program console: DOS console output mirrored by GDXDBG, port E9h and gdx_printf. Pass the "
+            "previous answer's next as since to read only what is new."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"since", {{"type", "integer"}, {"description", "Characters written before this count are skipped. Default 0."}}},
+                {"max_bytes", {{"type", "integer"}, {"description", "1-65536. Default 16384."}}}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_dos_status"},
+        {"title", "Get DOS Status"},
+        {"description", "Read DOS's state without calling it, once GDXDBG has run: DOS version, InDOS flag, the memory "
+            "control block chain with owners, free conventional memory and the running program's PSP."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
         }}
     });
 
@@ -1880,8 +1958,8 @@ json McpServer::BuildToolList()
             {"type", "object"},
             {"properties", {
                 {"file_path", {{"type", "string"}, {"description", "Absolute path."}}},
-                {"target", {{"type", "string"}, {"enum", json::array({"game", "setup", "prompt"})},
-                    {"description", "For a game descriptor: what runs at boot. Default game."}}}
+                {"target", {{"type", "string"}, {"enum", json::array({"game", "setup", "prompt", "debug"})},
+                    {"description", "For a game descriptor: what runs at boot. Default game. debug runs the game's program through GDXDBG, reporting it to the program tools."}}}
             }},
             {"required", json::array({"file_path"})},
             {"additionalProperties", false}
@@ -3623,7 +3701,30 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     }
     else if (normalizedTool == "load_symbols")
     {
-        return m_debugAdapter.LoadSymbols(arguments.value("file_path", ""));
+        return m_debugAdapter.LoadSymbols(arguments.value("file_path", ""), arguments.value("program", false));
+    }
+    // Program
+    else if (normalizedTool == "run_program")
+    {
+        return m_debugAdapter.RunProgram(arguments.value("command", ""), arguments.value("stop_at_entry", false));
+    }
+    else if (normalizedTool == "relaunch_game")
+    {
+        return m_debugAdapter.RelaunchGame();
+    }
+    else if (normalizedTool == "get_program_status")
+    {
+        return m_debugAdapter.GetProgramStatus();
+    }
+    else if (normalizedTool == "get_program_output")
+    {
+        u64 since = arguments.contains("since") && arguments["since"].is_number_unsigned() ?
+            arguments["since"].get<u64>() : 0;
+        return m_debugAdapter.GetProgramOutput(since, arguments.value("max_bytes", 16384));
+    }
+    else if (normalizedTool == "get_dos_status")
+    {
+        return m_debugAdapter.GetDosStatus();
     }
     else if (normalizedTool == "list_symbols")
     {

@@ -214,7 +214,14 @@ public:
     json ListSymbols(const std::string& filter, int start, int count);
     json AddSymbol(u32 address, const std::string& name);
     json RemoveSymbol(u32 address);
-    json LoadSymbols(const std::string& file_path);
+    json LoadSymbols(const std::string& file_path, bool program = false);
+
+    // Program
+    json RunProgram(const std::string& command, bool stop_at_entry);
+    json RelaunchGame();
+    json GetProgramStatus();
+    json GetProgramOutput(u64 since, int max_bytes);
+    json GetDosStatus();
     json LookupSymbolByName(const std::string& name, bool partial);
     json LookupSymbolAtAddress(u32 address);
 

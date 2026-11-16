@@ -35,6 +35,7 @@
 #include "sound_queue.h"
 #include "emu.h"
 #include "emu_game.h"
+#include "emu_dev.h"
 #include "emu_midi.h"
 #include "midi_port.h"
 #include "gui_game.h"
@@ -2865,6 +2866,42 @@ static void menu_debug(void)
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("GDB Server", config_debug.debug))
+        {
+            bool gdb_running = emu_gdb_is_running();
+
+            if (ImGui::MenuItem("Start Server", "", false, !gdb_running))
+            {
+                if (!emu_gdb_start(config_debug.gdb_port, false))
+                    gui_notify(gui_NotificationError, ICON_MD_BUG_REPORT, "Unable to start the GDB server", NULL, "gdb", 3000);
+            }
+
+            if (ImGui::MenuItem("Stop Server", "", false, gdb_running))
+            {
+                emu_gdb_stop();
+            }
+
+            ImGui::Separator();
+
+            if (gdb_running && emu_gdb_is_connected())
+                ImGui::TextColored(service_mcp_stdio_color, "Debugger connected on 127.0.0.1:%d", emu_gdb_get_port());
+            else if (gdb_running)
+                ImGui::TextColored(service_mcp_http_color, "Listening on 127.0.0.1:%d", emu_gdb_get_port());
+            else
+                ImGui::TextColored(red, "Stopped");
+
+            ImGui::Separator();
+
+            ImGui::Text("Port:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(50);
+
+            if (ImGui::InputInt("##gdb_port", &config_debug.gdb_port, 0, 0))
+                config_debug.gdb_port = CLAMP(config_debug.gdb_port, 1, 65535);
+
+            ImGui::EndMenu();
+        }
+
         ImGui::Separator();
 
         if (ImGui::BeginMenu("Debug Output Screen", config_debug.debug))
@@ -2950,6 +2987,30 @@ static void menu_debug(void)
         {
             ImGui::MenuItem("Show Controller", "", &config_debug.show_ide);
             ImGui::MenuItem("Show Disks", "", &config_debug.show_ide_disks);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Program", config_debug.debug))
+        {
+            ImGui::MenuItem("Show Program", "", &config_debug.show_program);
+
+            if (ImGui::MenuItem("Run Program Again", "", false, emu_game_is_open()))
+                emu_dev_relaunch();
+
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Rebuilds the game's disk from its folder and runs its program through GDXDBG.");
+
+            ImGui::Separator();
+            ImGui::MenuItem("E9h Console", "", &config_debug.dev_e9_console);
+
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Port E9h, where a program writes characters to the program console.");
+
+            ImGui::MenuItem("Magic Breakpoint", "", &config_debug.dev_magic_breakpoint);
+
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("XCHG BX,BX stops in the debugger.");
+
             ImGui::EndMenu();
         }
 
@@ -3074,8 +3135,9 @@ static void draw_mcp_status(void)
     bool video_recording = emu_is_video_recording();
     bool vgm_recording = emu_is_vgm_recording();
     bool mcp_running = emu_mcp_is_running();
+    bool gdb_running = emu_gdb_is_running();
 
-    if (!video_recording && !vgm_recording && !mcp_running)
+    if (!video_recording && !vgm_recording && !mcp_running && !gdb_running)
         return;
 
     const char* video_recording_status = "REC VIDEO";
@@ -3098,6 +3160,10 @@ static void draw_mcp_status(void)
         }
     }
 
+    char gdb_status[64];
+    ImVec4 gdb_color = emu_gdb_is_connected() ? service_mcp_stdio_color : service_mcp_http_color;
+    snprintf(gdb_status, sizeof(gdb_status), "GDB: %d%s", emu_gdb_get_port(), emu_gdb_is_connected() ? " (CONNECTED)" : "");
+
     ImGuiStyle& style = ImGui::GetStyle();
     float spacing = style.ItemSpacing.x * 2.0f;
     float dot_radius = ImGui::GetFontSize() * 0.22f;
@@ -3117,6 +3183,12 @@ static void draw_mcp_status(void)
         if (text_width > 0.0f)
             text_width += spacing;
         text_width += ImGui::CalcTextSize(mcp_status).x;
+    }
+    if (gdb_running)
+    {
+        if (text_width > 0.0f)
+            text_width += spacing;
+        text_width += ImGui::CalcTextSize(gdb_status).x;
     }
 
     float status_x = ImGui::GetWindowWidth() - text_width - style.ItemSpacing.x - 10.0f;
@@ -3145,6 +3217,14 @@ static void draw_mcp_status(void)
             ImGui::SameLine(0.0f, spacing);
 
         ImGui::TextColored(mcp_color, "%s", mcp_status);
+    }
+
+    if (gdb_running)
+    {
+        if (video_recording || vgm_recording || mcp_running)
+            ImGui::SameLine(0.0f, spacing);
+
+        ImGui::TextColored(gdb_color, "%s", gdb_status);
     }
 }
 

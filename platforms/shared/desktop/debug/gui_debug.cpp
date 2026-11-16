@@ -40,6 +40,7 @@
 #include "gui_debug_profiler.h"
 #include "gui_debug_rewind.h"
 #include "gui_debug_system.h"
+#include "gui_debug_program.h"
 #include "gui_debug_trace_logger.h"
 #include "gui_debug_video.h"
 
@@ -151,6 +152,9 @@ void gui_debug_windows(void)
 
         if (config_debug.show_bios_log)
             gui_debug_window_bios_log();
+
+        if (config_debug.show_program)
+            gui_debug_window_program();
 
         if (config_debug.show_mouse_joystick)
             gui_debug_window_mouse_joystick();

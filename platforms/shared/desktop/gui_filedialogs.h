@@ -53,6 +53,8 @@ EXTERN void gui_file_dialog_save_debug_settings(void);
 EXTERN void gui_file_dialog_load_debug_settings(void);
 EXTERN void gui_file_dialog_load_symbols(void);
 EXTERN void gui_file_dialog_save_log(void);
+EXTERN void gui_file_dialog_save_program_output(void);
+EXTERN void gui_file_dialog_load_program_symbols(void);
 EXTERN void gui_file_dialog_choose_trace_path(void);
 EXTERN void gui_file_dialog_save_disassembler(bool full);
 EXTERN void gui_file_dialog_process_results(void);

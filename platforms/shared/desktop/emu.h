@@ -215,6 +215,11 @@ EXTERN int emu_mcp_get_transport_mode(void);
 EXTERN const char* emu_mcp_get_http_address(void);
 EXTERN int emu_mcp_get_http_port(void);
 EXTERN void emu_mcp_pump_commands(void);
+EXTERN bool emu_gdb_start(int port, bool wait);
+EXTERN void emu_gdb_stop(void);
+EXTERN bool emu_gdb_is_running(void);
+EXTERN bool emu_gdb_is_connected(void);
+EXTERN int emu_gdb_get_port(void);
 EXTERN void emu_reset_rewind_timing(void);
 
 #undef EMU_IMPORT

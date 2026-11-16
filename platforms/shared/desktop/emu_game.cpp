@@ -28,6 +28,7 @@
 #include "emu_dos.h"
 #include "emu_floppy.h"
 #include "emu_hard_disk.h"
+#include "emu_dev.h"
 #include "gui_notifications.h"
 #include "media/media_file.h"
 
@@ -201,6 +202,10 @@ bool emu_game_start(void)
     }
 
     core->SetGameTarget(target);
+
+    if (target == GDOX_GAME_TARGET_DEBUG)
+        emu_dev_prepare_run(disk.GetDescriptor().GetInfo().exe.c_str(), disk.GetDescriptor().GetInfo().args.c_str());
+
     core->SetBootDevice(disk.GetDescriptor().GetInfo().boot_floppy ? GDOX_BOOT_DEVICE_FLOPPY_0 : GDOX_BOOT_DEVICE_HARD_DISK);
     emu_update_joystick_type();
     emu_update_cga_output();

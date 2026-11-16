@@ -214,6 +214,7 @@ static const McpToolCategory kMcpToolCategories[] =
     {"input", "Input", "Drive the joystick and set its device, move and click the mouse, inspect the mouse and joystick state, control the PC keyboard, and run frame-timed input macros."},
     {"trace", "Trace Logger", "Record executed instructions and hardware events (interrupts, I/O, PIC, timers, DMA, video, sound, CD-ROM, FDC, IDE, keyboard, mouse, joystick, serial, parallel, system) and read the trace."},
     {"profiler", "Profiler", "Profile CPU cycles and call counts per function and interrupt vector."},
+    {"program", "Program", "Run a DOS program through GDXDBG and follow it: its load address, console output, exit code and DOS's memory chain."},
     {"tools", "Other Tools", "Additional emulator/debugger tools that do not fit another category."}
 };
 
@@ -250,6 +251,11 @@ static const char* const kMcpDisassemblyTools[] =
 static const char* const kMcpSymbolTools[] =
 {
     "add_symbol", "remove_symbol", "load_symbols", "list_symbols"
+};
+
+static const char* const kMcpProgramTools[] =
+{
+    "run_program", "relaunch_game", "get_program_status", "get_program_output", "get_dos_status"
 };
 
 static const char* const kMcpSystemTools[] =
@@ -343,7 +349,8 @@ static const McpToolCategoryTools kMcpToolCategoryTools[] =
     {"rewind", kMcpRewindTools, MCP_ARRAY_COUNT(kMcpRewindTools)},
     {"input", kMcpInputTools, MCP_ARRAY_COUNT(kMcpInputTools)},
     {"trace", kMcpTraceTools, MCP_ARRAY_COUNT(kMcpTraceTools)},
-    {"profiler", kMcpProfilerTools, MCP_ARRAY_COUNT(kMcpProfilerTools)}
+    {"profiler", kMcpProfilerTools, MCP_ARRAY_COUNT(kMcpProfilerTools)},
+    {"program", kMcpProgramTools, MCP_ARRAY_COUNT(kMcpProgramTools)}
 };
 
 const size_t kMcpSearchToolLimit = 20;
