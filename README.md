@@ -15,7 +15,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 
 ## Features
 
-- Accurate 80386, 486 and Pentium CPU core that passes [test386](https://github.com/barotto/test386.asm) and [SingleStepTests/80386](https://github.com/singlesteptests/80386), with dynarec and 80-bit x87 FPU.
+- Very accurate 386, 486 and Pentium core that passes [test386](https://github.com/barotto/test386.asm) and [SingleStepTests/80386](https://github.com/singlesteptests/80386), with dynarec and 80-bit x87 FPU.
 - 386SX-20 and 386DX-33 (ISA), 486SX-33, 486DX2-66 and 486DX4-100 (VL-Bus), and Pentium 75 to 200 (Intel 430FX PCI) machines, with selectable CPU speed, RAM (1-128 MB), FPU and Turbo.
 - Built-in SeaBIOS, SeaVGABIOS and FreeDOS: no BIOS or DOS files needed, and a ready-to-play DOS hard disk boots when nothing is attached. Optional import of MS-DOS 5.0-6.22 in any language.
 - [Game descriptors](GDOX_README.md) (`gdox`) and a built-in database of over 200 games: open a game folder or ZIP and it runs on the right machine and DOS, with its saves kept.
