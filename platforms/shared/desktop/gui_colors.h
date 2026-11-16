@@ -81,7 +81,7 @@ static const GuiColor dark_gray = { gui_color(0x1A1A1A), gui_color(0x4B4842) };
 static const GuiColor black = { gui_color(0x000000), gui_color(0x21201C) };
 static const GuiColor brown = { gui_color(0xAD805C), gui_color(0x87502C) };
 static const GuiColor dark_brown = { gui_color(0x61330F), gui_color(0xE8D6C8) };
-static const GuiColor accent = { gui_color(0xC364D1), gui_color(0x953BA3) };
+static const GuiColor accent = { gui_color(0x03D1C8), gui_color(0x007974) };
 
 static const GuiTextColor c_cyan = { "{1AE6E6}", "{007C91}" };
 static const GuiTextColor c_dark_cyan = { "{004D4D}", "{CBEFF3}" };
@@ -109,7 +109,7 @@ static const GuiTextColor c_dark_gray = { "{1A1A1A}", "{4B4842}" };
 static const GuiTextColor c_black = { "{000000}", "{21201C}" };
 static const GuiTextColor c_brown = { "{AD805C}", "{87502C}" };
 static const GuiTextColor c_dark_brown = { "{61330F}", "{E8D6C8}" };
-static const GuiTextColor c_accent = { "{C364D1}", "{953BA3}" };
+static const GuiTextColor c_accent = { "{03D1C8}", "{007974}" };
 
 static inline ImVec4 gui_lerp_color(const ImVec4& a, const ImVec4& b, float t)
 {
