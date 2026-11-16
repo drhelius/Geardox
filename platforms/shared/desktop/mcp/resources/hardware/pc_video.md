@@ -149,6 +149,7 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
 
 | VESA | Mode |
 |---|---|
+| 150h, 152h | 320x200 and 320x400, 8 bpp, 70 Hz, the dot clock halved (no Cirrus number) |
 | 100h | 640x400, 8 bpp, 70 Hz (Cirrus 5Eh) |
 | 101h | 640x480, 8 bpp |
 | 103h | 800x600, 8 bpp |
