@@ -632,7 +632,7 @@ json McpServer::BuildToolList()
     json interrupt_properties = {
         {"vector", {
             {"type", "integer"},
-            {"description", "Vector 0-255 (exceptions 0-31, BIOS IRQs at 40h-4Fh). Give vector or irq."},
+            {"description", "Vector 0-255 (exceptions 0-31, BIOS IRQs at 08h-0Fh and 70h-77h). Give vector or irq."},
             {"minimum", 0},
             {"maximum", 255}
         }},
@@ -645,7 +645,8 @@ json McpServer::BuildToolList()
             {"type", "integer"},
             {"minimum", 0},
             {"maximum", 15},
-            {"description", "IRQ line: 0 timer, 1 keyboard, 6 floppy, 9 CD-ROM, 11 VSYNC, 13 sound."}
+            {"description", "IRQ line: 0 timer, 1 keyboard, 4 COM1, 5 or 7 sound card, 6 floppy, 12 PS/2 mouse, 13 FPU, "
+                "14 and 15 IDE."}
         }}
     };
 
@@ -725,7 +726,7 @@ json McpServer::BuildToolList()
         {"name", "write_memory"},
         {"title", "Write Memory"},
         {"description", "Write hex bytes to a memory area, repeated to fill a range with repeat. ROMs and I/O PORTS are "
-            "read-only."},
+            "read-only; write_io_port writes a port."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -747,6 +748,34 @@ json McpServer::BuildToolList()
                 }}
             }},
             {"required", json::array({"area", "offset", "bytes"})}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "write_io_port"},
+        {"title", "Write I/O Port"},
+        {"description", "Write an I/O port as an OUT instruction does, between instructions: the device acts on it and the "
+            "io.writes trace logs it; breakpoints don't stop it. Reading the I/O PORTS area doesn't touch devices."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"port", {
+                    {"type", "string"},
+                    {"description", "Hex port, 0-FFFF, e.g. '388'."}
+                }},
+                {"value", {
+                    {"type", "string"},
+                    {"description", "Hex value that fits size."}
+                }},
+                {"size", {
+                    {"type", "integer"},
+                    {"description", "Bits, as OUT DX,AL, AX or EAX. Default 8."},
+                    {"enum", {8, 16, 32}}
+                }}
+            }},
+            {"required", json::array({"port", "value"})},
+            {"additionalProperties", false}
         }}
     });
 
@@ -855,7 +884,8 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "add_memory_watch"},
         {"title", "Add Memory Watch"},
-        {"description", "Add a memory watch, with optional notes and size."},
+        {"description", "Add a memory watch, with optional notes and size. freeze holds the value it reads now, written "
+            "back every frame like a cheat, until remove_memory_watch."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", false}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -870,6 +900,10 @@ json McpServer::BuildToolList()
                     {"type", "integer"},
                     {"description", "Bits, little endian. Default 8."},
                     {"enum", {8, 16, 32, 64}}
+                }},
+                {"freeze", {
+                    {"type", "boolean"},
+                    {"description", "Hold the current value. Default false."}
                 }}
             }},
             {"required", json::array({"area", "address"})}
@@ -1583,6 +1617,57 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_opl_status"},
+        {"title", "Get OPL Status"},
+        {"description", "Read the OPL FM chips: status, address latch, mode, rhythm, timers, and each channel's frequency, "
+            "note, key, type, connection, feedback, pan and output with both operators' parameters and envelopes."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"chip", {
+                    {"type", "integer"},
+                    {"description", "0, or 1 for the Sound Blaster Pro's right OPL2. Default all."},
+                    {"minimum", 0},
+                    {"maximum", 1}
+                }},
+                {"channel", {
+                    {"type", "integer"},
+                    {"description", "1-9 on an OPL2, 1-18 on the OPL3. Default all."},
+                    {"minimum", 1},
+                    {"maximum", 18}
+                }}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_opl_registers"},
+        {"title", "Get OPL Registers"},
+        {"description", "Read one OPL register bank as last written, with names, and the address latch."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"chip", {
+                    {"type", "integer"},
+                    {"description", "0, or 1 for the Sound Blaster Pro's right OPL2. Default 0."},
+                    {"minimum", 0},
+                    {"maximum", 1}
+                }},
+                {"bank", {
+                    {"type", "integer"},
+                    {"description", "0 (000-0FF, channels 1-9) or 1 (100-1FF, channels 10-18, OPL3 only). Default 0."},
+                    {"minimum", 0},
+                    {"maximum", 1}
+                }}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "set_turbo"},
         {"title", "Set Turbo"},
         {"description", "Press the board's Turbo button: off runs the CPU at a third of its clock, at once, without a reset. "
@@ -1603,7 +1688,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "set_audio_mute"},
         {"title", "Set Audio Mute"},
-        {"description", "Mute or unmute a source in the debugger; emulation is unchanged."},
+        {"description", "Mute or unmute a source or FM channel in the debugger; emulation is unchanged."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1611,6 +1696,13 @@ json McpServer::BuildToolList()
                 {"source", {
                     {"type", "string"},
                     {"enum", json::array({"fm", "pcm", "cdda", "buzzer"})}
+                }},
+                {"channel", {
+                    {"type", "integer"},
+                    {"description", "fm only: 1-18 on the OPL3, 1-9 on an OPL2, on the Sound Blaster Pro 1-9 the left "
+                        "OPL2 and 10-18 the right; omit for the whole source."},
+                    {"minimum", 1},
+                    {"maximum", 18}
                 }},
                 {"mute", {
                     {"type", "boolean"},
@@ -2417,6 +2509,42 @@ json McpServer::BuildToolList()
                 }}
             }},
             {"required", json::array({"text"})}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "controller_macro"},
+        {"title", "Controller Macro"},
+        {"description", "Run a frame-timed input script of tap, press, release and wait commands on the PC keyboard "
+            "(key names as keyboard_key), the mouse buttons (left, right, middle) and the joystick (buttons 1-4, up, "
+            "down, left, right on stick A, hat_up, hat_down, hat_left, hat_right). A tap holds tap_frames and leaves "
+            "the same gap. Runs frames, kept in rewind; breakpoints stop it and release what it holds."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"device", {
+                    {"type", "string"},
+                    {"description", "Default device of the commands. Default keyboard."},
+                    {"enum", json::array({"keyboard", "mouse", "joystick"})}
+                }},
+                {"tap_frames", {
+                    {"type", "integer"},
+                    {"description", "Frames a tap holds, and the gap after it. Default 3."},
+                    {"minimum", 1},
+                    {"maximum", 60}
+                }},
+                {"commands", {
+                    {"type", "array"},
+                    {"description", "Ordered commands, each with one of tap, press, release (a name) or wait (1-1000 "
+                        "frames), and optionally device, e.g. [{\"press\":\"LEFT CTRL\"},{\"tap\":\"F5\"},"
+                        "{\"release\":\"LEFT CTRL\"},{\"wait\":30},{\"tap\":\"left\",\"device\":\"mouse\"}]."},
+                    {"minItems", 1},
+                    {"items", {{"type", "object"}}}
+                }}
+            }},
+            {"required", json::array({"commands"})},
+            {"additionalProperties", false}
         }}
     });
 
@@ -3294,6 +3422,19 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
 
         return m_debugAdapter.WriteMemory(arguments["area"], arguments["offset"], data);
     }
+    else if (normalizedTool == "write_io_port")
+    {
+        u32 port = 0;
+        u32 value = 0;
+
+        if (!parse_hex_with_prefix(arguments["port"].get<std::string>(), &port))
+            return {{"error", "Invalid port format"}};
+
+        if (!parse_hex_with_prefix(arguments["value"].get<std::string>(), &value))
+            return {{"error", "Invalid value format"}};
+
+        return m_debugAdapter.WriteIOPort(port, value, arguments.value("size", 8));
+    }
     else if (normalizedTool == "translate_address")
     {
         return m_debugAdapter.TranslateAddress(arguments["address"]);
@@ -3344,7 +3485,8 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         if (!parse_hex_with_prefix(arguments["address"].get<std::string>(), &offset))
             return {{"error", "Invalid address format"}};
 
-        return m_debugAdapter.AddMemoryWatch(arguments["area"], offset, arguments.value("notes", ""), arguments.value("size", 8));
+        return m_debugAdapter.AddMemoryWatch(arguments["area"], offset, arguments.value("notes", ""),
+            arguments.value("size", 8), arguments.value("freeze", false));
     }
     else if (normalizedTool == "remove_memory_watch")
     {
@@ -3591,6 +3733,14 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetSoundStatus();
     }
+    else if (normalizedTool == "get_opl_status")
+    {
+        return m_debugAdapter.GetOPLStatus(arguments.value("chip", -1), arguments.value("channel", 0));
+    }
+    else if (normalizedTool == "get_opl_registers")
+    {
+        return m_debugAdapter.GetOPLRegisters(arguments.value("chip", 0), arguments.value("bank", 0));
+    }
     else if (normalizedTool == "set_turbo")
     {
         if (!arguments.contains("turbo") || !arguments["turbo"].is_boolean())
@@ -3603,7 +3753,8 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         if (!arguments.contains("mute") || !arguments["mute"].is_boolean())
             return {{"error", "mute must be true or false"}};
 
-        return m_debugAdapter.SetAudioMute(arguments.value("source", ""), arguments["mute"].get<bool>());
+        return m_debugAdapter.SetAudioMute(arguments.value("source", ""), arguments.value("channel", 0),
+            arguments["mute"].get<bool>());
     }
     // CD-ROM and floppy hardware
     else if (normalizedTool == "get_cdrom_status")
@@ -3841,7 +3992,8 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         return m_debugAdapter.JoystickSet(arguments);
     }
     else if ((normalizedTool == "keyboard_type") || (normalizedTool == "mouse_move") ||
-        (normalizedTool == "mouse_click") || (normalizedTool == "debug_step_frame"))
+        (normalizedTool == "mouse_click") || (normalizedTool == "debug_step_frame") ||
+        (normalizedTool == "controller_macro"))
     {
         return {{"error", normalizedTool + " must be handled by the MCP manager"}};
     }

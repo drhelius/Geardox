@@ -225,6 +225,7 @@ DebugAdapter::DebugAdapter(GeardoxCore* core)
     m_mouse_buttons = 0;
     memset(&m_joystick, 0, sizeof(m_joystick));
     m_joystick_axes = false;
+    m_joystick_directions = 0;
     m_mouse_pointer.valid = false;
     m_mouse_pointer.generation = 0;
     m_mouse_pointer.estimated = false;
@@ -897,6 +898,25 @@ json DebugAdapter::WriteMemory(int area, const std::string& offset_text, const s
         {"bytes_written", data.size()}};
 }
 
+json DebugAdapter::WriteIOPort(u32 port, u32 value, int size)
+{
+    if (emu_is_empty())
+        return {{"error", "Emulator is powered off"}};
+
+    if ((size != 8) && (size != 16) && (size != 32))
+        return {{"error", "size must be 8, 16 or 32"}};
+
+    if (port + (u32)(size / 8) > 0x10000)
+        return {{"error", "port must be 0-FFFF and the write must end by FFFF"}};
+
+    if ((size < 32) && ((value >> size) != 0))
+        return {{"error", "value must fit in " + std::to_string(size) + " bits"}};
+
+    m_core->DebugWritePort((u16)port, value, size);
+
+    return {{"success", true}, {"port", Hex(port, 4)}, {"value", Hex(value, size / 4)}, {"size", size}};
+}
+
 json DebugAdapter::TranslateAddress(const std::string& text)
 {
     McpAddress address;
@@ -1097,7 +1117,7 @@ json DebugAdapter::ListMemoryBookmarks(int area)
     return {{"area", area}, {"bookmarks", items}, {"count", items.size()}};
 }
 
-json DebugAdapter::AddMemoryWatch(int area, u32 address, const std::string& notes, int size)
+json DebugAdapter::AddMemoryWatch(int area, u32 address, const std::string& notes, int size, bool freeze)
 {
     GuiDebugMemoryArea info;
     std::string error;
@@ -1111,11 +1131,14 @@ json DebugAdapter::AddMemoryWatch(int area, u32 address, const std::string& note
     GDOX_Debug_Memory_Address watch = info.source;
     watch.address = address;
 
-    if (!gui_debug_memory_add_watch(watch, notes.c_str(), size / 8))
+    if (!gui_debug_memory_add_watch(watch, notes.c_str(), size / 8, freeze))
         return {{"error", "Unable to add memory watch, size must be 8, 16, 32 or 64"}};
 
+    if (freeze)
+        config_debug.debug = true;
+
     return {{"success", true}, {"area", area}, {"address", FormatAreaOffset(info, address)}, {"notes", notes},
-        {"size", size}};
+        {"size", size}, {"frozen", freeze}};
 }
 
 json DebugAdapter::RemoveMemoryWatch(int area, u32 address)
@@ -3470,7 +3493,9 @@ json DebugAdapter::GetSoundStatus()
             {"voice", {blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, false) / 32768.0,
                 blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_VOICE, true) / 32768.0}},
             {"fm", {blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, false) / 32768.0,
-                blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true) / 32768.0}}};
+                blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_FM, true) / 32768.0}},
+            {"cd", {blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_CD, false) / 32768.0,
+                blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_CD, true) / 32768.0}}};
 
     if (audio->HasMPU())
         result["mpu401"] = {{"uart", mpu->uart}, {"pending", mpu->count},
@@ -3488,28 +3513,286 @@ json DebugAdapter::GetSoundStatus()
     return result;
 }
 
+static const char* const k_mcp_opl_channel_types[4] = { "2op", "4op", "4op_pair", "drum" };
+static const char* const k_mcp_opl_envelope_states[4] = { "attack", "decay", "sustain", "release" };
+static const double k_mcp_opl_timer_tick_us[OPL_TIMERS] = { 4.0 * 1000000.0 / k_opl_native_sample_rate,
+    16.0 * 1000000.0 / k_opl_native_sample_rate };
+
+static bool opl_register_name(bool opl3, int bank, u8 address, char* name, size_t size)
+{
+    static const char* const k_operator_names[5] = { "AM / VIB / EG-TYP / KSR / MULT", "KSL / TL", "AR / DR", "SL / RR",
+        "WAVE SELECT" };
+
+    if (((address >= 0x20) && (address < 0xA0)) || ((address >= 0xE0) && (address < 0xF6)))
+    {
+        int offset = address & 0x1F;
+        int position = offset & 0x07;
+
+        if ((offset > 0x15) || (position > 5))
+            return false;
+
+        int group = address >= 0xE0 ? 4 : (address >> 5) - 1;
+        int channel = (offset >> 3) * 3 + (position % 3) + (bank * 9) + 1;
+        snprintf(name, size, "%s  CH%d OP%d", k_operator_names[group], channel, (position / 3) + 1);
+        return true;
+    }
+
+    if ((address >= 0xA0) && (address < 0xC9) && ((address & 0x0F) < 9))
+    {
+        int channel = (address & 0x0F) + (bank * 9) + 1;
+        const char* text = address < 0xB0 ? "F-NUMBER LOW" : address < 0xC0 ? "KEY ON / BLOCK / F-NUMBER HIGH" :
+            opl3 ? "OUTPUT / FEEDBACK / CONNECTION" : "FEEDBACK / CONNECTION";
+        snprintf(name, size, "%s  CH%d", text, channel);
+        return true;
+    }
+
+    const char* text = NULL;
+
+    if (bank == 0)
+    {
+        switch (address)
+        {
+            case 0x01: text = opl3 ? "LSI TEST" : "TEST / WAVE SELECT ENABLE"; break;
+            case 0x02: text = "TIMER 1"; break;
+            case 0x03: text = "TIMER 2"; break;
+            case 0x04: text = "TIMER CONTROL"; break;
+            case 0x08: text = opl3 ? "NOTE SELECT" : "CSM / NOTE SELECT"; break;
+            case 0xBD: text = "AM DEPTH / VIB DEPTH / RHYTHM"; break;
+            default: break;
+        }
+    }
+    else
+    {
+        switch (address)
+        {
+            case 0x01: text = "LSI TEST"; break;
+            case 0x04: text = "4-OP CONNECTION SELECT"; break;
+            case 0x05: text = "NEW"; break;
+            default: break;
+        }
+    }
+
+    if (!IsValidPointer(text))
+        return false;
+
+    snprintf(name, size, "%s", text);
+    return true;
+}
+
+static json opl_operator_json(OPL::OPL_State* state, int index)
+{
+    OPL::OPL_Operator& op = state->operators[index];
+    u32 attenuation = MIN((u32)op.envelope_output, (u32)k_opl_envelope_silent);
+
+    return {
+        {"slot", index + 1},
+        {"am", op.tremolo != 0},
+        {"vib", op.vibrato != 0},
+        {"eg_type", op.sustain != 0},
+        {"ksr", op.key_scale_rate != 0},
+        {"mult", op.multiple},
+        {"ksl", op.key_scale_level},
+        {"tl", op.total_level},
+        {"ar", op.attack_rate},
+        {"dr", op.decay_rate},
+        {"sl", op.sustain_level & 0x0F},
+        {"rr", op.release_rate},
+        {"waveform", op.waveform},
+        {"key", op.key != 0},
+        {"envelope_state", k_mcp_opl_envelope_states[op.envelope_state & 0x03]},
+        {"envelope", hex_text(op.envelope, 3)},
+        {"level_percent", (int)((k_opl_envelope_silent - attenuation) * 100 / k_opl_envelope_silent)}
+    };
+}
+
+static json opl_channel_json(OPL* opl, int index)
+{
+    OPL::OPL_State* state = opl->GetState();
+    OPL::OPL_Channel& channel = state->channels[index];
+    json operators = json::array();
+
+    for (int i = 0; i < 2; i++)
+        operators.push_back(opl_operator_json(state, channel.operators[i]));
+
+    json result = {
+        {"channel", index + 1},
+        {"muted", opl->IsChannelMuted(index)},
+        {"type", k_mcp_opl_channel_types[channel.type & 0x03]},
+        {"f_number", channel.f_number},
+        {"block", channel.block},
+        {"note_hz", channel.f_number * (double)k_opl_native_sample_rate * pow(2.0, (double)channel.block - 20.0)},
+        {"key", state->operators[channel.operators[1]].key != 0},
+        {"connection", channel.connection},
+        {"feedback", channel.feedback},
+        {"output", opl->GetChannelOutput(index)},
+        {"operators", operators}
+    };
+
+    if (opl->GetModel() == OPL::OPL_MODEL_OPL3)
+    {
+        result["pan_left"] = channel.pan_left != 0;
+        result["pan_right"] = channel.pan_right != 0;
+    }
+
+    if ((channel.type == OPL::OPL_CHANNEL_4OP) || (channel.type == OPL::OPL_CHANNEL_4OP_PAIR))
+        result["pair_channel"] = channel.pair + 1;
+
+    return result;
+}
+
+json DebugAdapter::GetOPLStatus(int chip, int channel)
+{
+    Audio* audio = m_core->GetAudio();
+    int chips = audio->GetOPLChips();
+
+    if (chips == 0)
+        return {{"error", "The sound card has no FM chip"}};
+
+    if ((chip >= chips) || (chip < -1))
+        return {{"error", chips > 1 ? "chip must be 0 or 1" : "chip must be 0, the card has one FM chip"}};
+
+    json result_chips = json::array();
+
+    for (int i = 0; i < chips; i++)
+    {
+        if ((chip >= 0) && (chip != i))
+            continue;
+
+        OPL* opl = audio->GetOPL(i);
+        OPL::OPL_State* state = opl->GetState();
+        bool opl3 = opl->GetModel() == OPL::OPL_MODEL_OPL3;
+        int count = opl3 ? OPL_CHANNEL_COUNT : OPL2_CHANNEL_COUNT;
+
+        if (channel > count)
+            return {{"error", "channel must be 1-" + std::to_string(count)}};
+
+        u8 rhythm = opl->GetRegister(0xBD);
+        json timers = json::array();
+        json channels = json::array();
+
+        for (int t = 0; t < OPL_TIMERS; t++)
+        {
+            timers.push_back({{"timer", t + 1}, {"reload", Hex(state->timer_reload[t], 2)},
+                {"period_us", (256 - state->timer_reload[t]) * k_mcp_opl_timer_tick_us[t]},
+                {"running", state->timer_start[t] != 0}, {"masked", state->timer_mask[t] != 0},
+                {"flag", state->timer_flag[t] != 0}});
+        }
+
+        for (int c = 0; c < count; c++)
+        {
+            if ((channel == 0) || (channel == c + 1))
+                channels.push_back(opl_channel_json(opl, c));
+        }
+
+        json item = {
+            {"chip", i},
+            {"model", opl3 ? "YMF262" : "YM3812"},
+            {"status", Hex(opl->Peek(0), 2)},
+            {"address_latch", Hex(opl->GetSelectedAddress(), 3)},
+            {"rhythm", {{"enabled", (rhythm & 0x20) != 0}, {"am_depth", (rhythm & 0x80) != 0},
+                {"vib_depth", (rhythm & 0x40) != 0}, {"bd", (rhythm & 0x10) != 0}, {"sd", (rhythm & 0x08) != 0},
+                {"tom", (rhythm & 0x04) != 0}, {"tc", (rhythm & 0x02) != 0}, {"hh", (rhythm & 0x01) != 0}}},
+            {"note_select", state->note_select != 0},
+            {"timers", timers},
+            {"channels", channels}
+        };
+
+        if (opl3)
+            item["new_mode"] = state->new_mode != 0;
+        else
+        {
+            item["waveform_enable"] = state->waveform_enable != 0;
+            item["csm"] = state->csm_enable != 0;
+        }
+
+        result_chips.push_back(item);
+    }
+
+    return {{"card", k_sound_cards[m_core->GetMachineConfig().sound_card].name},
+        {"fm_muted", audio->IsSourceMuted(Audio::AUDIO_SOURCE_FM)},
+        {"native_sample_rate_hz", k_opl_native_sample_rate}, {"chips", result_chips}};
+}
+
+json DebugAdapter::GetOPLRegisters(int chip, int bank)
+{
+    Audio* audio = m_core->GetAudio();
+    int chips = audio->GetOPLChips();
+
+    if (chips == 0)
+        return {{"error", "The sound card has no FM chip"}};
+
+    if ((chip < 0) || (chip >= chips))
+        return {{"error", chips > 1 ? "chip must be 0 or 1" : "chip must be 0, the card has one FM chip"}};
+
+    OPL* opl = audio->GetOPL(chip);
+    bool opl3 = opl->GetModel() == OPL::OPL_MODEL_OPL3;
+
+    if ((bank < 0) || (bank > 1) || ((bank == 1) && !opl3))
+        return {{"error", opl3 ? "bank must be 0 or 1" : "bank must be 0, bank 1 is the OPL3's"}};
+
+    json registers = json::array();
+
+    for (int address = 0x01; address < 0x100; address++)
+    {
+        char name[64];
+
+        if (!opl_register_name(opl3, bank, (u8)address, name, sizeof(name)))
+            continue;
+
+        u16 full = (u16)((bank << 8) | address);
+        registers.push_back({{"address", Hex(full, 3)}, {"name", name}, {"value", Hex(opl->GetRegister(full), 2)}});
+    }
+
+    return {{"chip", chip}, {"model", opl3 ? "YMF262" : "YM3812"}, {"bank", bank},
+        {"address_latch", Hex(opl->GetSelectedAddress(), 3)}, {"registers", registers}};
+}
+
 json DebugAdapter::SetTurbo(bool turbo)
 {
     emu_set_turbo(turbo);
     return {{"success", true}, {"turbo", m_core->IsTurbo()}, {"cpu_clock_effective_hz", m_core->GetEffectiveCPUClockRate()}};
 }
 
-json DebugAdapter::SetAudioMute(const std::string& source, bool mute)
+json DebugAdapter::SetAudioMute(const std::string& source, int channel, bool mute)
 {
     Audio* audio = m_core->GetAudio();
 
+    if ((source != "fm") && (source != "pcm") && (source != "cdda") && (source != "buzzer"))
+        return {{"error", "source must be fm, pcm, cdda or buzzer"}};
+
+    if ((source != "fm") && (channel != 0))
+        return {{"error", "Only fm has channels"}};
+
     if (source == "fm")
-        audio->SetSourceMute(Audio::AUDIO_SOURCE_FM, mute);
+    {
+        int chips = audio->GetOPLChips();
+        int count = chips == 0 ? 0 : audio->GetOPL(0)->GetModel() == OPL::OPL_MODEL_OPL3 ? OPL_CHANNEL_COUNT :
+            OPL2_CHANNEL_COUNT * chips;
+
+        if (channel == 0)
+            audio->SetSourceMute(Audio::AUDIO_SOURCE_FM, mute);
+        else if (count == 0)
+            return {{"error", "The sound card has no FM chip"}};
+        else if ((channel < 1) || (channel > count))
+            return {{"error", "FM channel must be 1-" + std::to_string(count)}};
+        else if (chips > 1)
+            audio->GetOPL((channel - 1) / OPL2_CHANNEL_COUNT)->SetChannelMute((channel - 1) % OPL2_CHANNEL_COUNT, mute);
+        else
+            audio->GetOPL(0)->SetChannelMute(channel - 1, mute);
+    }
     else if (source == "pcm")
         audio->SetSourceMute(Audio::AUDIO_SOURCE_PCM, mute);
     else if (source == "cdda")
         audio->SetSourceMute(Audio::AUDIO_SOURCE_CDDA, mute);
-    else if (source == "buzzer")
-        audio->SetSourceMute(Audio::AUDIO_SOURCE_BUZZER, mute);
     else
-        return {{"error", "source must be fm, pcm, cdda or buzzer"}};
+        audio->SetSourceMute(Audio::AUDIO_SOURCE_BUZZER, mute);
 
-    return {{"success", true}, {"source", source}, {"muted", mute}};
+    json result = {{"success", true}, {"source", source}, {"muted", mute}};
+
+    if (channel != 0)
+        result["channel"] = channel;
+
+    return result;
 }
 
 static std::string msf_text(u32 lba)
@@ -5361,6 +5644,9 @@ static const struct
 };
 
 static const char* const k_joystick_axis_names[] = { "ax", "ay", "bx", "by" };
+static const char* const k_joystick_control_names[] = { "1", "2", "3", "4", "up", "down", "left", "right", "hat_up",
+    "hat_down", "hat_left", "hat_right" };
+static const int k_joystick_control_count = sizeof(k_joystick_control_names) / sizeof(k_joystick_control_names[0]);
 
 json DebugAdapter::JoystickPressed(u8 buttons, u8 hat) const
 {
@@ -5471,6 +5757,7 @@ json DebugAdapter::JoystickSet(const json& arguments)
     {
         memset(&m_joystick, 0, sizeof(m_joystick));
         m_joystick_axes = false;
+        m_joystick_directions = 0;
         result["reset"] = true;
     }
 
@@ -5483,6 +5770,7 @@ json DebugAdapter::JoystickSet(const json& arguments)
         }
 
         m_joystick_axes = true;
+        m_joystick_directions = 0;
     }
 
     bool delayed_release = false;
@@ -5522,6 +5810,50 @@ json DebugAdapter::JoystickSet(const json& arguments)
     result["injected"] = {{"axes", m_joystick_axes ? injected_axes : json()}, {"buttons", state["buttons"]},
         {"hat", state["hat"]}};
     return result;
+}
+
+bool DebugAdapter::HasJoystick() const
+{
+    return m_core->GetInput()->GetJoystickType() != GDOX_JOYSTICK_NONE;
+}
+
+int DebugAdapter::FindJoystickControl(const std::string& name) const
+{
+    std::string lower = to_lower(name);
+
+    for (int i = 0; i < k_joystick_control_count; i++)
+    {
+        if (lower == k_joystick_control_names[i])
+            return i;
+    }
+
+    return -1;
+}
+
+void DebugAdapter::SetJoystickControl(int control, bool pressed)
+{
+    if (control < 4)
+    {
+        u8 mask = (u8)(1 << control);
+        m_joystick.buttons = pressed ? (u8)(m_joystick.buttons | mask) : (u8)(m_joystick.buttons & ~mask);
+    }
+    else if (control < 8)
+    {
+        u8 mask = (u8)(1 << (control - 4));
+        m_joystick_directions = pressed ? (u8)(m_joystick_directions | mask) : (u8)(m_joystick_directions & ~mask);
+        u8 vertical = m_joystick_directions & 0x03;
+        u8 horizontal = (m_joystick_directions >> 2) & 0x03;
+        m_joystick.axes[0] = horizontal == 0x01 ? -32768 : (horizontal == 0x02 ? 32767 : 0);
+        m_joystick.axes[1] = vertical == 0x01 ? -32768 : (vertical == 0x02 ? 32767 : 0);
+        m_joystick_axes = true;
+    }
+    else
+    {
+        u8 hat = k_joystick_hat_directions[control - 7].hat;
+        m_joystick.hat = pressed ? (u8)(m_joystick.hat | hat) : (u8)(m_joystick.hat & ~hat);
+    }
+
+    ApplyJoystickState();
 }
 
 void DebugAdapter::ReleaseJoystick(u8 buttons, u8 hat)
@@ -6247,6 +6579,7 @@ void DebugAdapter::ClearInjectedInput()
     m_core->GetInput()->SetInjectedMouseButtons(0);
     memset(&m_joystick, 0, sizeof(m_joystick));
     m_joystick_axes = false;
+    m_joystick_directions = 0;
     ApplyJoystickState();
 }
 

@@ -135,6 +135,7 @@ public:
     void AcknowledgePowerOff();
     void SetDebugConsole(bool enabled, bool log);
     void SetGameTiming(int mask);
+    void DebugWritePort(u16 port, u32 value, int size);
 
     void KeyPressed(GDOX_Keys key);
     void KeyReleased(GDOX_Keys key);

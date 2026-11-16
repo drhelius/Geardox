@@ -183,13 +183,14 @@ public:
     bool GetMemoryArea(int area, GuiDebugMemoryArea& info, std::string& error);
     json ReadMemory(int area, const std::string& offset, size_t size);
     json WriteMemory(int area, const std::string& offset, const std::vector<u8>& data);
+    json WriteIOPort(u32 port, u32 value, int size);
     json TranslateAddress(const std::string& address);
     json SelectMemoryRange(int area, u32 start_address, u32 end_address);
     json GetMemorySelection(int area);
     json AddMemoryBookmark(int area, u32 address, const std::string& name);
     json RemoveMemoryBookmark(int area, u32 address);
     json ListMemoryBookmarks(int area);
-    json AddMemoryWatch(int area, u32 address, const std::string& notes, int size);
+    json AddMemoryWatch(int area, u32 address, const std::string& notes, int size, bool freeze);
     json RemoveMemoryWatch(int area, u32 address);
     json ListMemoryWatches(int area);
     json MemorySearchCapture(int area, const json& arguments);
@@ -242,7 +243,9 @@ public:
 
     // Audio hardware
     json GetSoundStatus();
-    json SetAudioMute(const std::string& source, bool mute);
+    json GetOPLStatus(int chip, int channel);
+    json GetOPLRegisters(int chip, int bank);
+    json SetAudioMute(const std::string& source, int channel, bool mute);
     json SetTurbo(bool turbo);
 
     // Storage
@@ -301,6 +304,9 @@ public:
     json JoystickSet(const json& arguments);
     void ReleaseJoystick(u8 buttons, u8 hat);
     json JoystickPressed(u8 buttons, u8 hat) const;
+    bool HasJoystick() const;
+    int FindJoystickControl(const std::string& name) const;
+    void SetJoystickControl(int control, bool pressed);
     bool HasMouse() const;
     bool ApplyMouseMotion(int delta_x, int delta_y);
     bool IsMouseMotionPending() const;
@@ -346,6 +352,7 @@ private:
     u8 m_mouse_buttons;
     GDOX_Joystick_State m_joystick;
     bool m_joystick_axes;
+    u8 m_joystick_directions;
     McpMousePointer m_mouse_pointer;
 };
 
