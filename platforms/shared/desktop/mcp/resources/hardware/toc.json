@@ -21,7 +21,7 @@
     {
       "uri": "pc_at_board",
       "title": "PC/AT Board — Memory, I/O, Interrupts, Timers, BIOS and CMOS",
-      "description": "Memory map, A20, board I/O ports, the 8259A pair and IRQ vectors, the 8254, reset paths, the built-in SeaBIOS, firmware config, debug console and the MC146818 CMOS",
+      "description": "Models, memory map, A20, board I/O ports and the shadow register, the 8259A pair and IRQ vectors, the 8254, reset paths, the built-in SeaBIOS, firmware config, debug console and the MC146818 CMOS",
       "mimeType": "text/markdown"
     },
     {
@@ -32,8 +32,8 @@
     },
     {
       "uri": "pc_video",
-      "title": "VGA and the Cirrus Logic CL-GD5428 — What MS-DOS Software Relies On",
-      "description": "The VGA ports and modes, the CL-GD5428 SVGA card on the ISA and VL-Bus: unlock, banking, the linear aperture, clocks and the hidden DAC, the VBE BIOS, and the debugger and MCP tools that show it",
+      "title": "CGA, EGA, VGA and the Cirrus Logic Cards — What MS-DOS Software Relies On",
+      "description": "The six video cards and Auto, the VGA ports and modes, the CL-GD5428 on the ISA and VL-Bus (unlock, banking, the linear aperture, clocks and the hidden DAC), the CGA and its composite output, the write-only EGA, the VBE BIOS, and the debugger and MCP tools that show them",
       "mimeType": "text/markdown"
     },
     {

@@ -1,18 +1,24 @@
-# VGA and the Cirrus Logic CL-GD5428 — What MS-DOS Software Relies On
+# CGA, EGA, VGA and the Cirrus Logic Cards — What MS-DOS Software Relies On
 
 ## 1. Overview
 
-The machine has one video card on the ISA bus, picked by the Video machine setting and applied at reset:
+The machine has one video card, picked by the Video Card machine setting and applied at reset:
 
-| Setting | Card | Memory | Used by Auto |
-|---|---|---|---|
-| `vga` | IBM-compatible VGA | 256 KB | — |
-| `gd5428` | Cirrus Logic CL-GD5428, ISA | 1 MB | 386SX-20 and 386DX-33 |
-| `gd5428_vlb` | Cirrus Logic CL-GD5428, VL-Bus | 1 MB | 486DX2-66 |
+| Setting | Card | Bus | Memory | Used by Auto |
+|---|---|---|---|---|
+| `cga` | IBM Color/Graphics Monitor Adapter | 8-bit ISA | 16 KB | — |
+| `ega` | IBM Enhanced Graphics Adapter, Enhanced Color Display | 8-bit ISA | 256 KB | — |
+| `vga` | IBM-compatible VGA | ISA | 256 KB | — |
+| `gd5428` | Cirrus Logic CL-GD5428 | ISA | 1 MB | The 386s |
+| `gd5428_vlb` | Cirrus Logic CL-GD5428 | VL-Bus | 1 MB | The 486s |
+| `gd5446` | Cirrus Logic CL-GD5446 | PCI | 2 MB | The Pentiums |
 
-- **Command line:** `--video auto|vga|gd5428|gd5428_vlb`. **Libretro:** `geardox_video_card`. **Menu:** Machine, Video Card.
-- **The VL-Bus card needs a model with a local bus,** which is the 486DX2-66. On the others the machine falls back to the
-  ISA card and `get_system_status` lists a warning.
+- **Command line:** `--video auto|cga|ega|vga|gd5428|gd5428_vlb|gd5446`. **Libretro:** `geardox_video_card`. **Menu:**
+  Emulator, Machine, Video Card.
+- **The VL-Bus card needs a 486 and the PCI card a Pentium.** On other models the machine falls back to the ISA
+  GD5428 and `get_system_status` lists a warning.
+- **The CGA and the EGA** are covered in §4. The GD5446 is the GD5428 of §3 with 2 MB on the PCI bus; its
+  configuration space, aperture and extra VBE modes are in the `pentium_pci` resource.
 - **The VGA card is today's VGA bit for bit.** The 5428 is a VGA superset: every standard mode works the same, plus the
   extended registers, 1 MB of memory, banking, a linear aperture and 8, 15, 16 and 24 bpp modes.
 - `get_system_status` reports the card under `machine.video` (`card`, `id`, `vram_kb`) and the setting under
@@ -115,11 +121,26 @@ the CPU's accesses to video memory, so a framebuffer-heavy game runs slower on a
 
 ---
 
-## 4. The VGA BIOS and VBE
+## 4. The CGA and the EGA
 
-The built-in firmware carries a VGA BIOS per card: SeaVGABIOS for a plain VGA, or its Cirrus build for the 5428, which
-sits at C0000h and ends lower in upper memory. A VGA BIOS the user supplies replaces it, so a real Cirrus BIOS runs on
-the modelled chip. The Firmware window and `get_system_status` (`bios`) tell which one is loaded.
+- **CGA:** 16 KB at B8000h, a Motorola 6845 CRTC at 3D4h/3D5h (R0–R17), the mode register at 3D8h, the colour
+  register at 3D9h and the status at 3DAh. Modes 0–6 only: 40 and 80 column text, 320x200 in four colours and 640x200
+  in two. Its BIOS is SeaVGABIOS's CGA INT 10h, which SeaBIOS places at C8000h; nothing answers at C000:0000h.
+- **CGA output:** Video, CGA Output picks Auto (the default), RGB Monitor or Composite Monitor, at once. Auto shows a
+  composite monitor's artifact colours in 640x200 graphics with the colour burst on, and RGB otherwise. Libretro has
+  `geardox_cga_output`.
+- **EGA:** 256 KB in four planes at A0000h, the EGA's registers at the VGA's ports, with an Enhanced Color Display:
+  350-line modes in 64 colours, 200-line modes in 16. There is no DAC; the attribute palette picks monitor colours.
+  **Its registers are write only:** only CR0C–CR0F, the input status registers and the light pen read back, so the BIOS
+  and drivers keep their own copies. The switch setting reads through input status 0.
+
+---
+
+## 5. The VGA BIOS and VBE
+
+The built-in firmware carries a VGA BIOS per card: SeaVGABIOS for a plain VGA, its EGA and CGA builds, its Cirrus
+build for the 5428, which sits at C0000h and ends lower in upper memory, and a PCI Cirrus build for the GD5446.
+`get_system_status` (`bios`) tells which one is loaded.
 
 - **Plain VGA build:** VBE 3.0 code with the VGA's own modes only, no banks and no linear buffer.
 - **Cirrus build:** reports VBE 3.0 and a 6-bit DAC. 4F0Ah returns VBE 2.0's protected mode interface (set window,
@@ -144,7 +165,7 @@ the modelled chip. The Firmware window and `get_system_status` (`bios`) tell whi
 
 ---
 
-## 5. Debugging It
+## 6. Debugging It
 
 - **VGA window:** display and beam state for every card. With a Cirrus card it adds a CIRRUS section: the card, locked or
   unlocked, extended mode, SR07 decoded, the four VCLKs in MHz with the selected one highlighted, the bank offsets and
@@ -167,6 +188,14 @@ the modelled chip. The Firmware window and `get_system_status` (`bios`) tell whi
   - `get_frame_buffer`: buffer `linear` takes `format` (8, 15, 16 or 24), `pitch` in bytes and `start` as a byte offset,
     and each defaults to the current mode.
   - `get_crtc_status`, `get_crtc_registers`, `get_palettes` and `get_text_screen` are the VGA's.
+  - On a CGA, `get_crtc_status`, `get_crtc_registers` and `write_crtc_register` take the 6845 (R0–R17);
+    `get_video_output_status` drops the VGA's memory, pipeline, attribute and DAC parts for a `cga` object (`mode`,
+    `color`, the decoded mode bits, `color_index`, `intense_palette`, `palette`, `output` and `output_setting`);
+    `get_vga_registers` returns `card`, `crtc6845`, `mode` and `color`; `get_palettes` returns the 16 `cga` colours;
+    `get_text_screen` reads its text.
+  - On an EGA, `get_video_output_status` adds an `ega` object (`monitor_lines`, `monitor_colors`, `switches`,
+    `sensed_switch`, `status_mux`, `graphics_position`, `dot_clock_hz`), `get_vga_registers` an `ega` object with what
+    reads back, and `get_palettes` a `monitor` list (64 or 16 colours) with `monitor_lines`.
   - `list_memory_areas` and the memory tools see "Linear VRAM".
 - **Trace:** the Video group's Sequencer, Graphics, Attribute events record register writes with their index, the
   extended ones included.
