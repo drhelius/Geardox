@@ -46,6 +46,7 @@ void DevPort::Init(I386* cpu)
 void DevPort::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
+    m_state.code_size = 16;
     m_console.Reset();
 }
 

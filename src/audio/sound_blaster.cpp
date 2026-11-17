@@ -1606,7 +1606,8 @@ void SoundBlaster::SanitizeState()
     SoundBlaster_Transfer& transfer = m_state.transfer;
 
     m_state.operands_needed = MIN(m_state.operands_needed, (u8)(SOUND_BLASTER_OPERANDS - 1));
-    m_state.operand_count = MIN(m_state.operand_count, m_state.operands_needed);
+    u8 operand_limit = m_state.operands_needed != 0 ? m_state.operands_needed : (u8)(SOUND_BLASTER_OPERANDS - 1);
+    m_state.operand_count = MIN(m_state.operand_count, operand_limit);
     m_state.output_head %= SOUND_BLASTER_OUTPUT_SIZE;
     m_state.output_count = MIN(m_state.output_count, (u8)SOUND_BLASTER_OUTPUT_SIZE);
     m_state.latch_count %= SOUND_BLASTER_LATCH_SIZE + 1;

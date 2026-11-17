@@ -68,6 +68,7 @@ void IdeDisk::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
     m_state.event_clocks = GDOX_NO_EVENT;
+    m_state.block = 1;
 
     if (IsAttached())
         DetectGeometry();

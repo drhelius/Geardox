@@ -196,6 +196,9 @@ void Video::Reset()
     m_bank_low = 0;
     m_bank_high = 0;
     UpdateExtendedFormat();
+    m_state.frame_line_dots = k_video_min_line_dots;
+    m_state.frame_lines = k_video_min_lines;
+    m_state.frame_dot_clock = GetDotClock();
     m_frame_ready = false;
     m_frame_width = GDOX_FRAME_BUFFER_WIDTH;
     m_frame_height = GDOX_FRAME_BUFFER_HEIGHT;
