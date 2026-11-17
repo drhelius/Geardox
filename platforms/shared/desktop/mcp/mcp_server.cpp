@@ -2365,6 +2365,30 @@ json McpServer::BuildToolList()
         }}
     });
 
+#if defined(REWIND_CHECK)
+    tools.push_back({
+        {"name", "rewind_check"},
+        {"title", "Rewind Check"},
+        {"description", "Check builds only: leave debug mode, or pause and rewind like the hotkey, and read the check counts."},
+        {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", false}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"normal_mode", {
+                    {"type", "boolean"},
+                    {"description", "Leave debug mode and run."}
+                }},
+                {"pop_seconds", {
+                    {"type", "number"},
+                    {"description", "Pause and rewind this many emulated seconds."},
+                    {"minimum", 0}
+                }}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+#endif
+
     // Input tools
     tools.push_back({
         {"name", "joystick_set"},
@@ -4091,6 +4115,12 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.RewindSeek(arguments["snapshot"]);
     }
+#if defined(REWIND_CHECK)
+    else if (normalizedTool == "rewind_check")
+    {
+        return m_debugAdapter.RewindCheck(arguments.value("normal_mode", false), arguments.value("pop_seconds", 0.0));
+    }
+#endif
     // Input
     else if (normalizedTool == "joystick_set")
     {

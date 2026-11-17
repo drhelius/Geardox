@@ -342,6 +342,9 @@ public:
     // Rewind
     json GetRewindStatus();
     json RewindSeek(int snapshot);
+#if defined(REWIND_CHECK)
+    json RewindCheck(bool normal_mode, double pop_seconds);
+#endif
 
 private:
     void ApplyJoystickState();
