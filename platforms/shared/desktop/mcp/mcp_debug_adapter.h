@@ -61,6 +61,7 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "video.palette", TRACE_VIDEO, TRACE_VIDEO_EVENT_PALETTE },
     { "video.vsync", TRACE_VIDEO, TRACE_VIDEO_EVENT_VSYNC },
     { "video.missed_vblank", TRACE_VIDEO, TRACE_VIDEO_EVENT_MISSED_VBLANK },
+    { "video.blt", TRACE_VIDEO, TRACE_VIDEO_EVENT_BLT },
     { "fm.key", TRACE_FM, TRACE_FM_EVENT_KEY },
     { "fm.frequency", TRACE_FM, TRACE_FM_EVENT_FREQUENCY },
     { "fm.operators", TRACE_FM, TRACE_FM_EVENT_OPERATORS },

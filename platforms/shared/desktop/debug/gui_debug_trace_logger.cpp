@@ -649,6 +649,7 @@ static void trace_logger_menu_filters(void)
             TRACE_VIDEO_EVENT_OUTPUT);
         trace_logger_menu_event_filter("DAC", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_PALETTE);
         trace_logger_menu_event_filter("Vertical Retrace", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_VSYNC);
+        trace_logger_menu_event_filter("BitBLT", &config_debug.trace_video_events, TRACE_VIDEO_EVENT_BLT);
 
         if (ImGui::BeginMenu("Missed VBlank"))
         {

@@ -9,8 +9,8 @@ The machine has one video card, picked by the Video Card machine setting and app
 | `cga` | IBM Color/Graphics Monitor Adapter | 8-bit ISA | 16 KB | — |
 | `ega` | IBM Enhanced Graphics Adapter, Enhanced Color Display | 8-bit ISA | 256 KB | — |
 | `vga` | IBM-compatible VGA | ISA | 256 KB | — |
-| `gd5428` | Cirrus Logic CL-GD5428 | ISA | 1 MB | The 386s |
-| `gd5428_vlb` | Cirrus Logic CL-GD5428 | VL-Bus | 1 MB | The 486s |
+| `gd5428` | Cirrus Logic CL-GD5428 | ISA | 2 MB | The 386s |
+| `gd5428_vlb` | Cirrus Logic CL-GD5428 | VL-Bus | 2 MB | The 486s |
 | `gd5446` | Cirrus Logic CL-GD5446 | PCI | 2 MB | The Pentiums |
 
 - **Command line:** `--video auto|cga|ega|vga|gd5428|gd5428_vlb|gd5446`. **Libretro:** `geardox_video_card`. **Menu:**
@@ -20,7 +20,7 @@ The machine has one video card, picked by the Video Card machine setting and app
 - **The CGA and the EGA** are covered in §4. The GD5446 is the GD5428 of §3 with 2 MB on the PCI bus; its
   configuration space, aperture and extra VBE modes are in the `pentium_pci` resource.
 - **The VGA card is today's VGA bit for bit.** The 5428 is a VGA superset: every standard mode works the same, plus the
-  extended registers, 1 MB of memory, banking, a linear aperture and 8, 15, 16 and 24 bpp modes.
+  extended registers, 2 MB of memory, banking, a linear aperture and 8, 15, 16 and 24 bpp modes.
 - `get_system_status` reports the card under `machine.video` (`card`, `id`, `vram_kb`) and the setting under
   `machine.settings.video`.
 
@@ -68,7 +68,7 @@ VGA's.
   Anything else locks and reads back 0Fh. While locked, SR07–SR1F, GR09–GR3F, CR19–CR27 and the hidden DAC drop writes
   and read FFh.
 - **CR27 reads 98h,** the CL-GD5428 chip ID. SeaVGABIOS checks it, SR06 and SR0F at setup.
-- **SR0F** reads as a 1 MB, 32-bit DRAM bus with a 50.11 MHz memory clock. SR17 bits 5–3 read 7.
+- **SR0F** reads as a 2 MB, 32-bit DRAM bus with a 50.11 MHz memory clock. SR17 bits 5–3 read 7.
 
 ### 3.2 What is implemented
 
@@ -85,13 +85,13 @@ VGA's.
 | Hidden DAC | Four reads of 3C6h, then the next access of 3C6h reaches it. Reads of 3C7h–3C9h relock it. It picks the pixel format |
 
 - **Banking:** a single page is `GR09 x 4 KB + offset in the window`. Extended modes use a 64 KB window at A0000h
-  (GR06 = 05h). A bank past the installed 1 MB reaches nothing: reads give FFh and writes are lost.
+  (GR06 = 05h). A bank past the installed 2 MB reaches nothing: reads give FFh and writes are lost.
 - **Extended mode** (SR07 bit 0) reaches all of video memory. The display reads bytes in order from 4 x the start
   address, `offset x 8` bytes per row, pixels little endian.
-- **The linear aperture** is a 1 MB block at SR07's bits 7–4 in MB (0 is off), through the same layout as the window.
-  RAM wins where it covers the block, except in the board's memory hole at 15–16 MB, which a Cirrus card with 16 MB of
-  RAM or more always has (§4). The built-in VGA BIOS puts the aperture at 15 MB (F00000h) and reports it through VBE
-  4F01h. The debugger shows it as the memory region "Linear VRAM".
+- **The linear aperture** is a 2 MB block at SR07's bits 7–4 in MB (0 is off), on an even MB when GR0B bit 5 is set,
+  through the same layout as the window. RAM wins where it covers the block, except in the board's memory hole at 14–16
+  MB, which a Cirrus card with 16 MB of RAM or more always has (§4). The built-in VGA BIOS puts the aperture at 14 MB
+  (E00000h) and reports it through VBE 4F01h. The debugger shows it as the memory region "Linear VRAM".
 - **Hidden DAC formats:**
 
 | Hidden DAC | Format | Bytes per pixel |
@@ -105,14 +105,37 @@ VGA's.
 
 - **Direct colour bypasses the palette,** and the pel mask applies to the palette only.
 
-### 3.3 Stored only
+### 3.3 BitBLT, extended writes and the hardware cursor
 
-These registers read back what was written and do nothing: the BitBLT engine (GR20–GR39 including GR31's start and
-status), the extended write modes 4 and 5 and the 8-byte latches (GR0B bits 1–4), the colour key (GR0C, GR0D), GR0E, the
-hardware cursor (SR10–SR13), interlace (CR19, CR1A bit 0), the scratch registers (SR09, SR0A, SR14, SR15), the EEPROM,
-FIFO and signature registers (SR08, SR16, SR18, SR19) and the memory clock (SR1F). Write modes 2 and 3, rotate and
-set/reset are off while chain-4 and extended mode are both on, as the chip does. The sleep ports 46E8h, 102h and 94h are
-not decoded.
+- **BitBLT (GR20–GR39):** GR31 bit 1 starts a blit and bit 2 resets the engine. Screen to screen copies, forwards or
+  backwards (GR30 bit 0), the 16 Cirrus ROPs (GR32), 8x8 patterns (GR30 bit 6) and colour expansion (bit 7) with the
+  foreground in GR01, GR11, GR13, GR15 and the background in GR00, GR10, GR12, GR14. GR30 bits 5–4 give 1 to 4 bytes per
+  pixel (bit 4 only, 1 or 2, on the 5428). Transparency (GR30 bit 3) compares the result with GR34–GR35 under the
+  GR38–GR39 mask on the 5428. On the 5446 it skips background pixels of an expansion, or compares GR34–GR35 otherwise.
+- **System memory blits:** a source from the CPU (GR30 bit 2) takes its data through any write to the A0000h window or
+  the aperture, and a destination in system memory (5428, GR30 bit 1) gives it through reads. Plain data pads each line
+  to a dword. Colour expanded data runs on across lines, each line dword aligned only with GR33 bit 0 on the 5446, and
+  the whole blit pads to a dword. Every other blit finishes when it starts. GR31 bit 0 reads 1 only while a system
+  memory blit waits for its data, and the start registers then hold where it ended.
+- **5446 additions:** GR33 bit 2 solid fill, bit 1 inverted expansion, bit 0 dword-aligned expanded system data. GR2F
+  bits 2–0 skip the first pixels of each line of an expansion or a pattern (bits 4–0, in bytes, at 24 bpp), and bits 6–5
+  the first bytes of system data. A pattern sits on a boundary of its own size, and the source's low three bits pick its
+  first line. With GR31 bit 7, writing GR2A starts the blit. The registers are also memory mapped, at B8000h with SR17
+  bit 2 (and GR06's map 1) or in the last 256 bytes of the aperture with bit 6: 00h–07h colours, 08h–1Bh GR20–GR33,
+  1Ch–1Dh GR34–GR35 and 40h GR31. Only 40h reads back.
+- **Extended writes (GR0B):** bit 2 makes GR00, GR01, GR05 and SR02 8 bits wide and turns on write modes 4 and 5, which
+  expand each CPU bit to a foreground (GR01) or, in mode 5, background (GR00) pixel under SR02's pixel mask, one or two
+  bytes per pixel (bit 4). Bit 3 gives write mode 1 and its reads 8 latches, for 8 pixels a byte. Bits 1 and 4 make the
+  window address count in units of 8 or 16 bytes. On the 5446, Set/Reset, rotate, the logical function, write modes 2
+  and 3 and read mode 1 are off while chain-4 and extended mode are both on.
+- **Hardware cursor (SR10–SR13):** SR12 bit 0 shows it, bit 2 picks 64x64 over 32x32. The position is SR10 and SR11
+  shifted left by 3, with the low three bits from the index bits 7–5 of the write. SR13 picks the pattern in the last
+  16 KB of video memory. Two bit planes per pixel: 0, 0 transparent, 0, 1 the extended DAC entry 0 (written with SR12
+  bit 1 set), 1, 1 entry 15, 1, 0 inverts the screen.
+
+Stored only: the colour key (GR0C, GR0D), GR0E, interlace (CR19, CR1A bit 0), the scratch registers (SR09, SR0A, SR14,
+SR15), the EEPROM, FIFO and signature registers (SR08, SR16, SR18, SR19) and the memory clock (SR1F). The sleep ports
+46E8h, 102h and 94h are not decoded.
 
 ### 3.4 Timing
 
@@ -145,7 +168,7 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
 - **Plain VGA build:** VBE 3.0 code with the VGA's own modes only, no banks and no linear buffer.
 - **Cirrus build:** reports VBE 3.0 and a 6-bit DAC. 4F0Ah returns VBE 2.0's protected mode interface (set window,
   display start and palette as 32-bit code over ports), and 4F01h's window function is a far call that only touches
-  ports. The modes that fit 1 MB are:
+  ports. The modes that fit 2 MB are:
 
 | VESA | Mode |
 |---|---|
@@ -156,12 +179,15 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
 | 105h | 1024x768, 8 bpp |
 | 110h, 111h | 640x480, 15 and 16 bpp |
 | 113h, 114h | 800x600, 15 and 16 bpp |
+| 107h | 1280x1024, 8 bpp |
+| 116h, 117h | 1024x768, 15 and 16 bpp |
 | 112h | 640x480, 24 bpp, clock/3 at 75.5 MHz |
 
-  Nothing that needs more than 1 MB, and no other 24-bit mode. The VGA modes, including the planar 6Ah, stay.
+  Nothing that needs more than 2 MB, and no other 24-bit mode. The VGA modes, including the planar 6Ah, stay.
 - **Banked access:** a 64 KB window at A0000h in 4 KB steps through 4F05h. **Linear access:** the aperture of §3.2,
-  with PhysBasePtr in 4F01h. With 16 MB or more the board leaves a memory hole at 15-16 MB for it, as 486 board
-  setups did: RAM there is lost, extended memory stops at 15 MB, and the E820 map has RAM below 15 MB and from 16 MB up.
+  with PhysBasePtr in 4F01h. With 16 MB or more the AT boards leave a memory hole at 14-16 MB for it, as 486 board
+  setups did: RAM there is lost, extended memory stops at 14 MB, and the E820 map has RAM below 14 MB and from 16 MB up.
+  The Pentium board's 430FX can only leave 15-16 MB, so there an ISA GD5428 with 16 MB or more runs banked only.
 - **UniVBE** and similar drivers identify the chip from its registers and use the aperture through SR07.
 
 ---
@@ -171,7 +197,9 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
 - **VGA window:** display and beam state for every card. With a Cirrus card it adds a CIRRUS section: the card, locked or
   unlocked, extended mode, SR07 decoded, the four VCLKs in MHz with the selected one highlighted, the bank offsets and
   dual page, the aperture base or off, the hidden DAC and its format, the extended start, offset and pitch, the wide
-  counter, and a mode line with resolution, depth and refresh.
+  counter, and a mode line with resolution, depth and refresh. A BITBLT section shows the engine's state, the decoded
+  registers, the bytes fed to a system memory blit, and the blits and remaps of the last frame. A HARDWARE CURSOR
+  section shows its position, size, pattern address and colours, and draws the pattern (magenta for inverted pixels).
 - **VGA Registers window:** the VGA registers, plus SR05–SR1F, GR09–GR11 and GR20–GR3A, and CR19–CR1D, CR25–CR27 with a
   Cirrus card. All of them are editable.
 - **VRAM Viewer:** the plane, planar, 256 color and text tabs read the first 256 KB. The Linear tab decodes all the
@@ -185,7 +213,11 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
     `pixel_path`, `vclk_hz`, `vclk_selected`, `dot_clock_hz`, `bank_0`, `bank_1`, `dual_page`, `aperture_base` (null when
     off), `wide_counter`, `offset`, `pitch_bytes`, `start_address` and `start_byte`.
   - `get_vga_registers`: with a Cirrus card a `cirrus` object with `unlocked`, `sequencer` (SR00–SR1F), `graphics`
-    (GR00–GR3F), `crtc` (CR19–CR27, from `crtc_first`) and `hidden_dac`.
+    (GR00–GR3F), `crtc` (CR19–CR27, from `crtc_first`) and `hidden_dac`. A `blt` object decodes the engine: `state`
+    (`idle`, `busy`, `waiting_cpu`), `status`, `mode`, `rop`, `width_bytes`, `height`, `bytes_per_pixel`, `source`,
+    `destination`, both pitches, `line`, `bytes_fed`, `bytes_needed`, `started`, `handlers` (the CPU's writes go through
+    the engine) and `last_frame` (blits by kind and remaps in the frame before). A `cursor` object gives `enabled`,
+    `size`, `x`, `y`, `pattern_address` and its two `colors`.
   - `get_frame_buffer`: buffer `linear` takes `format` (8, 15, 16 or 24), `pitch` in bytes and `start` as a byte offset,
     and each defaults to the current mode.
   - `get_crtc_status`, `get_crtc_registers`, `get_palettes` and `get_text_screen` are the VGA's.
@@ -199,4 +231,5 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
     reads back, and `get_palettes` a `monitor` list (64 or 16 colours) with `monitor_lines`.
   - `list_memory_areas` and the memory tools see "Linear VRAM".
 - **Trace:** the Video group's Sequencer, Graphics, Attribute events record register writes with their index, the
-  extended ones included.
+  extended ones included. Its BitBLT event records each blit's start: size, source, destination, mode, ROP and the 5446's
+  GR33.

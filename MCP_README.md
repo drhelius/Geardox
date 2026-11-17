@@ -517,6 +517,7 @@ video.output
 video.palette
 video.vsync
 video.missed_vblank
+video.blt
 fm.key
 fm.frequency
 fm.operators

@@ -44,6 +44,8 @@ static void misc_write_callback(u16 address, u8 value, void* user_data);
 static void draw_register_file(const char* title, const char* prefix, const char* const* names, const u8* values, int count,
     RegisterWriteCallback8 callback, Video* video, int first = 0);
 static void draw_cirrus(Video* video);
+static void draw_cirrus_blt(Video* video);
+static void draw_cirrus_cursor(Video* video);
 static void draw_ega(Video* video);
 static void draw_cga(Video* video);
 static void mc6845_write_callback(u16 address, u8 value, void* user_data);
@@ -729,6 +731,165 @@ static void draw_cirrus(Video* video)
     else
         ImGui::TextColored(white, "%dx%d, %s, %.2f Hz", video->GetFrameWidth(), video->GetFrameHeight(), mode_name(video),
             1000.0 / video->GetFrameTime());
+
+    draw_cirrus_blt(video);
+    draw_cirrus_cursor(video);
+}
+
+static void draw_cirrus_blt(Video* video)
+{
+    Video::Video_State* state = video->GetState();
+    const u8* graphics = state->graphics;
+    u8 status = graphics[k_video_gr_blt_status];
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "BITBLT"); ImGui::Separator();
+
+    if (!ImGui::BeginTable("##vga_cirrus_blt", 4, flags))
+        return;
+
+    setup_grid_columns();
+
+    ImGui::TableNextRow();
+    draw_grid_label("STATE");
+
+    if (video->IsBltWaiting())
+        ImGui::TextColored(yellow, "WAITING CPU");
+    else if ((status & 0x01) != 0)
+        ImGui::TextColored(orange, "BUSY");
+    else
+        ImGui::TextColored(gray, "IDLE");
+
+    draw_grid_label("GR31");
+    ImGui::TextColored(white, "$%02X", status);
+
+    ImGui::TableNextRow();
+    draw_grid_label("MODE");
+    ImGui::TextColored(white, "$%02X", graphics[k_video_gr_blt_mode]);
+    draw_grid_label("ROP");
+    ImGui::TextColored(white, "$%02X", graphics[k_video_gr_blt_rop]);
+
+    ImGui::TableNextRow();
+    draw_grid_label("SIZE");
+    ImGui::TextColored(white, "%ux%u", video->GetBltWidth(), video->GetBltHeight());
+    draw_grid_label("PIXEL");
+    ImGui::TextColored(white, "%u BYTES", video->GetBltPixelBytes());
+
+    ImGui::TableNextRow();
+    draw_grid_label("SOURCE");
+    ImGui::TextColored(white, "$%06X", video->GetBltAddress(k_video_gr_blt_src));
+    draw_grid_label("DEST");
+    ImGui::TextColored(white, "$%06X", video->GetBltAddress(k_video_gr_blt_dst));
+
+    ImGui::TableNextRow();
+    draw_grid_label("SRC PITCH");
+    ImGui::TextColored(white, "%u", video->GetBltPitch(k_video_gr_blt_src_pitch));
+    draw_grid_label("DST PITCH");
+    ImGui::TextColored(white, "%u", video->GetBltPitch(k_video_gr_blt_dst_pitch));
+
+    ImGui::TableNextRow();
+    draw_grid_label("LINE");
+    ImGui::TextColored(video->IsBltWaiting() ? white : gray, "%u", state->blt_line);
+    draw_grid_label("BYTES FED");
+    ImGui::TextColored(video->IsBltWaiting() ? white : gray, "%u/%u", state->blt_fed, state->blt_count);
+
+    ImGui::TableNextRow();
+    draw_grid_label("STARTED");
+    ImGui::TextColored(white, "%u", video->GetBltCount());
+    draw_grid_label("HANDLERS");
+    draw_flag(video->IsBltMapped());
+
+    ImGui::TableNextRow();
+    draw_grid_label("FRAME COPY");
+    ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_SCREEN));
+    draw_grid_label("FRAME PAT");
+    ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_PATTERN));
+
+    ImGui::TableNextRow();
+    draw_grid_label("FRAME EXP");
+    ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_EXPAND));
+    draw_grid_label("FRAME CPU");
+    ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_SYSTEM));
+
+    ImGui::TableNextRow();
+    draw_grid_label("REMAPS");
+    ImGui::TextColored(white, "%u", video->GetBltFrameRemaps());
+
+    ImGui::EndTable();
+}
+
+static void draw_cirrus_cursor(Video* video)
+{
+    Video::Video_State* state = video->GetState();
+    u8 attributes = state->sequencer[k_video_sr_cursor_attributes];
+    u32 size = video->GetCursorSize();
+    u32 base = video->GetCursorPatternAddress();
+    u32 mask = video->GetVRAMSize() - 1;
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+
+    ImGui::NewLine(); ImGui::TextColored(cyan, "HARDWARE CURSOR"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##vga_cirrus_cursor", 4, flags))
+    {
+        setup_grid_columns();
+
+        ImGui::TableNextRow();
+        draw_grid_label("ENABLED");
+        draw_flag((attributes & 0x01) != 0);
+        draw_grid_label("SIZE");
+        ImGui::TextColored(white, "%ux%u", size, size);
+
+        ImGui::TableNextRow();
+        draw_grid_label("X");
+        ImGui::TextColored(white, "%u", state->cursor_x);
+        draw_grid_label("Y");
+        ImGui::TextColored(white, "%u", state->cursor_y);
+
+        ImGui::TableNextRow();
+        draw_grid_label("PATTERN");
+        ImGui::TextColored(white, "$%06X", base);
+        draw_grid_label("COLORS");
+
+        for (int i = 0; i < 2; i++)
+        {
+            char id[16];
+            snprintf(id, sizeof(id), "##cursor_color%d", i);
+
+            if (i != 0)
+                ImGui::SameLine();
+
+            ImGui::ColorButton(id, to_imgui_color(video->GetCursorColor(i)), ImGuiColorEditFlags_NoTooltip |
+                ImGuiColorEditFlags_NoDragDrop, ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
+        }
+
+        ImGui::EndTable();
+    }
+
+    float scale = size == 64 ? 2.0f : 4.0f;
+    ImVec2 origin = ImGui::GetCursorScreenPos();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImU32 transparent = ImGui::GetColorU32(ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+    ImU32 invert = ImGui::GetColorU32(ImVec4(1.0f, 0.0f, 1.0f, 1.0f));
+    ImU32 color0 = ImGui::GetColorU32(to_imgui_color(video->GetCursorColor(0)));
+    ImU32 color1 = ImGui::GetColorU32(to_imgui_color(video->GetCursorColor(1)));
+
+    for (u32 line = 0; line < size; line++)
+    {
+        u32 plane0 = size == 64 ? base + (line * 16) : base + (line * 4);
+        u32 plane1 = size == 64 ? plane0 + 8 : plane0 + 128;
+
+        for (u32 pixel = 0; pixel < size; pixel++)
+        {
+            u8 bit = (u8)(0x80 >> (pixel & 0x07));
+            bool b0 = (state->vram[(plane0 + (pixel >> 3)) & mask] & bit) != 0;
+            bool b1 = (state->vram[(plane1 + (pixel >> 3)) & mask] & bit) != 0;
+            ImU32 color = b0 && b1 ? color1 : (b1 ? color0 : (b0 ? invert : transparent));
+            ImVec2 p0(origin.x + (pixel * scale), origin.y + (line * scale));
+            draw_list->AddRectFilled(p0, ImVec2(p0.x + scale, p0.y + scale), color);
+        }
+    }
+
+    ImGui::Dummy(ImVec2(size * scale, size * scale));
 }
 
 static void draw_ega(Video* video)

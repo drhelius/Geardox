@@ -2849,6 +2849,47 @@ json DebugAdapter::GetVGARegisters()
             {"crtc", VideoRegisterArray(state->crtc + 0x19, 0x27 - 0x19 + 1)},
             {"hidden_dac", Hex(state->hidden_dac, 2)}
         };
+
+        u8 status = state->graphics[k_video_gr_blt_status];
+        result["blt"] = {
+            {"state", video->IsBltWaiting() ? "waiting_cpu" : ((status & 0x01) != 0 ? "busy" : "idle")},
+            {"status", Hex(status, 2)},
+            {"mode", Hex(state->graphics[k_video_gr_blt_mode], 2)},
+            {"rop", Hex(state->graphics[k_video_gr_blt_rop], 2)},
+            {"width_bytes", video->GetBltWidth()},
+            {"height", video->GetBltHeight()},
+            {"bytes_per_pixel", video->GetBltPixelBytes()},
+            {"source", Hex(video->GetBltAddress(k_video_gr_blt_src), 6)},
+            {"destination", Hex(video->GetBltAddress(k_video_gr_blt_dst), 6)},
+            {"source_pitch", video->GetBltPitch(k_video_gr_blt_src_pitch)},
+            {"destination_pitch", video->GetBltPitch(k_video_gr_blt_dst_pitch)},
+            {"line", state->blt_line},
+            {"bytes_fed", state->blt_fed},
+            {"bytes_needed", state->blt_count},
+            {"started", video->GetBltCount()},
+            {"handlers", video->IsBltMapped()},
+            {"last_frame", {
+                {"screen", video->GetBltFrameCount(Video::VIDEO_BLT_SCREEN)},
+                {"pattern", video->GetBltFrameCount(Video::VIDEO_BLT_PATTERN)},
+                {"expand", video->GetBltFrameCount(Video::VIDEO_BLT_EXPAND)},
+                {"system", video->GetBltFrameCount(Video::VIDEO_BLT_SYSTEM)},
+                {"remaps", video->GetBltFrameRemaps()}
+            }}
+        };
+
+        char color[2][8];
+
+        for (int i = 0; i < 2; i++)
+            snprintf(color[i], sizeof(color[i]), "%06X", video->GetCursorColor(i) & 0xFFFFFF);
+
+        result["cursor"] = {
+            {"enabled", (state->sequencer[k_video_sr_cursor_attributes] & 0x01) != 0},
+            {"size", video->GetCursorSize()},
+            {"x", state->cursor_x},
+            {"y", state->cursor_y},
+            {"pattern_address", Hex(video->GetCursorPatternAddress(), 6)},
+            {"colors", {color[0], color[1]}}
+        };
     }
 
     return result;

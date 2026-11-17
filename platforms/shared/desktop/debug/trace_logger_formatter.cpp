@@ -581,6 +581,11 @@ static void format_video(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
         case TRACE_VIDEO_VSYNC_CLEAR:
             format_event(buffer, size, "VIDEO", "VSYNC ACK", "IRQ2 cleared  %s", beam);
             break;
+        case TRACE_VIDEO_BLT:
+            format_event(buffer, size, "VIDEO", "BITBLT", "%ux%u  $%06X -> $%06X  Mode:$%02X ROP:$%02X Ext:$%02X",
+                entry.blt.width, entry.blt.height, entry.blt.source, entry.blt.destination, entry.blt.mode, entry.blt.rop,
+                entry.blt.extensions);
+            break;
         default:
         {
             const char* access = raw == 0x03 ? "R/W" : raw == 0x02 ? "W" : "R";

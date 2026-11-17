@@ -137,9 +137,10 @@ Device numbers are the board's IDSEL wiring: host bridge 0, PIIX 7, slots 8 to 1
 | 60h–64h | DRB0–DRB4 | RAM size | All five read the RAM in 4 MB units, up to 20h (128 MB). Bits 5–0 writable, change nothing |
 | 72h | SMRAM | 02h | Stored. SMM isn't emulated; A0000h–BFFFFh is never remapped |
 
-- **The hole (DRAMC bits 7–6 = 10b)** opens 15–16 MB to the bus. It resets set only with an ISA Cirrus card and 16 MB or more,
-  for that card's aperture at 15 MB; with the GD5446 DRAMC reads 01h and all RAM is usable. Software can change it, and the
-  aperture moves over or under RAM. 01b (512–640 KB) is stored and does nothing.
+- **The hole (DRAMC bits 7–6 = 10b)** opens 15–16 MB to the bus. It resets set only with an ISA Cirrus card and 16 MB or
+  more, for that card's aperture; it can't hold the 2 MB block at 14 MB, so the VGA BIOS gives that card no linear
+  buffer. With the GD5446 DRAMC reads 01h and all RAM is usable. Software can change it, and the aperture moves over or
+  under RAM. 01b (512–640 KB) is stored and does nothing.
 
 ### 5.1 Shadowing and PAM
 
@@ -201,12 +202,12 @@ needs a write of 00h first.
 | Offset | Register | Behaviour |
 |---|---|---|
 | 04h | PCICMD | Bits 0 (I/O), 1 (memory) and 5 (palette snoop) writable. The VGA ports and A0000h window answer regardless |
-| 10h | BAR0 | Bits 31–25 writable: 32 MB, memory, not prefetchable. Written FFFFFFFFh it reads FE000000h |
+| 10h | BAR0 | Bits 31–24 writable: 16 MB (Revision A), memory, not prefetchable. Written FFFFFFFFh it reads FF000000h |
 | 14h, 18h, 30h | MMIO and BitBLT window, GPIO, expansion ROM | Read 0, unused. 3Ch (interrupt line) is read and write |
 
 - **The linear aperture** maps the 2 MB at BAR0 when PCICMD bit 1 and any of SR07 bits 7–4 are set. The debugger shows it as
   "Linear VRAM"; it moves when BAR0 is written. SeaBIOS put BAR0 at FC000000h in the tested setups, so read it. There is no
-  15 MB aperture and no memory hole with this card.
+  aperture below 16 MB and no memory hole with this card.
 - **Beyond the GD5428 (`pc_video`):** video memory reads cost 16 bus clocks and writes 5 (the VL-Bus card's figures). SR0F
   reads 18h (2 MB), SR17 00h. VCLK0–3 (SR0B–SR0E, SR1B–SR1E) reset to 66h/3Bh,
   5Bh/2Fh, 45h/30h and 7Eh/33h. CR17 bit 2 counts the vertical CRTC registers in line pairs. The rest is the 5428's: unlock,
@@ -224,7 +225,7 @@ needs a write of 00h first.
   table ($PIR). Small patches make it recognise the 430FX (PCI memory is placed as for an i440FX), the PIIX functions and
   this board's $PIR. The 386 and 486 models keep the AT image and the ISA VGA BIOS.
 - **POST scans bus 0,** assigns the BARs, picks the primary VGA and starts the IDE function. `get_bios_log` shows the devices,
-  the BARs ("BAR0 mapped at FC000000h, size 32 MB"), "Using 00:08.0 for primary VGA", the PIIX init, both ATA channels at
+  the BARs (the GD5446's "bar 0, addr fd000000, size 01000000", 16 MB), "Using 00:08.0 for primary VGA", the PIIX init, both ATA channels at
   00:07.1 and the $PIR copy.
 - **$PIR:** the router is the PIIX (00:07.0). Devices 8–11 are slots 1–4, and device d's INTA# goes to PIRQ (d − 1) mod 4,
   so the GD5446's is PIRQD, though it never fires.
@@ -259,3 +260,4 @@ No tool decodes PCI configuration space (the System Control window of the deskto
 - `cpu.exceptions`: the #GP of a bad MSR index, of reserved CR4 bits and of RDTSC under TSD, and the #UD of MOV TRn and of
   a Pentium opcode on a 386 or 486.
 - `video.crtc`, `video.output`: the VGA and Cirrus register writes, SR07 included.
+- `video.blt`: each BitBLT start, with its size, source, destination, mode, ROP and GR33.

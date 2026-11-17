@@ -20,7 +20,7 @@ a 486 and the GD5446 on a Pentium.
 | A0000h–BFFFFh | Video aperture | The video card's window, see the `pc_video` resource. Open bus (FFh) with no card |
 | C0000h–DFFFFh | Upper memory | Board RAM, with the card's VGA BIOS copied to C0000h (a CGA's BIOS goes to C8000h and nothing answers at C0000h). Locked at the end of POST, see §7 |
 | E0000h–FFFFFh | BIOS copy | Board RAM filled from the BIOS image at power on. Writable during POST, the F segment read-only once locked |
-| 100000h–top of RAM | Extended RAM | Absent with 1 MB of RAM. With a GD5428 (ISA or VL-Bus) and 16 MB or more, F00000h–FFFFFFh is a hole for the card's linear frame buffer and that RAM is lost. The PCI GD5446 maps its buffer at BAR0 instead |
+| 100000h–top of RAM | Extended RAM | Absent with 1 MB of RAM. With a GD5428 (ISA or VL-Bus) and 16 MB or more, E00000h–FFFFFFh is a hole for the card's linear frame buffer and that RAM is lost. The PCI GD5446 maps its buffer at BAR0 instead |
 | Top of address space | System BIOS ROM | The pristine image, 64, 128 or 256 KB, ending at FFFFFFFFh (FFFFFFh on a 386SX) |
 
 - The CPU starts at FFFFFFF0h, in the ROM image at the top, and jumps into the copy below 1 MB.
@@ -157,7 +157,7 @@ SeaBIOS has no setup screen, so with it the board writes these bytes at power on
 | 12h, 19h–1Ah | Hard disks 0 and 1: Fh in their nibble of 12h and type 47 in 19h and 1Ah |
 | 14h | Equipment: bit 0 floppy drives fitted, bits 7–6 their count less one, bit 1 coprocessor, bits 5–4 display (00b EGA or VGA, 10b CGA) |
 | 15h–16h | Base memory, 640 KB |
-| 17h–18h, 30h–31h | Extended memory in KB, up to 63 MB, or 14 MB below the 15–16 MB hole |
+| 17h–18h, 30h–31h | Extended memory in KB, up to 63 MB, or 13 MB below the 14–16 MB hole |
 | 2Eh–2Fh | Checksum of 10h–2Dh, high byte first |
 | 32h | Century, BCD |
 | 34h–35h | Memory above 16 MB in 64 KB units |
