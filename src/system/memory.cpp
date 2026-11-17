@@ -320,9 +320,13 @@ INLINE void Memory::WriteRegionBus(const DebugRegion* region, u32 bus_address, u
     if (IsValidPointer(region->write8))
     {
         GDOX_Bus_Access_Context* outer = m_access_context;
+        u32 generation = m_map_generation;
         m_access_context = &context;
         region->write8(region->device, offset, value);
         m_access_context = outer;
+
+        if (m_map_generation != generation)
+            context.end_batch = true;
     }
     else
     {
@@ -437,10 +441,15 @@ void Memory::Write16Physical(u32 physical, u16 value, GDOX_Bus_Access_Context& c
             if (IsValidPointer(region->write16))
             {
                 GDOX_Bus_Access_Context* outer = m_access_context;
+                u32 generation = m_map_generation;
                 m_access_context = &context;
                 region->write16(region->device, offset, value);
                 m_access_context = outer;
                 m_debug_snapshot_id += 2;
+
+                if (m_map_generation != generation)
+                    context.end_batch = true;
+
                 return;
             }
         }
@@ -477,10 +486,15 @@ void Memory::Write32Physical(u32 physical, u32 value, GDOX_Bus_Access_Context& c
             if (IsValidPointer(region->write32))
             {
                 GDOX_Bus_Access_Context* outer = m_access_context;
+                u32 generation = m_map_generation;
                 m_access_context = &context;
                 region->write32(region->device, offset, value);
                 m_access_context = outer;
                 m_debug_snapshot_id += 4;
+
+                if (m_map_generation != generation)
+                    context.end_batch = true;
+
                 return;
             }
         }
