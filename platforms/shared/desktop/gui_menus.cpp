@@ -79,10 +79,13 @@ static const GuiColor& service_mcp_http_color = green;
 static const GuiColor& service_mcp_stdio_color = amber;
 static const GuiColor& midi_playing_color = green;
 static const GuiColor& midi_stopped_color = red;
+static const GuiColor& rewind_recording_color = green;
+static const GuiColor& rewind_stopped_color = red;
 static const GuiColor& video_recording_color = red;
 static const GuiColor& vgm_recording_color = red;
 
 static void menu_geardox(void);
+static void menu_rewind(void);
 static void menu_drives(void);
 static void menu_cdrom(void);
 static void menu_emulator(void);
@@ -261,22 +264,7 @@ static void menu_geardox(void)
 
         if (ImGui::BeginMenu("Rewind"))
         {
-            if (ImGui::MenuItem("Enabled", config_hotkeys[config_HotkeyIndex_Rewind].str, &config_rewind.enabled))
-            {
-                rewind_reset();
-            }
-
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::BeginTooltip();
-                ImGui::Text("Rewind uses save states while it runs, which costs performance.");
-                ImGui::Text("If you don't use rewind, keep it disabled.");
-                ImGui::EndTooltip();
-            }
-
-            ImGui::PushItemWidth(140.0f);
-            ImGui::SliderFloat("Speed", &config_rewind.speed, 1.0f, 8.0f, "%.0fx");
-            ImGui::PopItemWidth();
+            menu_rewind();
             ImGui::EndMenu();
         }
 
@@ -438,6 +426,67 @@ static void menu_geardox(void)
 
         ImGui::EndMenu();
     }
+}
+
+static void menu_rewind(void)
+{
+    if (ImGui::MenuItem("Enabled", config_hotkeys[config_HotkeyIndex_Rewind].str, &config_rewind.enabled))
+    {
+        rewind_reset();
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Rewind uses save states while it runs, which costs performance.");
+        ImGui::Text("If you don't use rewind, keep it disabled.");
+        ImGui::EndTooltip();
+    }
+
+    int max_steps = rewind_get_max_memory_mb() / REWIND_MEMORY_STEP_MB;
+    int steps = CLAMP(config_rewind.memory_mb / REWIND_MEMORY_STEP_MB, 1, max_steps);
+    char memory_format[32];
+    snprintf(memory_format, sizeof(memory_format), "%d MB", steps * REWIND_MEMORY_STEP_MB);
+    const char* rate_format = (config_rewind.frames_per_snapshot == 1) ? "Every frame" : "Every %d frames";
+    ImGuiSliderFlags flags = ImGuiSliderFlags_AlwaysClamp | ImGuiSliderFlags_NoInput;
+
+    ImGui::PushItemWidth(ImGui::CalcTextSize("Every 60 frames").x + (ImGui::GetStyle().FramePadding.x * 4.0f));
+    ImGui::SliderFloat("Speed", &config_rewind.speed, 1.0f, 8.0f, "%.0fx");
+    ImGui::SliderInt("Rate", &config_rewind.frames_per_snapshot, 1, REWIND_MAX_FRAMES_PER_SNAPSHOT, rate_format, flags);
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("How often a snapshot is taken while playing.");
+        ImGui::Text("Fewer snapshots rewind further with the same memory.");
+        ImGui::Text("Debug mode takes one every frame and every stop.");
+        ImGui::EndTooltip();
+    }
+
+    if (ImGui::SliderInt("Memory", &steps, 1, max_steps, memory_format, flags))
+        config_rewind.memory_mb = steps * REWIND_MEMORY_STEP_MB;
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("The most memory rewind can use.");
+        ImGui::Text("When it fills up, the oldest snapshots go.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::Separator();
+
+    int required = rewind_get_required_memory_mb();
+    int used = (int)((rewind_get_memory_usage() + (512 * 1024)) / (1024 * 1024));
+
+    if (!config_rewind.enabled)
+        ImGui::TextColored(rewind_stopped_color, "Disabled");
+    else if (required > 0)
+        ImGui::TextColored(rewind_stopped_color, "Needs %d MB of memory", required);
+    else
+        ImGui::TextColored(rewind_recording_color, "%.1f s recorded%s, %d MB", rewind_get_recorded_seconds(),
+            config_debug.debug ? " frame by frame" : "", used);
 }
 
 static void menu_drives(void)
