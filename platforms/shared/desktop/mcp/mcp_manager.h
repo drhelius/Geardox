@@ -193,6 +193,7 @@ public:
         m_tcp_address = "127.0.0.1";
         m_pending_media_load = false;
         m_pending_media_load_request_id = json();
+        m_reported_breakpoint_stops = 0;
         reset_input_macro();
         reset_controller_macro();
         reset_mouse_macro();
@@ -481,6 +482,9 @@ public:
                 break;
             }
 
+            if (tool.compare(0, 6, "debug_") == 0)
+                m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
+
             DebugResponse* response = new DebugResponse();
             response->requestId = command->requestId;
             response->result = m_server->ExecuteCommand(command->toolName, command->arguments);
@@ -508,6 +512,15 @@ private:
         }
 
         return tool_name;
+    }
+
+    bool unreported_breakpoint_stop()
+    {
+        if (!emu_is_debug_idle() || emu_debug_breakpoint_stops == m_reported_breakpoint_stops)
+            return false;
+
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
+        return true;
     }
 
     void UpdateResponseError(DebugResponse* response)
@@ -611,6 +624,12 @@ private:
             return result;
         }
 
+        if (unreported_breakpoint_stop())
+        {
+            result["error"] = "Stopped at a breakpoint not reported yet, see debug_get_status";
+            return result;
+        }
+
         std::string text = arguments.value("text", "");
         int frames = arguments.value("frames_per_key", k_input_macro_frames_per_key);
 
@@ -685,7 +704,14 @@ private:
 
     void finish_input_macro_success()
     {
+        if (emu_debug_breakpoint_stops != m_input_macro.breakpoint_stops)
+        {
+            finish_input_macro_error("Input macro interrupted by breakpoint");
+            return;
+        }
+
         bool restore_pause = m_input_macro.restore_pause;
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
 
         DebugResponse* response = new DebugResponse();
         response->requestId = m_input_macro.request_id;
@@ -707,6 +733,7 @@ private:
     void finish_input_macro_error(const std::string& error)
     {
         bool restore_pause = m_input_macro.restore_pause;
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
 
         release_input_macro_keys();
 
@@ -918,6 +945,12 @@ private:
             return result;
         }
 
+        if (unreported_breakpoint_stop())
+        {
+            result["error"] = "Stopped at a breakpoint not reported yet, see debug_get_status";
+            return result;
+        }
+
         McpControllerMacroDevice device = MCP_CONTROLLER_MACRO_KEYBOARD;
         std::string error;
 
@@ -1077,7 +1110,15 @@ private:
     void finish_controller_macro_success()
     {
         McpControllerMacroState& macro = m_controller_macro;
+
+        if (emu_debug_breakpoint_stops != macro.breakpoint_stops)
+        {
+            finish_controller_macro_error("Controller macro interrupted by breakpoint");
+            return;
+        }
+
         bool restore_pause = macro.restore_pause;
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
 
         DebugResponse* response = new DebugResponse();
         response->requestId = macro.request_id;
@@ -1101,6 +1142,7 @@ private:
     void finish_controller_macro_error(const std::string& error)
     {
         bool restore_pause = m_controller_macro.restore_pause;
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
 
         release_controller_macro_held();
 
@@ -1175,6 +1217,12 @@ private:
         if (emu_is_empty())
         {
             result["error"] = "Emulator is powered off";
+            return result;
+        }
+
+        if (unreported_breakpoint_stop())
+        {
+            result["error"] = "Stopped at a breakpoint not reported yet, see debug_get_status";
             return result;
         }
 
@@ -1607,7 +1655,15 @@ private:
     void finish_mouse_macro_success()
     {
         McpMouseMacroState& macro = m_mouse_macro;
+
+        if (emu_debug_breakpoint_stops != macro.breakpoint_stops)
+        {
+            finish_mouse_macro_error("Mouse interrupted by breakpoint");
+            return;
+        }
+
         bool restore_pause = macro.restore_pause;
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
         json result = {{"success", true}, {"frames", emu_frame_counter - macro.start_frame}};
 
         const McpMousePointer& pointer = m_debug_adapter->GetMousePointer();
@@ -1655,6 +1711,7 @@ private:
     {
         McpMouseMacroState& macro = m_mouse_macro;
         bool restore_pause = macro.restore_pause;
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
 
         if (macro.click && (macro.button_steps > 1) && (macro.button_step > 0))
             m_debug_adapter->SetMouseButton(macro.button_mask, false);
@@ -1692,6 +1749,9 @@ private:
 
         if (emu_is_empty())
             return {{"error", "Emulator is powered off"}};
+
+        if (unreported_breakpoint_stop())
+            return {{"error", "Stopped at a breakpoint not reported yet, see debug_get_status"}};
 
         if (wait && (frames > k_mcp_step_wait_max_frames))
             return {{"error", "Waiting covers up to " + std::to_string(k_mcp_step_wait_max_frames) +
@@ -1749,6 +1809,7 @@ private:
         response->requestId = m_step_frames.request_id;
         UpdateResponseError(response);
         reset_step_frames();
+        m_reported_breakpoint_stops = emu_debug_breakpoint_stops;
         m_response_queue.Push(response);
     }
 
@@ -1768,6 +1829,7 @@ private:
     McpControllerMacroState m_controller_macro;
     McpMouseMacroState m_mouse_macro;
     McpStepFramesState m_step_frames;
+    u64 m_reported_breakpoint_stops;
 };
 
 #endif /* MCP_MANAGER_H */
