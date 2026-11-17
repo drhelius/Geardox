@@ -39,6 +39,7 @@
 #define VIDEO_CGA_VRAM_SIZE 0x4000
 #define VIDEO_EGA_COLOR_COUNT 64
 #define VIDEO_COMPOSITE_TAPS 5
+#define VIDEO_BLT_BUFFER_SIZE 0x2010
 
 class MC6845;
 class Memory;
@@ -55,6 +56,15 @@ public:
         VIDEO_FORMAT_PLANAR = 0,
         VIDEO_FORMAT_CGA,
         VIDEO_FORMAT_256
+    };
+
+    enum Video_Blt_Kind
+    {
+        VIDEO_BLT_SCREEN = 0,
+        VIDEO_BLT_PATTERN,
+        VIDEO_BLT_EXPAND,
+        VIDEO_BLT_SYSTEM,
+        VIDEO_BLT_KIND_COUNT
     };
 
     enum Video_Extended_Format
@@ -120,6 +130,17 @@ public:
         u8 pci_command;
         u32 pci_base;
         u8 pci_line;
+        u32 latch_high;
+        u16 cursor_x;
+        u16 cursor_y;
+        bool blt_waiting;
+        bool blt_suspended;
+        u32 blt_dst;
+        u32 blt_src;
+        u32 blt_line;
+        u32 blt_count;
+        u32 blt_fed;
+        u8 blt_buffer[VIDEO_BLT_BUFFER_SIZE];
     };
 
 public:
@@ -203,6 +224,19 @@ public:
     u32 GetApertureBase() const;
     u32 GetOffsetRegister() const;
     u32 GetCounterMask() const;
+    bool IsBltWaiting() const;
+    u32 GetBltCount() const;
+    u32 GetBltFrameCount(int kind) const;
+    u32 GetBltFrameRemaps() const;
+    bool IsBltMapped() const;
+    u32 GetBltPixelBytes() const;
+    u32 GetBltWidth() const;
+    u32 GetBltHeight() const;
+    u32 GetBltPitch(int index) const;
+    u32 GetBltAddress(int index) const;
+    u32 GetCursorSize() const;
+    u32 GetCursorPatternAddress() const;
+    u32 GetCursorColor(int index) const;
     Video_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
@@ -278,6 +312,25 @@ private:
     void WriteCirrusGraphics(u8 index, u8 value, u64 clocks);
     void WriteCirrusCRTC(u8 index, u8 value, u64 clocks);
     void WriteHiddenDAC(u8 value, u64 clocks);
+    void WriteBltControl(u8 value, u64 clocks);
+    void StartBlt(u64 clocks);
+    void FinishBlt();
+    void ResetBlt();
+    void RunBltLine(const u8* system);
+    bool BuildBltExpansion(u8* source, u8* enable, u32 width, const u8* system);
+    bool BuildBltPattern(u8* source, u8* enable, u32 width);
+    void ApplyBltLine(const u8* source, const u8* enable, u32 width, bool masked);
+    u32 GetBltNeed() const;
+    void FeedBlt(u8 value);
+    u8 ReadBlt();
+    bool TakesBltAccess(u32 offset, bool linear, bool read) const;
+    u8 ReadMMIO(u32 offset) const;
+    void WriteMMIO(u32 offset, u8 value);
+    void UpdateBltMapping(bool system);
+    bool WriteCirrusMemory(u32 address, u8 value);
+    u32 GetShiftedWindowAddress(u32 address) const;
+    bool IsLinearSpecial() const;
+    void RenderCursor(u32* destination, int x, int end);
     void UpdateExtendedFormat();
     void UpdateAperture();
     void RunNextEvent();
@@ -303,6 +356,7 @@ private:
     u8 PeekMemory(u32 address) const;
     void WriteMemory(u32 address, u8 value);
     u32 GetApertureSize() const;
+    u32 GetApertureMappedSize() const;
     u32 GetPlaneBase(u32 offset) const;
     u32 GetHostOffset(u32 address) const;
     u32 GetCountShift() const;
@@ -412,6 +466,20 @@ private:
     Video_Extended_Format m_extended_format;
     u32 m_extended_bytes;
     u32 m_window_limit;
+    u32 m_address_shift;
+    bool m_cirrus_writes;
+    bool m_mmio_low;
+    bool m_mmio_top;
+    bool m_blt_handlers;
+    bool m_blt_frame_used;
+    u32 m_blt_count;
+    u32 m_blt_kinds[VIDEO_BLT_KIND_COUNT];
+    u32 m_blt_frame_kinds[VIDEO_BLT_KIND_COUNT];
+    u32 m_blt_remaps;
+    u32 m_blt_frame_remaps;
+    int m_render_row;
+    u8 m_blt_source[VIDEO_BLT_BUFFER_SIZE];
+    u8 m_blt_enable[VIDEO_BLT_BUFFER_SIZE];
 };
 
 static const u32 k_video_dot_clock_25 = 25175000;
@@ -423,10 +491,10 @@ static const u32 k_video_cga_base = 0xB8000;
 static const u32 k_video_cga_window_size = 0x8000;
 static const u32 k_video_cga_vsync_lines = 16;
 static const u8 k_video_ega_switches = 0x09;
-static const u32 k_video_aperture_base = 0x00F00000;
+static const u32 k_video_aperture_base = 0x00E00000;
 static const u8 k_video_cirrus_id = 0x98;
 static const u8 k_video_cirrus_5446_id = 0xB8;
-static const u32 k_video_pci_base_mask = 0xFE000000;
+static const u32 k_video_pci_base_mask = 0xFF000000;
 static const u8 k_video_cirrus_unlock = 0x12;
 static const u32 k_video_min_line_dots = 64;
 static const u32 k_video_min_lines = 16;
@@ -495,7 +563,26 @@ static const int k_video_sr_vclk_denominator = 0x1B;
 static const int k_video_gr_offset_0 = 0x09;
 static const int k_video_gr_offset_1 = 0x0A;
 static const int k_video_gr_extensions = 0x0B;
+static const int k_video_gr_background = 0x00;
+static const int k_video_gr_foreground = 0x01;
+static const int k_video_gr_background_high = 0x10;
+static const int k_video_gr_foreground_high = 0x11;
+static const int k_video_gr_blt_width = 0x20;
+static const int k_video_gr_blt_height = 0x22;
+static const int k_video_gr_blt_dst_pitch = 0x24;
+static const int k_video_gr_blt_src_pitch = 0x26;
+static const int k_video_gr_blt_dst = 0x28;
+static const int k_video_gr_blt_src = 0x2C;
+static const int k_video_gr_blt_clip = 0x2F;
+static const int k_video_gr_blt_mode = 0x30;
 static const int k_video_gr_blt_status = 0x31;
+static const int k_video_gr_blt_rop = 0x32;
+static const int k_video_gr_blt_extensions = 0x33;
+static const int k_video_gr_blt_key = 0x34;
+static const int k_video_gr_blt_key_mask = 0x38;
+static const int k_video_sr_cursor_x = 0x10;
+static const int k_video_sr_cursor_y = 0x11;
+static const int k_video_sr_cursor_pattern = 0x13;
 static const int k_video_cr_interlace_end = 0x19;
 static const int k_video_cr_misc_control = 0x1A;
 static const int k_video_cr_extended_display = 0x1B;
@@ -504,10 +591,10 @@ static const int k_video_cr_part_status = 0x25;
 static const int k_video_cr_id = 0x27;
 
 // The 542x's reset values for the four video clocks (542X p398); the 542x memory clock readback and bus width straps:
-// 50.11 MHz and a 32-bit, 1 MB DRAM bus (CIRRUS.TXT l1583-1593)
+// 50.11 MHz and a 32-bit DRAM bus with 2 MB (CIRRUS.TXT l1583-1593, l35-40)
 static const u8 k_video_cirrus_sequencer_reset[VIDEO_SEQUENCER_EXT_COUNT] =
 {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x4A, 0x5B, 0x45, 0x7E, 0x10,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x4A, 0x5B, 0x45, 0x7E, 0x18,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2B, 0x2F, 0x30, 0x33, 0x1C
 };
 

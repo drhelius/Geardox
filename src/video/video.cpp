@@ -97,6 +97,22 @@ Video::Video()
     m_extended_format = VIDEO_EXTENDED_PALETTE;
     m_extended_bytes = 1;
     m_window_limit = 0xFFFFFFFF;
+    m_address_shift = 0;
+    m_cirrus_writes = false;
+    m_mmio_low = false;
+    m_mmio_top = false;
+    m_blt_handlers = false;
+    m_blt_frame_used = false;
+    m_blt_count = 0;
+    m_blt_remaps = 0;
+    m_blt_frame_remaps = 0;
+    m_render_row = 0;
+
+    for (int i = 0; i < VIDEO_BLT_KIND_COUNT; i++)
+    {
+        m_blt_kinds[i] = 0;
+        m_blt_frame_kinds[i] = 0;
+    }
 
     for (int i = 0; i < 16; i++)
     {
@@ -195,6 +211,12 @@ void Video::Reset()
     m_dual_page = false;
     m_bank_low = 0;
     m_bank_high = 0;
+    m_address_shift = 0;
+    m_cirrus_writes = false;
+    m_mmio_low = false;
+    m_mmio_top = false;
+    m_blt_handlers = false;
+    m_blt_frame_used = false;
     UpdateExtendedFormat();
     m_state.frame_line_dots = k_video_min_line_dots;
     m_state.frame_lines = k_video_min_lines;
@@ -216,6 +238,23 @@ void Video::BeginFrame(u8* frame_buffer, bool render)
     m_frame_buffer = frame_buffer;
     m_render = render;
     m_frame_ready = false;
+
+    if (m_blt_handlers && !m_blt_frame_used && !m_state.blt_waiting)
+    {
+        m_blt_handlers = false;
+        m_blt_remaps++;
+        UpdateVRAMMapping();
+    }
+
+    m_blt_frame_used = false;
+    m_blt_frame_remaps = m_blt_remaps;
+    m_blt_remaps = 0;
+
+    for (int i = 0; i < VIDEO_BLT_KIND_COUNT; i++)
+    {
+        m_blt_frame_kinds[i] = m_blt_kinds[i];
+        m_blt_kinds[i] = 0;
+    }
 }
 
 void Video::EndFrame()
@@ -519,7 +558,8 @@ void Video::WriteSequencer(u8 value, u64 clocks)
         return;
     }
 
-    value &= m_ega ? k_video_ega_sequencer_masks[index] : k_video_sequencer_masks[index];
+    if (!m_cirrus || index != k_video_sr_map_mask || (m_state.graphics[k_video_gr_extensions] & 0x04) == 0)
+        value &= m_ega ? k_video_ega_sequencer_masks[index] : k_video_sequencer_masks[index];
 
     if (value == m_state.sequencer[index])
         return;
@@ -545,7 +585,14 @@ void Video::WriteGraphics(u8 value, u64 clocks)
         return;
     }
 
-    value &= m_ega ? k_video_ega_graphics_masks[index] : k_video_graphics_masks[index];
+    u8 mask = m_ega ? k_video_ega_graphics_masks[index] : k_video_graphics_masks[index];
+
+    if (m_cirrus && index <= k_video_gr_enable_set_reset)
+        mask = 0xFF;
+    else if (m_cirrus && index == k_video_gr_mode && (m_state.graphics[k_video_gr_extensions] & 0x04) != 0)
+        mask = 0x7F;
+
+    value &= mask;
 
     if (value == m_state.graphics[index])
         return;
@@ -851,6 +898,9 @@ u8 Video::PeekGraphics() const
 {
     u8 index = m_state.graphics_index;
 
+    if (m_cirrus && index <= k_video_gr_enable_set_reset && (m_state.graphics[k_video_gr_extensions] & 0x04) == 0)
+        return m_state.graphics[index] & 0x0F;
+
     if (index < VIDEO_GRAPHICS_COUNT)
         return m_state.graphics[index];
 
@@ -872,6 +922,17 @@ void Video::WriteCirrusSequencer(u8 index, u8 value, u64 clocks)
     if (index < k_video_sr_unlock || !IsUnlocked())
         return;
 
+    if (index == k_video_sr_cursor_x || index == k_video_sr_cursor_y)
+    {
+        RenderLineToBeam(clocks);
+        u16 position = (u16)((value << 3) | (m_state.sequencer_index >> 5));
+
+        if (index == k_video_sr_cursor_x)
+            m_state.cursor_x = position;
+        else
+            m_state.cursor_y = position;
+    }
+
     // The memory clock and bus width straps of SR0F and the bus type of SR17 are read only
     if (index == k_video_sr_dram)
         value = (value & ~0x1BU) | (m_state.sequencer[index] & 0x1B);
@@ -890,21 +951,46 @@ void Video::WriteCirrusSequencer(u8 index, u8 value, u64 clocks)
         UpdateMemoryAccess();
         UpdateAperture();
     }
+    else if (index == k_video_sr_config)
+    {
+        UpdateMemoryAccess();
+        UpdateVRAMMapping();
+    }
 }
 
-// The BitBLT engine isn't emulated: a blit ends as soon as it starts, never busy
 void Video::WriteCirrusGraphics(u8 index, u8 value, u64 clocks)
 {
     if (!IsUnlocked())
         return;
 
     if (index == k_video_gr_blt_status)
-        value &= ~0x0BU;
+    {
+        WriteBltControl(value, clocks);
+        return;
+    }
+
+    if (index >= k_video_gr_blt_width && index <= k_video_gr_blt_extensions)
+    {
+        m_state.graphics[index] = value;
+
+        if (index == k_video_gr_blt_dst + 2 && m_pci && (m_state.graphics[k_video_gr_blt_status] & 0x80) != 0 &&
+            !m_state.blt_waiting)
+            StartBlt(clocks);
+
+        return;
+    }
 
     if (value == m_state.graphics[index])
         return;
 
     RenderLineToBeam(clocks);
+
+    if (index == k_video_gr_extensions && m_pci && (value & 0x04) == 0)
+    {
+        m_state.graphics[k_video_gr_background] &= 0x0F;
+        m_state.graphics[k_video_gr_foreground] &= 0x0F;
+    }
+
     m_state.graphics[index] = value;
 
     if (index == k_video_gr_offset_0 || index == k_video_gr_offset_1 || index == k_video_gr_extensions)
@@ -1548,6 +1634,21 @@ void Video::Serialize(StateSerializer& serializer, int version)
         G_SERIALIZE(serializer, m_state.pci_base);
         G_SERIALIZE(serializer, m_state.pci_line);
     }
+
+    if (m_cirrus)
+    {
+        G_SERIALIZE(serializer, m_state.latch_high);
+        G_SERIALIZE(serializer, m_state.cursor_x);
+        G_SERIALIZE(serializer, m_state.cursor_y);
+        G_SERIALIZE(serializer, m_state.blt_waiting);
+        G_SERIALIZE(serializer, m_state.blt_suspended);
+        G_SERIALIZE(serializer, m_state.blt_dst);
+        G_SERIALIZE(serializer, m_state.blt_src);
+        G_SERIALIZE(serializer, m_state.blt_line);
+        G_SERIALIZE(serializer, m_state.blt_count);
+        G_SERIALIZE(serializer, m_state.blt_fed);
+        G_SERIALIZE_ARRAY(serializer, m_state.blt_buffer, VIDEO_BLT_BUFFER_SIZE);
+    }
 }
 
 u8 Video::ReadConfigCallback(void* device, u8 function, u8 offset)
@@ -1643,6 +1744,12 @@ void Video::SanitizeState()
     }
 
     m_state.hidden_dac_reads = MIN(m_state.hidden_dac_reads, (u8)4);
+    m_state.cursor_x &= 0x7FF;
+    m_state.cursor_y &= 0x7FF;
+    m_state.blt_count = MIN(m_state.blt_count, (u32)VIDEO_BLT_BUFFER_SIZE);
+    m_state.blt_waiting = m_cirrus && m_state.blt_waiting;
+    m_blt_handlers = m_state.blt_waiting;
+    m_blt_frame_used = false;
     m_wide_counter = m_cirrus && (m_state.crtc[k_video_cr_extended_display] & 0x02) != 0;
     m_extended = m_cirrus && (m_state.sequencer[k_video_sr_extended] & 0x01) != 0;
     UpdateExtendedFormat();

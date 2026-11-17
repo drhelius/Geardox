@@ -49,7 +49,7 @@ public:
     bool IsEnabled() const;
     void SetVGABIOS(const u8* data, u32 size, bool cga, bool pci);
     void SetBootMenu(bool show, u16 wait_ms);
-    void SetMemoryHole(u32 ram_size, bool hole);
+    void SetMemoryHole(u32 ram_size, u32 hole_start);
     void SetGameTarget(int target);
     bool Decodes(u16 port) const;
     u8 Read(u16 port);

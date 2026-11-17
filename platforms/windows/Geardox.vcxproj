@@ -109,6 +109,7 @@
     <ClCompile Include="..\..\src\video\video.cpp" />
     <ClCompile Include="..\..\src\video\video_memory.cpp" />
     <ClCompile Include="..\..\src\video\video_render.cpp" />
+    <ClCompile Include="..\..\src\video\video_blt.cpp" />
     <ClCompile Include="..\..\src\video\video_cga.cpp" />
     <ClCompile Include="..\..\src\video\mc6845.cpp" />
     <ClCompile Include="..\..\src\osd\osd_canvas.cpp" />

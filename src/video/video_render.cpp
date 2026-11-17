@@ -74,15 +74,25 @@ void Video::RenderRowPart(int row, int x, int end)
         return;
     }
 
+    bool cursor = m_cirrus && (m_state.sequencer[k_video_sr_cursor_attributes] & 0x01) != 0 && !IsTextMode();
+    m_render_row = row;
+
     if (m_canvas_zoom == 1)
     {
         RenderPixels(destination, x, end);
+
+        if (cursor)
+            RenderCursor(destination, x, end);
+
         return;
     }
 
     u32 zoom = m_canvas_zoom;
 
     RenderPixels(m_line_pixels, (int)(x / zoom), (int)((end + zoom - 1) / zoom));
+
+    if (cursor)
+        RenderCursor(m_line_pixels, (int)(x / zoom), (int)((end + zoom - 1) / zoom));
 
     for (int i = x; i < end; i++)
         destination[i] = m_line_pixels[i / zoom];

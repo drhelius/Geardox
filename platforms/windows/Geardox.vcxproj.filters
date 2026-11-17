@@ -433,6 +433,9 @@
     <ClCompile Include="..\..\src\video\video_render.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\video\video_blt.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\video\video_cga.cpp">
       <Filter>src</Filter>
     </ClCompile>

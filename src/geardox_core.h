@@ -239,6 +239,7 @@ private:
     void ResolveMachineConfig();
     void ApplyHardDisks();
     bool HasMemoryHole() const;
+    u32 GetMemoryHoleStart() const;
     bool HasPCIBus() const;
     void LoadMachineFirmware();
     void ApplyMachineConfig();

@@ -641,7 +641,7 @@
      }
      LegacyRamSize = rs >= 1024*1024 ? rs : 1024*1024;
 +
-+    // Where the RAM from below 1M ends, short of a memory hole at 15M for a video card's linear frame buffer
++    // Where the RAM from below 1M ends, short of a memory hole below 16M for a video card's linear frame buffer
 +    ExtendedRamEnd = LegacyRamSize;
 +    for (i=0; i<e820_count; i++) {
 +        struct e820entry *en = &e820_list[i];
@@ -1398,7 +1398,18 @@
      return 0;
  }
  
-@@ -403,12 +458,23 @@ cirrus_switch_mode_setregs(u16 *data, u16 port)
+@@ -391,6 +446,10 @@ clext_save_restore(int cmd, u16 seg, void *data)
+  * Mode setting
+  ****************************************************************/
+ 
++static u8 cirrus_planar_palette[16] VAR16 = {
++    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x14, 0x07,
++    0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f };
++
+ static void
+ cirrus_switch_mode_setregs(u16 *data, u16 port)
+ {
+@@ -403,12 +462,23 @@ cirrus_switch_mode_setregs(u16 *data, u16 port)
      }
  }
  
@@ -1422,7 +1433,52 @@
      cirrus_switch_mode_setregs(GET_GLOBAL(table->graph), VGAREG_GRDC_ADDRESS);
      cirrus_switch_mode_setregs(GET_GLOBAL(table->crtc), stdvga_get_crtc());
  
-@@ -460,6 +526,13 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+@@ -420,13 +490,19 @@ cirrus_switch_mode(struct cirrus_mode_s *table)
+     stdvga_pelmask_write(GET_GLOBAL(table->hidden_dac));
+     stdvga_pelmask_write(0xff);
+ 
++    // Extended graphics modes get the whole attribute set of mode 12h (planar) or 13h (packed, AR10 bit 6 for
++    // 8-bit pixels), not the text mode's left behind; Windows' VDDs read it to tell the mode
+     u8 memmodel = GET_GLOBAL(table->info.memmodel);
+-    u8 on = 0;
+-    if (memmodel == MM_PLANAR)
+-        on = 0x41;
+-    else if (memmodel != MM_TEXT)
+-        on = 0x01;
+-    stdvga_attr_mask(0x10, 0x01, on);
++    if (memmodel != MM_TEXT) {
++        int i;
++        for (i = 0; i < 16; i++)
++            stdvga_attr_write(i, memmodel == MM_PLANAR ? GET_GLOBAL(cirrus_planar_palette[i]) : i);
++        stdvga_attr_write(0x10, memmodel == MM_PLANAR ? 0x01 : 0x41);
++        stdvga_attr_write(0x11, 0x00);
++        stdvga_attr_write(0x12, 0x0f);
++        stdvga_attr_write(0x13, 0x00);
++        stdvga_attr_write(0x14, 0x00);
++    }
+     stdvga_attrindex_write(0x20);
+ }
+ 
+@@ -439,12 +515,15 @@ cirrus_set_granularity(int kb)
+ static void
+ cirrus_clear_vram(u16 fill)
+ {
++    // Through the whole 64K window: Windows 3.1's display VDD zeroes a window page on its first touch, at the bank
++    // set at that moment, so every page has to be touched here at bank 0
+     cirrus_set_granularity(16);
+-    int count = GET_GLOBAL(VBE_total_memory) / (16 * 1024);
++    int count = GET_GLOBAL(VBE_total_memory) / (64 * 1024);
+     int i;
+     for (i=0; i<count; i++) {
+-        stdvga_grdc_write(0x09, i);
+-        memset16_far(SEG_GRAPH, 0, fill, 16 * 1024);
++        stdvga_grdc_write(0x09, i * 4);
++        memset16_far(SEG_GRAPH, (void*)0, fill, 32 * 1024);
++        memset16_far(SEG_GRAPH, (void*)0x8000, fill, 32 * 1024);
+     }
+     stdvga_grdc_write(0x09, 0x00);
+ }
+@@ -460,6 +539,13 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
      struct cirrus_mode_s *table_g = container_of(
          vmode_g, struct cirrus_mode_s, info);
      cirrus_switch_mode(table_g);
@@ -1436,7 +1492,7 @@
      if (GET_GLOBAL(vmode_g->memmodel) == MM_PACKED && !(flags & MF_NOPALETTE))
          stdvga_set_packed_palette();
      if (!(flags & MF_NOCLEARMEM))
-@@ -479,6 +552,14 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+@@ -479,6 +565,14 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
  // of CR27 may not return the chip id.
  static u8 cirrus_chip_id VAR16;
  
@@ -1451,7 +1507,17 @@
  static void
  clext_101280(struct bregs *regs)
  {
-@@ -604,6 +685,32 @@ cirrus_get_memsize(void)
+@@ -489,6 +583,9 @@ clext_101280(struct bregs *regs)
+     else if (v == 0xb8)
+         // 5446
+         regs->ax = 0x0039;
++    else if ((v & 0xfc) == 0x98)
++        // 5428
++        regs->ax = 0x0018;
+     else
+         regs->ax = 0x00ff;
+     regs->bx = 0x00;
+@@ -604,6 +701,34 @@ cirrus_get_memsize(void)
      return 0x04 << x;
  }
  
@@ -1470,7 +1536,8 @@
 +    regs->ax = 0x004f;
 +}
 +
-+// An ISA or VL-Bus CL-GD542x maps its memory at a MB below 16 MB: 15 MB when extended memory ends at or below it
++// An ISA or VL-Bus CL-GD542x maps its memory just below 16 MB, its 2 MB on an even MB: 14 MB when extended memory ends
++// at or below it
 +static u32
 +cirrus_isa_framebuffer(void)
 +{
@@ -1478,13 +1545,14 @@
 +    u32 extended = inb(PORT_CMOS_DATA);
 +    outb(0x31 | NMI_DISABLE_BIT, PORT_CMOS_INDEX);
 +    extended |= (u32)inb(PORT_CMOS_DATA) << 8;
-+    return extended + 1024 <= 15 * 1024 ? 0x00f00000 : 0;
++    u32 base = 0x01000000 - (u32)cirrus_get_memsize() * 64 * 1024;
++    return extended + 1024 <= base / 1024 ? base : 0;
 +}
 +
  int
  clext_setup(void)
  {
-@@ -632,6 +739,8 @@ clext_setup(void)
+@@ -632,6 +757,8 @@ clext_setup(void)
      if (CONFIG_VGA_PCI && bdf >= 0)
          lfb_addr = (pci_config_readl(bdf, PCI_BASE_ADDRESS_0)
                      & PCI_BASE_ADDRESS_MEM_MASK);

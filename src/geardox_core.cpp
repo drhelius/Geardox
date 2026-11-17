@@ -2437,12 +2437,17 @@ void GeardoxCore::ResolveMachineConfig()
     }
 }
 
-// A Cirrus card's linear aperture sits at 15 MB, so with 16 MB or more the board leaves 15-16 MB to it, the "memory
-// hole at 15M-16M" of 486 board setups: RAM there is lost and extended memory stops at 15 MB
+// A 2 MB Cirrus card's linear aperture sits on an even MB, at 14 MB, so with 16 MB or more the AT boards leave 14-16 MB
+// to it and that RAM is lost. The 430FX can only leave 15-16 MB (its DRAMC), so an ISA card there runs banked
 bool GeardoxCore::HasMemoryHole() const
 {
     return (k_video_cards[m_machine_config.video_card].family == GDOX_VIDEO_FAMILY_CIRRUS) &&
         !k_video_cards[m_machine_config.video_card].pci && (m_machine_config.ram_size >= 16 * 1024 * 1024);
+}
+
+u32 GeardoxCore::GetMemoryHoleStart() const
+{
+    return HasPCIBus() ? 15 * 1024 * 1024 : 16 * 1024 * 1024 - k_video_cards[m_machine_config.video_card].memory_size;
 }
 
 bool GeardoxCore::HasPCIBus() const
@@ -2558,7 +2563,7 @@ void GeardoxCore::ApplyFirmwareDevices()
     m_firmware_config->SetVGABIOS(m_firmware->GetVGARom(), (u32)m_firmware->GetInfo(GDOX_FIRMWARE_VGA_BIOS).size,
         m_firmware->GetFamily() == GDOX_VIDEO_FAMILY_CGA, m_firmware->IsPCIVideo());
     m_firmware_config->SetBootMenu(m_boot_menu, m_boot_menu ? k_boot_menu_wait_ms : 0);
-    m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole());
+    m_firmware_config->SetMemoryHole(m_machine_config.ram_size, HasMemoryHole() ? GetMemoryHoleStart() : 0);
     m_firmware_config->SetGameTarget(m_game_target);
     m_debug_console->SetEnabled(m_debug_console_enabled);
     m_debug_console->SetLogOutput(m_debug_console_log);
@@ -2741,7 +2746,7 @@ void GeardoxCore::InitCMOS()
     u32 extended_kb = MIN(ram_size > megabyte ? (ram_size - megabyte) / 1024 : 0, 63U * 1024);
 
     if (HasMemoryHole())
-        extended_kb = 14 * 1024;
+        extended_kb = (GetMemoryHoleStart() - megabyte) / 1024;
     u32 high_blocks = ram_size > 16 * megabyte ? (ram_size - 16 * megabyte) / 0x10000 : 0;
     u8 order[3] = { 1, 2, 3 };
 

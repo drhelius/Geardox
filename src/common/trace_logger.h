@@ -141,7 +141,8 @@ enum GDOX_Trace_Video_Event : u8
     TRACE_VIDEO_PALETTE,
     TRACE_VIDEO_VSYNC,
     TRACE_VIDEO_VSYNC_CLEAR,
-    TRACE_VIDEO_MISSED_VBLANK
+    TRACE_VIDEO_MISSED_VBLANK,
+    TRACE_VIDEO_BLT
 };
 
 #define TRACE_VIDEO_EVENT_CRTC          (1U << TRACE_VIDEO_CRTC)
@@ -149,8 +150,9 @@ enum GDOX_Trace_Video_Event : u8
 #define TRACE_VIDEO_EVENT_PALETTE       (1U << TRACE_VIDEO_PALETTE)
 #define TRACE_VIDEO_EVENT_VSYNC         ((1U << TRACE_VIDEO_VSYNC) | (1U << TRACE_VIDEO_VSYNC_CLEAR))
 #define TRACE_VIDEO_EVENT_MISSED_VBLANK (1U << TRACE_VIDEO_MISSED_VBLANK)
+#define TRACE_VIDEO_EVENT_BLT           (1U << TRACE_VIDEO_BLT)
 #define TRACE_VIDEO_EVENT_DEFAULT       (TRACE_VIDEO_EVENT_CRTC | TRACE_VIDEO_EVENT_OUTPUT | \
-    TRACE_VIDEO_EVENT_PALETTE | TRACE_VIDEO_EVENT_VSYNC)
+    TRACE_VIDEO_EVENT_PALETTE | TRACE_VIDEO_EVENT_VSYNC | TRACE_VIDEO_EVENT_BLT)
 #define TRACE_VIDEO_EVENT_ALL           (TRACE_VIDEO_EVENT_DEFAULT | TRACE_VIDEO_EVENT_MISSED_VBLANK)
 
 enum GDOX_Trace_FM_Event : u8
@@ -452,6 +454,17 @@ struct GDOX_Trace_Entry
             u8 raw;
             u8 bank;
         } video;
+
+        struct
+        {
+            u32 destination;
+            u32 source;
+            u16 width;
+            u16 height;
+            u8 mode;
+            u8 rop;
+            u8 extensions;
+        } blt;
 
         struct
         {

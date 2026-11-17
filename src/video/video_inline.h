@@ -439,6 +439,36 @@ INLINE u8 Video::GetSyncStatus(u64 clocks) const
     return status;
 }
 
+INLINE bool Video::IsLinearSpecial() const
+{
+    return m_mmio_top || m_state.blt_waiting || m_address_shift != 0;
+}
+
+INLINE bool Video::IsBltWaiting() const
+{
+    return m_state.blt_waiting;
+}
+
+INLINE u32 Video::GetBltCount() const
+{
+    return m_blt_count;
+}
+
+INLINE u32 Video::GetBltFrameCount(int kind) const
+{
+    return m_blt_frame_kinds[kind];
+}
+
+INLINE u32 Video::GetBltFrameRemaps() const
+{
+    return m_blt_frame_remaps;
+}
+
+INLINE bool Video::IsBltMapped() const
+{
+    return m_blt_handlers;
+}
+
 INLINE bool Video::IsDirectMapped() const
 {
     return m_mapped_size != 0;

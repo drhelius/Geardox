@@ -84,21 +84,20 @@ void FirmwareConfig::SetBootMenu(bool show, u16 wait_ms)
     BuildDirectory();
 }
 
-// With a memory hole at 15 MB for a video card's linear frame buffer, SeaBIOS takes its map from etc/e820: RAM below
-// 15 MB and from 16 MB up, little endian address, length and type. Without one the file is left out and SeaBIOS reads
-// the CMOS as before
-void FirmwareConfig::SetMemoryHole(u32 ram_size, bool hole)
+// With a memory hole below 16 MB for a video card's linear frame buffer, SeaBIOS takes its map from etc/e820: RAM below
+// the hole and from 16 MB up, little endian address, length and type. Without one (hole_start 0) the file is left out
+// and SeaBIOS reads the CMOS as before
+void FirmwareConfig::SetMemoryHole(u32 ram_size, u32 hole_start)
 {
-    static const u32 k_hole_start = 15 * 1024 * 1024;
     static const u32 k_hole_end = 16 * 1024 * 1024;
 
     memset(m_e820, 0, sizeof(m_e820));
     m_e820_size = 0;
 
-    if (hole)
+    if (hole_start != 0)
     {
         u32 starts[FIRMWARE_CONFIG_E820_ENTRIES] = { 0, k_hole_end };
-        u32 lengths[FIRMWARE_CONFIG_E820_ENTRIES] = { k_hole_start, ram_size > k_hole_end ? ram_size - k_hole_end : 0 };
+        u32 lengths[FIRMWARE_CONFIG_E820_ENTRIES] = { hole_start, ram_size > k_hole_end ? ram_size - k_hole_end : 0 };
 
         for (int i = 0; i < FIRMWARE_CONFIG_E820_ENTRIES; i++)
         {
