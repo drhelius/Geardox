@@ -105,9 +105,7 @@ void Video::WriteLinearCallback(void* device, u32 offset, u8 value)
     else if (unlikely(video->m_state.blt_waiting) && video->TakesBltAccess(offset, true, false))
         video->FeedBlt(value);
     else
-    {
         video->WriteMemory((offset << video->m_address_shift) & video->m_vram_mask, value);
-    }
 }
 
 u16 Video::ReadLinear16Callback(void* device, u32 offset)
@@ -236,9 +234,7 @@ u8 Video::ReadVRAM(u32 offset)
     u32 address = offset - m_window_start;
 
     if (address >= m_window_size)
-    {
         return 0xFF;
-    }
 
     if (unlikely(m_address_shift != 0))
         return ReadMemory(GetShiftedWindowAddress(address) & m_vram_mask);
@@ -375,9 +371,7 @@ void Video::WriteVRAM(u32 offset, u8 value)
     u32 address = offset - m_window_start;
 
     if (address >= m_window_size)
-    {
         return;
-    }
 
     if (unlikely(m_address_shift != 0))
     {
