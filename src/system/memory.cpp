@@ -37,6 +37,11 @@ Memory::Memory()
     m_debug_snapshot_id = 1;
     InitPointer(m_working_ram);
     m_working_ram_size = 0;
+    m_working_ram_base = 0;
+    InitPointer(m_dirty_pages);
+    m_dirty_page_count = 0;
+    m_dirty_tracking = false;
+    m_dirty_valid = false;
     m_main_ram_size = GDOX_MAIN_RAM_SIZE;
     InitPointer(m_state.main_ram);
     InitPointer(m_video_ram);
@@ -58,6 +63,7 @@ Memory::~Memory()
     SafeDeleteArray(m_cpu_page_regions);
     SafeDeleteArray(m_cpu_page_bus);
     SafeDeleteArray(m_state.main_ram);
+    SafeDeleteArray(m_dirty_pages);
 #if !defined(GDOX_DISABLE_DYNAREC)
     SafeDeleteArray(m_code_pages);
 #endif
@@ -243,6 +249,30 @@ INLINE u8 Memory::ReadRegionBus(const DebugRegion& region, u32 offset, GDOX_Bus_
     return 0xFF;
 }
 
+INLINE void Memory::MarkDirty(const DebugRegion* region, u32 offset, u32 size)
+{
+    if (!m_dirty_tracking || !IsValidPointer(m_working_ram) || region->write_data < m_working_ram ||
+        region->write_data >= m_working_ram + m_working_ram_size)
+        return;
+
+    offset += (u32)(region->write_data - m_working_ram);
+
+    u32 first = offset >> 12;
+    u32 last = (offset + size - 1) >> 12;
+    bool patch = m_cpu_map_generation == m_map_generation && IsValidPointer(m_cpu_read_pages);
+
+    for (u32 page = first; page <= last && page < m_dirty_page_count; page++)
+    {
+        if (m_dirty_pages[page] != 0)
+            continue;
+
+        m_dirty_pages[page] = 1;
+
+        if (patch)
+            UpdateRAMPage(page);
+    }
+}
+
 #if !defined(GDOX_DISABLE_DYNAREC)
 // Writes that reach RAM pages holding translated code outside the CPU fast path, from main RAM or a view of it
 INLINE void Memory::NotifyCodeWrite(const DebugRegion* region, u32 offset, u32 size, bool changed)
@@ -300,6 +330,7 @@ INLINE void Memory::WriteRegionBus(const DebugRegion* region, u32 bus_address, u
         bool changed = region->write_data[offset] != value;
 #endif
         region->write_data[offset] = value;
+        MarkDirty(region, offset, 1);
 #if !defined(GDOX_DISABLE_DYNAREC)
         NotifyCodeWrite(region, offset, 1, changed);
 #endif
@@ -396,6 +427,7 @@ void Memory::Write16Physical(u32 physical, u16 value, GDOX_Bus_Access_Context& c
 #endif
                 write_u16_le(region->write_data + offset, value);
                 m_debug_snapshot_id += 2;
+                MarkDirty(region, offset, 2);
 #if !defined(GDOX_DISABLE_DYNAREC)
                 NotifyCodeWrite(region, offset, 2, changed);
 #endif
@@ -435,6 +467,7 @@ void Memory::Write32Physical(u32 physical, u32 value, GDOX_Bus_Access_Context& c
 #endif
                 write_u32_le(region->write_data + offset, value);
                 m_debug_snapshot_id += 4;
+                MarkDirty(region, offset, 4);
 #if !defined(GDOX_DISABLE_DYNAREC)
                 NotifyCodeWrite(region, offset, 4, changed);
 #endif
@@ -463,6 +496,10 @@ void Memory::ClearDebugRegions()
     m_debug_region_count = 0;
     InitPointer(m_working_ram);
     m_working_ram_size = 0;
+    m_working_ram_base = 0;
+    SafeDeleteArray(m_dirty_pages);
+    m_dirty_page_count = 0;
+    m_dirty_valid = false;
     InitPointer(m_video_ram);
     m_video_ram_size = 0;
     m_map_generation++;
@@ -781,6 +818,7 @@ bool Memory::DebugWriteRegionBlock(int id, u32 offset, const u8* data, u32 size)
 
     memcpy(region->write_data + offset, data, size);
     m_debug_snapshot_id++;
+    MarkDirty(region, offset, size);
 #if !defined(GDOX_DISABLE_DYNAREC)
     NotifyCodeWrite(region, offset, size, true);
 #endif
@@ -905,6 +943,7 @@ bool Memory::DebugWritePhysicalBlock(u32 physical, const u8* data, u32 size)
         else
         {
             region->write_data[offset] = data[i];
+            MarkDirty(region, offset, 1);
 #if !defined(GDOX_DISABLE_DYNAREC)
             NotifyCodeWrite(region, offset, 1, true);
 #endif
@@ -945,6 +984,7 @@ bool Memory::DebugWriteBusBlock(u32 bus_address, const u8* data, u32 size)
         else
         {
             region->write_data[offset] = data[i];
+            MarkDirty(region, offset, 1);
 #if !defined(GDOX_DISABLE_DYNAREC)
             NotifyCodeWrite(region, offset, 1, true);
 #endif
@@ -1071,22 +1111,15 @@ void Memory::SetCodePage(u32 page, bool code)
 
     m_code_pages[page] = code ? 1 : 0;
 
-    const DebugRegion* ram = FindRegion(GDOX_DEBUG_REGION_MAIN_RAM);
-    bool patch = m_cpu_map_generation == m_map_generation && IsValidPointer(m_cpu_read_pages) && IsValidPointer(ram);
+    bool patch = m_cpu_map_generation == m_map_generation && IsValidPointer(m_cpu_read_pages) &&
+        IsValidPointer(m_working_ram);
 
     m_map_generation++;
 
     if (!patch)
         return;
 
-    u32 cpu_page = (ram->info.physical_base >> 12) + page;
-
-    if (IsCanonicalPage(cpu_page))
-        UpdateCPUPage(cpu_page);
-
-    if (!m_a20_enabled && cpu_page < 0x100)
-        UpdateCPUPage(cpu_page | 0x100);
-
+    UpdateRAMPage(page);
     m_cpu_map_generation = m_map_generation;
 }
 
@@ -1109,6 +1142,66 @@ bool Memory::IsReadOnlyHost(const u8* host) const
 u64 Memory::GetDebugSnapshotId() const
 {
     return m_debug_snapshot_id;
+}
+
+void Memory::SetDirtyTracking(bool enabled)
+{
+    if (m_dirty_tracking == enabled)
+        return;
+
+    m_dirty_tracking = enabled;
+    m_dirty_valid = false;
+
+    if (IsValidPointer(m_dirty_pages))
+        memset(m_dirty_pages, 0, m_dirty_page_count);
+
+    m_map_generation++;
+}
+
+bool Memory::IsDirtyMapValid() const
+{
+    return m_dirty_tracking && m_dirty_valid && IsValidPointer(m_dirty_pages);
+}
+
+const u8* Memory::GetDirtyPages() const
+{
+    return m_dirty_pages;
+}
+
+u32 Memory::GetDirtyPageCount() const
+{
+    return m_dirty_page_count;
+}
+
+void Memory::ClearDirtyPages()
+{
+    if (!m_dirty_tracking || !IsValidPointer(m_dirty_pages))
+        return;
+
+    bool patch = m_cpu_map_generation == m_map_generation && IsValidPointer(m_cpu_read_pages);
+    bool revoked = false;
+
+    for (u32 page = 0; page < m_dirty_page_count; page++)
+    {
+        if (m_dirty_pages[page] == 0)
+            continue;
+
+        m_dirty_pages[page] = 0;
+        revoked = true;
+
+        if (patch)
+            UpdateRAMPage(page);
+    }
+
+    m_dirty_valid = true;
+
+    if (!revoked)
+        return;
+
+    m_map_generation++;
+
+    if (patch)
+        m_cpu_map_generation = m_map_generation;
 }
 
 u8* Memory::GetWorkingRAM()
@@ -1134,6 +1227,8 @@ u32 Memory::GetMainRAMSize() const
 // The reset that follows clears the new RAM and maps it
 void Memory::SetMainRAMSize(u32 size)
 {
+    m_dirty_valid = false;
+
     if (IsValidPointer(m_state.main_ram) && (size == m_main_ram_size))
         return;
 
@@ -1307,6 +1402,22 @@ void Memory::UpdateRAMRegions()
     DebugRegion* ram = FindRegion(GDOX_DEBUG_REGION_MAIN_RAM);
     m_working_ram = IsValidPointer(ram) ? ram->write_data : NULL;
     m_working_ram_size = IsValidPointer(ram) ? ram->info.size : 0;
+    m_working_ram_base = IsValidPointer(ram) ? ram->info.physical_base : 0;
+    m_dirty_valid = false;
+
+    u32 dirty_pages = (u32)((m_working_ram_size + 0xFFF) >> 12);
+
+    if (dirty_pages != m_dirty_page_count)
+    {
+        SafeDeleteArray(m_dirty_pages);
+        m_dirty_page_count = dirty_pages;
+
+        if (dirty_pages != 0)
+        {
+            m_dirty_pages = new u8[dirty_pages];
+            memset(m_dirty_pages, 0, dirty_pages);
+        }
+    }
 
 #if !defined(GDOX_DISABLE_DYNAREC)
     u32 code_pages = (u32)((m_working_ram_size + 0xFFF) >> 12);
@@ -1389,8 +1500,36 @@ void Memory::UpdateCPUPage(u32 page, const DebugRegion* region)
             m_code_pages[offset >> 12] != 0)
             return;
 #endif
-        m_cpu_write_pages[page] = region->write_data + offset;
+        if (AllowsWritePointer(page, region->write_data + offset))
+            m_cpu_write_pages[page] = region->write_data + offset;
     }
+}
+
+void Memory::UpdateRAMPage(u32 page)
+{
+    u32 cpu_page = (m_working_ram_base >> 12) + page;
+
+    if (IsCanonicalPage(cpu_page))
+        UpdateCPUPage(cpu_page);
+
+    if (!m_a20_enabled && cpu_page < 0x100)
+        UpdateCPUPage(cpu_page | 0x100);
+}
+
+bool Memory::AllowsWritePointer(u32 page, const u8* host) const
+{
+    if (!m_dirty_tracking || !IsValidPointer(m_working_ram) || host < m_working_ram ||
+        host >= m_working_ram + m_working_ram_size)
+        return true;
+
+    u32 ram_page = (u32)((host - m_working_ram) >> 12);
+    u32 cpu_page = (m_working_ram_base >> 12) + ram_page;
+    bool alias = !m_a20_enabled && cpu_page < 0x100 && page == (cpu_page | 0x100);
+
+    if (page != cpu_page && !alias)
+        return false;
+
+    return ram_page < m_dirty_page_count && m_dirty_pages[ram_page] != 0;
 }
 
 u8 Memory::GetBusClass(const GDOX_Debug_Memory_Region& info)
@@ -1472,4 +1611,5 @@ void Memory::Serialize(StateSerializer& serializer, int version)
 void Memory::SanitizeState()
 {
     m_debug_snapshot_id++;
+    m_dirty_valid = false;
 }
