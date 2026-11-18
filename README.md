@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/drhelius/Geardox)](https://github.com/drhelius/Geardox/blob/main/LICENSE)
 [![Twitter Follow](https://img.shields.io/twitter/follow/drhelius)](https://x.com/drhelius)
 
-Geardox is a cross-platform MS-DOS PC emulator written in C++ that runs on Windows, macOS, Linux, BSD and RetroArch, with an embedded MCP server for AI debugging and development. It emulates 386, 486 and Pentium PCs with their sound, video and drives, comes with FreeDOS built in, and starts DOS games straight from their folder.
+Geardox is a cross-platform MS-DOS PC emulator written in C++ that runs on Windows, macOS, Linux, BSD and RetroArch, with an embedded MCP server for AI debugging and development. It emulates 386, 486 and Pentium PCs with their sound, video and drives, comes with FreeDOS built in, starts DOS games straight from their folder, and runs Windows 3.1 and Windows 95 with their DirectX games.
 
 This is an open source project with its ongoing development made possible thanks to the support by these awesome [backers](backers.md). If you find it useful, please consider [sponsoring](https://github.com/sponsors/drhelius).
 
@@ -20,7 +20,8 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - Built-in SeaBIOS, SeaVGABIOS and FreeDOS: no BIOS or DOS files needed, and a ready-to-play DOS hard disk boots when nothing is attached. Optional import of MS-DOS 5.0-6.22 in any language.
 - [Game descriptors](GDOX_README.md) (`gdox`) and a built-in database of over 200 games: open a game folder or ZIP and it runs on the right machine and DOS, with its saves kept.
 - Host folders and ZIP files as FAT16 hard disks.
-- IBM CGA (RGB and composite), IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA with VESA modes up to 1280x1024.
+- IBM CGA (RGB and composite), IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA with 2 MB, VESA modes up to 1280x1024, BitBLT engine, hardware cursor and memory-mapped registers.
+- Windows 3.1, Windows for Workgroups 3.11 and Windows 95 with the Cirrus Logic accelerated display drivers, and DirectDraw games under DirectX.
 - PC speaker, AdLib, Sound Blaster 1.5, 2.0, Pro, Pro 2 and 16 (OPL2, dual OPL2, OPL3), CD audio, and MPU-401 with MIDI out to host General MIDI and MT-32 synths on Windows, macOS and Linux.
 - ATAPI CD-ROM drive (1x-8x) with `cue/bin`, `iso`, `chd`, GOG `ins/gog`, `zip` and `m3u` playlists, and physical discs on Windows, macOS and Linux.
 - Two floppy drives (360 KB-2.88 MB) with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
@@ -36,14 +37,14 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
   - Execute, data, I/O and interrupt breakpoints.
   - Memory editor, trace logger and profiler.
   - i386 registers, descriptor tables, paging and x87 FPU.
-  - VGA and Cirrus registers, palettes, VRAM, OPL, Sound Blaster, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
+  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, OPL, Sound Blaster, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
 - MCP server for AI-assisted debugging with Claude Code, Codex and similar.
 - *Portable Mode*, [programmable shader chain](platforms/shared/desktop/shaders/README.md), command line and drag & drop loading, and modern game controllers through [gamecontrollerdb.txt](https://github.com/mdqinc/SDL_GameControllerDB) beside the binary.
 
 ## Tips
 
 ### Basic Usage
-- **Getting Started**: [INSTRUCTIONS.md](INSTRUCTIONS.md) covers playing games, the built-in DOS disks, the DOS prompt, disks and discs, machine settings, MIDI, keyboard, mouse, gamepads and where files are kept.
+- **Getting Started**: [INSTRUCTIONS.md](INSTRUCTIONS.md) covers playing games, the built-in DOS disks, the DOS prompt, Windows 3.11 and Windows 95, disks and discs, machine settings, MIDI, keyboard, mouse, gamepads and where files are kept.
 - **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, and importing MS-DOS.
 - **Portable Mode**: Run with `--portable`, or create an empty file named `portable.ini` in the same directory as the application binary. On macOS, place the file next to the `.app` bundle.
 

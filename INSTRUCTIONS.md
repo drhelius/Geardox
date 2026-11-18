@@ -150,6 +150,27 @@ play from the CD need it inserted every time you play.
 
 The game stays on the built-in disk, so it's there the next time you open Geardox.
 
+## Windows 3.11 and Windows 95
+
+Geardox runs Windows for Workgroups 3.11 and Windows 95 with the Cirrus Logic cards' own accelerated drivers. Give
+Windows a hard disk image of its own, attached as the Primary Master (C:). It's an ordinary hard disk: Windows writes
+into the image, and everything you install stays there.
+
+| Windows | Model | Main RAM | Video Card | Display driver |
+| --- | --- | --- | --- | --- |
+| Windows for Workgroups 3.11 | 486DX2 at 66 MHz | 16 MB | GD5428 VL-Bus | Cirrus Logic's GD5426/5428 Windows 3.1 driver |
+| Windows 95 | Any Pentium | 32 MB | GD5446 PCI | Windows 95's own Cirrus Logic 5446 driver |
+
+- **Windows 3.11:** install the Cirrus driver with **Main > Windows Setup > Options > Change System Settings**,
+  choosing **Other display** in the Display list and typing the folder with the driver files. Change resolution and
+  colours the same way, from the "GD5426/28" entries. Cirrus's SETRES utility only offers 640x480 in 16 colours for
+  now.
+- **Windows 95** finds the card by itself. Change resolution and colours in the desktop's **Properties > Settings**;
+  a colour change needs the restart Windows offers. Windows 95 also runs on the GD5428, with its own Cirrus driver.
+  **Shut Down** turns the PC off.
+- **DirectX games** install DirectX from their own CD. DirectX 5's setup offers a newer Cirrus 5446 display driver:
+  accept it and restart. If Windows then starts in Safe Mode, restart once more from the Start menu.
+
 ## Two Rules That Explain Most Surprises
 
 1. **Hard disks only change at a reset.** If the PC is running, a new hard disk waits, and the notice says "At the
@@ -190,7 +211,7 @@ also has **Import MS-DOS...** and **Remove MS-DOS**.
 | Main RAM | 8 MB, 16 MB on the Pentiums | Some games want 16 MB. |
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
 | MPU-401 | On | The MIDI port at 330 for General MIDI and MT-32 music. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
-| Video Card | Auto | Cirrus Logic SVGA, with VESA modes: the GD5428 on the 386s and 486s, the PCI GD5446 with 2 MB and modes up to 1280x1024 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
+| Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428 on the 386s and 486s, the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
 | Drive Timing | Auto | Fast for games: seeks, the wait for a sector and a CD's spin-up take a sixteenth of the time. Real keeps the drives' mechanics. |

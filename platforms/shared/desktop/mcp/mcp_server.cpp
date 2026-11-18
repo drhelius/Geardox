@@ -1599,7 +1599,9 @@ json McpServer::BuildToolList()
         {"title", "Get VGA Registers"},
         {"description", "Read the miscellaneous, feature, sequencer, graphics, CRTC and attribute registers as hex arrays. "
             "With a Cirrus card a cirrus object adds the lock, SR00-SR1F, GR00-GR3F, CR19-CR27 (crtc, from crtc_first) and "
-            "the hidden DAC. With a CGA, crtc6845 and the mode and color registers instead."},
+            "the hidden DAC, a blt object the BitBLT engine (state, mode, ROP, size, addresses, pitches, bytes fed and needed, "
+            "blits started and per frame by kind) and a cursor object the hardware cursor (enabled, size, position, pattern "
+            "address, colors). With a CGA, crtc6845 and the mode and color registers instead."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
