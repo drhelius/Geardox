@@ -29,8 +29,6 @@
 static std::string msdos_name;
 static bool msdos_checked = false;
 
-static void follow_builtin(int previous);
-
 std::string emu_dos_get_msdos_path(void)
 {
     char path[GDOX_MAX_PATH];
@@ -69,7 +67,7 @@ bool emu_dos_load_msdos(DosImport_System* system, std::string* error)
 
 bool emu_dos_import_msdos(const char* path, std::string* message)
 {
-    int previous = emu_dos_get_builtin();
+    std::string previous = emu_hard_disk_get_default_path();
     DosImport import;
     message->clear();
 
@@ -81,41 +79,15 @@ bool emu_dos_import_msdos(const char* path, std::string* message)
 
     msdos_checked = false;
     *message = import.GetName();
-    follow_builtin(previous);
+    emu_hard_disk_follow_default(previous);
     return true;
 }
 
 bool emu_dos_remove_msdos(void)
 {
-    int previous = emu_dos_get_builtin();
+    std::string previous = emu_hard_disk_get_default_path();
     bool removed = MediaFile::RemoveFile(emu_dos_get_msdos_path().c_str());
     msdos_checked = false;
-    follow_builtin(previous);
+    emu_hard_disk_follow_default(previous);
     return removed;
-}
-
-int emu_dos_get_builtin(void)
-{
-    if (config_emulator.hard_disk_builtin == config_BuiltinDOS_None)
-        return -1;
-
-    if ((config_emulator.hard_disk_builtin == config_BuiltinDOS_MSDOS) && (emu_dos_get_msdos_name()[0] != 0))
-        return GDOX_GAME_SYSTEM_MSDOS;
-
-    return GDOX_GAME_SYSTEM_FREEDOS;
-}
-
-void emu_dos_set_builtin(int choice)
-{
-    int previous = emu_dos_get_builtin();
-    config_emulator.hard_disk_builtin = CLAMP(choice, (int)config_BuiltinDOS_MSDOS, (int)config_BuiltinDOS_None);
-    follow_builtin(previous);
-}
-
-static void follow_builtin(int previous)
-{
-    int current = emu_dos_get_builtin();
-
-    if ((current >= 0) && (current != previous))
-        emu_hard_disk_swap_builtin(current);
 }

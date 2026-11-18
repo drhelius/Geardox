@@ -51,6 +51,7 @@ static std::string get_working_path(const char* path);
 static std::string get_builtin_path(int system);
 static int get_builtin_system(const char* path);
 static bool make_builtin(int system, bool replace);
+static bool attach_default(int id, int choice);
 static std::string get_source_image_path(const char* path);
 static bool is_generated(int id, const char* path);
 
@@ -75,7 +76,10 @@ int emu_hard_disk_get_image_id(const char* path)
         if (emu_hard_disk_is_cdrom_position(i))
             continue;
 
-        if ((info.pending ? !info.pending_attached : !info.attached) || info.builtin)
+        const char* attached = info.pending ? info.pending_path : info.path;
+
+        if ((info.pending ? !info.pending_attached : !info.attached) || info.builtin ||
+            (emu_hard_disk_get_default_path() == attached))
             return i;
     }
 
@@ -170,18 +174,89 @@ bool emu_hard_disk_attach_prepared_source(int id, bool write_protected)
     return true;
 }
 
-void emu_hard_disk_boot_builtin(void)
+int emu_hard_disk_get_default(void)
 {
-    int system = emu_dos_get_builtin();
+    int choice = config_emulator.hard_disk_default;
+
+    if ((choice == config_DefaultDisk_MSDOS) && (emu_dos_get_msdos_name()[0] == 0))
+        return config_DefaultDisk_FreeDOS;
+
+    if ((choice == config_DefaultDisk_Custom) && config_emulator.hard_disk_default_path.empty())
+        return config_DefaultDisk_FreeDOS;
+
+    return choice;
+}
+
+std::string emu_hard_disk_get_default_path(void)
+{
+    switch (emu_hard_disk_get_default())
+    {
+        case config_DefaultDisk_MSDOS:
+            return get_builtin_path(GDOX_GAME_SYSTEM_MSDOS);
+        case config_DefaultDisk_FreeDOS:
+            return get_builtin_path(GDOX_GAME_SYSTEM_FREEDOS);
+        case config_DefaultDisk_Custom:
+            return config_emulator.hard_disk_default_path;
+        default:
+            return "";
+    }
+}
+
+void emu_hard_disk_set_default(int choice, const char* path)
+{
+    std::string previous = emu_hard_disk_get_default_path();
+    int system = get_builtin_system(path);
+
+    if (system >= 0)
+        choice = system == GDOX_GAME_SYSTEM_MSDOS ? (int)config_DefaultDisk_MSDOS : (int)config_DefaultDisk_FreeDOS;
+    else if (IsValidPointer(path) && (path[0] != 0))
+        config_emulator.hard_disk_default_path = path;
+
+    config_emulator.hard_disk_default = CLAMP(choice, (int)config_DefaultDisk_MSDOS, (int)config_DefaultDisk_None);
+    emu_hard_disk_follow_default(previous);
+}
+
+void emu_hard_disk_follow_default(const std::string& previous)
+{
+    std::string current = emu_hard_disk_get_default_path();
+    int attached = 0;
+    int id = -1;
+
+    if (current.empty() || (current == previous))
+        return;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        Emu_HardDiskInfo info;
+        emu_hard_disk_get_info(i, &info);
+
+        if (!info.pending_attached)
+            continue;
+
+        attached++;
+        const char* path = info.pending ? info.pending_path : info.path;
+
+        if ((info.builtin || (previous == path)) && (current != path) && !info.game)
+            id = i;
+    }
+
+    if ((attached == 1) && (id >= 0))
+        attach_default(id, emu_hard_disk_get_default());
+}
+
+void emu_hard_disk_boot_default(void)
+{
+    int choice = emu_hard_disk_get_default();
     int id = emu_hard_disk_get_free_id();
 
-    if ((system < 0) || (id < 0) || emu_get_core()->HasHardDisks())
+    if ((choice == config_DefaultDisk_None) || (id < 0) || emu_get_core()->HasHardDisks())
         return;
 
-    if (emu_hard_disk_attach_builtin(id, system) || (system != GDOX_GAME_SYSTEM_MSDOS))
+    if (attach_default(id, choice) || (choice == config_DefaultDisk_FreeDOS))
         return;
 
-    fallback_error = builtin_error;
+    fallback_error = choice == config_DefaultDisk_Custom ?
+        "Unable to attach " + config_emulator.hard_disk_default_path : builtin_error;
     builtin_error.clear();
     emu_hard_disk_attach_builtin(id, GDOX_GAME_SYSTEM_FREEDOS);
 }
@@ -221,29 +296,6 @@ bool emu_hard_disk_recreate_builtin(int system)
         emu_hard_disk_attach_builtin(id, system);
 
     return written;
-}
-
-void emu_hard_disk_swap_builtin(int system)
-{
-    int attached = 0;
-    int id = -1;
-
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
-    {
-        Emu_HardDiskInfo info;
-        emu_hard_disk_get_info(i, &info);
-
-        if (!info.pending_attached)
-            continue;
-
-        attached++;
-
-        if (info.builtin && (info.builtin_system != system) && !info.game)
-            id = i;
-    }
-
-    if ((attached == 1) && (id >= 0))
-        emu_hard_disk_attach_builtin(id, system);
 }
 
 bool emu_hard_disk_is_builtin_attached(int system)
@@ -516,6 +568,16 @@ static bool make_builtin(int system, bool replace)
 
     builtin_error = "Unable to make " + path;
     return false;
+}
+
+static bool attach_default(int id, int choice)
+{
+    if (choice == config_DefaultDisk_Custom)
+        return emu_hard_disk_attach(id, config_emulator.hard_disk_default_path.c_str(),
+            config_emulator.hard_disk_write_protected[id] != 0);
+
+    return emu_hard_disk_attach_builtin(id, choice == config_DefaultDisk_MSDOS ? (int)GDOX_GAME_SYSTEM_MSDOS :
+        (int)GDOX_GAME_SYSTEM_FREEDOS);
 }
 
 // "Same as ROM" means the config folder here: a folder is only read, so nothing goes next to it

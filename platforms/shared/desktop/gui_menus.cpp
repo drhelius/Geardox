@@ -510,12 +510,12 @@ static void menu_drives(void)
         int floppy_drives = emu_is_empty() ? core->GetPendingMachineConfig().floppy_drives :
             core->GetMachineConfig().floppy_drives;
 
-        menu_cdrom();
+        gui_hard_disks_menu();
 
         if (floppy_drives > 0)
             gui_floppy_menu(floppy_drives);
 
-        gui_hard_disks_menu();
+        menu_cdrom();
 
         ImGui::EndMenu();
     }

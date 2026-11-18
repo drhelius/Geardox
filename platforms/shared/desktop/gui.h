@@ -64,6 +64,7 @@ EXTERN bool gui_start_game(const GameDisk_Found& found, int target);
 EXTERN void gui_load_physical_cdrom(const char* device_id);
 EXTERN void gui_reload_cdrom(void);
 EXTERN void gui_reset_when_loaded(void);
+EXTERN void gui_power_on_when_loaded(void);
 EXTERN void gui_load_media_symbols(const char* media_path, const char* symbol_path);
 EXTERN bool gui_is_rom_loading(void);
 EXTERN bool gui_finish_loading_rom(void);

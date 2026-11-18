@@ -58,7 +58,8 @@ static bool source_reset = false;
 static bool source_rebuild = false;
 static int recreate_system = GDOX_GAME_SYSTEM_FREEDOS;
 
-static void builtin_menu(void);
+static void default_menu(void);
+static void builtin_items(int id, bool loading);
 static const char* builtin_name(int system);
 static void disk_menu(int id);
 static bool load_source(int id, const char* path, bool rebuild);
@@ -79,7 +80,7 @@ void gui_hard_disks_menu(void)
         disk_menu(i);
 
     ImGui::Separator();
-    builtin_menu();
+    default_menu();
 
     if (!emu_is_empty() && gui_hard_disks_is_pending() && ImGui::MenuItem("Reset to Apply Changes"))
         gui_action_reset();
@@ -123,8 +124,7 @@ void gui_hard_disks_update(void)
     std::string builtin_error;
 
     if (emu_hard_disk_take_fallback_error(&builtin_error))
-        gui_notify(gui_NotificationError, NULL, "Unable to make the built-in MS-DOS disk",
-            ("FreeDOS booted instead: " + builtin_error).c_str());
+        gui_notify(gui_NotificationError, NULL, "FreeDOS booted instead of the default disk", builtin_error.c_str());
 
     u32 changes = emu_hard_disk_take_state_changes();
 
@@ -171,7 +171,7 @@ bool gui_hard_disks_load(const char* path)
 
 bool gui_hard_disks_load_source(const char* path)
 {
-    emu_hard_disk_boot_builtin();
+    emu_hard_disk_boot_default();
     int id = emu_hard_disk_get_free_id();
 
     if (id < 0)
@@ -275,6 +275,19 @@ void gui_hard_disks_dialog_create(int id, const char* path)
     }
 }
 
+void gui_hard_disks_dialog_default(const char* path)
+{
+    if (!emu_hard_disk_is_image(path) || emu_hard_disk_is_source(path))
+    {
+        std::string message("Not a hard disk image:\n");
+        message += path;
+        gui_set_error_message(message.c_str());
+        return;
+    }
+
+    emu_hard_disk_set_default(config_DefaultDisk_Custom, path);
+}
+
 void gui_hard_disks_open_quit_confirmation(void)
 {
     open_quit = true;
@@ -294,7 +307,8 @@ static void disk_menu(int id)
     emu_hard_disk_get_info(id, &info);
     const char* path = info.source[0] != 0 ? info.source : (info.pending ? info.pending_path : info.path);
     bool present = path[0] != 0;
-    const char* name = present ? get_filename(path) : "Empty";
+    std::string builtin = info.builtin ? std::string("Built-in ") + builtin_name(info.builtin_system) : "";
+    const char* name = info.builtin ? builtin.c_str() : (present ? get_filename(path) : "Empty");
     char label[64];
     snprintf(label, sizeof(label), "%s: %.32s%s###hard_disk_%d", k_slot_names[id], name, strlen(name) > 32 ? "..." : "", id);
 
@@ -308,6 +322,8 @@ static void disk_menu(int id)
 
     if (ImGui::MenuItem("Attach Folder...", NULL, false, !loading))
         gui_file_dialog_attach_folder(id);
+
+    builtin_items(id, loading);
 
     if (ImGui::MenuItem("New Blank Disk...", NULL, false, !loading))
     {
@@ -387,31 +403,99 @@ static void disk_menu(int id)
     ImGui::EndMenu();
 }
 
-static void builtin_menu(void)
+static void default_menu(void)
+{
+    static const char k_tooltip[] = "Attached at power on when no hard disk is.\n"
+        "Swaps at the next reset if it's the only one.";
+
+    if (!ImGui::BeginMenu("Default Disk"))
+    {
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", k_tooltip);
+
+        return;
+    }
+
+    bool loading = gui_is_rom_loading() || emu_is_media_loading();
+    bool imported = emu_dos_get_msdos_name()[0] != 0;
+    const std::string& custom = config_emulator.hard_disk_default_path;
+    std::string names[config_DefaultDisk_Count] = { std::string("Built-in ") + builtin_name(GDOX_GAME_SYSTEM_MSDOS),
+        "Built-in FreeDOS", custom.empty() ? "" : get_filename(custom.c_str()), "None" };
+    int selected = emu_hard_disk_get_default();
+    float text_width = 0.0f;
+
+    for (int i = 0; i < config_DefaultDisk_Count; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(names[i].c_str()).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (ImGui::BeginCombo("##default_disk", names[selected].c_str()))
+    {
+        for (int i = 0; i < config_DefaultDisk_Count; i++)
+        {
+            bool available = (i != config_DefaultDisk_MSDOS) || imported;
+
+            if ((i == config_DefaultDisk_Custom) && custom.empty())
+                continue;
+
+            if (i == config_DefaultDisk_Custom || i == config_DefaultDisk_None)
+                ImGui::Separator();
+
+            ImGui::PushID(i);
+
+            if (ImGui::Selectable(names[i].c_str(), selected == i, available ? 0 : ImGuiSelectableFlags_Disabled))
+                emu_hard_disk_set_default(i, NULL);
+
+            ImGui::PopID();
+
+            if (!ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                continue;
+
+            if (!available)
+                ImGui::SetTooltip("Import your own MS-DOS first.");
+            else if (i == config_DefaultDisk_Custom)
+                ImGui::SetTooltip("%s", custom.c_str());
+            else if (i == config_DefaultDisk_None)
+                ImGui::SetTooltip("Boots floppies and CD-ROMs only.");
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", k_tooltip);
+
+    ImGui::PopItemWidth();
+
+    if (ImGui::MenuItem("Choose Image...", NULL, false, !loading))
+        gui_file_dialog_choose_default_hard_disk();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("Your own hard disk image as the default disk.");
+
+    ImGui::EndMenu();
+}
+
+static void builtin_items(int id, bool loading)
 {
     static const int k_systems[2] = { GDOX_GAME_SYSTEM_MSDOS, GDOX_GAME_SYSTEM_FREEDOS };
-    static const char* const k_labels[2] = { "Attach Built-in MS-DOS Disk", "Attach Built-in FreeDOS Disk" };
     static const char* const k_tooltips[2] =
     {
-        "MS-DOS.hdd, created from your import on first use.\nIn the first free position.",
-        "FreeDOS.hdd, created on first use.\nIn the first free position."
+        "MS-DOS.hdd, made from your import on first use.",
+        "FreeDOS.hdd, made on first use."
     };
-    bool loading = gui_is_rom_loading() || emu_is_media_loading();
     bool imported = emu_dos_get_msdos_name()[0] != 0;
 
     for (int i = 0; i < 2; i++)
     {
         bool available = (k_systems[i] != GDOX_GAME_SYSTEM_MSDOS) || imported;
         bool attached = emu_hard_disk_is_builtin_attached(k_systems[i]);
+        std::string label = std::string("Attach Built-in ") + builtin_name(k_systems[i]);
 
-        if (ImGui::MenuItem(k_labels[i], NULL, false, !loading && available && !attached))
+        if (ImGui::MenuItem(label.c_str(), NULL, false, !loading && available && !attached))
         {
-            int id = emu_hard_disk_get_free_id();
             std::string error;
 
-            if (id < 0)
-                gui_set_error_message("Every hard disk slot is in use.");
-            else if (emu_hard_disk_attach_builtin(id, k_systems[i]))
+            if (emu_hard_disk_attach_builtin(id, k_systems[i]))
                 notify_attached(id, builtin_name(k_systems[i]), "Hard disk attached");
             else if (emu_hard_disk_take_builtin_error(&error))
                 gui_set_error_message(error.c_str());
@@ -420,13 +504,19 @@ static void builtin_menu(void)
         }
 
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", available ? k_tooltips[i] : "Import your own MS-DOS first.");
+            ImGui::SetTooltip("%s", !available ? "Import your own MS-DOS first." :
+                (attached ? "Attached already." : k_tooltips[i]));
     }
 }
 
 static const char* builtin_name(int system)
 {
-    return system == GDOX_GAME_SYSTEM_MSDOS ? emu_dos_get_msdos_name() : "FreeDOS";
+    const char* msdos = emu_dos_get_msdos_name();
+
+    if (system != GDOX_GAME_SYSTEM_MSDOS)
+        return "FreeDOS";
+
+    return msdos[0] != 0 ? msdos : "MS-DOS";
 }
 
 void gui_hard_disks_confirm_recreate(int system)

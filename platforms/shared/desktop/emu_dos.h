@@ -35,8 +35,6 @@ EXTERN const char* emu_dos_get_msdos_name(void);
 EXTERN bool emu_dos_load_msdos(DosImport_System* system, std::string* error);
 EXTERN bool emu_dos_import_msdos(const char* path, std::string* message);
 EXTERN bool emu_dos_remove_msdos(void);
-EXTERN int emu_dos_get_builtin(void);
-EXTERN void emu_dos_set_builtin(int choice);
 
 #undef EMU_DOS_IMPORT
 #undef EXTERN

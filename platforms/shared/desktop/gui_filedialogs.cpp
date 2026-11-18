@@ -54,6 +54,7 @@ enum FileDialogID
     FileDialog_NewFloppy,
     FileDialog_AttachHardDisk,
     FileDialog_AttachFolder,
+    FileDialog_ChooseDefaultHardDisk,
     FileDialog_OpenGame,
     FileDialog_SaveDescriptor,
     FileDialog_NewDescriptor,
@@ -302,6 +303,18 @@ void gui_file_dialog_attach_hard_disk(int id)
     show_open_file_dialog(FileDialog_AttachHardDisk, filters, 2);
 }
 
+void gui_file_dialog_choose_default_hard_disk(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = {
+        { "Hard Disk Images", "hdd;img;vhd;hdm;chd;h0;h1;h2;h3" },
+        { "All Files", "*" }
+    };
+    show_open_file_dialog(FileDialog_ChooseDefaultHardDisk, filters, 2);
+}
+
 void gui_file_dialog_attach_folder(int id)
 {
     if (!begin_dialog())
@@ -485,6 +498,7 @@ static std::string* get_dialog_folder(FileDialogID id)
             return &config_file_dialogs.floppies;
         case FileDialog_AttachHardDisk:
         case FileDialog_AttachFolder:
+        case FileDialog_ChooseDefaultHardDisk:
         case FileDialog_CreateHardDisk:
             return &config_file_dialogs.hard_disks;
         case FileDialog_SaveScreenshot:
@@ -649,6 +663,9 @@ static void process_dialog_result(FileDialogID id, const char* path)
             break;
         case FileDialog_CreateHardDisk:
             gui_hard_disks_dialog_create(dialog_hard_disk_id, path);
+            break;
+        case FileDialog_ChooseDefaultHardDisk:
+            gui_hard_disks_dialog_default(path);
             break;
         case FileDialog_OpenGame:
             gui_load_rom(path);

@@ -36,7 +36,6 @@
 #include "media/game_descriptor.h"
 
 static void menu_game(bool loading);
-static void menu_no_disks(void);
 static void menu_keyboard_layout(void);
 static void menu_recreate(bool loading);
 static void menu_import(bool loading);
@@ -49,7 +48,6 @@ void gui_dos_menu(void)
     gui_in_use = true;
     bool loading = gui_is_rom_loading() || emu_is_media_loading();
     menu_game(loading);
-    menu_no_disks();
     menu_keyboard_layout();
     ImGui::Separator();
     menu_recreate(loading);
@@ -130,54 +128,6 @@ static void menu_game(bool loading)
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
-
-    ImGui::PopItemWidth();
-    ImGui::EndMenu();
-}
-
-static void menu_no_disks(void)
-{
-    static const char k_tooltip[] = "The built-in disk that boots without hard disks.\n"
-        "Swaps at the next reset if it's the only hard disk.";
-
-    if (!ImGui::BeginMenu("With No Disks"))
-    {
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", k_tooltip);
-
-        return;
-    }
-
-    const char* msdos = emu_dos_get_msdos_name();
-    bool imported = msdos[0] != 0;
-    const char* names[3] = { imported ? msdos : "MS-DOS", "FreeDOS", "None" };
-    int builtin = emu_dos_get_builtin();
-    int selected = builtin < 0 ? (int)config_BuiltinDOS_None :
-        (builtin == GDOX_GAME_SYSTEM_MSDOS ? (int)config_BuiltinDOS_MSDOS : (int)config_BuiltinDOS_FreeDOS);
-    float text_width = 0.0f;
-
-    for (int i = 0; i < 3; i++)
-        text_width = MAX(text_width, ImGui::CalcTextSize(names[i]).x);
-
-    ImGui::PushItemWidth(gui_get_combo_width(text_width));
-
-    if (ImGui::BeginCombo("##builtin_dos", names[selected]))
-    {
-        for (int i = 0; i < 3; i++)
-        {
-            bool available = (i != config_BuiltinDOS_MSDOS) || imported;
-
-            if (ImGui::Selectable(names[i], selected == i, available ? 0 : ImGuiSelectableFlags_Disabled))
-                emu_dos_set_builtin(i);
-
-            if (!available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Import your own MS-DOS first.");
-        }
-
-        ImGui::EndCombo();
-    }
-    else if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", k_tooltip);
 
     ImGui::PopItemWidth();
     ImGui::EndMenu();

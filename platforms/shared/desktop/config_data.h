@@ -52,11 +52,13 @@ enum config_VideoSync
     config_VideoSync_VRR = 2
 };
 
-enum config_BuiltinDOS
+enum config_DefaultDisk
 {
-    config_BuiltinDOS_MSDOS = 0,
-    config_BuiltinDOS_FreeDOS = 1,
-    config_BuiltinDOS_None = 2
+    config_DefaultDisk_MSDOS = 0,
+    config_DefaultDisk_FreeDOS = 1,
+    config_DefaultDisk_Custom = 2,
+    config_DefaultDisk_None = 3,
+    config_DefaultDisk_Count = 4
 };
 
 struct config_Emulator
@@ -104,7 +106,8 @@ struct config_Emulator
     bool floppy_write_protected[config_floppy_drives];
     std::string recent_floppies[config_max_recent_floppies];
     int hard_disk_write_protected[GDOX_MAX_HARD_DISKS];
-    int hard_disk_builtin;
+    int hard_disk_default;
+    std::string hard_disk_default_path;
     std::string recent_hard_disks[config_max_recent_hard_disks];
 };
 

@@ -235,7 +235,8 @@ static inline void process(config_Operation operation)
     // Hard disks
     CONFIG_INT_ARRAY("HardDisk", "WriteProtected%d", config_emulator.hard_disk_write_protected, GDOX_MAX_HARD_DISKS, 0);
     CONFIG_STRING_ARRAY("HardDisk", "Recent%d", config_emulator.recent_hard_disks, config_max_recent_hard_disks, "");
-    CONFIG_INT_RANGE("HardDisk", "BuiltIn", config_emulator.hard_disk_builtin, 0, 0, 2);
+    CONFIG_INT_RANGE("HardDisk", "Default", config_emulator.hard_disk_default, 0, 0, 3);
+    CONFIG_STRING("HardDisk", "DefaultPath", config_emulator.hard_disk_default_path, "");
 
     // Games
     CONFIG_INT_RANGE("Game", "WriteBack", config_game.write_back, 0, 0, 1);

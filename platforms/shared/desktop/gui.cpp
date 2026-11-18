@@ -65,6 +65,7 @@ static char loading_rom_path[4096] = "";
 static char loading_symbol_path[4096] = "";
 static bool loading_physical_cdrom = false;
 static bool loading_reset = false;
+static bool loading_power_on = false;
 static bool loading_reload = false;
 static bool loading_keep_debug = false;
 static bool output_focus_requested = false;
@@ -146,10 +147,6 @@ bool gui_init(void)
     }
 
     gui_apply_settings();
-
-    if (config_emulator.power_on_startup)
-        emu_power_on();
-
     gui_debug_init();
     gui_init_menus();
 
@@ -584,6 +581,11 @@ void gui_reset_when_loaded(void)
     loading_reset = loading_rom_active;
 }
 
+void gui_power_on_when_loaded(void)
+{
+    loading_power_on = loading_rom_active;
+}
+
 void gui_load_media_symbols(const char* media_path, const char* symbol_path)
 {
     if (IsValidPointer(symbol_path) && symbol_path[0] != '\0')
@@ -636,6 +638,10 @@ bool gui_finish_loading_rom(void)
 
     }
 
+    if (loading_power_on && !emu_is_powered_on())
+        emu_power_on();
+
+    loading_power_on = false;
     load_pending_state();
     return success;
 }

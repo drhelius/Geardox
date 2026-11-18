@@ -20,6 +20,7 @@
 #ifndef EMU_HARD_DISK_H
 #define EMU_HARD_DISK_H
 
+#include <string>
 #include "geardox.h"
 #include "drive/fat_image.h"
 
@@ -62,10 +63,13 @@ EXTERN bool emu_hard_disk_is_source_attached(const char* path);
 EXTERN void emu_hard_disk_prepare_source(const char* path, bool rebuild);
 EXTERN const Emu_HardDiskSource* emu_hard_disk_get_prepared_source(void);
 EXTERN bool emu_hard_disk_attach_prepared_source(int id, bool write_protected);
-EXTERN void emu_hard_disk_boot_builtin(void);
+EXTERN int emu_hard_disk_get_default(void);
+EXTERN std::string emu_hard_disk_get_default_path(void);
+EXTERN void emu_hard_disk_set_default(int choice, const char* path);
+EXTERN void emu_hard_disk_follow_default(const std::string& previous);
+EXTERN void emu_hard_disk_boot_default(void);
 EXTERN bool emu_hard_disk_attach_builtin(int id, int system);
 EXTERN bool emu_hard_disk_recreate_builtin(int system);
-EXTERN void emu_hard_disk_swap_builtin(int system);
 EXTERN bool emu_hard_disk_is_builtin_attached(int system);
 EXTERN bool emu_hard_disk_take_builtin_error(std::string* error);
 EXTERN bool emu_hard_disk_take_fallback_error(std::string* error);

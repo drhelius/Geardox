@@ -343,8 +343,11 @@ void application_load_media(const ApplicationParams& params)
             Log("Symbol file argument: %s", params.symbol_file);
 
         gui_game_set_next_target(params.game_target);
+        bool powered = emu_is_powered_on();
         gui_load_rom(params.rom_file, params.symbol_file);
-        gui_reset_when_loaded();
+
+        if (powered)
+            gui_reset_when_loaded();
     }
 
     if (!rom_file_argument && symbol_file_argument)
@@ -357,12 +360,21 @@ void application_load_media(const ApplicationParams& params)
     if (IsValidPointer(params.cd_file))
     {
         Log("CD-ROM argument: %s", params.cd_file);
+        bool powered = emu_is_powered_on();
         gui_load_rom(params.cd_file);
-        gui_reset_when_loaded();
+
+        if (powered)
+            gui_reset_when_loaded();
     }
 
-    // The machine powers on before this, so a disc given here boots at a reset, and a hard disk only attaches at one
-    if (gui_hard_disks_is_loading_source())
+    if (!emu_is_powered_on())
+    {
+        if (config_emulator.power_on_startup && gui_is_rom_loading())
+            gui_power_on_when_loaded();
+        else if (config_emulator.power_on_startup)
+            emu_power_on();
+    }
+    else if (gui_hard_disks_is_loading_source())
         gui_hard_disks_reset_when_loaded();
     else if (gui_hard_disks_is_pending() && !gui_is_rom_loading())
         gui_action_reset();

@@ -36,6 +36,7 @@ EXTERN void gui_file_dialog_save_floppy(int drive);
 EXTERN void gui_file_dialog_new_floppy(int drive);
 EXTERN void gui_file_dialog_attach_hard_disk(int id);
 EXTERN void gui_file_dialog_attach_folder(int id);
+EXTERN void gui_file_dialog_choose_default_hard_disk(void);
 EXTERN void gui_file_dialog_open_game(void);
 EXTERN void gui_file_dialog_open_game_folder(void);
 EXTERN void gui_file_dialog_save_descriptor(void);

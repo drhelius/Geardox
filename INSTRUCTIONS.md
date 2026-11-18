@@ -67,8 +67,9 @@ and you get a DOS prompt: `C:\>`. There are two, and both can live side by side:
 - **The MS-DOS disk,** `MS-DOS.hdd`, once you've imported your own MS-DOS (see
   [Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos)). It's then the one that boots.
 
-**DOS > With No Disks** chooses which one boots: your MS-DOS, FreeDOS, or **None**, which leaves the PC with nothing to
-boot. If the other built-in disk is the only hard disk attached, the change takes its place at the next reset.
+**Drives > Hard Disks > Default Disk** chooses which one boots: your MS-DOS, FreeDOS, your own hard disk image picked
+with **Choose Image...**, or **None**, which boots only floppies and CD-ROMs. If the old default is the only hard disk
+attached, the new one takes its place at the next reset. If your own image is missing, FreeDOS boots instead.
 
 Each is a file in [Geardox's settings folder](#where-geardox-keeps-its-files), a hard disk of about 500 MB. Geardox
 makes it the first time it's needed and then it's yours: anything you copy or install on it stays there, session after
@@ -88,8 +89,8 @@ Both disks come ready for games, with the same `CONFIG.SYS` and `AUTOEXEC.BAT` f
 To start over, choose **DOS > Recreate Built-in MS-DOS Disk...** or **DOS > Recreate Built-in FreeDOS Disk...**. It
 makes a clean disk and erases everything on the old one. A new MS-DOS disk uses the MS-DOS you imported last.
 
-**Drives > Hard Disks > Attach Built-in MS-DOS Disk** and **Attach Built-in FreeDOS Disk** put one in any free
-position, for example next to a disk of your own, or both together to copy games from one to the other.
+Each position in **Drives > Hard Disks** has **Attach Built-in MS-DOS** and **Attach Built-in FreeDOS**, to put one
+there, for example next to a disk of your own, or both together to copy games from one to the other.
 
 ## Using the DOS Prompt
 
@@ -333,7 +334,7 @@ the games' disks, settings and key maps with it.
 | --- | --- |
 | A hard disk I attached isn't there | Reset. Hard disks only attach at a reset. |
 | The PC boots from a floppy I forgot | Eject it from **Drives > Floppies**, or use **Geardox > Reset and Boot From > Hard Disk**. |
-| The games I installed are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **DOS > With No Disks** switches back, or attach both to copy them. |
+| The games I installed are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **Drives > Hard Disks > Default Disk** switches back, or attach both to copy them. |
 | Hotkeys don't work | Game Focus is on, as the window title says. Press Ctrl+F10. |
 | The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
 | The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine**. |
