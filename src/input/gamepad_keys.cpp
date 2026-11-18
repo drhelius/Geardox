@@ -23,7 +23,7 @@
 #include "key_map.h"
 
 static const int k_gamepad_keys_stick_threshold = 16384;
-static const float k_gamepad_keys_speed_scale = 4.0f;
+static const float k_gamepad_keys_speed_scale = 8.0f;
 static const int k_gamepad_keys_dpad_ramp = 30;
 
 static const GDOX_Gamepad_Info k_gamepad_mouse_targets[3] =
