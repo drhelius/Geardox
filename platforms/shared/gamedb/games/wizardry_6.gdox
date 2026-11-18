@@ -7,3 +7,6 @@ folder = C:\
 
 [run]
 exe = WROOT.EXE
+
+[machine]
+video = ega

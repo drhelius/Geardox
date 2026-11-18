@@ -8,6 +8,7 @@ folder = C:\
 [machine]
 model = 386sx_20
 turbo = off
+video = ega
 
 [run]
 exe = ULTIMA.COM

@@ -7,3 +7,6 @@ folder = C:\ECH
 
 [run]
 exe = ECHELON.EXE
+
+[machine]
+video = ega

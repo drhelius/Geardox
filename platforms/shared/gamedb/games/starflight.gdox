@@ -11,6 +11,7 @@ exe = PLAY\STARFLT.COM
 [machine]
 model = 386sx_20
 turbo = off
+video = ega
 
 [autoexec]
 IF NOT EXIST C:\STARFLT\PLAY\STARA.COM COPY C:\STARFLT\START\*.* C:\STARFLT\PLAY

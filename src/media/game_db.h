@@ -326,7 +326,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = START.EXE\n" },
+        "exe = START.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "constructor", "Constructor",
         "[geardox]\n"
         "version = 1\n"
@@ -389,7 +392,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = START.EXE\n" },
+        "exe = START.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "dark_forces", "Star Wars: Dark Forces",
         "[geardox]\n"
         "version = 1\n"
@@ -472,7 +478,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = DEMON.EXE\n" },
+        "exe = DEMON.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "descent", "Descent",
         "[geardox]\n"
         "version = 1\n"
@@ -570,7 +579,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = ega\n" },
     { "dragonsphere", "Dragonsphere",
         "[geardox]\n"
         "version = 1\n"
@@ -703,7 +713,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\ECH\n"
         "\n"
         "[run]\n"
-        "exe = ECHELON.EXE\n" },
+        "exe = ECHELON.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "epic_pinball", "Epic Pinball: The Complete Collection",
         "[geardox]\n"
         "version = 1\n"
@@ -895,6 +908,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
+        "video = ega\n"
         "\n"
         "[run]\n"
         "exe = GUNSHIP\\GS\\RUNGS.COM\n" },
@@ -990,7 +1004,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = MAIN.EXE\n" },
+        "exe = MAIN.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "hocus_pocus", "Hocus Pocus",
         "[geardox]\n"
         "version = 1\n"
@@ -1137,7 +1154,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = KQ1.COM\n" },
+        "exe = KQ1.COM\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "kings_quest_2", "King's Quest 2 - Romancing the Throne",
         "[geardox]\n"
         "version = 1\n"
@@ -1147,7 +1167,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = SIERRA.COM\n" },
+        "exe = SIERRA.COM\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "kings_quest_3", "King's Quest III: To Heir Is Human",
         "[geardox]\n"
         "version = 1\n"
@@ -1157,7 +1180,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = SIERRA.COM\n" },
+        "exe = SIERRA.COM\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "kings_quest_4", "King's Quest IV: The Perils of Rosella",
         "[geardox]\n"
         "version = 1\n"
@@ -1302,7 +1328,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = ega\n" },
     { "might_and_magic_2", "Might and Magic 2 - Gates to Another World",
         "[geardox]\n"
         "version = 1\n"
@@ -1396,6 +1423,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = PIR.EXE\n"
         "\n"
+        "[machine]\n"
+        "video = ega\n"
+        "\n"
         "[autoexec]\n"
         "STUFFIT.COM +1 '1' +1 '1' +0 '3' +0 '1' +0 '2'\n" },
     { "pirates_gold", "Pirates! Gold",
@@ -1423,7 +1453,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\POOLRAD\n"
         "\n"
         "[run]\n"
-        "exe = START.EXE\n" },
+        "exe = START.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "pools_of_darkness", "Pools of Darkness",
         "[geardox]\n"
         "version = 1\n"
@@ -1532,7 +1565,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "video = ega\n" },
     { "quest_for_glory_1_vga", "Quest for Glory: So You Want To Be A Hero (VGA)",
         "[geardox]\n"
         "version = 1\n"
@@ -1563,7 +1597,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INST.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "video = ega\n" },
     { "quest_for_glory_3_wages_of_war", "Quest for Glory 3: Wages of War",
         "[geardox]\n"
         "version = 1\n"
@@ -1605,7 +1640,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = ega\n" },
     { "ravenloft_stone_prophet", "Ravenloft: Stone Prophet",
         "[geardox]\n"
         "version = 1\n"
@@ -1710,7 +1746,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = START.EXE\n" },
+        "exe = START.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "shadow_sorcerer", "Shadow Sorcerer",
         "[geardox]\n"
         "version = 1\n"
@@ -1792,7 +1831,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = START.EXE\n" },
+        "exe = START.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "sid_meiers_colonization", "Sid Meier's Colonization",
         "[geardox]\n"
         "version = 1\n"
@@ -1873,7 +1915,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = SQ.COM\n" },
+        "exe = SQ.COM\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "space_quest_1_vga", "Space Quest I: The Sarien Encounter (VGA)",
         "[geardox]\n"
         "version = 1\n"
@@ -1895,7 +1940,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = SIERRA.COM\n" },
+        "exe = SIERRA.COM\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "space_quest_3", "Space Quest III: The Pirates of Pestulon",
         "[geardox]\n"
         "version = 1\n"
@@ -2078,6 +2126,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386sx_20\n"
         "turbo = off\n"
+        "video = ega\n"
         "\n"
         "[autoexec]\n"
         "IF NOT EXIST C:\\STARFLT\\PLAY\\STARA.COM COPY C:\\STARFLT\\START\\*.* C:\\STARFLT\\PLAY\n" },
@@ -2124,7 +2173,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = SWORD.EXE\n" },
+        "exe = SWORD.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "swords_of_xeen", "Might and Magic - Swords of Xeen",
         "[geardox]\n"
         "version = 1\n"
@@ -2445,7 +2497,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = ega\n" },
     { "ultima_ii", "Ultima II: The Revenge of the Enchantress",
         "[geardox]\n"
         "version = 1\n"
@@ -2474,7 +2527,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = cga\n" },
     { "ultima_iv_quest_of_the_avatar", "Ultima IV: Quest of the Avatar",
         "[geardox]\n"
         "version = 1\n"
@@ -2486,6 +2540,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386sx_20\n"
         "turbo = off\n"
+        "video = ega\n"
         "\n"
         "[run]\n"
         "exe = ULTIMA.COM\n" },
@@ -2557,7 +2612,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = ULTIMA.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "video = ega\n" },
     { "ultima_vi_the_false_prophet", "Ultima VI: The False Prophet",
         "[geardox]\n"
         "version = 1\n"
@@ -2611,7 +2667,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = ega\n" },
     { "warcraft_orcs_and_humans", "Warcraft: Orcs and Humans",
         "[geardox]\n"
         "version = 1\n"
@@ -2647,6 +2704,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
+        "video = ega\n"
         "\n"
         "[run]\n"
         "exe = WL.EXE\n"
@@ -2871,7 +2929,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = WROOT.EXE\n" },
+        "exe = WROOT.EXE\n"
+        "\n"
+        "[machine]\n"
+        "video = ega\n" },
     { "wizards_crown", "Wizard's Crown",
         "[geardox]\n"
         "version = 1\n"
@@ -2885,7 +2946,8 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
-        "turbo = off\n" },
+        "turbo = off\n"
+        "video = ega\n" },
     { "wolfenstein_3d", "Wolfenstein 3D",
         "[geardox]\n"
         "version = 1\n"

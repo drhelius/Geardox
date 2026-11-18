@@ -7,3 +7,6 @@ folder = C:\POOLRAD
 
 [run]
 exe = START.EXE
+
+[machine]
+video = ega

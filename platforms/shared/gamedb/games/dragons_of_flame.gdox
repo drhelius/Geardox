@@ -11,3 +11,4 @@ exe = START.COM
 [machine]
 model = 386sx_20
 turbo = off
+video = ega

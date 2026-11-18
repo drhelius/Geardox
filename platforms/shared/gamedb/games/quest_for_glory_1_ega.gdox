@@ -11,3 +11,4 @@ setup = INSTALL.EXE
 
 [machine]
 model = 386dx_33
+video = ega

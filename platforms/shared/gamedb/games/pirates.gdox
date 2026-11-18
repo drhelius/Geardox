@@ -8,5 +8,8 @@ folder = C:\
 [run]
 exe = PIR.EXE
 
+[machine]
+video = ega
+
 [autoexec]
 STUFFIT.COM +1 '1' +1 '1' +0 '3' +0 '1' +0 '2'

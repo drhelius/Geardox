@@ -7,3 +7,6 @@ folder = C:\
 
 [run]
 exe = SQ.COM
+
+[machine]
+video = ega

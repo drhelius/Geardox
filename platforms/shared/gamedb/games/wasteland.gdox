@@ -7,6 +7,7 @@ folder = C:\
 
 [machine]
 model = 486sx_33
+video = ega
 
 [run]
 exe = WL.EXE
