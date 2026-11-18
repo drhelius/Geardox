@@ -124,7 +124,7 @@ void Audio::SetTraceLogger(TraceLogger* trace_logger)
     m_mpu401->SetTraceLogger(trace_logger);
 }
 
-void Audio::SetCard(int card, int irq, int dma, bool mpu)
+void Audio::SetCard(int card, int irq, int dma, int mpu)
 {
     const GDOX_Sound_Card_Info& info = k_sound_cards[card];
 
@@ -132,8 +132,9 @@ void Audio::SetCard(int card, int irq, int dma, bool mpu)
     m_opl3 = info.opl3;
     m_dsp = info.dsp_major != 0;
     m_mixer = info.mixer != k_sound_blaster_mixer_none;
-    m_mpu = mpu;
+    m_mpu = mpu != GDOX_MPU_OFF;
     m_card_mpu = info.mpu;
+    m_mpu401->SetIntelligent(mpu == GDOX_MPU_INTELLIGENT);
     m_sound_blaster->SetCard(card, irq, dma);
 
     for (int i = 0; i < AUDIO_OPL_CHIPS; i++)
@@ -195,10 +196,16 @@ u8 Audio::Read(u16 port, u64 clocks)
         return m_opl[right ? 1 : 0]->Read((u8)(port & 0x03));
     }
 
+    // A request that takes the place of the byte just read needs a new edge on the line
     if (IsMPUPort(port))
     {
         u8 value = m_mpu401->Read(port);
         UpdateMPUInterrupt();
+
+        if (m_mpu401->Deliver())
+            UpdateMPUInterrupt();
+
+        UpdateEvent();
         return value;
     }
 
@@ -235,6 +242,7 @@ void Audio::Write(u16 port, u8 value, u64 clocks)
     {
         m_mpu401->Write(port, value);
         UpdateMPUInterrupt();
+        UpdateEvent();
         return;
     }
 
@@ -287,6 +295,10 @@ void Audio::WriteChip(int chip, u8 port, u8 value)
 void Audio::UpdateEvent()
 {
     u64 clocks = m_dsp ? m_sound_blaster->GetClocksToEvent() : GDOX_NO_EVENT;
+
+    if (m_mpu)
+        clocks = MIN(clocks, m_mpu401->GetClocksToEvent());
+
     m_scheduler->Schedule(SCHEDULER_EVENT_AUDIO, clocks == GDOX_NO_EVENT ? GDOX_NO_EVENT : m_state.clocks + clocks);
 }
 
@@ -355,7 +367,13 @@ u64 Audio::GetReadStableUntil(u16 port) const
     }
 
     if (IsMPUPort(port))
-        return ((port & 0x01) != 0) || !m_mpu401->IsIRQAsserted() ? GDOX_NO_EVENT : 0;
+    {
+        if (m_mpu401->IsIRQAsserted())
+            return (port & 0x01) != 0 ? GDOX_NO_EVENT : 0;
+
+        u64 clocks = m_mpu401->GetClocksToEvent();
+        return clocks == GDOX_NO_EVENT ? GDOX_NO_EVENT : m_state.clocks + clocks;
+    }
 
     return m_sound_blaster->GetReadStableUntil(port);
 }

@@ -111,6 +111,7 @@ private:
     bool Send(const u8* data, int size, u16 offset);
     void SendShort(u8 status, u8 data1, u8 data2, int size);
     void SendChannel(const MidiOut_Synth& synth, int channel, bool all);
+    void SendResets();
     void SendLog(const MidiOut_Synth& synth);
     void SilenceChannel(int channel);
     void Serialize(StateSerializer& serializer);

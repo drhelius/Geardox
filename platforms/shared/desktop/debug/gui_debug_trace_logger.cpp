@@ -731,6 +731,7 @@ static void trace_logger_menu_filters(void)
         ImGui::BeginDisabled(!config_debug.trace_midi);
         trace_logger_menu_event_filter("Data", &config_debug.trace_midi_events, TRACE_MIDI_EVENT_DATA);
         trace_logger_menu_event_filter("Commands", &config_debug.trace_midi_events, TRACE_MIDI_EVENT_COMMANDS);
+        trace_logger_menu_event_filter("Messages", &config_debug.trace_midi_events, TRACE_MIDI_EVENT_MESSAGES);
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }

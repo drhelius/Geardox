@@ -563,7 +563,7 @@ struct GDOX_Machine_Config
     u8 sound_card;
     u8 sound_irq;
     u8 sound_dma;
-    bool mpu;
+    u8 mpu;
     u8 mouse;
     u8 cdrom;
     u8 cdrom_speed;
@@ -581,6 +581,14 @@ enum GDOX_Sound_Card
     GDOX_SOUND_CARD_SBPRO2,
     GDOX_SOUND_CARD_SB16,
     GDOX_SOUND_CARD_COUNT
+};
+
+enum GDOX_MPU_Mode
+{
+    GDOX_MPU_OFF = 0,
+    GDOX_MPU_INTELLIGENT,
+    GDOX_MPU_UART,
+    GDOX_MPU_MODE_COUNT
 };
 
 enum GDOX_Video_Card

@@ -480,7 +480,7 @@ void retro_deinit(void)
     machine_settings.sound_card = GDOX_SOUND_CARD_SB16;
     machine_settings.sound_irq = GDOX_MACHINE_AUTO;
     machine_settings.sound_dma = GDOX_MACHINE_AUTO;
-    machine_settings.mpu = 1;
+    machine_settings.mpu = GDOX_MPU_INTELLIGENT;
     machine_settings.mouse = GDOX_MOUSE_PS2;
     machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
     machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
@@ -2108,7 +2108,8 @@ static void check_variables(void)
     var.value = NULL;
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-        machine_settings.mpu = strcmp(var.value, "disabled") == 0 ? 0 : 1;
+        machine_settings.mpu = strcmp(var.value, "disabled") == 0 ? GDOX_MPU_OFF :
+            strcmp(var.value, "uart") == 0 ? GDOX_MPU_UART : GDOX_MPU_INTELLIGENT;
 
     var.key = "geardox_turbo";
     var.value = NULL;

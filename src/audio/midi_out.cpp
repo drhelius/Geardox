@@ -21,6 +21,8 @@
 #include "../common/state_serializer.h"
 
 static const u8 k_midi_out_lengths[8] = { 3, 3, 3, 3, 2, 2, 3, 0 };
+static const u8 k_midi_out_gm_on[6] = { 0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7 };
+static const u8 k_midi_out_mt32_reset[11] = { 0xF0, 0x41, 0x10, 0x16, 0x12, 0x7F, 0x00, 0x00, 0x00, 0x01, 0xF7 };
 
 MidiOut::MidiOut()
 {
@@ -163,7 +165,12 @@ void MidiOut::Sync()
         (memcmp(m_device.log, machine.log, machine.log_size) != 0);
 
     if (log)
+    {
+        if (!m_device_known || (m_device.log_size != 0))
+            SendResets();
+
         SendLog(machine);
+    }
 
     for (int i = 0; i < MIDI_OUT_CHANNELS; i++)
         SendChannel(machine, i, log);
@@ -305,6 +312,14 @@ void MidiOut::SendChannel(const MidiOut_Synth& machine, int channel, bool all)
     if (((machine.bend_set & bit) != 0) && (full || ((m_device.bend_set & bit) == 0) ||
         (m_device.bend[channel] != machine.bend[channel])))
         SendShort((u8)(0xE0 | channel), (u8)(machine.bend[channel] & 0x7F), (u8)(machine.bend[channel] >> 7), 3);
+}
+
+// A synth may still hold another game's SysEx, as a module does until it's switched off. Each kind ignores the other's
+// reset: GM System On (GM p6) and the MT-32's all parameter reset, any data at 7F xx xx (MT-32 p42, p43)
+void MidiOut::SendResets()
+{
+    Send(k_midi_out_gm_on, sizeof(k_midi_out_gm_on), k_midi_out_immediate);
+    Send(k_midi_out_mt32_reset, sizeof(k_midi_out_mt32_reset), k_midi_out_immediate);
 }
 
 void MidiOut::SendLog(const MidiOut_Synth& synth)

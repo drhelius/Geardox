@@ -541,7 +541,7 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `card` | No | The sound card | `none`, `adlib`, `sb15` (Sound Blaster 1.5), `sb20` (2.0), `sbpro` (Pro), `sbpro2` (Pro 2), `sb16` (16) | Your setting (`sb16`) | `card = sbpro` |
 | `irq` | No | The sound card's IRQ | `5`, `7` | Your setting (`5`) | `irq = 7` |
 | `dma` | No | The sound card's 8-bit DMA channel | `1`, `3` | Your setting (`1`) | `dma = 3` |
-| `mpu` | No | The MPU-401 MIDI port at 330. The Sound Blaster 16 has its own, on the card's IRQ. With the other cards it's a separate MPU-401 card on IRQ 2 (9) | `on`, `off` | Your setting (`on`) | `mpu = off` |
+| `mpu` | No | The MPU-401 MIDI port at 330. `on` is the MPU-401's own sequencer, which older MT-32 games need; `uart` is the plain MIDI port, for a game that misbehaves with `on`. The Sound Blaster 16 has its own, on the card's IRQ. With the other cards it's a separate MPU-401 card on IRQ 2 (9) | `on`, `uart`, `off` | Your setting (`on`) | `mpu = uart` |
 | `midi` | No | The synth the game was set up for in its setup program, which picks the MIDI port it plays through on desktop | `gm` (General MIDI), `mt32` (Roland MT-32) | Your setting (`gm`) | `midi = mt32` |
 | `midi_port` | No | A MIDI port for this game, by its name on your computer. Picking a port in **Audio > MIDI Out > Game Synth** writes it to the game's own settings; a `.gdox` for other computers is better without it | Any port name | The port `midi` picks | `midi_port = SC-55` |
 

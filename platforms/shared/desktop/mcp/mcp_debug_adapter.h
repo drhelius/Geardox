@@ -76,6 +76,7 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "mixer.control", TRACE_MIXER, TRACE_MIXER_EVENT_CONTROL },
     { "midi.data", TRACE_MIDI, TRACE_MIDI_EVENT_DATA },
     { "midi.commands", TRACE_MIDI, TRACE_MIDI_EVENT_COMMANDS },
+    { "midi.messages", TRACE_MIDI, TRACE_MIDI_EVENT_MESSAGES },
     { "cdrom.packets", TRACE_CDROM, TRACE_CDROM_EVENT_PACKETS },
     { "cdrom.status", TRACE_CDROM, TRACE_CDROM_EVENT_STATUS },
     { "cdrom.data", TRACE_CDROM, TRACE_CDROM_EVENT_DATA },

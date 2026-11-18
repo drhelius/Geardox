@@ -644,12 +644,13 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_mpu",
         "MPU-401 (restart)",
         NULL,
-        "The MIDI port at 330. The Sound Blaster 16 has its own; other cards get a separate MPU-401 on IRQ 2 (9). Turn on MIDI output in Settings > Audio > MIDI.",
+        "The MIDI port at 330. The Sound Blaster 16 has its own; other cards get a separate MPU-401 on IRQ 2 (9). Intelligent has the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port most later games use. Turn on MIDI output in Settings > Audio > MIDI.",
         NULL,
         "system",
         {
-            { "enabled",  NULL },
-            { "disabled", NULL },
+            { "enabled",  "Intelligent" },
+            { "uart",     "UART Only" },
+            { "disabled", "Off" },
             { NULL, NULL },
         },
         "enabled"

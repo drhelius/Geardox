@@ -266,6 +266,14 @@ INLINE void Audio::ClockSources(u32 clocks)
 
     if (m_dsp)
         m_sound_blaster->Clock(clocks);
+
+    if (m_mpu && m_mpu401->IsClockRunning())
+    {
+        m_midi_out->SetPosition(m_buffer_index >> 1);
+
+        if (m_mpu401->Clock(clocks))
+            UpdateMPUInterrupt();
+    }
 }
 
 INLINE void Audio::SampleSources()

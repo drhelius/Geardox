@@ -220,10 +220,13 @@ the SB16) times master. It resets to full. Without a mixer the CD plays at the d
 
 ## 6. MPU-401
 
-A UART-mode MPU-401: data at 330h, status (read) and command (write) at 331h. It sends MIDI to the host MIDI output; nothing ever
-arrives from it. Status bit 7 reads 0 when a byte waits for the host and 1 when none; bit 6 reads 0 (ready) always. Idle reads BFh.
+An MPU-401: data at 330h, status (read) and command (write) at 331h. The `mpu` setting picks the mode: `on` (default) is
+**intelligent**, the Roland MPU-401's own sequencer and command set that older MT-32 games need, with its tracks, tempo,
+timebase, conductor, clock to host and requests for the host; `uart` is the plain MIDI port most later games use; `off` fits none.
+Both send MIDI to the host MIDI output. Status bit 7 reads 0 when a byte waits for the host and 1 when none; bit 6 reads 0
+(ready) always. Idle reads BFh.
 
-- **Commands:** FFh resets, leaves UART mode and returns FEh. 3Fh enters UART mode and returns FEh. Before UART mode any other
+- **UART only mode:** FFh resets, leaves UART mode and returns FEh. 3Fh enters UART mode and returns FEh. Before UART mode any other
   command is acknowledged with FEh and does nothing; in UART mode only FFh is taken. Detection is FFh then a read of FEh.
   Data written outside UART mode is dropped.
 - **Interrupt:** asserted while a byte waits (the acknowledge counts), cleared by reading the data port. On the **SB16** it is the
@@ -251,7 +254,9 @@ arrives from it. Status bit 7 reads 0 when a byte waits for the host and 1 when 
   pair, 3 drum, `envelope`, `output`); `dsp` (`version`, `irq`, `dma_8`, `dma_16`, `speaker`, `rate_hz`, `irq_status` laid out as
   mixer 82h, `filter_hz`, `midi_uart`, `last_command`, and a `transfer` with active, paused, `format`, `auto_init`, `input`,
   `high_speed`, `stereo`, `signed`, `block`, `remaining`); `mixer` (`voice`, `fm` and `cd` gains as left and right fractions);
-  `mpu401` (`uart`, `pending`, `standalone`, `irq`); `midi` (`capture`, `messages`, `bytes`, `dropped`, `synth`, `port`).
+  `mpu401` (`mode` intelligent or uart_only, `uart`, `pending`, `standalone`, `irq`; when intelligent also `playing`,
+  `recording`, `running`, `tempo`, `relative`, `effective_tempo`, `timebase`, `active_tracks`, `requests`, `counters`, `waiting`,
+  `conductor` and `clock_to_host`); `midi` (`capture`, `messages`, `bytes`, `dropped`, `synth`, `port`).
 - `get_opl_status` takes `chip` (0 or 1, the Pro's second OPL2; default all) and `channel` (1-9 on an OPL2, 1-18 on an OPL3;
   default all). Per channel: `f_number`, `block`, `note_hz`, `key`, `type` (2op, 4op, 4op_pair, drum), `connection`, `feedback`,
   `output`, `muted`, `pan_left` and `pan_right` on the OPL3, `pair_channel` for a 4-op pair, and both operators with their
@@ -272,7 +277,7 @@ arrives from it. Status bit 7 reads 0 when a byte waits for the host and 1 when 
 - **Trace filters** for `set_trace_log`: `fm.key`, `fm.frequency`, `fm.channels`, `fm.global`, `fm.timers` and `fm.operators` (the
   last off by default) log each data write with its chip, register and value; `pcm.commands` each DSP command with its operands,
   `pcm.transfers` each started transfer (format, flags, length, rate), `pcm.irqs` each IRQ raised and acknowledged (8 or 16);
-  `mixer.volume` and `mixer.control` mixer writes; `midi.data` each MIDI byte (DSP or MPU-401) and `midi.commands` MPU-401
-  commands; `timer.speaker` changes of port 61h bits 0-1; `dma.registers`, `dma.requests`, `dma.ends`; `io.reads`, `io.writes`.
+  `mixer.volume` and `mixer.control` mixer writes; `midi.data` each MIDI byte (DSP or MPU-401), `midi.commands` MPU-401
+  commands and `midi.messages` the bytes it queues for the host; `timer.speaker` changes of port 61h bits 0-1; `dma.registers`, `dma.requests`, `dma.ends`; `io.reads`, `io.writes`.
 - **No sound:** is it the card the game expects (`card`, `dsp.version`); does it read AAh after the reset; is a `transfer` active
   with its DMA channel masked; is `irq_status` stuck at 01h (no acknowledge); is the speaker off; is something muted.

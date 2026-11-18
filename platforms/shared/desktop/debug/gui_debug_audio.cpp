@@ -50,6 +50,7 @@ static void draw_opl_global(OPL* opl);
 static void draw_opl_channel(Audio* audio, OPL* opl, int chip, int channel);
 static void draw_dsp_transfer(SoundBlaster* blaster);
 static void draw_mixer(SoundBlaster* blaster);
+static void draw_mpu(Audio* audio);
 
 void gui_debug_audio_init(void)
 {
@@ -255,7 +256,7 @@ void gui_debug_window_sound_blaster(void)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
     ImGui::SetNextWindowPos(ImVec2(220, 200), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(360, 440), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360, 640), ImGuiCond_FirstUseEver);
     ImGui::Begin("Sound Blaster", &config_debug.show_sound_blaster);
 
     Audio* audio = emu_get_core()->GetAudio();
@@ -280,6 +281,13 @@ void gui_debug_window_sound_blaster(void)
     }
     else
         ImGui::TextColored(gray, "This card has no DSP");
+
+    if (audio->HasMPU())
+    {
+        ImGui::PushFont(gui_default_font);
+        draw_mpu(audio);
+        ImGui::PopFont();
+    }
 
     ImGui::End();
     ImGui::PopStyleVar();
@@ -367,6 +375,114 @@ static void draw_mixer(SoundBlaster* blaster)
     ImGui::TextColored(white, "%.0f Hz", blaster->GetFilterCutoff());
 
     ImGui::EndTable();
+}
+
+static void draw_mpu(Audio* audio)
+{
+    MPU401* mpu = audio->GetMPU401();
+    MPU401::MPU401_State* state = mpu->GetState();
+    bool intelligent = mpu->IsIntelligent();
+    float space = ImGui::CalcTextSize(" ").x;
+    float character = ImGui::CalcTextSize("0").x;
+    int irq = audio->IsMPUStandalone() ? 9 : emu_get_core()->GetMachineConfig().sound_irq;
+    static const char* const k_records[3] = { "OFF", "STANDBY", "ON" };
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "MPU-401");
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("##mpu", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
+    {
+        ImGui::TableNextRow();
+        draw_grid_label("MODE");
+        ImGui::TextColored(blue, "%s", intelligent ? "INTELLIGENT" : "UART ONLY");
+        draw_grid_label("UART");
+        ImGui::TextColored(state->uart ? green : gray, "%s", state->uart ? "ON" : "OFF");
+
+        ImGui::TableNextRow();
+        draw_grid_label("FIFO");
+        ImGui::TextColored(state->count != 0 ? yellow : gray, "%d", state->count);
+        draw_grid_label("IRQ");
+        ImGui::TextColored(white, "%d", irq);
+
+        if (intelligent)
+        {
+            ImGui::TableNextRow();
+            draw_grid_label("PLAY");
+            ImGui::TextColored(state->playing ? green : gray, "%s", state->playing ? "ON" : "OFF");
+            draw_grid_label("RECORD");
+            ImGui::TextColored(state->recording != MPU401::MPU401_RECORD_OFF ? green : gray, "%s",
+                k_records[state->recording < 3 ? state->recording : 0]);
+
+            ImGui::TableNextRow();
+            draw_grid_label("RUNNING");
+            ImGui::TextColored(state->running ? green : gray, "%s", state->running ? "ON" : "OFF");
+            draw_grid_label("TIMEBASE");
+            ImGui::TextColored(white, "%d", state->timebase);
+
+            ImGui::TableNextRow();
+            draw_grid_label("TEMPO");
+            ImGui::TextColored(white, "%u BPM", mpu->GetEffectiveTempo());
+            draw_grid_label("RAW");
+            ImGui::TextColored(white, "%d", state->tempo); ImGui::SameLine(0.0f, space);
+            ImGui::TextColored(white, "$%02X", state->relative);
+
+            ImGui::TableNextRow();
+            draw_grid_label("CLOCK->HOST");
+            bool clock_to_host = (state->switches & k_mpu401_switch_clock_to_host) != 0;
+            ImGui::TextColored(clock_to_host ? green : gray, "%s", clock_to_host ? "ON" : "OFF");
+            draw_grid_label("RATE");
+            ImGui::TextColored(white, "$%02X", state->cth_rate);
+        }
+
+        ImGui::EndTable();
+    }
+
+    if (!intelligent)
+        return;
+
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX | ImGuiTableFlags_RowBg;
+
+    if (ImGui::BeginTable("##mpu_tracks", 5, flags))
+    {
+        ImGui::TableSetupColumn("TRACK", ImGuiTableColumnFlags_WidthFixed, character * 10);
+        ImGui::TableSetupColumn("ACTIVE", ImGuiTableColumnFlags_WidthFixed, character * 7);
+        ImGui::TableSetupColumn("COUNT", ImGuiTableColumnFlags_WidthFixed, character * 6);
+        ImGui::TableSetupColumn("WAIT", ImGuiTableColumnFlags_WidthFixed, character * 5);
+        ImGui::TableSetupColumn("STATUS", ImGuiTableColumnFlags_WidthFixed, character * 7);
+        ImGui::TableHeadersRow();
+
+        for (int i = 0; i < MPU401_TRACKS + 1; i++)
+        {
+            bool conductor = i == MPU401_TRACKS;
+            MPU401::MPU401_Track& track = conductor ? state->conductor : state->tracks[i];
+            bool active = conductor ? state->conductor_on : (state->active & (1 << i)) != 0;
+            char label[16];
+
+            if (conductor)
+                snprintf(label, sizeof(label), "CONDUCTOR");
+            else
+                snprintf(label, sizeof(label), "%d", i + 1);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(violet, "%s", label);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(active ? green : gray, "%s", active ? "ON" : "OFF");
+            ImGui::TableNextColumn();
+            ImGui::TextColored(active ? white : gray, "$%02X", track.counter);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(track.waiting ? yellow : gray, "%s", track.waiting ? "YES" : "NO");
+            ImGui::TableNextColumn();
+
+            if (conductor)
+                ImGui::TextColored(gray, "--");
+            else
+                ImGui::TextColored(track.status != 0 ? white : gray, "$%02X", track.status);
+        }
+
+        ImGui::EndTable();
+    }
 }
 
 void gui_debug_window_sound_control(void)

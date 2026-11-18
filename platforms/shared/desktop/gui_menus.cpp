@@ -110,6 +110,7 @@ static void get_machine_summary(const GDOX_Machine_Config& config, char* text, s
 static float get_combo_items_width(const char* items);
 static bool menu_machine_sound_resource(const char* name, const char* id, const char* key, const u8* values, int* setting,
     int base, bool enabled);
+static bool menu_machine_sound_mpu(int card);
 static ImVec4 get_game_source_color(int source);
 static bool begin_game_menu(const char* label, int source, bool enabled = true);
 static bool begin_game_combo(const char* id, const char* preview, int source);
@@ -1406,19 +1407,58 @@ static bool menu_machine_sound(void)
         changed = true;
 
     ImGui::Separator();
-    bool mpu = menu_settings->mpu != 0;
-    bool pushed = gui_push_game_source_color(mpu_source);
 
-    if (ImGui::MenuItem("MPU-401", "", &mpu))
-    {
-        menu_settings->mpu = mpu ? 1 : 0;
+    if (menu_machine_sound_mpu(card))
         changed = true;
+
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_sound_mpu(int card)
+{
+    int source = emu_game_get_source("sound", "mpu");
+
+    if (!begin_game_menu("MPU-401", source))
+        return false;
+
+    static const char* const k_mpu_modes[GDOX_MPU_MODE_COUNT] = { "Off", "Intelligent", "UART Only" };
+    static const int k_mpu_order[GDOX_MPU_MODE_COUNT] = { GDOX_MPU_INTELLIGENT, GDOX_MPU_UART, GDOX_MPU_OFF };
+
+    bool changed = false;
+    int mode = CLAMP(menu_settings->mpu, 0, GDOX_MPU_MODE_COUNT - 1);
+    int base = CLAMP(emu_game_get_base_machine()->mpu, 0, GDOX_MPU_MODE_COUNT - 1);
+    char game_default[64];
+    get_game_default_label(k_mpu_modes[base], game_default, sizeof(game_default));
+    float text_width = ImGui::CalcTextSize(game_default).x;
+
+    for (int i = 0; i < GDOX_MPU_MODE_COUNT; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(k_mpu_modes[i]).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (begin_game_combo("##machine_sound_mpu", k_mpu_modes[mode], source))
+    {
+        if (game_default_item(game_default, source))
+        {
+            menu_settings->mpu = base;
+            changed = true;
+        }
+
+        for (int i = 0; i < GDOX_MPU_MODE_COUNT; i++)
+        {
+            int item = k_mpu_order[i];
+
+            if (ImGui::Selectable(k_mpu_modes[item], mode == item))
+            {
+                menu_settings->mpu = item;
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
     }
-
-    if (pushed)
-        ImGui::PopStyleColor();
-
-    if (ImGui::IsItemHovered())
+    else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
 
@@ -1427,12 +1467,15 @@ static bool menu_machine_sound(void)
         else
             ImGui::Text("A separate MPU-401 at 330h, on IRQ 2 (9).");
 
+        ImGui::Text("Intelligent has the MPU-401's own sequencer, which older MT-32 games need.");
+        ImGui::Text("UART Only is the plain MIDI port most later games use.");
         ImGui::Text("Music goes to Audio > MIDI Out.");
         ImGui::Text("Reset the emulator to apply changes.");
-        gui_draw_game_source_tooltip(mpu_source);
+        gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
     }
 
+    ImGui::PopItemWidth();
     ImGui::EndMenu();
     return changed;
 }
@@ -1976,6 +2019,8 @@ static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, 
     const char* slots = (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0 ? "ISA and PCI" :
         (profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0 ? "ISA and VL-Bus" : "ISA";
     u32 video_kb = video.memory_size / 1024;
+    const char* mpu_text = config.mpu == GDOX_MPU_INTELLIGENT ? "MPU-401" :
+        config.mpu == GDOX_MPU_UART ? "MPU-401 UART" : "none";
 
     snprintf(text, text_size, "Model: %s, %s (%s)\nCPU: %s at %u MHz\nFPU: %s\nRAM: %u MB, %s address bus\n"
         "Bus: %u MHz, %s slots\nVideo: %s, %u %s\nSound: %s\nMIDI: %s\nMouse: %s\nHard disks: %s\nCD-ROM: %s\n"
@@ -1983,7 +2028,7 @@ static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, 
         k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000, fpu, config.ram_size / (1024 * 1024),
         k_machine_memory_maps[profile.map].name, profile.bus_clock_rate / 1000000, slots, video.name,
         video_kb >= 1024 ? video_kb / 1024 : video_kb, video_kb >= 1024 ? "MB" : "KB", sound_text,
-        config.mpu ? "MPU-401" : "none", config.mouse == GDOX_MOUSE_NONE ? "none" : k_mice[config.mouse].name,
+        mpu_text, config.mouse == GDOX_MOUSE_NONE ? "none" : k_mice[config.mouse].name,
         config.ide ? "IDE" : "none", cdrom, config.floppy_drives > 0 ? floppies : "none",
         k_drive_timings[config.drive_timing < GDOX_DRIVE_TIMING_COUNT ? config.drive_timing : 0].name);
 }

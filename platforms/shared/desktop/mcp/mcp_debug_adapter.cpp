@@ -3733,8 +3733,41 @@ json DebugAdapter::GetSoundStatus()
                 blaster->GetGain(SoundBlaster::SOUND_BLASTER_SOURCE_CD, true) / 32768.0}}};
 
     if (audio->HasMPU())
-        result["mpu401"] = {{"uart", mpu->uart}, {"pending", mpu->count},
-            {"standalone", audio->IsMPUStandalone()}, {"irq", audio->IsMPUStandalone() ? 9 : machine.sound_irq}};
+    {
+        MPU401* mpu401 = audio->GetMPU401();
+        json mpu_json = {{"mode", mpu401->IsIntelligent() ? "intelligent" : "uart_only"}, {"uart", mpu->uart},
+            {"pending", mpu->count}, {"standalone", audio->IsMPUStandalone()},
+            {"irq", audio->IsMPUStandalone() ? 9 : machine.sound_irq}};
+
+        if (mpu401->IsIntelligent())
+        {
+            static const char* const k_records[3] = { "off", "standby", "on" };
+            json counters = json::array();
+            int waiting = 0;
+
+            for (int i = 0; i < MPU401_TRACKS; i++)
+            {
+                counters.push_back(mpu->tracks[i].counter);
+                waiting |= mpu->tracks[i].waiting ? (1 << i) : 0;
+            }
+
+            mpu_json["playing"] = mpu->playing;
+            mpu_json["recording"] = k_records[mpu->recording < 3 ? mpu->recording : 0];
+            mpu_json["running"] = mpu->running;
+            mpu_json["tempo"] = mpu->tempo;
+            mpu_json["relative"] = mpu->relative;
+            mpu_json["effective_tempo"] = mpu401->GetEffectiveTempo();
+            mpu_json["timebase"] = mpu->timebase;
+            mpu_json["active_tracks"] = mpu->active;
+            mpu_json["requests"] = mpu->requests;
+            mpu_json["counters"] = counters;
+            mpu_json["waiting"] = waiting;
+            mpu_json["conductor"] = {{"on", mpu->conductor_on}, {"counter", mpu->conductor.counter}};
+            mpu_json["clock_to_host"] = (mpu->switches & k_mpu401_switch_clock_to_host) != 0;
+        }
+
+        result["mpu401"] = mpu_json;
+    }
 
     MidiOut* midi = audio->GetMidiOut();
     const MidiOut::MidiOut_Stats* stats = midi->GetStats();
@@ -5536,6 +5569,7 @@ json DebugAdapter::GetGameInfo()
 
     static const char* const k_targets[GDOX_GAME_TARGET_COUNT] = { "game", "setup", "prompt", "debug" };
     static const char* const k_sources[] = { "user", "game", "model", "media" };
+    static const char* const k_mcp_mpu_modes[GDOX_MPU_MODE_COUNT] = { "off", "intelligent", "uart" };
     static const char* const k_keys[][2] = {
         { "game", "source" }, { "game", "folder" }, { "game", "free_mb" }, { "machine", "model" },
         { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" }, { "machine", "fpu" },
@@ -5581,7 +5615,8 @@ json DebugAdapter::GetGameInfo()
             {"ram_mb", config.ram_size / (1024 * 1024)}, {"ram_source", k_sources[report.ram]},
             {"fpu", config.fpu}, {"fpu_source", k_sources[report.fpu]}, {"turbo", m_core->IsTurbo()},
             {"sound_card", k_sound_cards[config.sound_card].id}, {"sound_irq", config.sound_irq},
-            {"sound_dma", config.sound_dma}, {"mpu", config.mpu}, {"video", k_video_cards[config.video_card].id},
+            {"sound_dma", config.sound_dma}, {"mpu", k_mcp_mpu_modes[config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : 0]},
+            {"video", k_video_cards[config.video_card].id},
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
                 json(k_joysticks[emu_game_get_joystick()].id) : json()}, {"midi", emu_game_get_midi() >= 0 ?
                 json(k_midi_synths[emu_game_get_midi()].id) : json()}, {"midi_port", emu_game_get_midi_port()}}},

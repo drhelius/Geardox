@@ -270,7 +270,7 @@ static inline void process(config_Operation operation)
         k_sound_card_irqs[1]);
     CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
         k_sound_card_dmas[1]);
-    CONFIG_INT_RANGE("Machine", "MPU401", config_machine.mpu, 1, 0, 1);
+    CONFIG_INT_RANGE("Machine", "MPU401", config_machine.mpu, GDOX_MPU_INTELLIGENT, 0, GDOX_MPU_MODE_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "Video", config_machine.video_card, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
         GDOX_VIDEO_CARD_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);

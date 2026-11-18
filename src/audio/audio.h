@@ -68,7 +68,7 @@ public:
     ~Audio();
     void Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, DMA* dma);
     void SetTraceLogger(TraceLogger* trace_logger);
-    void SetCard(int card, int irq, int dma, bool mpu);
+    void SetCard(int card, int irq, int dma, int mpu);
     void Reset();
     void Mute(bool mute);
     void SetMasterVolume(float volume);

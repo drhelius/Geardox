@@ -1297,7 +1297,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     if ((card.dsp_major != 0) && IsValidPointer(k_types[machine.sound_card]))
     {
         snprintf(line, sizeof(line), "SET BLASTER=A220 I%d D%d%s T%s\r\n", machine.sound_irq, machine.sound_dma,
-            card.mpu ? (machine.mpu ? " H5 P330" : " H5") : "", k_types[machine.sound_card]);
+            card.mpu ? (machine.mpu != GDOX_MPU_OFF ? " H5 P330" : " H5") : "", k_types[machine.sound_card]);
         out += line;
     }
 

@@ -78,7 +78,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "card", DESCRIPTOR_SOUND, NULL, 0, 0 },
     { "sound", "irq", DESCRIPTOR_CHOICE, "5,7", 0, 0 },
     { "sound", "dma", DESCRIPTOR_CHOICE, "1,3", 0, 0 },
-    { "sound", "mpu", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "mpu", DESCRIPTOR_CHOICE, "on,uart,off", 0, 0 },
     { "sound", "midi", DESCRIPTOR_CHOICE, "gm,mt32", 0, 0 },
     { "sound", "midi_port", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
@@ -929,7 +929,8 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
         settings->sound_dma = number;
 
     if (Has("sound", "mpu"))
-        settings->mpu = Get("sound", "mpu") == "off" ? 0 : 1;
+        settings->mpu = Get("sound", "mpu") == "off" ? GDOX_MPU_OFF :
+            Get("sound", "mpu") == "uart" ? GDOX_MPU_UART : GDOX_MPU_INTELLIGENT;
 
     for (int i = 0; Has("input", "mouse") && (i < GDOX_MOUSE_TYPE_COUNT); i++)
     {

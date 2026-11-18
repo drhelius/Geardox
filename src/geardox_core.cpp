@@ -2089,6 +2089,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.sound_card = config.sound_card < GDOX_SOUND_CARD_COUNT ? config.sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = config.sound_irq == k_sound_card_irqs[1] ? k_sound_card_irqs[1] : k_sound_card_irqs[0];
     config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
+    config.mpu = config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : (u8)GDOX_MPU_INTELLIGENT;
     config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = config.cdrom < GDOX_CDROM_POSITION_COUNT ? config.cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
@@ -2386,7 +2387,8 @@ void GeardoxCore::ResolveMachineConfig()
     config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = (u8)pick_setting(game.sound_irq, user.sound_irq, 0, &source);
     config.sound_dma = (u8)pick_setting(game.sound_dma, user.sound_dma, 0, &source);
-    config.mpu = pick_setting(game.mpu, user.mpu, -1, &source) != 0;
+    int mpu = pick_setting(game.mpu, user.mpu, -1, &source);
+    config.mpu = (mpu >= 0) && (mpu < GDOX_MPU_MODE_COUNT) ? (u8)mpu : (u8)GDOX_MPU_INTELLIGENT;
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;

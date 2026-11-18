@@ -403,7 +403,7 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `get_text_screen` - Read a text mode screen as characters per row, with the cursor position and optionally `attributes` as one hex string per row. Use it instead of a screenshot to know what a DOS screen says; it fails when the VGA is not in a text mode
 
 ### Audio Hardware (`hardware_audio`)
-- `get_sound_status` - Get the sound card: the OPL chips with status, timers and channels, the Sound Blaster DSP (version, IRQ, DMA, speaker, sample rate, IRQ status, filter, MIDI UART and the transfer in progress with its format, auto-init, high-speed, stereo, block and remaining bytes), the mixer levels of `voice`, `fm` and `cd` as left and right gains from 0 to 1, the MPU-401 (UART, pending bytes, standalone or on the card, IRQ), and MIDI out: capture mode, messages sent, dropped bytes, the SysEx log, the synth and the port
+- `get_sound_status` - Get the sound card: the OPL chips with status, timers and channels, the Sound Blaster DSP (version, IRQ, DMA, speaker, sample rate, IRQ status, filter, MIDI UART and the transfer in progress with its format, auto-init, high-speed, stereo, block and remaining bytes), the mixer levels of `voice`, `fm` and `cd` as left and right gains from 0 to 1, the MPU-401 (mode, UART, pending bytes, standalone or on the card, IRQ, and in intelligent mode its sequencer state: playing, recording, tempo, timebase, tracks and conductor), and MIDI out: capture mode, messages sent, dropped bytes, the SysEx log, the synth and the port
 - `get_opl_status` - Get the OPL FM chips (YM3812 OPL2 or YMF262 OPL3): status, address latch, rhythm, note select, mode flags, both timers with their period, and each channel's frequency, note, key, type (2op, 4op, 4op_pair, drum), connection, feedback, pan, output and mute with both operators' parameters, envelope state and level; optional `chip` (0, or 1 for the Sound Blaster Pro's right OPL2) and `channel` (1-9 on an OPL2, 1-18 on the OPL3)
 - `get_opl_registers` - Get one OPL register bank as last written with register names, and the address latch; `chip` (0, or 1 for the Sound Blaster Pro's right OPL2) and `bank` (0 for 000-0FF, channels 1-9; 1 for 100-1FF, channels 10-18, OPL3 only)
 - `set_audio_mute` - Mute or unmute `source` (`fm`, `pcm` for the Sound Blaster DSP's digital audio, `cdda`, `buzzer` for the PC speaker) or, for `fm`, one `channel` of it (1-18 on the OPL3, 1-9 on an OPL2; on the Sound Blaster Pro 1-9 the left OPL2 and 10-18 the right) in the debugger; emulated state is unchanged
@@ -531,6 +531,7 @@ mixer.volume
 mixer.control
 midi.data
 midi.commands
+midi.messages
 cdrom.packets
 cdrom.status
 cdrom.data

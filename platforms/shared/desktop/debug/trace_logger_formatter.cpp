@@ -702,8 +702,33 @@ static void format_midi(const GDOX_Trace_Entry& entry, char* buffer, size_t size
 {
     const char* source = entry.midi.source == TRACE_MIDI_SOURCE_MPU ? "MPU" : "DSP";
 
+    u8 value = entry.midi.value;
+
+    if (entry.event == TRACE_MIDI_MESSAGE)
+    {
+        char text[16];
+
+        if (value == 0xFE)
+            snprintf(text, sizeof(text), "ACK");
+        else if ((value >= 0xF0) && (value <= 0xF7))
+            snprintf(text, sizeof(text), "REQ T%d", (value & 0x07) + 1);
+        else if (value == 0xF8)
+            snprintf(text, sizeof(text), "OVERFLOW");
+        else if (value == 0xF9)
+            snprintf(text, sizeof(text), "REQ COND");
+        else if (value == 0xFC)
+            snprintf(text, sizeof(text), "END");
+        else if (value == 0xFD)
+            snprintf(text, sizeof(text), "CLOCK");
+        else
+            snprintf(text, sizeof(text), "DATA");
+
+        format_event(buffer, size, "MIDI", "MESSAGE", "%s  %s  $%02X", source, text, value);
+        return;
+    }
+
     format_event(buffer, size, "MIDI", entry.event == TRACE_MIDI_DATA ? "DATA" : "COMMAND", "%s  $%02X", source,
-        entry.midi.value);
+        value);
 }
 
 static void format_cdrom(const GDOX_Trace_Entry& entry, char* buffer, size_t size)

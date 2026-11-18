@@ -473,7 +473,7 @@ void emu_game_apply_machine(void)
         overrides.Set("sound", "dma", std::to_string(m.sound_dma).c_str());
 
     if (m.mpu != b.mpu)
-        overrides.Set("sound", "mpu", m.mpu != 0 ? "on" : "off");
+        overrides.Set("sound", "mpu", m.mpu == GDOX_MPU_INTELLIGENT ? "on" : m.mpu == GDOX_MPU_UART ? "uart" : "off");
 
     if (m.mouse != b.mouse)
         overrides.Set("input", "mouse", k_mice[m.mouse].id);

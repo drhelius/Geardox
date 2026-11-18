@@ -211,7 +211,7 @@ also has **Import MS-DOS...** and **Remove MS-DOS**.
 | Model | 486DX2 at 66 MHz | The 386 models help with old games that run too fast or crash on a 486. The Pentiums, 75 to 200 MHz on a PCI board, are for games like Quake that want more speed. |
 | Main RAM | 8 MB, 16 MB on the Pentiums | Some games want 16 MB. |
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
-| MPU-401 | On | The MIDI port at 330 for General MIDI and MT-32 music. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
+| MPU-401 | Intelligent | The MIDI port at 330 for General MIDI and MT-32 music. Intelligent is the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port, for a game that misbehaves with it. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
 | Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428 on the 386s and 486s, the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
