@@ -257,7 +257,8 @@ void PS2Mouse::SetDefaults()
     ClearCounts();
 }
 
-// Movement is counted at the sample rate in every mode, and reported in stream mode when it or a button changed
+// Movement is counted at the sample rate in every mode, and reported in stream mode when it or a button changed.
+// A host count is 1/8 mm, the 200 dpi of a serial mouse (LOGIMOUSE C7 p10), so both report alike at 8 counts per mm
 void PS2Mouse::Sample(u64 clocks)
 {
     s32 x = 0;
@@ -267,11 +268,11 @@ void PS2Mouse::Sample(u64 clocks)
 
     s64 total_x = ((s64)x << m_state.resolution) + m_state.remainder_x;
     s64 total_y = ((s64)y << m_state.resolution) + m_state.remainder_y;
-    s64 counts_x = total_x / 4;
-    s64 counts_y = total_y / 4;
+    s64 counts_x = total_x / 8;
+    s64 counts_y = total_y / 8;
 
-    m_state.remainder_x = (s32)(total_x - counts_x * 4);
-    m_state.remainder_y = (s32)(total_y - counts_y * 4);
+    m_state.remainder_x = (s32)(total_x - counts_x * 8);
+    m_state.remainder_y = (s32)(total_y - counts_y * 8);
     m_state.x = (s32)CLAMP((s64)m_state.x + counts_x, -k_ps2_mouse_count_limit, k_ps2_mouse_count_limit);
     m_state.y = (s32)CLAMP((s64)m_state.y - counts_y, -k_ps2_mouse_count_limit, k_ps2_mouse_count_limit);
 

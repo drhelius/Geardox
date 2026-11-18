@@ -112,7 +112,7 @@ static bool audio_buffer_active = false;
 static unsigned audio_buffer_occupancy = 0;
 static bool audio_buffer_underrun = false;
 
-static int mouse_sensitivity = 5;
+static int mouse_sensitivity = 7;
 static GDOX_Joystick_Type joystick_type = GDOX_JOYSTICK_GAMEPAD;
 static int cga_output = GDOX_CGA_OUTPUT_AUTO;
 static unsigned input_devices[GDOX_MAX_GAMEPADS] = { RETRO_DEVICE_JOYPAD, RETRO_DEVICE_JOYPAD };
@@ -499,7 +499,7 @@ void retro_deinit(void)
     frameskip_counter = 0;
     frameskip_changed = false;
     audio_buffer_active = false;
-    mouse_sensitivity = 5;
+    mouse_sensitivity = 7;
     joystick_type = GDOX_JOYSTICK_GAMEPAD;
     cga_output = GDOX_CGA_OUTPUT_AUTO;
     disk_initial_index = 0;
@@ -1458,7 +1458,7 @@ static void apply_mouse(void)
         return;
     }
 
-    float scale = (float)mouse_sensitivity / 6.0f;
+    float scale = powf(2.0f, (float)(mouse_sensitivity - 7) / 4.0f);
     mouse_remainder_x += (float)input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X) * scale;
     mouse_remainder_y += (float)input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y) * scale;
 

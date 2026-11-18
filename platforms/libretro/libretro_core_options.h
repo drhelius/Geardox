@@ -245,7 +245,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { "9",  NULL }, { "10", NULL }, { "11", NULL }, { "12", NULL },
             { "13", NULL }, { "14", NULL }, { "15", NULL }, { NULL, NULL }
         },
-        "5"
+        "7"
     },
     {
         "geardox_pad1_mouse",

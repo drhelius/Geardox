@@ -62,7 +62,7 @@ void events_emu(const SDL_Event* event, bool shortcut_consumed)
             if ((!game_focus_pointer_captured() && !gui_main_window_hovered) || emu_key_mapper_is_open())
                 break;
 
-            float scale = (float)MAX(config_emulator.mouse_sensitivity, 1) / 6.0f;
+            float scale = powf(2.0f, (float)(CLAMP(config_emulator.mouse_sensitivity, 1, 15) - 7) / 4.0f);
             mouse_remainder_x += event->motion.xrel * scale;
             mouse_remainder_y += event->motion.yrel * scale;
             int x = (int)mouse_remainder_x;

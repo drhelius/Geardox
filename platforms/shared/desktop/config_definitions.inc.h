@@ -366,7 +366,7 @@ static inline void process(config_Operation operation)
 
     CONFIG_INT_RANGE("Input", "Joystick", config_input.joystick_type, GDOX_JOYSTICK_GAMEPAD, 0,
         GDOX_JOYSTICK_TYPE_COUNT - 1);
-    CONFIG_INT_RANGE("Input", "MouseSensitivity", config_emulator.mouse_sensitivity, 5, 1, 15);
+    CONFIG_INT_RANGE("Input", "MouseSensitivity", config_emulator.mouse_sensitivity, 7, 1, 15);
     CONFIG_STRING("Input", "KeyboardLayout", config_input.keyboard_layout, "us");
 
     // Gamepad
