@@ -35,6 +35,12 @@ public:
     {
         s32 mouse_x;
         s32 mouse_y;
+        s32 mouse_added_x;
+        s32 mouse_added_y;
+        s32 mouse_frame_x;
+        s32 mouse_frame_y;
+        u64 mouse_frame_start;
+        u32 mouse_frame_clocks;
         u8 mouse_buttons;
         GDOX_Joystick_State joystick;
     };
@@ -45,7 +51,8 @@ public:
     void SetTraceLogger(TraceLogger* trace_logger);
     void Reset();
     void SetMouseDelta(s32 x, s32 y);
-    void TakeMouseDelta(s32 limit, s32& x, s32& y);
+    void BeginMouseFrame(u64 clocks);
+    void TakeMouseDelta(u64 clocks, s32 limit, s32& x, s32& y);
     void ClearMouseInput();
     void SetMouseButtons(u8 buttons);
     void SetInjectedMouseButtons(u8 buttons);
@@ -61,6 +68,7 @@ public:
     void LoadState(std::istream& stream);
 
 private:
+    s32 TakeMouseAxis(s32& pending, s32 frame, u64 elapsed, s32 limit);
     void UpdateMouseButtons();
     void UpdateJoystickState();
     void TraceChange(u8 device, u16 buttons, u16 previous);
@@ -80,6 +88,7 @@ private:
 };
 
 static const s32 k_input_mouse_limit = 0x3FFFFFFF;
+static const u32 k_input_mouse_frame_limit = GDOX_MACHINE_CLOCK_RATE / 10;
 
 #include "input_inline.h"
 

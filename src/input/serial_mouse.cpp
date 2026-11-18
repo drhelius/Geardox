@@ -83,13 +83,11 @@ bool SerialMouse::HandleEvent(u64 clocks, u8& value)
     if (m_state.ident_clocks <= clocks)
     {
         u8 ident = 'M';
-        s32 x = 0;
-        s32 y = 0;
 
         m_state.ident_clocks = GDOX_NO_EVENT;
         m_state.ready = true;
         m_state.buttons = m_input->GetMouseButtons() & (GDOX_MOUSE_LEFT | GDOX_MOUSE_RIGHT);
-        m_input->TakeMouseDelta(k_input_mouse_limit, x, y);
+        m_input->ClearMouseInput();
         m_state.queue[0] = ident;
         m_state.queue_count = 1;
         TraceEvent(&ident, 1);
@@ -107,13 +105,13 @@ bool SerialMouse::HandleEvent(u64 clocks, u8& value)
 }
 
 // Reports go out back to back while the mouse moves, a button change at once, the rest of a fast move next time
-void SerialMouse::Poll()
+void SerialMouse::Poll(u64 clocks)
 {
     s32 x = 0;
     s32 y = 0;
     u8 buttons = m_input->GetMouseButtons() & (GDOX_MOUSE_LEFT | GDOX_MOUSE_RIGHT);
 
-    m_input->TakeMouseDelta(127, x, y);
+    m_input->TakeMouseDelta(clocks, 127, x, y);
 
     if (x != 0 || y != 0 || buttons != m_state.buttons)
     {
@@ -131,7 +129,7 @@ void SerialMouse::Poll()
 void SerialMouse::StartByte(u64 clocks)
 {
     if (m_state.queue_count == 0 && m_state.ready)
-        Poll();
+        Poll(clocks);
 
     if (m_state.queue_count != 0)
         m_state.byte_clocks = clocks + k_serial_mouse_byte_clocks;

@@ -21,15 +21,33 @@ INLINE void Input::SetMouseDelta(s32 x, s32 y)
 {
     m_state.mouse_x = (s32)CLAMP((s64)m_state.mouse_x + x, -k_input_mouse_limit, k_input_mouse_limit);
     m_state.mouse_y = (s32)CLAMP((s64)m_state.mouse_y + y, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_added_x = (s32)CLAMP((s64)m_state.mouse_added_x + x, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_added_y = (s32)CLAMP((s64)m_state.mouse_added_y + y, -k_input_mouse_limit, k_input_mouse_limit);
 }
 
-// Up to limit counts each way, the rest stays for the next report
-INLINE void Input::TakeMouseDelta(s32 limit, s32& x, s32& y)
+// The motion added for a frame is spread over the reports in it, older motion is due at once. Up to limit counts each
+// way, the rest stays for the next report
+INLINE void Input::TakeMouseDelta(u64 clocks, s32 limit, s32& x, s32& y)
 {
-    x = CLAMP(m_state.mouse_x, -limit, limit);
-    y = CLAMP(m_state.mouse_y, -limit, limit);
-    m_state.mouse_x -= x;
-    m_state.mouse_y -= y;
+    u64 elapsed = clocks > m_state.mouse_frame_start ? clocks - m_state.mouse_frame_start : 0;
+    x = TakeMouseAxis(m_state.mouse_x, m_state.mouse_frame_x, elapsed, limit);
+    y = TakeMouseAxis(m_state.mouse_y, m_state.mouse_frame_y, elapsed, limit);
+}
+
+INLINE s32 Input::TakeMouseAxis(s32& pending, s32 frame, u64 elapsed, s32 limit)
+{
+    s32 due = pending;
+
+    if (m_state.mouse_frame_clocks != 0 && elapsed < m_state.mouse_frame_clocks)
+    {
+        s64 later = (s64)frame - (((s64)frame * (s64)elapsed) / (s64)m_state.mouse_frame_clocks);
+        s64 now = (s64)pending - later;
+        due = pending > 0 ? (s32)CLAMP(now, (s64)0, (s64)pending) : (s32)CLAMP(now, (s64)pending, (s64)0);
+    }
+
+    due = CLAMP(due, -limit, limit);
+    pending -= due;
+    return due;
 }
 
 INLINE void Input::SetMouseButtons(u8 buttons)

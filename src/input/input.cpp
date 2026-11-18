@@ -54,6 +54,22 @@ void Input::ClearMouseInput()
 {
     m_state.mouse_x = 0;
     m_state.mouse_y = 0;
+    m_state.mouse_added_x = 0;
+    m_state.mouse_added_y = 0;
+    m_state.mouse_frame_x = 0;
+    m_state.mouse_frame_y = 0;
+}
+
+void Input::BeginMouseFrame(u64 clocks)
+{
+    u64 length = m_state.mouse_frame_start != 0 && clocks > m_state.mouse_frame_start ? clocks - m_state.mouse_frame_start : 0;
+
+    m_state.mouse_frame_clocks = (u32)MIN(length, (u64)k_input_mouse_frame_limit);
+    m_state.mouse_frame_start = clocks;
+    m_state.mouse_frame_x = m_state.mouse_added_x;
+    m_state.mouse_frame_y = m_state.mouse_added_y;
+    m_state.mouse_added_x = 0;
+    m_state.mouse_added_y = 0;
 }
 
 void Input::SaveState(std::ostream& stream)
@@ -73,6 +89,12 @@ void Input::Serialize(StateSerializer& serializer)
 {
     G_SERIALIZE(serializer, m_state.mouse_x);
     G_SERIALIZE(serializer, m_state.mouse_y);
+    G_SERIALIZE(serializer, m_state.mouse_added_x);
+    G_SERIALIZE(serializer, m_state.mouse_added_y);
+    G_SERIALIZE(serializer, m_state.mouse_frame_x);
+    G_SERIALIZE(serializer, m_state.mouse_frame_y);
+    G_SERIALIZE(serializer, m_state.mouse_frame_start);
+    G_SERIALIZE(serializer, m_state.mouse_frame_clocks);
     G_SERIALIZE(serializer, m_state.mouse_buttons);
     G_SERIALIZE_ARRAY(serializer, m_state.joystick.axes, GDOX_JOYSTICK_AXIS_COUNT);
     G_SERIALIZE(serializer, m_state.joystick.buttons);
@@ -83,6 +105,11 @@ void Input::SanitizeState()
 {
     m_state.mouse_x = CLAMP(m_state.mouse_x, -k_input_mouse_limit, k_input_mouse_limit);
     m_state.mouse_y = CLAMP(m_state.mouse_y, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_frame_x = CLAMP(m_state.mouse_frame_x, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_frame_y = CLAMP(m_state.mouse_frame_y, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_added_x = CLAMP(m_state.mouse_added_x, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_added_y = CLAMP(m_state.mouse_added_y, -k_input_mouse_limit, k_input_mouse_limit);
+    m_state.mouse_frame_clocks = MIN(m_state.mouse_frame_clocks, k_input_mouse_frame_limit);
     m_state.mouse_buttons &= GDOX_MOUSE_LEFT | GDOX_MOUSE_RIGHT | GDOX_MOUSE_MIDDLE;
     m_state.joystick.buttons &= 0x0F;
     m_state.joystick.hat &= 0x0F;

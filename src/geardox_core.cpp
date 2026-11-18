@@ -399,6 +399,7 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
         return GDOX_RUN_NOT_READY;
 
     u64 frame_start = m_scheduler->GetClocks();
+    m_input->BeginMouseFrame(frame_start);
     m_video->BeginFrame(frame_buffer, render);
 
     bool debugging = debugger && IsValidPointer(debug);

@@ -60,7 +60,7 @@ public:
     void SanitizeState();
 
 private:
-    void Poll();
+    void Poll(u64 clocks);
     void StartByte(u64 clocks);
     void TraceEvent(const u8* data, u8 count);
 

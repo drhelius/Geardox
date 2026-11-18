@@ -260,11 +260,10 @@ void PS2Mouse::SetDefaults()
 // Movement is counted at the sample rate in every mode, and reported in stream mode when it or a button changed
 void PS2Mouse::Sample(u64 clocks)
 {
-    UNUSED(clocks);
     s32 x = 0;
     s32 y = 0;
 
-    m_input->TakeMouseDelta(k_input_mouse_limit, x, y);
+    m_input->TakeMouseDelta(clocks, k_input_mouse_limit, x, y);
 
     s64 total_x = ((s64)x << m_state.resolution) + m_state.remainder_x;
     s64 total_y = ((s64)y << m_state.resolution) + m_state.remainder_y;
