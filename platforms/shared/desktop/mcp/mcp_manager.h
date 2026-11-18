@@ -571,18 +571,22 @@ private:
             result.erase("__release_hat");
         }
 
-        if (result.contains("__delayed_key_release") && result["__delayed_key_release"] == true)
+        if (result.contains("__delayed_keys"))
         {
-            DelayedButtonRelease release;
-            GDOX_Keys key = GDOX_KEY_NONE;
-            m_debug_adapter->GetKeyCode(result["key"], key);
-            release.joystick_buttons = 0;
-            release.joystick_hat = 0;
-            release.key = key;
-            release.host_key = -1;
-            release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
-            m_delayed_releases.push_back(release);
-            result.erase("__delayed_key_release");
+            for (size_t i = 0; i < result["__delayed_keys"].size(); i++)
+            {
+                DelayedButtonRelease release;
+                GDOX_Keys key = GDOX_KEY_NONE;
+                m_debug_adapter->GetKeyCode(result["__delayed_keys"][i], key);
+                release.joystick_buttons = 0;
+                release.joystick_hat = 0;
+                release.key = key;
+                release.host_key = -1;
+                release.release_at_frame = emu_frame_counter + k_mcp_tap_frames;
+                m_delayed_releases.push_back(release);
+            }
+
+            result.erase("__delayed_keys");
         }
 
         if (result.contains("__delayed_host_release"))

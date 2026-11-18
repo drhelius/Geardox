@@ -29,6 +29,7 @@
 using json = nlohmann::json;
 
 static const int k_mcp_mouse_motion_step = 4;
+static const int k_mcp_max_modifiers = 4;
 
 struct McpTraceFilter
 {
@@ -327,7 +328,7 @@ public:
     void ForgetMousePointer();
     bool IsMouseButtonHeld() const;
     json MouseGetCursor();
-    json KeyboardKey(const std::string& key, const std::string& action);
+    json KeyboardKey(const std::string& key, const std::string& action, const json& modifiers);
     bool PressKey(GDOX_Keys key);
     void ReleaseKey(GDOX_Keys key);
     void ReleaseKeys();
