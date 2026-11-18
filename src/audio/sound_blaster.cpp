@@ -135,6 +135,8 @@ void SoundBlaster::SetCard(int card, int irq, int dma)
     m_state.dma_16 = 5;
 }
 
+// Power-on initializes the DSP as a reset does, so 0AAh waits at the read port (SBG p24). A reset empties the DSP's
+// output, not the latch the port reads, which keeps a byte nobody took: Flashback reads it without waiting
 void SoundBlaster::Reset(u64 clocks)
 {
     UNUSED(clocks);
@@ -142,7 +144,9 @@ void SoundBlaster::Reset(u64 clocks)
     m_state.resetting = false;
     m_state.reset_pending = false;
     m_state.irq_mpu = false;
+    m_state.last_output = 0;
     ResetDSP();
+    AddOutput(k_sound_blaster_ready);
     ResetMixer();
     UpdateIRQ();
 }
@@ -157,9 +161,12 @@ void SoundBlaster::ResetDSP()
     m_state.midi_uart = false;
     m_state.operands_needed = 0;
     m_state.operand_count = 0;
+
+    if (m_state.output_count != 0)
+        m_state.last_output = m_state.output[m_state.output_head];
+
     m_state.output_head = 0;
     m_state.output_count = 0;
-    m_state.last_output = 0;
     m_state.write_status_reads = 0;
     m_state.test_register = 0;
     memset(m_state.asp_registers, 0, sizeof(m_state.asp_registers));
