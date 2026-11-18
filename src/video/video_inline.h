@@ -215,7 +215,7 @@ INLINE u32 Video::GetVerticalTotal() const
 
 INLINE u32 Video::GetVerticalScale() const
 {
-    return m_pci && (m_state.crtc[k_video_cr_mode] & 0x04) != 0 ? 2 : 1;
+    return !m_ega && (m_state.crtc[k_video_cr_mode] & 0x04) != 0 ? 2 : 1;
 }
 
 INLINE u32 Video::GetVerticalDisplayEnd() const
