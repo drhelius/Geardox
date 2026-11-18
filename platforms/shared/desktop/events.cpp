@@ -17,6 +17,7 @@
  *
  */
 
+#include <math.h>
 #include <SDL3/SDL.h>
 #include "application.h"
 #include "config.h"
