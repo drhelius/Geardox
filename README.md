@@ -1,6 +1,7 @@
 # Geardox
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/drhelius/Geardox/geardox.yml)](https://github.com/drhelius/Geardox/actions/workflows/geardox.yml)
+[![GitHub Releases)](https://img.shields.io/github/v/tag/drhelius/Geardox?label=version)](https://github.com/drhelius/Geardox/releases)
 [![commits)](https://img.shields.io/github/commit-activity/t/drhelius/Geardox)](https://github.com/drhelius/Geardox/commits/main)
 [![GitHub contributors](https://img.shields.io/github/contributors/drhelius/Geardox)](https://github.com/drhelius/Geardox/graphs/contributors)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/drhelius)](https://github.com/sponsors/drhelius)
