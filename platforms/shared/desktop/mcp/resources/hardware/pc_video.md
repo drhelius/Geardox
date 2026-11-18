@@ -166,24 +166,41 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
 `get_system_status` (`bios`) tells which one is loaded.
 
 - **Plain VGA build:** VBE 3.0 code with the VGA's own modes only, no banks and no linear buffer.
-- **Cirrus build:** reports VBE 3.0 and a 6-bit DAC. 4F0Ah returns VBE 2.0's protected mode interface (set window,
-  display start and palette as 32-bit code over ports), and 4F01h's window function is a far call that only touches
-  ports. The modes that fit 2 MB are:
+- **Cirrus builds:** they answer INT 10h AH=12h as Cirrus's own BIOSes do, the GD5428 build as the CL-GD542x BIOS
+  1.41 and the GD5446 build as the CL-GD5436/46 PCI BIOS 1.25 (CL-GD542x TRM Appendix E1, CL-GD5446 TRM Appendix C3):
+  - BL=80h chip (18h, 39h), 81h version (1.41, 1.25), 82h revision, 85h memory in 64 KB units, 9Ah user options,
+    A1h monitor sense, A2h-A4h monitor type and refresh, 93h on the GD5428, A5h-A7h, AEh and AFh on the GD5446. Any
+    other BL from 80h up returns with every register untouched, and none answers while SR06 is locked.
+  - BL=A0h returns, for a mode, the 64-byte IBM parameter table at DS:SI, the Cirrus supplemental entry at ES:DI and
+    in BX the offset of the routine that applies them (near RET, in the C000h segment). The Video Save Pointer Table at
+    0040:00A8h carries Cirrus's extension with the mode count and table pointers, and modes added in RAM ahead of it
+    take precedence, as the manual describes (CL-GD542x TRM p578).
+  - The refresh rate comes from the scratch registers SR09 and SR0A (SR14 and SR15 too on the GD5446), which A2h-A4h
+    and AFh change. After a reset every resolution runs at 60 Hz, 1152x864 at 70 Hz; 1280x1024 on the GD5428 too,
+    progressive.
+  - A mode set writes the extension registers in the real BIOS's order. 640x480 at 8 bpp (and at 16 and 24 bpp on the
+    GD5446) runs on VCLK0, misc output E3h; the other modes on VCLK3, programmed per mode. VCLK0-2 keep the 25.2,
+    28.32 and 31.5 MHz the BIOS sets at power-on.
+- **VBE:** version 3.0 with a 6-bit DAC, OEM string "Cirrus Logic GD-54xx VGA" or "Cirrus Logic GD-5436/46 VGA".
+  4F0Ah returns VBE 2.0's protected mode interface (set window, display start and palette as 32-bit code over ports),
+  and 4F01h's window function is a far call that only touches ports. The modes that fit 2 MB are:
 
 | VESA | Mode |
 |---|---|
 | 150h, 152h | 320x200 and 320x400, 8 bpp, 70 Hz, the dot clock halved (no Cirrus number) |
 | 100h | 640x400, 8 bpp, 70 Hz (Cirrus 5Eh) |
-| 101h | 640x480, 8 bpp |
-| 103h | 800x600, 8 bpp |
-| 105h | 1024x768, 8 bpp |
+| 101h, 103h, 105h, 107h | 640x480, 800x600, 1024x768 and 1280x1024, 8 bpp |
+| 102h, 104h, 106h | 800x600, 1024x768 and 1280x1024, 16 colours planar (Cirrus 6Ah or 58h, 5Dh, 6Ch) |
 | 110h, 111h | 640x480, 15 and 16 bpp |
 | 113h, 114h | 800x600, 15 and 16 bpp |
-| 107h | 1280x1024, 8 bpp |
 | 116h, 117h | 1024x768, 15 and 16 bpp |
 | 112h | 640x480, 24 bpp, clock/3 at 75.5 MHz on the GD5428, 25.2 MHz on the GD5446 |
+| 7Bh | 1600x1200, 8 bpp (listed by its Cirrus number) |
+| 109h, 10Ah, 14h | GD5428 only: 132x25 (8x14), 132x43 (8x8) and 132x25 (8x16, Cirrus 14h) text |
+| 10Fh | GD5428 only: 320x200, 24 bpp (Cirrus 70h) |
+| 7Ch, 7Dh | GD5446 only: 1152x864, 8 and 16 bpp (listed by their Cirrus numbers) |
 
-  Nothing that needs more than 2 MB, and no other 24-bit mode. The VGA modes, including the planar 6Ah, stay.
+  Nothing that needs more than 2 MB. The standard VGA modes stay.
 - **Banked access:** a 64 KB window at A0000h in 4 KB steps through 4F05h. **Linear access:** the aperture of §3.2,
   with PhysBasePtr in 4F01h. With 16 MB or more the AT boards leave a memory hole at 14-16 MB for it, as 486 board
   setups did: RAM there is lost, extended memory stops at 14 MB, and the E820 map has RAM below 14 MB and from 16 MB up.
