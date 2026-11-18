@@ -29,6 +29,8 @@
 using json = nlohmann::json;
 
 static const int k_mcp_mouse_motion_step = 4;
+static const int k_mcp_mouse_max_motion_step = 64;
+static const double k_mcp_mouse_pixels_per_frame = 4.0;
 static const int k_mcp_max_modifiers = 4;
 
 struct McpTraceFilter
@@ -323,6 +325,8 @@ public:
     void SetMouseButton(u8 mask, bool pressed);
     bool FindMousePointer(const u32* before, const u32* out, const u32* back, int width, int height, int counts_x,
         int counts_y, McpMouseMiss& miss, std::string& reason);
+    bool LocateMousePointer(const u32* frame, int width, int height, int origin_x, int origin_y, int counts_x,
+        int counts_y);
     const McpMousePointer& GetMousePointer() const;
     bool IsMousePointerKnown() const;
     void MoveMousePointerEstimate(int counts_x, int counts_y);
