@@ -205,8 +205,10 @@ needs a write of 00h first.
 | 10h | BAR0 | Bits 31–24 writable: 16 MB (Revision A), memory, not prefetchable. Written FFFFFFFFh it reads FF000000h |
 | 14h, 18h, 30h | MMIO and BitBLT window, GPIO, expansion ROM | Read 0, unused. 3Ch (interrupt line) is read and write |
 
-- **The linear aperture** maps the 2 MB at BAR0 when PCICMD bit 1 and any of SR07 bits 7–4 are set. The debugger shows it as
-  "Linear VRAM"; it moves when BAR0 is written. SeaBIOS put BAR0 at FC000000h in the tested setups, so read it. There is no
+- **The linear aperture** maps BAR0's 16 MB when PCICMD bit 1 and any of SR07 bits 7–4 are set: four 4 MB apertures, plain,
+  bytes swapped in each word, bytes swapped in each dword, and plain again, each repeating the 2 MB of video memory. With
+  SR17 bits 6 and 2 the memory-mapped registers take the last 256 bytes of each 2 MB. The debugger shows it as "Linear
+  VRAM"; it moves when BAR0 is written. SeaBIOS put BAR0 at FD000000h in the tested setups, so read it. There is no
   aperture below 16 MB and no memory hole with this card.
 - **Beyond the GD5428 (`pc_video`):** video memory reads cost 16 bus clocks and writes 5 (the VL-Bus card's figures). SR0F
   reads 18h (2 MB), SR17 00h. VCLK0–3 (SR0B–SR0E, SR1B–SR1E) reset to 66h/3Bh,

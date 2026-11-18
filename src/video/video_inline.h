@@ -322,7 +322,8 @@ INLINE u32 Video::GetCRTCOffset(u32 address, u32 row) const
 }
 
 // Dots of a character clock, doubled when the sequencer halves the dot clock. Cirrus clock/2 and clock/3 run the clock
-// at 2 and 3 times the pixel rate with the timing still in units of 8 pixels (CIRRUS.TXT l1497-1507)
+// at 2 and 3 times the pixel rate with the timing still in units of 8 pixels (CIRRUS.TXT l1497-1507); the 5446 runs
+// every path at the pixel rate (5446 p227)
 INLINE u32 Video::GetCharacterClockDots() const
 {
     u8 clocking = m_state.sequencer[k_video_sr_clocking];
@@ -331,7 +332,7 @@ INLINE u32 Video::GetCharacterClockDots() const
 
 INLINE u32 Video::GetExtendedClockMultiplier() const
 {
-    if (!m_extended)
+    if (!m_extended || m_pci)
         return 1;
 
     u32 path = (m_state.sequencer[k_video_sr_extended] >> 1) & 0x07;
@@ -437,6 +438,12 @@ INLINE u8 Video::GetSyncStatus(u64 clocks) const
         status |= 0x08;
 
     return status;
+}
+
+INLINE u32 Video::GetLinearOffset(u32 offset) const
+{
+    static const u32 k_swaps[4] = { 0, 1, 3, 0 };
+    return ((offset & 0x3FFFFF) ^ k_swaps[(offset >> 22) & 0x03]) & m_vram_mask;
 }
 
 INLINE bool Video::IsLinearSpecial() const

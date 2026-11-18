@@ -1409,7 +1409,7 @@
  static void
  cirrus_switch_mode_setregs(u16 *data, u16 port)
  {
-@@ -403,12 +462,23 @@ cirrus_switch_mode_setregs(u16 *data, u16 port)
+@@ -403,12 +462,33 @@ cirrus_switch_mode_setregs(u16 *data, u16 port)
      }
  }
  
@@ -1427,13 +1427,23 @@
 +    if (seq == cseq_vga && cirrus_is_5446())
 +        seq = cseq_vga_5446;
 +    cirrus_switch_mode_setregs(seq, VGAREG_SEQU_ADDRESS);
++    // The 5446 runs packed-24 at the pixel rate (no clock/3 path): its clocks at 25.2 and 36 MHz
++    if ((seq == cseq_640x480x24 || seq == cseq_800x600x24) && cirrus_is_5446()) {
++        u8 n = seq == cseq_640x480x24 ? 0x4a : 0x7e;
++        u8 d = seq == cseq_640x480x24 ? 0x2b : 0x33;
++        int i;
++        for (i = 0; i < 4; i++) {
++            stdvga_sequ_write(0x0b + i, n);
++            stdvga_sequ_write(0x1b + i, d);
++        }
++    }
 +#else
      cirrus_switch_mode_setregs(GET_GLOBAL(table->seq), VGAREG_SEQU_ADDRESS);
 +#endif
      cirrus_switch_mode_setregs(GET_GLOBAL(table->graph), VGAREG_GRDC_ADDRESS);
      cirrus_switch_mode_setregs(GET_GLOBAL(table->crtc), stdvga_get_crtc());
  
-@@ -420,13 +490,19 @@ cirrus_switch_mode(struct cirrus_mode_s *table)
+@@ -420,13 +500,19 @@ cirrus_switch_mode(struct cirrus_mode_s *table)
      stdvga_pelmask_write(GET_GLOBAL(table->hidden_dac));
      stdvga_pelmask_write(0xff);
  
@@ -1459,7 +1469,7 @@
      stdvga_attrindex_write(0x20);
  }
  
-@@ -439,12 +515,15 @@ cirrus_set_granularity(int kb)
+@@ -439,12 +525,15 @@ cirrus_set_granularity(int kb)
  static void
  cirrus_clear_vram(u16 fill)
  {
@@ -1478,7 +1488,7 @@
      }
      stdvga_grdc_write(0x09, 0x00);
  }
-@@ -460,6 +539,13 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+@@ -460,6 +549,13 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
      struct cirrus_mode_s *table_g = container_of(
          vmode_g, struct cirrus_mode_s, info);
      cirrus_switch_mode(table_g);
@@ -1492,7 +1502,7 @@
      if (GET_GLOBAL(vmode_g->memmodel) == MM_PACKED && !(flags & MF_NOPALETTE))
          stdvga_set_packed_palette();
      if (!(flags & MF_NOCLEARMEM))
-@@ -479,6 +565,14 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
+@@ -479,6 +575,14 @@ clext_set_mode(struct vgamode_s *vmode_g, int flags)
  // of CR27 may not return the chip id.
  static u8 cirrus_chip_id VAR16;
  
@@ -1507,7 +1517,7 @@
  static void
  clext_101280(struct bregs *regs)
  {
-@@ -489,6 +583,9 @@ clext_101280(struct bregs *regs)
+@@ -489,6 +593,9 @@ clext_101280(struct bregs *regs)
      else if (v == 0xb8)
          // 5446
          regs->ax = 0x0039;
@@ -1517,7 +1527,7 @@
      else
          regs->ax = 0x00ff;
      regs->bx = 0x00;
-@@ -604,6 +701,34 @@ cirrus_get_memsize(void)
+@@ -604,6 +711,34 @@ cirrus_get_memsize(void)
      return 0x04 << x;
  }
  
@@ -1552,7 +1562,7 @@
  int
  clext_setup(void)
  {
-@@ -632,6 +757,8 @@ clext_setup(void)
+@@ -632,6 +767,8 @@ clext_setup(void)
      if (CONFIG_VGA_PCI && bdf >= 0)
          lfb_addr = (pci_config_readl(bdf, PCI_BASE_ADDRESS_0)
                      & PCI_BASE_ADDRESS_MEM_MASK);

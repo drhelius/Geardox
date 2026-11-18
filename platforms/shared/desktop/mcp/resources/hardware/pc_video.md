@@ -74,7 +74,7 @@ VGA's.
 
 | Register | Meaning |
 |---|---|
-| SR07 | Bit 0 extended mode, bits 3–1 pixel path (0 for 8 bpp, 3 for 15 and 16 bpp, 2 for 24 bpp, 1 for clock/2), bits 7–4 linear aperture in MB |
+| SR07 | Bit 0 extended mode, bits 3–1 pixel path (0 for 8 bpp, 3 for 15 and 16 bpp, 2 for 24 bpp, 1 for clock/2), bits 7–4 linear aperture in MB. The GD5428 runs 1 and 2 at twice and three times the pixel clock; the GD5446 runs every path at the pixel clock |
 | SR0B–SR0E, SR1B–SR1E | VCLK0–3. Rate is 14.31818 MHz x N / D, halved when D's bit 0 is set. N is bits 6–0 of SR0B–SR0E, D is bits 5–1 of SR1B–SR1E. Miscellaneous output bits 3–2 pick one |
 | GR09, GR0A | Bank offsets, in 4 KB units, or 16 KB with GR0B bit 5 |
 | GR0B | Bit 0 dual page (A0000h–A7FFFh uses GR09, A8000h–AFFFFh uses GR0A), bit 5 16 KB units |
@@ -181,7 +181,7 @@ build for the 5428, which sits at C0000h and ends lower in upper memory, and a P
 | 113h, 114h | 800x600, 15 and 16 bpp |
 | 107h | 1280x1024, 8 bpp |
 | 116h, 117h | 1024x768, 15 and 16 bpp |
-| 112h | 640x480, 24 bpp, clock/3 at 75.5 MHz |
+| 112h | 640x480, 24 bpp, clock/3 at 75.5 MHz on the GD5428, 25.2 MHz on the GD5446 |
 
   Nothing that needs more than 2 MB, and no other 24-bit mode. The VGA modes, including the planar 6Ah, stay.
 - **Banked access:** a 64 KB window at A0000h in 4 KB steps through 4F05h. **Linear access:** the aperture of §3.2,

@@ -79,6 +79,7 @@ void Video::WriteWindow32Callback(void* device, u32 offset, u32 value)
 u8 Video::ReadLinearCallback(void* device, u32 offset)
 {
     Video* video = (Video*)device;
+    offset = video->GetLinearOffset(offset);
 
     if (unlikely(video->m_mmio_top) && offset >= video->m_vram_size - 0x100)
         return video->ReadMMIO(offset & 0xFF);
@@ -92,13 +93,14 @@ u8 Video::ReadLinearCallback(void* device, u32 offset)
 u8 Video::PeekLinearCallback(void* device, u32 offset)
 {
     Video* video = (Video*)device;
-    return video->PeekMemory(offset & video->m_vram_mask);
+    return video->PeekMemory(video->GetLinearOffset(offset));
 }
 
 void Video::WriteLinearCallback(void* device, u32 offset, u8 value)
 {
     Video* video = (Video*)device;
     video->SynchronizeVRAM();
+    offset = video->GetLinearOffset(offset);
 
     if (unlikely(video->m_mmio_top) && offset >= video->m_vram_size - 0x100)
         video->WriteMMIO(offset & 0xFF, value);
@@ -112,7 +114,7 @@ u16 Video::ReadLinear16Callback(void* device, u32 offset)
 {
     Video* video = (Video*)device;
 
-    if (unlikely(video->IsLinearSpecial()))
+    if (unlikely(video->IsLinearSpecial() || offset >= video->m_vram_size))
         return (u16)(ReadLinearCallback(device, offset) | (ReadLinearCallback(device, offset + 1) << 8));
 
     u32 mask = video->m_vram_mask;
@@ -125,7 +127,7 @@ u32 Video::ReadLinear32Callback(void* device, u32 offset)
 {
     Video* video = (Video*)device;
 
-    if (unlikely(video->IsLinearSpecial()))
+    if (unlikely(video->IsLinearSpecial() || offset >= video->m_vram_size))
         return (u32)ReadLinear16Callback(device, offset) | ((u32)ReadLinear16Callback(device, offset + 2) << 16);
 
     u32 mask = video->m_vram_mask;
@@ -140,7 +142,7 @@ void Video::WriteLinear16Callback(void* device, u32 offset, u16 value)
 {
     Video* video = (Video*)device;
 
-    if (unlikely(video->IsLinearSpecial()))
+    if (unlikely(video->IsLinearSpecial() || offset >= video->m_vram_size))
     {
         WriteLinearCallback(device, offset, (u8)value);
         WriteLinearCallback(device, offset + 1, (u8)(value >> 8));
@@ -157,7 +159,7 @@ void Video::WriteLinear32Callback(void* device, u32 offset, u32 value)
 {
     Video* video = (Video*)device;
 
-    if (unlikely(video->IsLinearSpecial()))
+    if (unlikely(video->IsLinearSpecial() || offset >= video->m_vram_size))
     {
         WriteLinear16Callback(device, offset, (u16)value);
         WriteLinear16Callback(device, offset + 2, (u16)(value >> 16));
@@ -541,7 +543,7 @@ u32 Video::GetDirectWriteSize() const
 
 u32 Video::GetApertureSize() const
 {
-    return m_vram_size;
+    return m_pci ? ~k_video_pci_base_mask + 1 : m_vram_size;
 }
 
 u32 Video::GetApertureMappedSize() const

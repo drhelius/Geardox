@@ -330,6 +330,7 @@ private:
     bool WriteCirrusMemory(u32 address, u8 value);
     u32 GetShiftedWindowAddress(u32 address) const;
     bool IsLinearSpecial() const;
+    u32 GetLinearOffset(u32 offset) const;
     void RenderCursor(u32* destination, int x, int end);
     void UpdateExtendedFormat();
     void UpdateAperture();
