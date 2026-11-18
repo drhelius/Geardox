@@ -22,10 +22,60 @@
 #if defined(GDOX_ENABLE_MIDI_PORT) && defined(__APPLE__)
 
 #include <CoreMIDI/CoreMIDI.h>
+#include <dispatch/dispatch.h>
+#include <pthread.h>
 
 #define MIDI_PORT_PACKET_LIST_SIZE 8192
 
 static MIDIClientRef midi_port_client = 0;
+static bool midi_port_started = false;
+static dispatch_semaphore_t midi_port_ready = NULL;
+
+static void midi_port_idle(CFRunLoopTimerRef timer, void* info)
+{
+    UNUSED(timer);
+    UNUSED(info);
+}
+
+// CoreMIDI only learns that a synth quit or started through the run loop its client was created on
+static void* midi_port_run(void* data)
+{
+    UNUSED(data);
+    MIDIClientRef client = 0;
+
+    if (MIDIClientCreate(CFSTR("Geardox"), NULL, NULL, &client) != noErr)
+        client = 0;
+
+    midi_port_client = client;
+    dispatch_semaphore_signal(midi_port_ready);
+
+    if (client == 0)
+        return NULL;
+
+    CFRunLoopTimerRef timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + 1.0e10, 1.0e10, 0, 0,
+        midi_port_idle, NULL);
+    CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, kCFRunLoopDefaultMode);
+    CFRunLoopRun();
+    return NULL;
+}
+
+static bool midi_port_start(void)
+{
+    if (!midi_port_started)
+    {
+        pthread_t thread;
+        midi_port_started = true;
+        midi_port_ready = dispatch_semaphore_create(0);
+
+        if (pthread_create(&thread, NULL, midi_port_run, NULL) != 0)
+            return false;
+
+        pthread_detach(thread);
+        dispatch_semaphore_wait(midi_port_ready, DISPATCH_TIME_FOREVER);
+    }
+
+    return midi_port_client != 0;
+}
 
 static bool midi_port_get_name(MIDIEndpointRef endpoint, char* name, int size)
 {
@@ -49,6 +99,9 @@ bool MidiPort::IsSupported()
 bool MidiPort::ListPorts(std::vector<MidiPortInfo>& ports)
 {
     ports.clear();
+
+    if (!midi_port_start())
+        return false;
     ItemCount count = MIDIGetNumberOfDestinations();
 
     for (ItemCount i = 0; i < count; i++)
@@ -64,11 +117,8 @@ bool MidiPort::ListPorts(std::vector<MidiPortInfo>& ports)
 
 bool MidiPort::OpenNative(const char* id)
 {
-    if ((midi_port_client == 0) && (MIDIClientCreate(CFSTR("Geardox"), NULL, NULL, &midi_port_client) != noErr))
-    {
-        midi_port_client = 0;
+    if (!midi_port_start())
         return false;
-    }
 
     ItemCount count = MIDIGetNumberOfDestinations();
     MIDIEndpointRef endpoint = 0;
@@ -95,6 +145,11 @@ bool MidiPort::OpenNative(const char* id)
 // A synth that quits takes its destination with it, and sending to it still succeeds
 bool MidiPort::IsAlive()
 {
+    SInt32 id = 0;
+
+    if (!m_open || (MIDIObjectGetIntegerProperty(m_endpoint, kMIDIPropertyUniqueID, &id) != noErr))
+        return false;
+
     ItemCount count = MIDIGetNumberOfDestinations();
 
     for (ItemCount i = 0; m_open && (i < count); i++)
