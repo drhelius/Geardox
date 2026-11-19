@@ -56,6 +56,8 @@ public:
         s16 fetch_first;
         s16 fetch_second;
         bool address_pending;
+        u32 held_end;
+        bool end_held;
     };
 
     struct UltraSound_State
@@ -158,6 +160,7 @@ private:
     void RunVoice(UltraSound_Voice& voice, int index, s32& left, s32& right);
     void FetchVoice(UltraSound_Voice& voice);
     void StepAddress(UltraSound_Voice& voice);
+    void HoldEnd(UltraSound_Voice& voice, u32 previous);
     void StepRamp(UltraSound_Voice& voice);
     void LatchVoiceIRQ(int index);
     void ClockTimers(u32 clocks);

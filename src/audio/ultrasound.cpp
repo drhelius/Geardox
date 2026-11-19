@@ -164,6 +164,8 @@ void UltraSound::ResetVoice(UltraSound_Voice& voice)
     voice.fetch_first = 0;
     voice.fetch_second = 0;
     voice.address_pending = false;
+    voice.held_end = 0;
+    voice.end_held = false;
 }
 
 void UltraSound::ResetGF1()
@@ -284,7 +286,7 @@ void UltraSound::StepAddress(UltraSound_Voice& voice)
     s64 step = voice.frequency >> 1;
     s64 address = voice.address;
     s64 start = voice.start;
-    s64 end = voice.end;
+    s64 end = voice.end_held ? voice.held_end : voice.end;
     bool down = (voice.control & 0x40) != 0;
     s64 next = down ? address - step : address + step;
 
@@ -293,6 +295,8 @@ void UltraSound::StepAddress(UltraSound_Voice& voice)
         voice.address = (u32)next & k_ultrasound_address_mask;
         return;
     }
+
+    voice.end_held = false;
 
     if ((voice.control & 0x20) != 0)
         voice.control |= 0x80;
@@ -314,6 +318,20 @@ void UltraSound::StepAddress(UltraSound_Voice& voice)
     }
 
     voice.address = (u32)next & k_ultrasound_address_mask;
+}
+
+void UltraSound::HoldEnd(UltraSound_Voice& voice, u32 previous)
+{
+    u32 current = voice.end_held ? voice.held_end : previous;
+    bool looping = (voice.control & 0x48) == 0x08;
+
+    if (looping && (voice.address > voice.end) && (voice.address <= current))
+    {
+        voice.held_end = current;
+        voice.end_held = true;
+    }
+    else
+        voice.end_held = false;
 }
 
 void UltraSound::StepRamp(UltraSound_Voice& voice)
@@ -852,6 +870,8 @@ void UltraSound::WriteRegister(u8 index, u16 value, bool word)
 
 void UltraSound::WriteVoice(UltraSound_Voice& voice, u8 index, u16 value)
 {
+    voice.address_pending = (index == 0x0A);
+
     switch (index)
     {
         case 0x00:
@@ -867,11 +887,19 @@ void UltraSound::WriteVoice(UltraSound_Voice& voice, u8 index, u16 value)
             voice.start = (voice.start & 0x1FFF0000) | (value & 0xFFE0);
             break;
         case 0x04:
+        {
+            u32 previous = voice.end;
             voice.end = (voice.end & 0xFFFF) | ((u32)(value & 0x1FFF) << 16);
+            HoldEnd(voice, previous);
             break;
+        }
         case 0x05:
+        {
+            u32 previous = voice.end;
             voice.end = (voice.end & 0x1FFF0000) | (value & 0xFFE0);
+            HoldEnd(voice, previous);
             break;
+        }
         case 0x06:
             voice.ramp_rate = (u8)value;
             break;
@@ -886,11 +914,9 @@ void UltraSound::WriteVoice(UltraSound_Voice& voice, u8 index, u16 value)
             break;
         case 0x0A:
             voice.address = (voice.address & 0xFFFF) | ((u32)(value & 0x1FFF) << 16);
-            voice.address_pending = true;
             break;
         case 0x0B:
             voice.address = (voice.address & 0x1FFF0000) | value;
-            voice.address_pending = false;
             break;
         case 0x0C:
             voice.pan = value & 0x0F;
@@ -1616,6 +1642,8 @@ void UltraSound::Serialize(StateSerializer& serializer)
         G_SERIALIZE(serializer, voice.fetch_first);
         G_SERIALIZE(serializer, voice.fetch_second);
         G_SERIALIZE(serializer, voice.address_pending);
+        G_SERIALIZE(serializer, voice.held_end);
+        G_SERIALIZE(serializer, voice.end_held);
     }
 
     G_SERIALIZE(serializer, m_state.active_voices);
