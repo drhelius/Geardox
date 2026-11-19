@@ -63,6 +63,7 @@ struct FatImage_Entry
     u32 first_cluster;
     u8 attributes;
     u8 origin;
+    bool ultrasound;
     int memory;
     u32 crc;
     s64 modified;
@@ -133,6 +134,7 @@ public:
     bool AddFreeDOS(bool hidden, const std::vector<std::string>& reserved);
     bool AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
         const std::vector<std::string>& pinned, bool shsucdx);
+    bool AddUltraSound(const u8* zip, size_t size);
     bool AddMemoryFile(const char* path, const std::string& data, u8 attributes);
     bool PatchFile(const char* path, u64 offset, const std::string& before, const std::string& after);
     void FinishGame(const char* label, u64 free_size, const u8* boot_sector);
@@ -192,6 +194,8 @@ private:
     bool m_zip_open;
     mz_zip_archive m_system_zip;
     bool m_system_zip_open;
+    mz_zip_archive m_ultrasound_zip;
+    bool m_ultrasound_zip_open;
     std::vector<std::string> m_pinned;
     u32 m_pinned_count;
     MediaFile* m_zip_file;

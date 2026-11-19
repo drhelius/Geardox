@@ -161,6 +161,7 @@ static std::string hard_disk_working_path[GDOX_MAX_HARD_DISKS];
 static bool hard_disk_image_attached = false;
 static int dos_disk = 0;
 static std::string msdos_zip;
+static std::string ultrasnd_zip;
 static int floppy_drive = 0;
 static bool floppy_multidrive = false;
 static bool save_disk = false;
@@ -266,6 +267,7 @@ static bool hard_disk_make_builtin(const std::string& path, int system);
 static bool hard_disk_is_cdrom_slot(int id);
 static int hard_disk_get_builtin_slot(void);
 static std::string msdos_import(void);
+static std::string ultrasnd_import(void);
 static void hard_disk_update(void);
 static void cmos_load(void);
 static void cmos_save(void);
@@ -481,6 +483,7 @@ void retro_deinit(void)
     machine_settings.sound_irq = GDOX_MACHINE_AUTO;
     machine_settings.sound_dma = GDOX_MACHINE_AUTO;
     machine_settings.mpu = GDOX_MPU_INTELLIGENT;
+    machine_settings.gus = 0;
     machine_settings.mouse = GDOX_MOUSE_PS2;
     machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
     machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
@@ -843,6 +846,7 @@ static bool load_content(const char* path)
     disk_clear();
     clear_input_state();
     msdos_zip = msdos_import();
+    ultrasnd_zip = ultrasnd_import();
     bool game = false;
 
     if (!game_open(path, &game) || (!game && !disk_load(path)))
@@ -1738,6 +1742,7 @@ static bool update_game_options_display(void)
         { "geardox_cga_output", "machine", "cga_output" },
         { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
         { "geardox_sound_dma", "sound", "dma" }, { "geardox_mpu", "sound", "mpu" },
+        { "geardox_gus", "sound", "gus" },
         { "geardox_mouse", "input", "mouse" }, { "geardox_joystick", "input", "joystick" },
         { "geardox_cdrom_drive", "drives", "cdrom" },
         { "geardox_cdrom_speed", "machine", "cdrom_speed" }, { "geardox_drive_timing", "machine", "drive_timing" } };
@@ -2110,6 +2115,12 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         machine_settings.mpu = strcmp(var.value, "disabled") == 0 ? GDOX_MPU_OFF :
             strcmp(var.value, "uart") == 0 ? GDOX_MPU_UART : GDOX_MPU_INTELLIGENT;
+
+    var.key = "geardox_gus";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        machine_settings.gus = strcmp(var.value, "enabled") == 0 ? 1 : 0;
 
     var.key = "geardox_turbo";
     var.value = NULL;
@@ -3401,6 +3412,54 @@ static std::string msdos_import(void)
     return zip;
 }
 
+static std::string ultrasnd_import(void)
+{
+    std::string zip(retro_save_directory);
+    std::string source(retro_system_directory);
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+    append_path_component(zip, k_gus_import_file);
+    append_path_component(source, "geardox");
+    append_path_component(source, "ultrasnd");
+
+    if ((retro_system_directory[0] == 0) || !MediaFile::ListDirectory(source.c_str(), folders, files) ||
+        (files.empty() && folders.empty()))
+    {
+        if (content_file_exists(zip.c_str()) && MediaFile::RemoveFile(zip.c_str()))
+            log_cb(RETRO_LOG_INFO, "No UltraSound software in %s any more, the card has no patches\n", source.c_str());
+
+        return "";
+    }
+
+    GusImport import;
+    GusImport_Software software;
+    std::string error;
+    u32 imported = 0;
+
+    if (!import.AddSource(source.c_str()))
+    {
+        log_cb(RETRO_LOG_WARN, "UltraSound software in %s not imported: %s\n", source.c_str(), import.GetError());
+        return "";
+    }
+
+    if (GusImport::ReadSourceFingerprint(zip.c_str(), &imported) && (imported == import.GetSourceFingerprint()) &&
+        GusImport::Load(zip.c_str(), &software, &error))
+        return zip;
+
+    static char message[512];
+
+    if (import.Import(zip.c_str()) != GUS_IMPORT_DONE)
+    {
+        snprintf(message, sizeof(message), "UltraSound software not imported: %s", import.GetError());
+        show_message(message, 3, RETRO_LOG_WARN);
+        return "";
+    }
+
+    snprintf(message, sizeof(message), "%s from %s", import.GetMessage(), source.c_str());
+    show_message(message, 2, RETRO_LOG_INFO);
+    return zip;
+}
+
 // A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop. Images, manifests and
 // overlays live in the save directory
 static bool game_open(const char* path, bool* game)
@@ -3421,7 +3480,8 @@ static bool game_open(const char* path, bool* game)
 
     static char message[1024];
 
-    if (!game_disk.Open(found[pick], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str()))
+    if (!game_disk.Open(found[pick], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str(),
+        ultrasnd_zip.c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);

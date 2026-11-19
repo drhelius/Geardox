@@ -65,8 +65,8 @@ static const char* const k_game_keys[][2] = {
     { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
     { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
     { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
-    { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "midi" },
-    { "sound", "midi_port" }, { "input", "mouse" }, { "input", "joystick" } };
+    { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" },
+    { "sound", "midi" }, { "sound", "midi_port" }, { "input", "mouse" }, { "input", "joystick" } };
 
 static std::string get_save_directory(void);
 static const std::vector<std::pair<std::string, std::string> >& get_game_keys(void);
@@ -104,7 +104,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
         emu_power_off();
 
     if (!disk.Open(found, get_save_directory().c_str(), get_save_directory().c_str(), config_game.write_back == 0,
-        emu_dos_get_msdos_path().c_str()))
+        emu_dos_get_msdos_path().c_str(), emu_dos_get_ultrasnd_path().c_str()))
     {
         error_text = disk.GetError();
         return false;
@@ -474,6 +474,9 @@ void emu_game_apply_machine(void)
 
     if (m.mpu != b.mpu)
         overrides.Set("sound", "mpu", m.mpu == GDOX_MPU_INTELLIGENT ? "on" : m.mpu == GDOX_MPU_UART ? "uart" : "off");
+
+    if (m.gus != b.gus)
+        overrides.Set("sound", "gus", m.gus ? "on" : "off");
 
     if (m.mouse != b.mouse)
         overrides.Set("input", "mouse", k_mice[m.mouse].id);
@@ -1030,6 +1033,7 @@ static void config_to_settings(const config_Machine& machine, GDOX_Machine_Setti
     settings->sound_irq = machine.sound_irq;
     settings->sound_dma = machine.sound_dma;
     settings->mpu = machine.mpu;
+    settings->gus = machine.gus ? 1 : 0;
     settings->video_card = machine.video_card;
     settings->mouse = machine.mouse;
     settings->cdrom = machine.cdrom;
@@ -1052,6 +1056,7 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
     machine->sound_irq = game.sound_irq > 0 ? game.sound_irq : machine->sound_irq;
     machine->sound_dma = game.sound_dma > 0 ? game.sound_dma : machine->sound_dma;
     machine->mpu = game.mpu >= 0 ? game.mpu : machine->mpu;
+    machine->gus = game.gus >= 0 ? game.gus != 0 : machine->gus;
     machine->video_card = game.video_card >= 0 ? game.video_card : machine->video_card;
     machine->mouse = game.mouse >= 0 ? game.mouse : machine->mouse;
     machine->cdrom = game.cdrom >= 0 ? game.cdrom : machine->cdrom;

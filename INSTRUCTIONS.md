@@ -211,6 +211,7 @@ also has **Import MS-DOS...** and **Remove MS-DOS**.
 | Model | 486DX2 at 66 MHz | The 386 models help with old games that run too fast or crash on a 486. The Pentiums, 75 to 200 MHz on a PCI board, are for games like Quake that want more speed. |
 | Main RAM | 8 MB, 16 MB on the Pentiums | Some games want 16 MB. |
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
+| Gravis UltraSound | Off | A second sound card for games, trackers and demos made for it, at port 240 next to the Sound Blaster. The game's setup finds it on its own. Music played with Gravis's patches needs **Audio > Import UltraSound Software...** once: see [Use a Gravis UltraSound](GDOX_README.md#use-a-gravis-ultrasound). |
 | MPU-401 | Intelligent | The MIDI port at 330 for General MIDI and MT-32 music. Intelligent is the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port, for a game that misbehaves with it. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
 | Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428 on the 386s and 486s, the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
 | Mouse | PS/2 | |
@@ -224,7 +225,8 @@ With the CGA, **Video > CGA Output** chooses the monitor: Auto shows composite c
 otherwise, and Composite Monitor suits games drawn for a television. It applies at once.
 
 If you change the sound card's IRQ or DMA, the built-in disks don't follow. Edit the `SET BLASTER` line with
-`EDIT C:\AUTOEXEC.BAT`. Games opened with a `.gdox` get the right `BLASTER` automatically.
+`EDIT C:\AUTOEXEC.BAT`. The built-in disks also set up a Gravis UltraSound at IRQ 7 and DMA 3 when it's on, which
+suits the Sound Blaster's defaults; the `GDXGUS` and `SET ULTRASND` lines are the ones to edit. Games opened with a `.gdox` get the right `BLASTER` automatically.
 
 ## MIDI Music
 

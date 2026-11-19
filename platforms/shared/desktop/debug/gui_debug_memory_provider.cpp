@@ -27,6 +27,7 @@
 #include "geardox.h"
 #include "system/io.h"
 #include "system/scheduler.h"
+#include "audio/audio.h"
 
 static const int DEBUG_MEMORY_MAX_TRANSACTION_SIZE = 0x100000;
 
@@ -74,6 +75,12 @@ static bool firmware_region_listed(GDOX_Firmware_Type type)
     }
 
     return true;
+}
+
+static bool gus_region_listed(void)
+{
+    GeardoxCore* core = emu_get_core();
+    return IsValidPointer(core) && IsValidPointer(core->GetAudio()) && core->GetAudio()->HasGUS();
 }
 
 DebugMemoryProvider::DebugMemoryProvider()
@@ -206,6 +213,9 @@ int DebugMemoryProvider::GetRegionCount() const
         if (core->GetIDE()->GetDisk(id)->IsAttached())
             count++;
     }
+
+    if (gus_region_listed())
+        count++;
 
     return count;
 }
@@ -667,6 +677,16 @@ bool DebugMemoryProvider::GetExternalRegion(int index, GDOX_Debug_Memory_Region&
         index--;
     }
 
+    if (gus_region_listed() && (index == 0))
+    {
+        memset(&region, 0, sizeof(region));
+        region.id = GDOX_DEBUG_REGION_GUS_DRAM;
+        strncpy_fit(region.name, "GUS DRAM", sizeof(region.name));
+        region.size = ULTRASOUND_DRAM_SIZE;
+        region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_AUDIO;
+        return true;
+    }
+
     return false;
 }
 
@@ -679,6 +699,7 @@ bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_
 
     const u8* source = NULL;
     u32 source_size = 0;
+    GDOX_Debug_Memory_Status source_status = GDOX_DEBUG_MEMORY_READ_ONLY;
     Firmware* firmware = core->GetFirmware();
 
     if (IsValidPointer(firmware) && firmware->IsReady())
@@ -724,6 +745,13 @@ bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_
         source_size = IDE_DISK_BUFFER_SIZE;
     }
 
+    if ((id == GDOX_DEBUG_REGION_GUS_DRAM) && gus_region_listed())
+    {
+        source = core->GetAudio()->GetUltraSound()->GetDRAM();
+        source_size = ULTRASOUND_DRAM_SIZE;
+        source_status = GDOX_DEBUG_MEMORY_VALID;
+    }
+
     for (u32 i = 0; i < size; i++)
     {
         u64 current = (u64)offset + i;
@@ -731,7 +759,7 @@ bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_
         if (IsValidPointer(source) && current < source_size)
         {
             data[i] = source[current];
-            status[i] = GDOX_DEBUG_MEMORY_READ_ONLY;
+            status[i] = source_status;
         }
         else
         {
@@ -751,6 +779,19 @@ bool DebugMemoryProvider::WriteBlock(const GDOX_Debug_Memory_Address& address, c
         return false;
 
     Memory* memory = core->GetMemory();
+
+    if ((address.space == GDOX_DEBUG_MEMORY_REGION) && (address.region == GDOX_DEBUG_REGION_GUS_DRAM))
+    {
+        if (!gus_region_listed() || ((u64)address.address + size > ULTRASOUND_DRAM_SIZE))
+            return false;
+
+        UltraSound* gus = core->GetAudio()->GetUltraSound();
+
+        for (u32 i = 0; i < size; i++)
+            gus->PokeDRAM(address.address + i, data[i]);
+
+        return true;
+    }
 
     if (address.space == GDOX_DEBUG_MEMORY_REGION)
         return memory->DebugWriteRegionBlock(address.region, address.address, data, size);

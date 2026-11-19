@@ -37,6 +37,7 @@
 #include "emu_game.h"
 #include "emu_dev.h"
 #include "emu_midi.h"
+#include "emu_dos.h"
 #include "midi_port.h"
 #include "gui_game.h"
 #include "gui_dos.h"
@@ -1348,9 +1349,10 @@ static bool menu_machine_sound(void)
 {
     int source = emu_game_get_source("sound", "card");
     int mpu_source = emu_game_get_source("sound", "mpu");
+    int gus_source = emu_game_get_source("sound", "gus");
     int resource_source = MAX(emu_game_get_source("sound", "irq"), emu_game_get_source("sound", "dma"));
 
-    if (!begin_game_menu("Sound Card", MAX(source, MAX(mpu_source, resource_source))))
+    if (!begin_game_menu("Sound Card", MAX(MAX(source, gus_source), MAX(mpu_source, resource_source))))
         return false;
 
     bool changed = false;
@@ -1410,6 +1412,26 @@ static bool menu_machine_sound(void)
 
     if (menu_machine_sound_mpu(card))
         changed = true;
+
+    bool gus = menu_settings->gus;
+    bool gus_pushed = gui_push_game_source_color(gus_source);
+
+    if (ImGui::MenuItem("Gravis UltraSound", "", &gus))
+    {
+        menu_settings->gus = gus;
+        changed = true;
+    }
+
+    if (gus_pushed)
+        ImGui::PopStyleColor();
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("At 240h. Reset to apply.");
+        gui_draw_game_source_tooltip(gus_source);
+        ImGui::EndTooltip();
+    }
 
     ImGui::EndMenu();
     return changed;
@@ -1983,7 +2005,7 @@ static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, 
     const GDOX_Video_Card_Info& video = k_video_cards[config.video_card];
     const GDOX_Sound_Card_Info& sound = k_sound_cards[config.sound_card];
     char fpu[48];
-    char sound_text[80];
+    char sound_text[128];
     char cdrom[48];
     char floppies[48] = "";
 
@@ -2019,6 +2041,22 @@ static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, 
     const char* slots = (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0 ? "ISA and PCI" :
         (profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0 ? "ISA and VL-Bus" : "ISA";
     u32 video_kb = video.memory_size / 1024;
+
+    if (config.gus)
+    {
+        char gus_text[48];
+        snprintf(gus_text, sizeof(gus_text), "Gravis UltraSound, IRQ %d, DMA %d", get_gus_irq(config),
+            get_gus_dma(config));
+
+        if (config.sound_card == GDOX_SOUND_CARD_NONE)
+            snprintf(sound_text, sizeof(sound_text), "%s", gus_text);
+        else
+        {
+            strncat_fit(sound_text, ", ", sizeof(sound_text));
+            strncat_fit(sound_text, gus_text, sizeof(sound_text));
+        }
+    }
+
     const char* mpu_text = config.mpu == GDOX_MPU_INTELLIGENT ? "MPU-401" :
         config.mpu == GDOX_MPU_UART ? "MPU-401 UART" : "none";
 
@@ -2545,6 +2583,7 @@ static void menu_audio(void)
         menu_audio_source_mute("Mute PCM", Audio::AUDIO_SOURCE_PCM);
         menu_audio_source_mute("Mute CD-DA", Audio::AUDIO_SOURCE_CDDA);
         menu_audio_source_mute("Mute Buzzer", Audio::AUDIO_SOURCE_BUZZER);
+        menu_audio_source_mute("Mute GUS", Audio::AUDIO_SOURCE_GUS);
         ImGui::MenuItem("Mute MIDI", "", &config_audio.midi_mute, config_audio.enable);
 
         if (ImGui::IsItemHovered())
@@ -2561,9 +2600,28 @@ static void menu_audio(void)
         menu_audio_source_volume("PCM Volume", "##pcm_volume", Audio::AUDIO_SOURCE_PCM, &config_audio.pcm_volume);
         menu_audio_source_volume("CD-DA Volume", "##cdda_volume", Audio::AUDIO_SOURCE_CDDA, &config_audio.cdda_volume);
         menu_audio_source_volume("Buzzer Volume", "##buzzer_volume", Audio::AUDIO_SOURCE_BUZZER, &config_audio.buzzer_volume);
+        menu_audio_source_volume("GUS Volume", "##gus_volume", Audio::AUDIO_SOURCE_GUS, &config_audio.gus_volume);
 
         ImGui::Separator();
         menu_audio_midi();
+        ImGui::Separator();
+
+        bool ultrasnd = emu_dos_get_ultrasnd_name()[0] != 0;
+
+        if (ImGui::MenuItem("Import UltraSound Software..."))
+            gui_file_dialog_import_ultrasnd();
+
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("Your Gravis UltraSound 4.11 install disks: a ZIP of them,\n"
+                "or any file of the disks or of an installed ULTRASND folder.\n"
+                "Games with the card on get its patches in C:\\ULTRASND.");
+
+        if (ImGui::MenuItem("Remove UltraSound Software", NULL, false, ultrasnd))
+            gui_dos_remove_ultrasnd();
+
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("Your disks aren't touched.");
+
         ImGui::Separator();
 
         if (ImGui::BeginMenu("Buffer Size", config_audio.enable))
@@ -3070,6 +3128,7 @@ static void menu_debug(void)
         {
             ImGui::MenuItem("Show OPL", "", &config_debug.show_opl);
             ImGui::MenuItem("Show Sound Blaster", "", &config_debug.show_sound_blaster);
+            ImGui::MenuItem("Show UltraSound", "", &config_debug.show_ultrasound, emu_get_core()->GetAudio()->HasGUS());
             ImGui::MenuItem("Show Sound Control", "", &config_debug.show_sound_control);
             ImGui::EndMenu();
         }

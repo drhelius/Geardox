@@ -32,6 +32,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/audio/mpu401.cpp \
                 $(SOURCE_DIR)/audio/opl.cpp \
                 $(SOURCE_DIR)/audio/sound_blaster.cpp \
+                $(SOURCE_DIR)/audio/ultrasound.cpp \
                 $(SOURCE_DIR)/audio/vgm_recorder.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_audio.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_chd_image.cpp \
@@ -43,6 +44,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/drive/dos_import.cpp \
                 $(SOURCE_DIR)/drive/fdc.cpp \
                 $(SOURCE_DIR)/drive/game_disk.cpp \
+                $(SOURCE_DIR)/drive/gus_import.cpp \
                 $(SOURCE_DIR)/drive/ide_controller.cpp \
                 $(SOURCE_DIR)/drive/ide_cdrom.cpp \
                 $(SOURCE_DIR)/drive/ide_disk.cpp \

@@ -1689,7 +1689,8 @@ json McpServer::BuildToolList()
         {"name", "get_sound_status"},
         {"title", "Get Sound Status"},
         {"description", "Report the sound card: OPL status, timers and channels, the DSP's transfer, IRQ and DMA, "
-            "the mixer's levels, the MPU-401, and MIDI out: capture, messages sent, the SysEx log and the port."},
+            "the mixer's levels, the MPU-401, the Gravis UltraSound, and MIDI out: capture, messages sent, the SysEx log and "
+            "the port."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -1749,6 +1750,31 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_gus_voices"},
+        {"title", "Get GUS Voices"},
+        {"description", "Read the Gravis UltraSound's voices: current, start and end address in sample memory with "
+            "their fractions, frequency control and the rate in Hz, volume and its level in dB, pan, the output, and "
+            "the wave and volume ramp controls with loop, direction and IRQ flags. Default the active voices."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"voice", {
+                    {"type", "integer"},
+                    {"description", "0-31. Default the active voices."},
+                    {"minimum", 0},
+                    {"maximum", 31}
+                }},
+                {"all", {
+                    {"type", "boolean"},
+                    {"description", "true lists all 32 voices. Default false."}
+                }}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "set_turbo"},
         {"title", "Set Turbo"},
         {"description", "Press the board's Turbo button: off runs the CPU at a third of its clock, at once, without a reset. "
@@ -1776,7 +1802,7 @@ json McpServer::BuildToolList()
             {"properties", {
                 {"source", {
                     {"type", "string"},
-                    {"enum", json::array({"fm", "pcm", "cdda", "buzzer"})}
+                    {"enum", json::array({"fm", "pcm", "cdda", "buzzer", "gus"})}
                 }},
                 {"channel", {
                     {"type", "integer"},
@@ -3881,6 +3907,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetOPLRegisters(arguments.value("chip", 0), arguments.value("bank", 0));
     }
+    else if (normalizedTool == "get_gus_voices")
+    {
+        return m_debugAdapter.GetGUSVoices(arguments.value("voice", -1), arguments.value("all", false));
+    }
     else if (normalizedTool == "set_turbo")
     {
         if (!arguments.contains("turbo") || !arguments["turbo"].is_boolean())
@@ -4033,6 +4063,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         event_filters[TRACE_SERIAL] = TRACE_SERIAL_EVENT_DEFAULT;
         event_filters[TRACE_PARALLEL] = TRACE_PARALLEL_EVENT_DEFAULT;
         event_filters[TRACE_SYSTEM] = TRACE_SYSTEM_EVENT_DEFAULT;
+        event_filters[TRACE_GUS] = TRACE_GUS_EVENT_ALL;
 
         if (enabled && arguments.contains("filters"))
         {

@@ -141,6 +141,7 @@ struct config_Machine
     int sound_irq;
     int sound_dma;
     int mpu;
+    bool gus;
     int video_card;
     int mouse;
     int cdrom;
@@ -176,6 +177,7 @@ struct config_Audio
     float pcm_volume;
     float cdda_volume;
     float buzzer_volume;
+    float gus_volume;
     int buffer_count;
     std::string midi_gm_port;
     std::string midi_mt32_port;
@@ -308,6 +310,7 @@ struct config_Debug
     bool trace_serial;
     bool trace_parallel;
     bool trace_system;
+    bool trace_gus;
     int trace_cpu_interrupt_events;
     int trace_io_events;
     int trace_pic_events;
@@ -326,6 +329,7 @@ struct config_Debug
     int trace_serial_events;
     int trace_parallel_events;
     int trace_system_events;
+    int trace_gus_events;
     int trace_vblank_watch_address;
     int trace_vblank_watch_operation;
     int trace_output;
@@ -364,6 +368,7 @@ struct config_Debug
     bool vram_viewer_linear_auto_start;
     bool show_opl;
     bool show_sound_blaster;
+    bool show_ultrasound;
     bool show_sound_control;
     bool show_cdrom_toc;
     bool show_cdrom_audio;

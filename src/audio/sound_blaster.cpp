@@ -35,7 +35,6 @@ static const u32 k_sound_blaster_max_rate = 45000;
 static const u32 k_sound_blaster_ahead_rate = 1000;
 static const float k_sound_blaster_pro_cutoff = 3200.0f;
 static const float k_sound_blaster_cutoff_ratio = 0.45f;
-static const int k_sound_blaster_dma_channels[6] = { 0, 1, 3, 5, 6, 7 };
 static const char k_sound_blaster_copyright[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
 // Q15, 7 at 0 dB in steps of 3.67 dB and 0 at -46 dB: the one scale that fits every number Creative prints
@@ -111,11 +110,6 @@ void SoundBlaster::Init(PIC* pic, DMA* dma, MidiOut* midi_out)
     m_pic = pic;
     m_dma = dma;
     m_midi_out = midi_out;
-
-    GDOX_DMA_Endpoint endpoint = { this, DMAReadCallback, DMAWriteCallback, NULL, DMAChangeCallback };
-
-    for (int i = 0; i < 6; i++)
-        m_dma->SetEndpoint(k_sound_blaster_dma_channels[i], endpoint);
 }
 
 void SoundBlaster::SetTraceLogger(TraceLogger* trace_logger)

@@ -53,6 +53,7 @@ static void format_input(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
 static void format_serial(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_parallel(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_gus(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_bit_list(u8 bits, int base, char* buffer, size_t size);
 static void format_msf(u32 lba, char* buffer, size_t size);
 static void format_buttons(u8 device, u16 buttons, char* buffer, size_t size);
@@ -181,6 +182,9 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
             break;
         case TRACE_SYSTEM:
             format_system(entry, buffer, buffer_size);
+            break;
+        case TRACE_GUS:
+            format_gus(entry, buffer, buffer_size);
             break;
         default:
             snprintf(buffer, buffer_size, "  [TRACE]  UNKNOWN TYPE:$%02X", entry.type);
@@ -700,7 +704,8 @@ static void format_mixer(const GDOX_Trace_Entry& entry, char* buffer, size_t siz
 
 static void format_midi(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    const char* source = entry.midi.source == TRACE_MIDI_SOURCE_MPU ? "MPU" : "DSP";
+    const char* source = entry.midi.source == TRACE_MIDI_SOURCE_MPU ? "MPU" :
+        entry.midi.source == TRACE_MIDI_SOURCE_GUS ? "GUS" : "DSP";
 
     u8 value = entry.midi.value;
 
@@ -1133,4 +1138,28 @@ static void format_bytes(const u8* data, int count, char* buffer, size_t size)
 
     if (length == 0)
         snprintf(buffer, size, " -");
+}
+
+static void format_gus(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    switch (entry.event)
+    {
+        case TRACE_GUS_REGISTER:
+            format_event(buffer, size, "GUS", "REGISTER", "v%02u reg %02X = %04X", entry.gus.voice, entry.gus.index,
+                entry.gus.value);
+            break;
+        case TRACE_GUS_IRQ:
+            format_event(buffer, size, "GUS", "IRQ", "v%02u latch %02X", entry.gus.voice, entry.gus.value);
+            break;
+        case TRACE_GUS_DMA:
+            if (entry.gus.voice == 0)
+                format_event(buffer, size, "GUS", "DMA", "start  control %02X", entry.gus.value);
+            else
+                format_event(buffer, size, "GUS", "DMA", "TC  control %02X", entry.gus.value);
+            break;
+        default:
+            format_event(buffer, size, "GUS", "LATCH", "%s latch = %02X", entry.gus.voice != 0 ? "IRQ" : "DMA",
+                entry.gus.value);
+            break;
+    }
 }

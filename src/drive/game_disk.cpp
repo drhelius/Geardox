@@ -28,6 +28,7 @@
 #include "../cdrom/cdrom_media.h"
 #include "../media/game_database.h"
 #include "../media/media_file.h"
+#include "../audio/ultrasound.h"
 #include "../system/machine_profiles.h"
 #if defined(_WIN32)
 #include <process.h>
@@ -427,6 +428,9 @@ GameDisk::GameDisk()
     m_msdos.cd_extension = false;
     m_msdos.cache = false;
     m_msdos.crc = 0;
+    m_ultrasnd_loaded = false;
+    m_ultrasnd.patches = 0;
+    m_ultrasnd.crc = 0;
     m_left_out = 0;
     memset(&m_machine, 0, sizeof(m_machine));
     m_last.done = false;
@@ -663,11 +667,12 @@ bool GameDisk::IsGameContent(const char* path)
 }
 
 bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory,
-    bool write_to_folder, const char* msdos_path)
+    bool write_to_folder, const char* msdos_path, const char* ultrasnd_path)
 {
     Close();
     m_error.clear();
     m_msdos_path = (IsValidPointer(msdos_path) && exists(msdos_path)) ? std::string(msdos_path) : std::string();
+    m_ultrasnd_path = (IsValidPointer(ultrasnd_path) && exists(ultrasnd_path)) ? std::string(ultrasnd_path) : std::string();
     m_descriptor_path = found.path;
     m_save_directory = IsValidPointer(save_directory) ? trim_trailing(save_directory) : std::string();
 
@@ -830,6 +835,10 @@ void GameDisk::Close()
     m_msdos.zip.clear();
     m_msdos.name.clear();
     m_msdos_loaded = false;
+    m_ultrasnd_path.clear();
+    m_ultrasnd.zip.clear();
+    m_ultrasnd.name.clear();
+    m_ultrasnd_loaded = false;
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         m_hard_disks[i].clear();
@@ -953,6 +962,26 @@ bool GameDisk::HasCDExtension() const
 }
 
 // The user's import is read once a session, and refused whole if it doesn't add up
+bool GameDisk::LoadUltraSound()
+{
+    if (m_ultrasnd_loaded)
+        return true;
+
+    if (m_ultrasnd_path.empty())
+        return false;
+
+    std::string error;
+
+    if (!GusImport::Load(m_ultrasnd_path.c_str(), &m_ultrasnd, &error))
+    {
+        Log("%s", error.c_str());
+        return false;
+    }
+
+    m_ultrasnd_loaded = true;
+    return true;
+}
+
 bool GameDisk::LoadSystem()
 {
     if (GetSystem() != GDOX_GAME_SYSTEM_MSDOS)
@@ -1290,7 +1319,8 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     if (msdos)
         out += "@ECHO OFF\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\nSET TEMP=C:\\TEMP\r\n";
     else
-        out += "@ECHO OFF\r\nSET DOSDIR=C:\\FREEDOS\r\nSET PATH=C:\\FREEDOS\\BIN\r\nSET TEMP=C:\\TEMP\r\n";
+        out += "@ECHO OFF\r\nSET DOSDIR=C:\\FREEDOS\r\n"
+            "SET PATH=C:\\FREEDOS\\BIN\r\nSET TEMP=C:\\TEMP\r\n";
 
     out += "SET DIRCMD=/OGN\r\n";
 
@@ -1298,6 +1328,15 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     {
         snprintf(line, sizeof(line), "SET BLASTER=A220 I%d D%d%s T%s\r\n", machine.sound_irq, machine.sound_dma,
             card.mpu ? (machine.mpu != GDOX_MPU_OFF ? " H5 P330" : " H5") : "", k_types[machine.sound_card]);
+        out += line;
+    }
+
+    if (machine.gus)
+    {
+        int irq = get_gus_irq(machine);
+        int dma = get_gus_dma(machine);
+        snprintf(line, sizeof(line), "SET ULTRASND=%X,%d,%d,%d,%d\r\nSET ULTRADIR=C:\\ULTRASND\r\nGDXGUS\r\n",
+            (unsigned)k_ultrasound_port, dma, dma, irq, irq);
         out += line;
     }
 
@@ -1556,6 +1595,9 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
 
     if (!msdos && !image->AddFreeDOS(info.system_hidden, system->reserved))
         return Fail("Unable to add FreeDOS to the game's disk");
+
+    if (machine.gus && LoadUltraSound() && !image->AddUltraSound((const u8*)m_ultrasnd.zip.data(), m_ultrasnd.zip.size()))
+        return Fail("Unable to add %s to the game's disk", m_ultrasnd.name.c_str());
 
     if (!image->AddMemoryFile(k_game_disk_config_sys, system->config_sys, attributes) ||
         !image->AddMemoryFile(k_game_disk_autoexec, system->autoexec, attributes))

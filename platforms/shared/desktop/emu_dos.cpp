@@ -28,6 +28,8 @@
 
 static std::string msdos_name;
 static bool msdos_checked = false;
+static std::string ultrasnd_name;
+static bool ultrasnd_checked = false;
 
 std::string emu_dos_get_msdos_path(void)
 {
@@ -89,5 +91,59 @@ bool emu_dos_remove_msdos(void)
     bool removed = MediaFile::RemoveFile(emu_dos_get_msdos_path().c_str());
     msdos_checked = false;
     emu_hard_disk_follow_default(previous);
+    return removed;
+}
+
+std::string emu_dos_get_ultrasnd_path(void)
+{
+    char path[GDOX_MAX_PATH];
+    join_path(config_root_path, k_gus_import_file, path, sizeof(path));
+    return path;
+}
+
+const char* emu_dos_get_ultrasnd_name(void)
+{
+    if (!ultrasnd_checked)
+    {
+        GusImport_Software software;
+        std::string error;
+        std::string path = emu_dos_get_ultrasnd_path();
+        u64 size = 0;
+        s64 modified = 0;
+        ultrasnd_checked = true;
+        ultrasnd_name.clear();
+
+        if (MediaFile::GetFileInfo(path.c_str(), &size, &modified))
+        {
+            if (GusImport::Load(path.c_str(), &software, &error))
+                ultrasnd_name = software.name;
+            else
+                Log("%s", error.c_str());
+        }
+    }
+
+    return ultrasnd_name.c_str();
+}
+
+bool emu_dos_import_ultrasnd(const char* path, std::string* message)
+{
+    GusImport import;
+    message->clear();
+
+    if (!import.AddSource(path) || (import.Import(emu_dos_get_ultrasnd_path().c_str()) != GUS_IMPORT_DONE))
+    {
+        *message = import.GetError();
+        return false;
+    }
+
+    ultrasnd_checked = false;
+    *message = import.GetMessage();
+    return true;
+}
+
+bool emu_dos_remove_ultrasnd(void)
+{
+    bool removed = MediaFile::RemoveFile(emu_dos_get_ultrasnd_path().c_str());
+    ultrasnd_checked = false;
     return removed;
 }

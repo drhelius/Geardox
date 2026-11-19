@@ -1772,6 +1772,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.sound_card == machine_config.sound_card) &&
         (m_machine_config.sound_irq == machine_config.sound_irq) &&
         (m_machine_config.sound_dma == machine_config.sound_dma) && (m_machine_config.mpu == machine_config.mpu) &&
+        (m_machine_config.gus == machine_config.gus) &&
         (m_machine_config.mouse == machine_config.mouse) &&
         (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed) &&
         (m_machine_config.drive_timing == machine_config.drive_timing) &&
@@ -2036,6 +2037,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.sound_irq);
     G_SERIALIZE(serializer, config.sound_dma);
     G_SERIALIZE(serializer, config.mpu);
+    G_SERIALIZE(serializer, config.gus);
     G_SERIALIZE(serializer, config.mouse);
     G_SERIALIZE(serializer, config.cdrom);
     G_SERIALIZE(serializer, config.cdrom_speed);
@@ -2090,6 +2092,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.sound_irq = config.sound_irq == k_sound_card_irqs[1] ? k_sound_card_irqs[1] : k_sound_card_irqs[0];
     config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
     config.mpu = config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : (u8)GDOX_MPU_INTELLIGENT;
+    config.gus = config.gus != 0 ? 1 : 0;
     config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = config.cdrom < GDOX_CDROM_POSITION_COUNT ? config.cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
@@ -2389,6 +2392,7 @@ void GeardoxCore::ResolveMachineConfig()
     config.sound_dma = (u8)pick_setting(game.sound_dma, user.sound_dma, 0, &source);
     int mpu = pick_setting(game.mpu, user.mpu, -1, &source);
     config.mpu = (mpu >= 0) && (mpu < GDOX_MPU_MODE_COUNT) ? (u8)mpu : (u8)GDOX_MPU_INTELLIGENT;
+    config.gus = pick_setting(game.gus, user.gus, -1, &source) > 0 ? 1 : 0;
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
@@ -2505,8 +2509,11 @@ void GeardoxCore::ApplyMachineConfig()
     }
 
     if (IsValidPointer(m_audio))
+    {
         m_audio->SetCard(m_machine_config.sound_card, m_machine_config.sound_irq, m_machine_config.sound_dma,
             m_machine_config.mpu);
+        m_audio->SetGUS(m_machine_config.gus != 0);
+    }
 
     if (IsValidPointer(m_video))
         m_video->SetCard(m_machine_config.video_card);

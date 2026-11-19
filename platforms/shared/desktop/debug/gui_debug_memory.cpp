@@ -165,6 +165,7 @@ static const MemorySourceInfo k_memory_sources[] =
     { GDOX_DEBUG_REGION_VGA_PLANE_2, MEMORY_GROUP_MEMORY, false, "VGA plane 2, fonts in text modes" },
     { GDOX_DEBUG_REGION_VGA_PLANE_3, MEMORY_GROUP_MEMORY, false, "VGA plane 3" },
     { GDOX_DEBUG_REGION_VRAM, MEMORY_GROUP_MEMORY, false, "The CGA's 16 KB: characters and attributes, or graphics in two banks" },
+    { GDOX_DEBUG_REGION_GUS_DRAM, MEMORY_GROUP_MEMORY, false, "The Gravis UltraSound's 1 MB of sample memory" },
     { GDOX_DEBUG_REGION_SYSTEM_ROM, MEMORY_GROUP_ROM, false,
         "System BIOS at the top of the address space, where the CPU starts after a reset" },
     { GDOX_DEBUG_REGION_BIOS_COPY, MEMORY_GROUP_CPU_WINDOW, false,

@@ -27,6 +27,7 @@
 #include "../media/game_descriptor.h"
 #include "dos_import.h"
 #include "fat_image.h"
+#include "gus_import.h"
 
 struct GameDisk_Found
 {
@@ -84,7 +85,7 @@ public:
     static bool IsDatabaseEnabled();
     static std::string GetFoundName(const GameDisk_Found& found);
     bool Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory, bool write_to_folder,
-        const char* msdos_path);
+        const char* msdos_path, const char* ultrasnd_path);
     void Close();
     bool IsOpen() const;
     bool SaveOverrides(const GameDescriptor& overrides);
@@ -137,6 +138,7 @@ private:
     bool IsSystemPath(const std::string& dos_path) const;
     bool HasCDExtension() const;
     bool LoadSystem();
+    bool LoadUltraSound();
     bool IsGamePath(const std::string& dos_path) const;
     bool Assemble(FatImage* image, const GDOX_Machine_Config& machine, GameDisk_Manifest_System* system);
     bool ResolveMedia(const std::string& value, std::string* path);
@@ -180,9 +182,12 @@ private:
     std::string m_lock;
     std::string m_media_directory;
     std::string m_msdos_path;
+    std::string m_ultrasnd_path;
     std::string m_keyboard;
     DosImport_System m_msdos;
     bool m_msdos_loaded;
+    GusImport_Software m_ultrasnd;
+    bool m_ultrasnd_loaded;
     bool m_write_overlay;
     bool m_folder_read_only;
     bool m_built;

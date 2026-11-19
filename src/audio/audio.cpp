@@ -20,11 +20,14 @@
 #include <math.h>
 #include "audio.h"
 #include "../cdrom/cdrom_audio.h"
+#include "../system/dma.h"
 #include "../system/machine_profiles.h"
 #include "../system/pic.h"
 #include "../system/scheduler.h"
 #include "../common/trace_logger.h"
 #include "../common/state_serializer.h"
+
+static const int k_audio_dma_channels[6] = { 0, 1, 3, 5, 6, 7 };
 
 Audio::Audio()
 {
@@ -33,6 +36,8 @@ Audio::Audio()
     InitPointer(m_sound_blaster);
     InitPointer(m_mpu401);
     InitPointer(m_midi_out);
+    InitPointer(m_ultrasound);
+    InitPointer(m_dma);
     InitPointer(m_cdrom_audio);
     InitPointer(m_pic);
     InitPointer(m_scheduler);
@@ -44,6 +49,7 @@ Audio::Audio()
     m_pcm_volume = 1.0f;
     m_cdda_volume = 1.0f;
     m_buzzer_volume = 1.0f;
+    m_gus_volume = 1.0f;
     m_opl_chips = 0;
     m_opl3 = false;
     m_dsp = false;
@@ -51,6 +57,7 @@ Audio::Audio()
     m_mpu = false;
     m_card_mpu = false;
     m_mpu_irq = false;
+    m_gus = false;
     m_pcm_cutoff = -1.0f;
     m_pcm_lowpass_alpha_q15 = 32768;
     m_fm_gain_left = 32768;
@@ -74,15 +81,20 @@ Audio::Audio()
     for (int i = 0; i < AUDIO_SOURCE_COUNT; i++)
         m_source_mute[i] = false;
 
+    for (int i = 0; i < 8; i++)
+        m_dma_routes[i] = -1;
+
     memset(m_fm_buffer, 0, sizeof(m_fm_buffer));
     memset(m_pcm_buffer, 0, sizeof(m_pcm_buffer));
     memset(m_cdda_buffer, 0, sizeof(m_cdda_buffer));
     memset(m_buzzer_buffer, 0, sizeof(m_buzzer_buffer));
+    memset(m_gus_buffer, 0, sizeof(m_gus_buffer));
     memset(m_fm_channel_buffer, 0, sizeof(m_fm_channel_buffer));
 }
 
 Audio::~Audio()
 {
+    SafeDelete(m_ultrasound);
     SafeDelete(m_mpu401);
     SafeDelete(m_midi_out);
     SafeDelete(m_sound_blaster);
@@ -96,6 +108,7 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
     m_cdrom_audio = cdrom_audio;
     m_pit = pit;
     m_pic = pic;
+    m_dma = dma;
 
     for (int i = 0; i < AUDIO_OPL_CHIPS; i++)
     {
@@ -112,8 +125,17 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
     if (!IsValidPointer(m_midi_out))
         m_midi_out = new MidiOut();
 
+    if (!IsValidPointer(m_ultrasound))
+        m_ultrasound = new UltraSound();
+
     m_mpu401->Init(m_midi_out);
     m_sound_blaster->Init(pic, dma, m_midi_out);
+    m_ultrasound->Init(pic, dma, m_midi_out);
+
+    for (int i = 0; i < 8; i++)
+        m_dma_routes[i] = -1;
+
+    UpdateDMARouting();
     Reset();
 }
 
@@ -122,6 +144,7 @@ void Audio::SetTraceLogger(TraceLogger* trace_logger)
     m_trace_logger = trace_logger;
     m_sound_blaster->SetTraceLogger(trace_logger);
     m_mpu401->SetTraceLogger(trace_logger);
+    m_ultrasound->SetTraceLogger(trace_logger);
 }
 
 void Audio::SetCard(int card, int irq, int dma, int mpu)
@@ -139,6 +162,61 @@ void Audio::SetCard(int card, int irq, int dma, int mpu)
 
     for (int i = 0; i < AUDIO_OPL_CHIPS; i++)
         m_opl[i]->SetModel(m_opl3 ? OPL::OPL_MODEL_OPL3 : OPL::OPL_MODEL_OPL2);
+
+    UpdateDMARouting();
+}
+
+void Audio::SetGUS(bool enabled)
+{
+    m_gus = enabled;
+    m_ultrasound->SetEnabled(enabled);
+    UpdateDMARouting();
+}
+
+void Audio::UpdateDMARouting()
+{
+    if (!IsValidPointer(m_dma))
+        return;
+
+    const SoundBlaster::SoundBlaster_State* blaster = m_sound_blaster->GetState();
+    int dram = m_gus ? m_ultrasound->GetDRAMChannel() : -1;
+    int adc = m_gus ? m_ultrasound->GetADCChannel() : -1;
+
+    for (int i = 0; i < 6; i++)
+    {
+        int channel = k_audio_dma_channels[i];
+        bool blaster_channel = m_dsp && ((channel == blaster->dma_8) || (channel == blaster->dma_16));
+        int route = 0;
+
+        if (!blaster_channel && (channel == dram))
+            route = 1;
+        else if (!blaster_channel && (channel == adc))
+            route = 2;
+
+        if (route == m_dma_routes[channel])
+            continue;
+
+        m_dma_routes[channel] = route;
+
+        if (route == 1)
+        {
+            GDOX_DMA_Endpoint endpoint = { m_ultrasound, UltraSound::DRAMReadCallback, UltraSound::DRAMWriteCallback,
+                UltraSound::DRAMEndCallback, NULL };
+            m_dma->SetEndpoint(channel, endpoint);
+        }
+        else if (route == 2)
+        {
+            GDOX_DMA_Endpoint endpoint = { m_ultrasound, UltraSound::ADCReadCallback, UltraSound::ADCWriteCallback,
+                UltraSound::ADCEndCallback, NULL };
+            m_dma->SetEndpoint(channel, endpoint);
+        }
+        else
+        {
+            GDOX_DMA_Endpoint endpoint = { m_sound_blaster, SoundBlaster::DMAReadCallback,
+                SoundBlaster::DMAWriteCallback, NULL, SoundBlaster::DMAChangeCallback };
+            m_dma->SetEndpoint(channel, endpoint);
+        }
+    }
 }
 
 void Audio::Reset()
@@ -149,6 +227,7 @@ void Audio::Reset()
         m_opl[i]->Reset();
 
     m_sound_blaster->Reset(clocks);
+    m_ultrasound->Reset();
     m_mpu401->Reset();
     m_midi_out->Reset();
     UpdateMPUInterrupt();
@@ -164,6 +243,7 @@ void Audio::Reset()
     m_state.buzzer_level = 0;
     m_buffer_index = 0;
     m_buffer_overflow = false;
+    UpdateDMARouting();
     UpdateGains();
     UpdatePCMFilter();
     UpdateEvent();
@@ -209,6 +289,13 @@ u8 Audio::Read(u16 port, u64 clocks)
         return value;
     }
 
+    if (IsGUSPort(port))
+    {
+        u8 value = m_ultrasound->Read(port);
+        UpdateEvent();
+        return value;
+    }
+
     return m_sound_blaster->Read(port, clocks);
 }
 
@@ -223,6 +310,9 @@ u8 Audio::Peek(u16 port, u64 clocks) const
     if (IsMPUPort(port))
         return m_mpu401->Peek(port);
 
+    if (IsGUSPort(port))
+        return m_ultrasound->Peek(port);
+
     return m_sound_blaster->Peek(port, clocks);
 }
 
@@ -232,6 +322,9 @@ void Audio::Write(u16 port, u8 value, u64 clocks)
 
     if (IsFMPort(port))
     {
+        if (m_gus && ((port & 0x03FF) == k_audio_fm_port))
+            m_ultrasound->SnoopAdLib(value);
+
         WriteFM(port, value);
         return;
     }
@@ -246,7 +339,16 @@ void Audio::Write(u16 port, u8 value, u64 clocks)
         return;
     }
 
+    if (IsGUSPort(port))
+    {
+        m_ultrasound->Write(port, value);
+        UpdateDMARouting();
+        UpdateEvent();
+        return;
+    }
+
     m_sound_blaster->Write(port, value, clocks);
+    UpdateDMARouting();
     UpdateGains();
     UpdatePCMFilter();
     UpdateEvent();
@@ -298,6 +400,9 @@ void Audio::UpdateEvent()
 
     if (m_mpu)
         clocks = MIN(clocks, m_mpu401->GetClocksToEvent());
+
+    if (m_gus)
+        clocks = MIN(clocks, m_ultrasound->GetClocksToEvent());
 
     m_scheduler->Schedule(SCHEDULER_EVENT_AUDIO, clocks == GDOX_NO_EVENT ? GDOX_NO_EVENT : m_state.clocks + clocks);
 }
@@ -374,6 +479,9 @@ u64 Audio::GetReadStableUntil(u16 port) const
         u64 clocks = m_mpu401->GetClocksToEvent();
         return clocks == GDOX_NO_EVENT ? GDOX_NO_EVENT : m_state.clocks + clocks;
     }
+
+    if (IsGUSPort(port))
+        return m_ultrasound->GetReadStableUntil(port, m_state.clocks);
 
     return m_sound_blaster->GetReadStableUntil(port);
 }
@@ -462,18 +570,20 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
     float pcm_volume = m_source_mute[AUDIO_SOURCE_PCM] ? 0.0f : m_pcm_volume;
     float cdda_volume = m_source_mute[AUDIO_SOURCE_CDDA] ? 0.0f : m_cdda_volume;
     float buzzer_volume = m_source_mute[AUDIO_SOURCE_BUZZER] ? 0.0f : m_buzzer_volume;
+    float gus_volume = m_source_mute[AUDIO_SOURCE_GUS] ? 0.0f : m_gus_volume;
 
     s32 dc_left = m_state.output_dc_left;
     s32 dc_right = m_state.output_dc_right;
 
     // No source gives the relative levels: FM, PCM and CD-DA all enter at full scale
     if ((m_master_volume == 1.0f) && (fm_volume == 1.0f) && (pcm_volume == 1.0f) && (cdda_volume == 1.0f) &&
-        (buzzer_volume == 1.0f))
+        (buzzer_volume == 1.0f) && (gus_volume == 1.0f))
     {
         for (int i = 0; i < samples; i += 2)
         {
-            s32 left = (s32)m_fm_buffer[i] + m_pcm_buffer[i] + m_cdda_buffer[i] + m_buzzer_buffer[i];
-            s32 right = (s32)m_fm_buffer[i + 1] + m_pcm_buffer[i + 1] + m_cdda_buffer[i + 1] + m_buzzer_buffer[i + 1];
+            s32 left = (s32)m_fm_buffer[i] + m_pcm_buffer[i] + m_cdda_buffer[i] + m_buzzer_buffer[i] + m_gus_buffer[i];
+            s32 right = (s32)m_fm_buffer[i + 1] + m_pcm_buffer[i + 1] + m_cdda_buffer[i + 1] + m_buzzer_buffer[i + 1] +
+                m_gus_buffer[i + 1];
             left = HighPass(dc_left, left);
             right = HighPass(dc_right, right);
             sample_buffer[i] = (s16)CLAMP(left, -32768, 32767);
@@ -485,9 +595,11 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
         for (int i = 0; i < samples; i += 2)
         {
             float left = (float)m_fm_buffer[i] * fm_volume + (float)m_pcm_buffer[i] * pcm_volume +
-                (float)m_cdda_buffer[i] * cdda_volume + (float)m_buzzer_buffer[i] * buzzer_volume;
+                (float)m_cdda_buffer[i] * cdda_volume + (float)m_buzzer_buffer[i] * buzzer_volume +
+                (float)m_gus_buffer[i] * gus_volume;
             float right = (float)m_fm_buffer[i + 1] * fm_volume + (float)m_pcm_buffer[i + 1] * pcm_volume +
-                (float)m_cdda_buffer[i + 1] * cdda_volume + (float)m_buzzer_buffer[i + 1] * buzzer_volume;
+                (float)m_cdda_buffer[i + 1] * cdda_volume + (float)m_buzzer_buffer[i + 1] * buzzer_volume +
+                (float)m_gus_buffer[i + 1] * gus_volume;
             s32 out_left = (s32)((float)HighPass(dc_left, (s32)left) * m_master_volume);
             s32 out_right = (s32)((float)HighPass(dc_right, (s32)right) * m_master_volume);
             sample_buffer[i] = (s16)CLAMP(out_left, -32768, 32767);
@@ -509,6 +621,7 @@ void Audio::SaveState(std::ostream& stream)
 
     m_sound_blaster->SaveState(stream);
     m_mpu401->SaveState(stream);
+    m_ultrasound->SaveState(stream);
     m_midi_out->SaveState(stream);
 }
 
@@ -522,6 +635,7 @@ void Audio::LoadState(std::istream& stream, int version)
 
     m_sound_blaster->LoadState(stream);
     m_mpu401->LoadState(stream);
+    m_ultrasound->LoadState(stream);
     m_midi_out->LoadState(stream);
     SanitizeState();
 }
@@ -617,4 +731,9 @@ void Audio::SanitizeState()
     UpdateEvent();
     m_mpu_irq = false;
     UpdateMPUInterrupt();
+
+    for (int i = 0; i < 8; i++)
+        m_dma_routes[i] = -1;
+
+    UpdateDMARouting();
 }

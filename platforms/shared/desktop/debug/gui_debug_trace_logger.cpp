@@ -835,6 +835,19 @@ static void trace_logger_menu_filters(void)
         ImGui::EndDisabled();
         ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("UltraSound"))
+    {
+        ImGui::MenuItem("Enabled", "", &config_debug.trace_gus);
+        ImGui::Separator();
+        ImGui::BeginDisabled(!config_debug.trace_gus);
+        trace_logger_menu_event_filter("Registers", &config_debug.trace_gus_events, TRACE_GUS_EVENT_REGISTERS);
+        trace_logger_menu_event_filter("Voice IRQs", &config_debug.trace_gus_events, TRACE_GUS_EVENT_IRQS);
+        trace_logger_menu_event_filter("DRAM DMA", &config_debug.trace_gus_events, TRACE_GUS_EVENT_DMA);
+        trace_logger_menu_event_filter("IRQ and DMA Latches", &config_debug.trace_gus_events, TRACE_GUS_EVENT_LATCHES);
+        ImGui::EndDisabled();
+        ImGui::EndMenu();
+    }
 }
 
 static bool trace_logger_apply_capacity(void)
@@ -1183,6 +1196,7 @@ static u32 trace_logger_get_config_flags(void)
     if (config_debug.trace_serial) flags |= TRACE_FLAG_SERIAL;
     if (config_debug.trace_parallel) flags |= TRACE_FLAG_PARALLEL;
     if (config_debug.trace_system) flags |= TRACE_FLAG_SYSTEM;
+    if (config_debug.trace_gus) flags |= TRACE_FLAG_GUS;
 
     return flags;
 }
@@ -1214,6 +1228,7 @@ static void trace_logger_set_config_flags(u32 flags)
     config_debug.trace_serial = (flags & TRACE_FLAG_SERIAL) != 0;
     config_debug.trace_parallel = (flags & TRACE_FLAG_PARALLEL) != 0;
     config_debug.trace_system = (flags & TRACE_FLAG_SYSTEM) != 0;
+    config_debug.trace_gus = (flags & TRACE_FLAG_GUS) != 0;
 }
 
 static int* trace_logger_get_config_event_filter(GDOX_Trace_Type type)
@@ -1238,6 +1253,7 @@ static int* trace_logger_get_config_event_filter(GDOX_Trace_Type type)
         case TRACE_SERIAL: return &config_debug.trace_serial_events;
         case TRACE_PARALLEL: return &config_debug.trace_parallel_events;
         case TRACE_SYSTEM: return &config_debug.trace_system_events;
+        case TRACE_GUS: return &config_debug.trace_gus_events;
         default: return NULL;
     }
 }
@@ -1398,6 +1414,7 @@ static void render_entry_colored(const GDOX_Trace_Entry& entry, u64 index, bool 
         case TRACE_INPUT: ImGui::TextColored(yellow, "%s", buf); break;
         case TRACE_SERIAL: ImGui::TextColored(cyan, "%s", buf); break;
         case TRACE_PARALLEL: ImGui::TextColored(brown, "%s", buf); break;
+        case TRACE_GUS: ImGui::TextColored(blue, "%s", buf); break;
         default: ImGui::TextColored(white, "%s", buf); break;
     }
 }

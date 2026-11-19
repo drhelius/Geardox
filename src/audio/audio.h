@@ -25,6 +25,7 @@
 #include "opl.h"
 #include "sound_blaster.h"
 #include "mpu401.h"
+#include "ultrasound.h"
 #include "midi_out.h"
 #include "vgm_recorder.h"
 
@@ -47,6 +48,7 @@ public:
         AUDIO_SOURCE_PCM,
         AUDIO_SOURCE_CDDA,
         AUDIO_SOURCE_BUZZER,
+        AUDIO_SOURCE_GUS,
         AUDIO_SOURCE_COUNT
     };
 
@@ -69,6 +71,7 @@ public:
     void Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* pit, DMA* dma);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCard(int card, int irq, int dma, int mpu);
+    void SetGUS(bool enabled);
     void Reset();
     void Mute(bool mute);
     void SetMasterVolume(float volume);
@@ -77,6 +80,7 @@ public:
     void SetCDDAVolume(float volume);
     void SetCDDAGains(const s32* gains);
     void SetBuzzerVolume(float volume);
+    void SetGUSVolume(float volume);
     void Synchronize(u64 clocks);
     void SynchronizeBuzzer(u64 clocks);
     void SynchronizeDMA(u64 clocks);
@@ -93,6 +97,8 @@ public:
     SoundBlaster* GetSoundBlaster();
     MPU401* GetMPU401();
     MidiOut* GetMidiOut();
+    UltraSound* GetUltraSound();
+    bool HasGUS() const;
     bool HasMPU() const;
     bool IsMPUStandalone() const;
     Audio_State* GetState();
@@ -119,6 +125,8 @@ private:
     bool IsFMPort(u16 port) const;
     bool IsMPUPort(u16 port) const;
     void UpdateMPUInterrupt();
+    bool IsGUSPort(u16 port) const;
+    void UpdateDMARouting();
     void WriteFM(u16 port, u8 value);
     void WriteChip(int chip, u8 port, u8 value);
     void UpdatePCMFilter();
@@ -133,6 +141,9 @@ private:
     SoundBlaster* m_sound_blaster;
     MPU401* m_mpu401;
     MidiOut* m_midi_out;
+    UltraSound* m_ultrasound;
+    DMA* m_dma;
+    int m_dma_routes[8];
     CdRomAudio* m_cdrom_audio;
     PIC* m_pic;
     Scheduler* m_scheduler;
@@ -145,12 +156,14 @@ private:
     bool m_mpu;
     bool m_card_mpu;
     bool m_mpu_irq;
+    bool m_gus;
     bool m_mute;
     float m_master_volume;
     float m_fm_volume;
     float m_pcm_volume;
     float m_cdda_volume;
     float m_buzzer_volume;
+    float m_gus_volume;
     Audio_State m_state;
     float m_pcm_cutoff;
     u16 m_pcm_lowpass_alpha_q15;
@@ -164,6 +177,7 @@ private:
     s16 m_pcm_buffer[GDOX_AUDIO_BUFFER_SIZE];
     s16 m_cdda_buffer[GDOX_AUDIO_BUFFER_SIZE];
     s16 m_buzzer_buffer[GDOX_AUDIO_BUFFER_SIZE];
+    s16 m_gus_buffer[GDOX_AUDIO_BUFFER_SIZE];
     int m_buffer_index;
     bool m_buffer_overflow;
     int m_frame_samples;

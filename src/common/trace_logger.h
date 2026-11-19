@@ -45,6 +45,7 @@ enum GDOX_Trace_Type : u8
     TRACE_SERIAL,
     TRACE_PARALLEL,
     TRACE_SYSTEM,
+    TRACE_GUS,
     TRACE_TYPE_COUNT
 };
 
@@ -69,6 +70,7 @@ static_assert(TRACE_TYPE_COUNT < 32, "Trace category flags exceed 32 bits");
 #define TRACE_FLAG_SERIAL           (1U << TRACE_SERIAL)
 #define TRACE_FLAG_PARALLEL         (1U << TRACE_PARALLEL)
 #define TRACE_FLAG_SYSTEM           (1U << TRACE_SYSTEM)
+#define TRACE_FLAG_GUS              (1U << TRACE_GUS)
 
 enum GDOX_Trace_CPU_Interrupt_Event : u8
 {
@@ -198,6 +200,21 @@ enum GDOX_Trace_Mixer_Event : u8
 #define TRACE_MIXER_EVENT_CONTROL (1U << TRACE_MIXER_CONTROL)
 #define TRACE_MIXER_EVENT_ALL     (TRACE_MIXER_EVENT_VOLUME | TRACE_MIXER_EVENT_CONTROL)
 
+enum GDOX_Trace_GUS_Event : u8
+{
+    TRACE_GUS_REGISTER = 0,
+    TRACE_GUS_IRQ,
+    TRACE_GUS_DMA,
+    TRACE_GUS_LATCH
+};
+
+#define TRACE_GUS_EVENT_REGISTERS (1U << TRACE_GUS_REGISTER)
+#define TRACE_GUS_EVENT_IRQS      (1U << TRACE_GUS_IRQ)
+#define TRACE_GUS_EVENT_DMA       (1U << TRACE_GUS_DMA)
+#define TRACE_GUS_EVENT_LATCHES   (1U << TRACE_GUS_LATCH)
+#define TRACE_GUS_EVENT_ALL       (TRACE_GUS_EVENT_REGISTERS | TRACE_GUS_EVENT_IRQS | TRACE_GUS_EVENT_DMA | \
+    TRACE_GUS_EVENT_LATCHES)
+
 enum GDOX_Trace_MIDI_Event : u8
 {
     TRACE_MIDI_DATA = 0,
@@ -208,7 +225,8 @@ enum GDOX_Trace_MIDI_Event : u8
 enum GDOX_Trace_MIDI_Source : u8
 {
     TRACE_MIDI_SOURCE_DSP = 0,
-    TRACE_MIDI_SOURCE_MPU
+    TRACE_MIDI_SOURCE_MPU,
+    TRACE_MIDI_SOURCE_GUS
 };
 
 #define TRACE_MIDI_EVENT_DATA     (1U << TRACE_MIDI_DATA)
@@ -499,6 +517,13 @@ struct GDOX_Trace_Entry
             u8 value;
             u8 source;
         } midi;
+
+        struct
+        {
+            u16 value;
+            u8 index;
+            u8 voice;
+        } gus;
 
         struct
         {

@@ -106,7 +106,11 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "system.a20", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_MEMORY },
     { "system.control", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_CONTROL },
     { "system.post", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_POST },
-    { "system.rtc", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_RTC }
+    { "system.rtc", TRACE_SYSTEM, TRACE_SYSTEM_EVENT_RTC },
+    { "gus.registers", TRACE_GUS, TRACE_GUS_EVENT_REGISTERS },
+    { "gus.irqs", TRACE_GUS, TRACE_GUS_EVENT_IRQS },
+    { "gus.dma", TRACE_GUS, TRACE_GUS_EVENT_DMA },
+    { "gus.latches", TRACE_GUS, TRACE_GUS_EVENT_LATCHES }
 };
 
 static const int k_mcp_trace_filter_count = sizeof(k_mcp_trace_filters) / sizeof(k_mcp_trace_filters[0]);
@@ -257,6 +261,7 @@ public:
     json GetSoundStatus();
     json GetOPLStatus(int chip, int channel);
     json GetOPLRegisters(int chip, int bank);
+    json GetGUSVoices(int voice, bool all);
     json SetAudioMute(const std::string& source, int channel, bool mute);
     json SetTurbo(bool turbo);
 

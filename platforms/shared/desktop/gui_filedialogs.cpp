@@ -59,6 +59,8 @@ enum FileDialogID
     FileDialog_SaveDescriptor,
     FileDialog_NewDescriptor,
     FileDialog_ImportMSDOS,
+    FileDialog_ImportUltraSound,
+    FileDialog_ImportUltraSoundFolder,
     FileDialog_CreateHardDisk,
     FileDialog_ChooseScreenshotPath,
     FileDialog_ChooseVideoRecordingPath,
@@ -369,6 +371,28 @@ void gui_file_dialog_import_msdos(void)
     show_open_file_dialog(FileDialog_ImportMSDOS, filters, 1);
 }
 
+void gui_file_dialog_import_ultrasnd(void)
+{
+    if (!begin_dialog())
+        return;
+
+    SDL_DialogFileFilter filters[] = {
+        { "Install Disks, Disk Images and ZIP Files", "zip;img;ima;vfd;flp;dsk;xdf;d77;d88;hdm;mfm;001;002;003;004;005;006" },
+        { "All Files", "*" }
+    };
+    show_open_file_dialog(FileDialog_ImportUltraSound, filters, 2);
+}
+
+void gui_file_dialog_import_ultrasnd_folder(void)
+{
+    if (!begin_dialog())
+        return;
+
+    const char* default_path = config_file_dialogs.floppies.empty() ? NULL : config_file_dialogs.floppies.c_str();
+    SDL_ShowOpenFolderDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_ImportUltraSoundFolder,
+        application_sdl_window, default_path, false);
+}
+
 void gui_file_dialog_new_descriptor(void)
 {
     if (!begin_dialog())
@@ -495,6 +519,8 @@ static std::string* get_dialog_folder(FileDialogID id)
         case FileDialog_SaveFloppy:
         case FileDialog_NewFloppy:
         case FileDialog_ImportMSDOS:
+        case FileDialog_ImportUltraSound:
+        case FileDialog_ImportUltraSoundFolder:
             return &config_file_dialogs.floppies;
         case FileDialog_AttachHardDisk:
         case FileDialog_AttachFolder:
@@ -678,6 +704,10 @@ static void process_dialog_result(FileDialogID id, const char* path)
             break;
         case FileDialog_ImportMSDOS:
             gui_dos_dialog_import_msdos(path);
+            break;
+        case FileDialog_ImportUltraSound:
+        case FileDialog_ImportUltraSoundFolder:
+            gui_dos_dialog_import_ultrasnd(path);
             break;
         case FileDialog_SaveScreenshot:
             gui_action_save_screenshot(path);

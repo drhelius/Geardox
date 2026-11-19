@@ -79,6 +79,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "VRAMViewerLinearAutoStart", config_debug.vram_viewer_linear_auto_start, true);
     CONFIG_BOOL("Debug", "OPL", config_debug.show_opl, false);
     CONFIG_BOOL("Debug", "SoundBlaster", config_debug.show_sound_blaster, false);
+    CONFIG_BOOL("Debug", "UltraSound", config_debug.show_ultrasound, false);
     CONFIG_BOOL("Debug", "SoundControl", config_debug.show_sound_control, false);
     CONFIG_BOOL("Debug", "CDROMTOC", config_debug.show_cdrom_toc, false);
     CONFIG_BOOL("Debug", "CDROMAudio", config_debug.show_cdrom_audio, false);
@@ -119,6 +120,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "TraceSerial", config_debug.trace_serial, false);
     CONFIG_BOOL("Debug", "TraceParallel", config_debug.trace_parallel, false);
     CONFIG_BOOL("Debug", "TraceSystem", config_debug.trace_system, false);
+    CONFIG_BOOL("Debug", "TraceGUS", config_debug.trace_gus, false);
     CONFIG_INT_RANGE("Debug", "TraceCpuInterruptEvents", config_debug.trace_cpu_interrupt_events,
         TRACE_CPU_INTERRUPT_EVENT_DEFAULT, 0, TRACE_CPU_INTERRUPT_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceIoEvents", config_debug.trace_io_events, TRACE_IO_EVENT_ALL, 0, TRACE_IO_EVENT_ALL);
@@ -154,6 +156,8 @@ static inline void process(config_Operation operation)
         0, TRACE_PARALLEL_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceSystemEvents", config_debug.trace_system_events, TRACE_SYSTEM_EVENT_DEFAULT, 0,
         TRACE_SYSTEM_EVENT_ALL);
+    CONFIG_INT_RANGE("Debug", "TraceGUSEvents", config_debug.trace_gus_events, TRACE_GUS_EVENT_ALL, 0,
+        TRACE_GUS_EVENT_ALL);
     CONFIG_INT("Debug", "TraceVBlankWatchAddress", config_debug.trace_vblank_watch_address, 0);
     CONFIG_INT_RANGE("Debug", "TraceVBlankWatchOperation", config_debug.trace_vblank_watch_operation, 1, 0, 2);
     CONFIG_INT_RANGE("Debug", "TraceOutput", config_debug.trace_output, 0, 0, 1);
@@ -271,6 +275,7 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Machine", "SoundDMA", config_machine.sound_dma, k_sound_card_dmas[0], k_sound_card_dmas[0],
         k_sound_card_dmas[1]);
     CONFIG_INT_RANGE("Machine", "MPU401", config_machine.mpu, GDOX_MPU_INTELLIGENT, 0, GDOX_MPU_MODE_COUNT - 1);
+    CONFIG_BOOL("Machine", "GUS", config_machine.gus, false);
     CONFIG_INT_RANGE("Machine", "Video", config_machine.video_card, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
         GDOX_VIDEO_CARD_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);
@@ -342,6 +347,7 @@ static inline void process(config_Operation operation)
     CONFIG_FLOAT_RANGE("Audio", "PCMVolume", config_audio.pcm_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_FLOAT_RANGE("Audio", "CDDAVolume", config_audio.cdda_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_FLOAT_RANGE("Audio", "BuzzerVolume", config_audio.buzzer_volume, 1.0f, 0.0f, 2.0f);
+    CONFIG_FLOAT_RANGE("Audio", "GUSVolume", config_audio.gus_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_INT("Audio", "BufferCount", config_audio.buffer_count, 3);
 #if defined(_WIN32)
     CONFIG_STRING("Audio", "MIDIGMPort", config_audio.midi_gm_port, "Microsoft GS Wavetable Synth");

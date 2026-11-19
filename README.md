@@ -25,7 +25,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - Host folders and ZIP files as FAT16 hard disks.
 - IBM CGA (RGB and composite), IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA with 2 MB, VESA modes up to 1280x1024, BitBLT engine, hardware cursor and memory-mapped registers.
 - Windows 3.1, Windows for Workgroups 3.11 and Windows 95 with the Cirrus Logic accelerated display drivers, and DirectDraw games under DirectX.
-- PC speaker, AdLib, Sound Blaster 1.5, 2.0, Pro, Pro 2 and 16 (OPL2, dual OPL2, OPL3), CD audio, and MPU-401 with MIDI out to host General MIDI and MT-32 synths on Windows, macOS and Linux.
+- PC speaker, AdLib, Sound Blaster 1.5, 2.0, Pro, Pro 2 and 16 (OPL2, dual OPL2, OPL3), Gravis UltraSound, CD audio, and MPU-401 with MIDI out to host General MIDI and MT-32 synths on Windows, macOS and Linux.
 - ATAPI CD-ROM drive (1x-8x) with `cue/bin`, `iso`, `chd`, GOG `ins/gog`, `zip` and `m3u` playlists, and physical discs on Windows, macOS and Linux.
 - Two floppy drives (360 KB-2.88 MB) with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
 - Up to four IDE hard disks with raw, fixed `vhd` and `chd` images, and blank disk creation.
@@ -40,7 +40,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
   - Execute, data, I/O and interrupt breakpoints.
   - Memory editor, trace logger and profiler.
   - i386 registers, descriptor tables, paging and x87 FPU.
-  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, OPL, Sound Blaster, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
+  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, OPL, Sound Blaster, Gravis UltraSound voices and DRAM, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
 - MCP server for AI-assisted debugging with Claude Code, Codex and similar.
 - *Portable Mode*, [programmable shader chain](platforms/shared/desktop/shaders/README.md), command line and drag & drop loading, and modern game controllers through [gamecontrollerdb.txt](https://github.com/mdqinc/SDL_GameControllerDB) beside the binary.
 
@@ -113,6 +113,7 @@ Machine (for this run only, the saved settings stay):
       --ram MB              1, 2, 4, 8, 16, 32, 64, 128
       --fpu FPU             none, 80387
       --sound CARD          none, adlib, sb15, sb20, sbpro, sbpro2, sb16
+      --gus STATE           off, on (Gravis UltraSound at 240h)
       --video CARD          auto, cga, ega, vga, gd5428, gd5428_vlb, gd5446
       --mouse MOUSE         none, ps2, serial
       --cdrom DRIVE         none, pm, ps, sm, ss (primary or secondary, master

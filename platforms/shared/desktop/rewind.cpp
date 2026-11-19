@@ -23,6 +23,7 @@
 #include "events.h"
 #include "geardox.h"
 #include "common/memory_stream.h"
+#include "audio/audio.h"
 #include "system/memory.h"
 #include "system/scheduler.h"
 #include "video/video.h"
@@ -47,6 +48,18 @@ struct Rewind_Snapshot
     u64 screen_hash;
     u64 picture_hash;
 #endif
+};
+
+#define REWIND_DIRTY_REGIONS 2
+
+struct Rewind_Dirty_Region
+{
+    const u8* data;
+    size_t size;
+    const u8* pages;
+    u32 page_count;
+    u32 page_shift;
+    const char* name;
 };
 
 static Rewind_Snapshot* snapshots = NULL;
@@ -79,10 +92,7 @@ static size_t delta_last_header = 0;
 static size_t delta_last_end = 0;
 static bool delta_copy = false;
 static bool delta_failed = false;
-static const u8* dirty_ram = NULL;
-static size_t dirty_ram_size = 0;
-static const u8* dirty_pages = NULL;
-static u32 dirty_page_count = 0;
+static Rewind_Dirty_Region dirty_regions[REWIND_DIRTY_REGIONS];
 static u8 screen_tags[REWIND_SCREENSHOT_HEIGHT];
 static u8 screen_row[REWIND_SCREENSHOT_WIDTH * 2];
 #if defined(REWIND_CHECK)
@@ -116,7 +126,9 @@ static void delta_begin(bool copy);
 static void delta_set_region(size_t position, size_t limit);
 static bool delta_write(const char* data, size_t size);
 static bool delta_compare(const u8* source, size_t position, size_t size);
-static bool delta_compare_dirty(const u8* source, size_t size);
+static bool delta_compare_dirty(const Rewind_Dirty_Region& region, const u8* source, size_t size);
+static void set_dirty_tracking(bool enabled);
+static void clear_dirty_pages(void);
 static bool delta_record(size_t offset, const u8* data, size_t length);
 static bool grow_encode_buffer(size_t needed);
 static u64 read_word(const u8* p);
@@ -144,7 +156,7 @@ void rewind_destroy(void)
 void rewind_reset(void)
 {
     if (IsValidPointer(emu_get_core()))
-        emu_get_core()->GetMemory()->SetDirtyTracking(false);
+        set_dirty_tracking(false);
 
     release_storage();
     frame_accum = 0;
@@ -185,7 +197,7 @@ void rewind_push(bool frame_completed)
 
     if (IsValidPointer(newest) && ((blob_size * 2) > rewind_get_memory_budget()))
     {
-        emu_get_core()->GetMemory()->SetDirtyTracking(false);
+        set_dirty_tracking(false);
         release_storage();
     }
 
@@ -193,11 +205,29 @@ void rewind_push(bool frame_completed)
         return;
 
     Memory* memory = emu_get_core()->GetMemory();
+    Audio* audio = emu_get_core()->GetAudio();
     memory->SetDirtyTracking(true);
-    dirty_ram = memory->GetMainRAM();
-    dirty_ram_size = memory->GetMainRAMSize();
-    dirty_pages = memory->IsDirtyMapValid() ? memory->GetDirtyPages() : NULL;
-    dirty_page_count = memory->GetDirtyPageCount();
+    dirty_regions[0].data = memory->GetMainRAM();
+    dirty_regions[0].size = memory->GetMainRAMSize();
+    dirty_regions[0].pages = memory->IsDirtyMapValid() ? memory->GetDirtyPages() : NULL;
+    dirty_regions[0].page_count = memory->GetDirtyPageCount();
+    dirty_regions[0].page_shift = 12;
+    dirty_regions[0].name = "main RAM";
+    memset(&dirty_regions[1], 0, sizeof(dirty_regions[1]));
+
+    if (audio->HasGUS())
+    {
+        UltraSound* gus = audio->GetUltraSound();
+        gus->SetDirtyTracking(true);
+        dirty_regions[1].data = gus->GetDRAM();
+        dirty_regions[1].size = ULTRASOUND_DRAM_SIZE;
+        dirty_regions[1].pages = gus->GetDirtyPages();
+        dirty_regions[1].page_count = ULTRASOUND_PAGES;
+        dirty_regions[1].page_shift = ULTRASOUND_PAGE_SHIFT;
+        dirty_regions[1].name = "GUS DRAM";
+    }
+    else
+        audio->GetUltraSound()->SetDirtyTracking(false);
 
     GDOX_Runtime_Info runtime;
     emu_get_runtime(runtime);
@@ -217,7 +247,7 @@ void rewind_push(bool frame_completed)
         return;
     }
 
-    memory->ClearDirtyPages();
+    clear_dirty_pages();
     screenshot_used = MAX(screenshot_used, screen);
 
     if ((count == slots) && !grow_slots())
@@ -992,8 +1022,21 @@ static bool delta_write(const char* data, size_t size)
 
     bool ok = false;
 
-    if (IsValidPointer(dirty_pages) && (source == dirty_ram) && (size == dirty_ram_size))
-        ok = delta_compare_dirty(source, size);
+    const Rewind_Dirty_Region* dirty = NULL;
+
+    for (int i = 0; i < REWIND_DIRTY_REGIONS; i++)
+    {
+        const Rewind_Dirty_Region& region = dirty_regions[i];
+
+        if (IsValidPointer(region.pages) && (source == region.data) && (size == region.size))
+        {
+            dirty = &region;
+            break;
+        }
+    }
+
+    if (IsValidPointer(dirty))
+        ok = delta_compare_dirty(*dirty, source, size);
     else
         ok = delta_compare(source, delta_position, size);
 
@@ -1001,24 +1044,42 @@ static bool delta_write(const char* data, size_t size)
     return ok;
 }
 
-static bool delta_compare_dirty(const u8* source, size_t size)
+static void set_dirty_tracking(bool enabled)
 {
-    for (u32 page = 0; page < dirty_page_count; page++)
+    Audio* audio = emu_get_core()->GetAudio();
+    emu_get_core()->GetMemory()->SetDirtyTracking(enabled);
+    audio->GetUltraSound()->SetDirtyTracking(enabled && audio->HasGUS());
+}
+
+static void clear_dirty_pages(void)
+{
+    Audio* audio = emu_get_core()->GetAudio();
+    emu_get_core()->GetMemory()->ClearDirtyPages();
+
+    if (audio->HasGUS())
+        audio->GetUltraSound()->ClearDirtyPages();
+}
+
+static bool delta_compare_dirty(const Rewind_Dirty_Region& region, const u8* source, size_t size)
+{
+    size_t page_size = (size_t)1 << region.page_shift;
+
+    for (u32 page = 0; page < region.page_count; page++)
     {
-        size_t start = (size_t)page << 12;
+        size_t start = (size_t)page << region.page_shift;
 
         if (start >= size)
             break;
 
-        size_t length = MIN(size - start, (size_t)0x1000);
-        bool dirty = dirty_pages[page] != 0;
+        size_t length = MIN(size - start, page_size);
+        bool dirty = region.pages[page] != 0;
 
 #if defined(REWIND_CHECK)
         if (!dirty && (memcmp(newest + delta_position + start, source + start, length) != 0))
         {
             dirty = true;
             check_failed++;
-            Log("Rewind check: main RAM page %u changed without being marked", page);
+            Log("Rewind check: %s page %u changed without being marked", region.name, page);
         }
 #endif
 

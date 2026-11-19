@@ -67,6 +67,27 @@ void gui_dos_dialog_import_msdos(const char* path)
         gui_notify(gui_NotificationError, NULL, "MS-DOS not imported", message.c_str());
 }
 
+void gui_dos_dialog_import_ultrasnd(const char* path)
+{
+    std::string message;
+
+    if (emu_dos_import_ultrasnd(path, &message))
+        gui_notify(gui_NotificationSuccess, ICON_MD_VIDEOGAME_ASSET, message.c_str(),
+            "Games with the UltraSound on load its patches from the next game or reset.");
+    else
+        gui_notify(gui_NotificationError, NULL, "UltraSound software not imported", message.c_str());
+}
+
+void gui_dos_remove_ultrasnd(void)
+{
+    if (emu_dos_remove_ultrasnd())
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "UltraSound software removed",
+            "Games with the UltraSound have no patches from the next game or reset. Your disks aren't touched.");
+    else
+        gui_notify(gui_NotificationError, NULL, "Unable to remove the UltraSound software",
+            emu_dos_get_ultrasnd_path().c_str());
+}
+
 static void menu_game(bool loading)
 {
     bool open = emu_game_is_open();

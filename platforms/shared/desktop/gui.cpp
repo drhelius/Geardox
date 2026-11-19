@@ -167,6 +167,7 @@ void gui_apply_settings(void)
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_PCM, config_audio.pcm_volume);
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_CDDA, config_audio.cdda_volume);
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_BUZZER, config_audio.buzzer_volume);
+    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_GUS, config_audio.gus_volume);
 
     emu_update_joystick_type();
 

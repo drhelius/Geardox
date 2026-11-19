@@ -564,6 +564,7 @@ struct GDOX_Machine_Config
     u8 sound_irq;
     u8 sound_dma;
     u8 mpu;
+    u8 gus;
     u8 mouse;
     u8 cdrom;
     u8 cdrom_speed;
@@ -673,6 +674,7 @@ struct GDOX_Machine_Settings
     int sound_irq;
     int sound_dma;
     int mpu;
+    int gus;
     int mouse;
     int cdrom;
     int cdrom_speed;

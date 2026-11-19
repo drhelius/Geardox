@@ -243,11 +243,27 @@ static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
     settings->sound_irq = GDOX_MACHINE_AUTO;
     settings->sound_dma = GDOX_MACHINE_AUTO;
     settings->mpu = GDOX_MACHINE_AUTO;
+    settings->gus = GDOX_MACHINE_AUTO;
     settings->mouse = GDOX_MACHINE_AUTO;
     settings->cdrom = GDOX_MACHINE_AUTO;
     settings->cdrom_speed = GDOX_MACHINE_AUTO;
     settings->drive_timing = GDOX_MACHINE_AUTO;
     settings->video_card = GDOX_MACHINE_AUTO;
+}
+
+static inline bool has_sound_blaster_dsp(const GDOX_Machine_Config& config)
+{
+    return k_sound_cards[config.sound_card].dsp_major != 0;
+}
+
+static inline int get_gus_irq(const GDOX_Machine_Config& config)
+{
+    return has_sound_blaster_dsp(config) && (config.sound_irq == 5) ? 7 : 5;
+}
+
+static inline int get_gus_dma(const GDOX_Machine_Config& config)
+{
+    return has_sound_blaster_dsp(config) && (config.sound_dma == 3) ? 1 : 3;
 }
 
 static inline const char* get_machine_fpu_name(GDOX_Machine_CPU cpu)

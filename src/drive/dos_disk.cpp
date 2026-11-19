@@ -92,7 +92,9 @@ std::string DosDisk::GetAutoexec(int system, const DosImport_System* msdos, cons
     bool ms = (system == GDOX_GAME_SYSTEM_MSDOS) && IsValidPointer(msdos);
     std::string out = ms ? "@ECHO OFF\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\n" :
         "@ECHO OFF\r\nSET DOSDIR=C:\\FREEDOS\r\nSET PATH=C:\\FREEDOS\\BIN\r\n";
-    out += "SET TEMP=C:\\TEMP\r\nSET DIRCMD=/OGN\r\nSET BLASTER=A220 I5 D1 H5 P330\r\nPROMPT $P$G\r\n";
+    out += "SET TEMP=C:\\TEMP\r\nSET DIRCMD=/OGN\r\nSET BLASTER=A220 I5 D1 H5 P330\r\n";
+    out += "GDXGUS 240,3,3,7,7\r\nIF NOT ERRORLEVEL 1 SET ULTRASND=240,3,3,7,7\r\n";
+    out += "IF NOT ERRORLEVEL 1 SET ULTRADIR=C:\\ULTRASND\r\nPROMPT $P$G\r\n";
 
     if (is_layout(layout))
         out += "LH KEYB " + upper(layout) + (ms ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" :

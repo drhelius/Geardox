@@ -186,6 +186,9 @@ void gui_debug_windows(void)
         if (config_debug.show_sound_blaster)
             gui_debug_window_sound_blaster();
 
+        if (config_debug.show_ultrasound)
+            gui_debug_window_ultrasound();
+
         if (config_debug.show_sound_control)
             gui_debug_window_sound_control();
 

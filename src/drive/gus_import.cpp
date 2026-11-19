@@ -1,0 +1,1206 @@
+/*
+ * Geardox - MS-DOS PC/AT Emulator
+ * Copyright (C) 2026  Ignacio Sanchez
+
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses/
+ *
+ */
+
+#include <stdarg.h>
+#include <time.h>
+#include <algorithm>
+#include "gus_import.h"
+#include "floppy_image.h"
+#include "../media/media_file.h"
+
+static const u32 k_gus_sector_size = 512;
+static const u32 k_gus_max_image_size = 16 * 1024 * 1024;
+static const u32 k_gus_max_zip_size = 64 * 1024 * 1024;
+static const u32 k_gus_max_volume_size = 8 * 1024 * 1024;
+static const u32 k_gus_max_installed_size = 32 * 1024 * 1024;
+static const u32 k_gus_max_installed_total = 128 * 1024 * 1024;
+static const u32 k_gus_max_fat12_clusters = 4084;
+static const int k_gus_max_depth = 3;
+static const u32 k_gus_table_size = 18272;
+static const u32 k_gus_table_crc = 0xD65F520D;
+static const u32 k_gus_record_size = 59;
+static const u32 k_gus_record_mark = 0x1C;
+static const size_t k_gus_max_records = 1024;
+static const u32 k_gus_max_volumes = 32;
+static const size_t k_gus_list_window = 65536;
+static const u32 k_gus_group_stride = 88;
+static const char k_gus_volume_base[] = "ULTRASND";
+static const char k_gus_family_411[] = "gus411";
+static const char k_gus_family_installed[] = "gusfolder";
+static const char k_gus_name_411[] = "UltraSound 4.11";
+static const char k_gus_name_installed[] = "UltraSound";
+static const char k_gus_ini[] = "ULTRASND.INI";
+static const char k_gus_midi[] = "MIDI";
+static const char k_gus_refuse[] = "isn't supported: import the 4.11 disks";
+
+struct Gus_Group
+{
+    const char* name;
+    bool left_out;
+};
+
+static const Gus_Group k_gus_groups[] =
+{
+    { "MIDI", false }, { "PMAKER", true }, { "WINDOWS", true }, { "SBOS", true }, { "MAXSBOS", true }
+};
+
+static const u8 k_gus_lit_length[] =
+{
+    11, 124, 8, 7, 28, 7, 188, 13, 76, 4, 10, 8, 12, 10, 12, 10, 8, 23, 8, 9, 7, 6, 7, 8, 7, 6, 55, 8, 23, 24, 12, 11,
+    7, 9, 11, 12, 6, 7, 22, 5, 7, 24, 6, 11, 9, 6, 7, 22, 7, 11, 38, 7, 9, 8, 25, 11, 8, 11, 9, 12, 8, 12, 5, 38, 5,
+    38, 5, 11, 7, 5, 6, 21, 6, 10, 53, 8, 7, 24, 10, 27, 44, 253, 253, 253, 252, 252, 252, 13, 12, 45, 12, 45, 12, 61,
+    12, 45, 44, 173
+};
+static const u8 k_gus_len_length[] = { 2, 35, 36, 53, 38, 23 };
+static const u8 k_gus_dist_length[] = { 2, 20, 53, 230, 247, 151, 248 };
+static const u16 k_gus_len_base[16] = { 3, 2, 4, 5, 6, 7, 8, 9, 10, 12, 16, 24, 40, 72, 136, 264 };
+static const u8 k_gus_len_extra[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+
+struct Gus_Huffman
+{
+    u16 count[16];
+    u16 symbol[256];
+};
+
+struct Gus_Bits
+{
+    const u8* data;
+    size_t size;
+    size_t position;
+    u32 buffer;
+    int count;
+    bool failed;
+};
+
+struct Gus_Output
+{
+    std::string path;
+    std::string data;
+    s64 modified;
+};
+
+struct Gus_Record
+{
+    std::string name;
+    u8 flag;
+    u8 component;
+    u8 first_volume;
+    u8 last_volume;
+    u32 offset;
+    u32 packed_size;
+    u32 size;
+    u32 crc;
+    u16 date;
+    u16 time;
+};
+
+static std::string upper(const std::string& text)
+{
+    std::string result(text);
+
+    for (size_t i = 0; i < result.size(); i++)
+        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
+
+    return result;
+}
+
+static std::string join(const std::string& directory, const std::string& name)
+{
+    if (directory.empty())
+        return name;
+
+    char last = directory[directory.size() - 1];
+    return ((last == '/') || (last == '\\')) ? directory + name : directory + "/" + name;
+}
+
+static std::string directory_of(const std::string& path)
+{
+    size_t slash = path.find_last_of("/\\");
+    return slash == std::string::npos ? std::string(".") : path.substr(0, slash);
+}
+
+static std::string file_of(const std::string& path)
+{
+    size_t slash = path.find_last_of("/\\");
+    return slash == std::string::npos ? path : path.substr(slash + 1);
+}
+
+static bool read_file(const std::string& path, u32 limit, std::vector<u8>* data)
+{
+    u64 size = 0;
+    s64 modified = 0;
+    data->clear();
+
+    if (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) || (size == 0) || (size > limit))
+        return false;
+
+    MediaFile* file = MediaFile::OpenFile(path.c_str());
+
+    if (!IsValidPointer(file))
+        return false;
+
+    data->resize((size_t)size);
+    bool ok = file->ReadAt(0, data->data(), size);
+    SafeDelete(file);
+    return ok;
+}
+
+static s64 dos_to_host_time(u16 date, u16 time_value)
+{
+    struct tm local;
+    memset(&local, 0, sizeof(local));
+    local.tm_year = ((date >> 9) & 0x7F) + 80;
+    local.tm_mon = (int)((date >> 5) & 0x0F) - 1;
+    local.tm_mday = date & 0x1F;
+    local.tm_hour = (time_value >> 11) & 0x1F;
+    local.tm_min = (time_value >> 5) & 0x3F;
+    local.tm_sec = (time_value & 0x1F) * 2;
+    local.tm_isdst = -1;
+
+    if ((local.tm_mon < 0) || (local.tm_mon > 11) || (local.tm_mday == 0))
+        return 0;
+
+    return (s64)mktime(&local);
+}
+
+static bool is_volume_name(const std::string& name)
+{
+    size_t base = strlen(k_gus_volume_base);
+    return (name.size() == base + 4) && (name.compare(0, base, k_gus_volume_base) == 0) &&
+        (name.compare(base, 2, ".0") == 0) && isdigit((unsigned char)name[base + 2]) &&
+        isdigit((unsigned char)name[base + 3]);
+}
+
+static bool is_volume_of(const std::string& name, const char* base)
+{
+    size_t length = strlen(base);
+    return (name.size() == length + 4) && (name.compare(0, length, base) == 0) && (name.compare(length, 2, ".0") == 0) &&
+        isdigit((unsigned char)name[length + 2]) && isdigit((unsigned char)name[length + 3]);
+}
+
+static bool is_wanted(const std::string& name)
+{
+    return is_volume_name(name) || (name == "DISK.ID");
+}
+
+static bool is_dos_name(const std::string& name)
+{
+    size_t dot = name.find('.');
+    size_t base = dot == std::string::npos ? name.size() : dot;
+
+    size_t extension = dot == std::string::npos ? 0 : name.size() - dot - 1;
+
+    if ((base == 0) || (base > 8) || ((dot != std::string::npos) && ((extension > 3) || (extension == 0))))
+        return false;
+
+    for (size_t i = 0; i < name.size(); i++)
+    {
+        char c = name[i];
+
+        if ((i != dot) && !isalnum((unsigned char)c) && (strchr("_-~$!#&", c) == NULL))
+            return false;
+    }
+
+    return true;
+}
+
+static u32 gus_bits(Gus_Bits* bits, int need)
+{
+    u32 value = bits->buffer;
+
+    while (bits->count < need)
+    {
+        if (bits->position >= bits->size)
+        {
+            bits->failed = true;
+            return 0;
+        }
+
+        value |= (u32)bits->data[bits->position++] << bits->count;
+        bits->count += 8;
+    }
+
+    bits->buffer = value >> need;
+    bits->count -= need;
+    return value & ((1u << need) - 1);
+}
+
+static void gus_build(Gus_Huffman* huffman, const u8* repeats, int entries)
+{
+    u8 lengths[256];
+    u16 offsets[16];
+    int total = 0;
+    memset(huffman->count, 0, sizeof(huffman->count));
+    memset(huffman->symbol, 0, sizeof(huffman->symbol));
+
+    for (int i = 0; i < entries; i++)
+    {
+        int repeat = (repeats[i] >> 4) + 1;
+
+        for (int j = 0; j < repeat; j++)
+            lengths[total++] = repeats[i] & 15;
+    }
+
+    for (int i = 0; i < total; i++)
+        huffman->count[lengths[i]]++;
+
+    offsets[0] = 0;
+    offsets[1] = 0;
+
+    for (int i = 1; i < 15; i++)
+        offsets[i + 1] = (u16)(offsets[i] + huffman->count[i]);
+
+    for (int i = 0; i < total; i++)
+    {
+        if (lengths[i] != 0)
+            huffman->symbol[offsets[lengths[i]]++] = (u16)i;
+    }
+}
+
+static int gus_decode(Gus_Bits* bits, const Gus_Huffman* huffman)
+{
+    int code = 0;
+    int first = 0;
+    int index = 0;
+
+    for (int length = 1; length < 14; length++)
+    {
+        code |= (int)gus_bits(bits, 1) ^ 1;
+
+        if (bits->failed)
+            return -1;
+
+        int count = huffman->count[length];
+
+        if (code < first + count)
+            return huffman->symbol[index + (code - first)];
+
+        index += count;
+        first = (first + count) << 1;
+        code <<= 1;
+    }
+
+    return -1;
+}
+
+static std::string find_name(const std::vector<std::string>& names, const std::string& wanted)
+{
+    for (size_t i = 0; i < names.size(); i++)
+    {
+        if (upper(names[i]) == wanted)
+            return names[i];
+    }
+
+    return "";
+}
+
+GusImport::GusImport()
+{
+    m_patches = 0;
+    m_result = GUS_IMPORT_ERROR;
+}
+
+GusImport::~GusImport()
+{
+}
+
+bool GusImport::AddSource(const char* path)
+{
+    if (!IsValidPointer(path) || (path[0] == 0))
+        return Fail(GUS_IMPORT_ERROR, "No UltraSound install disks were given");
+
+    std::string source(path);
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if (MediaFile::ListDirectory(source.c_str(), folders, files))
+    {
+        if (IsInstalled(source))
+            return AddInstalled(source, "", 0);
+
+        return AddFolder(source, 0);
+    }
+
+    if (ends_with_no_case(source.c_str(), ".zip"))
+    {
+        std::vector<u8> archive;
+
+        if (!read_file(source, k_gus_max_zip_size, &archive))
+            return Fail(GUS_IMPORT_ERROR, "Unable to read %s", source.c_str());
+
+        return AddZipData(archive.data(), archive.size(), 0);
+    }
+
+    std::string directory = directory_of(source);
+
+    if (IsInstalled(directory))
+        return AddInstalled(directory, "", 0);
+
+    return AddFolder(directory, 0);
+}
+
+bool GusImport::IsInstalled(const std::string& path) const
+{
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if (!MediaFile::ListDirectory(path.c_str(), folders, files) || find_name(files, k_gus_ini).empty())
+        return false;
+
+    std::string midi = find_name(folders, k_gus_midi);
+    folders.clear();
+    files.clear();
+
+    if (midi.empty() || !MediaFile::ListDirectory(join(path, midi).c_str(), folders, files))
+        return false;
+
+    for (size_t i = 0; i < files.size(); i++)
+    {
+        if (ends_with_no_case(files[i].c_str(), ".pat"))
+            return true;
+    }
+
+    return false;
+}
+
+bool GusImport::AddInstalled(const std::string& path, const std::string& prefix, int depth)
+{
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if ((depth > k_gus_max_depth) || !MediaFile::ListDirectory(path.c_str(), folders, files))
+        return Fail(GUS_IMPORT_ERROR, "Unable to read the folder %s", path.c_str());
+
+    std::sort(files.begin(), files.end());
+    std::sort(folders.begin(), folders.end());
+
+    for (size_t i = 0; i < files.size(); i++)
+    {
+        std::vector<u8> data;
+
+        if ((files[i][0] == '.') || !read_file(join(path, files[i]), k_gus_max_installed_size, &data))
+            continue;
+
+        m_installed.push_back(std::make_pair(prefix + upper(files[i]), std::string((const char*)data.data(), data.size())));
+    }
+
+    for (size_t i = 0; i < folders.size(); i++)
+    {
+        if ((folders[i][0] != '.') && !AddInstalled(join(path, folders[i]), prefix + upper(folders[i]) + "/", depth + 1))
+            return false;
+    }
+
+    return true;
+}
+
+bool GusImport::AddFolder(const std::string& path, int depth)
+{
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if (!MediaFile::ListDirectory(path.c_str(), folders, files))
+        return Fail(GUS_IMPORT_ERROR, "Unable to read the folder %s", path.c_str());
+
+    std::sort(files.begin(), files.end());
+    std::sort(folders.begin(), folders.end());
+
+    for (size_t i = 0; i < files.size(); i++)
+    {
+        std::string name = upper(files[i]);
+        std::string full = join(path, files[i]);
+        std::vector<u8> data;
+
+        if ((files[i][0] == '.') || ((name.size() > 4) && (name.compare(name.size() - 4, 4, ".ZIP") == 0)))
+        {
+            if ((files[i][0] != '.') && read_file(full, k_gus_max_zip_size, &data) &&
+                !AddZipData(data.data(), data.size(), depth))
+                return false;
+
+            continue;
+        }
+
+        if (FloppyImage::IsImageName(name.c_str()))
+        {
+            if (read_file(full, k_gus_max_image_size, &data) && !AddImage(data.data(), (u32)data.size(), name))
+                return false;
+
+            continue;
+        }
+
+        if (!is_wanted(name))
+        {
+            AddFile(name, NULL, 0);
+            continue;
+        }
+
+        if (!read_file(full, k_gus_max_volume_size, &data))
+            return Fail(GUS_IMPORT_ERROR, "Unable to read %s", full.c_str());
+
+        AddFile(name, data.data(), data.size());
+    }
+
+    for (size_t i = 0; (depth < k_gus_max_depth) && (i < folders.size()); i++)
+    {
+        if ((folders[i][0] != '.') && !AddFolder(join(path, folders[i]), depth + 1))
+            return false;
+    }
+
+    return true;
+}
+
+bool GusImport::AddZipData(const u8* data, size_t size, int depth)
+{
+    mz_zip_archive zip;
+    memset(&zip, 0, sizeof(zip));
+
+    if (!mz_zip_reader_init_mem(&zip, data, size, 0))
+        return Fail(GUS_IMPORT_ERROR, "Not a ZIP file Geardox reads");
+
+    bool ok = true;
+
+    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(&zip)); i++)
+    {
+        mz_zip_archive_file_stat stat;
+
+        if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory)
+            continue;
+
+        std::string name = upper(file_of(stat.m_filename));
+        bool nested = (name.size() > 4) && (name.compare(name.size() - 4, 4, ".ZIP") == 0);
+        bool image = FloppyImage::IsImageName(name.c_str());
+
+        if ((name[0] == '.') || (stat.m_uncomp_size > k_gus_max_zip_size) || (!nested && !image && !is_wanted(name)))
+        {
+            if ((name[0] != '.') && !nested && !image)
+                AddFile(name, NULL, 0);
+
+            continue;
+        }
+
+        size_t extracted = 0;
+        void* bytes = mz_zip_reader_extract_to_heap(&zip, i, &extracted, 0);
+
+        if (!IsValidPointer(bytes))
+        {
+            ok = Fail(GUS_IMPORT_ERROR, "Unable to read %s in the ZIP", name.c_str());
+            continue;
+        }
+
+        if (nested)
+            ok = (depth >= k_gus_max_depth) || AddZipData((const u8*)bytes, extracted, depth + 1);
+        else if (image)
+            ok = AddImage((const u8*)bytes, (u32)extracted, name);
+        else
+            AddFile(name, (const u8*)bytes, extracted);
+
+        mz_free(bytes);
+    }
+
+    mz_zip_reader_end(&zip);
+    return ok;
+}
+
+bool GusImport::AddImage(const u8* data, u32 size, const std::string& name)
+{
+    u32 image_size = 0;
+    u8* image = FloppyImage::Load(data, size, &image_size);
+
+    if (!IsValidPointer(image))
+        return Fail(GUS_IMPORT_ERROR, "Not a floppy image Geardox reads: %s", name.c_str());
+
+    std::vector<u8> raw(FloppyImage::GetRawSize(image, image_size));
+    bool exported = !raw.empty() && FloppyImage::ExportRaw(image, image_size, raw.data(), (u32)raw.size());
+    SafeDeleteArray(image);
+
+    if (!exported)
+        return Fail(GUS_IMPORT_ERROR, "Not a disk of 512-byte sectors: %s", name.c_str());
+
+    if (!ReadFloppy(raw.data(), (u32)raw.size()))
+        return Fail(GUS_IMPORT_ERROR, "Not a FAT12 floppy: %s", name.c_str());
+
+    return true;
+}
+
+bool GusImport::ReadFloppy(const u8* raw, u32 size)
+{
+    if ((size < k_gus_sector_size) || (read_u16_le(raw + 11) != k_gus_sector_size) || (read_u16_le(raw + 510) != 0xAA55))
+        return false;
+
+    u32 cluster_sectors = raw[13];
+    u32 reserved = read_u16_le(raw + 14);
+    u32 fats = raw[16];
+    u32 root_entries = read_u16_le(raw + 17);
+    u32 total = read_u16_le(raw + 19) != 0 ? read_u16_le(raw + 19) : read_u32_le(raw + 32);
+    u32 fat_sectors = read_u16_le(raw + 22);
+
+    if ((cluster_sectors == 0) || ((cluster_sectors & (cluster_sectors - 1)) != 0) || (reserved == 0) || (fats == 0) ||
+        (fats > 2) || (root_entries == 0) || (fat_sectors == 0))
+        return false;
+
+    u32 root = (reserved + (fats * fat_sectors)) * k_gus_sector_size;
+    u32 data = root + (((root_entries * 32) + k_gus_sector_size - 1) / k_gus_sector_size) * k_gus_sector_size;
+    total = MIN(total, size / k_gus_sector_size);
+
+    if ((data >= size) || (total * k_gus_sector_size <= data))
+        return false;
+
+    u32 cluster_size = cluster_sectors * k_gus_sector_size;
+    u32 clusters = (total * k_gus_sector_size - data) / cluster_size;
+
+    if ((clusters == 0) || (clusters > k_gus_max_fat12_clusters) || ((reserved + fat_sectors) * k_gus_sector_size > size))
+        return false;
+
+    const u8* fat = raw + (reserved * k_gus_sector_size);
+
+    for (u32 i = 0; i < root_entries; i++)
+    {
+        const u8* entry = raw + root + (i * 32);
+
+        if (entry[0] == 0)
+            break;
+
+        if ((entry[0] == 0xE5) || ((entry[11] & 0x0F) == 0x0F) || ((entry[11] & 0x18) != 0))
+            continue;
+
+        std::string base((const char*)entry, 8);
+        std::string extension((const char*)entry + 8, 3);
+        base.erase(base.find_last_not_of(' ') + 1);
+        extension.erase(extension.find_last_not_of(' ') + 1);
+        std::string name = upper(extension.empty() ? base : base + "." + extension);
+
+        if (!is_wanted(name))
+        {
+            AddFile(name, NULL, 0);
+            continue;
+        }
+
+        std::string content;
+        u32 file_size = read_u32_le(entry + 28);
+        u32 cluster = read_u16_le(entry + 26);
+        u32 steps = 0;
+
+        while ((content.size() < file_size) && (cluster >= 2) && (cluster < clusters + 2) && (steps++ <= clusters))
+        {
+            u32 offset = data + ((cluster - 2) * cluster_size);
+            u32 chunk = MIN(cluster_size, file_size - (u32)content.size());
+            content.append((const char*)raw + offset, chunk);
+            u32 at = cluster + (cluster / 2);
+            u32 value = fat[at] | (fat[at + 1] << 8);
+            cluster = (cluster & 1) != 0 ? value >> 4 : value & 0xFFF;
+        }
+
+        if (content.size() != file_size)
+            return false;
+
+        AddFile(name, (const u8*)content.data(), content.size());
+    }
+
+    return true;
+}
+
+void GusImport::AddFile(const std::string& name, const u8* data, size_t size)
+{
+    m_names.insert(name);
+
+    if (IsValidPointer(data) && (m_files.count(name) == 0))
+        m_files[name] = std::string((const char*)data, size);
+}
+
+bool GusImport::ExpandImplode(const u8* data, size_t size, size_t expected, std::string* out)
+{
+    Gus_Huffman literals;
+    Gus_Huffman lengths;
+    Gus_Huffman distances;
+    Gus_Bits bits = { data, size, 0, 0, 0, false };
+    out->clear();
+    gus_build(&literals, k_gus_lit_length, sizeof(k_gus_lit_length));
+    gus_build(&lengths, k_gus_len_length, sizeof(k_gus_len_length));
+    gus_build(&distances, k_gus_dist_length, sizeof(k_gus_dist_length));
+    u32 coded = gus_bits(&bits, 8);
+    u32 window = gus_bits(&bits, 8);
+
+    if (bits.failed || (coded > 1) || (window < 4) || (window > 6))
+        return false;
+
+    out->reserve(expected);
+
+    while (true)
+    {
+        if (gus_bits(&bits, 1) != 0)
+        {
+            int symbol = gus_decode(&bits, &lengths);
+
+            if ((symbol < 0) || (symbol > 15))
+                return false;
+
+            u32 length = k_gus_len_base[symbol] + gus_bits(&bits, k_gus_len_extra[symbol]);
+
+            if (bits.failed)
+                return false;
+
+            if (length == 519)
+                break;
+
+            int low = length == 2 ? 2 : (int)window;
+            int high = gus_decode(&bits, &distances);
+
+            if (high < 0)
+                return false;
+
+            size_t distance = ((size_t)high << low) + gus_bits(&bits, low) + 1;
+
+            if (bits.failed || (distance > out->size()) || (out->size() + length > expected))
+                return false;
+
+            size_t from = out->size() - distance;
+
+            for (u32 i = 0; i < length; i++)
+                out->push_back((*out)[from + i]);
+        }
+        else
+        {
+            int literal = coded != 0 ? gus_decode(&bits, &literals) : (int)gus_bits(&bits, 8);
+
+            if (bits.failed || (literal < 0) || (out->size() >= expected))
+                return false;
+
+            out->push_back((char)literal);
+        }
+
+        if (bits.failed)
+            return false;
+    }
+
+    return out->size() == expected;
+}
+
+GusImport_Result GusImport::Refuse()
+{
+    std::string version;
+    std::map<std::string, std::string>::const_iterator id = m_files.find("DISK.ID");
+
+    if (id != m_files.end())
+    {
+        size_t first = id->second.find('\n');
+        size_t second = first == std::string::npos ? first : id->second.find_first_of("\r\n", first + 1);
+
+        if (second != std::string::npos)
+        {
+            version = id->second.substr(first + 1, second - first - 1);
+            version.erase(0, version.find_first_not_of("\r "));
+        }
+    }
+
+    bool lzx = false;
+    bool gus = false;
+    bool ace = false;
+
+    for (std::set<std::string>::const_iterator it = m_names.begin(); it != m_names.end(); ++it)
+    {
+        lzx = lzx || ((it->size() > 4) && (it->compare(it->size() - 4, 4, ".LZX") == 0)) || (*it == "ULT0001");
+        gus = gus || is_volume_of(*it, "GUS");
+        ace = ace || is_volume_of(*it, "ACE");
+    }
+
+    if (!version.empty() && (version.size() < 8) && isdigit((unsigned char)version[0]))
+        Fail(GUS_IMPORT_UNSUPPORTED, "UltraSound software %s %s", version.c_str(), k_gus_refuse);
+    else if (gus)
+        Fail(GUS_IMPORT_UNSUPPORTED, "UltraSound software 3.x %s", k_gus_refuse);
+    else if (ace)
+        Fail(GUS_IMPORT_UNSUPPORTED, "UltraSound ACE software %s", k_gus_refuse);
+    else if (lzx)
+        Fail(GUS_IMPORT_UNSUPPORTED, "UltraSound software 1.x %s", k_gus_refuse);
+    else
+        Fail(GUS_IMPORT_UNKNOWN, "No UltraSound 4.11 disks here: ULTRASND.001 isn't there. Import the 4.11 disks, or a "
+            "folder with the software installed");
+
+    return m_result;
+}
+
+bool GusImport::ReadRecords(const std::string& volume, u32 start, std::vector<Gus_Record>* records, size_t* end)
+{
+    const u8* table = (const u8*)volume.data();
+    size_t size = volume.size();
+    size_t at = start;
+    records->clear();
+
+    if (at >= size)
+        return false;
+
+    if (table[at] != k_gus_record_mark)
+        at += 1 + table[at];
+
+    while ((at + k_gus_record_size <= size) && (table[at] == k_gus_record_mark) && (records->size() < k_gus_max_records))
+    {
+        const u8* record = table + at;
+        Gus_Record item;
+        size_t length = 0;
+
+        while ((length < 13) && (record[6 + length] != 0))
+            length++;
+
+        item.name = std::string((const char*)record + 6, length);
+        item.flag = record[5];
+        item.component = record[51];
+        item.first_volume = record[32];
+        item.last_volume = record[33];
+        item.offset = read_u32_le(record + 1);
+        item.packed_size = read_u32_le(record + 20);
+        item.date = read_u16_le(record + 24);
+        item.time = read_u16_le(record + 26);
+        item.crc = read_u32_le(record + 28);
+        item.size = read_u32_le(record + 35);
+
+        if (!is_dos_name(item.name) || (item.first_volume == 0) || (item.last_volume < item.first_volume) ||
+            (item.last_volume > k_gus_max_volumes))
+            return false;
+
+        records->push_back(item);
+        at += k_gus_record_size;
+    }
+
+    *end = at;
+    return !records->empty();
+}
+
+GusImport_Result GusImport::ImportDisks(const char* zip_path)
+{
+    std::map<std::string, std::string>::const_iterator first = m_files.find("ULTRASND.001");
+
+    if ((first == m_files.end()) || (m_files.count("DISK.ID") != 0))
+        return Refuse();
+
+    const std::string& volume = first->second;
+    std::vector<u32> starts(k_gus_max_volumes + 1, 0xFFFFFFFF);
+    size_t base_length = strlen(k_gus_volume_base);
+    size_t from = volume.size() > k_gus_list_window ? volume.size() - k_gus_list_window : 0;
+    const u8* bytes = (const u8*)volume.data();
+    starts[0] = 0;
+
+    for (size_t i = from; i + base_length + 9 <= volume.size(); i++)
+    {
+        if ((bytes[i] != base_length + 4) || (memcmp(bytes + i + 1, k_gus_volume_base, base_length) != 0))
+            continue;
+
+        std::string name((const char*)bytes + i + 1, base_length + 4);
+        u32 number = is_volume_name(name) ? (u32)atoi(name.c_str() + base_length + 1) : 0;
+
+        if ((number >= 2) && (number <= k_gus_max_volumes) && (starts[number - 1] == 0xFFFFFFFF))
+            starts[number - 1] = read_u32_le(bytes + i + base_length + 5);
+    }
+
+    u32 table_start = starts[1];
+
+    if ((table_start == 0xFFFFFFFF) || (table_start >= volume.size()) ||
+        (volume.size() - table_start != k_gus_table_size) ||
+        ((u32)mz_crc32(0, bytes + table_start, k_gus_table_size) != k_gus_table_crc))
+    {
+        Fail(GUS_IMPORT_UNSUPPORTED, "This UltraSound software %s", k_gus_refuse);
+        return m_result;
+    }
+
+    std::vector<Gus_Record> records;
+    size_t table_end = 0;
+
+    if (!ReadRecords(volume, table_start, &records, &table_end))
+    {
+        Fail(GUS_IMPORT_UNKNOWN, "The table of files on ULTRASND.001 doesn't read: import the 4.11 disks again");
+        return m_result;
+    }
+
+    u32 volumes = 1;
+
+    for (size_t i = 0; i < records.size(); i++)
+        volumes = MAX(volumes, (u32)records[i].last_volume);
+
+    std::string stream = volume.substr(0, table_start);
+
+    for (u32 number = 2; number <= volumes; number++)
+    {
+        char name[32];
+        snprintf(name, sizeof(name), "%s.%03u", k_gus_volume_base, number);
+        std::map<std::string, std::string>::const_iterator next = m_files.find(name);
+
+        if (next == m_files.end())
+        {
+            Fail(GUS_IMPORT_INCOMPLETE, "%s is missing: it's the disk number %u", name, number);
+            return m_result;
+        }
+
+        if ((starts[number - 1] != stream.size()) || ((number < volumes) && (starts[number] == 0xFFFFFFFF)))
+        {
+            Fail(GUS_IMPORT_INCOMPLETE, "%s doesn't fit the disks before it: it may be damaged", name);
+            return m_result;
+        }
+
+        stream += next->second;
+    }
+
+    int midi = -1;
+    bool grouped = false;
+    std::vector<int> left_out;
+
+    for (size_t g = 0; g < sizeof(k_gus_groups) / sizeof(k_gus_groups[0]); g++)
+    {
+        size_t length = strlen(k_gus_groups[g].name);
+
+        for (size_t i = table_end; i + k_gus_group_stride <= volume.size(); i++)
+        {
+            const u8* group = bytes + i;
+
+            if ((group[0] != length) ||
+                (memcmp(group + 1, k_gus_groups[g].name, length) != 0) || (group[80] != 0x70) || (group[82] != 0) ||
+                (group[83] != 2))
+                continue;
+
+            if (g == 0)
+            {
+                midi = group[81];
+                grouped = true;
+            }
+            else if (k_gus_groups[g].left_out)
+                left_out.push_back((int)group[81]);
+
+            break;
+        }
+    }
+
+    std::vector<Gus_Output> output;
+    std::set<std::string> kept;
+    int patches = 0;
+
+    for (size_t i = 0; i < records.size(); i++)
+    {
+        const Gus_Record& record = records[i];
+        u64 offset = (u64)record.offset + starts[record.first_volume - 1];
+
+        if ((offset + record.packed_size > stream.size()) || (record.size > k_gus_max_installed_size))
+        {
+            Fail(GUS_IMPORT_INCOMPLETE, "%s isn't on these disks: they may be damaged", record.name.c_str());
+            return m_result;
+        }
+
+        const u8* packed = (const u8*)stream.data() + offset;
+        std::string data;
+
+        if (record.packed_size == record.size)
+            data.assign((const char*)packed, record.size);
+        else if (!ExpandImplode(packed, record.packed_size, record.size, &data))
+            data.clear();
+
+        if ((data.size() != record.size) || ((u32)mz_crc32(0, (const u8*)data.data(), data.size()) != record.crc))
+        {
+            Fail(GUS_IMPORT_INCOMPLETE, "%s doesn't unpack to what the table says: the disk with it may be damaged",
+                record.name.c_str());
+            return m_result;
+        }
+
+        bool skipped = std::find(left_out.begin(), left_out.end(), (int)record.component) != left_out.end();
+        bool in_midi = grouped ? (record.component == midi) : (record.flag == 0xC8);
+        std::string path = (in_midi ? std::string(k_gus_import_midi) : std::string()) + record.name;
+
+        if ((record.flag != 0xF0) && (record.flag != 0xC8))
+            continue;
+
+        if (skipped || !kept.insert(path).second)
+            continue;
+
+        Gus_Output item;
+        item.path = path;
+        item.data = data;
+        item.modified = dos_to_host_time(record.date, record.time);
+        output.push_back(item);
+
+        if (in_midi && ends_with_no_case(record.name.c_str(), ".pat"))
+            patches++;
+    }
+
+    if (patches == 0)
+    {
+        Fail(GUS_IMPORT_INCOMPLETE, "No patches on these disks");
+        return m_result;
+    }
+
+    return Finish(zip_path, k_gus_family_411, k_gus_name_411, "UltraSound software 4.11", patches, output);
+}
+
+GusImport_Result GusImport::ImportInstalled(const char* zip_path)
+{
+    std::vector<Gus_Output> output;
+    u64 total = 0;
+    int patches = 0;
+
+    for (size_t i = 0; i < m_installed.size(); i++)
+    {
+        const std::string& path = m_installed[i].first;
+        total += m_installed[i].second.size();
+
+        if (total > k_gus_max_installed_total)
+        {
+            Fail(GUS_IMPORT_ERROR, "The folder holds too much for the UltraSound software");
+            return m_result;
+        }
+
+        Gus_Output item;
+        item.path = path;
+        item.data = m_installed[i].second;
+        item.modified = 0;
+        output.push_back(item);
+
+        if ((path.compare(0, strlen(k_gus_import_midi), k_gus_import_midi) == 0) && ends_with_no_case(path.c_str(), ".pat"))
+            patches++;
+    }
+
+    return Finish(zip_path, k_gus_family_installed, k_gus_name_installed, "UltraSound software", patches, output);
+}
+
+GusImport_Result GusImport::Finish(const char* zip_path, const char* family, const char* name, const char* title, int patches,
+    const std::vector<Gus_Output>& output)
+{
+    char text[128];
+    mz_zip_archive zip;
+    memset(&zip, 0, sizeof(zip));
+    m_name = name;
+    m_patches = patches;
+    snprintf(text, sizeof(text), "%s imported, %d patches", title, patches);
+    m_message = text;
+    snprintf(text, sizeof(text), "id=%s\r\nname=%s\r\npatches=%d\r\nsource=%08X\r\n", family, name, patches,
+        GetSourceFingerprint());
+    std::string version_text = text;
+
+    if (!mz_zip_writer_init_heap(&zip, 0, 4 * 1024 * 1024))
+    {
+        Fail(GUS_IMPORT_ERROR, "Unable to make %s", k_gus_import_file);
+        return m_result;
+    }
+
+    bool ok = mz_zip_writer_add_mem(&zip, k_gus_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL);
+
+    for (size_t i = 0; ok && (i < output.size()); i++)
+    {
+        MZ_TIME_T modified = (MZ_TIME_T)output[i].modified;
+        ok = mz_zip_writer_add_mem_ex_v2(&zip, output[i].path.c_str(), output[i].data.data(), output[i].data.size(), NULL,
+            0, MZ_DEFAULT_LEVEL, 0, 0, output[i].modified != 0 ? &modified : NULL, NULL, 0, NULL, 0) != 0;
+    }
+
+    void* archive = NULL;
+    size_t archive_size = 0;
+    ok = ok && mz_zip_writer_finalize_heap_archive(&zip, &archive, &archive_size);
+
+    if (!ok)
+    {
+        mz_zip_writer_end(&zip);
+        Fail(GUS_IMPORT_ERROR, "Unable to make %s", k_gus_import_file);
+        return m_result;
+    }
+
+    std::string temporary = std::string(zip_path) + ".tmp";
+    MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
+    ok = IsValidPointer(file) && file->WriteAt(0, archive, archive_size) && file->Flush();
+    SafeDelete(file);
+    mz_zip_writer_end(&zip);
+
+    if (ok && !MediaFile::RenameFile(temporary.c_str(), zip_path))
+    {
+        std::string old = std::string(zip_path) + ".old";
+        MediaFile::RemoveFile(old.c_str());
+        bool moved = MediaFile::RenameFile(zip_path, old.c_str());
+        ok = MediaFile::RenameFile(temporary.c_str(), zip_path);
+
+        if (ok)
+            MediaFile::RemoveFile(old.c_str());
+        else if (moved)
+            MediaFile::RenameFile(old.c_str(), zip_path);
+    }
+
+    if (!ok)
+    {
+        MediaFile::RemoveFile(temporary.c_str());
+        Fail(GUS_IMPORT_ERROR, "Unable to write %s", zip_path);
+        return m_result;
+    }
+
+    Log("%s: %d patches imported into %s", name, patches, zip_path);
+    m_result = GUS_IMPORT_DONE;
+    m_error.clear();
+    return m_result;
+}
+
+GusImport_Result GusImport::Import(const char* zip_path)
+{
+    m_name.clear();
+    m_message.clear();
+    m_patches = 0;
+    m_result = GUS_IMPORT_ERROR;
+
+    if (!m_installed.empty())
+        return ImportInstalled(zip_path);
+
+    if (m_names.empty())
+    {
+        Fail(GUS_IMPORT_ERROR, "No files in the UltraSound install disks");
+        return m_result;
+    }
+
+    return ImportDisks(zip_path);
+}
+
+const char* GusImport::GetName() const
+{
+    return m_name.c_str();
+}
+
+const char* GusImport::GetMessage() const
+{
+    return m_message.c_str();
+}
+
+int GusImport::GetPatchCount() const
+{
+    return m_patches;
+}
+
+u32 GusImport::GetSourceFingerprint() const
+{
+    std::vector<std::pair<std::string, u32> > files;
+    u32 crc = 0;
+
+    for (std::map<std::string, std::string>::const_iterator it = m_files.begin(); it != m_files.end(); ++it)
+        files.push_back(std::make_pair(it->first, (u32)mz_crc32(0, (const u8*)it->second.data(), it->second.size())));
+
+    for (size_t i = 0; i < m_installed.size(); i++)
+        files.push_back(std::make_pair(m_installed[i].first, (u32)mz_crc32(0, (const u8*)m_installed[i].second.data(),
+            m_installed[i].second.size())));
+
+    std::sort(files.begin(), files.end());
+
+    for (size_t i = 0; i < files.size(); i++)
+    {
+        u8 value[4];
+        write_u32_le(value, files[i].second);
+        crc = (u32)mz_crc32(crc, (const u8*)files[i].first.data(), files[i].first.size());
+        crc = (u32)mz_crc32(crc, value, sizeof(value));
+    }
+
+    return crc;
+}
+
+const char* GusImport::GetError() const
+{
+    return m_error.c_str();
+}
+
+static std::string get_value(const std::string& text, const char* key)
+{
+    std::string prefix = std::string(key) + "=";
+    size_t at = text.find(prefix);
+
+    if ((at == std::string::npos) || ((at != 0) && (text[at - 1] != '\n')))
+        return "";
+
+    size_t end = text.find_first_of("\r\n", at);
+    return text.substr(at + prefix.size(), end == std::string::npos ? std::string::npos : end - at - prefix.size());
+}
+
+static bool read_version_text(mz_zip_archive* zip, std::string* text)
+{
+    size_t size = 0;
+    void* data = mz_zip_reader_extract_file_to_heap(zip, k_gus_import_version, &size, 0);
+
+    if (!IsValidPointer(data))
+        return false;
+
+    text->assign((const char*)data, size);
+    mz_free(data);
+    return !get_value(*text, "id").empty();
+}
+
+bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::string* error)
+{
+    std::vector<u8> data;
+    software->name.clear();
+    software->zip.clear();
+    software->patches = 0;
+    software->crc = 0;
+
+    if (!read_file(zip_path, k_gus_max_zip_size, &data))
+    {
+        *error = std::string("Unable to read ") + zip_path;
+        return false;
+    }
+
+    mz_zip_archive zip;
+    memset(&zip, 0, sizeof(zip));
+    std::string text;
+
+    if (!mz_zip_reader_init_mem(&zip, data.data(), data.size(), 0) || !read_version_text(&zip, &text))
+    {
+        mz_zip_reader_end(&zip);
+        *error = std::string("Not an UltraSound import: ") + zip_path;
+        return false;
+    }
+
+    std::string id = get_value(text, "id");
+    bool ok = ((id == k_gus_family_411) || (id == k_gus_family_installed)) &&
+        (mz_zip_reader_locate_file(&zip, k_gus_ini, NULL, 0) >= 0);
+    mz_zip_reader_end(&zip);
+
+    if (!ok)
+    {
+        *error = std::string("The imported UltraSound software is damaged or from a newer Geardox, import it again: ") + zip_path;
+        return false;
+    }
+
+    software->name = get_value(text, "name");
+    software->name = software->name.empty() ? std::string(k_gus_name_installed) : software->name;
+    software->patches = atoi(get_value(text, "patches").c_str());
+    software->zip.assign((const char*)data.data(), data.size());
+    software->crc = (u32)mz_crc32(0, data.data(), data.size());
+    error->clear();
+    return true;
+}
+
+bool GusImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
+{
+    std::vector<u8> data;
+    mz_zip_archive zip;
+    memset(&zip, 0, sizeof(zip));
+
+    if (!read_file(zip_path, k_gus_max_zip_size, &data) || !mz_zip_reader_init_mem(&zip, data.data(), data.size(), 0))
+        return false;
+
+    std::string text;
+    bool ok = read_version_text(&zip, &text);
+    mz_zip_reader_end(&zip);
+    *fingerprint = (u32)strtoul(get_value(text, "source").c_str(), NULL, 16);
+    return ok;
+}
+
+bool GusImport::Fail(GusImport_Result result, const char* format, ...)
+{
+    char text[512];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(text, sizeof(text), format, args);
+    va_end(args);
+    m_result = result;
+    m_error = text;
+    Log("UltraSound import: %s", text);
+    return false;
+}

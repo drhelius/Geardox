@@ -220,6 +220,9 @@
     <ClCompile Include="..\..\src\audio\sound_blaster.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\audio\ultrasound.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\media\firmware.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -389,6 +392,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\drive\dos_import.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\gus_import.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\drive\game_disk.cpp">
@@ -593,6 +599,8 @@
     <ClInclude Include="..\..\src\audio\opl_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\sound_blaster.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\sound_blaster_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\ultrasound.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\audio\ultrasound_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\audio_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\bit_ops.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>
@@ -661,6 +669,7 @@
     <ClInclude Include="..\..\src\dos\dos_tools.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\dos_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\dos_import.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\gus_import.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fdc.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\game_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\ide_controller.h"><Filter>src</Filter></ClInclude>

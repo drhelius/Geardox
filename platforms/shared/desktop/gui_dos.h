@@ -28,6 +28,8 @@
 
 EXTERN void gui_dos_menu(void);
 EXTERN void gui_dos_dialog_import_msdos(const char* path);
+EXTERN void gui_dos_dialog_import_ultrasnd(const char* path);
+EXTERN void gui_dos_remove_ultrasnd(void);
 
 #undef GUI_DOS_IMPORT
 #undef EXTERN

@@ -45,6 +45,7 @@ static Machine_Override ram_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_
 static Machine_Override fpu_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
 static Machine_Override sound_override = { false, GDOX_SOUND_CARD_SB16, GDOX_SOUND_CARD_SB16 };
 static Machine_Override video_override = { false, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
+static Machine_Override gus_override = { false, 0, 0 };
 static Machine_Override mouse_override = { false, GDOX_MOUSE_PS2, GDOX_MOUSE_PS2 };
 static Machine_Override cdrom_override = { false, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SECONDARY_MASTER };
 static Machine_Override joystick_override = { false, GDOX_JOYSTICK_GAMEPAD, GDOX_JOYSTICK_GAMEPAD };
@@ -55,6 +56,7 @@ static bool parse_model(const char* text, int* model);
 static bool parse_fpu(const char* text, int* fpu);
 static bool parse_sound(const char* text, int* card);
 static bool parse_video(const char* text, int* card);
+static bool parse_gus(const char* text, int* gus);
 static bool parse_mouse(const char* text, int* mouse);
 static bool parse_cdrom(const char* text, int* cdrom);
 static bool parse_joystick(const char* text, int* joystick);
@@ -272,7 +274,7 @@ int main(int argc, char* argv[])
             }
             else if ((strcmp(argv[i], "--model") == 0) || (strcmp(argv[i], "--cpu-mhz") == 0) ||
                 (strcmp(argv[i], "--ram") == 0) || (strcmp(argv[i], "--fpu") == 0) ||
-                (strcmp(argv[i], "--sound") == 0) || (strcmp(argv[i], "--video") == 0) ||
+                (strcmp(argv[i], "--sound") == 0) || (strcmp(argv[i], "--gus") == 0) || (strcmp(argv[i], "--video") == 0) ||
                 (strcmp(argv[i], "--mouse") == 0) || (strcmp(argv[i], "--cdrom") == 0) ||
                 (strcmp(argv[i], "--joystick") == 0))
             {
@@ -298,6 +300,11 @@ int main(int argc, char* argv[])
                 {
                     override = &sound_override;
                     valid = parse_sound(value, &override->value);
+                }
+                else if (strcmp(option, "--gus") == 0)
+                {
+                    override = &gus_override;
+                    valid = parse_gus(value, &override->value);
                 }
                 else if (strcmp(option, "--video") == 0)
                 {
@@ -495,7 +502,7 @@ int main(int argc, char* argv[])
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
-        "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--video",
+        "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--gus", "--video",
         "--mouse", "--cdrom", "--joystick", "--run", "--timeout", "--boot-speed", "--speed", "--gdb-port" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
@@ -532,6 +539,18 @@ static bool parse_model(const char* text, int* model)
     }
 
     return false;
+}
+
+static bool parse_gus(const char* text, int* gus)
+{
+    if (strcmp(text, "off") == 0)
+        *gus = 0;
+    else if (strcmp(text, "on") == 0)
+        *gus = 1;
+    else
+        return false;
+
+    return true;
 }
 
 static bool parse_mouse(const char* text, int* mouse)
@@ -670,6 +689,9 @@ static void apply_machine_overrides(void)
     apply_override(ram_override, &config_machine.ram_mb);
     apply_override(fpu_override, &config_machine.fpu);
     apply_override(sound_override, &config_machine.sound_card);
+    int gus = config_machine.gus ? 1 : 0;
+    apply_override(gus_override, &gus);
+    config_machine.gus = gus != 0;
     apply_override(video_override, &config_machine.video_card);
     apply_override(mouse_override, &config_machine.mouse);
     apply_override(cdrom_override, &config_machine.cdrom);
@@ -683,6 +705,9 @@ static void restore_machine_settings(void)
     restore_override(ram_override, &config_machine.ram_mb);
     restore_override(fpu_override, &config_machine.fpu);
     restore_override(sound_override, &config_machine.sound_card);
+    int gus = config_machine.gus ? 1 : 0;
+    restore_override(gus_override, &gus);
+    config_machine.gus = gus != 0;
     restore_override(video_override, &config_machine.video_card);
     restore_override(mouse_override, &config_machine.mouse);
     restore_override(cdrom_override, &config_machine.cdrom);
@@ -766,6 +791,7 @@ static void print_usage(const char* program)
     print_wrapped("      --ram MB", sizes);
     print_wrapped("      --fpu FPU", "none, 80387");
     print_wrapped("      --sound CARD", "none, adlib, sb15, sb20, sbpro, sbpro2, sb16");
+    print_wrapped("      --gus STATE", "off, on (Gravis UltraSound at 240h)");
     print_wrapped("      --video CARD", "auto, cga, ega, vga, gd5428, gd5428_vlb, gd5446");
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");
     print_wrapped("      --cdrom DRIVE", "none, pm, ps, sm, ss (primary or secondary, master or slave)");

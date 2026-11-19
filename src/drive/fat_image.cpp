@@ -278,9 +278,11 @@ FatImage::FatImage()
     m_read_offset = 0;
     memset(&m_zip, 0, sizeof(m_zip));
     memset(&m_system_zip, 0, sizeof(m_system_zip));
+    memset(&m_ultrasound_zip, 0, sizeof(m_ultrasound_zip));
     memset(&m_layout, 0, sizeof(m_layout));
     m_zip_open = false;
     m_system_zip_open = false;
+    m_ultrasound_zip_open = false;
     m_pinned_count = 0;
     m_zip_offset = 0;
     m_label[0] = 0;
@@ -969,6 +971,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     int bin = ok ? FindChild(freedos, "BIN") : -1;
     ok = (bin >= 0) && AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool((u32)bin, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
+        AddDosTool((u32)bin, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
         AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size);
 
     if (ok)
@@ -1054,6 +1057,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     bool ok = AddFreeDOSFile(&tools, "FREEDOS/COPYING.TXT", geardox, "COPYING.TXT") &&
         AddDosTool(geardox, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool(geardox, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
+        AddDosTool(geardox, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
         AddDosTool(geardox, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size) &&
         AddDosTool(geardox, "GDXIDLE.SYS", k_dos_gdxidle, k_dos_gdxidle_size);
 
@@ -1097,6 +1101,70 @@ bool FatImage::AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directo
     m_entries[entry].crc = stat.m_crc32;
     m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     get_dos_time((s64)stat.m_time, &m_entries[entry].date, &m_entries[entry].time);
+    return true;
+}
+
+bool FatImage::AddUltraSound(const u8* zip, size_t size)
+{
+    static const char* const k_reserved[] = { "ULTRASND" };
+    std::vector<std::string> reserved(k_reserved, k_reserved + 1);
+    LeaveOutReserved(reserved);
+
+    if (m_ultrasound_zip_open)
+        mz_zip_reader_end(&m_ultrasound_zip);
+
+    memset(&m_ultrasound_zip, 0, sizeof(m_ultrasound_zip));
+    m_ultrasound_zip_open = mz_zip_reader_init_mem(&m_ultrasound_zip, zip, size, 0) != 0;
+
+    if (!m_ultrasound_zip_open)
+        return false;
+
+    u32 root = AddEntry(0, "ULTRASND", true);
+    m_entries[root].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    m_entries[root].ultrasound = true;
+
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&m_ultrasound_zip); i++)
+    {
+        mz_zip_archive_file_stat stat;
+
+        if (!mz_zip_reader_file_stat(&m_ultrasound_zip, i, &stat) || stat.m_is_directory)
+            continue;
+
+        std::string rest(stat.m_filename);
+
+        if (rest.empty() || (rest == "version.txt"))
+            continue;
+
+        u32 directory = root;
+        size_t slash = rest.find('/');
+
+        while (slash != std::string::npos)
+        {
+            std::string folder = rest.substr(0, slash);
+            int found = FindChild(directory, folder);
+
+            if (found < 0)
+            {
+                found = (int)AddEntry(directory, folder, true);
+                m_entries[found].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+                m_entries[found].ultrasound = true;
+            }
+
+            directory = (u32)found;
+            rest = rest.substr(slash + 1);
+            slash = rest.find('/');
+        }
+
+        u32 entry = AddEntry(directory, rest, false);
+        FatImage_Entry& file = m_entries[entry];
+        file.size = stat.m_uncomp_size;
+        file.crc = stat.m_crc32;
+        file.zip_index = i;
+        file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        file.ultrasound = true;
+        get_dos_time((s64)stat.m_time, &file.date, &file.time);
+    }
+
     return true;
 }
 
@@ -1294,7 +1362,8 @@ bool FatImage::ReadEntry(const FatImage_Entry& entry, std::string* data)
     if (entry.source.empty())
     {
         size_t size = 0;
-        mz_zip_archive* zip = entry.origin == FAT_IMAGE_ORIGIN_SYSTEM ? &m_system_zip : &m_zip;
+        mz_zip_archive* zip = entry.ultrasound ? &m_ultrasound_zip :
+            entry.origin == FAT_IMAGE_ORIGIN_SYSTEM ? &m_system_zip : &m_zip;
         void* bytes = mz_zip_reader_extract_to_heap(zip, entry.zip_index, &size, 0);
 
         if (!IsValidPointer(bytes))
@@ -1648,10 +1717,15 @@ void FatImage::Clear()
     if (m_system_zip_open)
         mz_zip_reader_end(&m_system_zip);
 
+    if (m_ultrasound_zip_open)
+        mz_zip_reader_end(&m_ultrasound_zip);
+
     memset(&m_zip, 0, sizeof(m_zip));
     memset(&m_system_zip, 0, sizeof(m_system_zip));
+    memset(&m_ultrasound_zip, 0, sizeof(m_ultrasound_zip));
     m_zip_open = false;
     m_system_zip_open = false;
+    m_ultrasound_zip_open = false;
     m_pinned.clear();
     m_pinned_count = 0;
     m_zip_prefix.clear();
@@ -1860,6 +1934,7 @@ u32 FatImage::AddEntry(u32 directory, const std::string& name, bool is_directory
     entry.first_cluster = 0;
     entry.attributes = is_directory ? k_fat_attribute_directory : k_fat_attribute_archive;
     entry.origin = FAT_IMAGE_ORIGIN_SOURCE;
+    entry.ultrasound = false;
     entry.memory = -1;
     entry.crc = 0;
     entry.modified = 0;
@@ -2163,7 +2238,8 @@ bool FatImage::CopyFile(FatImage_Entry& entry, u64 offset)
     if (entry.source.empty() && (entry.origin == FAT_IMAGE_ORIGIN_SYSTEM))
     {
         m_zip_offset = offset;
-        return mz_zip_reader_extract_to_callback(&m_system_zip, entry.zip_index, WriteZipEntry, this, 0) != 0;
+        return mz_zip_reader_extract_to_callback(entry.ultrasound ? &m_ultrasound_zip : &m_system_zip, entry.zip_index,
+            WriteZipEntry, this, 0) != 0;
     }
 
     if (entry.source.empty())

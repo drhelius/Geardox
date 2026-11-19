@@ -272,7 +272,7 @@ static const char* const kMcpVideoTools[] =
 
 static const char* const kMcpAudioTools[] =
 {
-    "get_sound_status", "get_opl_status", "get_opl_registers", "set_audio_mute"
+    "get_sound_status", "get_opl_status", "get_opl_registers", "get_gus_voices", "set_audio_mute"
 };
 
 static const char* const kMcpCdromTools[] =
@@ -744,6 +744,8 @@ std::string McpToolRegistry::AliasesForTool(const std::string& tool_name) const
         aliases += " input script sequence keyboard key mouse joystick button tap press release wait";
     if (StringContains(name, "opl"))
         aliases += " fm adlib sound blaster ym3812 ymf262 opl2 opl3 synth operator";
+    if (StringContains(name, "gus"))
+        aliases += " gravis ultrasound gf1 wavetable voices sample memory";
     if (StringContains(name, "io_port"))
         aliases += " out port poke hardware register";
 

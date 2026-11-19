@@ -3769,6 +3769,30 @@ json DebugAdapter::GetSoundStatus()
         result["mpu401"] = mpu_json;
     }
 
+    if (audio->HasGUS())
+    {
+        UltraSound* ultrasound = audio->GetUltraSound();
+        UltraSound::UltraSound_State* gus = ultrasound->GetState();
+
+        result["gus"] = {{"enabled", true}, {"running", ultrasound->IsRunning()},
+            {"output_enabled", ultrasound->IsOutputEnabled()}, {"muted", audio->IsSourceMuted(Audio::AUDIO_SOURCE_GUS)},
+            {"active_voices", ultrasound->GetActiveVoices()}, {"frame_rate_hz", ultrasound->GetFrameRate()},
+            {"reset", Hex(gus->reset, 2)}, {"mix_control", Hex(gus->mix_control, 2)},
+            {"irq_status", Hex(ultrasound->GetIRQStatus(), 2)},
+            {"irq_latch", Hex(gus->irq_latch, 2)}, {"dma_latch", Hex(gus->dma_latch, 2)},
+            {"gf1_irq", ultrasound->GetIRQ(0)}, {"midi_irq", (gus->irq_latch & 0x40) != 0 ? ultrasound->GetIRQ(0) :
+                ultrasound->GetIRQ(1)}, {"dram_dma", ultrasound->GetDRAMChannel()},
+            {"adc_dma", ultrasound->GetADCChannel()}, {"voice_irq", Hex(gus->voice_irq, 2)},
+            {"voice_irq_latched", gus->voice_irq_latched}, {"dma_control", Hex(gus->dma_control, 2)},
+            {"dma_address", Hex(gus->dma_address, 4)}, {"dram_address", Hex(gus->dram_address & 0xFFFFF, 5)},
+            {"sample_control", Hex(gus->sample_control, 2)},
+            {"timer_1", {{"preload", gus->timer_preload[0]}, {"count", gus->timer_count[0]},
+                {"running", (gus->adlib_control & 0x01) != 0}, {"irq", gus->timer_irq[0]}}},
+            {"timer_2", {{"preload", gus->timer_preload[1]}, {"count", gus->timer_count[1]},
+                {"running", (gus->adlib_control & 0x02) != 0}, {"irq", gus->timer_irq[1]}}},
+            {"midi_control", Hex(gus->midi_control, 2)}, {"midi_rx_full", gus->midi_rx_full}};
+    }
+
     MidiOut* midi = audio->GetMidiOut();
     const MidiOut::MidiOut_Stats* stats = midi->GetStats();
     const MidiOut::MidiOut_Synth& synth = midi->GetState()->machine;
@@ -3779,6 +3803,61 @@ json DebugAdapter::GetSoundStatus()
         {"port", emu_midi_get_port()}, {"wanted_port", emu_midi_get_wanted_port()}};
 
     return result;
+}
+
+json DebugAdapter::GetGUSVoices(int voice, bool all)
+{
+    Audio* audio = m_core->GetAudio();
+
+    if (!audio->HasGUS())
+        return {{"error", "The Gravis UltraSound is off"}};
+
+    UltraSound* ultrasound = audio->GetUltraSound();
+    UltraSound::UltraSound_State* state = ultrasound->GetState();
+    int active = ultrasound->GetActiveVoices();
+    double frame_rate = (double)ultrasound->GetFrameRate();
+    int first = 0;
+    int last = all ? ULTRASOUND_VOICES : active;
+
+    if (voice >= 0)
+    {
+        if (voice >= ULTRASOUND_VOICES)
+            return {{"error", "voice must be 0-31"}};
+
+        first = voice;
+        last = voice + 1;
+    }
+
+    json voices = json::array();
+
+    for (int i = first; i < last; i++)
+    {
+        const UltraSound::UltraSound_Voice& v = state->voices[i];
+        int level = v.volume >> 4;
+        json item = {{"voice", i}, {"in_use", i < active},
+            {"address", Hex((v.address >> 9) & 0xFFFFF, 5)}, {"fraction", v.address & 0x1FF},
+            {"start", Hex((v.start >> 9) & 0xFFFFF, 5)}, {"start_fraction", v.start & 0x1FF},
+            {"end", Hex((v.end >> 9) & 0xFFFFF, 5)}, {"end_fraction", v.end & 0x1FF},
+            {"frequency", v.frequency}, {"rate_hz", (double)v.frequency / 1024.0 * frame_rate},
+            {"volume", Hex(v.volume, 4)}, {"volume_level", level},
+            {"volume_db", level == 0 ? json() : json((double)(level - 4095) * 0.0235)},
+            {"pan", v.pan & 0x0F}, {"output", ultrasound->GetVoiceOutput(i)},
+            {"wave", {{"control", Hex(v.control, 2)}, {"stopped", (v.control & 0x03) != 0},
+                {"bits", (v.control & 0x04) != 0 ? 16 : 8}, {"loop", (v.control & 0x08) != 0},
+                {"bidirectional", (v.control & 0x10) != 0}, {"irq_enabled", (v.control & 0x20) != 0},
+                {"backward", (v.control & 0x40) != 0}, {"irq_pending", (v.control & 0x80) != 0}}},
+            {"ramp", {{"control", Hex(v.volume_control, 2)}, {"stopped", (v.volume_control & 0x03) != 0},
+                {"rate", Hex(v.ramp_rate, 2)}, {"start", Hex(v.ramp_start, 2)}, {"end", Hex(v.ramp_end, 2)},
+                {"loop", (v.volume_control & 0x08) != 0}, {"bidirectional", (v.volume_control & 0x10) != 0},
+                {"irq_enabled", (v.volume_control & 0x20) != 0},
+                {"direction", (v.volume_control & 0x40) != 0 ? "down" : "up"},
+                {"irq_pending", (v.volume_control & 0x80) != 0}}}};
+
+        voices.push_back(item);
+    }
+
+    return {{"active_voices", active}, {"frame_rate_hz", ultrasound->GetFrameRate()}, {"running", ultrasound->IsRunning()},
+        {"voices", voices}};
 }
 
 static const char* const k_mcp_opl_channel_types[4] = { "2op", "4op", "4op_pair", "drum" };
@@ -4025,8 +4104,8 @@ json DebugAdapter::SetAudioMute(const std::string& source, int channel, bool mut
 {
     Audio* audio = m_core->GetAudio();
 
-    if ((source != "fm") && (source != "pcm") && (source != "cdda") && (source != "buzzer"))
-        return {{"error", "source must be fm, pcm, cdda or buzzer"}};
+    if ((source != "fm") && (source != "pcm") && (source != "cdda") && (source != "buzzer") && (source != "gus"))
+        return {{"error", "source must be fm, pcm, cdda, buzzer or gus"}};
 
     if ((source != "fm") && (channel != 0))
         return {{"error", "Only fm has channels"}};
@@ -4052,6 +4131,8 @@ json DebugAdapter::SetAudioMute(const std::string& source, int channel, bool mut
         audio->SetSourceMute(Audio::AUDIO_SOURCE_PCM, mute);
     else if (source == "cdda")
         audio->SetSourceMute(Audio::AUDIO_SOURCE_CDDA, mute);
+    else if (source == "gus")
+        audio->SetSourceMute(Audio::AUDIO_SOURCE_GUS, mute);
     else
         audio->SetSourceMute(Audio::AUDIO_SOURCE_BUZZER, mute);
 
@@ -5575,7 +5656,7 @@ json DebugAdapter::GetGameInfo()
         { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" }, { "machine", "fpu" },
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
         { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" },
-        { "sound", "mpu" }, { "sound", "midi" }, { "sound", "midi_port" }, { "input", "mouse" },
+        { "sound", "mpu" }, { "sound", "gus" }, { "sound", "midi" }, { "sound", "midi_port" }, { "input", "mouse" },
         { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
         { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
@@ -5616,6 +5697,7 @@ json DebugAdapter::GetGameInfo()
             {"fpu", config.fpu}, {"fpu_source", k_sources[report.fpu]}, {"turbo", m_core->IsTurbo()},
             {"sound_card", k_sound_cards[config.sound_card].id}, {"sound_irq", config.sound_irq},
             {"sound_dma", config.sound_dma}, {"mpu", k_mcp_mpu_modes[config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : 0]},
+            {"gus", config.gus != 0},
             {"video", k_video_cards[config.video_card].id},
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
                 json(k_joysticks[emu_game_get_joystick()].id) : json()}, {"midi", emu_game_get_midi() >= 0 ?

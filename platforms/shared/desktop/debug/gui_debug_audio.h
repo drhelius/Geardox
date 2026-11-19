@@ -30,6 +30,7 @@ EXTERN void gui_debug_audio_init(void);
 EXTERN void gui_debug_audio_destroy(void);
 EXTERN void gui_debug_window_opl(void);
 EXTERN void gui_debug_window_sound_blaster(void);
+EXTERN void gui_debug_window_ultrasound(void);
 EXTERN void gui_debug_window_sound_control(void);
 EXTERN void gui_debug_window_cdrom_audio(void);
 

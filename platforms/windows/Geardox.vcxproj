@@ -24,6 +24,7 @@
     <ClCompile Include="..\..\src\audio\mpu401.cpp" />
     <ClCompile Include="..\..\src\audio\opl.cpp" />
     <ClCompile Include="..\..\src\audio\sound_blaster.cpp" />
+    <ClCompile Include="..\..\src\audio\ultrasound.cpp" />
     <ClCompile Include="..\..\src\media\firmware.cpp" />
     <ClCompile Include="..\..\src\media\game_database.cpp" />
     <ClCompile Include="..\..\src\media\game_descriptor.cpp" />
@@ -94,6 +95,7 @@
     <ClCompile Include="..\..\src\dos\dos_tools.cpp" />
     <ClCompile Include="..\..\src\drive\dos_disk.cpp" />
     <ClCompile Include="..\..\src\drive\dos_import.cpp" />
+    <ClCompile Include="..\..\src\drive\gus_import.cpp" />
     <ClCompile Include="..\..\src\drive\fdc.cpp" />
     <ClCompile Include="..\..\src\drive\game_disk.cpp" />
     <ClCompile Include="..\..\src\drive\ide_controller.cpp" />
@@ -297,6 +299,8 @@
     <ClInclude Include="..\..\src\audio\opl_inline.h" />
     <ClInclude Include="..\..\src\audio\sound_blaster.h" />
     <ClInclude Include="..\..\src\audio\sound_blaster_inline.h" />
+    <ClInclude Include="..\..\src\audio\ultrasound.h" />
+    <ClInclude Include="..\..\src\audio\ultrasound_inline.h" />
     <ClInclude Include="..\..\src\audio\audio_inline.h" />
     <ClInclude Include="..\..\src\common\bit_ops.h" />
     <ClInclude Include="..\..\src\common\common.h" />
@@ -365,6 +369,7 @@
     <ClInclude Include="..\..\src\dos\dos_tools.h" />
     <ClInclude Include="..\..\src\drive\dos_disk.h" />
     <ClInclude Include="..\..\src\drive\dos_import.h" />
+    <ClInclude Include="..\..\src\drive\gus_import.h" />
     <ClInclude Include="..\..\src\drive\fdc.h" />
     <ClInclude Include="..\..\src\drive\game_disk.h" />
     <ClInclude Include="..\..\src\drive\ide_controller.h" />

@@ -111,6 +111,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/audio/mpu401.cpp \
     $(SRC_DIR)/audio/opl.cpp \
     $(SRC_DIR)/audio/sound_blaster.cpp \
+    $(SRC_DIR)/audio/ultrasound.cpp \
     $(SRC_DIR)/audio/vgm_recorder.cpp \
     $(SRC_DIR)/cdrom/cdrom_audio.cpp \
     $(SRC_DIR)/cdrom/cdrom_chd_image.cpp \
@@ -122,6 +123,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/drive/dos_import.cpp \
     $(SRC_DIR)/drive/fdc.cpp \
     $(SRC_DIR)/drive/game_disk.cpp \
+    $(SRC_DIR)/drive/gus_import.cpp \
     $(SRC_DIR)/drive/ide_controller.cpp \
     $(SRC_DIR)/drive/ide_cdrom.cpp \
     $(SRC_DIR)/drive/ide_disk.cpp \

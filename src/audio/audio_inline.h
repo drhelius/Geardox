@@ -24,6 +24,7 @@
 #include "opl.h"
 #include "sound_blaster.h"
 #include "mpu401.h"
+#include "ultrasound.h"
 #include "../cdrom/cdrom_audio.h"
 #include "../system/pit.h"
 
@@ -69,6 +70,11 @@ INLINE void Audio::SetBuzzerVolume(float volume)
     m_buzzer_volume = volume;
 }
 
+INLINE void Audio::SetGUSVolume(float volume)
+{
+    m_gus_volume = volume;
+}
+
 INLINE OPL* Audio::GetOPL(int chip)
 {
     return m_opl[chip];
@@ -92,6 +98,16 @@ INLINE MPU401* Audio::GetMPU401()
 INLINE MidiOut* Audio::GetMidiOut()
 {
     return m_midi_out;
+}
+
+INLINE UltraSound* Audio::GetUltraSound()
+{
+    return m_ultrasound;
+}
+
+INLINE bool Audio::HasGUS() const
+{
+    return m_gus;
 }
 
 INLINE bool Audio::HasMPU() const
@@ -140,6 +156,8 @@ INLINE const s16* Audio::GetSourceBuffer(int source) const
             return m_pcm_buffer;
         case AUDIO_SOURCE_CDDA:
             return m_cdda_buffer;
+        case AUDIO_SOURCE_GUS:
+            return m_gus_buffer;
         default:
             return m_buzzer_buffer;
     }
@@ -195,10 +213,21 @@ INLINE bool Audio::IsMPUPort(u16 port) const
     return m_mpu && ((port & 0x03FE) == k_mpu401_port);
 }
 
+INLINE bool Audio::IsGUSPort(u16 port) const
+{
+    if (!m_gus)
+        return false;
+
+    if ((port & 0x03FE) == k_audio_fm_port)
+        return m_opl_chips == 0;
+
+    return m_ultrasound->Decodes(port);
+}
+
 // The DSP's ports, the mixer's on the cards that have one, and 2xFh from 4.xx on
 INLINE bool Audio::Decodes(u16 port) const
 {
-    if (IsFMPort(port) || IsMPUPort(port))
+    if (IsFMPort(port) || IsMPUPort(port) || IsGUSPort(port))
         return true;
 
     if ((port & 0x03F0) != k_sound_blaster_port)
@@ -267,6 +296,9 @@ INLINE void Audio::ClockSources(u32 clocks)
     if (m_dsp)
         m_sound_blaster->Clock(clocks);
 
+    if (m_gus)
+        m_ultrasound->Clock(clocks);
+
     if (m_mpu && m_mpu401->IsClockRunning())
     {
         m_midi_out->SetPosition(m_buffer_index >> 1);
@@ -284,6 +316,8 @@ INLINE void Audio::SampleSources()
     s16 pcm_right = 0;
     s16 cdda_left = 0;
     s16 cdda_right = 0;
+    s16 gus_left = 0;
+    s16 gus_right = 0;
 
     if (m_opl_chips != 0)
         m_opl[0]->Sample(fm_left, fm_right);
@@ -297,6 +331,9 @@ INLINE void Audio::SampleSources()
 
     if (m_dsp)
         m_sound_blaster->Sample(pcm_left, pcm_right);
+
+    if (m_gus)
+        m_ultrasound->Sample(gus_left, gus_right);
 
     // CD-DA advances one disc sample per output sample since both run at 44.1 kHz
     m_cdrom_audio->Sample(cdda_left, cdda_right);
@@ -337,6 +374,8 @@ INLINE void Audio::SampleSources()
     m_cdda_buffer[m_buffer_index + 1] = (s16)CLAMP(cd_right, -32768, 32767);
     m_buzzer_buffer[m_buffer_index + 0] = buzzer;
     m_buzzer_buffer[m_buffer_index + 1] = buzzer;
+    m_gus_buffer[m_buffer_index + 0] = gus_left;
+    m_gus_buffer[m_buffer_index + 1] = gus_right;
     m_buffer_index += 2;
 }
 

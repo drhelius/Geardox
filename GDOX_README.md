@@ -11,6 +11,7 @@ included FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 - [Find your saves](#find-your-saves)
 - [Adjust a game's settings](#adjust-a-games-settings)
 - [Use your own MS-DOS](#use-your-own-ms-dos)
+- [Use a Gravis UltraSound](#use-a-gravis-ultrasound)
 - [Troubleshooting](#troubleshooting)
 - [Settings reference](#settings-reference)
 
@@ -264,6 +265,9 @@ Some games arrive configured for IRQ 7. Either run their setup and choose IRQ 5,
 irq = 7
 ```
 
+A game set up for a **Gravis UltraSound** needs `gus = on` under `[sound]`; see
+[Use a Gravis UltraSound](#use-a-gravis-ultrasound).
+
 ### Memory
 
 Set the emulated RAM in megabytes (MB). For example, for a game requiring 16 MB:
@@ -388,6 +392,29 @@ The **Game DOS (restart)** core option set to **FreeDOS** runs games on FreeDOS 
 RetroArch's per-game options make that choice for one game. **Built-in DOS Disk (restart)** chooses the disk that
 boots with no hard disk in the content: your MS-DOS when found, FreeDOS, or none. `MS-DOS.hdd` and `FreeDOS.hdd` live
 in the save folder.
+
+## Use a Gravis UltraSound
+
+Geardox can add a Gravis UltraSound next to the Sound Blaster, as most owners had it. It's off unless a game asks for
+it: `gus = on` under `[sound]`, or **Emulator > Machine > Sound Card > Gravis UltraSound** for every game. The card is
+at port 240 with 1 MB of memory. It uses IRQ 5 and DMA 3, or IRQ 7 and DMA 1 when the Sound Blaster
+already has those. Geardox sets the DOS `ULTRASND` and `ULTRADIR` variables to match and gets the card ready before
+the game starts, so a game's setup finds it.
+
+Trackers, demos and games that load their own sounds play with nothing more. Games whose music plays through Gravis's
+instrument patches, such as those using ULTRAMID, need the patches, which come on Gravis's install disks and aren't
+included with Geardox. Import them once:
+
+1. Choose **Audio > Import UltraSound Software...**.
+2. Select a ZIP of the Gravis UltraSound 4.11 install disks, or any file of those disks. A folder holding an
+   installed copy, with `ULTRASND.INI` and a `MIDI` folder, works too: select any file in it.
+
+Geardox unpacks the disks itself, checking every file, and keeps its own copy, `ultrasnd.zip`, in its settings folder.
+Every game with the card on then gets the software and patches in `C:\ULTRASND`. Other versions of the install disks
+aren't supported. **Audio > Remove UltraSound Software** deletes Geardox's copy; your disks aren't touched.
+
+In RetroArch, turn on the **Gravis UltraSound** core option, and put the install disks, or a ZIP of them, in
+`geardox/ultrasnd` inside RetroArch's system folder. Geardox imports them the next time content loads.
 
 ## Troubleshooting
 
@@ -541,12 +568,14 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `card` | No | The sound card | `none`, `adlib`, `sb15` (Sound Blaster 1.5), `sb20` (2.0), `sbpro` (Pro), `sbpro2` (Pro 2), `sb16` (16) | Your setting (`sb16`) | `card = sbpro` |
 | `irq` | No | The sound card's IRQ | `5`, `7` | Your setting (`5`) | `irq = 7` |
 | `dma` | No | The sound card's 8-bit DMA channel | `1`, `3` | Your setting (`1`) | `dma = 3` |
+| `gus` | No | A Gravis UltraSound next to the sound card, at port 240. See [Use a Gravis UltraSound](#use-a-gravis-ultrasound) | `on`, `off` | Your setting (`off`) | `gus = on` |
 | `mpu` | No | The MPU-401 MIDI port at 330. `on` is the MPU-401's own sequencer, which older MT-32 games need; `uart` is the plain MIDI port, for a game that misbehaves with `on`. The Sound Blaster 16 has its own, on the card's IRQ. With the other cards it's a separate MPU-401 card on IRQ 2 (9) | `on`, `uart`, `off` | Your setting (`on`) | `mpu = uart` |
 | `midi` | No | The synth the game was set up for in its setup program, which picks the MIDI port it plays through on desktop | `gm` (General MIDI), `mt32` (Roland MT-32) | Your setting (`gm`) | `midi = mt32` |
 | `midi_port` | No | A MIDI port for this game, by its name on your computer. Picking a port in **Audio > MIDI Out > Game Synth** writes it to the game's own settings; a `.gdox` for other computers is better without it | Any port name | The port `midi` picks | `midi_port = SC-55` |
 
-The sound port is 220 (hexadecimal). The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the
-DOS `BLASTER` variable automatically to match the selected card, IRQ and DMA.
+The sound port is 220. The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the
+DOS `BLASTER` variable automatically to match the selected card, IRQ and DMA, and `ULTRASND` and `ULTRADIR` when the
+Gravis UltraSound is on.
 
 MIDI music plays through a synthesizer outside Geardox: a software synth or emulator that offers a MIDI port, or a
 real module. On desktop, choose a port for each kind in **Audio > MIDI Out**; `midi` picks which one the game uses,
@@ -719,6 +748,8 @@ C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```
 
+With the Gravis UltraSound on and its software imported, `C:\ULTRASND` holds it too.
+
 `system_files = hidden` under `[dos]` hides these files and folders from a normal `DIR` listing. They remain
 available and can be seen with `DIR /A`.
 
@@ -729,7 +760,8 @@ which is how lasting startup changes are made.
 
 With `folder = C:\`, game files share the root of C: with DOS. Game entries named like DOS's own files or folders
 are left out, including a game's own `CONFIG.SYS` and `AUTOEXEC.BAT`. Using a named game folder avoids that overlap.
-A game folder can't be one of DOS's folders: `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`.
+A game folder can't be one of DOS's folders: `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`, nor `ULTRASND` with the Gravis
+UltraSound on.
 
 For a game designed to boot directly from a floppy, set `floppy_a = disk.img` under `[drives]` and `boot = a` under
 `[run]`.

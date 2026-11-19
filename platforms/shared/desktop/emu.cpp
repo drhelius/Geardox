@@ -991,6 +991,7 @@ void emu_apply_machine_settings(void)
     settings.sound_irq = config_machine.sound_irq;
     settings.sound_dma = config_machine.sound_dma;
     settings.mpu = config_machine.mpu;
+    settings.gus = config_machine.gus ? 1 : 0;
     settings.video_card = config_machine.video_card;
     settings.mouse = config_machine.mouse;
     settings.cdrom = config_machine.cdrom;
@@ -1037,6 +1038,9 @@ void emu_audio_set_source_volume(int source, float volume)
             break;
         case Audio::AUDIO_SOURCE_BUZZER:
             audio->SetBuzzerVolume(volume);
+            break;
+        case Audio::AUDIO_SOURCE_GUS:
+            audio->SetGUSVolume(volume);
             break;
         default:
             break;

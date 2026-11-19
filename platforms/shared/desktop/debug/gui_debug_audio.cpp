@@ -38,8 +38,12 @@ static const float k_scope_samples_per_pixel = 2.5f;
 static const char* const k_opl_envelope_names[4] = { "ATTACK", "DECAY", "SUSTAIN", "RELEASE" };
 static const char* const k_opl_channel_types[4] = { "2-OP", "4-OP", "4-OP PAIR", "DRUM" };
 static const char* const k_dsp_format_names[6] = { "PCM 8", "PCM 16", "ADPCM 2", "ADPCM 3", "ADPCM 4", "SILENCE" };
+static const int k_gus_history = 128;
+static const float k_gus_db_per_step = 0.0235f;
 
 static float* scope_buffer = NULL;
+static float gus_history[ULTRASOUND_VOICES][k_gus_history];
+static int gus_history_position = 0;
 
 static void draw_scope(const char* id, const s16* data, int stride, int count, float scale, ImVec2 size, const ImVec4& color);
 static void draw_stereo_scope(const char* id, int source, float scale, ImVec2 size);
@@ -51,6 +55,10 @@ static void draw_opl_channel(Audio* audio, OPL* opl, int chip, int channel);
 static void draw_dsp_transfer(SoundBlaster* blaster);
 static void draw_mixer(SoundBlaster* blaster);
 static void draw_mpu(Audio* audio);
+static void draw_gus_global(UltraSound* gus);
+static void draw_gus_voices(UltraSound* gus);
+static void draw_gus_flag(const char* label, bool on);
+static void draw_gus_irq_flag(bool enabled, bool pending);
 
 void gui_debug_audio_init(void)
 {
@@ -485,6 +493,277 @@ static void draw_mpu(Audio* audio)
     }
 }
 
+void gui_debug_window_ultrasound(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::SetNextWindowPos(ImVec2(240, 160), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(700, 760), ImGuiCond_FirstUseEver);
+    ImGui::Begin("UltraSound", &config_debug.show_ultrasound);
+
+    Audio* audio = emu_get_core()->GetAudio();
+
+    if (!audio->HasGUS())
+    {
+        ImGui::TextColored(gray, "The Gravis UltraSound is off");
+        ImGui::End();
+        ImGui::PopStyleVar();
+        return;
+    }
+
+    UltraSound* gus = audio->GetUltraSound();
+    bool muted = audio->IsSourceMuted(Audio::AUDIO_SOURCE_GUS);
+
+    if (draw_mute_button("##gus_mute", muted, "Mute GUS"))
+        audio->SetSourceMute(Audio::AUDIO_SOURCE_GUS, !muted);
+
+    ImGui::SameLine();
+    draw_stereo_scope("##gus_mix", Audio::AUDIO_SOURCE_GUS, 1.0f / 32768.0f, ImVec2(200, 50));
+
+    for (int i = 0; i < ULTRASOUND_VOICES; i++)
+        gus_history[i][gus_history_position] = CLAMP((float)gus->GetVoiceOutput(i) / 16384.0f, -1.0f, 1.0f);
+
+    gus_history_position = (gus_history_position + 1) % k_gus_history;
+
+    ImGui::PushFont(gui_default_font);
+    draw_gus_global(gus);
+    draw_gus_voices(gus);
+    ImGui::PopFont();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+static void draw_gus_global(UltraSound* gus)
+{
+    UltraSound::UltraSound_State* state = gus->GetState();
+    float space = ImGui::CalcTextSize(" ").x;
+    u8 status = gus->GetIRQStatus();
+    GDOX_Machine_Config config = emu_get_core()->GetMachineConfig();
+    int dram_channel = gus->GetDRAMChannel();
+    int adc_channel = gus->GetADCChannel();
+    int midi_irq = (state->irq_latch & 0x40) != 0 ? gus->GetIRQ(0) : gus->GetIRQ(1);
+    u32 dram_address = state->dram_address & (ULTRASOUND_DRAM_SIZE - 1);
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "GF1 AT 240h, IRQ %d, DMA %d", get_gus_irq(config), get_gus_dma(config));
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("##gus_global", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
+    {
+        ImGui::TableNextRow();
+        draw_grid_label("RESET 4Ch");
+        ImGui::TextColored(white, "$%02X", state->reset); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->reset & 0x01) != 0 ? green : gray, "RUN"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->reset & 0x02) != 0 ? green : gray, "DAC"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->reset & 0x04) != 0 ? green : gray, "IRQ");
+        draw_grid_label("VOICES");
+        ImGui::TextColored(white, "%d", gus->GetActiveVoices()); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "%u Hz", gus->GetFrameRate());
+
+        ImGui::TableNextRow();
+        draw_grid_label("MIX 2X0");
+        ImGui::TextColored(white, "$%02X", state->mix_control); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(gus->IsOutputEnabled() ? green : gray, "OUT"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->mix_control & 0x08) != 0 ? green : gray, "LATCH"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->mix_control & 0x40) != 0 ? yellow : gray, "IRQSEL");
+        draw_grid_label("STATUS 2X6");
+        ImGui::TextColored(white, "$%02X", status); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & 0x80) != 0 ? yellow : gray, "DMA"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & 0x40) != 0 ? yellow : gray, "VOL"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & 0x20) != 0 ? yellow : gray, "WAVE"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & 0x0C) != 0 ? yellow : gray, "TMR"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & 0x03) != 0 ? yellow : gray, "MIDI");
+
+        ImGui::TableNextRow();
+        draw_grid_label("IRQ LATCH");
+        ImGui::TextColored(white, "$%02X", state->irq_latch); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "GF1 %d", gus->GetIRQ(0)); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "MIDI %d", midi_irq); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->irq_latch & 0x40) != 0 ? green : gray, "COMBINE");
+        draw_grid_label("DMA LATCH");
+        ImGui::TextColored(white, "$%02X", state->dma_latch); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "DRAM %d", dram_channel); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "ADC %d", adc_channel); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->dma_latch & 0x40) != 0 ? green : gray, "COMBINE");
+
+        ImGui::TableNextRow();
+        draw_grid_label("VOICE IRQ 8Fh");
+        ImGui::TextColored(state->voice_irq_latched ? yellow : gray, "$%02X", state->voice_irq);
+        draw_grid_label("SELECT");
+        ImGui::TextColored(white, "V%02d R$%02X", state->voice_select, state->register_select);
+
+        ImGui::TableNextRow();
+        draw_grid_label("DRAM DMA 41h");
+        ImGui::TextColored(white, "$%02X", state->dma_control); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->dma_control & 0x01) != 0 ? green : gray, "RUN"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->dma_control & 0x02) != 0 ? blue : gray, "READ"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->dma_control & 0x04) != 0 ? blue : gray, "16"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->dma_control & 0x20) != 0 ? green : gray, "IRQ"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->dma_control & 0x80) != 0 ? green : gray, "INV"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(state->dma_tc ? yellow : gray, "TC");
+        draw_grid_label("DMA 42h");
+        ImGui::TextColored(white, "$%04X0", state->dma_address); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "PTR $%05X", state->dma_pointer & (ULTRASOUND_DRAM_SIZE - 1));
+
+        ImGui::TableNextRow();
+        draw_grid_label("DRAM 43h/44h");
+        ImGui::TextColored(white, "$%05X", dram_address);
+        draw_grid_label("SAMPLING 49h");
+        ImGui::TextColored(white, "$%02X", state->sample_control); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->sample_control & 0x01) != 0 ? green : gray, "RUN"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->sample_control & 0x20) != 0 ? green : gray, "IRQ"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(state->sample_tc ? yellow : gray, "TC"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "RATE $%02X", state->sample_rate);
+
+        for (int i = 0; i < 2; i++)
+        {
+            char label[16];
+            snprintf(label, sizeof(label), "TIMER %d", i + 1);
+
+            ImGui::TableNextRow();
+            draw_grid_label(label);
+            ImGui::TextColored(white, "$%02X/$%02X", state->timer_count[i], state->timer_preload[i]);
+            ImGui::SameLine(0.0f, space);
+            ImGui::TextColored((state->adlib_control & (1 << i)) != 0 ? green : gray, "RUN");
+            ImGui::SameLine(0.0f, space);
+            ImGui::TextColored((state->adlib_control & (i == 0 ? 0x40 : 0x20)) != 0 ? yellow : gray, "MASK");
+            ImGui::SameLine(0.0f, space);
+            ImGui::TextColored((state->adlib_status & (i == 0 ? 0x40 : 0x20)) != 0 ? yellow : gray, "FLAG");
+            ImGui::SameLine(0.0f, space);
+            ImGui::TextColored((state->timer_control & (i == 0 ? 0x04 : 0x08)) != 0 ? green : gray, "IRQ");
+            ImGui::SameLine(0.0f, space);
+            ImGui::TextColored(state->timer_irq[i] ? yellow : gray, "PEND");
+
+            if (i == 0)
+            {
+                draw_grid_label("45h");
+                ImGui::TextColored(white, "$%02X", state->timer_control);
+            }
+            else
+            {
+                draw_grid_label("ADLIB");
+                ImGui::TextColored(white, "S$%02X C$%02X ST$%02X", state->adlib_select, state->adlib_control,
+                    state->adlib_status);
+            }
+        }
+
+        ImGui::TableNextRow();
+        draw_grid_label("MIDI");
+        ImGui::TextColored(white, "$%02X", state->midi_control); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->midi_control & 0x03) == 0x03 ? yellow : gray, "RESET"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->midi_control & 0x60) == 0x20 ? green : gray, "TXIRQ"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->midi_control & 0x80) != 0 ? green : gray, "RXIRQ");
+        draw_grid_label("FIFO");
+        ImGui::TextColored(state->midi_tx_clocks != 0 ? yellow : gray, "TX"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(state->midi_rx_full ? yellow : gray, "RX $%02X", state->midi_rx);
+
+        ImGui::EndTable();
+    }
+}
+
+static void draw_gus_flag(const char* label, bool on)
+{
+    ImGui::TextColored(on ? green : gray, "%s", label);
+    ImGui::SameLine(0.0f, ImGui::CalcTextSize(" ").x);
+}
+
+static void draw_gus_irq_flag(bool enabled, bool pending)
+{
+    ImGui::TextColored(pending ? yellow : (enabled ? green : gray), "IR");
+    ImGui::SameLine(0.0f, ImGui::CalcTextSize(" ").x);
+}
+
+static void draw_gus_voices(UltraSound* gus)
+{
+    UltraSound::UltraSound_State* state = gus->GetState();
+    float space = ImGui::CalcTextSize(" ").x;
+    float character = ImGui::CalcTextSize("0").x;
+    int active = gus->GetActiveVoices();
+    double frame_rate = (double)gus->GetFrameRate();
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX | ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_ScrollX;
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "VOICES");
+    ImGui::Separator();
+
+    if (!ImGui::BeginTable("##gus_voices", 10, flags))
+        return;
+
+    ImGui::TableSetupColumn("V", ImGuiTableColumnFlags_WidthFixed, character * 3);
+    ImGui::TableSetupColumn("ADDRESS", ImGuiTableColumnFlags_WidthFixed, character * 10);
+    ImGui::TableSetupColumn("START", ImGuiTableColumnFlags_WidthFixed, character * 10);
+    ImGui::TableSetupColumn("END", ImGuiTableColumnFlags_WidthFixed, character * 10);
+    ImGui::TableSetupColumn("RATE", ImGuiTableColumnFlags_WidthFixed, character * 10);
+    ImGui::TableSetupColumn("VOLUME", ImGuiTableColumnFlags_WidthFixed, character * 9);
+    ImGui::TableSetupColumn("PAN", ImGuiTableColumnFlags_WidthFixed, character * 3);
+    ImGui::TableSetupColumn("WAVE", ImGuiTableColumnFlags_WidthFixed, character * 16);
+    ImGui::TableSetupColumn("RAMP", ImGuiTableColumnFlags_WidthFixed, character * 15);
+    ImGui::TableSetupColumn("SCOPE", ImGuiTableColumnFlags_WidthFixed, 96.0f);
+    ImGui::TableHeadersRow();
+
+    for (int i = 0; i < ULTRASOUND_VOICES; i++)
+    {
+        UltraSound::UltraSound_Voice& voice = state->voices[i];
+        bool in_use = i < active;
+        bool wave_run = (voice.control & 0x03) == 0;
+        bool ramp_run = (voice.volume_control & 0x03) == 0;
+        int level = voice.volume >> 4;
+        float db = (float)(level - 4095) * k_gus_db_per_step;
+        ImVec4 text = in_use ? white : gray;
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextColored(in_use ? violet : gray, "%02d", i);
+        ImGui::TableNextColumn();
+        ImGui::TextColored(text, "%05X.%03X", (voice.address >> 9) & 0xFFFFF, voice.address & 0x1FF);
+        ImGui::TableNextColumn();
+        ImGui::TextColored(text, "%05X.%03X", (voice.start >> 9) & 0xFFFFF, voice.start & 0x1FF);
+        ImGui::TableNextColumn();
+        ImGui::TextColored(text, "%05X.%03X", (voice.end >> 9) & 0xFFFFF, voice.end & 0x1FF);
+        ImGui::TableNextColumn();
+        ImGui::TextColored(wave_run && in_use ? orange : gray, "%.1f Hz",
+            (double)voice.frequency / 1024.0 * frame_rate);
+        ImGui::TableNextColumn();
+
+        if (level == 0)
+            ImGui::TextColored(gray, "-inf dB");
+        else
+            ImGui::TextColored(text, "%.1f dB", db);
+
+        ImGui::TableNextColumn();
+        ImGui::TextColored(text, "%X", voice.pan & 0x0F);
+        ImGui::TableNextColumn();
+        u8 control = voice.control;
+        u8 ramp = voice.volume_control;
+        ImGui::TextColored(wave_run && in_use ? green : gray, "%s", wave_run ? "RUN" : "STOP");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((control & 0x04) != 0 ? blue : gray, "%s", (control & 0x04) != 0 ? "16" : "8");
+        ImGui::SameLine(0.0f, space);
+        draw_gus_flag("LP", (control & 0x08) != 0);
+        draw_gus_flag("BI", (control & 0x10) != 0);
+        draw_gus_irq_flag((control & 0x20) != 0, (control & 0x80) != 0);
+        ImGui::TextColored((control & 0x40) != 0 ? yellow : gray, "%s", (control & 0x40) != 0 ? "<" : ">");
+        ImGui::TableNextColumn();
+        ImGui::TextColored(ramp_run && in_use ? green : gray, "%s", ramp_run ? ((ramp & 0x40) != 0 ? "DN" : "UP") : "--");
+        ImGui::SameLine(0.0f, space);
+        draw_gus_flag("LP", (ramp & 0x08) != 0);
+        draw_gus_flag("BI", (ramp & 0x10) != 0);
+        draw_gus_irq_flag((ramp & 0x20) != 0, (ramp & 0x80) != 0);
+        ImGui::TextColored(text, "$%02X", voice.ramp_rate);
+        ImGui::TableNextColumn();
+
+        char id[16];
+        snprintf(id, sizeof(id), "##gus_scope%d", i);
+        ImGui::PushStyleColor(ImGuiCol_PlotLines, in_use ? accent : gray);
+        ImGui::PlotLines(id, gus_history[i], k_gus_history, gus_history_position, NULL, -1.0f, 1.0f,
+            ImVec2(96.0f, character * 1.4f));
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::EndTable();
+}
+
 void gui_debug_window_sound_control(void)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
@@ -501,7 +780,7 @@ void gui_debug_window_sound_control(void)
 
     ImGui::PopFont();
 
-    static const char* sources[Audio::AUDIO_SOURCE_COUNT] = { "FM", "PCM", "CD-DA", "Buzzer" };
+    static const char* sources[Audio::AUDIO_SOURCE_COUNT] = { "FM", "PCM", "CD-DA", "Buzzer", "GUS" };
 
     if (ImGui::BeginTable("##debugger_mutes", 2, flags))
     {

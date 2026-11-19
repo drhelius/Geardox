@@ -656,6 +656,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "enabled"
     },
     {
+        "geardox_gus",
+        "Gravis UltraSound (restart)",
+        NULL,
+        "A Gravis UltraSound at 240 next to the sound card, for trackers, demos and games that support it. Games that play their music through it need the patches: put your own Gravis 4.11 install disks, or a folder with the software installed, in <system>/geardox/ultrasnd.",
+        NULL,
+        "system",
+        {
+            { "disabled", "Off" },
+            { "enabled",  "On" },
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+    {
         "geardox_descriptor",
         "Game Descriptors (restart)",
         NULL,
