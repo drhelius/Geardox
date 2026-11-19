@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Raptor - Call Of The Shadows
+folder = C:\RAPTOR
+
+[run]
+exe = RAP.EXE
+setup = SETUP.EXE

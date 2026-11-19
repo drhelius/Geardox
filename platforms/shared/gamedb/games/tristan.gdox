@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Tristan
+folder = C:\TRISTAN
+
+[run]
+exe = TRISTAN.EXE

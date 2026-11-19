@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Duke Nukem 3
+folder = C:\DUKE
+
+[run]
+exe = DN3.EXE

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Boppin'
+folder = C:\BOPPIN
+
+[run]
+exe = BOPPIN.EXE
+setup = SETUP.EXE

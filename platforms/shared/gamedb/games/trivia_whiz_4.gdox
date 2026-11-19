@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Trivia Whiz 4
+folder = C:\TRIVIA
+
+[run]
+exe = TW4.EXE

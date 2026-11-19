@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Caves of Thor
+folder = C:\THOR
+
+[run]
+exe = CAVES.EXE
+
+[machine]
+model = 386dx_33

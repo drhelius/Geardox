@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Bio Menace 3 - Master Cain
+folder = C:\BMENACE
+
+[run]
+exe = BMENACE3.EXE

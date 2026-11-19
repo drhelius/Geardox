@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Dark Ages 3
+folder = C:\DARK
+
+[run]
+exe = DA3.EXE
+
+[machine]
+model = 386dx_33

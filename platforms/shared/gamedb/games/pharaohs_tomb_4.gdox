@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Pharaoh's Tomb 4
+folder = C:\PTOMB
+
+[run]
+exe = PTOMB4.EXE
+
+[machine]
+turbo = off

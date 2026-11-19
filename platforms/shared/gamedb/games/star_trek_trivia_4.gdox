@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Trek Trivia 4
+folder = C:\TREK
+
+[run]
+exe = Trek4.exe

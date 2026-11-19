@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Adventure Fun-Pack
+folder = C:\FUNPACK
+
+[run]
+exe = ADV-MENU.COM

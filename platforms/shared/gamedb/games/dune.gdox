@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Dune
+folder = C:\DUNE
+
+[run]
+exe = DUNEPRG.EXE
+args = SPA VGA SDB2225 EMS 386
+setup = INSTALL.EXE
+
+[dos]
+memory = ems

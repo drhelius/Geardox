@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Halloween Harry
+folder = C:\HARRY
+
+[run]
+exe = HARRY.EXE

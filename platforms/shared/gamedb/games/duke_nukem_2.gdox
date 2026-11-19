@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Duke Nukem 2
+folder = C:\DUKE
+
+[run]
+exe = DN2.EXE

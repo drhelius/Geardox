@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Day of the Tentacle
+folder = C:\DOTT
+
+[run]
+exe = DOTT.EXE

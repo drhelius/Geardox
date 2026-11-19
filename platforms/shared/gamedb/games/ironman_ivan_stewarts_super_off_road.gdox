@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Ironman Ivan Stewart's Super Off Road
+folder = C:\OFFROAD
+
+[run]
+exe = GAME.EXE
+args = /vga
+setup = SETUP.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Bio Menace 1 - Dr. Mangle's Lab
+folder = C:\BMENACE
+
+[run]
+exe = BMENACE1.EXE

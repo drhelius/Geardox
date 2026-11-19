@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Word Rescue Plus
+folder = C:\WORD
+
+[run]
+exe = WRPLUS.EXE

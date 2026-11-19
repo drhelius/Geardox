@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Cosmo's Cosmic Adventure 2
+folder = C:\COSMO
+
+[run]
+exe = COSMO2.EXE

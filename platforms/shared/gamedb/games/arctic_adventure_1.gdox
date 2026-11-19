@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Arctic Adventure 1
+folder = C:\ARCTIC
+
+[run]
+exe = AA1.EXE
+
+[machine]
+model = 386dx_33

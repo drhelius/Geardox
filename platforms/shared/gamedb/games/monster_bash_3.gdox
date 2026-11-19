@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Monster Bash 3
+folder = C:\BASH
+
+[run]
+exe = BASH3.EXE

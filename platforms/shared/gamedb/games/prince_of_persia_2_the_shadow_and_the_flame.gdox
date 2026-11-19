@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Prince of Persia 2: The Shadow and the Flame
+folder = C:\PRINCE
+
+[run]
+exe = PRINCE.EXE
+setup = SETUP.EXE

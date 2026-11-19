@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Pharaoh's Tomb 2
+folder = C:\PTOMB
+
+[run]
+exe = PTOMB2.EXE
+
+[machine]
+turbo = off

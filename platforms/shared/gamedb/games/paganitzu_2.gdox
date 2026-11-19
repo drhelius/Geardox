@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Paganitzu 2
+folder = C:\PAGA
+
+[run]
+exe = PAGA2.EXE

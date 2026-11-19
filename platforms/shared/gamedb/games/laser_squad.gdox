@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Laser Squad
+folder = C:\LASER
+
+[run]
+exe = LASER.EXE

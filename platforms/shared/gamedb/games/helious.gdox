@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Helious
+folder = C:\HELIUS
+
+[run]
+exe = HELIUS.EXE

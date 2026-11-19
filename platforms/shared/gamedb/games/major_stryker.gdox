@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Major Stryker
+folder = C:\STRYKER
+
+[run]
+exe = STRYKER.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Cosmo's Cosmic Adventure 3
+folder = C:\COSMO
+
+[run]
+exe = COSMO3.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Monster Bash 2
+folder = C:\BASH
+
+[run]
+exe = BASH2.EXE

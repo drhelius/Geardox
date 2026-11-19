@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Ishar 3: The Seven Gates of Infinity
+folder = C:\ISHAR
+
+[run]
+exe = START.EXE

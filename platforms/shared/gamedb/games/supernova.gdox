@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = SuperNova
+folder = C:\NOVA
+
+[run]
+exe = NOVA.COM

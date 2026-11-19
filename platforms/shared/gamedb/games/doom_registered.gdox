@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Doom
+folder = C:\DOOM
+
+[run]
+exe = DOOM.EXE
+setup = SETUP.EXE

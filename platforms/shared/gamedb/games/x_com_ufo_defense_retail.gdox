@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = X-COM: UFO Defense
+folder = C:\UFO
+
+[run]
+exe = UFO.BAT
+setup = SETUP.EXE

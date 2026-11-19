@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Math Rescue 3
+folder = C:\MATH
+
+[run]
+exe = MR3.EXE

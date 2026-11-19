@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Monuments Of Mars 1
+folder = C:\MARS
+
+[run]
+exe = MARS1.EXE
+
+[machine]
+turbo = off

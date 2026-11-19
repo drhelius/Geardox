@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Quake (Shareware)
+folder = C:\QUAKE
+
+[run]
+exe = QUAKE.EXE
+
+[machine]
+model = pentium_133
+ram_mb = 16
+
+[input]
+joystick = none

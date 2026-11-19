@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = XenoPhage - Alien Bloodsport
+folder = C:\XENO
+
+[run]
+exe = XPR.BAT
+setup = SETUP.BAT

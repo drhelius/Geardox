@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Beyond The Titanic
+folder = C:\BEYOND
+
+[run]
+exe = BEYOND.COM

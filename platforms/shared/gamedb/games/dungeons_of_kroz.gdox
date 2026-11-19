@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Dungeons Of Kroz
+folder = C:\DUNGEONS
+
+[run]
+exe = DUNGEONS.COM

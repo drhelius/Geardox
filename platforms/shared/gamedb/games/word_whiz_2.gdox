@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Word Whiz 2
+folder = C:\WORD
+
+[run]
+exe = WW2.EXE

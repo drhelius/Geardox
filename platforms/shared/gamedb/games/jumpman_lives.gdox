@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Jumpman Lives
+folder = C:\JUMPMAN
+
+[run]
+exe = JL.EXE

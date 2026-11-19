@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Death Rally
+folder = C:\RALLY
+
+[run]
+exe = RALLY.EXE
+setup = SETUP.EXE

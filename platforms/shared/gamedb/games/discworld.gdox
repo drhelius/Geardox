@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Discworld
+folder = C:\DISCWLD
+
+[run]
+exe = DISC.BAT
+setup = CONFIG.BAT

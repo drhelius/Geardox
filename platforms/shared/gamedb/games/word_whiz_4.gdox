@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Word Whiz 4
+folder = C:\WORD
+
+[run]
+exe = WW4.EXE

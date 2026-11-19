@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Grand Theft Auto
+folder = C:\
+
+[run]
+exe = gtados\GTA8.EXE
+setup = gtados\UVCONFIG.EXE

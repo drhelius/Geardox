@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Realms Of Chaos
+folder = C:\ROC
+
+[run]
+exe = ROC.EXE
+setup = SETUP.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Civilization
+folder = C:\CIV
+
+[run]
+exe = CIV.EXE

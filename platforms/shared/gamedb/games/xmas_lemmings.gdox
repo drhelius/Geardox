@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Xmas Lemmings
+folder = C:\XMAS
+
+[run]
+exe = LEMMINGS.EXE

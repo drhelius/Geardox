@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Alien Breed 2
+folder = C:\ALIEN2
+
+[run]
+exe = TA.EXE
+setup = INSTALL.EXE

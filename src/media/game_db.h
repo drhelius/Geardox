@@ -57,6 +57,16 @@ struct GDOX_DB_Key
 
 const GDOX_DB_Entry k_game_database_entries[] =
 {
+    { "adventure_fun_pack", "Adventure Fun-Pack",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Adventure Fun-Pack\n"
+        "folder = C:\\FUNPACK\n"
+        "\n"
+        "[run]\n"
+        "exe = ADV-MENU.COM\n" },
     { "afterlife", "Afterlife",
         "[geardox]\n"
         "version = 1\n"
@@ -97,6 +107,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n" },
+    { "alien_breed_2", "Alien Breed 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Alien Breed 2\n"
+        "folder = C:\\ALIEN2\n"
+        "\n"
+        "[run]\n"
+        "exe = TA.EXE\n"
+        "setup = INSTALL.EXE\n" },
     { "alien_breed_tower_assault", "Alien Breed: Tower Assault",
         "[geardox]\n"
         "version = 1\n"
@@ -112,6 +133,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386sx_20\n"
         "ram_mb = 16\n" },
+    { "alien_breed_tower_assault_dos", "Alien Breed: Tower Assault",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Alien Breed: Tower Assault\n"
+        "folder = C:\\ALIENBRT\n"
+        "\n"
+        "[run]\n"
+        "exe = TA.EXE\n"
+        "setup = INSTALL.EXE\n" },
     { "alone_in_the_dark", "Alone in the Dark",
         "[geardox]\n"
         "version = 1\n"
@@ -202,6 +234,58 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = AD2.EXE\n"
         "setup = SETSOUND.BAT\n" },
+    { "arctic_adventure_1", "Arctic Adventure 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Arctic Adventure 1\n"
+        "folder = C:\\ARCTIC\n"
+        "\n"
+        "[run]\n"
+        "exe = AA1.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
+    { "arctic_adventure_2", "Arctic Adventure 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Arctic Adventure 2\n"
+        "folder = C:\\ARCTIC\n"
+        "\n"
+        "[run]\n"
+        "exe = AA2.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
+    { "arctic_adventure_3", "Arctic Adventure 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Arctic Adventure 3\n"
+        "folder = C:\\ARCTIC\n"
+        "\n"
+        "[run]\n"
+        "exe = AA3.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
+    { "arctic_adventure_4", "Arctic Adventure 4",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Arctic Adventure 4\n"
+        "folder = C:\\ARCTIC\n"
+        "\n"
+        "[run]\n"
+        "exe = AA4.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
     { "battlespire", "An Elder Scrolls Legend: Battlespire",
         "[geardox]\n"
         "version = 1\n"
@@ -220,6 +304,60 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[env]\n"
         "CAUSEWAY = MAXMEM:70;PRE:40;NAME:spire.swp\n" },
+    { "beyond_the_titanic", "Beyond The Titanic",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Beyond The Titanic\n"
+        "folder = C:\\BEYOND\n"
+        "\n"
+        "[run]\n"
+        "exe = BEYOND.COM\n" },
+    { "bio_menace_1_dr_mangles_lab", "Bio Menace 1 - Dr. Mangle's Lab",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Bio Menace 1 - Dr. Mangle's Lab\n"
+        "folder = C:\\BMENACE\n"
+        "\n"
+        "[run]\n"
+        "exe = BMENACE1.EXE\n" },
+    { "bio_menace_2_the_hidden_lab", "Bio Menace 2 - The Hidden Lab",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Bio Menace 2 - The Hidden Lab\n"
+        "folder = C:\\BMENACE\n"
+        "\n"
+        "[run]\n"
+        "exe = BMENACE2.EXE\n" },
+    { "bio_menace_3_master_cain", "Bio Menace 3 - Master Cain",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Bio Menace 3 - Master Cain\n"
+        "folder = C:\\BMENACE\n"
+        "\n"
+        "[run]\n"
+        "exe = BMENACE3.EXE\n" },
+    { "blackthorne", "Blackthorne",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Blackthorne\n"
+        "folder = C:\\BTHORNE\n"
+        "\n"
+        "[run]\n"
+        "exe = BTHORNE.EXE\n"
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[dos]\n"
+        "ems_kb = 2048\n" },
     { "blake_stone_aliens_of_gold", "Blake Stone: Aliens of Gold",
         "[geardox]\n"
         "version = 1\n"
@@ -256,6 +394,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = pentium_133\n"
         "ram_mb = 16\n" },
+    { "boppin", "Boppin'",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Boppin'\n"
+        "folder = C:\\BOPPIN\n"
+        "\n"
+        "[run]\n"
+        "exe = BOPPIN.EXE\n"
+        "setup = SETUP.EXE\n" },
     { "call_of_cthulhu_prisoner_of_ice", "Call of Cthulhu: Prisoner of Ice",
         "[geardox]\n"
         "version = 1\n"
@@ -332,6 +481,39 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = VOODO2C.EXE\n"
         "args = -novoodoo\n"
         "setup = SNDSETUP.EXE\n" },
+    { "castle_of_kroz", "Castle Of Kroz",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Castle Of Kroz\n"
+        "folder = C:\\CASTLE\n"
+        "\n"
+        "[run]\n"
+        "exe = CASTLE.EXE\n" },
+    { "caverns_of_kroz", "Caverns Of Kroz",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Caverns Of Kroz\n"
+        "folder = C:\\CAVERNS\n"
+        "\n"
+        "[run]\n"
+        "exe = CAVERNS.COM\n" },
+    { "caves_of_thor", "Caves of Thor",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Caves of Thor\n"
+        "folder = C:\\THOR\n"
+        "\n"
+        "[run]\n"
+        "exe = CAVES.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
     { "champions_of_krynn", "Champions of Krynn",
         "[geardox]\n"
         "version = 1\n"
@@ -345,6 +527,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "video = ega\n" },
+    { "civilization", "Civilization",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Civilization\n"
+        "folder = C:\\CIV\n"
+        "\n"
+        "[run]\n"
+        "exe = CIV.EXE\n" },
     { "constructor", "Constructor",
         "[geardox]\n"
         "version = 1\n"
@@ -360,6 +552,36 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = pentium_75\n"
         "ram_mb = 32\n" },
+    { "cosmos_cosmic_adventure_1", "Cosmo's Cosmic Adventure 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Cosmo's Cosmic Adventure 1\n"
+        "folder = C:\\COSMO\n"
+        "\n"
+        "[run]\n"
+        "exe = COSMO1.EXE\n" },
+    { "cosmos_cosmic_adventure_2", "Cosmo's Cosmic Adventure 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Cosmo's Cosmic Adventure 2\n"
+        "folder = C:\\COSMO\n"
+        "\n"
+        "[run]\n"
+        "exe = COSMO2.EXE\n" },
+    { "cosmos_cosmic_adventure_3", "Cosmo's Cosmic Adventure 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Cosmo's Cosmic Adventure 3\n"
+        "folder = C:\\COSMO\n"
+        "\n"
+        "[run]\n"
+        "exe = COSMO3.EXE\n" },
     { "crusader_no_regret", "Crusader: No Regret",
         "[geardox]\n"
         "version = 1\n"
@@ -388,6 +610,36 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = CRUSADER.EXE\n"
         "setup = INSTALL.EXE\n" },
+    { "crystal_caves_1", "Crystal Caves 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Crystal Caves 1\n"
+        "folder = C:\\CRYSTAL\n"
+        "\n"
+        "[run]\n"
+        "exe = CC1.EXE\n" },
+    { "crystal_caves_2", "Crystal Caves 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Crystal Caves 2\n"
+        "folder = C:\\CRYSTAL\n"
+        "\n"
+        "[run]\n"
+        "exe = CC2.EXE\n" },
+    { "crystal_caves_3", "Crystal Caves 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Crystal Caves 3\n"
+        "folder = C:\\CRYSTAL\n"
+        "\n"
+        "[run]\n"
+        "exe = CC3.EXE\n" },
     { "crystals_of_arborea", "Crystals of Arborea",
         "[geardox]\n"
         "version = 1\n"
@@ -398,6 +650,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = START.EXE\n" },
+    { "curse_of_enchantia", "Curse of Enchantia",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Curse of Enchantia\n"
+        "folder = C:\\CURSE\n"
+        "\n"
+        "[run]\n"
+        "exe = CURSE.EXE\n"
+        "setup = SETUP.EXE\n" },
     { "curse_of_the_azure_bonds", "Curse of the Azure Bonds",
         "[geardox]\n"
         "version = 1\n"
@@ -411,6 +674,45 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "video = ega\n" },
+    { "dark_ages_1", "Dark Ages 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Dark Ages 1\n"
+        "folder = C:\\DARK\n"
+        "\n"
+        "[run]\n"
+        "exe = DA1.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
+    { "dark_ages_2", "Dark Ages 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Dark Ages 2\n"
+        "folder = C:\\DARK\n"
+        "\n"
+        "[run]\n"
+        "exe = DA2.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
+    { "dark_ages_3", "Dark Ages 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Dark Ages 3\n"
+        "folder = C:\\DARK\n"
+        "\n"
+        "[run]\n"
+        "exe = DA3.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
     { "dark_forces", "Star Wars: Dark Forces",
         "[geardox]\n"
         "version = 1\n"
@@ -474,6 +776,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[dos]\n"
         "ems_kb = 176\n" },
+    { "day_of_the_tentacle", "Day of the Tentacle",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Day of the Tentacle\n"
+        "folder = C:\\DOTT\n"
+        "\n"
+        "[run]\n"
+        "exe = DOTT.EXE\n" },
     { "death_knights_of_krynn", "Death Knights of Krynn",
         "[geardox]\n"
         "version = 1\n"
@@ -484,6 +796,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = START.EXE\n" },
+    { "death_rally", "Death Rally",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Death Rally\n"
+        "folder = C:\\RALLY\n"
+        "\n"
+        "[run]\n"
+        "exe = RALLY.EXE\n"
+        "setup = SETUP.EXE\n" },
     { "demons_winter", "Demon's Winter",
         "[geardox]\n"
         "version = 1\n"
@@ -522,6 +845,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_75\n" },
+    { "discworld", "Discworld",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Discworld\n"
+        "folder = C:\\DISCWLD\n"
+        "\n"
+        "[run]\n"
+        "exe = DISC.BAT\n"
+        "setup = CONFIG.BAT\n" },
     { "doom", "The Ultimate DOOM",
         "[geardox]\n"
         "version = 1\n"
@@ -566,6 +900,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
+        "setup = SETUP.EXE\n" },
+    { "doom_registered", "Doom",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Doom\n"
+        "folder = C:\\DOOM\n"
+        "\n"
+        "[run]\n"
+        "exe = DOOM.EXE\n"
         "setup = SETUP.EXE\n" },
     { "dragon_lore_the_legend_begins", "Dragon Lore: The Legend Begins",
         "[geardox]\n"
@@ -632,6 +977,36 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[autoexec]\n"
         "C:\\PAUSE6K.COM\n"
         "C:\\ENTER4.COM\n" },
+    { "duke_nukem_1", "Duke Nukem 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Duke Nukem 1\n"
+        "folder = C:\\DUKE\n"
+        "\n"
+        "[run]\n"
+        "exe = DN1.EXE\n" },
+    { "duke_nukem_2", "Duke Nukem 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Duke Nukem 2\n"
+        "folder = C:\\DUKE\n"
+        "\n"
+        "[run]\n"
+        "exe = DN2.EXE\n" },
+    { "duke_nukem_3", "Duke Nukem 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Duke Nukem 3\n"
+        "folder = C:\\DUKE\n"
+        "\n"
+        "[run]\n"
+        "exe = DN3.EXE\n" },
     { "duke_nukem_3d", "Duke Nukem 3D",
         "[geardox]\n"
         "version = 1\n"
@@ -660,6 +1035,31 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_133\n" },
+    { "duke_nukem_ii", "Duke Nukem II",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Duke Nukem II\n"
+        "folder = C:\\NUKEM2\n"
+        "\n"
+        "[run]\n"
+        "exe = NUKEM2.EXE\n" },
+    { "dune", "Dune",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Dune\n"
+        "folder = C:\\DUNE\n"
+        "\n"
+        "[run]\n"
+        "exe = DUNEPRG.EXE\n"
+        "args = SPA VGA SDB2225 EMS 386\n"
+        "setup = INSTALL.EXE\n"
+        "\n"
+        "[dos]\n"
+        "memory = ems\n" },
     { "dungeon_hack", "Dungeon Hack",
         "[geardox]\n"
         "version = 1\n"
@@ -719,6 +1119,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "IF NOT EXIST KEEPER.CFG ECHO INSTALL_TYPE=MAX>>KEEPER.TMP\n"
         "IF NOT EXIST KEEPER.CFG ECHO LANGUAGE=ENG>>KEEPER.TMP\n"
         "IF EXIST KEEPER.TMP REN KEEPER.TMP KEEPER.CFG\n" },
+    { "dungeons_of_kroz", "Dungeons Of Kroz",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Dungeons Of Kroz\n"
+        "folder = C:\\DUNGEONS\n"
+        "\n"
+        "[run]\n"
+        "exe = DUNGEONS.COM\n" },
     { "echelon", "ECHELON",
         "[geardox]\n"
         "version = 1\n"
@@ -878,6 +1288,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DOOM2.EXE\n"
         "setup = SETUP.EXE\n" },
+    { "flashback", "Flashback",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Flashback\n"
+        "folder = C:\\FLASHBAC\n"
+        "\n"
+        "[run]\n"
+        "exe = PLAY.BAT\n"
+        "setup = SETUP.EXE\n" },
     { "forgotten_realms_unlimited_adventures", "Forgotten Realms: Unlimited Adventures",
         "[geardox]\n"
         "version = 1\n"
@@ -913,6 +1334,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = GO.BAT\n" },
+    { "grand_theft_auto", "Grand Theft Auto",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Grand Theft Auto\n"
+        "folder = C:\\\n"
+        "\n"
+        "[run]\n"
+        "exe = gtados\\GTA8.EXE\n"
+        "setup = gtados\\UVCONFIG.EXE\n" },
     { "gunship", "Gunship",
         "[geardox]\n"
         "version = 1\n"
@@ -941,6 +1373,36 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = MPS\\GS2000CD\\GS2000.COM\n"
         "setup = MPS\\GS2000CD\\SETUP.EXE\n" },
+    { "halloween_harry", "Halloween Harry",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Halloween Harry\n"
+        "folder = C:\\HARRY\n"
+        "\n"
+        "[run]\n"
+        "exe = HARRY.EXE\n" },
+    { "helious", "Helious",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Helious\n"
+        "folder = C:\\HELIUS\n"
+        "\n"
+        "[run]\n"
+        "exe = HELIUS.EXE\n" },
+    { "helious_2", "Helious 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Helious 2\n"
+        "folder = C:\\HELIUS\n"
+        "\n"
+        "[run]\n"
+        "exe = HELIUS2.EXE\n" },
     { "heretic_shadow_of_the_serpent_riders", "Heretic: Shadow of the Serpent Riders",
         "[geardox]\n"
         "version = 1\n"
@@ -1037,6 +1499,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386sx_20\n" },
+    { "holiday_lemmings", "Holiday Lemmings",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Holiday Lemmings\n"
+        "folder = C:\\HOLIDAY\n"
+        "\n"
+        "[run]\n"
+        "exe = VGALEMMI.EXE\n" },
     { "imperium_galactica", "Imperium Galactica",
         "[geardox]\n"
         "version = 1\n"
@@ -1071,6 +1543,28 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = INDY256.EXE\n" },
+    { "indiana_jones_and_the_last_crusade_dos", "Indiana Jones and the Last Crusade",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Indiana Jones and the Last Crusade\n"
+        "folder = C:\\\n"
+        "\n"
+        "[run]\n"
+        "exe = INDY3\\INDY3.EXE\n" },
+    { "ironman_ivan_stewarts_super_off_road", "Ironman Ivan Stewart's Super Off Road",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Ironman Ivan Stewart's Super Off Road\n"
+        "folder = C:\\OFFROAD\n"
+        "\n"
+        "[run]\n"
+        "exe = GAME.EXE\n"
+        "args = /vga\n"
+        "setup = SETUP.EXE\n" },
     { "ishar_2_messengers_of_doom", "Ishar 2 - Messengers of Doom",
         "[geardox]\n"
         "version = 1\n"
@@ -1098,6 +1592,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = START.EXE\n"
         "args = START.STP\n" },
+    { "ishar_3_the_seven_gates_of_infinity", "Ishar 3: The Seven Gates of Infinity",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Ishar 3: The Seven Gates of Infinity\n"
+        "folder = C:\\ISHAR\n"
+        "\n"
+        "[run]\n"
+        "exe = START.EXE\n" },
     { "ishar_legend_of_the_fortress", "Ishar - Legend of the Fortress",
         "[geardox]\n"
         "version = 1\n"
@@ -1160,6 +1664,26 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = JAZZ.EXE\n"
         "setup = SETUP.EXE\n" },
+    { "jumpman_lives", "Jumpman Lives",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Jumpman Lives\n"
+        "folder = C:\\JUMPMAN\n"
+        "\n"
+        "[run]\n"
+        "exe = JL.EXE\n" },
+    { "kingdom_of_kroz", "Kingdom Of Kroz",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Kingdom Of Kroz\n"
+        "folder = C:\\KINGDOM\n"
+        "\n"
+        "[run]\n"
+        "exe = KINGDOM.COM\n" },
     { "kings_quest", "King's Quest",
         "[geardox]\n"
         "version = 1\n"
@@ -1246,6 +1770,27 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
+    { "laser_squad", "Laser Squad",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Laser Squad\n"
+        "folder = C:\\LASER\n"
+        "\n"
+        "[run]\n"
+        "exe = LASER.EXE\n" },
+    { "lemmings", "Lemmings",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Lemmings\n"
+        "folder = C:\\LEMMINGS\n"
+        "\n"
+        "[run]\n"
+        "exe = VGALEMMI.EXE\n"
+        "args = -v\n" },
     { "links_386_pro", "Links 386 Pro",
         "[geardox]\n"
         "version = 1\n"
@@ -1267,6 +1812,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = LINKS.BAT\n" },
+    { "major_stryker", "Major Stryker",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Major Stryker\n"
+        "folder = C:\\STRYKER\n"
+        "\n"
+        "[run]\n"
+        "exe = STRYKER.EXE\n" },
     { "maniac_mansion", "Maniac Mansion",
         "[geardox]\n"
         "version = 1\n"
@@ -1318,6 +1873,36 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "ram_mb = 16\n" },
+    { "math_rescue_1", "Math Rescue 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Math Rescue 1\n"
+        "folder = C:\\MATH\n"
+        "\n"
+        "[run]\n"
+        "exe = MR1.EXE\n" },
+    { "math_rescue_2", "Math Rescue 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Math Rescue 2\n"
+        "folder = C:\\MATH\n"
+        "\n"
+        "[run]\n"
+        "exe = MR2.EXE\n" },
+    { "math_rescue_3", "Math Rescue 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Math Rescue 3\n"
+        "folder = C:\\MATH\n"
+        "\n"
+        "[run]\n"
+        "exe = MR3.EXE\n" },
     { "menzoberranzan", "Menzoberranzan",
         "[geardox]\n"
         "version = 1\n"
@@ -1414,6 +1999,98 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = MISSION.EXE\n"
         "setup = SETSOUND.EXE\n" },
+    { "monkey_island_2_lechuck_revenge", "Monkey Island 2: LeChuck Revenge",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monkey Island 2: LeChuck Revenge\n"
+        "folder = C:\\MONKEY2\n"
+        "\n"
+        "[run]\n"
+        "exe = MONKEY2.EXE\n" },
+    { "monster_bash_1", "Monster Bash 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monster Bash 1\n"
+        "folder = C:\\BASH\n"
+        "\n"
+        "[run]\n"
+        "exe = BASH1.EXE\n" },
+    { "monster_bash_2", "Monster Bash 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monster Bash 2\n"
+        "folder = C:\\BASH\n"
+        "\n"
+        "[run]\n"
+        "exe = BASH2.EXE\n" },
+    { "monster_bash_3", "Monster Bash 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monster Bash 3\n"
+        "folder = C:\\BASH\n"
+        "\n"
+        "[run]\n"
+        "exe = BASH3.EXE\n" },
+    { "monuments_of_mars_1", "Monuments Of Mars 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monuments Of Mars 1\n"
+        "folder = C:\\MARS\n"
+        "\n"
+        "[run]\n"
+        "exe = MARS1.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
+    { "monuments_of_mars_2", "Monuments Of Mars 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monuments Of Mars 2\n"
+        "folder = C:\\MARS\n"
+        "\n"
+        "[run]\n"
+        "exe = MARS2.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
+    { "monuments_of_mars_3", "Monuments Of Mars 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monuments Of Mars 3\n"
+        "folder = C:\\MARS\n"
+        "\n"
+        "[run]\n"
+        "exe = MARS3.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
+    { "monuments_of_mars_4", "Monuments Of Mars 4",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Monuments Of Mars 4\n"
+        "folder = C:\\MARS\n"
+        "\n"
+        "[run]\n"
+        "exe = MARS4.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
     { "moonstone_a_hard_days_knight", "Moonstone: A Hard Days Knight",
         "[geardox]\n"
         "version = 1\n"
@@ -1427,6 +2104,108 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n" },
+    { "mystic_towers", "Mystic Towers",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Mystic Towers\n"
+        "folder = C:\\TOWERS\n"
+        "\n"
+        "[run]\n"
+        "exe = TOWERS.EXE\n" },
+    { "oh_no_more_lemmings", "Oh No! More Lemmings",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Oh No! More Lemmings\n"
+        "folder = C:\\OHNOMORE\n"
+        "\n"
+        "[run]\n"
+        "exe = VGALEMMI.EXE\n" },
+    { "paganitzu_1", "Paganitzu 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Paganitzu 1\n"
+        "folder = C:\\PAGA\n"
+        "\n"
+        "[run]\n"
+        "exe = PAGA1.EXE\n" },
+    { "paganitzu_2", "Paganitzu 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Paganitzu 2\n"
+        "folder = C:\\PAGA\n"
+        "\n"
+        "[run]\n"
+        "exe = PAGA2.EXE\n" },
+    { "paganitzu_3", "Paganitzu 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Paganitzu 3\n"
+        "folder = C:\\PAGA\n"
+        "\n"
+        "[run]\n"
+        "exe = PAGA3.EXE\n" },
+    { "pharaohs_tomb_1", "Pharaoh's Tomb 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Pharaoh's Tomb 1\n"
+        "folder = C:\\PTOMB\n"
+        "\n"
+        "[run]\n"
+        "exe = PTOMB1.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
+    { "pharaohs_tomb_2", "Pharaoh's Tomb 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Pharaoh's Tomb 2\n"
+        "folder = C:\\PTOMB\n"
+        "\n"
+        "[run]\n"
+        "exe = PTOMB2.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
+    { "pharaohs_tomb_3", "Pharaoh's Tomb 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Pharaoh's Tomb 3\n"
+        "folder = C:\\PTOMB\n"
+        "\n"
+        "[run]\n"
+        "exe = PTOMB3.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
+    { "pharaohs_tomb_4", "Pharaoh's Tomb 4",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Pharaoh's Tomb 4\n"
+        "folder = C:\\PTOMB\n"
+        "\n"
+        "[run]\n"
+        "exe = PTOMB4.EXE\n"
+        "\n"
+        "[machine]\n"
+        "turbo = off\n" },
     { "pirates", "Pirates!",
         "[geardox]\n"
         "version = 1\n"
@@ -1512,6 +2291,27 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
+    { "prince_of_persia", "Prince of Persia",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Prince of Persia\n"
+        "folder = C:\\PRINCE\n"
+        "\n"
+        "[run]\n"
+        "exe = PRINCE.EXE\n" },
+    { "prince_of_persia_2_the_shadow_and_the_flame", "Prince of Persia 2: The Shadow and the Flame",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Prince of Persia 2: The Shadow and the Flame\n"
+        "folder = C:\\PRINCE\n"
+        "\n"
+        "[run]\n"
+        "exe = PRINCE.EXE\n"
+        "setup = SETUP.EXE\n" },
     { "privateer_2_the_darkening", "Privateer 2: The Darkening",
         "[geardox]\n"
         "version = 1\n"
@@ -1526,6 +2326,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_90\n" },
+    { "puzzle_fun_pack", "Puzzle Fun-Pack",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Puzzle Fun-Pack\n"
+        "folder = C:\\PUZZLE\n"
+        "\n"
+        "[run]\n"
+        "exe = PUZ-MENU.COM\n" },
     { "quake", "Quake",
         "[geardox]\n"
         "version = 1\n"
@@ -1567,6 +2377,23 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_133\n" },
+    { "quake_shareware", "Quake (Shareware)",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Quake (Shareware)\n"
+        "folder = C:\\QUAKE\n"
+        "\n"
+        "[run]\n"
+        "exe = QUAKE.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = pentium_133\n"
+        "ram_mb = 16\n"
+        "\n"
+        "[input]\n"
+        "joystick = none\n" },
     { "quest_for_glory_1_ega", "Quest for Glory: Hero's Quest (EGA)",
         "[geardox]\n"
         "version = 1\n"
@@ -1657,6 +2484,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "model = 386sx_20\n"
         "turbo = off\n"
         "video = ega\n" },
+    { "raptor_call_of_the_shadows", "Raptor - Call Of The Shadows",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Raptor - Call Of The Shadows\n"
+        "folder = C:\\RAPTOR\n"
+        "\n"
+        "[run]\n"
+        "exe = RAP.EXE\n"
+        "setup = SETUP.EXE\n" },
     { "ravenloft_stone_prophet", "Ravenloft: Stone Prophet",
         "[geardox]\n"
         "version = 1\n"
@@ -1679,6 +2517,19 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = RLOFT\\R.EXE\n"
         "setup = RLOFT\\SINSTALL.EXE\n" },
+    { "realm_of_thor", "Realm of Thor",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Realm of Thor\n"
+        "folder = C:\\THOR\n"
+        "\n"
+        "[run]\n"
+        "exe = REALM.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
     { "realms_of_arkania_3_shadows_over_riva", "Realms of Arkania 3: Shadows over Riva",
         "[geardox]\n"
         "version = 1\n"
@@ -1730,6 +2581,30 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
+    { "realms_of_chaos", "Realms Of Chaos",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Realms Of Chaos\n"
+        "folder = C:\\ROC\n"
+        "\n"
+        "[run]\n"
+        "exe = ROC.EXE\n"
+        "setup = SETUP.EXE\n" },
+    { "revenge_of_thor", "Revenge of Thor",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Revenge of Thor\n"
+        "folder = C:\\THOR\n"
+        "\n"
+        "[run]\n"
+        "exe = REVENGE.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = 386dx_33\n" },
     { "rise_of_the_triad_dark_war", "Rise of the Triad: Dark War",
         "[geardox]\n"
         "version = 1\n"
@@ -1741,6 +2616,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = ROTT.EXE\n"
         "setup = SETUP.EXE\n" },
+    { "sam_and_max_hit_the_road", "Sam and Max Hit the Road",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Sam and Max Hit the Road\n"
+        "folder = C:\\SAMNMAX\n"
+        "\n"
+        "[run]\n"
+        "exe = SAMNMAX.EXE\n"
+        "setup = SETMUSE.EXE\n" },
     { "savage_empire", "Worlds of Ultima: The Savage Empire",
         "[geardox]\n"
         "version = 1\n"
@@ -1752,6 +2638,36 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = SAVAGE.EXE\n"
         "setup = INSTALL.EXE\n" },
+    { "secret_agent_1", "Secret Agent 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Secret Agent 1\n"
+        "folder = C:\\SAM\n"
+        "\n"
+        "[run]\n"
+        "exe = SAM1.EXE\n" },
+    { "secret_agent_2", "Secret Agent 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Secret Agent 2\n"
+        "folder = C:\\SAM\n"
+        "\n"
+        "[run]\n"
+        "exe = SAM2.EXE\n" },
+    { "secret_agent_3", "Secret Agent 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Secret Agent 3\n"
+        "folder = C:\\SAM\n"
+        "\n"
+        "[run]\n"
+        "exe = SAM3.EXE\n" },
     { "secret_of_the_silver_blades", "Secret of the Silver Blades",
         "[geardox]\n"
         "version = 1\n"
@@ -2088,6 +3004,106 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = SGDOS.EXE\n"
         "setup = SOUND.EXE\n" },
+    { "star_trek_trivia_1", "Star Trek Trivia 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 1\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek1.exe\n" },
+    { "star_trek_trivia_10", "Star Trek Trivia 10",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 10\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek10.exe\n" },
+    { "star_trek_trivia_2", "Star Trek Trivia 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 2\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek2.exe\n" },
+    { "star_trek_trivia_3", "Star Trek Trivia 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 3\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek3.exe\n" },
+    { "star_trek_trivia_4", "Star Trek Trivia 4",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 4\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek4.exe\n" },
+    { "star_trek_trivia_5", "Star Trek Trivia 5",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 5\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek5.exe\n" },
+    { "star_trek_trivia_6", "Star Trek Trivia 6",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 6\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek6.exe\n" },
+    { "star_trek_trivia_7", "Star Trek Trivia 7",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 7\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek7.exe\n" },
+    { "star_trek_trivia_8", "Star Trek Trivia 8",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 8\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek8.exe\n" },
+    { "star_trek_trivia_9", "Star Trek Trivia 9",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Star Trek Trivia 9\n"
+        "folder = C:\\TREK\n"
+        "\n"
+        "[run]\n"
+        "exe = Trek9.exe\n" },
     { "star_wars_tie_fighter", "Star Wars: TIE Fighter",
         "[geardox]\n"
         "version = 1\n"
@@ -2179,6 +3195,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = STUNT.EXE\n"
         "setup = INSTALL.EXE -S\n" },
+    { "supernova", "SuperNova",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = SuperNova\n"
+        "folder = C:\\NOVA\n"
+        "\n"
+        "[run]\n"
+        "exe = NOVA.COM\n" },
     { "sword_of_aragon", "Sword of Aragon",
         "[geardox]\n"
         "version = 1\n"
@@ -2341,6 +3367,27 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = pentium_75\n"
         "ram_mb = 64\n" },
+    { "the_lost_adventures_of_kroz", "The Lost Adventures Of Kroz",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = The Lost Adventures Of Kroz\n"
+        "folder = C:\\LOST\n"
+        "\n"
+        "[run]\n"
+        "exe = LOST.EXE\n" },
+    { "the_secret_of_monkey_island", "The Secret of Monkey Island",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = The Secret of Monkey Island\n"
+        "folder = C:\\MONKEY\n"
+        "\n"
+        "[run]\n"
+        "exe = MONKEY.EXE\n"
+        "args = v mo i\n" },
     { "the_settlers_2_gold", "The Settlers II Gold Edition",
         "[geardox]\n"
         "version = 1\n"
@@ -2457,6 +3504,66 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
+    { "tristan", "Tristan",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Tristan\n"
+        "folder = C:\\TRISTAN\n"
+        "\n"
+        "[run]\n"
+        "exe = TRISTAN.EXE\n" },
+    { "trivia_whiz_1", "Trivia Whiz 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Trivia Whiz 1\n"
+        "folder = C:\\TRIVIA\n"
+        "\n"
+        "[run]\n"
+        "exe = TW1.EXE\n" },
+    { "trivia_whiz_2", "Trivia Whiz 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Trivia Whiz 2\n"
+        "folder = C:\\TRIVIA\n"
+        "\n"
+        "[run]\n"
+        "exe = TW2.EXE\n" },
+    { "trivia_whiz_3", "Trivia Whiz 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Trivia Whiz 3\n"
+        "folder = C:\\TRIVIA\n"
+        "\n"
+        "[run]\n"
+        "exe = TW3.EXE\n" },
+    { "trivia_whiz_4", "Trivia Whiz 4",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Trivia Whiz 4\n"
+        "folder = C:\\TRIVIA\n"
+        "\n"
+        "[run]\n"
+        "exe = TW4.EXE\n" },
+    { "trivia_whiz_5", "Trivia Whiz 5",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Trivia Whiz 5\n"
+        "folder = C:\\TRIVIA\n"
+        "\n"
+        "[run]\n"
+        "exe = TW5.EXE\n" },
     { "tyrian_2000", "Tyrian 2000",
         "[geardox]\n"
         "version = 1\n"
@@ -2684,6 +3791,16 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "model = 386sx_20\n"
         "turbo = off\n"
         "video = ega\n" },
+    { "warcraft_ii_tides_of_darkness", "Warcraft II - Tides of Darkness",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Warcraft II - Tides of Darkness\n"
+        "folder = C:\\WAR2\n"
+        "\n"
+        "[run]\n"
+        "exe = WAR2.EXE\n" },
     { "warcraft_orcs_and_humans", "Warcraft: Orcs and Humans",
         "[geardox]\n"
         "version = 1\n"
@@ -2976,6 +4093,86 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WOLF3D.EXE\n" },
+    { "word_rescue_1", "Word Rescue 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Rescue 1\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WR1.EXE\n" },
+    { "word_rescue_2", "Word Rescue 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Rescue 2\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WR2.EXE\n" },
+    { "word_rescue_3", "Word Rescue 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Rescue 3\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WR3.EXE\n" },
+    { "word_rescue_plus", "Word Rescue Plus",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Rescue Plus\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WRPLUS.EXE\n" },
+    { "word_whiz_1", "Word Whiz 1",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Whiz 1\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WW1.EXE\n" },
+    { "word_whiz_2", "Word Whiz 2",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Whiz 2\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WW2.EXE\n" },
+    { "word_whiz_3", "Word Whiz 3",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Whiz 3\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WW3.EXE\n" },
+    { "word_whiz_4", "Word Whiz 4",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Word Whiz 4\n"
+        "folder = C:\\WORD\n"
+        "\n"
+        "[run]\n"
+        "exe = WW4.EXE\n" },
     { "worms_united", "Worms United",
         "[geardox]\n"
         "version = 1\n"
@@ -3017,6 +4214,17 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 486sx_33\n" },
+    { "x_com_ufo_defense_retail", "X-COM: UFO Defense",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = X-COM: UFO Defense\n"
+        "folder = C:\\UFO\n"
+        "\n"
+        "[run]\n"
+        "exe = UFO.BAT\n"
+        "setup = SETUP.EXE\n" },
     { "xcom_terror_from_the_deep", "X-COM: Terror from the Deep",
         "[geardox]\n"
         "version = 1\n"
@@ -3032,444 +4240,594 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 486sx_33\n" },
+    { "xenophage_alien_bloodsport", "XenoPhage - Alien Bloodsport",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = XenoPhage - Alien Bloodsport\n"
+        "folder = C:\\XENO\n"
+        "\n"
+        "[run]\n"
+        "exe = XPR.BAT\n"
+        "setup = SETUP.BAT\n" },
+    { "xmas_lemmings", "Xmas Lemmings",
+        "[geardox]\n"
+        "version = 1\n"
+        "\n"
+        "[game]\n"
+        "name = Xmas Lemmings\n"
+        "folder = C:\\XMAS\n"
+        "\n"
+        "[run]\n"
+        "exe = LEMMINGS.EXE\n" },
 };
 
-const int k_game_database_entry_count = 216;
+const int k_game_database_entry_count = 330;
 
 const GDOX_DB_Release k_game_database_releases[] =
 {
-    { 0, 0, 2, 1, NULL, NULL, "[sound]\n"
+    { 0, 0, 2, 0, NULL, NULL, NULL },
+    { 1, 2, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 1, 3, 2, 0, NULL, NULL, "[drives]\n"
+    { 2, 5, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 2, 5, 2, 1, NULL, NULL, "[sound]\n"
+    { 3, 7, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 3, 8, 2, 0, NULL, NULL, NULL },
-    { 4, 10, 2, 0, NULL, NULL, "[drives]\n"
+    { 4, 10, 2, 0, NULL, NULL, NULL },
+    { 5, 12, 2, 0, NULL, NULL, NULL },
+    { 6, 14, 2, 0, NULL, NULL, NULL },
+    { 7, 16, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 5, 12, 2, 1, NULL, NULL, "[drives]\n"
+    { 8, 18, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 6, 15, 2, 1, NULL, NULL, "[drives]\n"
+    { 9, 21, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 7, 18, 2, 1, NULL, NULL, "[drives]\n"
+    { 10, 24, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = Anvil.dat\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 8, 21, 2, 0, NULL, NULL, "[drives]\n"
+    { 11, 27, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = DATA/\n" },
-    { 9, 23, 2, 0, NULL, NULL, "[drives]\n"
+    { 12, 29, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 10, 25, 2, 0, NULL, NULL, "[drives]\n"
+    { 13, 31, 2, 0, NULL, NULL, NULL },
+    { 14, 33, 2, 0, NULL, NULL, NULL },
+    { 15, 35, 2, 0, NULL, NULL, NULL },
+    { 16, 37, 2, 0, NULL, NULL, NULL },
+    { 17, 39, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 11, 27, 2, 0, NULL, NULL, NULL },
-    { 12, 29, 2, 0, NULL, NULL, "[sound]\n"
-        "gus = on\n" },
-    { 13, 31, 2, 1, NULL, NULL, "[sound]\n"
+    { 18, 41, 2, 0, NULL, NULL, NULL },
+    { 19, 43, 2, 0, NULL, NULL, NULL },
+    { 20, 45, 2, 0, NULL, NULL, NULL },
+    { 21, 47, 2, 0, NULL, NULL, NULL },
+    { 22, 49, 2, 0, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 14, 34, 2, 0, NULL, NULL, "[drives]\n"
+    { 23, 51, 2, 0, NULL, NULL, NULL },
+    { 24, 53, 2, 0, NULL, NULL, "[sound]\n"
+        "gus = on\n" },
+    { 24, 55, 2, 0, NULL, NULL, NULL },
+    { 25, 57, 2, 1, NULL, NULL, "[sound]\n"
+        "irq = 7\n" },
+    { 26, 60, 2, 0, NULL, NULL, NULL },
+    { 27, 62, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/\n"
         "[sound]\n"
         "gus = on\n" },
-    { 14, 36, 2, 0, NULL, NULL, "[drives]\n"
+    { 27, 64, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/\n"
         "[sound]\n"
         "gus = on\n" },
-    { 15, 38, 2, 1, NULL, NULL, "[sound]\n"
+    { 28, 66, 2, 1, NULL, NULL, "[sound]\n"
         "card = sb20\n" },
-    { 16, 41, 2, 0, NULL, NULL, NULL },
-    { 17, 43, 2, 0, NULL, NULL, "[drives]\n"
+    { 29, 69, 2, 0, NULL, NULL, NULL },
+    { 30, 71, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n" },
-    { 18, 45, 2, 0, NULL, NULL, "[drives]\n"
+    { 31, 73, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = SPLAT.DAT\n" },
-    { 19, 47, 2, 0, NULL, NULL, NULL },
-    { 20, 49, 2, 0, NULL, NULL, "[drives]\n"
+    { 32, 75, 2, 0, NULL, NULL, NULL },
+    { 33, 77, 2, 0, NULL, NULL, NULL },
+    { 34, 79, 2, 0, NULL, NULL, NULL },
+    { 35, 81, 2, 0, NULL, NULL, NULL },
+    { 36, 83, 2, 0, NULL, NULL, NULL },
+    { 37, 85, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CONST.GOG\n" },
-    { 21, 51, 2, 0, NULL, NULL, "[drives]\n"
+    { 38, 87, 2, 0, NULL, NULL, NULL },
+    { 39, 89, 2, 0, NULL, NULL, NULL },
+    { 40, 91, 2, 0, NULL, NULL, NULL },
+    { 41, 93, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 22, 53, 2, 0, NULL, NULL, "[drives]\n"
+    { 42, 95, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 23, 55, 2, 0, NULL, NULL, NULL },
-    { 24, 57, 2, 0, NULL, NULL, NULL },
-    { 25, 59, 2, 1, NULL, NULL, "[sound]\n"
+    { 43, 97, 2, 0, NULL, NULL, NULL },
+    { 44, 99, 2, 0, NULL, NULL, NULL },
+    { 45, 101, 2, 0, NULL, NULL, NULL },
+    { 46, 103, 2, 0, NULL, NULL, NULL },
+    { 47, 105, 1, 0, NULL, NULL, NULL },
+    { 48, 106, 2, 0, NULL, NULL, NULL },
+    { 49, 108, 2, 0, NULL, NULL, NULL },
+    { 50, 110, 2, 0, NULL, NULL, NULL },
+    { 51, 112, 2, 0, NULL, NULL, NULL },
+    { 52, 114, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 26, 62, 2, 1, NULL, NULL, "[sound]\n"
+    { 53, 117, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 26, 65, 2, 1, NULL, NULL, "[sound]\n"
+    { 53, 120, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 27, 68, 2, 1, NULL, NULL, "[drives]\n"
+    { 54, 123, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "card = sbpro2\n" },
-    { 28, 71, 2, 0, NULL, NULL, NULL },
-    { 29, 73, 2, 0, NULL, NULL, NULL },
-    { 30, 75, 2, 0, NULL, NULL, NULL },
-    { 31, 77, 2, 0, NULL, NULL, NULL },
-    { 32, 79, 2, 1, NULL, NULL, "[drives]\n"
+    { 55, 126, 2, 0, NULL, NULL, NULL },
+    { 56, 128, 2, 0, NULL, NULL, NULL },
+    { 57, 130, 2, 0, NULL, NULL, NULL },
+    { 58, 132, 2, 0, NULL, NULL, NULL },
+    { 59, 134, 2, 0, NULL, NULL, NULL },
+    { 60, 136, 2, 0, NULL, NULL, NULL },
+    { 61, 138, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = DESCENT_II.inst\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 33, 82, 2, 1, NULL, NULL, "[sound]\n"
+    { 62, 141, 2, 0, NULL, NULL, NULL },
+    { 63, 143, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 34, 85, 3, 1, NULL, NULL, "[sound]\n"
+    { 64, 146, 3, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 35, 89, 2, 1, NULL, NULL, "[sound]\n"
+    { 65, 150, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 36, 92, 3, 1, NULL, NULL, "[sound]\n"
+    { 66, 153, 3, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 37, 96, 2, 1, NULL, NULL, "[sound]\n"
+    { 66, 157, 3, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 38, 99, 2, 0, NULL, NULL, NULL },
-    { 39, 101, 2, 1, NULL, NULL, "[drives]\n"
+    { 67, 161, 2, 1, NULL, NULL, "[sound]\n"
+        "irq = 7\n" },
+    { 68, 164, 2, 1, NULL, NULL, "[sound]\n"
+        "irq = 7\n" },
+    { 69, 167, 2, 0, NULL, NULL, NULL },
+    { 70, 169, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 40, 104, 2, 0, NULL, NULL, NULL },
-    { 41, 106, 2, 1, NULL, NULL, "[sound]\n"
+    { 71, 172, 2, 0, NULL, NULL, NULL },
+    { 72, 174, 2, 0, NULL, NULL, NULL },
+    { 73, 176, 2, 0, NULL, NULL, NULL },
+    { 74, 178, 2, 0, NULL, NULL, NULL },
+    { 75, 180, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 42, 109, 2, 0, NULL, NULL, NULL },
-    { 43, 111, 2, 1, NULL, NULL, "[sound]\n"
+    { 76, 183, 2, 0, NULL, NULL, NULL },
+    { 77, 185, 2, 0, NULL, NULL, NULL },
+    { 77, 187, 2, 0, NULL, NULL, NULL },
+    { 78, 189, 2, 0, NULL, NULL, NULL },
+    { 79, 191, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 44, 114, 2, 0, NULL, NULL, "[drives]\n"
+    { 80, 194, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 45, 116, 2, 0, NULL, NULL, "[drives]\n"
+    { 81, 196, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 46, 118, 2, 0, NULL, NULL, NULL },
-    { 47, 120, 2, 1, NULL, NULL, "[sound]\n"
+    { 82, 198, 2, 0, NULL, NULL, NULL },
+    { 83, 200, 2, 0, NULL, NULL, NULL },
+    { 84, 202, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 48, 123, 2, 0, NULL, NULL, NULL },
-    { 49, 125, 2, 1, NULL, NULL, "[sound]\n"
+    { 85, 205, 2, 0, NULL, NULL, NULL },
+    { 86, 207, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 50, 128, 2, 1, NULL, NULL, "[sound]\n"
+    { 87, 210, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 51, 131, 2, 0, NULL, NULL, NULL },
-    { 52, 133, 2, 0, NULL, NULL, NULL },
-    { 53, 135, 2, 1, NULL, NULL, "[sound]\n"
+    { 88, 213, 2, 0, NULL, NULL, NULL },
+    { 89, 215, 2, 0, NULL, NULL, NULL },
+    { 90, 217, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro2\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 54, 138, 2, 0, NULL, NULL, "[drives]\n"
+    { 91, 220, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 55, 140, 2, 1, NULL, NULL, "[sound]\n"
+    { 92, 222, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 56, 143, 2, 1, NULL, NULL, "[sound]\n"
+    { 93, 225, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 57, 146, 2, 1, NULL, NULL, "[sound]\n"
+    { 94, 228, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 58, 149, 2, 1, NULL, NULL, "[sound]\n"
+    { 95, 231, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 59, 152, 2, 0, NULL, NULL, "[sound]\n"
+    { 96, 234, 2, 0, NULL, NULL, NULL },
+    { 97, 236, 2, 0, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 60, 154, 2, 1, NULL, NULL, "[sound]\n"
+    { 98, 238, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 61, 157, 2, 0, NULL, NULL, NULL },
-    { 62, 159, 2, 0, NULL, NULL, "[drives]\n"
+    { 99, 241, 2, 0, NULL, NULL, NULL },
+    { 100, 243, 2, 0, NULL, NULL, NULL },
+    { 101, 245, 2, 0, NULL, NULL, "[drives]\n"
         "floppy_a = GS720K.img\n" },
-    { 63, 161, 2, 1, NULL, NULL, "[sound]\n"
+    { 102, 247, 2, 1, NULL, NULL, "[sound]\n"
         "card = sb15\n"
         "irq = 7\n" },
-    { 64, 164, 2, 1, NULL, NULL, "[sound]\n"
+    { 103, 250, 2, 0, NULL, NULL, NULL },
+    { 104, 252, 2, 0, NULL, NULL, NULL },
+    { 105, 254, 2, 0, NULL, NULL, NULL },
+    { 106, 256, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 65, 167, 2, 0, NULL, NULL, "[drives]\n"
+    { 107, 259, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = homm1.gog\n" },
-    { 66, 169, 2, 1, NULL, NULL, "[drives]\n"
+    { 108, 261, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = homm2.ins\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 67, 172, 2, 0, NULL, NULL, NULL },
-    { 68, 174, 2, 1, NULL, NULL, "[drives]\n"
+    { 109, 264, 2, 0, NULL, NULL, NULL },
+    { 110, 266, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 69, 177, 2, 1, NULL, NULL, "[drives]\n"
+    { 111, 269, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 70, 180, 2, 0, NULL, NULL, NULL },
-    { 71, 182, 2, 0, NULL, NULL, NULL },
-    { 72, 184, 2, 0, NULL, NULL, NULL },
-    { 73, 186, 2, 0, "OTHER>.", NULL, NULL },
-    { 74, 188, 2, 0, "_OTHER>.", NULL, NULL },
-    { 75, 190, 2, 0, NULL, NULL, NULL },
-    { 76, 192, 2, 0, NULL, NULL, NULL },
-    { 77, 194, 2, 0, NULL, NULL, NULL },
-    { 78, 196, 2, 0, NULL, NULL, "[drives]\n"
+    { 112, 272, 2, 0, NULL, NULL, NULL },
+    { 113, 274, 2, 0, NULL, NULL, NULL },
+    { 113, 276, 2, 0, NULL, NULL, NULL },
+    { 114, 278, 2, 0, NULL, NULL, NULL },
+    { 115, 280, 2, 0, NULL, NULL, NULL },
+    { 116, 282, 2, 0, "OTHER>.", NULL, NULL },
+    { 117, 284, 2, 0, "_OTHER>.", NULL, NULL },
+    { 118, 286, 2, 0, NULL, NULL, NULL },
+    { 119, 288, 2, 0, NULL, NULL, NULL },
+    { 120, 290, 2, 0, NULL, NULL, NULL },
+    { 120, 292, 2, 0, NULL, NULL, NULL },
+    { 121, 294, 2, 0, NULL, NULL, NULL },
+    { 122, 296, 2, 0, NULL, NULL, NULL },
+    { 123, 298, 2, 0, NULL, NULL, NULL },
+    { 124, 300, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 79, 198, 2, 1, NULL, NULL, "[drives]\n"
+    { 125, 302, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = JA1.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 80, 201, 2, 1, NULL, NULL, "[sound]\n"
+    { 126, 305, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "gus = on\n" },
-    { 81, 204, 2, 1, NULL, NULL, "[sound]\n"
+    { 127, 308, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 82, 207, 2, 0, NULL, NULL, NULL },
-    { 83, 209, 2, 0, NULL, NULL, NULL },
-    { 84, 211, 2, 0, NULL, NULL, NULL },
-    { 85, 213, 2, 0, NULL, NULL, NULL },
-    { 86, 215, 2, 0, NULL, NULL, NULL },
-    { 87, 217, 2, 0, NULL, NULL, NULL },
-    { 88, 219, 2, 1, NULL, NULL, "[drives]\n"
+    { 128, 311, 1, 0, NULL, NULL, NULL },
+    { 129, 312, 2, 0, NULL, NULL, NULL },
+    { 130, 314, 2, 0, NULL, NULL, NULL },
+    { 131, 316, 2, 0, NULL, NULL, NULL },
+    { 132, 318, 2, 0, NULL, NULL, NULL },
+    { 133, 320, 2, 0, NULL, NULL, NULL },
+    { 134, 322, 2, 0, NULL, NULL, NULL },
+    { 135, 324, 2, 0, NULL, NULL, NULL },
+    { 136, 326, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 89, 222, 2, 0, NULL, NULL, NULL },
-    { 90, 224, 2, 1, "CLOUD_SAVES>.", NULL, "[sound]\n"
+    { 137, 329, 2, 0, NULL, NULL, NULL },
+    { 138, 331, 2, 0, NULL, NULL, NULL },
+    { 139, 333, 2, 0, NULL, NULL, NULL },
+    { 140, 335, 2, 1, "CLOUD_SAVES>.", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 91, 227, 2, 0, NULL, NULL, NULL },
-    { 92, 229, 2, 0, NULL, NULL, NULL },
-    { 92, 231, 2, 0, NULL, NULL, NULL },
-    { 93, 233, 2, 0, NULL, NULL, NULL },
-    { 93, 235, 2, 1, NULL, NULL, "[sound]\n"
+    { 141, 338, 2, 0, NULL, NULL, NULL },
+    { 142, 340, 2, 0, NULL, NULL, NULL },
+    { 143, 342, 2, 0, NULL, NULL, NULL },
+    { 143, 344, 2, 0, NULL, NULL, NULL },
+    { 144, 346, 2, 0, NULL, NULL, NULL },
+    { 144, 348, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 94, 238, 2, 2, NULL, NULL, "[sound]\n"
+    { 145, 351, 2, 2, NULL, NULL, "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 95, 242, 2, 1, NULL, NULL, "[drives]\n"
+    { 146, 355, 2, 0, NULL, NULL, NULL },
+    { 147, 357, 2, 0, NULL, NULL, NULL },
+    { 148, 359, 2, 0, NULL, NULL, NULL },
+    { 149, 361, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 96, 245, 2, 0, NULL, NULL, NULL },
-    { 97, 247, 2, 0, NULL, NULL, NULL },
-    { 98, 249, 2, 1, NULL, NULL, "[sound]\n"
+    { 150, 364, 2, 0, NULL, NULL, NULL },
+    { 151, 366, 2, 0, NULL, NULL, NULL },
+    { 152, 368, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 99, 252, 2, 1, NULL, NULL, "[sound]\n"
+    { 153, 371, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 100, 255, 2, 1, NULL, NULL, "[drives]\n"
+    { 154, 374, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME1.INS, GAME2.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 101, 258, 2, 1, NULL, NULL, "[sound]\n"
+    { 155, 377, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 102, 261, 2, 0, NULL, NULL, NULL },
-    { 103, 263, 2, 0, NULL, NULL, NULL },
-    { 104, 265, 2, 1, NULL, NULL, "[drives]\n"
+    { 156, 380, 2, 0, NULL, NULL, NULL },
+    { 157, 382, 2, 0, NULL, NULL, NULL },
+    { 158, 384, 2, 0, NULL, NULL, NULL },
+    { 159, 386, 2, 0, NULL, NULL, NULL },
+    { 160, 388, 2, 0, NULL, NULL, NULL },
+    { 161, 390, 2, 0, NULL, NULL, NULL },
+    { 162, 392, 2, 0, NULL, NULL, NULL },
+    { 163, 394, 2, 0, NULL, NULL, NULL },
+    { 164, 396, 2, 0, NULL, NULL, NULL },
+    { 165, 398, 2, 0, NULL, NULL, NULL },
+    { 166, 400, 2, 0, NULL, NULL, NULL },
+    { 167, 402, 2, 0, NULL, NULL, NULL },
+    { 168, 404, 2, 0, NULL, NULL, NULL },
+    { 169, 406, 2, 0, NULL, NULL, NULL },
+    { 170, 408, 2, 0, NULL, NULL, NULL },
+    { 171, 410, 2, 0, NULL, NULL, NULL },
+    { 172, 412, 2, 0, NULL, NULL, NULL },
+    { 173, 414, 2, 0, NULL, NULL, NULL },
+    { 174, 416, 2, 0, NULL, NULL, NULL },
+    { 175, 418, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = DATA.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 105, 268, 2, 0, NULL, NULL, NULL },
-    { 106, 270, 2, 0, NULL, NULL, NULL },
-    { 107, 272, 2, 0, NULL, NULL, NULL },
-    { 108, 274, 2, 0, NULL, NULL, NULL },
-    { 109, 276, 2, 0, NULL, NULL, NULL },
-    { 109, 278, 2, 0, NULL, NULL, NULL },
-    { 110, 280, 2, 0, NULL, NULL, "[drives]\n"
+    { 176, 421, 2, 0, NULL, NULL, NULL },
+    { 177, 423, 2, 0, NULL, NULL, NULL },
+    { 178, 425, 2, 0, NULL, NULL, NULL },
+    { 179, 427, 2, 0, NULL, NULL, NULL },
+    { 180, 429, 2, 0, NULL, NULL, NULL },
+    { 181, 431, 2, 0, NULL, NULL, NULL },
+    { 182, 433, 2, 0, NULL, NULL, NULL },
+    { 182, 435, 2, 0, NULL, NULL, NULL },
+    { 183, 437, 2, 0, NULL, NULL, NULL },
+    { 184, 439, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.CUE\n" },
-    { 111, 282, 2, 0, NULL, NULL, "[drives]\n"
+    { 185, 441, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAMED.CUE\n" },
-    { 112, 284, 2, 0, NULL, NULL, "[drives]\n"
+    { 186, 443, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAMEA.CUE\n" },
-    { 113, 286, 2, 0, NULL, NULL, NULL },
-    { 114, 288, 2, 0, NULL, NULL, NULL },
-    { 115, 290, 2, 0, NULL, NULL, NULL },
-    { 116, 292, 2, 0, NULL, NULL, NULL },
-    { 117, 294, 2, 0, NULL, NULL, NULL },
-    { 118, 296, 2, 0, NULL, NULL, NULL },
-    { 119, 298, 2, 1, NULL, NULL, "[drives]\n"
+    { 187, 445, 2, 0, NULL, NULL, NULL },
+    { 188, 447, 2, 0, NULL, NULL, NULL },
+    { 189, 449, 2, 0, NULL, NULL, NULL },
+    { 190, 451, 2, 0, NULL, NULL, NULL },
+    { 191, 453, 2, 0, NULL, NULL, NULL },
+    { 192, 455, 2, 0, NULL, NULL, NULL },
+    { 193, 457, 2, 0, NULL, NULL, NULL },
+    { 194, 459, 2, 0, NULL, NULL, NULL },
+    { 195, 461, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GOG.GAME\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 120, 301, 2, 1, NULL, NULL, "[drives]\n"
+    { 196, 464, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "irq = 7\n"
         "midi = mt32\n" },
-    { 121, 304, 2, 0, NULL, NULL, "[drives]\n"
+    { 197, 467, 2, 0, NULL, NULL, NULL },
+    { 198, 469, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 122, 306, 2, 1, NULL, NULL, "[sound]\n"
+    { 199, 471, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 123, 309, 2, 1, NULL, NULL, "[sound]\n"
+    { 200, 474, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 124, 312, 2, 0, NULL, NULL, NULL },
-    { 125, 314, 2, 0, NULL, NULL, NULL },
-    { 126, 316, 2, 0, NULL, NULL, NULL },
-    { 127, 318, 2, 0, NULL, NULL, NULL },
-    { 128, 320, 2, 1, NULL, NULL, "[sound]\n"
+    { 201, 477, 2, 0, NULL, NULL, NULL },
+    { 202, 479, 2, 0, NULL, NULL, NULL },
+    { 203, 481, 2, 0, NULL, NULL, NULL },
+    { 203, 483, 2, 0, NULL, NULL, NULL },
+    { 204, 485, 2, 0, NULL, NULL, NULL },
+    { 205, 487, 2, 0, NULL, NULL, NULL },
+    { 206, 489, 2, 0, NULL, NULL, NULL },
+    { 207, 491, 2, 0, NULL, NULL, NULL },
+    { 208, 493, 2, 0, NULL, NULL, NULL },
+    { 209, 495, 2, 0, NULL, NULL, NULL },
+    { 210, 497, 2, 0, NULL, NULL, NULL },
+    { 211, 499, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 129, 323, 2, 1, NULL, NULL, "[sound]\n"
+    { 212, 502, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 130, 326, 2, 1, "WANTON.DAT>SW.EXE", NULL, "[sound]\n"
+    { 213, 505, 2, 1, "WANTON.DAT>SW.EXE", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 131, 329, 1, 0, NULL, NULL, "[drives]\n"
+    { 214, 508, 1, 0, NULL, NULL, "[drives]\n"
         "cdrom = SHADOW.img\n" },
-    { 132, 330, 2, 0, NULL, NULL, NULL },
-    { 133, 332, 2, 1, NULL, NULL, "[drives]\n"
+    { 215, 509, 2, 0, NULL, NULL, NULL },
+    { 216, 511, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = COLONIZE/COLONIZE.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 134, 335, 1, 0, NULL, NULL, NULL },
-    { 135, 336, 2, 0, NULL, NULL, NULL },
-    { 136, 338, 2, 1, NULL, NULL, "[drives]\n"
+    { 217, 514, 1, 0, NULL, NULL, NULL },
+    { 218, 515, 2, 0, NULL, NULL, NULL },
+    { 219, 517, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SC2000SE.DAT\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 137, 341, 2, 1, NULL, NULL, "[drives]\n"
+    { 220, 520, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SC2000SE.DAT\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 138, 344, 2, 0, NULL, NULL, NULL },
-    { 139, 346, 2, 1, NULL, NULL, "[sound]\n"
+    { 221, 523, 2, 0, NULL, NULL, NULL },
+    { 222, 525, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 140, 349, 2, 0, NULL, NULL, NULL },
-    { 141, 351, 2, 0, NULL, NULL, NULL },
-    { 142, 353, 2, 0, NULL, NULL, NULL },
-    { 143, 355, 2, 0, NULL, NULL, NULL },
-    { 144, 357, 2, 0, NULL, NULL, NULL },
-    { 145, 359, 2, 1, NULL, NULL, "[sound]\n"
+    { 223, 528, 2, 0, NULL, NULL, NULL },
+    { 224, 530, 2, 0, NULL, NULL, NULL },
+    { 225, 532, 2, 0, NULL, NULL, NULL },
+    { 226, 534, 2, 0, NULL, NULL, NULL },
+    { 227, 536, 2, 0, NULL, NULL, NULL },
+    { 228, 538, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro2\n"
         "irq = 7\n" },
-    { 146, 362, 2, 0, NULL, NULL, NULL },
-    { 147, 364, 2, 0, NULL, NULL, NULL },
-    { 148, 366, 2, 0, NULL, NULL, NULL },
-    { 149, 368, 2, 1, NULL, NULL, "[drives]\n"
+    { 229, 541, 2, 0, NULL, NULL, NULL },
+    { 230, 543, 2, 0, NULL, NULL, NULL },
+    { 231, 545, 2, 0, NULL, NULL, NULL },
+    { 232, 547, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 150, 371, 2, 0, NULL, NULL, "[drives]\n"
+    { 233, 550, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = ../../CD/STARGENE.CUE\n" },
-    { 151, 373, 2, 0, NULL, NULL, NULL },
-    { 152, 375, 2, 0, NULL, NULL, NULL },
-    { 153, 377, 2, 1, NULL, NULL, "[drives]\n"
+    { 234, 552, 2, 0, NULL, NULL, NULL },
+    { 235, 554, 2, 0, NULL, NULL, NULL },
+    { 236, 556, 2, 0, NULL, NULL, NULL },
+    { 237, 558, 2, 0, NULL, NULL, NULL },
+    { 238, 560, 2, 0, NULL, NULL, NULL },
+    { 239, 562, 2, 0, NULL, NULL, NULL },
+    { 240, 564, 2, 0, NULL, NULL, NULL },
+    { 241, 566, 2, 0, NULL, NULL, NULL },
+    { 242, 568, 2, 0, NULL, NULL, NULL },
+    { 243, 570, 2, 0, NULL, NULL, NULL },
+    { 244, 572, 2, 0, NULL, NULL, NULL },
+    { 245, 574, 2, 0, NULL, NULL, NULL },
+    { 246, 576, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 154, 380, 2, 0, "STARFLT>.", NULL, NULL },
-    { 155, 382, 2, 0, NULL, NULL, NULL },
-    { 156, 384, 2, 0, NULL, NULL, NULL },
-    { 157, 386, 2, 1, NULL, NULL, "[sound]\n"
+    { 247, 579, 2, 0, "STARFLT>.", NULL, NULL },
+    { 248, 581, 2, 0, NULL, NULL, NULL },
+    { 249, 583, 2, 0, NULL, NULL, NULL },
+    { 250, 585, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 158, 389, 2, 0, NULL, NULL, NULL },
-    { 159, 391, 2, 1, NULL, NULL, "[sound]\n"
+    { 251, 588, 2, 0, NULL, NULL, NULL },
+    { 252, 590, 2, 0, NULL, NULL, NULL },
+    { 253, 592, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 160, 394, 2, 1, NULL, NULL, "[sound]\n"
+    { 254, 595, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 161, 397, 2, 0, NULL, NULL, "[drives]\n"
+    { 255, 598, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = SWARS/GAME.INS\n" },
-    { 162, 399, 2, 0, NULL, NULL, NULL },
-    { 163, 401, 2, 0, NULL, NULL, "[drives]\n"
+    { 256, 600, 2, 0, NULL, NULL, NULL },
+    { 257, 602, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/SystemShock.bin\n" },
-    { 164, 403, 2, 0, NULL, NULL, NULL },
-    { 165, 405, 2, 0, NULL, NULL, NULL },
-    { 166, 407, 2, 2, NULL, NULL, "[drives]\n"
+    { 258, 604, 2, 0, NULL, NULL, NULL },
+    { 258, 606, 2, 0, NULL, NULL, NULL },
+    { 259, 608, 2, 0, NULL, NULL, NULL },
+    { 260, 610, 2, 2, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 167, 411, 2, 0, NULL, NULL, "[drives]\n"
+    { 261, 614, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = ./\n" },
-    { 168, 413, 2, 1, NULL, NULL, "[sound]\n"
+    { 262, 616, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 169, 416, 2, 1, NULL, NULL, "[drives]\n"
+    { 263, 619, 1, 0, NULL, NULL, NULL },
+    { 264, 620, 2, 0, NULL, NULL, NULL },
+    { 265, 622, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SETTLERS2.ins\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 170, 419, 2, 0, NULL, NULL, NULL },
-    { 171, 421, 2, 0, NULL, NULL, NULL },
-    { 172, 423, 2, 1, NULL, "GAME/MAIN.EXE 99E19 2E 3E", "[sound]\n"
+    { 266, 625, 2, 0, NULL, NULL, NULL },
+    { 267, 627, 2, 0, NULL, NULL, NULL },
+    { 268, 629, 2, 1, NULL, "GAME/MAIN.EXE 99E19 2E 3E", "[sound]\n"
         "irq = 7\n" },
-    { 173, 426, 2, 1, NULL, NULL, "[drives]\n"
+    { 269, 632, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 174, 429, 2, 0, NULL, NULL, "[drives]\n"
+    { 270, 635, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n" },
-    { 175, 431, 2, 1, NULL, NULL, "[drives]\n"
+    { 271, 637, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 176, 434, 2, 0, NULL, NULL, NULL },
-    { 177, 436, 2, 0, NULL, NULL, NULL },
-    { 178, 438, 2, 1, NULL, NULL, "[sound]\n"
+    { 272, 640, 2, 0, NULL, NULL, NULL },
+    { 273, 642, 2, 0, NULL, NULL, NULL },
+    { 274, 644, 2, 0, NULL, NULL, NULL },
+    { 275, 646, 2, 0, NULL, NULL, NULL },
+    { 276, 648, 2, 0, NULL, NULL, NULL },
+    { 277, 650, 2, 0, NULL, NULL, NULL },
+    { 278, 652, 2, 0, NULL, NULL, NULL },
+    { 279, 654, 2, 0, NULL, NULL, NULL },
+    { 280, 656, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 179, 441, 2, 1, NULL, NULL, "[sound]\n"
+    { 281, 659, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 180, 444, 2, 0, NULL, NULL, NULL },
-    { 181, 446, 2, 0, NULL, NULL, NULL },
-    { 182, 448, 2, 0, NULL, NULL, NULL },
-    { 183, 450, 2, 0, NULL, NULL, NULL },
-    { 184, 452, 2, 1, NULL, NULL, "[sound]\n"
+    { 282, 662, 2, 0, NULL, NULL, NULL },
+    { 283, 664, 2, 0, NULL, NULL, NULL },
+    { 284, 666, 2, 0, NULL, NULL, NULL },
+    { 285, 668, 2, 0, NULL, NULL, NULL },
+    { 286, 670, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 185, 455, 2, 1, NULL, NULL, "[drives]\n"
+    { 287, 673, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 186, 458, 2, 1, NULL, NULL, "[drives]\n"
+    { 288, 676, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 187, 461, 2, 0, NULL, NULL, NULL },
-    { 188, 463, 2, 0, NULL, NULL, NULL },
-    { 189, 465, 2, 1, NULL, NULL, "[sound]\n"
+    { 289, 679, 2, 0, NULL, NULL, NULL },
+    { 290, 681, 2, 0, NULL, NULL, NULL },
+    { 291, 683, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 189, 468, 2, 1, NULL, NULL, "[sound]\n"
+    { 291, 686, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 189, 471, 2, 1, NULL, NULL, "[sound]\n"
+    { 291, 689, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 190, 474, 2, 1, NULL, NULL, "[sound]\n"
+    { 292, 692, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 191, 477, 2, 0, NULL, NULL, NULL },
-    { 192, 479, 2, 1, NULL, NULL, "[drives]\n"
+    { 292, 695, 2, 0, NULL, NULL, NULL },
+    { 293, 697, 2, 0, NULL, NULL, NULL },
+    { 294, 699, 2, 0, NULL, NULL, "[drives]\n"
+        "cdrom = DISC/WAR2.cue\n" },
+    { 295, 701, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = WAR1.CUE\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 193, 482, 2, 1, NULL, NULL, "[sound]\n"
+    { 296, 704, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 194, 485, 2, 0, NULL, NULL, NULL },
-    { 195, 487, 2, 0, NULL, NULL, NULL },
-    { 196, 489, 2, 0, NULL, NULL, NULL },
-    { 196, 491, 2, 0, NULL, NULL, NULL },
-    { 197, 493, 2, 0, NULL, NULL, NULL },
-    { 198, 495, 2, 0, NULL, NULL, NULL },
-    { 199, 497, 2, 0, NULL, NULL, NULL },
-    { 200, 499, 2, 0, NULL, NULL, NULL },
-    { 201, 501, 2, 0, NULL, NULL, "[drives]\n"
+    { 297, 707, 2, 0, NULL, NULL, NULL },
+    { 298, 709, 2, 0, NULL, NULL, NULL },
+    { 299, 711, 2, 0, NULL, NULL, NULL },
+    { 299, 713, 2, 0, NULL, NULL, NULL },
+    { 300, 715, 2, 0, NULL, NULL, NULL },
+    { 301, 717, 2, 0, NULL, NULL, NULL },
+    { 302, 719, 2, 0, NULL, NULL, NULL },
+    { 303, 721, 2, 0, NULL, NULL, NULL },
+    { 304, 723, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = DATA.DAT\n" },
-    { 202, 503, 2, 0, NULL, NULL, "[drives]\n"
+    { 305, 725, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 203, 505, 2, 0, NULL, NULL, "[drives]\n"
+    { 306, 727, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 204, 507, 2, 0, NULL, NULL, NULL },
-    { 205, 509, 2, 1, NULL, NULL, "[sound]\n"
+    { 307, 729, 2, 0, NULL, NULL, NULL },
+    { 308, 731, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 206, 512, 2, 1, NULL, NULL, "[sound]\n"
+    { 309, 734, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 207, 515, 2, 1, NULL, NULL, "[drives]\n"
+    { 310, 737, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = ../../witch2.iso\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 208, 518, 2, 1, NULL, NULL, "[drives]\n"
+    { 311, 740, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = ../../witch2.iso\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 209, 521, 2, 0, NULL, NULL, NULL },
-    { 210, 523, 2, 0, NULL, NULL, NULL },
-    { 211, 525, 2, 0, NULL, NULL, NULL },
-    { 212, 527, 2, 0, NULL, NULL, "[drives]\n"
+    { 312, 743, 2, 0, NULL, NULL, NULL },
+    { 313, 745, 2, 0, NULL, NULL, NULL },
+    { 314, 747, 2, 0, NULL, NULL, NULL },
+    { 315, 749, 2, 0, NULL, NULL, NULL },
+    { 316, 751, 2, 0, NULL, NULL, NULL },
+    { 317, 753, 2, 0, NULL, NULL, NULL },
+    { 318, 755, 2, 0, NULL, NULL, NULL },
+    { 319, 757, 2, 0, NULL, NULL, NULL },
+    { 320, 759, 2, 0, NULL, NULL, NULL },
+    { 321, 761, 2, 0, NULL, NULL, NULL },
+    { 322, 763, 2, 0, NULL, NULL, NULL },
+    { 323, 765, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = WORMS.DAT\n" },
-    { 213, 529, 2, 1, NULL, NULL, "[drives]\n"
+    { 324, 767, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = CD/XCOM.cue\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 214, 532, 2, 1, NULL, NULL, "[sound]\n"
+    { 325, 770, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 215, 535, 2, 1, NULL, NULL, "[sound]\n"
+    { 326, 773, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
+    { 327, 776, 2, 1, NULL, NULL, "[sound]\n"
+        "irq = 7\n" },
+    { 328, 779, 2, 0, NULL, NULL, NULL },
+    { 329, 781, 2, 0, NULL, NULL, NULL },
 };
 
-const int k_game_database_release_count = 224;
+const int k_game_database_release_count = 346;
 
 const GDOX_DB_File k_game_database_files[] =
 {
+    { 13659, 0x688947FE, "ADV-MENU.COM" },
+    { 25679, 0x943914B7, "RAIDERS.EXE" },
     { 1097715, 0x88766EE4, "ALIFEDOS.EXE" },
     { 86989080, 0xF9FAE6A1, "ALIFE.000" },
     { 354, 0x81C9FA06, "IMUSE.INI" },
@@ -3478,8 +4836,12 @@ const GDOX_DB_File k_game_database_files[] =
     { 183351, 0x66A87964, "ALIEN.EXE" },
     { 64768, 0xF03A5A0E, "LBMS/TAA.256" },
     { 103, 0x5F5DBB63, "SETUP.DAT" },
+    { 302251, 0x68E2A70D, "TA.EXE" },
+    { 2267004, 0x01E2DDC7, "TA.EPF" },
     { 302259, 0x57698016, "TA.EXE" },
     { 2267004, 0x01E2DDC7, "TA.EPF" },
+    { 292223, 0x5D350BBB, "TA.EXE" },
+    { 905741, 0xF587661F, "TA.EPF" },
     { 155088, 0x5DB6CD9B, "INDARK/INDARK.EXE" },
     { 961234, 0x5A1BD139, "INDARK/LISTSAMP.PAK" },
     { 75063, 0x05EFC6C9, "INDARK2/AITD2.EXE" },
@@ -3495,15 +4857,37 @@ const GDOX_DB_File k_game_database_files[] =
     { 11362816, 0x587E6A6E, "SOUND/THEME.RAW" },
     { 15626, 0xB7F038F5, "AD2.EXE" },
     { 687912960, 0x9108BDA6, "GAME.GOG" },
+    { 64707, 0x76531B31, "AA1.EXE" },
+    { 6462, 0x9B4957E6, "AA1.MNU" },
+    { 64611, 0x5C73DF88, "AA2.EXE" },
+    { 6464, 0x290D29EA, "AA2.MNU" },
+    { 64403, 0x53A0ACF5, "AA3.EXE" },
+    { 6464, 0x9752F247, "AA3.MNU" },
+    { 64355, 0x99127467, "AA4.EXE" },
+    { 6466, 0xB7C08C07, "AA4.MNU" },
     { 1228254, 0xF688E31D, "GAME.EXE" },
     { 73113573, 0xE55BE1B6, "GAMEDATA/BSI.BSA" },
+    { 30922, 0x69C23E35, "BEYOND.COM" },
+    { 76672, 0xC829E726, "BEYOND.001" },
+    { 90046, 0xD81D1F1F, "BMENACE1.EXE" },
+    { 501816, 0x2454D561, "EGAGRAPH.BM1" },
+    { 89921, 0xB82DB8DB, "BMENACE2.EXE" },
+    { 479241, 0x0633CB47, "EGAGRAPH.BM2" },
+    { 89754, 0xA85C7923, "BMENACE3.EXE" },
+    { 412364, 0xA3303AA3, "EGAGRAPH.BM3" },
+    { 91536, 0xFD4D6528, "BTHORNE.EXE" },
+    { 4325376, 0xDE532DAA, "DATA.DAT" },
     { 139809, 0x23DA7B5A, "BS_AOG.EXE" },
     { 2767080, 0x069F1D34, "VSWAP.BS6" },
     { 144390, 0xF8293A7F, "BS_FIRE.EXE" },
     { 3195112, 0x61BA741F, "VSWAP.VSI" },
+    { 144374, 0x106195A8, "BS_FIRE.EXE" },
+    { 3195112, 0x61BA741F, "VSWAP.VSI" },
     { 1280559, 0x1E97A686, "BLOOD.EXE" },
     { 8200353, 0xB291418F, "BLOOD.RFF" },
     { 5900, 0x24298924, "BLOOD.CFG" },
+    { 691303, 0x0DAD4F67, "BOPPIN.EXE" },
+    { 1088224, 0x44BA535F, "BOPPIN.RES" },
     { 578507, 0x4501D4A4, "CD/ICE640.EXE" },
     { 45874014, 0xB01D295C, "CD/KSVGA.KRO" },
     { 572595, 0x47AD94C1, "CD/ICE640.EXE" },
@@ -3517,18 +4901,45 @@ const GDOX_DB_File k_game_database_files[] =
     { 120862224, 0x721C01AE, "GAME.GOG" },
     { 1427418, 0xFA2FBFCA, "VOODO2C.EXE" },
     { 77225568, 0xC4F8063C, "SPLAT.GOG" },
+    { 97872, 0x03A265D0, "CASTLE.EXE" },
+    { 9104, 0xCDA96C00, "CASTLE.PAK" },
+    { 45770, 0x0B83952B, "CAVERNS.COM" },
+    { 43008, 0xE4EFD7FC, "CAVERNS.000" },
+    { 26962, 0x611CD195, "CAVES.EXE" },
+    { 40218, 0x019AD12A, "V00.EXE" },
     { 61607, 0xB86758DC, "START.EXE" },
     { 269031, 0x3A49AA98, "GAME.OVR" },
+    { 302982, 0xFAAD94AA, "CIV.EXE" },
+    { 37923, 0xC903B4DD, "ASOUND.CVL" },
     { 1162853, 0xCC24D560, "GAME.EXE" },
     { 421502976, 0xAD2EE449, "CONST.GOG" },
+    { 62081, 0x28CD1C72, "COSMO1.EXE" },
+    { 1359939, 0x504D18A7, "COSMO1.VOL" },
+    { 58805, 0xA24F99F2, "COSMO2.EXE" },
+    { 1308939, 0xE3ADE97E, "COSMO2.VOL" },
+    { 119078, 0x8F4AB2C6, "COSMO3.EXE" },
+    { 1267305, 0xD9A3D97C, "COSMO3.VOL" },
     { 1005584, 0xC9271B29, "REGRET.EXE" },
     { 50853376, 0xF2914A5F, "STATIC/SHAPES.FLX" },
     { 991878, 0x09E186BF, "CRUSADER.EXE" },
     { 42218623, 0x251AF6DF, "STATIC/SHAPES.FLX" },
+    { 73240, 0x3CEAE090, "CC1.EXE" },
+    { 184069, 0x5BFF4464, "CC1.GFX" },
+    { 72858, 0x9EA24FC1, "CC2.EXE" },
+    { 184069, 0x5BFF4464, "CC2.GFX" },
+    { 75524, 0xD51E340D, "CC3.EXE" },
+    { 184069, 0x5BFF4464, "CC3.GFX" },
     { 89639, 0x9D22EFF3, "START.EXE" },
     { 67786, 0x7A0EE80C, "ECRANS.IO" },
+    { 111606, 0x2A2DE7A5, "CURSE.EXE" },
     { 57789, 0xCB713714, "START.EXE" },
     { 272137, 0xBBF9562B, "GAME.OVR" },
+    { 48611, 0x3870E512, "DA1.EXE" },
+    { 29706, 0x347D9B77, "FILE01.DA1" },
+    { 48543, 0x7A0A75EE, "DA2.EXE" },
+    { 29706, 0x347D9B77, "FILE01.DA2" },
+    { 48326, 0xA3BF475E, "DA3.EXE" },
+    { 29706, 0x347D9B77, "FILE01.DA3" },
     { 1172219, 0x6DCF1C66, "DARK.EXE" },
     { 14244049, 0xD3BABAB2, "DARK.GOB" },
     { 722, 0x031263FD, "IMUSE.INI" },
@@ -3543,8 +4954,12 @@ const GDOX_DB_File k_game_database_files[] =
     { 59, 0x5F202105, "SOUND.CFG" },
     { 1675637, 0x35AA8EDE, "DARKLAND.EXE" },
     { 530301, 0xACBC151C, "M00C.CAT" },
+    { 39655, 0x53621C5F, "DOTT.EXE" },
+    { 11308818, 0xACB63F07, "TENTACLE.001" },
     { 74299, 0x0D698330, "START.EXE" },
     { 252469, 0x11B0EE11, "GAME.OVR" },
+    { 374621, 0x88D83050, "RALLY.EXE" },
+    { 21516352, 0xECF22897, "SANIM.HAF" },
     { 6036, 0xAB347B46, "DEMON.EXE" },
     { 173380, 0xBBFFC2FD, "DEMON.INT" },
     { 1132633, 0xAB5B070F, "DESCENTR.EXE" },
@@ -3552,6 +4967,8 @@ const GDOX_DB_File k_game_database_files[] =
     { 1507821, 0x183F70F3, "DESCENT2.EXE" },
     { 7595079, 0x60BB6742, "DESCENT2.HOG" },
     { 390, 0xD298FB65, "DESCENT.CFG" },
+    { 413723, 0x32D6FF5F, "DWB.EXE" },
+    { 781656, 0xF8DF863D, "DW.GRA" },
     { 715493, 0xB5CEB8AC, "DOOM.EXE" },
     { 12408292, 0xBF0EAAC0, "DOOM.WAD" },
     { 819, 0x975B1C1F, "DEFAULT.CFG" },
@@ -3566,6 +4983,13 @@ const GDOX_DB_File k_game_database_files[] =
     { 14604584, 0xEC8725DB, "DOOM2.WAD" },
     { 34815, 0x08F3CBC5, "DM.EXE" },
     { 853, 0x952691D4, "DOOM2/DEFAULT.CFG" },
+    { 709905, 0xBE91C727, "DOOM2.EXE" },
+    { 14604584, 0xEC8725DB, "DOOM2.WAD" },
+    { 33640, 0x8472E258, "DM.EXE" },
+    { 770, 0x2C93856D, "DEFAULT.CFG" },
+    { 709905, 0xC8A600AF, "DOOM.EXE" },
+    { 11159840, 0x723E60F9, "DOOM.WAD" },
+    { 770, 0x143248B2, "DEFAULT.CFG" },
     { 1887321, 0x0AC5BD49, "TALES.EXE" },
     { 610662512, 0x21FFAFB4, "DRAGON1" },
     { 254, 0x9893C511, "HMI.CFG" },
@@ -3576,11 +5000,23 @@ const GDOX_DB_File k_game_database_files[] =
     { 52, 0x979DFCE3, "DRAGON/CONFIG.DRA" },
     { 9407, 0x075BA9D1, "DS/DSTRIKE.EXE" },
     { 43125, 0x6AC375F5, "DS/BRIEFD.CMP" },
+    { 54688, 0xC81FDF89, "DN1.EXE" },
+    { 32000, 0x59DE2B71, "BADGUY.DN1" },
+    { 54595, 0x66BA1884, "DN2.EXE" },
+    { 32000, 0x33083650, "DN.DN2" },
+    { 54439, 0x2EE53566, "DN3.EXE" },
+    { 32000, 0x2F078DF9, "END.DN3" },
     { 1179131, 0x1B50472D, "DUKE3D.EXE" },
     { 26524524, 0xBBC9CE44, "DUKE3D.GRP" },
     { 5308, 0x51B309A1, "DUKE3D.CFG" },
     { 44356548, 0xFD3DCFF1, "DUKE3D.GRP" },
     { 151190, 0xE5FDAE10, "GAME.CON" },
+    { 59552, 0x6C9503EF, "NUKEM2.EXE" },
+    { 5496675, 0x32199D67, "NUKEM2.CMP" },
+    { 58852, 0xFCA456A7, "NUKEM2.EXE" },
+    { 3075327, 0x492CC028, "NUKEM2.CMP" },
+    { 57520, 0x8537CDAF, "DUNEPRG.EXE" },
+    { 45408, 0xC53E8A08, "DEATH1.HSQ" },
     { 151968, 0xB43F9145, "AESOP.EXE" },
     { 7083229, 0xE72C6C87, "HACK.RES" },
     { 59, 0x418B4F95, "SOUND.CFG" },
@@ -3588,6 +5024,8 @@ const GDOX_DB_File k_game_database_files[] =
     { 13139560, 0x66077A03, "DATA/CREATURE.JTY" },
     { 1923995, 0x23365A08, "KEEPER.EXE" },
     { 13139560, 0x66077A03, "DATA/CREATURE.JTY" },
+    { 47064, 0x6D9624EB, "DUNGEONS.COM" },
+    { 32768, 0x8DEB1082, "DUNGEONS.000" },
     { 66577, 0x12317247, "ECHELON.EXE" },
     { 48282, 0x21D46C6B, "DISK1/MUSIC1.RSH" },
     { 37461, 0xC77C963A, "PINBALL.EXE" },
@@ -3622,6 +5060,8 @@ const GDOX_DB_File k_game_database_files[] =
     { 722629, 0x503D9154, "DOOM2.EXE" },
     { 18654796, 0xD4BB05C0, "TNT.WAD" },
     { 817, 0x204C2F2C, "TNT/DEFAULT.CFG" },
+    { 72778, 0xE2008E0E, "FB.EXE" },
+    { 881832, 0x07BA1051, "DATA/LEVEL1.MAP" },
     { 587843, 0x64DE8603, "CKIT.EXE" },
     { 290656, 0x09E48BF7, "DISK2/PICC.TLB" },
     { 12581736, 0x79BE8B9F, "RESOURCE.000" },
@@ -3629,11 +5069,19 @@ const GDOX_DB_File k_game_database_files[] =
     { 345, 0xB021F78C, "RESOURCE.CFG" },
     { 36603, 0xC59F7A55, "GAME.EXE" },
     { 347622, 0xF4B8AA0D, "GAME.OVR" },
+    { 1935083, 0xBAC24E89, "GTADOS/GTA8.EXE" },
+    { 21307, 0xB7DDD654, "GTADOS/UVCONFIG.DAT" },
     { 3316, 0x5B051922, "GUNSHIP/GS/RUNGS.COM" },
     { 227723, 0x4437AA36, "GUNSHIP/GS/CAT1" },
     { 2738, 0x7BDF53B5, "MPS/GS2000CD/GS2000.COM" },
     { 1253543, 0xC43528F7, "MPS/GS2000CD/GS2000.CAT" },
     { 38, 0x78DE724E, "MPS/GS2000CD/SETUP.DAT" },
+    { 11744, 0x40265473, "HARRY.EXE" },
+    { 3987844, 0xA2B110EF, "HARRY.-0" },
+    { 313497, 0x5A5E4B0D, "HELIUS.EXE" },
+    { 279577, 0xD19D950D, "HELIUS.RAR" },
+    { 387482, 0xA22065E9, "HELIUS2.EXE" },
+    { 279577, 0xD19D950D, "HELIUS.RAR" },
     { 728031, 0x3B15558C, "HERETIC.EXE" },
     { 14189976, 0x5B16049E, "HERETIC.WAD" },
     { 944, 0x18F7D282, "HERETIC.CFG" },
@@ -3654,16 +5102,28 @@ const GDOX_DB_File k_game_database_files[] =
     { 27492, 0x2AABFD89, "EQUISMAP.CMP" },
     { 182656, 0xBA26F8FA, "HOCUS.EXE" },
     { 6101525, 0x977C45C3, "HOCUS.DAT" },
+    { 181872, 0x636B43B5, "HOCUS.EXE" },
+    { 6090697, 0x5A81D452, "HOCUS.DAT" },
+    { 31520, 0xD9105603, "VGALEMMI.EXE" },
+    { 59775, 0x9F9A4528, "MAIN.DAT" },
     { 21152, 0x52A32332, "IMPERIUM.EXE" },
     { 3100733, 0xCEEC3DD4, "DATA/SP_WAR.PAC" },
     { 128283, 0xA803103F, "ATLANTIS.EXE" },
     { 149867609, 0x028AD944, "MONSTER.SOU" },
     { 61200, 0x62C20356, "INDY256.EXE" },
     { 150141, 0x1C0D2712, "79.LFL" },
+    { 56662, 0x26396D13, "INDY3/INDY3.EXE" },
+    { 65515, 0x3A41DB2C, "INDY3/79.LFL" },
+    { 76256, 0x7334B56E, "GAME.EXE" },
+    { 62640, 0x89B439F1, "CTRUCK.PCG" },
     { 43462, 0xF1BE4652, "START.EXE" },
+    { 93400, 0x0396C609, "THEEND1.IO" },
+    { 41326, 0xC059DE9E, "START.EXE" },
     { 93400, 0x0396C609, "THEEND1.IO" },
     { 110467, 0x37C9D38F, "START.EXE" },
     { 29148420, 0x0B62302D, "INTRO300.DAT" },
+    { 107671, 0x37DE040F, "START.EXE" },
+    { 319482, 0x1049E846, "INTRO2.IO" },
     { 43265, 0x1C7204BB, "START.EXE" },
     { 76184, 0xEB4D8FD3, "IBOISHAR.IO" },
     { 66552, 0x9F17F7D8, "JACK/INDARK2.EXE" },
@@ -3677,6 +5137,9 @@ const GDOX_DB_File k_game_database_files[] =
     { 239616, 0xAC6EA9B5, "JAZZ.EXE" },
     { 213471, 0x5C0D2344, "SPRITES.051" },
     { 38, 0x90DBF610, "SOUNDCRD.INF" },
+    { 136431, 0x3DFB6C14, "JL.EXE" },
+    { 46134, 0x0BC4CB52, "KINGDOM.COM" },
+    { 26624, 0xF0D52DAA, "KINGDOM.000" },
     { 3121, 0x9FD66691, "KQ1.COM" },
     { 200630, 0x5B5E75A0, "VOL.1" },
     { 247952, 0x4481C735, "VOL.2" },
@@ -3692,11 +5155,17 @@ const GDOX_DB_File k_game_database_files[] =
     { 19356, 0x455809A6, "LOLCD.EXE" },
     { 2276340, 0xA8CA4626, "VOC.PAK" },
     { 10, 0x9D298F75, "LANDS.CFG" },
+    { 27376, 0x316769D6, "LASER.EXE" },
+    { 102436, 0x9B0244B8, "INGAME.SFX" },
+    { 32785, 0x8458C7C6, "VGALEMMI.EXE" },
+    { 56472, 0x5CB968BF, "MAIN.DAT" },
     { 441377, 0x10828195, "LINKS386.EXE" },
     { 2433616, 0xEA930ACA, "BANFF_SP.CRH" },
     { 61206, 0x73EB65E4, "GOLF.EXE" },
     { 1489682, 0x765482DB, "TROON_NO.CRS" },
     { 14, 0x3772E27E, "LINKS.CFG" },
+    { 85104, 0x7514AE22, "STRYKER.EXE" },
+    { 932247, 0xDDB60023, "VOLUME3B.MS3" },
     { 72899, 0xB2199B55, "MANIAC.EXE" },
     { 25510, 0xD1902B3E, "44.LFL" },
     { 303264, 0x534E3F06, "MAGIC.EXE" },
@@ -3712,6 +5181,12 @@ const GDOX_DB_File k_game_database_files[] =
     { 4250888, 0xE1B89FDF, "SOUND.LBX" },
     { 204, 0x24180090, "DIG.INI" },
     { 213, 0xFC146DC4, "MDI.INI" },
+    { 174438, 0x4826D59E, "MR1.EXE" },
+    { 552180, 0xA7FE6E80, "MR1.1" },
+    { 172940, 0x9F70B2AD, "MR2.EXE" },
+    { 542531, 0x26383048, "MR2.1" },
+    { 172918, 0xEDF9045B, "MR3.EXE" },
+    { 568305, 0x422C6182, "MR3.1" },
     { 12448, 0xB5C26C52, "M.EXE" },
     { 14405518, 0x3FD0F242, "RES6" },
     { 59, 0xA3724CBF, "SOUND.CFG" },
@@ -3731,8 +5206,42 @@ const GDOX_DB_File k_game_database_files[] =
     { 1238417, 0x5296E523, "MISSION.EXE" },
     { 11722758, 0x955C69E0, "MISSION/Q/MC005.Q" },
     { 216, 0x443147AD, "MDI.INI" },
+    { 114195, 0xC568563E, "MONKEY2.EXE" },
+    { 9093581, 0xEB123FFE, "MONKEY2.001" },
+    { 75353, 0x3B320BB4, "BASH1.EXE" },
+    { 1009955, 0x64400915, "BASH1.DAT" },
+    { 74996, 0xCD632DC5, "BASH2.EXE" },
+    { 854881, 0x1459FE90, "BASH2.DAT" },
+    { 75124, 0x8CFF6437, "BASH3.EXE" },
+    { 1072866, 0x1C0D69C9, "BASH3.DAT" },
+    { 67979, 0x2C601517, "MARS1.EXE" },
+    { 16600, 0xC2373323, "MARS1.IGS" },
+    { 43160, 0x54E65973, "MARS2.EXE" },
+    { 16700, 0xCE3E927D, "MARS2.IGS" },
+    { 43208, 0xCD21FDEA, "MARS3.EXE" },
+    { 16700, 0xCE3E927D, "MARS3.IGS" },
+    { 43384, 0x2560BD45, "MARS4.EXE" },
+    { 16700, 0x57B5ECA6, "MARS4.IGS" },
     { 120124, 0x3C0BD1AB, "MAIN.EXE" },
     { 35331, 0x40CBD5B8, "DISKB/MAP.CMP" },
+    { 102800, 0x4896B73E, "TOWERS.EXE" },
+    { 3415552, 0x9ABC20F0, "RGMYSTUS.DAT" },
+    { 32706, 0x21E63FD0, "VGALEMMI.EXE" },
+    { 112780, 0x0F8EA285, "MAIN.DAT" },
+    { 11398, 0xBBC4788A, "PAGA1.EXE" },
+    { 80032, 0x57BA2A0F, "PAGA1.002" },
+    { 11398, 0x90D1BC1A, "PAGA2.EXE" },
+    { 104802, 0x0BE80901, "PAGA2.008" },
+    { 11398, 0x8C81B20A, "PAGA3.EXE" },
+    { 191973, 0x209673A3, "PAGA3.008" },
+    { 56860, 0x7EC3B2F2, "PTOMB1.EXE" },
+    { 5722, 0x81B8C9AA, "PTOMB1.MNU" },
+    { 56844, 0x25DD0DBE, "PTOMB2.EXE" },
+    { 5722, 0x81B8C9AA, "PTOMB2.MNU" },
+    { 56876, 0x1A603C8E, "PTOMB3.EXE" },
+    { 5722, 0x81B8C9AA, "PTOMB3.MNU" },
+    { 56876, 0x56AEE297, "PTOMB4.EXE" },
+    { 5722, 0x81B8C9AA, "PTOMB4.MNU" },
     { 1983, 0x37E3DCC6, "PIR.EXE" },
     { 368640, 0x7E8F46AA, "DISK1" },
     { 26656768, 0x3B6306D9, "DATA.DAT" },
@@ -3746,16 +5255,24 @@ const GDOX_DB_File k_game_database_files[] =
     { 31680, 0xAB6988B5, "DATA/VGASPR0.DAT" },
     { 210385, 0x302702A1, "POP2.EXE" },
     { 4848180, 0x72D78B46, "DATA/INTRO.DAT" },
+    { 123344, 0xCFC21202, "PRINCE.EXE" },
+    { 48545, 0xBF4D0F41, "DIGISND1.DAT" },
+    { 290415, 0x8332201B, "PRINCE.EXE" },
+    { 1118400, 0xFE5ECD5A, "NISDIGI.DAT" },
     { 978766, 0x53BB1241, "DARK.EXE" },
     { 36666604, 0x1BB25ACD, "SETS.IFF" },
     { 978766, 0x53BB1241, "DARK.EXE" },
     { 5212143, 0x5EA502A9, "SPEECH.BIG" },
+    { 13635, 0x6D4F6966, "PUZ-MENU.COM" },
+    { 33803, 0x833F2E0C, "PHRASE.EXE" },
     { 409600, 0x3BC26700, "QUAKE.EXE" },
     { 34257856, 0x2E803216, "ID1/PAK1.PAK" },
     { 409600, 0x3BC26700, "QUAKE.EXE" },
     { 37875279, 0x38B70CE8, "ROGUE/PAK0.PAK" },
     { 409600, 0x3BC26700, "QUAKE.EXE" },
     { 35527205, 0xD17835FB, "HIPNOTIC/PAK0.PAK" },
+    { 404480, 0xCB6FCA15, "QUAKE.EXE" },
+    { 18689235, 0x74E3B084, "ID1/PAK0.PAK" },
     { 640483, 0xF643FD71, "RESOURCE.003" },
     { 76179, 0xB1F69B40, "SCIV.EXE" },
     { 6570147, 0xF52EDAD3, "RESOURCE.000" },
@@ -3768,12 +5285,16 @@ const GDOX_DB_File k_game_database_files[] =
     { 776483, 0xD30CBD07, "SIERRA.EXE" },
     { 137036, 0x74016D40, "START.EXE" },
     { 28950, 0xE4ACCE5C, "ISLE.ICN" },
+    { 411445, 0x57C984A2, "RAP.EXE" },
+    { 3945602, 0x11DD9519, "FILE0001.GLB" },
     { 12736, 0x42C3A125, "PROPHET/SP.EXE" },
     { 11193632, 0x8DCCF8EC, "PROPHET/RES6" },
     { 59, 0xD25E25F0, "PROPHET/SOUND.CFG" },
     { 12368, 0x83EE0B03, "RLOFT/R.EXE" },
     { 6210899, 0x9EC397CE, "RLOFT/RES6" },
     { 59, 0x115963D9, "RLOFT/SOUND.CFG" },
+    { 26674, 0x705BA7F1, "REALM.EXE" },
+    { 40218, 0x019AD12A, "V00.EXE" },
     { 2464255, 0x43794FA6, "RIVA.EXE" },
     { 37167860, 0x392CAC27, "DATA/RIVA.ALF" },
     { 553696, 0x4B789F54, "BLADEM.EXE" },
@@ -3782,10 +5303,24 @@ const GDOX_DB_File k_game_database_files[] =
     { 1370208, 0x7D6C5AB3, "STAR.EXE" },
     { 33241058, 0x5DA6C997, "DATA/STARCD.DAT" },
     { 20, 0xE465A264, "DATA/SOUND.CFG" },
+    { 543420, 0xE3B4FE15, "ROC.EXE" },
+    { 2791989, 0x2CD9C50F, "ROC.DAT" },
+    { 26642, 0xE7AF5A93, "REVENGE.EXE" },
+    { 40218, 0x019AD12A, "V00.EXE" },
     { 1150433, 0x9E12AD99, "ROTT.EXE" },
     { 14610149, 0xF24E5C46, "DARKWAR.WAD" },
+    { 1131233, 0x6017935A, "ROTT.EXE" },
+    { 14610173, 0xD391FD5A, "DARKWAR.WAD" },
+    { 142071, 0xC043CAF6, "SAMNMAX.EXE" },
+    { 13371801, 0x3074C39C, "SAMNMAX.SM1" },
     { 76400, 0x3DF88AE5, "SAVAGE.EXE" },
     { 270384, 0xF859A894, "OBJTILES.VGA" },
+    { 63569, 0x6F2C0CAA, "SAM1.EXE" },
+    { 22885, 0xDBAC876C, "SAM1.TTL" },
+    { 63950, 0x26410B95, "SAM2.EXE" },
+    { 22450, 0x90D620D5, "SAM2.TTL" },
+    { 63888, 0x2E548FEC, "SAM3.EXE" },
+    { 22211, 0x7548D763, "SAM3.TTL" },
     { 72097, 0x74D155C7, "START.EXE" },
     { 278528, 0xF865D2D4, "GAME.OVR" },
     { 8044, 0xF41B7309, "SHADOW.COM" },
@@ -3843,6 +5378,26 @@ const GDOX_DB_File k_game_database_files[] =
     { 198, 0x09C6CD30, "MDI.INI" },
     { 2216607, 0xE0C59CE4, "SGDOS.EXE" },
     { 464313, 0xB4C245CD, "SHAPES/SCREENS.SHP" },
+    { 33112, 0xA0F6F2AE, "TREK1.EXE" },
+    { 28182, 0x49A22EDE, "TREK2.EXE" },
+    { 27889, 0x46BE374C, "TREK10.EXE" },
+    { 33112, 0xA0F6F2AE, "TREK1.EXE" },
+    { 28182, 0x49A22EDE, "TREK2.EXE" },
+    { 27894, 0x424AC8E7, "TREK3.EXE" },
+    { 27894, 0x424AC8E7, "TREK3.EXE" },
+    { 28550, 0x98FDF127, "TREK4.EXE" },
+    { 28550, 0x98FDF127, "TREK4.EXE" },
+    { 27479, 0xFF7244A3, "TREK5.EXE" },
+    { 27479, 0xFF7244A3, "TREK5.EXE" },
+    { 28107, 0x1FE95F81, "TREK6.EXE" },
+    { 28107, 0x1FE95F81, "TREK6.EXE" },
+    { 28039, 0x937C04CF, "TREK7.EXE" },
+    { 28039, 0x937C04CF, "TREK7.EXE" },
+    { 27808, 0x3D79004A, "TREK8.EXE" },
+    { 27808, 0x3D79004A, "TREK8.EXE" },
+    { 27779, 0x0B1073BB, "TREK9.EXE" },
+    { 27779, 0x0B1073BB, "TREK9.EXE" },
+    { 27889, 0x46BE374C, "TREK10.EXE" },
     { 369365, 0xEABE9FC5, "TIE.EXE" },
     { 2202936, 0x31E86D7E, "RESOURCE/TIESPCH.LFD" },
     { 275053, 0x639AB115, "BWING.EXE" },
@@ -3859,6 +5414,8 @@ const GDOX_DB_File k_game_database_files[] =
     { 137240, 0x0E121CEE, "STUNT.EXE" },
     { 968055, 0x28FB1EEE, "RES/SPRITES.RES" },
     { 7, 0x9EC0F665, "GAME.CFG" },
+    { 31237, 0xE7F0F6F3, "NOVA.COM" },
+    { 58515, 0xDF8F7B8B, "S1" },
     { 41009, 0xC5165D9B, "SWORD.EXE" },
     { 26034, 0xE7C7EF6E, "TERRAIN/TERRAIN.ARC" },
     { 231852, 0x977240A1, "SWORDS.EXE" },
@@ -3875,6 +5432,8 @@ const GDOX_DB_File k_game_database_files[] =
     { 6138380, 0xAD5ABD51, "SSHOCK/DATA/TEXTURE.RES" },
     { 29238, 0xAAE69463, "TV.EXE" },
     { 32024444, 0x3120EDE3, "CDROM.POD" },
+    { 29238, 0xABDA753B, "TV.EXE" },
+    { 32014538, 0x62BDC765, "CDROM.POD" },
     { 449664, 0x6FF649F4, "DQK.EXE" },
     { 456526, 0x7DD418F1, "DISK3/ECL.GLB" },
     { 1899256, 0x347B9B9E, "REDGUARD/RGFX.EXE" },
@@ -3886,6 +5445,9 @@ const GDOX_DB_File k_game_database_files[] =
     { 1864183, 0xC08225D9, "FALL.EXE" },
     { 27143532, 0xB2477D7B, "ARENA2/ARCH3D.BSA" },
     { 227, 0x289D75F0, "HMISET.CFG" },
+    { 72433, 0xF2F2ABCD, "LOST.EXE" },
+    { 69589, 0xE1DF5A34, "MONKEY.EXE" },
+    { 1176686, 0x5981AD38, "DISK03.LEC" },
     { 1934962, 0x98C4E727, "S2.EXE" },
     { 598588, 0x46D1F45C, "DATA/CREDITS.LST" },
     { 215, 0x7DE7BE4E, "DRIVERS/MDI.INI" },
@@ -3906,6 +5468,18 @@ const GDOX_DB_File k_game_database_files[] =
     { 220, 0xDF1A8E2D, "TOMBRAID/HMISET.CFG" },
     { 71971, 0x4D7CB2EE, "GAME.EXE" },
     { 503785, 0x36B9BF47, "PIC1.DAX" },
+    { 5896, 0xFCA05BB8, "TRISTAN.EXE" },
+    { 382922, 0xF24ABB4B, "RES.LIB" },
+    { 29808, 0xAC8E8586, "TW1.EXE" },
+    { 29632, 0x1D56D6B7, "TW2.EXE" },
+    { 29632, 0x1D56D6B7, "TW2.EXE" },
+    { 28896, 0x03B081B4, "TW3.EXE" },
+    { 28896, 0x03B081B4, "TW3.EXE" },
+    { 28400, 0xD21FAA9A, "TW4.EXE" },
+    { 28400, 0xD21FAA9A, "TW4.EXE" },
+    { 28192, 0xA283FF6D, "TW5.EXE" },
+    { 28192, 0xA283FF6D, "TW5.EXE" },
+    { 29808, 0xAC8E8586, "TW1.EXE" },
     { 4336, 0x3F16AC43, "TYRIAN.EXE" },
     { 937303, 0x3D009620, "TYRIAN4.LVL" },
     { 694, 0xC6469170, "SERPENT.COM" },
@@ -3947,8 +5521,12 @@ const GDOX_DB_File k_game_database_files[] =
     { 650437, 0xBF9D9BAE, "WW.EXE" },
     { 7771880, 0x89727946, "WACKY.DAT" },
     { 2778, 0x2F242E2D, "WACKY.CFG" },
+    { 650437, 0x09676204, "WW.EXE" },
+    { 7771880, 0x1AA5D962, "WACKY.DAT" },
     { 317720, 0x6A6C0B88, "WL/START.EXE" },
     { 13767, 0x60D3DB67, "WL/COMBAT.SHP" },
+    { 878119, 0x66D37BB0, "WAR2.EXE" },
+    { 8459965, 0xDB83D9FB, "DATA/MAINDAT.WAR" },
     { 319291, 0xA3EE9116, "WAR.EXE" },
     { 12852768, 0x1411B41B, "DATA/DATA.WAR" },
     { 32, 0x43399AA8, "CONFIG.WAR" },
@@ -3997,6 +5575,22 @@ const GDOX_DB_File k_game_database_files[] =
     { 8694, 0x931B4F24, "CONVER.WCR" },
     { 108779, 0x6D818DBE, "WOLF3D.EXE" },
     { 1544376, 0xE610C664, "VSWAP.WL6" },
+    { 168028, 0x7C91D9BC, "WR1.EXE" },
+    { 461272, 0xEC99E1B8, "WR1.1" },
+    { 167874, 0xD0804B0A, "WR2.EXE" },
+    { 462609, 0x1BCFC957, "WR2.1" },
+    { 168002, 0xA8383D4A, "WR3.EXE" },
+    { 519639, 0x49B9FDFA, "WR3.1" },
+    { 177008, 0x07101A95, "WRPLUS.EXE" },
+    { 532398, 0x380FA38B, "WR.1" },
+    { 33278, 0x796CEBAF, "WW1.EXE" },
+    { 48344, 0xF0F35BA2, "WW2.EXE" },
+    { 48344, 0xF0F35BA2, "WW2.EXE" },
+    { 49041, 0x04CE08B0, "WW3.EXE" },
+    { 49041, 0x04CE08B0, "WW3.EXE" },
+    { 47466, 0xBE7AFE46, "WW4.EXE" },
+    { 47466, 0xBE7AFE46, "WW4.EXE" },
+    { 33278, 0x796CEBAF, "WW1.EXE" },
     { 493309, 0xB97E86F2, "BIN/WRMS.EXE" },
     { 727298, 0x6A744E90, "DATA/CUSTOM/SFX/ENGLISH.SFX" },
     { 18171, 0x991A9ADF, "XCOMAPOC.EXE" },
@@ -4005,465 +5599,714 @@ const GDOX_DB_File k_game_database_files[] =
     { 382957, 0x5E304972, "UFOEXE/GEOSCAPE.EXE" },
     { 2474590, 0x92A47A2D, "UFOINTRO/UFOINT.FLI" },
     { 10, 0x28DA4CD4, "SOUND.CFG" },
+    { 414419, 0x5F59EBA3, "UFOEXE/GEOSCAPE.EXE" },
+    { 2474590, 0x92A47A2D, "UFOINTRO/UFOINT.FLI" },
+    { 10, 0x28DA4CD4, "SOUND.CFG" },
     { 1220, 0x5E4608B4, "TERROR.COM" },
     { 25809984, 0xEB17894E, "ANIMS/INTRO.VID" },
     { 18, 0x0926EDCE, "SOUND/SOUND.CFG" },
+    { 919267, 0x48CA4215, "XPRX.EXE" },
+    { 10607698, 0x70E03541, "GRAPH.XPR" },
+    { 30470, 0x62FCBABA, "LEMMINGS.EXE" },
+    { 59992, 0xC5ECFD1A, "MAIN.DAT" },
 };
 
-const int k_game_database_file_count = 538;
+const int k_game_database_file_count = 783;
 
 const GDOX_DB_Key k_game_database_keys[] =
 {
-    { 31, 0x3C6B1E7A, 190 },
-    { 31, 0x3C6B1E7A, 191 },
-    { 480, 0xC168E424, 188 },
-    { 694, 0xC6469170, 183 },
-    { 776, 0x6403F92A, 102 },
-    { 1063, 0x9E5F0732, 142 },
-    { 1220, 0x5E4608B4, 223 },
-    { 1476, 0xE7F6A271, 175 },
-    { 1576, 0x50A3140C, 54 },
-    { 1722, 0xC780AD2F, 53 },
-    { 1983, 0x37E3DCC6, 107 },
-    { 2738, 0x7BDF53B5, 65 },
-    { 2928, 0xD99A86F0, 85 },
-    { 3121, 0x72FCA229, 143 },
-    { 3121, 0x984B800C, 145 },
-    { 3121, 0x9FD66691, 84 },
-    { 3121, 0xDE7F5D15, 86 },
-    { 3316, 0x5B051922, 64 },
-    { 3440, 0xE993B202, 137 },
-    { 3680, 0xFF8092E9, 82 },
-    { 4336, 0x3F16AC43, 182 },
-    { 6036, 0xAB347B46, 32 },
-    { 7200, 0x2DBEE83F, 40 },
-    { 8044, 0xF41B7309, 132 },
-    { 8154, 0x2E232DA9, 153 },
-    { 8154, 0xB5E7C36E, 152 },
-    { 8325, 0xAF895636, 210 },
-    { 8325, 0xAF895636, 211 },
-    { 8652, 0x9893E98D, 50 },
-    { 8694, 0x931B4F24, 218 },
-    { 9407, 0x075BA9D1, 42 },
-    { 12299, 0xFE876C72, 71 },
-    { 12368, 0x83EE0B03, 125 },
-    { 12448, 0xB5C26C52, 99 },
-    { 12736, 0x42C3A125, 124 },
-    { 13767, 0x60D3DB67, 198 },
-    { 15626, 0xB7F038F5, 9 },
-    { 16512, 0x04BF9936, 186 },
-    { 18171, 0x991A9ADF, 221 },
-    { 18677, 0xB6F7B862, 193 },
-    { 19342, 0x81DADB5E, 1 },
-    { 19356, 0x455809A6, 90 },
-    { 21152, 0x52A32332, 74 },
-    { 24934, 0x369BE736, 137 },
-    { 25510, 0xD1902B3E, 93 },
-    { 26034, 0xE7C7EF6E, 163 },
-    { 26691, 0x1016DB22, 54 },
-    { 27492, 0x2AABFD89, 72 },
-    { 28672, 0xF4F88BF2, 179 },
-    { 28950, 0xE4ACCE5C, 123 },
-    { 29238, 0xAAE69463, 169 },
-    { 31568, 0x1A95A4A0, 178 },
-    { 31680, 0xAB6988B5, 111 },
-    { 32000, 0xB6A8D7D7, 185 },
-    { 32609, 0x20967787, 132 },
-    { 34815, 0x08F3CBC5, 38 },
-    { 35331, 0x40CBD5B8, 106 },
-    { 36592, 0x4E56116E, 192 },
-    { 36603, 0xC59F7A55, 63 },
-    { 36692, 0xE2358D36, 187 },
-    { 36880, 0x4FD5ACAA, 185 },
-    { 37344, 0xE1AA48FB, 186 },
-    { 37461, 0xC77C963A, 49 },
-    { 38784, 0xD5FF6013, 40 },
-    { 41009, 0xC5165D9B, 163 },
-    { 41549, 0x7F1B159F, 51 },
-    { 43125, 0x6AC375F5, 42 },
-    { 43265, 0x1C7204BB, 79 },
-    { 43462, 0xF1BE4652, 77 },
-    { 44234, 0x8AF0A289, 187 },
-    { 48282, 0x21D46C6B, 48 },
-    { 52857, 0x0385B6AF, 52 },
-    { 53647, 0x12DF8FD6, 103 },
-    { 54183, 0x79D1E558, 159 },
-    { 54512, 0xA186949B, 160 },
-    { 57789, 0xCB713714, 25 },
-    { 59150, 0xD5420A3B, 120 },
-    { 61200, 0x62C20356, 76 },
-    { 61206, 0x73EB65E4, 92 },
-    { 61607, 0xB86758DC, 20 },
-    { 62238, 0x60931701, 144 },
-    { 62549, 0xAB280870, 201 },
-    { 64203, 0x03A4FB85, 110 },
-    { 64256, 0xC85FF368, 69 },
-    { 64768, 0xF03A5A0E, 2 },
-    { 65231, 0x299296FA, 109 },
-    { 65536, 0x15C54D3A, 192 },
-    { 65536, 0x80A2344C, 188 },
-    { 66552, 0x9F17F7D8, 80 },
-    { 66577, 0x12317247, 48 },
-    { 67134, 0xA1A78BE6, 217 },
-    { 67742, 0xC5807FF8, 153 },
-    { 67778, 0x7BE0254A, 121 },
-    { 67786, 0x7A0EE80C, 24 },
-    { 67960, 0x4EC77630, 147 },
-    { 68342, 0x13631226, 148 },
-    { 71971, 0x4D7CB2EE, 181 },
-    { 72097, 0x74D155C7, 131 },
-    { 72899, 0xB2199B55, 93 },
-    { 74299, 0x0D698330, 31 },
-    { 75063, 0x05EFC6C9, 5 },
-    { 75075, 0xF89E9B27, 87 },
-    { 76179, 0xB1F69B40, 118 },
-    { 76184, 0xEB4D8FD3, 79 },
-    { 76400, 0x3DF88AE5, 130 },
-    { 76609, 0xBC924E4F, 146 },
-    { 77824, 0x6E4D5F65, 101 },
-    { 84959, 0x5C0995CE, 111 },
-    { 89178, 0xD20F7DA9, 138 },
-    { 89639, 0x9D22EFF3, 24 },
-    { 92346, 0xDFDBC892, 55 },
-    { 93400, 0x0396C609, 77 },
-    { 95754, 0xDC612A60, 151 },
-    { 97005, 0xEA2A4941, 69 },
-    { 98791, 0x09D486A1, 17 },
-    { 105981, 0x019C0580, 165 },
-    { 108779, 0x6D818DBE, 219 },
-    { 110467, 0x37C9D38F, 78 },
-    { 113418, 0x4D38A060, 149 },
-    { 114160, 0xC0F3B7F1, 53 },
-    { 118480, 0x893D974E, 189 },
-    { 119264, 0x3D3DF71E, 100 },
-    { 120124, 0x3C0BD1AB, 106 },
-    { 123059, 0x0D7745F5, 100 },
-    { 128283, 0xA803103F, 75 },
-    { 133433, 0xF51C6063, 201 },
-    { 137036, 0x74016D40, 123 },
-    { 137240, 0x0E121CEE, 162 },
-    { 137737, 0xAF60A284, 104 },
-    { 138499, 0x027971C8, 88 },
-    { 139809, 0x23DA7B5A, 11 },
-    { 144390, 0xF8293A7F, 12 },
-    { 145743, 0xF9DD7737, 41 },
-    { 146590, 0xB6A6F22D, 37 },
-    { 146593, 0x193113D1, 72 },
-    { 147124, 0xB044BAEF, 206 },
-    { 147387, 0x252C6B75, 119 },
-    { 150141, 0x1C0D2712, 76 },
-    { 151190, 0xE5FDAE10, 44 },
-    { 151968, 0xB43F9145, 45 },
-    { 155088, 0x5DB6CD9B, 4 },
-    { 155135, 0x8BCE578E, 212 },
-    { 156514, 0xB2250664, 82 },
-    { 156568, 0xF5BA072E, 205 },
-    { 168257, 0x5D5906E8, 101 },
-    { 173380, 0xBBFFC2FD, 32 },
-    { 174155, 0xC426E44B, 89 },
-    { 174429, 0xB2857498, 172 },
-    { 178082, 0xB5E2027F, 49 },
-    { 182656, 0xBA26F8FA, 73 },
-    { 183351, 0x66A87964, 2 },
-    { 185894, 0x65764D93, 218 },
-    { 188980, 0xF58B75E2, 217 },
-    { 200630, 0x5B5E75A0, 84 },
-    { 205686, 0x6A93AB92, 140 },
-    { 206105, 0xE998163C, 109 },
-    { 206400, 0x424DC60A, 150 },
-    { 210385, 0x302702A1, 112 },
-    { 211008, 0x6237FE7B, 96 },
-    { 211008, 0x6237FE7B, 97 },
-    { 212448, 0xF4D6A5AF, 6 },
-    { 213471, 0x5C0D2344, 83 },
-    { 220100, 0x521D2E80, 160 },
-    { 227723, 0x4437AA36, 64 },
-    { 228034, 0x2EA42BF7, 140 },
-    { 228292, 0xCA8AA643, 16 },
-    { 231852, 0x977240A1, 164 },
-    { 239616, 0xAC6EA9B5, 83 },
-    { 241696, 0xB8A30D65, 139 },
-    { 247952, 0x4481C735, 85 },
-    { 252469, 0x11B0EE11, 31 },
-    { 264177, 0x0EA18761, 143 },
-    { 266560, 0x1FB8D86F, 189 },
-    { 269031, 0x3A49AA98, 20 },
-    { 270384, 0xF859A894, 130 },
-    { 272137, 0xBBF9562B, 25 },
-    { 275053, 0x639AB115, 157 },
-    { 278528, 0xF865D2D4, 131 },
-    { 289344, 0x27476507, 193 },
-    { 290656, 0x09E48BF7, 61 },
-    { 291871, 0x1FD26125, 158 },
-    { 296437, 0x52F18C89, 80 },
-    { 302259, 0x57698016, 3 },
-    { 303264, 0x3BF41FF6, 95 },
-    { 303264, 0x534E3F06, 94 },
-    { 304976, 0x0A45CE7C, 202 },
-    { 305024, 0x013AFED4, 212 },
-    { 317720, 0x6A6C0B88, 198 },
-    { 319291, 0xA3EE9116, 199 },
-    { 333296, 0xF0D50E98, 51 },
-    { 347622, 0xF4B8AA0D, 63 },
-    { 351712, 0xC385F0BC, 37 },
-    { 354400, 0x3A033890, 206 },
-    { 354400, 0x3A033890, 208 },
-    { 358921, 0x61AC3ED7, 151 },
-    { 361808, 0x3F01857C, 204 },
-    { 362496, 0xFB658C0D, 159 },
-    { 363600, 0x4F3200FC, 205 },
-    { 363600, 0x4F3200FC, 207 },
-    { 363696, 0xA0331E4E, 203 },
-    { 363696, 0xA0331E4E, 204 },
-    { 365256, 0xD1DB3B70, 86 },
-    { 366900, 0x08137698, 221 },
-    { 368640, 0x7E8F46AA, 107 },
-    { 369365, 0xEABE9FC5, 156 },
-    { 373024, 0xB95669DB, 150 },
-    { 382957, 0x5E304972, 222 },
-    { 409600, 0x3BC26700, 115 },
-    { 409600, 0x3BC26700, 116 },
-    { 409600, 0x3BC26700, 117 },
-    { 411824, 0x0684FAC1, 145 },
-    { 441377, 0x10828195, 91 },
-    { 449664, 0x6FF649F4, 170 },
-    { 456526, 0x7DD418F1, 170 },
-    { 464313, 0xB4C245CD, 155 },
-    { 466303, 0x4C1BC904, 142 },
-    { 493309, 0xB97E86F2, 220 },
-    { 503785, 0x36B9BF47, 181 },
-    { 511280, 0xC21800DA, 161 },
-    { 516592, 0x5E145F91, 202 },
-    { 530301, 0xACBC151C, 30 },
-    { 553068, 0x482BFF93, 41 },
-    { 553696, 0x4B789F54, 127 },
-    { 572595, 0x47AD94C1, 15 },
-    { 578507, 0x4501D4A4, 14 },
-    { 587843, 0x64DE8603, 61 },
-    { 594916, 0x14A85307, 158 },
-    { 598588, 0x46D1F45C, 174 },
-    { 609117, 0x330147DD, 7 },
-    { 611408, 0x29E8592C, 27 },
-    { 611408, 0x29E8592C, 28 },
-    { 621249, 0xC0D73B83, 213 },
-    { 634416, 0x192FFE45, 29 },
-    { 640483, 0xF643FD71, 118 },
-    { 648158, 0x996096C7, 110 },
-    { 650437, 0xBF9D9BAE, 197 },
-    { 689248, 0xA1122B73, 184 },
-    { 691697, 0x303586DD, 55 },
-    { 692384, 0x30EE0B69, 62 },
-    { 707591, 0x010780A7, 87 },
-    { 709905, 0xBE91C727, 36 },
-    { 709905, 0xBE91C727, 38 },
-    { 710310, 0x8262F686, 214 },
-    { 715493, 0xB5CEB8AC, 35 },
-    { 715777, 0x6ECAC695, 146 },
-    { 717089, 0xC4C98345, 203 },
-    { 717089, 0xC4C98345, 207 },
-    { 717089, 0xC4C98345, 208 },
-    { 722629, 0x12EE2811, 57 },
-    { 722629, 0x12EE2811, 59 },
-    { 722629, 0x503D9154, 58 },
-    { 722629, 0x503D9154, 60 },
-    { 727298, 0x6A744E90, 220 },
-    { 728031, 0x3B15558C, 66 },
-    { 763696, 0xFE6FE08E, 200 },
-    { 768611, 0x12DA0292, 180 },
-    { 776483, 0xD30CBD07, 122 },
-    { 841223, 0x3881E7D8, 177 },
-    { 873739, 0x5A17B7F3, 180 },
-    { 915654, 0xFE3D8C83, 216 },
-    { 923019, 0xBBC55DF2, 70 },
-    { 932827, 0xA8CD6E0F, 81 },
-    { 934930, 0xC8E10C4F, 200 },
-    { 935440, 0xF8FADB87, 194 },
-    { 935440, 0xF8FADB87, 195 },
-    { 935440, 0xF8FADB87, 196 },
-    { 937303, 0x3D009620, 182 },
-    { 940595, 0x79BB584B, 157 },
-    { 941398, 0xF6409404, 176 },
-    { 961234, 0x5A1BD139, 4 },
-    { 968055, 0x28FB1EEE, 162 },
-    { 978766, 0x53BB1241, 113 },
-    { 978766, 0x53BB1241, 114 },
-    { 983617, 0x6639F781, 120 },
-    { 991878, 0x09E186BF, 23 },
-    { 1005584, 0xC9271B29, 22 },
-    { 1027593, 0xC6EF9266, 215 },
-    { 1073041, 0x70299134, 8 },
-    { 1097715, 0x88766EE4, 0 },
-    { 1111536, 0x5C67F7B0, 141 },
-    { 1132633, 0xAB5B070F, 33 },
-    { 1146357, 0xECC70C2E, 56 },
-    { 1150433, 0x9E12AD99, 129 },
-    { 1162853, 0xCC24D560, 21 },
-    { 1172219, 0x6DCF1C66, 26 },
-    { 1179131, 0x1B50472D, 43 },
-    { 1189325, 0xE4027C76, 154 },
-    { 1204791, 0x778AD5BE, 16 },
-    { 1213262, 0xB19B78F5, 144 },
-    { 1222987, 0x80EEF853, 67 },
-    { 1228254, 0xF688E31D, 10 },
-    { 1238417, 0x5296E523, 105 },
-    { 1253543, 0xC43528F7, 65 },
-    { 1254195, 0x54DD6408, 167 },
-    { 1264343, 0x923F6F25, 196 },
-    { 1275321, 0x1A8224D6, 195 },
-    { 1280559, 0x1E97A686, 13 },
-    { 1351431, 0x9BACB58F, 17 },
-    { 1370208, 0x7D6C5AB3, 128 },
-    { 1426038, 0xD9915A7A, 108 },
-    { 1427418, 0xDBCCC690, 18 },
-    { 1427418, 0xFA2FBFCA, 19 },
-    { 1489682, 0x765482DB, 92 },
-    { 1498254, 0x7B1FACD7, 81 },
-    { 1503974, 0x31708061, 68 },
-    { 1507821, 0x183F70F3, 34 },
-    { 1543695, 0xEC0FBC52, 168 },
-    { 1544376, 0xE610C664, 219 },
-    { 1616544, 0x591CC4DC, 149 },
-    { 1655539, 0x72D443F6, 176 },
-    { 1675637, 0x35AA8EDE, 30 },
-    { 1721979, 0x06A2D426, 175 },
-    { 1741642, 0x0DA70A7F, 166 },
-    { 1753104, 0xAAC43B8A, 50 },
-    { 1859531, 0xC98EFCC6, 96 },
-    { 1859531, 0xC98EFCC6, 97 },
-    { 1864183, 0xC08225D9, 173 },
-    { 1867860, 0xEA1DABEE, 166 },
-    { 1887321, 0x0AC5BD49, 39 },
-    { 1899256, 0x347B9B9E, 171 },
-    { 1923995, 0x23365A08, 47 },
-    { 1934962, 0x98C4E727, 174 },
-    { 1982751, 0x30B6061B, 46 },
-    { 2053204, 0x1B5003A1, 152 },
-    { 2202936, 0x31E86D7E, 156 },
-    { 2216607, 0xE0C59CE4, 155 },
-    { 2267004, 0x01E2DDC7, 3 },
-    { 2276340, 0xA8CA4626, 90 },
-    { 2323389, 0x01CAD068, 133 },
-    { 2323389, 0x9F8CF135, 134 },
-    { 2324000, 0xFF722CD4, 135 },
-    { 2433616, 0xEA930ACA, 91 },
-    { 2464255, 0x43794FA6, 126 },
-    { 2474590, 0x92A47A2D, 222 },
-    { 2598921, 0x3BA26903, 94 },
-    { 2598921, 0x3BA26903, 95 },
-    { 2629981, 0x254400E9, 141 },
-    { 2644842, 0x69A173DC, 98 },
-    { 2767080, 0x069F1D34, 11 },
-    { 3016766, 0xC5D95C20, 6 },
-    { 3050273, 0x0B430EFB, 179 },
-    { 3088376, 0x5C523776, 27 },
-    { 3088376, 0x5C523776, 28 },
-    { 3100733, 0xCEEC3DD4, 74 },
-    { 3195112, 0x61BA741F, 12 },
-    { 3430389, 0x3F81A95F, 102 },
-    { 3611522, 0x36518235, 165 },
-    { 3626745, 0x7966242F, 178 },
-    { 3646931, 0x20C4744A, 5 },
-    { 4250888, 0xE1B89FDF, 98 },
-    { 4440584, 0xFD5EB11D, 71 },
-    { 4723042, 0xEA186EB3, 127 },
-    { 4848180, 0x72D78B46, 112 },
-    { 5157378, 0xCE475558, 147 },
-    { 5212143, 0x5EA502A9, 114 },
-    { 5259205, 0x7220334E, 161 },
-    { 5496486, 0xDF6A5A2C, 148 },
-    { 5724669, 0x09C3E3AC, 29 },
-    { 5813871, 0xE56E0CD5, 213 },
-    { 5813871, 0xE56E0CD5, 214 },
-    { 5868000, 0xBB23746B, 121 },
-    { 6101525, 0x977C45C3, 73 },
-    { 6138380, 0xAD5ABD51, 168 },
-    { 6210899, 0x9EC397CE, 125 },
-    { 6570147, 0xF52EDAD3, 119 },
-    { 6845522, 0x1448D2F0, 52 },
-    { 6856701, 0x3B0B1041, 33 },
-    { 7083229, 0xE72C6C87, 45 },
-    { 7305711, 0x3091D731, 184 },
-    { 7595079, 0x60BB6742, 34 },
-    { 7771880, 0x89727946, 197 },
-    { 7841568, 0xE33BA00E, 136 },
-    { 8200353, 0xB291418F, 13 },
-    { 8376352, 0x5E792831, 89 },
-    { 8758305, 0x66613004, 215 },
-    { 8758305, 0x66613004, 216 },
-    { 8815920, 0x3CC23EDC, 183 },
-    { 8836276, 0x8282AF18, 209 },
-    { 8986211, 0x3D514392, 103 },
-    { 8986211, 0x3D514392, 104 },
-    { 9393362, 0x632847E0, 154 },
-    { 9692036, 0xDE8F31C2, 56 },
-    { 11193632, 0x8DCCF8EC, 124 },
-    { 11362816, 0x587E6A6E, 8 },
-    { 11571394, 0x87C4F043, 122 },
-    { 11722758, 0x955C69E0, 105 },
-    { 12408292, 0xBF0EAAC0, 35 },
-    { 12408292, 0xBF0EAAC0, 36 },
-    { 12581736, 0x79BE8B9F, 62 },
-    { 12852768, 0x1411B41B, 199 },
-    { 13026924, 0xC836F620, 164 },
-    { 13139560, 0x66077A03, 46 },
-    { 13139560, 0x66077A03, 47 },
-    { 14189976, 0x5B16049E, 66 },
-    { 14244049, 0xD3BABAB2, 26 },
-    { 14405518, 0x3FD0F242, 99 },
-    { 14604584, 0xEC8725DB, 36 },
-    { 14604584, 0xEC8725DB, 38 },
-    { 14610149, 0xF24E5C46, 129 },
-    { 15374715, 0xBEA3EACF, 194 },
-    { 15938796, 0x1115F536, 7 },
-    { 16666528, 0xD6D42F41, 177 },
-    { 16800210, 0x5CBC3AC7, 88 },
-    { 16802136, 0xA3C0E551, 172 },
-    { 17420824, 0x48D1453C, 57 },
-    { 18195736, 0x903DCC27, 59 },
-    { 18240172, 0x15CD1448, 58 },
-    { 18654796, 0xD4BB05C0, 60 },
-    { 19945814, 0x334B5A2B, 67 },
-    { 20083672, 0xDCA9114C, 70 },
-    { 25809984, 0xEB17894E, 223 },
-    { 26524524, 0xBBC9CE44, 43 },
-    { 26656768, 0x3B6306D9, 108 },
-    { 27143532, 0xB2477D7B, 173 },
-    { 29148420, 0x0B62302D, 78 },
-    { 32024444, 0x3120EDE3, 169 },
-    { 33241058, 0x5DA6C997, 128 },
-    { 33867776, 0x04C1E113, 190 },
-    { 33867776, 0x04C1E113, 191 },
-    { 34257856, 0x2E803216, 115 },
-    { 35527205, 0xD17835FB, 117 },
-    { 36666604, 0x1BB25ACD, 113 },
-    { 37167860, 0x392CAC27, 126 },
-    { 37875279, 0x38B70CE8, 116 },
-    { 41736240, 0xB46F6A24, 138 },
-    { 42218623, 0x251AF6DF, 23 },
-    { 43363026, 0xB940073F, 68 },
-    { 44356548, 0xFD3DCFF1, 44 },
-    { 45874014, 0xB01D295C, 14 },
-    { 45874014, 0xB01D295C, 15 },
-    { 47536148, 0x7545319F, 133 },
-    { 47536148, 0x7545319F, 134 },
-    { 48698128, 0xA9AAA7B7, 135 },
-    { 50853376, 0xF2914A5F, 22 },
-    { 52721946, 0x6EE0F723, 167 },
-    { 73113573, 0xE55BE1B6, 10 },
-    { 77225568, 0xC4F8063C, 19 },
-    { 86989080, 0xF9FAE6A1, 0 },
-    { 120862224, 0x721C01AE, 18 },
-    { 141722112, 0xE2531BBB, 1 },
-    { 149867609, 0x028AD944, 75 },
-    { 164691968, 0xDD3374F3, 210 },
-    { 164691968, 0xDD3374F3, 211 },
-    { 184687877, 0x91093586, 171 },
-    { 421502976, 0xAD2EE449, 21 },
-    { 610662512, 0x21FFAFB4, 39 },
-    { 687912960, 0x9108BDA6, 9 },
-    { 1862948864, 0x1D642B10, 209 },
+    { 31, 0x3C6B1E7A, 299 },
+    { 31, 0x3C6B1E7A, 300 },
+    { 480, 0xC168E424, 297 },
+    { 694, 0xC6469170, 292 },
+    { 776, 0x6403F92A, 161 },
+    { 1063, 0x9E5F0732, 231 },
+    { 1220, 0x5E4608B4, 343 },
+    { 1476, 0xE7F6A271, 278 },
+    { 1576, 0x50A3140C, 94 },
+    { 1722, 0xC780AD2F, 93 },
+    { 1983, 0x37E3DCC6, 183 },
+    { 2738, 0x7BDF53B5, 107 },
+    { 2928, 0xD99A86F0, 138 },
+    { 3121, 0x72FCA229, 232 },
+    { 3121, 0x984B800C, 234 },
+    { 3121, 0x9FD66691, 137 },
+    { 3121, 0xDE7F5D15, 139 },
+    { 3316, 0x5B051922, 106 },
+    { 3440, 0xE993B202, 226 },
+    { 3680, 0xFF8092E9, 133 },
+    { 4336, 0x3F16AC43, 291 },
+    { 5722, 0x81B8C9AA, 179 },
+    { 5722, 0x81B8C9AA, 180 },
+    { 5722, 0x81B8C9AA, 181 },
+    { 5722, 0x81B8C9AA, 182 },
+    { 5896, 0xFCA05BB8, 285 },
+    { 6036, 0xAB347B46, 62 },
+    { 6462, 0x9B4957E6, 13 },
+    { 6464, 0x290D29EA, 14 },
+    { 6464, 0x9752F247, 15 },
+    { 6466, 0xB7C08C07, 16 },
+    { 7200, 0x2DBEE83F, 73 },
+    { 8044, 0xF41B7309, 221 },
+    { 8154, 0x2E232DA9, 242 },
+    { 8154, 0xB5E7C36E, 241 },
+    { 8325, 0xAF895636, 321 },
+    { 8325, 0xAF895636, 322 },
+    { 8652, 0x9893E98D, 90 },
+    { 8694, 0x931B4F24, 329 },
+    { 9104, 0xCDA96C00, 34 },
+    { 9407, 0x075BA9D1, 75 },
+    { 11398, 0x8C81B20A, 178 },
+    { 11398, 0x90D1BC1A, 177 },
+    { 11398, 0xBBC4788A, 176 },
+    { 11744, 0x40265473, 108 },
+    { 12299, 0xFE876C72, 116 },
+    { 12368, 0x83EE0B03, 206 },
+    { 12448, 0xB5C26C52, 158 },
+    { 12736, 0x42C3A125, 205 },
+    { 13635, 0x6D4F6966, 193 },
+    { 13659, 0x688947FE, 0 },
+    { 13767, 0x60D3DB67, 308 },
+    { 15626, 0xB7F038F5, 12 },
+    { 16512, 0x04BF9936, 295 },
+    { 16600, 0xC2373323, 169 },
+    { 16700, 0x57B5ECA6, 172 },
+    { 16700, 0xCE3E927D, 170 },
+    { 16700, 0xCE3E927D, 171 },
+    { 18171, 0x991A9ADF, 340 },
+    { 18677, 0xB6F7B862, 302 },
+    { 19342, 0x81DADB5E, 2 },
+    { 19356, 0x455809A6, 143 },
+    { 21152, 0x52A32332, 121 },
+    { 21307, 0xB7DDD654, 105 },
+    { 22211, 0x7548D763, 219 },
+    { 22450, 0x90D620D5, 218 },
+    { 22885, 0xDBAC876C, 217 },
+    { 24934, 0x369BE736, 226 },
+    { 25510, 0xD1902B3E, 149 },
+    { 25679, 0x943914B7, 0 },
+    { 26034, 0xE7C7EF6E, 263 },
+    { 26624, 0xF0D52DAA, 136 },
+    { 26642, 0xE7AF5A93, 212 },
+    { 26674, 0x705BA7F1, 207 },
+    { 26691, 0x1016DB22, 94 },
+    { 26962, 0x611CD195, 36 },
+    { 27376, 0x316769D6, 144 },
+    { 27479, 0xFF7244A3, 249 },
+    { 27479, 0xFF7244A3, 250 },
+    { 27492, 0x2AABFD89, 117 },
+    { 27779, 0x0B1073BB, 253 },
+    { 27779, 0x0B1073BB, 254 },
+    { 27808, 0x3D79004A, 252 },
+    { 27808, 0x3D79004A, 253 },
+    { 27889, 0x46BE374C, 246 },
+    { 27889, 0x46BE374C, 254 },
+    { 27894, 0x424AC8E7, 247 },
+    { 27894, 0x424AC8E7, 248 },
+    { 28039, 0x937C04CF, 251 },
+    { 28039, 0x937C04CF, 252 },
+    { 28107, 0x1FE95F81, 250 },
+    { 28107, 0x1FE95F81, 251 },
+    { 28182, 0x49A22EDE, 245 },
+    { 28182, 0x49A22EDE, 247 },
+    { 28192, 0xA283FF6D, 289 },
+    { 28192, 0xA283FF6D, 290 },
+    { 28400, 0xD21FAA9A, 288 },
+    { 28400, 0xD21FAA9A, 289 },
+    { 28550, 0x98FDF127, 248 },
+    { 28550, 0x98FDF127, 249 },
+    { 28672, 0xF4F88BF2, 282 },
+    { 28896, 0x03B081B4, 287 },
+    { 28896, 0x03B081B4, 288 },
+    { 28950, 0xE4ACCE5C, 203 },
+    { 29238, 0xAAE69463, 269 },
+    { 29238, 0xABDA753B, 270 },
+    { 29632, 0x1D56D6B7, 286 },
+    { 29632, 0x1D56D6B7, 287 },
+    { 29706, 0x347D9B77, 51 },
+    { 29706, 0x347D9B77, 52 },
+    { 29706, 0x347D9B77, 53 },
+    { 29808, 0xAC8E8586, 286 },
+    { 29808, 0xAC8E8586, 290 },
+    { 30470, 0x62FCBABA, 345 },
+    { 30922, 0x69C23E35, 18 },
+    { 31237, 0xE7F0F6F3, 262 },
+    { 31520, 0xD9105603, 120 },
+    { 31568, 0x1A95A4A0, 281 },
+    { 31680, 0xAB6988B5, 187 },
+    { 32000, 0x2F078DF9, 78 },
+    { 32000, 0x33083650, 77 },
+    { 32000, 0x59DE2B71, 76 },
+    { 32000, 0xB6A8D7D7, 294 },
+    { 32609, 0x20967787, 221 },
+    { 32706, 0x21E63FD0, 175 },
+    { 32768, 0x8DEB1082, 87 },
+    { 32785, 0x8458C7C6, 145 },
+    { 33112, 0xA0F6F2AE, 245 },
+    { 33112, 0xA0F6F2AE, 246 },
+    { 33278, 0x796CEBAF, 335 },
+    { 33278, 0x796CEBAF, 338 },
+    { 33640, 0x8472E258, 70 },
+    { 33803, 0x833F2E0C, 193 },
+    { 34815, 0x08F3CBC5, 69 },
+    { 35331, 0x40CBD5B8, 173 },
+    { 36592, 0x4E56116E, 301 },
+    { 36603, 0xC59F7A55, 104 },
+    { 36692, 0xE2358D36, 296 },
+    { 36880, 0x4FD5ACAA, 294 },
+    { 37344, 0xE1AA48FB, 295 },
+    { 37461, 0xC77C963A, 89 },
+    { 37923, 0xC903B4DD, 38 },
+    { 38784, 0xD5FF6013, 73 },
+    { 39655, 0x53621C5F, 59 },
+    { 40218, 0x019AD12A, 36 },
+    { 40218, 0x019AD12A, 207 },
+    { 40218, 0x019AD12A, 212 },
+    { 41009, 0xC5165D9B, 263 },
+    { 41326, 0xC059DE9E, 127 },
+    { 41549, 0x7F1B159F, 91 },
+    { 43008, 0xE4EFD7FC, 35 },
+    { 43125, 0x6AC375F5, 75 },
+    { 43160, 0x54E65973, 170 },
+    { 43208, 0xCD21FDEA, 171 },
+    { 43265, 0x1C7204BB, 130 },
+    { 43384, 0x2560BD45, 172 },
+    { 43462, 0xF1BE4652, 126 },
+    { 44234, 0x8AF0A289, 296 },
+    { 45408, 0xC53E8A08, 83 },
+    { 45770, 0x0B83952B, 35 },
+    { 46134, 0x0BC4CB52, 136 },
+    { 47064, 0x6D9624EB, 87 },
+    { 47466, 0xBE7AFE46, 337 },
+    { 47466, 0xBE7AFE46, 338 },
+    { 48282, 0x21D46C6B, 88 },
+    { 48326, 0xA3BF475E, 53 },
+    { 48344, 0xF0F35BA2, 335 },
+    { 48344, 0xF0F35BA2, 336 },
+    { 48543, 0x7A0A75EE, 52 },
+    { 48545, 0xBF4D0F41, 189 },
+    { 48611, 0x3870E512, 51 },
+    { 49041, 0x04CE08B0, 336 },
+    { 49041, 0x04CE08B0, 337 },
+    { 52857, 0x0385B6AF, 92 },
+    { 53647, 0x12DF8FD6, 162 },
+    { 54183, 0x79D1E558, 258 },
+    { 54439, 0x2EE53566, 78 },
+    { 54512, 0xA186949B, 259 },
+    { 54595, 0x66BA1884, 77 },
+    { 54688, 0xC81FDF89, 76 },
+    { 56472, 0x5CB968BF, 145 },
+    { 56662, 0x26396D13, 124 },
+    { 56844, 0x25DD0DBE, 180 },
+    { 56860, 0x7EC3B2F2, 179 },
+    { 56876, 0x1A603C8E, 181 },
+    { 56876, 0x56AEE297, 182 },
+    { 57520, 0x8537CDAF, 83 },
+    { 57789, 0xCB713714, 50 },
+    { 58515, 0xDF8F7B8B, 262 },
+    { 58805, 0xA24F99F2, 41 },
+    { 58852, 0xFCA456A7, 82 },
+    { 59150, 0xD5420A3B, 200 },
+    { 59552, 0x6C9503EF, 81 },
+    { 59775, 0x9F9A4528, 120 },
+    { 59992, 0xC5ECFD1A, 345 },
+    { 61200, 0x62C20356, 123 },
+    { 61206, 0x73EB65E4, 147 },
+    { 61607, 0xB86758DC, 37 },
+    { 62081, 0x28CD1C72, 40 },
+    { 62238, 0x60931701, 233 },
+    { 62549, 0xAB280870, 312 },
+    { 62640, 0x89B439F1, 125 },
+    { 63569, 0x6F2C0CAA, 217 },
+    { 63888, 0x2E548FEC, 219 },
+    { 63950, 0x26410B95, 218 },
+    { 64203, 0x03A4FB85, 186 },
+    { 64256, 0xC85FF368, 114 },
+    { 64355, 0x99127467, 16 },
+    { 64403, 0x53A0ACF5, 15 },
+    { 64611, 0x5C73DF88, 14 },
+    { 64707, 0x76531B31, 13 },
+    { 64768, 0xF03A5A0E, 3 },
+    { 65231, 0x299296FA, 185 },
+    { 65515, 0x3A41DB2C, 124 },
+    { 65536, 0x15C54D3A, 301 },
+    { 65536, 0x80A2344C, 297 },
+    { 66552, 0x9F17F7D8, 131 },
+    { 66577, 0x12317247, 88 },
+    { 67134, 0xA1A78BE6, 328 },
+    { 67742, 0xC5807FF8, 242 },
+    { 67778, 0x7BE0254A, 201 },
+    { 67786, 0x7A0EE80C, 48 },
+    { 67960, 0x4EC77630, 236 },
+    { 67979, 0x2C601517, 169 },
+    { 68342, 0x13631226, 237 },
+    { 69589, 0xE1DF5A34, 276 },
+    { 71971, 0x4D7CB2EE, 284 },
+    { 72097, 0x74D155C7, 220 },
+    { 72433, 0xF2F2ABCD, 275 },
+    { 72778, 0xE2008E0E, 101 },
+    { 72858, 0x9EA24FC1, 46 },
+    { 72899, 0xB2199B55, 149 },
+    { 73240, 0x3CEAE090, 45 },
+    { 74299, 0x0D698330, 60 },
+    { 74996, 0xCD632DC5, 167 },
+    { 75063, 0x05EFC6C9, 8 },
+    { 75075, 0xF89E9B27, 140 },
+    { 75124, 0x8CFF6437, 168 },
+    { 75353, 0x3B320BB4, 166 },
+    { 75524, 0xD51E340D, 47 },
+    { 76179, 0xB1F69B40, 198 },
+    { 76184, 0xEB4D8FD3, 130 },
+    { 76256, 0x7334B56E, 125 },
+    { 76400, 0x3DF88AE5, 216 },
+    { 76609, 0xBC924E4F, 235 },
+    { 76672, 0xC829E726, 18 },
+    { 77824, 0x6E4D5F65, 160 },
+    { 80032, 0x57BA2A0F, 176 },
+    { 84959, 0x5C0995CE, 187 },
+    { 85104, 0x7514AE22, 148 },
+    { 89178, 0xD20F7DA9, 227 },
+    { 89639, 0x9D22EFF3, 48 },
+    { 89754, 0xA85C7923, 21 },
+    { 89921, 0xB82DB8DB, 20 },
+    { 90046, 0xD81D1F1F, 19 },
+    { 91536, 0xFD4D6528, 22 },
+    { 92346, 0xDFDBC892, 95 },
+    { 93400, 0x0396C609, 126 },
+    { 93400, 0x0396C609, 127 },
+    { 95754, 0xDC612A60, 240 },
+    { 97005, 0xEA2A4941, 114 },
+    { 97872, 0x03A265D0, 34 },
+    { 98791, 0x09D486A1, 31 },
+    { 102436, 0x9B0244B8, 144 },
+    { 102800, 0x4896B73E, 174 },
+    { 104802, 0x0BE80901, 177 },
+    { 105981, 0x019C0580, 265 },
+    { 107671, 0x37DE040F, 129 },
+    { 108779, 0x6D818DBE, 330 },
+    { 110467, 0x37C9D38F, 128 },
+    { 111606, 0x2A2DE7A5, 49 },
+    { 112780, 0x0F8EA285, 175 },
+    { 113418, 0x4D38A060, 238 },
+    { 114160, 0xC0F3B7F1, 93 },
+    { 114195, 0xC568563E, 165 },
+    { 118480, 0x893D974E, 298 },
+    { 119078, 0x8F4AB2C6, 42 },
+    { 119264, 0x3D3DF71E, 159 },
+    { 120124, 0x3C0BD1AB, 173 },
+    { 123059, 0x0D7745F5, 159 },
+    { 123344, 0xCFC21202, 189 },
+    { 128283, 0xA803103F, 122 },
+    { 133433, 0xF51C6063, 312 },
+    { 136431, 0x3DFB6C14, 135 },
+    { 137036, 0x74016D40, 203 },
+    { 137240, 0x0E121CEE, 261 },
+    { 137737, 0xAF60A284, 163 },
+    { 138499, 0x027971C8, 141 },
+    { 139809, 0x23DA7B5A, 23 },
+    { 142071, 0xC043CAF6, 215 },
+    { 144374, 0x106195A8, 25 },
+    { 144390, 0xF8293A7F, 24 },
+    { 145743, 0xF9DD7737, 74 },
+    { 146590, 0xB6A6F22D, 68 },
+    { 146593, 0x193113D1, 117 },
+    { 147124, 0xB044BAEF, 317 },
+    { 147387, 0x252C6B75, 199 },
+    { 150141, 0x1C0D2712, 123 },
+    { 151190, 0xE5FDAE10, 80 },
+    { 151968, 0xB43F9145, 84 },
+    { 155088, 0x5DB6CD9B, 7 },
+    { 155135, 0x8BCE578E, 323 },
+    { 156514, 0xB2250664, 133 },
+    { 156568, 0xF5BA072E, 316 },
+    { 167874, 0xD0804B0A, 332 },
+    { 168002, 0xA8383D4A, 333 },
+    { 168028, 0x7C91D9BC, 331 },
+    { 168257, 0x5D5906E8, 160 },
+    { 172918, 0xEDF9045B, 157 },
+    { 172940, 0x9F70B2AD, 156 },
+    { 173380, 0xBBFFC2FD, 62 },
+    { 174155, 0xC426E44B, 142 },
+    { 174429, 0xB2857498, 273 },
+    { 174438, 0x4826D59E, 155 },
+    { 177008, 0x07101A95, 334 },
+    { 178082, 0xB5E2027F, 89 },
+    { 181872, 0x636B43B5, 119 },
+    { 182656, 0xBA26F8FA, 118 },
+    { 183351, 0x66A87964, 3 },
+    { 184069, 0x5BFF4464, 45 },
+    { 184069, 0x5BFF4464, 46 },
+    { 184069, 0x5BFF4464, 47 },
+    { 185894, 0x65764D93, 329 },
+    { 188980, 0xF58B75E2, 328 },
+    { 191973, 0x209673A3, 178 },
+    { 200630, 0x5B5E75A0, 137 },
+    { 205686, 0x6A93AB92, 229 },
+    { 206105, 0xE998163C, 185 },
+    { 206400, 0x424DC60A, 239 },
+    { 210385, 0x302702A1, 188 },
+    { 211008, 0x6237FE7B, 152 },
+    { 211008, 0x6237FE7B, 153 },
+    { 212448, 0xF4D6A5AF, 9 },
+    { 213471, 0x5C0D2344, 134 },
+    { 220100, 0x521D2E80, 259 },
+    { 227723, 0x4437AA36, 106 },
+    { 228034, 0x2EA42BF7, 229 },
+    { 228292, 0xCA8AA643, 30 },
+    { 231852, 0x977240A1, 264 },
+    { 239616, 0xAC6EA9B5, 134 },
+    { 241696, 0xB8A30D65, 228 },
+    { 247952, 0x4481C735, 138 },
+    { 252469, 0x11B0EE11, 60 },
+    { 264177, 0x0EA18761, 232 },
+    { 266560, 0x1FB8D86F, 298 },
+    { 269031, 0x3A49AA98, 37 },
+    { 270384, 0xF859A894, 216 },
+    { 272137, 0xBBF9562B, 50 },
+    { 275053, 0x639AB115, 256 },
+    { 278528, 0xF865D2D4, 220 },
+    { 279577, 0xD19D950D, 109 },
+    { 279577, 0xD19D950D, 110 },
+    { 289344, 0x27476507, 302 },
+    { 290415, 0x8332201B, 190 },
+    { 290656, 0x09E48BF7, 102 },
+    { 291871, 0x1FD26125, 257 },
+    { 292223, 0x5D350BBB, 6 },
+    { 296437, 0x52F18C89, 131 },
+    { 302251, 0x68E2A70D, 4 },
+    { 302259, 0x57698016, 5 },
+    { 302982, 0xFAAD94AA, 38 },
+    { 303264, 0x3BF41FF6, 151 },
+    { 303264, 0x534E3F06, 150 },
+    { 304976, 0x0A45CE7C, 313 },
+    { 305024, 0x013AFED4, 323 },
+    { 313497, 0x5A5E4B0D, 109 },
+    { 317720, 0x6A6C0B88, 308 },
+    { 319291, 0xA3EE9116, 310 },
+    { 319482, 0x1049E846, 129 },
+    { 333296, 0xF0D50E98, 91 },
+    { 347622, 0xF4B8AA0D, 104 },
+    { 351712, 0xC385F0BC, 68 },
+    { 354400, 0x3A033890, 317 },
+    { 354400, 0x3A033890, 319 },
+    { 358921, 0x61AC3ED7, 240 },
+    { 361808, 0x3F01857C, 315 },
+    { 362496, 0xFB658C0D, 258 },
+    { 363600, 0x4F3200FC, 316 },
+    { 363600, 0x4F3200FC, 318 },
+    { 363696, 0xA0331E4E, 314 },
+    { 363696, 0xA0331E4E, 315 },
+    { 365256, 0xD1DB3B70, 139 },
+    { 366900, 0x08137698, 340 },
+    { 368640, 0x7E8F46AA, 183 },
+    { 369365, 0xEABE9FC5, 255 },
+    { 373024, 0xB95669DB, 239 },
+    { 374621, 0x88D83050, 61 },
+    { 382922, 0xF24ABB4B, 285 },
+    { 382957, 0x5E304972, 341 },
+    { 387482, 0xA22065E9, 110 },
+    { 404480, 0xCB6FCA15, 197 },
+    { 409600, 0x3BC26700, 194 },
+    { 409600, 0x3BC26700, 195 },
+    { 409600, 0x3BC26700, 196 },
+    { 411445, 0x57C984A2, 204 },
+    { 411824, 0x0684FAC1, 234 },
+    { 412364, 0xA3303AA3, 21 },
+    { 413723, 0x32D6FF5F, 65 },
+    { 414419, 0x5F59EBA3, 342 },
+    { 441377, 0x10828195, 146 },
+    { 449664, 0x6FF649F4, 271 },
+    { 456526, 0x7DD418F1, 271 },
+    { 461272, 0xEC99E1B8, 331 },
+    { 462609, 0x1BCFC957, 332 },
+    { 464313, 0xB4C245CD, 244 },
+    { 466303, 0x4C1BC904, 231 },
+    { 479241, 0x0633CB47, 20 },
+    { 493309, 0xB97E86F2, 339 },
+    { 501816, 0x2454D561, 19 },
+    { 503785, 0x36B9BF47, 284 },
+    { 511280, 0xC21800DA, 260 },
+    { 516592, 0x5E145F91, 313 },
+    { 519639, 0x49B9FDFA, 333 },
+    { 530301, 0xACBC151C, 58 },
+    { 532398, 0x380FA38B, 334 },
+    { 542531, 0x26383048, 156 },
+    { 543420, 0xE3B4FE15, 211 },
+    { 552180, 0xA7FE6E80, 155 },
+    { 553068, 0x482BFF93, 74 },
+    { 553696, 0x4B789F54, 209 },
+    { 568305, 0x422C6182, 157 },
+    { 572595, 0x47AD94C1, 29 },
+    { 578507, 0x4501D4A4, 28 },
+    { 587843, 0x64DE8603, 102 },
+    { 594916, 0x14A85307, 257 },
+    { 598588, 0x46D1F45C, 277 },
+    { 609117, 0x330147DD, 10 },
+    { 611408, 0x29E8592C, 55 },
+    { 611408, 0x29E8592C, 56 },
+    { 621249, 0xC0D73B83, 324 },
+    { 634416, 0x192FFE45, 57 },
+    { 640483, 0xF643FD71, 198 },
+    { 648158, 0x996096C7, 186 },
+    { 650437, 0x09676204, 307 },
+    { 650437, 0xBF9D9BAE, 306 },
+    { 689248, 0xA1122B73, 293 },
+    { 691303, 0x0DAD4F67, 27 },
+    { 691697, 0x303586DD, 95 },
+    { 692384, 0x30EE0B69, 103 },
+    { 707591, 0x010780A7, 140 },
+    { 709905, 0xBE91C727, 67 },
+    { 709905, 0xBE91C727, 69 },
+    { 709905, 0xBE91C727, 70 },
+    { 709905, 0xC8A600AF, 71 },
+    { 710310, 0x8262F686, 325 },
+    { 715493, 0xB5CEB8AC, 66 },
+    { 715777, 0x6ECAC695, 235 },
+    { 717089, 0xC4C98345, 314 },
+    { 717089, 0xC4C98345, 318 },
+    { 717089, 0xC4C98345, 319 },
+    { 722629, 0x12EE2811, 97 },
+    { 722629, 0x12EE2811, 99 },
+    { 722629, 0x503D9154, 98 },
+    { 722629, 0x503D9154, 100 },
+    { 727298, 0x6A744E90, 339 },
+    { 728031, 0x3B15558C, 111 },
+    { 763696, 0xFE6FE08E, 311 },
+    { 768611, 0x12DA0292, 283 },
+    { 776483, 0xD30CBD07, 202 },
+    { 781656, 0xF8DF863D, 65 },
+    { 841223, 0x3881E7D8, 280 },
+    { 854881, 0x1459FE90, 167 },
+    { 873739, 0x5A17B7F3, 283 },
+    { 878119, 0x66D37BB0, 309 },
+    { 881832, 0x07BA1051, 101 },
+    { 905741, 0xF587661F, 6 },
+    { 915654, 0xFE3D8C83, 327 },
+    { 919267, 0x48CA4215, 344 },
+    { 923019, 0xBBC55DF2, 115 },
+    { 932247, 0xDDB60023, 148 },
+    { 932827, 0xA8CD6E0F, 132 },
+    { 934930, 0xC8E10C4F, 311 },
+    { 935440, 0xF8FADB87, 303 },
+    { 935440, 0xF8FADB87, 304 },
+    { 935440, 0xF8FADB87, 305 },
+    { 937303, 0x3D009620, 291 },
+    { 940595, 0x79BB584B, 256 },
+    { 941398, 0xF6409404, 279 },
+    { 961234, 0x5A1BD139, 7 },
+    { 968055, 0x28FB1EEE, 261 },
+    { 978766, 0x53BB1241, 191 },
+    { 978766, 0x53BB1241, 192 },
+    { 983617, 0x6639F781, 200 },
+    { 991878, 0x09E186BF, 44 },
+    { 1005584, 0xC9271B29, 43 },
+    { 1009955, 0x64400915, 166 },
+    { 1027593, 0xC6EF9266, 326 },
+    { 1072866, 0x1C0D69C9, 168 },
+    { 1073041, 0x70299134, 11 },
+    { 1088224, 0x44BA535F, 27 },
+    { 1097715, 0x88766EE4, 1 },
+    { 1111536, 0x5C67F7B0, 230 },
+    { 1118400, 0xFE5ECD5A, 190 },
+    { 1131233, 0x6017935A, 214 },
+    { 1132633, 0xAB5B070F, 63 },
+    { 1146357, 0xECC70C2E, 96 },
+    { 1150433, 0x9E12AD99, 213 },
+    { 1162853, 0xCC24D560, 39 },
+    { 1172219, 0x6DCF1C66, 54 },
+    { 1176686, 0x5981AD38, 276 },
+    { 1179131, 0x1B50472D, 79 },
+    { 1189325, 0xE4027C76, 243 },
+    { 1204791, 0x778AD5BE, 30 },
+    { 1213262, 0xB19B78F5, 233 },
+    { 1222987, 0x80EEF853, 112 },
+    { 1228254, 0xF688E31D, 17 },
+    { 1238417, 0x5296E523, 164 },
+    { 1253543, 0xC43528F7, 107 },
+    { 1254195, 0x54DD6408, 267 },
+    { 1264343, 0x923F6F25, 305 },
+    { 1267305, 0xD9A3D97C, 42 },
+    { 1275321, 0x1A8224D6, 304 },
+    { 1280559, 0x1E97A686, 26 },
+    { 1308939, 0xE3ADE97E, 41 },
+    { 1351431, 0x9BACB58F, 31 },
+    { 1359939, 0x504D18A7, 40 },
+    { 1370208, 0x7D6C5AB3, 210 },
+    { 1426038, 0xD9915A7A, 184 },
+    { 1427418, 0xDBCCC690, 32 },
+    { 1427418, 0xFA2FBFCA, 33 },
+    { 1489682, 0x765482DB, 147 },
+    { 1498254, 0x7B1FACD7, 132 },
+    { 1503974, 0x31708061, 113 },
+    { 1507821, 0x183F70F3, 64 },
+    { 1543695, 0xEC0FBC52, 268 },
+    { 1544376, 0xE610C664, 330 },
+    { 1616544, 0x591CC4DC, 238 },
+    { 1655539, 0x72D443F6, 279 },
+    { 1675637, 0x35AA8EDE, 58 },
+    { 1721979, 0x06A2D426, 278 },
+    { 1741642, 0x0DA70A7F, 266 },
+    { 1753104, 0xAAC43B8A, 90 },
+    { 1859531, 0xC98EFCC6, 152 },
+    { 1859531, 0xC98EFCC6, 153 },
+    { 1864183, 0xC08225D9, 274 },
+    { 1867860, 0xEA1DABEE, 266 },
+    { 1887321, 0x0AC5BD49, 72 },
+    { 1899256, 0x347B9B9E, 272 },
+    { 1923995, 0x23365A08, 86 },
+    { 1934962, 0x98C4E727, 277 },
+    { 1935083, 0xBAC24E89, 105 },
+    { 1982751, 0x30B6061B, 85 },
+    { 2053204, 0x1B5003A1, 241 },
+    { 2202936, 0x31E86D7E, 255 },
+    { 2216607, 0xE0C59CE4, 244 },
+    { 2267004, 0x01E2DDC7, 4 },
+    { 2267004, 0x01E2DDC7, 5 },
+    { 2276340, 0xA8CA4626, 143 },
+    { 2323389, 0x01CAD068, 222 },
+    { 2323389, 0x9F8CF135, 223 },
+    { 2324000, 0xFF722CD4, 224 },
+    { 2433616, 0xEA930ACA, 146 },
+    { 2464255, 0x43794FA6, 208 },
+    { 2474590, 0x92A47A2D, 341 },
+    { 2474590, 0x92A47A2D, 342 },
+    { 2598921, 0x3BA26903, 150 },
+    { 2598921, 0x3BA26903, 151 },
+    { 2629981, 0x254400E9, 230 },
+    { 2644842, 0x69A173DC, 154 },
+    { 2767080, 0x069F1D34, 23 },
+    { 2791989, 0x2CD9C50F, 211 },
+    { 3016766, 0xC5D95C20, 9 },
+    { 3050273, 0x0B430EFB, 282 },
+    { 3075327, 0x492CC028, 82 },
+    { 3088376, 0x5C523776, 55 },
+    { 3088376, 0x5C523776, 56 },
+    { 3100733, 0xCEEC3DD4, 121 },
+    { 3195112, 0x61BA741F, 24 },
+    { 3195112, 0x61BA741F, 25 },
+    { 3415552, 0x9ABC20F0, 174 },
+    { 3430389, 0x3F81A95F, 161 },
+    { 3611522, 0x36518235, 265 },
+    { 3626745, 0x7966242F, 281 },
+    { 3646931, 0x20C4744A, 8 },
+    { 3945602, 0x11DD9519, 204 },
+    { 3987844, 0xA2B110EF, 108 },
+    { 4250888, 0xE1B89FDF, 154 },
+    { 4325376, 0xDE532DAA, 22 },
+    { 4440584, 0xFD5EB11D, 116 },
+    { 4723042, 0xEA186EB3, 209 },
+    { 4848180, 0x72D78B46, 188 },
+    { 5157378, 0xCE475558, 236 },
+    { 5212143, 0x5EA502A9, 192 },
+    { 5259205, 0x7220334E, 260 },
+    { 5496486, 0xDF6A5A2C, 237 },
+    { 5496675, 0x32199D67, 81 },
+    { 5724669, 0x09C3E3AC, 57 },
+    { 5813871, 0xE56E0CD5, 324 },
+    { 5813871, 0xE56E0CD5, 325 },
+    { 5868000, 0xBB23746B, 201 },
+    { 6090697, 0x5A81D452, 119 },
+    { 6101525, 0x977C45C3, 118 },
+    { 6138380, 0xAD5ABD51, 268 },
+    { 6210899, 0x9EC397CE, 206 },
+    { 6570147, 0xF52EDAD3, 199 },
+    { 6845522, 0x1448D2F0, 92 },
+    { 6856701, 0x3B0B1041, 63 },
+    { 7083229, 0xE72C6C87, 84 },
+    { 7305711, 0x3091D731, 293 },
+    { 7595079, 0x60BB6742, 64 },
+    { 7771880, 0x1AA5D962, 307 },
+    { 7771880, 0x89727946, 306 },
+    { 7841568, 0xE33BA00E, 225 },
+    { 8200353, 0xB291418F, 26 },
+    { 8376352, 0x5E792831, 142 },
+    { 8459965, 0xDB83D9FB, 309 },
+    { 8758305, 0x66613004, 326 },
+    { 8758305, 0x66613004, 327 },
+    { 8815920, 0x3CC23EDC, 292 },
+    { 8836276, 0x8282AF18, 320 },
+    { 8986211, 0x3D514392, 162 },
+    { 8986211, 0x3D514392, 163 },
+    { 9093581, 0xEB123FFE, 165 },
+    { 9393362, 0x632847E0, 243 },
+    { 9692036, 0xDE8F31C2, 96 },
+    { 10607698, 0x70E03541, 344 },
+    { 11159840, 0x723E60F9, 71 },
+    { 11193632, 0x8DCCF8EC, 205 },
+    { 11308818, 0xACB63F07, 59 },
+    { 11362816, 0x587E6A6E, 11 },
+    { 11571394, 0x87C4F043, 202 },
+    { 11722758, 0x955C69E0, 164 },
+    { 12408292, 0xBF0EAAC0, 66 },
+    { 12408292, 0xBF0EAAC0, 67 },
+    { 12581736, 0x79BE8B9F, 103 },
+    { 12852768, 0x1411B41B, 310 },
+    { 13026924, 0xC836F620, 264 },
+    { 13139560, 0x66077A03, 85 },
+    { 13139560, 0x66077A03, 86 },
+    { 13371801, 0x3074C39C, 215 },
+    { 14189976, 0x5B16049E, 111 },
+    { 14244049, 0xD3BABAB2, 54 },
+    { 14405518, 0x3FD0F242, 158 },
+    { 14604584, 0xEC8725DB, 67 },
+    { 14604584, 0xEC8725DB, 69 },
+    { 14604584, 0xEC8725DB, 70 },
+    { 14610149, 0xF24E5C46, 213 },
+    { 14610173, 0xD391FD5A, 214 },
+    { 15374715, 0xBEA3EACF, 303 },
+    { 15938796, 0x1115F536, 10 },
+    { 16666528, 0xD6D42F41, 280 },
+    { 16800210, 0x5CBC3AC7, 141 },
+    { 16802136, 0xA3C0E551, 273 },
+    { 17420824, 0x48D1453C, 97 },
+    { 18195736, 0x903DCC27, 99 },
+    { 18240172, 0x15CD1448, 98 },
+    { 18654796, 0xD4BB05C0, 100 },
+    { 18689235, 0x74E3B084, 197 },
+    { 19945814, 0x334B5A2B, 112 },
+    { 20083672, 0xDCA9114C, 115 },
+    { 21516352, 0xECF22897, 61 },
+    { 25809984, 0xEB17894E, 343 },
+    { 26524524, 0xBBC9CE44, 79 },
+    { 26656768, 0x3B6306D9, 184 },
+    { 27143532, 0xB2477D7B, 274 },
+    { 29148420, 0x0B62302D, 128 },
+    { 32014538, 0x62BDC765, 270 },
+    { 32024444, 0x3120EDE3, 269 },
+    { 33241058, 0x5DA6C997, 210 },
+    { 33867776, 0x04C1E113, 299 },
+    { 33867776, 0x04C1E113, 300 },
+    { 34257856, 0x2E803216, 194 },
+    { 35527205, 0xD17835FB, 196 },
+    { 36666604, 0x1BB25ACD, 191 },
+    { 37167860, 0x392CAC27, 208 },
+    { 37875279, 0x38B70CE8, 195 },
+    { 41736240, 0xB46F6A24, 227 },
+    { 42218623, 0x251AF6DF, 44 },
+    { 43363026, 0xB940073F, 113 },
+    { 44356548, 0xFD3DCFF1, 80 },
+    { 45874014, 0xB01D295C, 28 },
+    { 45874014, 0xB01D295C, 29 },
+    { 47536148, 0x7545319F, 222 },
+    { 47536148, 0x7545319F, 223 },
+    { 48698128, 0xA9AAA7B7, 224 },
+    { 50853376, 0xF2914A5F, 43 },
+    { 52721946, 0x6EE0F723, 267 },
+    { 73113573, 0xE55BE1B6, 17 },
+    { 77225568, 0xC4F8063C, 33 },
+    { 86989080, 0xF9FAE6A1, 1 },
+    { 120862224, 0x721C01AE, 32 },
+    { 141722112, 0xE2531BBB, 2 },
+    { 149867609, 0x028AD944, 122 },
+    { 164691968, 0xDD3374F3, 321 },
+    { 164691968, 0xDD3374F3, 322 },
+    { 184687877, 0x91093586, 272 },
+    { 421502976, 0xAD2EE449, 39 },
+    { 610662512, 0x21FFAFB4, 72 },
+    { 687912960, 0x9108BDA6, 12 },
+    { 1862948864, 0x1D642B10, 320 },
 };
 
-const int k_game_database_key_count = 448;
+const int k_game_database_key_count = 690;
 
 #endif /* GAME_DB_H */

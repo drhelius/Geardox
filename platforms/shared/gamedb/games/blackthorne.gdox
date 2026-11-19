@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Blackthorne
+folder = C:\BTHORNE
+
+[run]
+exe = BTHORNE.EXE
+setup = SETUP.EXE
+
+[dos]
+ems_kb = 2048

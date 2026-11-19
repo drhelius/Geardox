@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Flashback
+folder = C:\FLASHBAC
+
+[run]
+exe = PLAY.BAT
+setup = SETUP.EXE

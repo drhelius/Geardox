@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Word Rescue 3
+folder = C:\WORD
+
+[run]
+exe = WR3.EXE

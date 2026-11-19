@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Trek Trivia 8
+folder = C:\TREK
+
+[run]
+exe = Trek8.exe

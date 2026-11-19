@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Mystic Towers
+folder = C:\TOWERS
+
+[run]
+exe = TOWERS.EXE

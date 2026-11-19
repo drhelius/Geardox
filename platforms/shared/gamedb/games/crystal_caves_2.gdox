@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Crystal Caves 2
+folder = C:\CRYSTAL
+
+[run]
+exe = CC2.EXE

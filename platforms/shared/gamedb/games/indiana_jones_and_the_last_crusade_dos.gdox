@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Indiana Jones and the Last Crusade
+folder = C:\
+
+[run]
+exe = INDY3\INDY3.EXE

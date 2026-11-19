@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Pharaoh's Tomb 3
+folder = C:\PTOMB
+
+[run]
+exe = PTOMB3.EXE
+
+[machine]
+turbo = off

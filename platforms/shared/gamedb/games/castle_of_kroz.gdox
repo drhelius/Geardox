@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Castle Of Kroz
+folder = C:\CASTLE
+
+[run]
+exe = CASTLE.EXE

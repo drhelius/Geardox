@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Revenge of Thor
+folder = C:\THOR
+
+[run]
+exe = REVENGE.EXE
+
+[machine]
+model = 386dx_33

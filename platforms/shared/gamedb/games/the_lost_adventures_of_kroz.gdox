@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = The Lost Adventures Of Kroz
+folder = C:\LOST
+
+[run]
+exe = LOST.EXE

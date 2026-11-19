@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Bio Menace 2 - The Hidden Lab
+folder = C:\BMENACE
+
+[run]
+exe = BMENACE2.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Puzzle Fun-Pack
+folder = C:\PUZZLE
+
+[run]
+exe = PUZ-MENU.COM

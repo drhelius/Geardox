@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Arctic Adventure 4
+folder = C:\ARCTIC
+
+[run]
+exe = AA4.EXE
+
+[machine]
+model = 386dx_33

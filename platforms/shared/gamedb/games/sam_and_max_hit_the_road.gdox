@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Sam and Max Hit the Road
+folder = C:\SAMNMAX
+
+[run]
+exe = SAMNMAX.EXE
+setup = SETMUSE.EXE

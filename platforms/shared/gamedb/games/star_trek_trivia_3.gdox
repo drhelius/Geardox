@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Trek Trivia 3
+folder = C:\TREK
+
+[run]
+exe = Trek3.exe

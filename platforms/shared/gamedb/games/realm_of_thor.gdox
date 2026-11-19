@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Realm of Thor
+folder = C:\THOR
+
+[run]
+exe = REALM.EXE
+
+[machine]
+model = 386dx_33

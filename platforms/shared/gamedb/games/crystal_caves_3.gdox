@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Crystal Caves 3
+folder = C:\CRYSTAL
+
+[run]
+exe = CC3.EXE

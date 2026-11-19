@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Prince of Persia
+folder = C:\PRINCE
+
+[run]
+exe = PRINCE.EXE

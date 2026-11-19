@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Oh No! More Lemmings
+folder = C:\OHNOMORE
+
+[run]
+exe = VGALEMMI.EXE

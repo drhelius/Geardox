@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Warcraft II - Tides of Darkness
+folder = C:\WAR2
+
+[run]
+exe = WAR2.EXE
