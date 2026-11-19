@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Blood
+folder = C:\BLOOD
+
+[run]
+exe = BLOOD.EXE
+setup = SETUP.EXE
+
+[machine]
+model = pentium_133
+ram_mb = 16
