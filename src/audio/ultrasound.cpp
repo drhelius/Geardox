@@ -163,6 +163,7 @@ void UltraSound::ResetVoice(UltraSound_Voice& voice)
     voice.fetch_key = 0xFFFFFFFF;
     voice.fetch_first = 0;
     voice.fetch_second = 0;
+    voice.address_pending = false;
 }
 
 void UltraSound::ResetGF1()
@@ -223,7 +224,8 @@ void UltraSound::RunVoice(UltraSound_Voice& voice, int index, s32& left, s32& ri
 
     if (audible)
     {
-        FetchVoice(voice);
+        if (!voice.address_pending)
+            FetchVoice(voice);
         s32 fraction = (s32)(voice.address & 0x1FF);
         s32 first = voice.fetch_first;
         s32 second = voice.fetch_second;
@@ -241,7 +243,7 @@ void UltraSound::RunVoice(UltraSound_Voice& voice, int index, s32& left, s32& ri
     {
         StepAddress(voice);
 
-        if (audible)
+        if (audible && !voice.address_pending)
             FetchVoice(voice);
     }
 
@@ -884,9 +886,11 @@ void UltraSound::WriteVoice(UltraSound_Voice& voice, u8 index, u16 value)
             break;
         case 0x0A:
             voice.address = (voice.address & 0xFFFF) | ((u32)(value & 0x1FFF) << 16);
+            voice.address_pending = true;
             break;
         case 0x0B:
             voice.address = (voice.address & 0x1FFF0000) | value;
+            voice.address_pending = false;
             break;
         case 0x0C:
             voice.pan = value & 0x0F;
@@ -1611,6 +1615,7 @@ void UltraSound::Serialize(StateSerializer& serializer)
         G_SERIALIZE(serializer, voice.fetch_key);
         G_SERIALIZE(serializer, voice.fetch_first);
         G_SERIALIZE(serializer, voice.fetch_second);
+        G_SERIALIZE(serializer, voice.address_pending);
     }
 
     G_SERIALIZE(serializer, m_state.active_voices);

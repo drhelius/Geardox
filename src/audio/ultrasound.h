@@ -55,6 +55,7 @@ public:
         u32 fetch_key;
         s16 fetch_first;
         s16 fetch_second;
+        bool address_pending;
     };
 
     struct UltraSound_State
