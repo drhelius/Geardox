@@ -3,7 +3,7 @@ version = 1
 
 [game]
 name = Ultima VII - Serpent Isle
-folder = C:\
+folder = C:\SERPENT
 
 [run]
 exe = SERPENT.COM

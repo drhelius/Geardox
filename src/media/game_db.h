@@ -3584,7 +3584,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[game]\n"
         "name = Ultima VII - Serpent Isle\n"
-        "folder = C:\\\n"
+        "folder = C:\\SERPENT\n"
         "\n"
         "[run]\n"
         "exe = SERPENT.COM\n"
@@ -3598,7 +3598,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[game]\n"
         "name = Ultima VII: The Black Gate + The Forge of Virtue\n"
-        "folder = C:\\\n"
+        "folder = C:\\ULTIMA7\n"
         "\n"
         "[run]\n"
         "exe = ULTIMA7.COM\n"
@@ -4726,9 +4726,9 @@ const GDOX_DB_Release k_game_database_releases[] =
     { 277, 650, 2, 0, NULL, NULL, NULL },
     { 278, 652, 2, 0, NULL, NULL, NULL },
     { 279, 654, 2, 0, NULL, NULL, NULL },
-    { 280, 656, 2, 1, NULL, NULL, "[sound]\n"
+    { 280, 656, 2, 1, "__SUPPORT/APP/SERPENT.CFG>SERPENT.CFG", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 281, 659, 2, 1, NULL, NULL, "[sound]\n"
+    { 281, 659, 2, 1, "__SUPPORT/APP/U7.CFG>U7.CFG", NULL, "[sound]\n"
         "irq = 7\n" },
     { 282, 662, 2, 0, NULL, NULL, NULL },
     { 283, 664, 2, 0, NULL, NULL, NULL },

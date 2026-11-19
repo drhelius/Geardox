@@ -3,7 +3,7 @@ version = 1
 
 [game]
 name = Ultima VII: The Black Gate + The Forge of Virtue
-folder = C:\
+folder = C:\ULTIMA7
 
 [run]
 exe = ULTIMA7.COM
