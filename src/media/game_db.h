@@ -3051,11 +3051,16 @@ const GDOX_DB_Release k_game_database_releases[] =
     { 10, 25, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
     { 11, 27, 2, 0, NULL, NULL, NULL },
-    { 12, 29, 2, 0, NULL, NULL, NULL },
+    { 12, 29, 2, 0, NULL, NULL, "[sound]\n"
+        "gus = on\n" },
     { 13, 31, 2, 0, NULL, NULL, "[drives]\n"
-        "cdrom = CD/\n" },
+        "cdrom = CD/\n"
+        "[sound]\n"
+        "gus = on\n" },
     { 13, 33, 2, 0, NULL, NULL, "[drives]\n"
-        "cdrom = CD/\n" },
+        "cdrom = CD/\n"
+        "[sound]\n"
+        "gus = on\n" },
     { 14, 35, 2, 1, NULL, NULL, "[sound]\n"
         "card = sb20\n" },
     { 15, 38, 2, 0, NULL, NULL, NULL },
@@ -3183,7 +3188,8 @@ const GDOX_DB_Release k_game_database_releases[] =
         "[sound]\n"
         "irq = 7\n" },
     { 79, 198, 2, 1, NULL, NULL, "[sound]\n"
-        "irq = 7\n" },
+        "irq = 7\n"
+        "gus = on\n" },
     { 80, 201, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
     { 81, 204, 2, 0, NULL, NULL, NULL },
