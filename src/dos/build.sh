@@ -22,6 +22,7 @@ TOOLS = [
     ("k_dos_gdxrun", "gdxrun.asm"),
     ("k_dos_poweroff", "poweroff.asm"),
     ("k_dos_gdxidle", "gdxidle.asm"),
+    ("k_dos_gdxpad", "gdxpad.asm"),
     ("k_dos_no_system", "nosys.asm"),
     ("k_dos_gdxdbg", "gdxdbg.asm"),
     ("k_dos_gdxgus", "gdxgus.asm"),

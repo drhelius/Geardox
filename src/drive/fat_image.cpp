@@ -972,6 +972,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     ok = (bin >= 0) && AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool((u32)bin, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
         AddDosTool((u32)bin, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
+        AddDosTool((u32)bin, "GDXPAD.COM", k_dos_gdxpad, k_dos_gdxpad_size) &&
         AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size);
 
     if (ok)
@@ -1059,7 +1060,8 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
         AddDosTool(geardox, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
         AddDosTool(geardox, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
         AddDosTool(geardox, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size) &&
-        AddDosTool(geardox, "GDXIDLE.SYS", k_dos_gdxidle, k_dos_gdxidle_size);
+        AddDosTool(geardox, "GDXIDLE.SYS", k_dos_gdxidle, k_dos_gdxidle_size) &&
+        AddDosTool(geardox, "GDXPAD.COM", k_dos_gdxpad, k_dos_gdxpad_size);
 
     for (size_t i = 0; ok && (i < sizeof(k_tools) / sizeof(k_tools[0])); i++)
         ok = AddFreeDOSFile(&tools, (std::string("FREEDOS/BIN/") + k_tools[i]).c_str(), geardox, k_tools[i]);

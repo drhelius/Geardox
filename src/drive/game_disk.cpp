@@ -1317,9 +1317,9 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     char line[128];
 
     if (msdos)
-        out += "@ECHO OFF\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\nSET TEMP=C:\\TEMP\r\n";
+        out += "@ECHO OFF\r\nC:\\GEARDOX\\GDXPAD.COM\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\nSET TEMP=C:\\TEMP\r\n";
     else
-        out += "@ECHO OFF\r\nSET DOSDIR=C:\\FREEDOS\r\n"
+        out += "@ECHO OFF\r\nC:\\FREEDOS\\BIN\\GDXPAD.COM\r\nSET DOSDIR=C:\\FREEDOS\r\n"
             "SET PATH=C:\\FREEDOS\\BIN\r\nSET TEMP=C:\\TEMP\r\n";
 
     out += "SET DIRCMD=/OGN\r\n";
