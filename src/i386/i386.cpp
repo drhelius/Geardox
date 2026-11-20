@@ -345,6 +345,9 @@ void I386::Reset()
     m_instruction_defaults.segment_override = 0xFF;
 
     m_address_clocks = 0;
+#if defined(GDOX_TESTS)
+    m_instruction_restored = false;
+#endif
     InitPointer(m_passive_bytes);
     m_passive_count = 0;
     m_passive_index = 0;
@@ -1257,6 +1260,10 @@ void I386::SanitizeState()
         m_instruction.segment_override = m_state.repeat.segment_override;
     }
 
+#if defined(GDOX_TESTS)
+    // A restored REP continuation has no fetched bytes to report until the next decode
+    m_instruction_restored = m_state.repeat.active;
+#endif
     m_fetch_remaining = 0;
     m_address_clocks = 0;
     CloseCodeWindow();
@@ -1327,6 +1334,60 @@ const I386_Exception_Info& I386::GetLastException() const
 {
     return m_last_exception;
 }
+
+#if defined(GDOX_TESTS)
+bool I386::CopyDecodeState(I386_Decode_State& state)
+{
+    u8 bytes[GDOX_I386_MAX_INSTRUCTION_LENGTH];
+    u32 length = m_instruction_restored ? 0 : m_instruction.next_eip - m_instruction.start_eip;
+    u32 linear = m_state.segments[I386_SEGMENT_CS].base + m_instruction.start_eip;
+    length = MIN(length, (u32)GDOX_I386_MAX_INSTRUCTION_LENGTH);
+
+    for (u32 i = 0; i < length; i++)
+    {
+        if (!TryPeekLinear(linear + i, bytes[i]))
+        {
+            length = i;
+            break;
+        }
+    }
+
+    // The default size is recovered from the decoded size and the prefixes actually present
+    bool operand_override = false;
+
+    for (u32 i = 0; i < length && (bytes[i] == 0x26 || bytes[i] == 0x2E || bytes[i] == 0x36 || bytes[i] == 0x3E ||
+        bytes[i] == 0x64 || bytes[i] == 0x65 || bytes[i] == 0x66 || bytes[i] == 0x67 || bytes[i] == 0xF0 ||
+        bytes[i] == 0xF2 || bytes[i] == 0xF3); i++)
+        operand_override = operand_override || bytes[i] == 0x66;
+
+    bool default32 = (m_instruction.operand_size == 4) != operand_override;
+    InstructionContext decoded;
+
+    m_passive_bytes = bytes;
+    m_passive_count = length;
+    m_passive_index = 0;
+
+    if (length == 0 || !DecodeInstructionPassive(decoded, m_instruction.start_eip, default32))
+    {
+        // Partially decoded instruction: report the prefix and opcode state of the execution context
+        decoded = m_instruction;
+        decoded.memory_operand = false;
+        decoded.immediate = 0;
+        decoded.immediate2 = 0;
+    }
+    else if (decoded.memory_operand)
+    {
+        decoded.effective_offset = m_instruction.effective_offset;
+        decoded.segment = m_instruction.segment;
+    }
+
+    decoded.start_eip = m_instruction.start_eip;
+    decoded.next_eip = m_instruction.next_eip;
+
+    FillDecodeState(decoded, bytes, length, state);
+    return state.length != 0;
+}
+#endif
 
 void I386::SetCPU(const GDOX_Machine_CPU_Info& info)
 {

@@ -519,6 +519,9 @@ public:
 
     u8 GetLastExceptionVector() const;
     const I386_Exception_Info& GetLastException() const;
+#if defined(GDOX_TESTS)
+    bool CopyDecodeState(I386_Decode_State& state);
+#endif
 
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetProfiler(Profiler* profiler);
@@ -1599,6 +1602,9 @@ private:
     Memory* m_memory;
     IO* m_io;
 
+#if defined(GDOX_TESTS)
+    bool m_instruction_restored;
+#endif
     const u8* m_passive_bytes;
     u32 m_passive_count;
     u32 m_passive_index;
