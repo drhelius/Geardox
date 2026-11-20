@@ -35,6 +35,7 @@ class MidiOut;
 class PIC;
 class StateSerializer;
 class TraceLogger;
+struct GDOX_Trace_Entry;
 
 class SoundBlaster
 {
@@ -135,6 +136,7 @@ public:
     ~SoundBlaster();
     void Init(PIC* pic, DMA* dma, MidiOut* midi_out);
     void SetTraceLogger(TraceLogger* trace_logger);
+    void SetTraceClocks(const u64* clocks);
     void SetCard(int card, int irq, int dma);
     void Reset(u64 clocks);
     void Clock(u32 clocks);
@@ -211,10 +213,11 @@ private:
     void UpdateGains();
     s32 GetLevel(u8 reg, bool right) const;
     void UpdateIRQ();
-    void TraceCommand();
-    void TraceTransfer();
-    void TraceEvent(u8 event, u8 value);
-    void TraceMixer(u8 value);
+    NO_INLINE void TraceCommand();
+    NO_INLINE void TraceTransfer(bool handoff);
+    NO_INLINE GDOX_Trace_Entry* TraceEvent(u8 event, u8 value);
+    NO_INLINE void TraceMixer(u8 event, u8 value);
+    NO_INLINE void TraceEnd(u8 reason);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 
@@ -224,6 +227,8 @@ private:
     DMA* m_dma;
     MidiOut* m_midi_out;
     TraceLogger* m_trace_logger;
+    const u64* m_trace_clocks;
+    u32 m_trace_underruns;
     u8 m_version_major;
     u8 m_version_minor;
     int m_mixer_type;

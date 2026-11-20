@@ -100,10 +100,12 @@ private:
     static void DMAEndCallback(void* device);
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
+    NO_INLINE void TraceMedia(int drive, u8 kind);
 
 private:
     PIC* m_pic;
     Scheduler* m_scheduler;
+    TraceLogger* m_trace_logger;
     DMA* m_dma;
     I82077 m_chip;
     FloppyDisk m_disks[FDC_DRIVES];

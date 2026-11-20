@@ -26,6 +26,8 @@
 #define DEBUG_CONSOLE_SIZE 0x10000
 #define DEBUG_CONSOLE_LINE_SIZE 256
 
+class TraceLogger;
+
 class DebugConsole
 {
 public:
@@ -44,9 +46,11 @@ public:
     void Rewind(u64 written);
     u32 GetLength() const;
     u64 GetWrittenCount() const;
+    void SetTraceLogger(TraceLogger* trace_logger, u16 port);
 
 private:
     void FlushLine();
+    NO_INLINE void TraceLine();
 
 private:
     char m_buffer[DEBUG_CONSOLE_SIZE];
@@ -57,6 +61,8 @@ private:
     int m_line_length;
     bool m_enabled;
     bool m_log;
+    TraceLogger* m_trace_logger;
+    u16 m_trace_port;
 };
 
 // The debug port SeaBIOS writes its log to, which reads back E9h so firmware knows it is there

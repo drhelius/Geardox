@@ -19,9 +19,12 @@
 
 
 #include "debug_console.h"
+#include "../common/trace_logger.h"
 
 DebugConsole::DebugConsole()
 {
+    m_trace_logger = TraceLogger::GetDisabled();
+    m_trace_port = 0;
     m_head = 0;
     m_length = 0;
     m_written = 0;
@@ -120,9 +123,30 @@ void DebugConsole::Rewind(u64 written)
     m_line_length = 0;
 }
 
+void DebugConsole::SetTraceLogger(TraceLogger* trace_logger, u16 port)
+{
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_port = port;
+}
+
 void DebugConsole::FlushLine()
 {
     m_line[m_line_length] = 0;
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_CONSOLE)))
+        TraceLine();
+
     Log("BIOS: %s", m_line);
     m_line_length = 0;
+}
+
+void DebugConsole::TraceLine()
+{
+    for (int start = 0; start == 0 || start < m_line_length; start += 64)
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_CONSOLE);
+        entry->console.port = m_trace_port;
+        entry->console.length = (u8)MIN(m_line_length - start, 64);
+        memcpy(entry->console.text, m_line + start, entry->console.length);
+    }
 }

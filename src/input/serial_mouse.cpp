@@ -26,7 +26,7 @@
 SerialMouse::SerialMouse()
 {
     InitPointer(m_input);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     memset(&m_state, 0, sizeof(m_state));
 }
 
@@ -42,7 +42,7 @@ void SerialMouse::Init(Input* input)
 
 void SerialMouse::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void SerialMouse::Reset()
@@ -61,6 +61,14 @@ void SerialMouse::SetRTS(bool rts, u64 clocks)
 
     m_state.rts = rts;
     m_state.ready = false;
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_RESET)))
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_INPUT, TRACE_INPUT_MOUSE_RESET);
+        entry->input.device = TRACE_INPUT_DEVICE_SERIAL_MOUSE;
+        entry->input.data[0] = rts ? 1 : 0;
+    }
+
     m_state.queue_count = 0;
     m_state.byte_clocks = GDOX_NO_EVENT;
     m_state.poll_clocks = GDOX_NO_EVENT;
@@ -90,7 +98,10 @@ bool SerialMouse::HandleEvent(u64 clocks, u8& value)
         m_input->ClearMouseInput();
         m_state.queue[0] = ident;
         m_state.queue_count = 1;
-        TraceEvent(&ident, 1);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_PACKET)))
+            TracePacket(&ident, 1, TRACE_INPUT_FLAG_IDENT);
+
         StartByte(clocks);
         return false;
     }
@@ -121,7 +132,9 @@ void SerialMouse::Poll(u64 clocks)
         m_state.queue[2] = (u8)(y & 0x3F);
         m_state.queue_count = 3;
         m_state.buttons = buttons;
-        TraceEvent(m_state.queue, 3);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_PACKET)))
+            TracePacket(m_state.queue, 3, 0);
     }
 }
 
@@ -137,18 +150,13 @@ void SerialMouse::StartByte(u64 clocks)
         m_state.poll_clocks = clocks + k_serial_mouse_byte_clocks;
 }
 
-void SerialMouse::TraceEvent(const u8* data, u8 count)
+void SerialMouse::TracePacket(const u8* data, u8 count, u16 flags)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_PACKET))
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_INPUT;
-    entry.event = TRACE_INPUT_MOUSE_PACKET;
-    entry.input.device = TRACE_INPUT_DEVICE_SERIAL_MOUSE;
-    entry.input.count = (u8)MIN((int)count, 4);
-    memcpy(entry.input.data, data, entry.input.count);
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_INPUT, TRACE_INPUT_MOUSE_PACKET);
+    entry->flags |= flags;
+    entry->input.device = TRACE_INPUT_DEVICE_SERIAL_MOUSE;
+    entry->input.count = (u8)MIN((int)count, 8);
+    memcpy(entry->input.data, data, entry->input.count);
 }
 
 void SerialMouse::Serialize(StateSerializer& serializer)

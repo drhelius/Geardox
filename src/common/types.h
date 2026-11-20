@@ -122,6 +122,7 @@ typedef GDOX_Synchronize_Result (*GDOX_Synchronize_Hardware_Fn)(void* core, GDOX
 typedef void (*GDOX_Synchronize_Memory_Fn)(void* core, GDOX_Bus_Access_Context& context);
 typedef u32 (*GDOX_Poll_Port_Fn)(void* core, u16 port, int width);
 typedef void (*GDOX_Observe_Memory_Write_Fn)(void* observer, u32 bus_address, u8 previous, u8 value);
+typedef u64 (*GDOX_Trace_Clocks_Fn)(void* core, u32 cycles);
 
 struct GDOX_Bus_Access_Context
 {
@@ -132,6 +133,7 @@ struct GDOX_Bus_Access_Context
     GDOX_Synchronize_Hardware_Fn synchronize;
     GDOX_Synchronize_Memory_Fn synchronize_memory;
     GDOX_Poll_Port_Fn poll_port;
+    GDOX_Trace_Clocks_Fn trace_clocks;
     void* synchronize_context;
     GDOX_Observe_Memory_Write_Fn observe_memory_write;
     void* memory_write_context;

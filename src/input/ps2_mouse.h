@@ -94,7 +94,8 @@ private:
     s32 Scale(s32 value) const;
     void UpdateSend(u64 clocks);
     u8 PopByte();
-    void TraceEvent(u8 event, const u8* data, u8 count);
+    NO_INLINE void TraceCommand(u8 value, u8 command, u16 flags);
+    NO_INLINE void TracePacket(const u8* data, u8 count);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

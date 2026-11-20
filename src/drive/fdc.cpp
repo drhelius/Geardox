@@ -21,6 +21,7 @@
 #include "fdc.h"
 #include "floppy_image.h"
 #include "../common/state_serializer.h"
+#include "../common/trace_logger.h"
 #include "../system/dma.h"
 #include "../system/pic.h"
 #include "../system/scheduler.h"
@@ -29,6 +30,7 @@ FDC::FDC()
 {
     InitPointer(m_pic);
     InitPointer(m_scheduler);
+    m_trace_logger = TraceLogger::GetDisabled();
     InitPointer(m_dma);
     memset(&m_state, 0, sizeof(m_state));
     memset(m_state.disk_changed, 1, sizeof(m_state.disk_changed));
@@ -60,7 +62,17 @@ void FDC::Init(PIC* pic, Scheduler* scheduler, DMA* dma)
 
 void FDC::SetTraceLogger(TraceLogger* trace_logger)
 {
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
     m_chip.SetTraceLogger(trace_logger);
+}
+
+void FDC::TraceMedia(int drive, u8 kind)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, TRACE_FDC_MEDIA);
+    entry->fdc.drive = (s8)drive;
+    entry->fdc.kind = kind;
+    entry->fdc.value = m_disks[drive].IsInserted() ? 1 : 0;
+    entry->fdc.cylinder = m_state.cylinders[drive];
 }
 
 // Disks stay in their drives
@@ -197,6 +209,9 @@ void FDC::ChangeDisk(int drive)
 {
     m_state.disk_changed[drive] = true;
 
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_MEDIA)))
+        TraceMedia(drive, 0);
+
     if (IsValidPointer(m_scheduler))
     {
         m_chip.Resume(m_scheduler->GetClocks());
@@ -218,6 +233,10 @@ void FDC::Step(bool inward)
         cylinder++;
     else if (!inward && cylinder > 0)
         cylinder--;
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_MEDIA)) && m_disks[drive].IsInserted() &&
+        m_state.disk_changed[drive])
+        TraceMedia(drive, 1);
 
     if (m_disks[drive].IsInserted())
         m_state.disk_changed[drive] = false;

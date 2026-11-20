@@ -18,10 +18,12 @@
  */
 
 #include "pci_bus.h"
+#include "../common/trace_logger.h"
 #include "../common/state_serializer.h"
 
 PciBus::PciBus()
 {
+    m_trace_logger = TraceLogger::GetDisabled();
     memset(&m_state, 0, sizeof(m_state));
     m_enabled = false;
 
@@ -99,13 +101,36 @@ int PciBus::Select(u16 port, u8& function, u8& offset) const
     return device;
 }
 
+void PciBus::SetTraceLogger(TraceLogger* trace_logger)
+{
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+}
+
 u8 PciBus::ReadData(u16 port) const
 {
     u8 function = 0;
     u8 offset = 0;
     int device = Select(port, function, offset);
+    u8 value = device >= 0 ? m_reads[device](m_contexts[device], function, offset) : 0xFF;
 
-    return device >= 0 ? m_reads[device](m_contexts[device], function, offset) : 0xFF;
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_PCI)))
+        TraceAccess(device, function, offset, value, true);
+
+    return value;
+}
+
+void PciBus::TraceAccess(int device, u8 function, u8 offset, u8 value, bool read) const
+{
+    u32 address = m_state.address;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_PCI);
+    entry->flags |= (read ? TRACE_SYSTEM_FLAG_READ : 0) | (device < 0 ? TRACE_SYSTEM_FLAG_NO_DEVICE : 0);
+    entry->system.bus = (u8)((address >> 16) & 0xFF);
+    entry->system.device = (u8)((address >> 11) & 0x1F);
+    entry->system.function = (u8)((address >> 8) & 0x07);
+    entry->system.address = device >= 0 ? offset : (u8)(address & 0xFC);
+    entry->system.data = value;
+    entry->system.raw = 1;
+    UNUSED(function);
 }
 
 void PciBus::WriteData(u16 port, u8 value)
@@ -113,6 +138,9 @@ void PciBus::WriteData(u16 port, u8 value)
     u8 function = 0;
     u8 offset = 0;
     int device = Select(port, function, offset);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_PCI)))
+        TraceAccess(device, function, offset, value, false);
 
     if (device >= 0 && IsValidPointer(m_writes[device]))
         m_writes[device](m_contexts[device], function, offset, value);

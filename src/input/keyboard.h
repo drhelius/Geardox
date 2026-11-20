@@ -102,7 +102,9 @@ private:
     bool IsNavigationKey(GDOX_Keys key) const;
     bool IsHeld(GDOX_Keys left, GDOX_Keys right) const;
     u8 PopByte();
-    void TraceEvent(u8 event, u8 value, u8 flags, u8 key);
+    NO_INLINE void TraceKey(u8 kind, GDOX_Keys key, u8 count);
+    NO_INLINE void TraceReject(GDOX_Keys key, u8 reason);
+    NO_INLINE void TraceCommand(u8 value, u8 command);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

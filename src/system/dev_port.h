@@ -27,6 +27,7 @@
 
 class I386;
 class StateSerializer;
+class TraceLogger;
 
 #define DEV_PORT_PATH_SIZE 128
 #define DEV_PORT_EVENT_COUNT 16
@@ -115,6 +116,7 @@ public:
     u8 Peek(u16 port) const;
     void Write(u16 port, u8 value);
     DebugConsole* GetConsole();
+    void SetTraceLogger(TraceLogger* trace_logger);
     DevPort_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
@@ -122,6 +124,7 @@ public:
 private:
     void Hypercall(u8 command);
     void AddEvent(u8 type);
+    NO_INLINE void TraceEvent(u8 type);
     bool IsCode32() const;
     u32 GetOffset(int reg) const;
     u32 ReadString(int segment, u32 offset, char* buffer, u32 size) const;
@@ -136,6 +139,7 @@ private:
     void* m_event_context;
     DevPort_Event_Fn m_event_callback;
     std::string m_run_command;
+    TraceLogger* m_trace_logger;
 };
 
 static const u16 k_dev_port_console = 0x00E9;

@@ -260,7 +260,6 @@ I386_Run_Result I386::RunDynarec(u32 cycle_budget, GDOX_Bus_Access_Context& cont
     total.instruction_completed = true;
     total.exception_vector = 0xFF;
 
-    m_checked_valid = false;
     SetBusContext(context);
     UpdateStepMode();
     CheckDynarecMemory();

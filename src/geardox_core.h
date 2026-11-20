@@ -225,6 +225,7 @@ private:
     static GDOX_Synchronize_Result SynchronizeIOCallback(void* core, GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles);
     static void SynchronizeMemoryCallback(void* core, GDOX_Bus_Access_Context& context);
     static u32 PollPortCallback(void* core, u16 port, int width);
+    static u64 TraceClocksCallback(void* core, u32 cycles);
     static void DMADebugCallback(void* cpu, u32 address, u32 size, bool write);
     static void FPUErrorCallback(void* core);
     static void MemoryHoleCallback(void* core, bool hole);
@@ -320,6 +321,8 @@ private:
     bool m_dev_magic_breakpoint;
     bool m_dev_stop_at_entry;
     bool m_debug_recheck;
+    bool m_trace_stopped;
+    u32 m_trace_frame;
     int m_game_timing;
     bool m_powered;
     bool m_paused;

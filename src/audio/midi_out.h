@@ -31,6 +31,8 @@
 
 class StateSerializer;
 
+class TraceLogger;
+
 class MidiOut
 {
 public:
@@ -89,7 +91,8 @@ public:
     ~MidiOut();
     void Reset();
     void SetPosition(int position);
-    void Write(u8 value);
+    void Write(u8 value, u8 source = 0);
+    void SetTraceLogger(TraceLogger* trace_logger);
     void SetCapture(MidiOut_Capture capture);
     MidiOut_Capture GetCapture() const;
     void Silence();
@@ -113,6 +116,7 @@ private:
     void EndSysEx();
     void Detect(const u8* data, int size);
     void Emit(const u8* data, int size);
+    NO_INLINE void TraceMessage(const u8* data, int size);
     bool Send(const u8* data, int size, u16 offset);
     void SendShort(u8 status, u8 data1, u8 data2, int size);
     void SendChannel(const MidiOut_Synth& synth, int channel, bool all);
@@ -130,6 +134,8 @@ private:
 
 private:
     MidiOut_State m_state;
+    TraceLogger* m_trace_logger;
+    u8 m_trace_source;
     MidiOut_Synth m_device;
     bool m_device_known;
     MidiOut_Capture m_capture;

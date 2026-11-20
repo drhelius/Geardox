@@ -134,13 +134,14 @@ private:
     u64 GetSeekClocks(u32 cylinder) const;
     u64 GetPositionClocks(u32 lba, u64 clocks);
     u64 GetReadClocks(u32 lba, u32 count, u64 clocks, u64 overhead);
-    void Trace(u8 event);
+    NO_INLINE void Trace(u8 event, u8 command);
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
 
 private:
     HardDiskImage m_image;
     TraceLogger* m_trace_logger;
+    u8 m_trace_features;
     IdeDisk_State m_state;
     int m_id;
     u32 m_access_count;

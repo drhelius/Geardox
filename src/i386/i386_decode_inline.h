@@ -419,7 +419,6 @@ INLINE bool I386::StartInstruction()
     instruction.call_return_size = 0;
 #endif
 
-    m_instruction_restored = false;
     m_address_clocks = 0;
 
     if (unlikely(eip - m_code_window_eip >= m_code_window_size))

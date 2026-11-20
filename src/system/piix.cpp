@@ -211,7 +211,7 @@ void Piix::WritePort(u16 port, u8 value)
             m_state.reset_control = value & 0x06;
 
             if (start && IsValidPointer(m_system_control))
-                m_system_control->RequestCPUReset(k_system_control_reset_fast);
+                m_system_control->RequestCPUReset(k_system_control_reset_fast, 0x0CF9);
             break;
         }
     }

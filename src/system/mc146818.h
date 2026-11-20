@@ -98,7 +98,7 @@ private:
     u8 EncodeHours(u8 hours) const;
     u8 DecodeHours(u8 value) const;
     void WriteRegister(u8 index, u8 value, u64 clocks);
-    void TraceEvent(u8 event, u8 value);
+    NO_INLINE void TraceEvent(u8 event, u8 value, u8 raw);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

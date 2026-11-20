@@ -135,7 +135,8 @@ private:
     void WriteChip(int chip, u8 port, u8 value);
     void UpdatePCMFilter();
     void UpdateGains();
-    void TraceFM(int chip, u8 value);
+    NO_INLINE void TraceFM(int chip, u8 value, u8 previous);
+    NO_INLINE void TraceFMStatus(int chip, u8 value);
     void WriteVgmInitialState();
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
@@ -154,6 +155,7 @@ private:
     Scheduler* m_scheduler;
     PIT* m_pit;
     TraceLogger* m_trace_logger;
+    u8 m_trace_fm_status[AUDIO_OPL_CHIPS];
     int m_opl_chips;
     bool m_opl3;
     bool m_dsp;

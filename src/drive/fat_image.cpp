@@ -1483,6 +1483,59 @@ const std::vector<FatImage_File>& FatImage::GetFiles() const
     return m_files;
 }
 
+void FatImage::GetSectorMap(std::vector<FatImage_Extent>* extents) const
+{
+    extents->clear();
+
+    if (m_fat.empty())
+        return;
+
+    u32 partition = (u32)(m_read_offset / k_fat_sector_size);
+    u32 root = partition + m_layout.first_data - m_layout.root_sectors;
+    FatImage_Extent system[3] =
+    {
+        { 0, partition - 1, -1 },
+        { partition, root - 1, -2 },
+        { root, partition + m_layout.first_data - 1, -3 }
+    };
+
+    for (int i = 0; i < 3; i++)
+    {
+        if (partition > 0 && system[i].last >= system[i].first)
+            extents->push_back(system[i]);
+    }
+
+    for (size_t i = 0; i < m_files.size(); i++)
+    {
+        u32 cluster = m_files[i].first_cluster;
+        u32 guard = 0;
+        FatImage_Extent extent = { 0, 0, (int)i };
+        bool open = false;
+
+        while (cluster >= 2 && cluster < m_fat.size() && guard++ <= m_layout.clusters)
+        {
+            u32 first = partition + m_layout.first_data + (cluster - 2) * m_layout.cluster_sectors;
+
+            if (open && first == extent.last + 1)
+                extent.last = first + m_layout.cluster_sectors - 1;
+            else
+            {
+                if (open)
+                    extents->push_back(extent);
+
+                extent.first = first;
+                extent.last = first + m_layout.cluster_sectors - 1;
+                open = true;
+            }
+
+            cluster = m_fat[cluster];
+        }
+
+        if (open)
+            extents->push_back(extent);
+    }
+}
+
 const char* FatImage::GetReadError() const
 {
     return m_read_error.c_str();

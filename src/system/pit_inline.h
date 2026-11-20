@@ -34,14 +34,14 @@ INLINE void PIT::Synchronize(u64 clocks)
     if (tick <= m_state.settled_tick)
         return;
 
-    bool edge = m_pit.GetNextRisingEdge(k_pit_irq0_channel, m_state.settled_tick) <= tick;
+    u64 first = m_pit.GetNextRisingEdge(k_pit_irq0_channel, m_state.settled_tick);
     m_state.settled_tick = tick;
 
-    if (!edge)
+    if (first > tick)
         return;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_TIMEOUT)))
-        TraceTimeout();
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_TIMEOUT)))
+        TraceTimeouts(first, tick);
 
     m_pic->SetIRQLine(0, false);
     m_pic->SetIRQLine(0, true);

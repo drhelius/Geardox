@@ -37,7 +37,7 @@ static const u8 k_keyboard_set2[0x80] =
 
 Keyboard::Keyboard()
 {
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     memset(&m_state, 0, sizeof(m_state));
 }
 
@@ -52,7 +52,7 @@ void Keyboard::Init()
 
 void Keyboard::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 // The self-test at power on ends with the same AAh as a reset command
@@ -117,7 +117,12 @@ bool Keyboard::KeyPressed(GDOX_Keys key, u64 clocks)
         return true;
 
     if (!m_state.scanning)
+    {
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_REJECT)))
+            TraceReject(key, 0);
+
         return false;
+    }
 
     u8 flags = GetMakeFlags(key);
     u8 count = m_state.buffer_count;
@@ -128,13 +133,18 @@ bool Keyboard::KeyPressed(GDOX_Keys key, u64 clocks)
         m_state.buffer_count = count;
         QueueOverrun();
         UpdateSend(clocks);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_REJECT)))
+            TraceReject(key, 1);
+
         return false;
     }
 
     m_state.overrun = false;
     m_state.keys[key] = flags;
 
-    TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x01, (u8)key);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_KEY)))
+        TraceKey(0x01, key, count);
 
     if (key == GDOX_KEY_NUM_LOCK)
         m_state.num_lock = !m_state.num_lock;
@@ -174,7 +184,10 @@ void Keyboard::KeyReleased(GDOX_Keys key, u64 clocks)
         return;
 
     QueueBreak(key, flags);
-    TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x00, (u8)key);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_KEY)))
+        TraceKey(0x00, key, count);
+
     UpdateSend(clocks);
 }
 
@@ -199,7 +212,9 @@ void Keyboard::ProcessByte(u8 value, u64 clocks)
 {
     u8 command = m_state.command;
     m_state.command = 0;
-    TraceEvent(TRACE_KEYBOARD_COMMAND, value, 0x02, command);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_COMMAND)))
+        TraceCommand(value, command);
 
     // A command in place of a parameter drops the one that was waiting
     if (command == 0 || (value & 0x80) != 0)
@@ -438,8 +453,8 @@ void Keyboard::RepeatKey(u64 clocks)
 
         if (m_state.buffer_count > KEYBOARD_BUFFER_SIZE)
             m_state.buffer_count = count;
-        else
-            TraceEvent(TRACE_KEYBOARD_KEY, (u8)(m_state.buffer_count - count), 0x02, (u8)key);
+        else if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_KEY)))
+            TraceKey(0x02, key, count);
     }
 
     m_state.repeat_clocks = clocks + (((u64)GetTypematicPeriod() * GDOX_MACHINE_CLOCK_RATE) / 1000000);
@@ -539,19 +554,40 @@ u8 Keyboard::PopByte()
     return value;
 }
 
-void Keyboard::TraceEvent(u8 event, u8 value, u8 flags, u8 key)
+void Keyboard::TraceKey(u8 kind, GDOX_Keys key, u8 count)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, event))
-        return;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_KEYBOARD, TRACE_KEYBOARD_KEY);
+    u8 bytes = (u8)(m_state.buffer_count - count);
+    entry->keyboard.value = bytes;
+    entry->keyboard.flags = kind;
+    entry->keyboard.key = (u8)key;
+    entry->keyboard.pending = m_state.buffer_count;
+    entry->keyboard.scan_set = m_state.scan_set;
+    entry->keyboard.count = (u8)MIN(bytes, (u8)8);
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_KEYBOARD;
-    entry.event = event;
-    entry.keyboard.value = value;
-    entry.keyboard.flags = flags;
-    entry.keyboard.key = key;
-    entry.keyboard.pending = m_state.buffer_count;
-    m_trace_logger->TraceLog(entry);
+    for (u8 i = 0; i < entry->keyboard.count; i++)
+        entry->keyboard.bytes[i] = m_state.buffer[(u8)(m_state.buffer_read + count + i) & (KEYBOARD_BUFFER_CAPACITY - 1)];
+}
+
+void Keyboard::TraceReject(GDOX_Keys key, u8 reason)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_KEYBOARD, TRACE_KEYBOARD_REJECT);
+    entry->keyboard.key = (u8)key;
+    entry->keyboard.reason = reason;
+    entry->keyboard.pending = m_state.buffer_count;
+}
+
+void Keyboard::TraceCommand(u8 value, u8 command)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_KEYBOARD, TRACE_KEYBOARD_COMMAND);
+    entry->keyboard.value = value;
+    entry->keyboard.flags = TRACE_KEYBOARD_TARGET_KEYBOARD;
+    entry->keyboard.key = command;
+    entry->keyboard.pending = m_state.buffer_count;
+    entry->keyboard.scan_set = m_state.scan_set;
+
+    if (command != 0 && (value & 0x80) != 0)
+        entry->flags |= TRACE_KEYBOARD_FLAG_AS_COMMAND;
 }
 
 void Keyboard::SaveState(std::ostream& stream)

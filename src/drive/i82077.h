@@ -254,9 +254,11 @@ private:
     u64 GetStepClocks() const;
     u64 GetHeadLoadClocks() const;
     u64 GetHeadUnloadClocks() const;
-    void TraceDOR(u8 previous);
-    void TraceCommand();
-    void TraceResult();
+    NO_INLINE void TraceDOR(u8 previous);
+    NO_INLINE void TraceCommand(u8 first, u8 count);
+    NO_INLINE void TraceResults(u8 count);
+    NO_INLINE void TraceRate(u8 reg, u8 value);
+    NO_INLINE void TraceSector(const FloppyDisk_Sector& sector);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

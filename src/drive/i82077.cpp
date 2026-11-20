@@ -28,7 +28,7 @@ static const u8 k_i82077_lengths[] = { 0, 9, 9, 9, 9, 9, 9, 6, 2, 2, 3, 3, 1, 2,
 I82077::I82077()
 {
     InitPointer(m_fdc);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     m_port_logged = false;
     m_delay_divider = 1;
     memset(&m_state, 0, sizeof(m_state));
@@ -50,7 +50,7 @@ void I82077::Init(FDC* fdc)
 
 void I82077::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 // The pin reset clears everything but what Specify programmed, and holds the chip until the DOR lets it go
@@ -179,12 +179,18 @@ void I82077::Write(int reg, u8 value, u64 clocks)
             break;
         case 4:
             WriteDSR(value, clocks);
+
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_RATE)))
+                TraceRate(4, value);
             break;
         case 5:
             WriteData(value, clocks);
             break;
         case 7:
             m_state.rate = value & 0x03;
+
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_RATE)))
+                TraceRate(7, value);
             break;
         default:
             break;
@@ -204,7 +210,7 @@ void I82077::WriteDOR(u8 value, u64 clocks)
 
     Resume(clocks);
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_FDC)))
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_FDC)))
         TraceDOR(previous);
 }
 
@@ -251,9 +257,11 @@ void I82077::WriteData(u8 value, u64 clocks)
 
     if (m_state.command == I82077_COMMAND_INVALID)
     {
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_COMMAND)))
+            TraceCommand(value, 1);
+
         m_state.results[0] = k_i82077_invalid_result;
         SetResults(1);
-        TraceCommand();
         return;
     }
 
@@ -261,7 +269,9 @@ void I82077::WriteData(u8 value, u64 clocks)
 
     if (m_state.parameter_count == m_state.parameter_length)
     {
-        TraceCommand();
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_COMMAND)))
+            TraceCommand(m_state.parameters[0], m_state.parameter_length);
+
         StartCommand(clocks);
     }
 }
@@ -383,6 +393,9 @@ void I82077::SetResults(u8 count)
     m_state.phase = I82077_PHASE_RESULT;
     m_state.result_count = count;
     m_state.result_index = 0;
+
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_FDC)))
+        TraceResults(count);
 }
 
 void I82077::StartCommand(u64 clocks)
@@ -498,6 +511,15 @@ void I82077::AnswerDumpreg()
 
 void I82077::QueueSense(u8 st0, u8 pcn)
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_SEEK_END)))
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, TRACE_FDC_SEEK_END);
+        entry->fdc.status = st0;
+        entry->fdc.cylinder = pcn;
+        entry->fdc.drive = (s8)(st0 & 0x03);
+        entry->fdc.command = m_state.command;
+    }
+
     if (m_state.sense_count >= I82077_SENSE_SIZE)
         return;
 
@@ -945,6 +967,9 @@ void I82077::RunSearch(u64 clocks)
 // A mark of the other kind sets CM. With SK the sector is passed over, without it this is the last one read
 void I82077::BeginSector(const FloppyDisk_Sector& sector, u32 gap, u64 clocks)
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_SECTOR)))
+        TraceSector(sector);
+
     bool wrong_mark = !IsWrite() && m_state.command != I82077_COMMAND_READ_TRACK && !IsMarkWanted(sector);
     bool passed = wrong_mark && m_state.skip;
 
@@ -1214,7 +1239,6 @@ void I82077::EnterResult(u64 clocks)
     UpdateRequest();
     SetResults(7);
     SetInterrupt(true);
-    TraceResult();
 }
 
 bool I82077::PushFIFO(u8 value)
@@ -1309,6 +1333,14 @@ void I82077::TerminalCount()
 
     m_state.terminal_count = true;
     UpdateRequest();
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_TC)))
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, TRACE_FDC_TC);
+        entry->fdc.command = m_state.command;
+        entry->fdc.drive = (s8)m_state.drive;
+        entry->fdc.sector = m_state.sector;
+    }
 }
 
 // A write that picks another drive or changes a motor is a selection, the rest are control writes
@@ -1319,53 +1351,75 @@ void I82077::TraceDOR(u8 previous)
     if (!m_trace_logger->IsEventEnabled(TRACE_FDC, event))
         return;
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_FDC;
-    entry.event = event;
-    entry.fdc.value = m_state.dor;
-    entry.fdc.drive = (s8)m_fdc->GetSelectedDrive();
-    entry.fdc.cylinder = entry.fdc.drive >= 0 ? m_fdc->GetState()->cylinders[entry.fdc.drive] : 0;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, event);
+    entry->fdc.value = m_state.dor;
+    entry->fdc.data = previous;
+    entry->fdc.drive = (s8)m_fdc->GetSelectedDrive();
+    entry->fdc.cylinder = entry->fdc.drive >= 0 ? m_fdc->GetState()->cylinders[entry->fdc.drive] : 0;
 }
 
-void I82077::TraceCommand()
+void I82077::TraceCommand(u8 first, u8 count)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_COMMAND))
-        return;
-
     const u8* p = m_state.parameters;
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_FDC;
-    entry.event = TRACE_FDC_COMMAND;
-    entry.fdc.command = m_state.command;
-    entry.fdc.value = p[0];
-    entry.fdc.drive = (s8)(p[1] & 0x03);
-    entry.fdc.cylinder = p[2];
-    entry.fdc.track = p[3];
-    entry.fdc.sector = p[4];
-    entry.fdc.data = p[5];
-    entry.fdc.status = GetMSR();
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, TRACE_FDC_COMMAND);
+    entry->fdc.command = m_state.command;
+    entry->fdc.value = first;
+    entry->fdc.drive = (s8)(p[1] & 0x03);
+    entry->fdc.cylinder = p[2];
+    entry->fdc.track = p[3];
+    entry->fdc.sector = p[4];
+    entry->fdc.data = p[5];
+    entry->fdc.status = GetMSR();
+    entry->fdc.rate = m_state.rate;
+    entry->fdc.non_dma = m_state.non_dma ? 1 : 0;
+    entry->fdc.count = MIN(count, (u8)10);
+    memcpy(entry->fdc.bytes, p, entry->fdc.count);
+    entry->fdc.bytes[0] = first;
 }
 
-void I82077::TraceResult()
+void I82077::TraceResults(u8 count)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_FDC, TRACE_FDC_END))
+    bool data = m_state.command >= I82077_COMMAND_READ && m_state.command <= I82077_COMMAND_READ_ID;
+    u8 event = data ? TRACE_FDC_END : TRACE_FDC_RESULT;
+
+    if (!m_trace_logger->IsEventEnabled(TRACE_FDC, event))
         return;
 
     const u8* r = m_state.results;
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_FDC;
-    entry.event = TRACE_FDC_END;
-    entry.fdc.command = m_state.command;
-    entry.fdc.status = r[0];
-    entry.fdc.value = r[1];
-    entry.fdc.data = r[2];
-    entry.fdc.drive = (s8)m_state.drive;
-    entry.fdc.cylinder = r[3];
-    entry.fdc.track = r[4];
-    entry.fdc.sector = r[5];
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, event);
+    entry->fdc.command = m_state.command;
+    entry->fdc.status = r[0];
+    entry->fdc.value = r[1];
+    entry->fdc.data = r[2];
+    entry->fdc.drive = (s8)m_state.drive;
+    entry->fdc.cylinder = r[3];
+    entry->fdc.track = r[4];
+    entry->fdc.sector = r[5];
+    entry->fdc.count = MIN(count, (u8)10);
+    memcpy(entry->fdc.bytes, r, entry->fdc.count);
+}
+
+void I82077::TraceRate(u8 reg, u8 value)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, TRACE_FDC_RATE);
+    entry->fdc.kind = reg;
+    entry->fdc.value = value;
+    entry->fdc.rate = m_state.rate;
+    entry->fdc.drive = (s8)m_fdc->GetSelectedDrive();
+}
+
+void I82077::TraceSector(const FloppyDisk_Sector& sector)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FDC, TRACE_FDC_SECTOR);
+    entry->fdc.command = m_state.command;
+    entry->fdc.drive = (s8)m_state.drive;
+    entry->fdc.cylinder = sector.id[0];
+    entry->fdc.track = sector.id[1];
+    entry->fdc.sector = sector.id[2];
+    entry->fdc.data = sector.id[3];
+    entry->fdc.status = sector.status;
+    entry->fdc.kind = (u8)((sector.deleted ? 0x01 : 0x00) | (sector.fm ? 0x02 : 0x00));
+    entry->fdc.moved = sector.size;
 }
 
 void I82077::SaveState(std::ostream& stream)

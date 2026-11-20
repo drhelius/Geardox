@@ -74,7 +74,7 @@ public:
     u64 GetReadStableUntil(u16 port, u64 clocks) const;
     bool IsPowerOffRequested() const;
     void AcknowledgePowerOff();
-    void RequestCPUReset(u8 cause);
+    void RequestCPUReset(u8 cause, u16 port = 0);
     bool IsCPUResetPending() const;
     void AcknowledgeCPUReset();
     void SetFPUError();
@@ -87,8 +87,12 @@ public:
 
 private:
     void LockShadow();
-    void UpdateA20();
-    void TraceWrite(u16 port, u8 value, u8 previous);
+    void UpdateA20(u8 source);
+    void ApplyWrite(u16 port, u8 value, u64 clocks);
+    NO_INLINE void WriteTraced(u16 port, u8 value, u64 clocks);
+    NO_INLINE void TraceA20(bool enabled, u8 source);
+    NO_INLINE void TraceShadow(u64 read_only, u64 open);
+    NO_INLINE void TraceReset(u8 cause, u16 port, bool performed);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 
@@ -103,6 +107,8 @@ private:
     bool m_power_off_requested;
     TraceLogger* m_trace_logger;
     bool m_power_on_a20_port_92;
+    u64 m_trace_read_only;
+    u64 m_trace_open;
 };
 
 static const u8 k_system_control_reset_fast = 0x01;

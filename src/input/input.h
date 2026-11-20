@@ -71,7 +71,7 @@ private:
     s32 TakeMouseAxis(s32& pending, s32 frame, u64 elapsed, s32 limit);
     void UpdateMouseButtons();
     void UpdateJoystickState();
-    void TraceChange(u8 device, u16 buttons, u16 previous);
+    NO_INLINE void TraceChange(u8 device, u16 buttons, u16 previous);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

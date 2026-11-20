@@ -55,7 +55,7 @@ I8042::I8042()
     InitPointer(m_system_control);
     InitPointer(m_keyboard);
     InitPointer(m_mouse);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     memset(&m_state, 0, sizeof(m_state));
 }
 
@@ -80,7 +80,7 @@ void I8042::SetMouse(PS2Mouse* mouse)
 
 void I8042::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void I8042::Reset()
@@ -104,6 +104,7 @@ u8 I8042::Read(u16 port, u64 clocks)
 
     u8 value = m_state.output_buffer;
     u8 aux = m_state.output_aux ? 0x01 : 0x00;
+    bool full = m_state.output_full;
 
     m_state.output_full = false;
     m_state.output_aux = false;
@@ -116,7 +117,10 @@ u8 I8042::Read(u16 port, u64 clocks)
     UpdateDeviceClocks(clocks);
     UpdateIRQ();
     UpdateNextEvent();
-    TraceEvent(TRACE_KEYBOARD_READ, value, aux, 0);
+
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_KEYBOARD)))
+        TraceEvent(full ? TRACE_KEYBOARD_READ : TRACE_KEYBOARD_READ_EMPTY, value, aux, 0);
+
     return value;
 }
 
@@ -241,12 +245,16 @@ void I8042::TakeInput(u64 clocks)
 
     if (m_state.input_command)
     {
-        TraceEvent(TRACE_KEYBOARD_COMMAND, value, 0x00, 0);
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_COMMAND)))
+            TraceEvent(TRACE_KEYBOARD_COMMAND, value, TRACE_KEYBOARD_TARGET_8042, m_state.ram[0]);
+
         ExecuteCommand(value);
     }
     else if (command != 0)
     {
-        TraceEvent(TRACE_KEYBOARD_COMMAND, value, 0x01, command);
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_COMMAND)) && command != 0xD1)
+            TraceEvent(TRACE_KEYBOARD_COMMAND, value, TRACE_KEYBOARD_TARGET_8042_PARAMETER, command);
+
         ExecuteParameter(command, value, clocks);
     }
     else
@@ -274,7 +282,7 @@ void I8042::ExecuteCommand(u8 value)
     if ((value & 0xF0) == 0xF0)
     {
         if ((value & 0x01) == 0)
-            m_system_control->RequestCPUReset(k_system_control_reset_keyboard);
+            m_system_control->RequestCPUReset(k_system_control_reset_keyboard, 0x0064);
 
         return;
     }
@@ -356,9 +364,10 @@ void I8042::WriteOutputPort(u8 value)
     m_system_control->SetKeyboardA20((value & 0x02) != 0);
 
     if ((value & 0x01) == 0)
-        m_system_control->RequestCPUReset(k_system_control_reset_keyboard);
+        m_system_control->RequestCPUReset(k_system_control_reset_keyboard, 0x0064);
 
-    TraceEvent(TRACE_KEYBOARD_OUTPUT_PORT, value, 0, previous);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_OUTPUT_PORT)))
+        TraceEvent(TRACE_KEYBOARD_OUTPUT_PORT, value, 0, previous);
 }
 
 void I8042::ReceiveKeyboardByte(u8 value)
@@ -381,6 +390,9 @@ void I8042::ReceiveKeyboardByte(u8 value)
 // A byte waits for the output buffer to empty, a later one takes its place
 void I8042::PutOutput(u8 value, bool aux)
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_BYTE)) && m_state.result_pending)
+        TraceEvent(TRACE_KEYBOARD_BYTE, m_state.result, m_state.result_aux ? 0x03 : 0x02, 0);
+
     m_state.result = value;
     m_state.result_aux = aux;
     m_state.result_pending = true;
@@ -397,6 +409,9 @@ void I8042::FlushResult()
     m_state.output_aux = m_state.result_aux;
     m_state.output_full = true;
     m_state.result_pending = false;
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, TRACE_KEYBOARD_BYTE)))
+        TraceEvent(TRACE_KEYBOARD_BYTE, m_state.output_buffer, m_state.output_aux ? 0x01 : 0x00, 0);
 }
 
 // Each device holds its bytes while the output buffer is busy or its clock is held low, the keyboard goes first
@@ -426,17 +441,20 @@ void I8042::UpdateNextEvent()
 
 void I8042::TraceEvent(u8 event, u8 value, u8 flags, u8 key)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_KEYBOARD, event))
-        return;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_KEYBOARD, event);
+    entry->keyboard.value = value;
+    entry->keyboard.flags = flags;
+    entry->keyboard.key = key;
+    entry->keyboard.pending = m_keyboard->GetState()->buffer_count;
+    entry->keyboard.previous = m_state.ram[0];
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_KEYBOARD;
-    entry.event = event;
-    entry.keyboard.value = value;
-    entry.keyboard.flags = flags;
-    entry.keyboard.key = key;
-    entry.keyboard.pending = m_keyboard->GetState()->buffer_count;
-    m_trace_logger->TraceLog(entry);
+    if (event == TRACE_KEYBOARD_READ || event == TRACE_KEYBOARD_READ_EMPTY || event == TRACE_KEYBOARD_BYTE)
+    {
+        entry->keyboard.flags = 0;
+        entry->flags |= (flags & 0x01) != 0 ? TRACE_KEYBOARD_FLAG_AUX : 0;
+        entry->flags |= (flags & 0x02) != 0 ? TRACE_KEYBOARD_FLAG_LOST : 0;
+        entry->flags |= event == TRACE_KEYBOARD_BYTE && m_state.timeout ? TRACE_KEYBOARD_FLAG_TIMEOUT : 0;
+    }
 }
 
 void I8042::SaveState(std::ostream& stream)

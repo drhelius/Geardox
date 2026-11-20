@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include "../common/common.h"
+#include "../common/trace_logger.h"
 
 #define VIDEO_VRAM_SIZE 0x200000
 #define VIDEO_VGA_VRAM_SIZE 0x40000
@@ -45,6 +46,7 @@ class MC6845;
 class Memory;
 class PIC;
 class TraceLogger;
+struct GDOX_Trace_Entry;
 class Scheduler;
 class StateSerializer;
 
@@ -307,7 +309,7 @@ private:
     void RenderCGAText(u32* destination, int x, int end, const u32* colors);
     template<bool high>
     void RenderCGAGraphics(u32* destination, int x, int end, const u32* colors);
-    void TraceCGAWrite(u16 port, u8 value, u64 clocks);
+    NO_INLINE void TraceCGAWrite(u16 port, u8 value, u64 clocks);
     void WriteCirrusSequencer(u8 index, u8 value, u64 clocks);
     void WriteCirrusGraphics(u8 index, u8 value, u64 clocks);
     void WriteCirrusCRTC(u8 index, u8 value, u64 clocks);
@@ -381,15 +383,50 @@ private:
     bool GetBlinkPhase() const;
     bool GetCursorPhase() const;
     u32 ToXRGB(u8 red, u8 green, u8 blue) const;
-    void TraceWrite(u16 port, u8 value, u64 clocks);
-    void TraceEvent(u8 event, u8 reg, u16 value, u8 raw, u8 bank, u32 param, u64 clocks);
+    void ApplyWrite(u16 port, u8 value, u64 clocks);
+    NO_INLINE void WriteTraced(u16 port, u8 value, u64 clocks);
+    NO_INLINE GDOX_Trace_Entry* TraceEvent(u8 event, u8 reg, u16 value, u8 raw, u8 bank, u32 param, u64 clocks);
+    NO_INLINE void TraceColor(u8 index, u64 clocks);
+    NO_INLINE void FlushPaletteLoad();
+    NO_INLINE void TraceFrameStart(u64 clocks);
+    NO_INLINE void TraceFrameComplete();
+    NO_INLINE void CountStatusRead(u64 clocks);
+    NO_INLINE void TraceBlt(u8 event, u64 clocks);
+    void FlushDeferred(u64 clocks);
+    u8 GetTraceAdapter() const;
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
+
+private:
+    struct Video_Trace
+    {
+        u64 load_clocks;
+        u32 load_first_rgb;
+        u32 load_last_rgb;
+        u32 mode[6];
+        u32 frame[4];
+        u32 status_reads;
+        u32 status_retrace;
+        u32 status_off;
+        u16 load_first;
+        u16 load_count;
+        u16 load_first_line;
+        u16 load_last_line;
+        u16 load_next;
+        u16 status_first_line;
+        u16 status_last_line;
+        u16 start_line;
+        u8 deferred;
+        bool load_extended;
+        bool status;
+    };
 
 private:
     Video_State m_state;
     PIC* m_pic;
     TraceLogger* m_trace_logger;
+    Video_Trace m_trace;
+    GDOX_Trace_Entry m_trace_blt;
     Scheduler* m_scheduler;
     Memory* m_memory;
     u8* m_frame_buffer;

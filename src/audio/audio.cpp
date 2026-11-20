@@ -43,7 +43,8 @@ Audio::Audio()
     InitPointer(m_pic);
     InitPointer(m_scheduler);
     InitPointer(m_pit);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    memset(m_trace_fm_status, 0, sizeof(m_trace_fm_status));
     m_mute = false;
     m_master_volume = 1.0f;
     m_fm_volume = 1.0f;
@@ -139,6 +140,7 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
     m_mpu401->Init(m_midi_out);
     m_midi_synth->Init(m_midi_out);
     m_sound_blaster->Init(pic, dma, m_midi_out);
+    m_sound_blaster->SetTraceClocks(&m_state.clocks);
     m_ultrasound->Init(pic, dma, m_midi_out);
 
     for (int i = 0; i < 8; i++)
@@ -150,9 +152,10 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
 
 void Audio::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
     m_sound_blaster->SetTraceLogger(trace_logger);
     m_mpu401->SetTraceLogger(trace_logger);
+    m_midi_out->SetTraceLogger(trace_logger);
     m_ultrasound->SetTraceLogger(trace_logger);
 }
 
@@ -282,7 +285,13 @@ u8 Audio::Read(u16 port, u64 clocks)
     if (IsFMPort(port))
     {
         bool right = (m_opl_chips > 1) && ((port & 0x03F0) == k_sound_blaster_port) && ((port & 0x0E) == 0x02);
-        return m_opl[right ? 1 : 0]->Read((u8)(port & 0x03));
+        u8 value = m_opl[right ? 1 : 0]->Read((u8)(port & 0x03));
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_FM, TRACE_FM_STATUS)) && (port & 0x01) == 0 &&
+            value != m_trace_fm_status[right ? 1 : 0])
+            TraceFMStatus(right ? 1 : 0, value);
+
+        return value;
     }
 
     // A request that takes the place of the byte just read needs a new edge on the line
@@ -389,6 +398,9 @@ void Audio::WriteFM(u16 port, u8 value)
 
 void Audio::WriteChip(int chip, u8 port, u8 value)
 {
+    bool traced = unlikely(m_trace_logger->IsEnabled(TRACE_FM)) && (port & 0x01) != 0;
+    u8 previous = traced ? m_opl[chip]->GetRegister(m_opl[chip]->GetSelectedAddress()) : 0;
+
     m_opl[chip]->Write(port, value);
 
     if ((port & 0x01) == 0)
@@ -399,8 +411,8 @@ void Audio::WriteChip(int chip, u8 port, u8 value)
         m_vgm_recorder.WriteOPL(chip, m_opl[chip]->GetSelectedAddress(), value);
 #endif
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_FM)))
-        TraceFM(chip, value);
+    if (unlikely(traced))
+        TraceFM(chip, value, previous);
 }
 
 void Audio::UpdateEvent()
@@ -508,47 +520,71 @@ void Audio::CaptureChannels(int index)
 }
 
 // Data writes carry the register the address port latched, along with the channel it belongs to
-void Audio::TraceFM(int chip, u8 value)
+void Audio::TraceFM(int chip, u8 value, u8 previous)
 {
+    static const s8 k_operators[0x20] =
+    {
+        0, 1, 2, 3, 4, 5, -1, -1, 6, 7, 8, 9, 10, 11, -1, -1, 12, 13, 14, 15, 16, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+    };
+    static const s8 k_opl2_channels[0x10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, -1, -1, 0, 1 };
+
     OPL* opl = m_opl[chip];
+    bool opl2 = opl->GetModel() == OPL::OPL_MODEL_OPL2;
     u16 address = opl->GetSelectedAddress();
     int bank = (address >> 8) & 0x01;
     u8 reg = (u8)address;
+    u8 group = reg & 0xF0;
     u8 event = TRACE_FM_GLOBAL;
-    u8 channel = (u8)((reg & 0x0F) + bank * 9);
+    u8 low = reg & 0x0F;
+    s8 channel = opl2 ? k_opl2_channels[low] : (low < 9 ? (s8)low : -1);
+    s8 operator_index = -1;
     u16 frequency = 0;
+    u16 flags = opl2 ? 0 : TRACE_FM_FLAG_OPL3;
 
-    if (reg >= 0x20 && reg <= 0x95)
-        event = TRACE_FM_OPERATOR;
-    else if (reg >= 0xE0 && reg <= 0xF5)
-        event = TRACE_FM_OPERATOR;
-    else if (reg >= 0xA0 && reg <= 0xA8)
+    if ((reg >= 0x20 && reg <= 0x95) || reg >= 0xE0)
     {
-        event = TRACE_FM_FREQUENCY;
-        frequency = (u16)(((opl->GetRegister((u16)(address + 0x10)) & 0x1F) << 8) | value);
+        event = TRACE_FM_OPERATOR;
+        operator_index = k_operators[reg & 0x1F];
+        channel = -1;
+        flags |= operator_index < 0 ? TRACE_FM_FLAG_INVALID : 0;
     }
-    else if (reg >= 0xB0 && reg <= 0xB8)
+    else if (group == 0xA0 || group == 0xB0 || group == 0xC0)
     {
-        event = TRACE_FM_KEY;
-        frequency = (u16)(((value & 0x1F) << 8) | opl->GetRegister((u16)(address - 0x10)));
+        event = group == 0xA0 ? TRACE_FM_FREQUENCY : group == 0xB0 ? TRACE_FM_KEY : TRACE_FM_CHANNEL;
+        flags |= channel < 0 ? TRACE_FM_FLAG_INVALID : low >= 9 ? TRACE_FM_FLAG_ALIAS : 0;
+
+        if (reg == 0xBD)
+            event = TRACE_FM_GLOBAL;
+        else if (channel >= 0 && group == 0xA0)
+            frequency = (u16)(((opl->GetRegister((u16)((bank << 8) | (0xB0 + channel))) & 0x1F) << 8) | value);
+        else if (channel >= 0 && group == 0xB0)
+            frequency = (u16)(((value & 0x1F) << 8) | opl->GetRegister((u16)((bank << 8) | (0xA0 + channel))));
     }
-    else if (reg >= 0xC0 && reg <= 0xC8)
-        event = TRACE_FM_CHANNEL;
     else if (reg >= 0x02 && reg <= 0x04 && bank == 0)
         event = TRACE_FM_TIMER;
 
     if (!m_trace_logger->IsEventEnabled(TRACE_FM, event))
         return;
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_FM;
-    entry.event = event;
-    entry.fm.address = address;
-    entry.fm.frequency = frequency;
-    entry.fm.value = value;
-    entry.fm.channel = channel;
-    entry.fm.flags = (u8)chip;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FM, event);
+    entry->flags |= flags;
+    entry->fm.address = address;
+    entry->fm.frequency = frequency;
+    entry->fm.value = value;
+    entry->fm.previous = previous;
+    entry->fm.channel = channel < 0 ? 0xFF : (u8)(channel + bank * 9);
+    entry->fm.operator_index = operator_index < 0 ? -1 : (s8)(operator_index + bank * 18);
+    entry->fm.flags = (u8)chip;
+    entry->fm.pairs = opl2 ? 0 : opl->GetRegister(0x104);
+}
+
+void Audio::TraceFMStatus(int chip, u8 value)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_FM, TRACE_FM_STATUS);
+    entry->fm.value = value;
+    entry->fm.previous = m_trace_fm_status[chip];
+    entry->fm.flags = (u8)chip;
+    m_trace_fm_status[chip] = value;
 }
 
 void Audio::EndFrame(s16* sample_buffer, int* sample_count)

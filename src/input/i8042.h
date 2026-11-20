@@ -92,7 +92,7 @@ private:
     void UpdateDeviceClocks(u64 clocks);
     void UpdateIRQ();
     void UpdateNextEvent();
-    void TraceEvent(u8 event, u8 value, u8 flags, u8 key);
+    NO_INLINE void TraceEvent(u8 event, u8 value, u8 flags, u8 key);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

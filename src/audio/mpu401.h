@@ -182,12 +182,12 @@ private:
     void NotesOff();
     void ClearTables();
     void Raise(int request);
-    void Queue(u8 value);
+    void Queue(u8 value, u8 kind = 0);
     void Acknowledge();
     void UpdateRate();
     u32 GetMeasureTicks() const;
     u64 GetPeriod() const;
-    void TraceMessage(u8 value);
+    NO_INLINE void TraceByte(u8 event, u8 value, u8 kind);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 
@@ -195,6 +195,7 @@ private:
     MPU401_State m_state;
     MidiOut* m_midi_out;
     TraceLogger* m_trace_logger;
+    u8 m_trace_status;
     bool m_intelligent;
     u64 m_rate;
 };

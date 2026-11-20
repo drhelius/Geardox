@@ -38,7 +38,7 @@ UltraSound::UltraSound()
     InitPointer(m_pic);
     InitPointer(m_dma);
     InitPointer(m_midi_out);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     m_enabled = false;
     m_asserted_irq[0] = 0;
     m_asserted_irq[1] = 0;
@@ -70,7 +70,7 @@ void UltraSound::Init(PIC* pic, DMA* dma, MidiOut* midi_out)
 
 void UltraSound::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void UltraSound::SetEnabled(bool enabled)
@@ -395,7 +395,7 @@ void UltraSound::LatchVoiceIRQ(int index)
     m_state.voice_irq = value;
     m_state.voice_irq_latched = true;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_IRQ)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_IRQ)))
         TraceEvent(TRACE_GUS_IRQ, (u8)index, value);
 
     UpdateIRQ();
@@ -846,7 +846,7 @@ void UltraSound::WriteRegister(u8 index, u16 value, bool word)
 {
     UNUSED(word);
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_REGISTER)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_REGISTER)))
         TraceRegister(index, value);
 
     if (index >= 0x41)
@@ -996,7 +996,7 @@ void UltraSound::WriteDMAControl(u8 value)
     {
         m_state.dma_pointer = GetDMAAddress((u32)m_state.dma_address << 4);
 
-        if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_DMA)))
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_DMA)))
             TraceEvent(TRACE_GUS_DMA, 0, value);
     }
 
@@ -1063,7 +1063,7 @@ void UltraSound::WriteLatch(u8 value)
     else
         m_state.dma_latch = value & 0x7F;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_LATCH)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_LATCH)))
         TraceEvent(TRACE_GUS_LATCH, (m_state.mix_control & 0x40) != 0 ? 1 : 0, value);
 
     UpdateIRQ();
@@ -1085,14 +1085,11 @@ void UltraSound::WriteMIDIControl(u8 value)
 
 void UltraSound::WriteMIDIData(u8 value)
 {
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_DATA)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_DATA)))
     {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_MIDI;
-        entry.event = TRACE_MIDI_DATA;
-        entry.midi.value = value;
-        entry.midi.source = TRACE_MIDI_SOURCE_GUS;
-        m_trace_logger->TraceLog(entry);
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_MIDI, TRACE_MIDI_DATA);
+        entry->midi.value = value;
+        entry->midi.source = TRACE_MIDI_SOURCE_GUS;
     }
 
     if ((m_state.mix_control & 0x20) != 0)
@@ -1101,7 +1098,7 @@ void UltraSound::WriteMIDIData(u8 value)
         m_state.midi_rx_full = true;
     }
     else if (IsValidPointer(m_midi_out))
-        m_midi_out->Write(value);
+        m_midi_out->Write(value, TRACE_MIDI_SOURCE_GUS);
 
     m_state.midi_tx_clocks = k_ultrasound_midi_clocks;
     UpdateIRQ();
@@ -1337,7 +1334,7 @@ void UltraSound::DRAMEndCallback(void* device)
     state.dma_control &= ~0x01;
     state.dma_tc = true;
 
-    if (unlikely(IsValidPointer(gus->m_trace_logger) && gus->m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_DMA)))
+    if (unlikely(gus->m_trace_logger->IsEventEnabled(TRACE_GUS, TRACE_GUS_DMA)))
         gus->TraceEvent(TRACE_GUS_DMA, 1, state.dma_control);
 
     gus->UpdateDMARequest();
@@ -1588,24 +1585,17 @@ void UltraSound::ClearDirtyPages()
 
 void UltraSound::TraceRegister(u8 index, u16 value)
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_GUS;
-    entry.event = TRACE_GUS_REGISTER;
-    entry.gus.index = index;
-    entry.gus.voice = m_state.voice_select;
-    entry.gus.value = value;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_GUS, TRACE_GUS_REGISTER);
+    entry->gus.index = index;
+    entry->gus.voice = m_state.voice_select;
+    entry->gus.value = value;
 }
 
 void UltraSound::TraceEvent(u8 event, u8 voice, u16 value)
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_GUS;
-    entry.event = event;
-    entry.gus.index = 0;
-    entry.gus.voice = voice;
-    entry.gus.value = value;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_GUS, event);
+    entry->gus.voice = voice;
+    entry->gus.value = value;
 }
 
 void UltraSound::SaveState(std::ostream& stream)

@@ -27,7 +27,7 @@ PIT::PIT()
     InitPointer(m_pic);
     InitPointer(m_scheduler);
     InitPointer(m_audio);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     m_state.settled_tick = 0;
     m_state.speaker_gate = false;
     m_state.speaker_data = false;
@@ -48,7 +48,7 @@ void PIT::Init(PIC* pic, Scheduler* scheduler, Audio* audio)
 
 void PIT::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 // Gates 0 and 1 are tied high, gate 2 is port 61h bit 0
@@ -75,7 +75,12 @@ u8 PIT::Read(u16 port, u64 clocks)
         m_audio->SynchronizeBuzzer(clocks);
 
     Synchronize(clocks);
-    return m_pit.ReadCounter(index, GetTick(clocks));
+    u8 value = m_pit.ReadCounter(index, GetTick(clocks));
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_READ)))
+        TraceRead(index, value);
+
+    return value;
 }
 
 u8 PIT::Peek(u16 port, u64 clocks) const
@@ -115,7 +120,7 @@ void PIT::Write(u16 port, u8 value, u64 clocks)
     else
         m_pit.WriteCounter(index, value, tick);
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_TIMER)))
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_TIMER)))
         TraceWrite(port, value);
 
     UpdateNextEvent();
@@ -133,7 +138,7 @@ void PIT::SetSpeaker(bool gate, bool data, u64 clocks)
     m_state.speaker_data = data;
     m_pit.SetGate(k_pit_buzzer_channel, gate, GetTick(clocks));
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_SPEAKER)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_TIMER, TRACE_TIMER_SPEAKER)))
         TraceSpeaker();
 }
 
@@ -189,16 +194,40 @@ void PIT::UpdateNextEvent()
     m_scheduler->Schedule(SCHEDULER_EVENT_PIT, edge == k_i8254_no_edge ? GDOX_NO_EVENT : GetTickClocks(edge));
 }
 
-void PIT::TraceTimeout()
+void PIT::FillTrace(GDOX_Trace_Entry* entry, int counter)
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_TIMER;
-    entry.event = TRACE_TIMER_TIMEOUT;
-    entry.timer.counter = k_pit_irq0_channel;
-    entry.timer.value = 0x01;
-    entry.timer.enable = m_state.speaker_gate ? 1 : 0;
-    entry.timer.sound = m_state.speaker_data ? 1 : 0;
-    m_trace_logger->TraceLog(entry);
+    const I8254::I8254_Counter& speaker = m_pit.GetState()->counters[k_pit_buzzer_channel];
+    entry->timer.enable = m_state.speaker_gate ? 1 : 0;
+    entry->timer.sound = m_state.speaker_data ? 1 : 0;
+    entry->timer.speaker_reload = speaker.reload;
+    entry->timer.speaker_mode = speaker.mode;
+
+    if (counter >= I8254_COUNTER_COUNT)
+        return;
+
+    const I8254::I8254_Counter& state = m_pit.GetState()->counters[counter];
+    entry->timer.counter = (u8)counter;
+    entry->timer.reload = state.reload;
+    entry->timer.access = state.access;
+    entry->timer.mode = state.mode;
+    entry->timer.bcd = state.bcd ? 1 : 0;
+    entry->timer.complete = !state.write_high && state.programmed ? 1 : 0;
+}
+
+void PIT::TraceTimeouts(u64 first, u64 last)
+{
+    int edges = 0;
+
+    for (u64 edge = first; edge <= last && edges < 64; edge = m_pit.GetNextRisingEdge(k_pit_irq0_channel, edge))
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_TIMER, TRACE_TIMER_TIMEOUT, GetTickClocks(edge));
+        FillTrace(entry, k_pit_irq0_channel);
+        entry->timer.value = 0x01;
+        entry->timer.edges = (u8)++edges;
+
+        if (edges > 1)
+            entry->flags |= TRACE_TIMER_FLAG_COALESCED;
+    }
 }
 
 void PIT::TraceWrite(u16 port, u8 value)
@@ -210,37 +239,30 @@ void PIT::TraceWrite(u16 port, u8 value)
         return;
 
     int counter = event == TRACE_TIMER_CONTROL ? value >> 6 : index;
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_TIMER;
-    entry.event = event;
-    entry.timer.counter = (u8)counter;
-    entry.timer.value = value;
-    entry.timer.enable = m_state.speaker_gate ? 1 : 0;
-    entry.timer.sound = m_state.speaker_data ? 1 : 0;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_TIMER, event);
+    FillTrace(entry, counter);
+    entry->timer.counter = (u8)counter;
+    entry->timer.value = value;
 
-    if (counter < I8254_COUNTER_COUNT)
-    {
-        const I8254::I8254_Counter& state = m_pit.GetState()->counters[counter];
-        entry.timer.reload = state.reload;
-        entry.timer.access = state.access;
-        entry.timer.mode = state.mode;
-        entry.timer.bcd = state.bcd ? 1 : 0;
-        entry.timer.complete = !state.write_high && state.programmed ? 1 : 0;
-    }
-
-    m_trace_logger->TraceLog(entry);
+    if (event == TRACE_TIMER_COUNTER && !m_pit.GetState()->counters[counter].programmed)
+        entry->flags |= TRACE_ENTRY_IGNORED;
 }
 
 void PIT::TraceSpeaker()
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_TIMER;
-    entry.event = TRACE_TIMER_SPEAKER;
-    entry.timer.counter = k_pit_buzzer_channel;
-    entry.timer.value = (u8)((m_state.speaker_gate ? 0x01 : 0x00) | (m_state.speaker_data ? 0x02 : 0x00));
-    entry.timer.enable = m_state.speaker_gate ? 1 : 0;
-    entry.timer.sound = m_state.speaker_data ? 1 : 0;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_TIMER, TRACE_TIMER_SPEAKER);
+    FillTrace(entry, k_pit_buzzer_channel);
+    entry->timer.value = (u8)((m_state.speaker_gate ? 0x01 : 0x00) | (m_state.speaker_data ? 0x02 : 0x00));
+}
+
+void PIT::TraceRead(int index, u8 value)
+{
+    const I8254::I8254_Counter& state = m_pit.GetState()->counters[index];
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_TIMER, TRACE_TIMER_READ);
+    FillTrace(entry, index);
+    entry->timer.value = value;
+    bool high = state.count_latched ? state.latch_high : state.read_high;
+    entry->timer.latch = state.access == 3 ? (high ? 1 : 2) : 0;
 }
 
 void PIT::SaveState(std::ostream& stream)

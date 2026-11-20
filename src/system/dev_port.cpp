@@ -18,11 +18,13 @@
  */
 
 #include "dev_port.h"
+#include "../common/trace_logger.h"
 #include "../i386/i386.h"
 #include "../common/state_serializer.h"
 
 DevPort::DevPort()
 {
+    m_trace_logger = TraceLogger::GetDisabled();
     InitPointer(m_cpu);
     InitPointer(m_event_context);
     InitPointer(m_event_callback);
@@ -183,8 +185,35 @@ void DevPort::Hypercall(u8 command)
     }
 }
 
+void DevPort::SetTraceLogger(TraceLogger* trace_logger)
+{
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_console.SetTraceLogger(trace_logger, 0x00E9);
+}
+
+void DevPort::TraceEvent(u8 type)
+{
+    static const char* const k_names[5] = { "", "Loaded", "Based", "Exited", "Break" };
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_DEV);
+    int length = 0;
+
+    if (type == DEV_PORT_EVENT_EXITED)
+        length = snprintf(entry->console.text, sizeof(entry->console.text), "Exited  Code:%u", m_state.exit_code);
+    else if (type == DEV_PORT_EVENT_BREAK)
+        length = snprintf(entry->console.text, sizeof(entry->console.text), "Break");
+    else
+        length = snprintf(entry->console.text, sizeof(entry->console.text), "%s %04X:%04X %.40s", k_names[MIN(type, (u8)4)],
+            m_state.entry_cs, m_state.entry_ip, m_state.path);
+
+    entry->console.kind = type;
+    entry->console.length = (u8)CLAMP(length, 0, 64);
+}
+
 void DevPort::AddEvent(u8 type)
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_DEV)))
+        TraceEvent(type);
+
     m_state.sequence++;
     DevPort_Event& event = m_state.events[m_state.sequence % DEV_PORT_EVENT_COUNT];
     event.sequence = m_state.sequence;

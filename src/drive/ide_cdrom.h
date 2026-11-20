@@ -211,15 +211,16 @@ private:
     u64 GetPositionClocks(u32 lba, u64 clocks);
     u64 GetSpinClocks(u64 clocks);
     u64 GetArrivalClocks(u32 lba) const;
-    void Trace(u8 event);
-    void TraceData(u32 first, u32 end);
-    void TraceMedia(u8 kind);
+    NO_INLINE void Trace(u8 event);
+    NO_INLINE void TraceData(u32 first, u32 end);
+    NO_INLINE void TraceMedia(u8 kind);
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
 
 private:
     CdRomMedia* m_cdrom_media;
     CdRomAudio* m_cdrom_audio;
+    u8 m_trace_features;
     Audio* m_audio;
     TraceLogger* m_trace_logger;
     IdeCdRom_State m_state;

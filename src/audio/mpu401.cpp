@@ -45,7 +45,8 @@ static const u8 k_mpu401_voice_lengths[8] = { 3, 3, 3, 3, 2, 2, 3, 0 };
 MPU401::MPU401()
 {
     InitPointer(m_midi_out);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    m_trace_status = 0;
     m_intelligent = true;
     m_rate = 0;
     Reset();
@@ -62,7 +63,7 @@ void MPU401::Init(MidiOut* midi_out)
 
 void MPU401::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void MPU401::SetIntelligent(bool intelligent)
@@ -104,7 +105,19 @@ void MPU401::PowerUp()
 u8 MPU401::Read(u16 port)
 {
     if ((port & 0x01) != 0)
-        return Peek(port);
+    {
+        u8 status = Peek(port);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_STATUS)) && status != m_trace_status)
+        {
+            TraceByte(TRACE_MIDI_STATUS, status, TRACE_MIDI_KIND_DATA);
+            m_trace_status = status;
+        }
+
+        return status;
+    }
+
+    bool empty = m_state.count == 0;
 
     if (m_state.count != 0)
     {
@@ -112,6 +125,9 @@ u8 MPU401::Read(u16 port)
         m_state.head = (m_state.head + 1) % MPU401_QUEUE_SIZE;
         m_state.count--;
     }
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_READ)))
+        TraceByte(TRACE_MIDI_READ, m_state.last_data, empty ? 0xFF : TRACE_MIDI_KIND_DATA);
 
     return m_state.last_data;
 }
@@ -129,20 +145,13 @@ void MPU401::Write(u16 port, u8 value)
 {
     if ((port & 0x01) == 0)
     {
-        if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_DATA)))
-        {
-            GDOX_Trace_Entry entry = {};
-            entry.type = TRACE_MIDI;
-            entry.event = TRACE_MIDI_DATA;
-            entry.midi.value = value;
-            entry.midi.source = TRACE_MIDI_SOURCE_MPU;
-            m_trace_logger->TraceLog(entry);
-        }
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_DATA)))
+            TraceByte(TRACE_MIDI_DATA, value, TRACE_MIDI_KIND_DATA);
 
         if (m_state.uart)
         {
             if (IsValidPointer(m_midi_out))
-                m_midi_out->Write(value);
+                m_midi_out->Write(value, TRACE_MIDI_SOURCE_MPU);
         }
         else if (m_intelligent)
         {
@@ -153,15 +162,8 @@ void MPU401::Write(u16 port, u8 value)
         return;
     }
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_COMMAND)))
-    {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_MIDI;
-        entry.event = TRACE_MIDI_COMMAND;
-        entry.midi.value = value;
-        entry.midi.source = TRACE_MIDI_SOURCE_MPU;
-        m_trace_logger->TraceLog(entry);
-    }
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_COMMAND)))
+        TraceByte(TRACE_MIDI_COMMAND, value, TRACE_MIDI_KIND_DATA);
 
     if (m_intelligent && !m_state.uart)
     {
@@ -896,7 +898,7 @@ void MPU401::Output(int track, const u8* message, int length)
 void MPU401::OutputByte(u8 value)
 {
     if (IsValidPointer(m_midi_out))
-        m_midi_out->Write(value);
+        m_midi_out->Write(value, TRACE_MIDI_SOURCE_MPU_PLAYBACK);
 }
 
 void MPU401::NotesOff()
@@ -966,7 +968,7 @@ bool MPU401::Deliver()
 
     if (request < MPU401_TRACKS)
     {
-        Queue((u8)(0xF0 + request));
+        Queue((u8)(0xF0 + request), TRACE_MIDI_KIND_REQUEST);
         m_state.transfer = MPU401_TRANSFER_TRACK;
         m_state.transfer_track = (u8)request;
         m_state.transfer_stage = 0;
@@ -976,10 +978,10 @@ bool MPU401::Deliver()
     switch (request)
     {
         case MPU401_REQUEST_OVERFLOW:
-            Queue(k_mpu401_overflow);
+            Queue(k_mpu401_overflow, TRACE_MIDI_KIND_OVERFLOW);
             break;
         case MPU401_REQUEST_CONDUCTOR:
-            Queue(0xF9);
+            Queue(0xF9, TRACE_MIDI_KIND_CONDUCTOR);
             m_state.transfer = MPU401_TRANSFER_CONDUCTOR;
             m_state.transfer_stage = 0;
 
@@ -990,27 +992,27 @@ bool MPU401::Deliver()
             }
             break;
         case MPU401_REQUEST_MEASURE:
-            Queue(m_state.record_count);
-            Queue(k_mpu401_measure_end);
+            Queue(m_state.record_count, TRACE_MIDI_KIND_RECORD);
+            Queue(k_mpu401_measure_end, TRACE_MIDI_KIND_MEASURE);
             m_state.record_count = 0;
             break;
         case MPU401_REQUEST_DATA_END:
-            Queue(m_state.record_count);
-            Queue(k_mpu401_end);
+            Queue(m_state.record_count, TRACE_MIDI_KIND_RECORD);
+            Queue(k_mpu401_end, TRACE_MIDI_KIND_END);
             m_state.record_count = 0;
             break;
         case MPU401_REQUEST_ALL_END:
-            Queue(k_mpu401_end);
+            Queue(k_mpu401_end, TRACE_MIDI_KIND_END);
             break;
         default:
-            Queue(k_mpu401_clock);
+            Queue(k_mpu401_clock, TRACE_MIDI_KIND_CLOCK);
             break;
     }
 
     return true;
 }
 
-void MPU401::Queue(u8 value)
+void MPU401::Queue(u8 value, u8 kind)
 {
     if (m_state.count >= MPU401_QUEUE_SIZE)
         return;
@@ -1018,13 +1020,13 @@ void MPU401::Queue(u8 value)
     m_state.queue[(m_state.head + m_state.count) % MPU401_QUEUE_SIZE] = value;
     m_state.count++;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_MESSAGE)))
-        TraceMessage(value);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_MESSAGE)))
+        TraceByte(TRACE_MIDI_MESSAGE, value, kind);
 }
 
 void MPU401::Acknowledge()
 {
-    Queue(k_mpu401_ack);
+    Queue(k_mpu401_ack, TRACE_MIDI_KIND_ACK);
 }
 
 // The tempo table bounds the product of tempo and relative tempo per timebase (MPU p35, p43)
@@ -1096,14 +1098,14 @@ u64 MPU401::GetClocksToEvent() const
     return (target - phase + m_rate - 1) / m_rate;
 }
 
-void MPU401::TraceMessage(u8 value)
+void MPU401::TraceByte(u8 event, u8 value, u8 kind)
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_MIDI;
-    entry.event = TRACE_MIDI_MESSAGE;
-    entry.midi.value = value;
-    entry.midi.source = TRACE_MIDI_SOURCE_MPU;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_MIDI, event);
+    entry->midi.value = value;
+    entry->midi.source = TRACE_MIDI_SOURCE_MPU;
+    entry->midi.mode = m_state.uart ? 1 : m_intelligent ? 2 : 0;
+    entry->midi.kind = kind;
+    entry->midi.count = (u8)m_state.count;
 }
 
 void MPU401::SaveState(std::ostream& stream)

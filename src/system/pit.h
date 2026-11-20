@@ -30,6 +30,7 @@ class PIC;
 class Scheduler;
 class StateSerializer;
 class TraceLogger;
+struct GDOX_Trace_Entry;
 
 class PIT
 {
@@ -69,9 +70,11 @@ public:
 private:
     u64 GetRefreshEdges(u64 tick) const;
     void UpdateNextEvent();
-    void TraceTimeout();
-    void TraceWrite(u16 port, u8 value);
-    void TraceSpeaker();
+    NO_INLINE void TraceTimeouts(u64 first, u64 last);
+    NO_INLINE void TraceWrite(u16 port, u8 value);
+    NO_INLINE void TraceSpeaker();
+    NO_INLINE void TraceRead(int index, u8 value);
+    void FillTrace(GDOX_Trace_Entry* entry, int counter);
     void Serialize(StateSerializer& serializer);
     void SanitizeState();
 

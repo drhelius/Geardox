@@ -30,7 +30,7 @@ static const s32 k_ps2_mouse_scaling[6] = { 0, 1, 1, 3, 6, 9 };
 PS2Mouse::PS2Mouse()
 {
     InitPointer(m_input);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     memset(&m_state, 0, sizeof(m_state));
 }
 
@@ -46,7 +46,7 @@ void PS2Mouse::Init(Input* input)
 
 void PS2Mouse::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 // The self-test at power on ends with the same AAh and ID as a reset command. The BIOS talks to the mouse long after,
@@ -110,7 +110,10 @@ void PS2Mouse::ProcessByte(u8 value, u64 clocks)
     if (m_state.wrap && value != 0xFF && value != 0xEC)
     {
         QueueReply(value);
-        TraceEvent(TRACE_INPUT_MOUSE_COMMAND, &value, 1);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_COMMAND)))
+            TraceCommand(value, 0, TRACE_INPUT_FLAG_WRAP);
+
         return;
     }
 
@@ -128,10 +131,9 @@ void PS2Mouse::ProcessByte(u8 value, u64 clocks)
         Reject();
     }
 
-    u8 trace[PS2_MOUSE_GROUP_SIZE] = { value, 0, 0, 0 };
-    u8 count = (u8)MIN((int)m_state.reply_count, PS2_MOUSE_GROUP_SIZE - 1);
-    memcpy(trace + 1, m_state.reply, count);
-    TraceEvent(TRACE_INPUT_MOUSE_COMMAND, trace, (u8)(count + 1));
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_COMMAND)))
+        TraceCommand(value, command, (u16)((command != 0 ? TRACE_INPUT_FLAG_PARAMETER : 0) |
+            (valid ? 0 : TRACE_INPUT_FLAG_REJECTED)));
 }
 
 bool PS2Mouse::ProcessParameter(u8 command, u8 value)
@@ -336,7 +338,9 @@ void PS2Mouse::QueuePacket(bool scaled)
     QueueGroup(packet, 3, true);
     m_state.buttons = buttons;
     ClearCounts();
-    TraceEvent(TRACE_INPUT_MOUSE_PACKET, packet, 3);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_MOUSE_PACKET)))
+        TracePacket(packet, 3);
 }
 
 void PS2Mouse::QueueStatus()
@@ -390,18 +394,23 @@ u8 PS2Mouse::PopByte()
     return value;
 }
 
-void PS2Mouse::TraceEvent(u8 event, const u8* data, u8 count)
+void PS2Mouse::TraceCommand(u8 value, u8 command, u16 flags)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_INPUT, event))
-        return;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_INPUT, TRACE_INPUT_MOUSE_COMMAND);
+    entry->flags |= flags;
+    entry->input.device = TRACE_INPUT_DEVICE_PS2_MOUSE;
+    entry->input.command = command;
+    entry->input.data[0] = value;
+    entry->input.count = (u8)(1 + MIN((int)m_state.reply_count, 7));
+    memcpy(entry->input.data + 1, m_state.reply, entry->input.count - 1);
+}
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_INPUT;
-    entry.event = event;
-    entry.input.device = TRACE_INPUT_DEVICE_PS2_MOUSE;
-    entry.input.count = (u8)MIN((int)count, 4);
-    memcpy(entry.input.data, data, entry.input.count);
-    m_trace_logger->TraceLog(entry);
+void PS2Mouse::TracePacket(const u8* data, u8 count)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_INPUT, TRACE_INPUT_MOUSE_PACKET);
+    entry->input.device = TRACE_INPUT_DEVICE_PS2_MOUSE;
+    entry->input.count = (u8)MIN((int)count, 8);
+    memcpy(entry->input.data, data, entry->input.count);
 }
 
 void PS2Mouse::SaveState(std::ostream& stream)

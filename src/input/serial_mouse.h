@@ -62,7 +62,7 @@ public:
 private:
     void Poll(u64 clocks);
     void StartByte(u64 clocks);
-    void TraceEvent(const u8* data, u8 count);
+    NO_INLINE void TracePacket(const u8* data, u8 count, u16 flags);
 
 private:
     SerialMouse_State m_state;

@@ -30,6 +30,8 @@ typedef void (*GDOX_Pci_Write_Fn)(void* device, u8 function, u8 offset, u8 value
 
 #define PCI_BUS_DEVICES 32
 
+class TraceLogger;
+
 class PciBus
 {
 public:
@@ -43,6 +45,7 @@ public:
     ~PciBus();
     void Init();
     void Reset();
+    void SetTraceLogger(TraceLogger* trace_logger);
     void SetEnabled(bool enabled);
     bool IsEnabled() const;
     void RegisterDevice(int device, void* context, GDOX_Pci_Read_Fn read, GDOX_Pci_Write_Fn write);
@@ -62,7 +65,11 @@ private:
     void Serialize(StateSerializer& serializer);
 
 private:
+    void TraceAccess(int device, u8 function, u8 offset, u8 value, bool read) const;
+
+private:
     PciBus_State m_state;
+    TraceLogger* m_trace_logger;
     bool m_enabled;
     void* m_contexts[PCI_BUS_DEVICES];
     GDOX_Pci_Read_Fn m_reads[PCI_BUS_DEVICES];

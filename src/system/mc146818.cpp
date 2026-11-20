@@ -31,7 +31,7 @@ MC146818::MC146818()
 {
     InitPointer(m_pic);
     InitPointer(m_scheduler);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     m_start_time = 0;
     memset(&m_state, 0, sizeof(m_state));
     m_state.ram[k_mc146818_status_a] = k_mc146818_a_divider_normal | 0x06;
@@ -51,7 +51,7 @@ void MC146818::Init(PIC* pic, Scheduler* scheduler)
 
 void MC146818::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void MC146818::SetStartTime(s64 start_time)
@@ -120,8 +120,8 @@ u8 MC146818::Read(u16 port, u64 clocks)
         UpdateNextEvent();
     }
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_READ)))
-        TraceEvent(TRACE_SYSTEM_RTC_READ, value);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_READ)))
+        TraceEvent(TRACE_SYSTEM_RTC_READ, value, value);
 
     return value;
 }
@@ -135,7 +135,7 @@ u8 MC146818::Peek(u16 port, u64 clocks) const
     if (clocks >= GetNextChange())
     {
         MC146818 synchronized(*this);
-        InitPointer(synchronized.m_trace_logger);
+        synchronized.m_trace_logger = TraceLogger::GetDisabled();
         synchronized.Synchronize(clocks);
         return synchronized.Peek(port, clocks);
     }
@@ -170,8 +170,8 @@ void MC146818::Write(u16 port, u8 value, u64 clocks)
         UpdateNextEvent();
     }
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_WRITE)))
-        TraceEvent(TRACE_SYSTEM_RTC_WRITE, value);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_WRITE)))
+        TraceEvent(TRACE_SYSTEM_RTC_WRITE, m_state.ram[m_state.index], value);
 }
 
 // The clock registers change at each update, status A at the edges of update in progress, the RAM only with writes
@@ -367,9 +367,8 @@ void MC146818::UpdateIRQ()
 {
     bool irq = (GetStatusC() & k_mc146818_c_irq) != 0;
 
-    if (irq && !m_state.irq && unlikely(IsValidPointer(m_trace_logger) &&
-        m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_IRQ)))
-        TraceEvent(TRACE_SYSTEM_RTC_IRQ, GetStatusC());
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RTC_IRQ)) && irq && !m_state.irq)
+        TraceEvent(TRACE_SYSTEM_RTC_IRQ, GetStatusC(), GetStatusC());
 
     m_state.irq = irq;
     m_pic->SetIRQLine(k_mc146818_irq, irq);
@@ -493,15 +492,20 @@ void MC146818::WriteRegister(u8 index, u8 value, u64 clocks)
         UpdateClockRegisters();
 }
 
-void MC146818::TraceEvent(u8 event, u8 value)
+void MC146818::TraceEvent(u8 event, u8 value, u8 raw)
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_SYSTEM;
-    entry.event = event;
-    entry.system.port = 0x0071;
-    entry.system.address = m_state.index;
-    entry.system.value = value;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, event);
+    entry->system.port = 0x0071;
+    entry->system.address = m_state.index;
+    entry->system.value = value;
+    entry->system.raw = raw;
+    entry->system.previous = m_state.ram[k_mc146818_status_b];
+
+    if (event == TRACE_SYSTEM_RTC_WRITE && m_state.index >= 0x10 && m_state.index <= 0x2D)
+        entry->flags |= TRACE_SYSTEM_FLAG_CHECKSUM;
+
+    if (event == TRACE_SYSTEM_RTC_WRITE && value != raw)
+        entry->flags |= TRACE_ENTRY_IGNORED;
 }
 
 void MC146818::SaveState(std::ostream& stream)

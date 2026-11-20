@@ -23,7 +23,7 @@
 
 ParallelPort::ParallelPort()
 {
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     Reset();
 }
 
@@ -33,7 +33,7 @@ ParallelPort::~ParallelPort()
 
 void ParallelPort::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void ParallelPort::Reset()
@@ -68,12 +68,21 @@ void ParallelPort::Write(u16 port, u8 value)
     {
         case 0:
             m_state.data = value;
-            TraceEvent(TRACE_PARALLEL_DATA, port, value);
+
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PARALLEL, TRACE_PARALLEL_DATA)))
+                TraceEvent(TRACE_PARALLEL_DATA, port, value, value);
+
             break;
         case 2:
+        {
+            u8 previous = m_state.control;
             m_state.control = value & 0x1F;
-            TraceEvent(TRACE_PARALLEL_CONTROL, port, value);
+
+            if (unlikely(m_trace_logger->IsEnabled(TRACE_PARALLEL)))
+                TraceControl(port, value, previous);
+
             break;
+        }
         default:
             break;
     }
@@ -84,17 +93,23 @@ ParallelPort::ParallelPort_State* ParallelPort::GetState()
     return &m_state;
 }
 
-void ParallelPort::TraceEvent(u8 event, u16 port, u8 value)
+void ParallelPort::TraceControl(u16 port, u8 value, u8 previous)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_PARALLEL, event))
-        return;
+    if (m_trace_logger->IsEventEnabled(TRACE_PARALLEL, TRACE_PARALLEL_CONTROL))
+        TraceEvent(TRACE_PARALLEL_CONTROL, port, value, previous);
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_PARALLEL;
-    entry.event = event;
-    entry.parallel.port = port;
-    entry.parallel.value = value;
-    m_trace_logger->TraceLog(entry);
+    if (m_trace_logger->IsEventEnabled(TRACE_PARALLEL, TRACE_PARALLEL_STROBE) && (value & 0x01) != 0 &&
+        (previous & 0x01) == 0)
+        TraceEvent(TRACE_PARALLEL_STROBE, port, m_state.data, previous);
+}
+
+void ParallelPort::TraceEvent(u8 event, u16 port, u8 value, u8 previous)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_PARALLEL, event);
+    entry->parallel.port = port;
+    entry->parallel.value = value;
+    entry->parallel.data = m_state.data;
+    entry->parallel.previous = previous;
 }
 
 void ParallelPort::SaveState(std::ostream& stream)

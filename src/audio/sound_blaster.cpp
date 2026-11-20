@@ -90,7 +90,9 @@ SoundBlaster::SoundBlaster()
     InitPointer(m_pic);
     InitPointer(m_dma);
     InitPointer(m_midi_out);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    InitPointer(m_trace_clocks);
+    m_trace_underruns = 0;
     m_version_major = 0;
     m_version_minor = 0;
     m_mixer_type = k_sound_blaster_mixer_none;
@@ -114,7 +116,12 @@ void SoundBlaster::Init(PIC* pic, DMA* dma, MidiOut* midi_out)
 
 void SoundBlaster::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+}
+
+void SoundBlaster::SetTraceClocks(const u64* clocks)
+{
+    m_trace_clocks = clocks;
 }
 
 void SoundBlaster::SetCard(int card, int irq, int dma)
@@ -210,6 +217,7 @@ void SoundBlaster::Tick()
     {
         m_state.previous_left_sample = m_state.left_sample;
         m_state.previous_right_sample = m_state.right_sample;
+        m_trace_underruns++;
         return;
     }
 
@@ -342,15 +350,23 @@ void SoundBlaster::EndBlock()
     SoundBlaster_Transfer& transfer = m_state.transfer;
     bool word = transfer.format == SOUND_BLASTER_FORMAT_PCM16;
 
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_IRQ)))
+    {
+        GDOX_Trace_Entry* entry = TraceEvent(TRACE_PCM_IRQ, word ? 16 : 8);
+
+        if (IsValidPointer(m_trace_clocks))
+            entry->cycle = *m_trace_clocks;
+
+        entry->flags |= (word ? m_state.irq_16 : m_state.irq_8) ? TRACE_PCM_FLAG_NOT_ACKED : 0;
+        entry->pcm.underruns = m_trace_underruns;
+    }
+
     if (word)
         m_state.irq_16 = true;
     else
         m_state.irq_8 = true;
 
     UpdateIRQ();
-
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_IRQ)))
-        TraceEvent(TRACE_PCM_IRQ, word ? 16 : 8);
 
     if (transfer.auto_init && transfer.next_pending)
     {
@@ -372,6 +388,9 @@ void SoundBlaster::EndBlock()
 
 void SoundBlaster::StopTransfer()
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_END)) && m_state.transfer.active)
+        TraceEnd(m_state.transfer.remaining == 0 ? 0 : 1);
+
     SetRequest(false);
     DropAhead();
     m_state.transfer.active = false;
@@ -598,6 +617,14 @@ void SoundBlaster::AddOutput(u8 value)
 // With nothing to read the port repeats its last byte
 u8 SoundBlaster::ReadData()
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_READ)))
+    {
+        GDOX_Trace_Entry* entry = TraceEvent(TRACE_PCM_READ, m_state.output_count != 0 ?
+            m_state.output[m_state.output_head] : m_state.last_output);
+        entry->flags |= m_state.output_count == 0 ? TRACE_PCM_FLAG_EMPTY : 0;
+        entry->pcm.queue = (u8)m_state.output_count;
+    }
+
     if (m_state.output_count != 0)
     {
         m_state.last_output = m_state.output[m_state.output_head];
@@ -614,6 +641,10 @@ u8 SoundBlaster::Read(u16 port, u64 clocks)
 
     switch (port & 0x0F)
     {
+        case 0x05:
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIXER, TRACE_MIXER_READ)))
+                TraceMixer(TRACE_MIXER_READ, ReadMixer());
+            break;
         case 0x0A:
             return ReadData();
         case 0x0E:
@@ -622,7 +653,7 @@ u8 SoundBlaster::Read(u16 port, u64 clocks)
                 m_state.irq_8 = false;
                 UpdateIRQ();
 
-                if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_ACK)))
+                if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_ACK)))
                     TraceEvent(TRACE_PCM_ACK, 8);
             }
             break;
@@ -632,7 +663,7 @@ u8 SoundBlaster::Read(u16 port, u64 clocks)
                 m_state.irq_16 = false;
                 UpdateIRQ();
 
-                if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_ACK)))
+                if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_ACK)))
                     TraceEvent(TRACE_PCM_ACK, 16);
             }
             break;
@@ -707,12 +738,21 @@ void SoundBlaster::Write(u16 port, u8 value, u64 clocks)
                 m_state.reset_pending = false;
                 m_state.resetting = true;
                 UpdateIRQ();
+
+                if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_RESET)))
+                    TraceEvent(TRACE_PCM_RESET, keep ? 2 : 1);
             }
             else if (!high && m_state.resetting)
             {
                 m_state.resetting = false;
                 m_state.reset_pending = true;
                 m_state.ready_clocks = clocks + k_sound_blaster_reset_clocks;
+
+                if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_RESET)))
+                    TraceEvent(TRACE_PCM_RESET, 0);
+
+                if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_CONFIG)))
+                    TraceEvent(TRACE_PCM_CONFIG, 0);
             }
             break;
         }
@@ -733,7 +773,12 @@ void SoundBlaster::WriteDSP(u8 value)
     }
 
     if (m_state.resetting || m_state.transfer.high_speed)
+    {
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_REJECT)))
+            TraceEvent(TRACE_PCM_REJECT, value)->pcm.reason = m_state.resetting ? 0 : 1;
+
         return;
+    }
 
     if (m_state.operands_needed != 0)
     {
@@ -752,7 +797,12 @@ void SoundBlaster::WriteDSP(u8 value)
     int operands = GetOperands(value);
 
     if (operands < 0)
+    {
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_REJECT)))
+            TraceEvent(TRACE_PCM_REJECT, value)->pcm.reason = 2;
+
         return;
+    }
 
     m_state.command = value;
     m_state.operand_count = 0;
@@ -854,7 +904,7 @@ void SoundBlaster::Execute()
     const u8* operands = m_state.operands;
     u32 length = (u32)(operands[0] | (operands[1] << 8)) + 1;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_COMMAND)))
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_PCM)))
         TraceCommand();
 
     switch (m_state.command)
@@ -1066,6 +1116,10 @@ void SoundBlaster::StartTransfer(u8 format, bool auto_init, bool input, u32 leng
     {
         transfer.next_pending = true;
         transfer.next_length = length;
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_TRANSFER)))
+            TraceTransfer(true);
+
         return;
     }
 
@@ -1083,8 +1137,8 @@ void SoundBlaster::StartTransfer(u8 format, bool auto_init, bool input, u32 leng
     m_state.adpcm_seed = seed;
     m_state.adpcm_codes = 0;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_TRANSFER)))
-        TraceTransfer();
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_TRANSFER)))
+        TraceTransfer(false);
 
     if (format != SOUND_BLASTER_FORMAT_SILENCE)
     {
@@ -1145,18 +1199,16 @@ void SoundBlaster::SetPaused(bool paused, bool word)
 
 void SoundBlaster::WriteMIDI(u8 value)
 {
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_DATA)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_DATA)))
     {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_MIDI;
-        entry.event = TRACE_MIDI_DATA;
-        entry.midi.value = value;
-        entry.midi.source = TRACE_MIDI_SOURCE_DSP;
-        m_trace_logger->TraceLog(entry);
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_MIDI, TRACE_MIDI_DATA);
+        entry->midi.value = value;
+        entry->midi.source = TRACE_MIDI_SOURCE_DSP;
+        entry->midi.mode = m_state.midi_uart ? 1 : 0;
     }
 
     if (IsValidPointer(m_midi_out))
-        m_midi_out->Write(value);
+        m_midi_out->Write(value, TRACE_MIDI_SOURCE_DSP);
 }
 
 // Creative's reset defaults. Bits 4 and 0 of a CT1345 volume aren't used and read high, as on the one clone documented
@@ -1264,7 +1316,10 @@ void SoundBlaster::WriteMixer(u8 value)
     if (index == 0x00)
     {
         ResetMixer();
-        TraceMixer(value);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIXER, TRACE_MIXER_CONTROL)))
+            TraceMixer(TRACE_MIXER_CONTROL, value);
+
         return;
     }
 
@@ -1348,8 +1403,12 @@ void SoundBlaster::WriteMixer(u8 value)
 
     UpdateGains();
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_MIXER)))
-        TraceMixer(value);
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_MIXER)))
+        TraceMixer((index == 0x0C) || (index == 0x0E) || (index >= 0x3C) ? TRACE_MIXER_CONTROL : TRACE_MIXER_VOLUME,
+            value);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_PCM, TRACE_PCM_CONFIG)) && (index == 0x80 || index == 0x81))
+        TraceEvent(TRACE_PCM_CONFIG, index);
 }
 
 // The gain of one volume register, in Q15
@@ -1467,60 +1526,72 @@ u64 SoundBlaster::GetClocksToEvent() const
 
 void SoundBlaster::TraceCommand()
 {
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_PCM;
-    entry.event = TRACE_PCM_COMMAND;
-    entry.pcm.command = m_state.command;
-    entry.pcm.operand_count = m_state.operand_count;
+    u8 event = m_state.command == 0x10 ? TRACE_PCM_DIRECT : TRACE_PCM_COMMAND;
 
-    for (int i = 0; i < 3; i++)
-        entry.pcm.operands[i] = m_state.operands[i];
-
-    m_trace_logger->TraceLog(entry);
-}
-
-void SoundBlaster::TraceTransfer()
-{
-    const SoundBlaster_Transfer& transfer = m_state.transfer;
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_PCM;
-    entry.event = TRACE_PCM_TRANSFER;
-    entry.pcm.command = m_state.command;
-    entry.pcm.format = transfer.format;
-    entry.pcm.flags = (u8)((transfer.auto_init ? 0x01 : 0) | (transfer.input ? 0x02 : 0) |
-        (transfer.high_speed ? 0x04 : 0) | (IsStereo() ? 0x08 : 0) | (transfer.is_signed ? 0x10 : 0));
-    entry.pcm.length = transfer.length;
-    entry.pcm.rate = GetSampleRate();
-    m_trace_logger->TraceLog(entry);
-}
-
-void SoundBlaster::TraceEvent(u8 event, u8 value)
-{
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_PCM;
-    entry.event = event;
-    entry.pcm.command = value;
-    entry.pcm.flags = GetInterruptStatus();
-    m_trace_logger->TraceLog(entry);
-}
-
-void SoundBlaster::TraceMixer(u8 value)
-{
-    if (!IsValidPointer(m_trace_logger))
+    if (!m_trace_logger->IsEventEnabled(TRACE_PCM, event))
         return;
 
-    u8 index = m_state.mixer_index;
-    u8 event = (index == 0x0C) || (index == 0x0E) || (index >= 0x3C) ? TRACE_MIXER_CONTROL : TRACE_MIXER_VOLUME;
+    GDOX_Trace_Entry* entry = TraceEvent(event, m_state.command);
+    entry->pcm.operand_count = m_state.operand_count;
 
+    for (int i = 0; i < 3; i++)
+        entry->pcm.operands[i] = m_state.operands[i];
+}
+
+void SoundBlaster::TraceTransfer(bool handoff)
+{
+    const SoundBlaster_Transfer& transfer = m_state.transfer;
+    GDOX_Trace_Entry* entry = TraceEvent(TRACE_PCM_TRANSFER, m_state.command);
+    entry->flags |= handoff ? TRACE_PCM_FLAG_HANDOFF : 0;
+    entry->pcm.format = transfer.format;
+    entry->pcm.flags = (u8)((transfer.auto_init ? 0x01 : 0) | (transfer.input ? 0x02 : 0) |
+        (transfer.high_speed ? 0x04 : 0) | (IsStereo() ? 0x08 : 0) | (transfer.is_signed ? 0x10 : 0));
+    entry->pcm.length = handoff ? transfer.next_length : transfer.length;
+    entry->pcm.remaining = transfer.remaining;
+    entry->pcm.rate = GetSampleRate();
+    entry->pcm.rate_source = m_state.rate_denominator == 1 ? 0x41 : 0x40;
+    entry->pcm.dma = (u8)(transfer.format == SOUND_BLASTER_FORMAT_PCM16 && IsWordChannel() ? m_state.dma_16 :
+        m_state.dma_8);
+}
+
+GDOX_Trace_Entry* SoundBlaster::TraceEvent(u8 event, u8 value)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_PCM, event);
+    entry->pcm.command = value;
+    entry->pcm.flags = GetInterruptStatus();
+    entry->pcm.dma = (u8)m_state.dma_8;
+    entry->pcm.dma16 = (u8)m_state.dma_16;
+    entry->pcm.irq = (u8)m_state.irq_line;
+    entry->pcm.version = m_version_major;
+    entry->pcm.minor = m_version_minor;
+    entry->pcm.queue = (u8)m_state.output_count;
+    return entry;
+}
+
+void SoundBlaster::TraceEnd(u8 reason)
+{
+    GDOX_Trace_Entry* entry = TraceEvent(TRACE_PCM_END, m_state.command);
+    entry->pcm.reason = reason;
+    entry->pcm.format = m_state.transfer.format;
+    entry->pcm.length = m_state.transfer.length;
+    entry->pcm.remaining = m_state.transfer.remaining;
+    entry->pcm.underruns = m_trace_underruns;
+    m_trace_underruns = 0;
+}
+
+void SoundBlaster::TraceMixer(u8 event, u8 value)
+{
     if (!m_trace_logger->IsEventEnabled(TRACE_MIXER, event))
         return;
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_MIXER;
-    entry.event = event;
-    entry.mixer.index = index;
-    entry.mixer.value = value;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_MIXER, event);
+    entry->mixer.index = m_state.mixer_index;
+    entry->mixer.raw = value;
+    entry->mixer.value = ReadMixer();
+    entry->mixer.mixer = (u8)m_mixer_type;
+
+    if (event != TRACE_MIXER_READ && entry->mixer.value != value)
+        entry->flags |= TRACE_ENTRY_IGNORED;
 }
 
 void SoundBlaster::SaveState(std::ostream& stream)

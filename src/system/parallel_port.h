@@ -49,7 +49,8 @@ public:
     void LoadState(std::istream& stream, int version = GDOX_SAVESTATE_VERSION);
 
 private:
-    void TraceEvent(u8 event, u16 port, u8 value);
+    NO_INLINE void TraceControl(u16 port, u8 value, u8 previous);
+    NO_INLINE void TraceEvent(u8 event, u16 port, u8 value, u8 previous);
     void Serialize(StateSerializer& serializer);
 
 private:

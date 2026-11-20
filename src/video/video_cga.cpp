@@ -494,6 +494,8 @@ void Video::TraceCGAWrite(u16 port, u8 value, u64 clocks)
         return;
     }
 
-    if (port == 0x3D8 || port == 0x3D9)
-        TraceEvent(TRACE_VIDEO_OUTPUT, (u8)(port - 0x3D8), value, value, 4, 0, clocks);
+    if (port == 0x3D8)
+        TraceEvent(TRACE_VIDEO_OUTPUT, 0, m_state.cga_mode, value, TRACE_VIDEO_BANK_CGA, 0, clocks);
+    else if (port == 0x3D9)
+        TraceEvent(TRACE_VIDEO_OUTPUT, 1, m_state.cga_color, value, TRACE_VIDEO_BANK_CGA, 0, clocks);
 }

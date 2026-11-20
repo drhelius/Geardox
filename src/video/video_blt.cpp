@@ -185,20 +185,8 @@ void Video::StartBlt(u64 clocks)
     else
         m_blt_kinds[VIDEO_BLT_SCREEN]++;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_BLT)))
-    {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_VIDEO;
-        entry.event = TRACE_VIDEO_BLT;
-        entry.blt.destination = m_state.blt_dst;
-        entry.blt.source = m_state.blt_src;
-        entry.blt.width = (u16)GetBltWidth();
-        entry.blt.height = (u16)GetBltHeight();
-        entry.blt.mode = mode;
-        entry.blt.rop = m_state.graphics[k_video_gr_blt_rop];
-        entry.blt.extensions = extensions;
-        m_trace_logger->TraceLog(entry);
-    }
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_BLT)))
+        TraceBlt(TRACE_VIDEO_BLT, clocks);
 
     if (system)
     {
@@ -218,6 +206,9 @@ void Video::StartBlt(u64 clocks)
 
 void Video::FinishBlt()
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_BLT_DONE)) && m_state.blt_waiting)
+        TraceBlt(TRACE_VIDEO_BLT_DONE, m_scheduler->GetClocks());
+
     u8* graphics = m_state.graphics;
     graphics[k_video_gr_blt_dst] = (u8)m_state.blt_dst;
     graphics[k_video_gr_blt_dst + 1] = (u8)(m_state.blt_dst >> 8);
@@ -544,6 +535,18 @@ void Video::WriteMMIO(u32 offset, u8 value)
     if (offset == 0x40)
     {
         WriteBltControl(value, clocks);
+
+        if (unlikely(m_trace_logger->IsEnabled(TRACE_VIDEO)))
+        {
+            GDOX_Trace_Entry* entry = TraceEvent(TRACE_VIDEO_BLT_REGISTER, k_video_gr_blt_status,
+                m_state.graphics[k_video_gr_blt_status], value, TRACE_VIDEO_BANK_GR, 0, clocks);
+
+            if (IsValidPointer(entry))
+                entry->flags |= TRACE_VIDEO_FLAG_MMIO;
+
+            FlushDeferred(clocks);
+        }
+
         return;
     }
 
@@ -561,6 +564,17 @@ void Video::WriteMMIO(u32 offset, u8 value)
     }
     else
         WriteCirrusGraphics(index, value, clocks);
+
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_VIDEO)))
+    {
+        GDOX_Trace_Entry* entry = TraceEvent(index >= 0x20 ? TRACE_VIDEO_BLT_REGISTER : TRACE_VIDEO_OUTPUT, index,
+            m_state.graphics[index], value, TRACE_VIDEO_BANK_GR, 0, clocks);
+
+        if (IsValidPointer(entry))
+            entry->flags |= TRACE_VIDEO_FLAG_MMIO;
+
+        FlushDeferred(clocks);
+    }
 }
 
 u32 Video::GetCursorSize() const

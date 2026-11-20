@@ -29,7 +29,9 @@
 Video::Video()
 {
     InitPointer(m_pic);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    memset(&m_trace, 0, sizeof(m_trace));
+    memset(&m_trace_blt, 0, sizeof(m_trace_blt));
     InitPointer(m_scheduler);
     InitPointer(m_memory);
     InitPointer(m_frame_buffer);
@@ -157,7 +159,7 @@ Video::~Video()
 
 void Video::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
@@ -238,6 +240,7 @@ void Video::BeginFrame(u8* frame_buffer, bool render)
     m_frame_buffer = frame_buffer;
     m_render = render;
     m_frame_ready = false;
+    m_trace.status = m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_STATUS);
 
     if (m_blt_handlers && !m_blt_frame_used && !m_state.blt_waiting)
     {
@@ -372,6 +375,9 @@ u8 Video::Read(u16 port, u64 clocks)
             if (IsCRTCBlockSelected(port))
                 m_state.attribute_data = false;
 
+            if (unlikely(m_trace.status))
+                CountStatusRead(clocks);
+
             return Peek(port, clocks);
         default:
             return Peek(port, clocks);
@@ -398,12 +404,23 @@ void Video::Write(u16 port, u8 value, u64 clocks)
     {
         WriteCGA(port, value, clocks);
 
-        if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_VIDEO)))
+        if (unlikely(m_trace_logger->IsEnabled(TRACE_VIDEO)))
             TraceCGAWrite(port, value, clocks);
 
         return;
     }
 
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_VIDEO)))
+    {
+        WriteTraced(port, value, clocks);
+        return;
+    }
+
+    ApplyWrite(port, value, clocks);
+}
+
+void Video::ApplyWrite(u16 port, u8 value, u64 clocks)
+{
     switch (port)
     {
         case 0x3C0:
@@ -488,9 +505,6 @@ void Video::Write(u16 port, u8 value, u64 clocks)
         default:
             break;
     }
-
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_VIDEO)))
-        TraceWrite(port, value, clocks);
 }
 
 // A second write with the flip-flop in data state is data, the index keeps its palette access bit
@@ -646,9 +660,8 @@ void Video::WriteCRTC(u8 value, u64 clocks)
             {
                 m_state.vertical_interrupt = false;
 
-                if (unlikely(IsValidPointer(m_trace_logger) &&
-                    m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_VSYNC_CLEAR)))
-                    TraceEvent(TRACE_VIDEO_VSYNC_CLEAR, 0, 0, 0, 0, m_state.frame_count, clocks);
+                if (unlikely(m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_VSYNC_CLEAR)))
+                    m_trace.deferred |= 0x01;
             }
 
             UpdateIRQ();
@@ -1100,8 +1113,14 @@ void Video::RunNextEvent()
             UpdateIRQ();
         }
 
-        if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_VSYNC)))
-            TraceEvent(TRACE_VIDEO_VSYNC, 0, 0, 0, 0, m_state.frame_count, clocks);
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_VSYNC)))
+        {
+            GDOX_Trace_Entry* entry = TraceEvent(TRACE_VIDEO_VSYNC, 0, (u16)m_state.frame_lines, 0, 0,
+                m_state.frame_count, clocks);
+            entry->flags |= (m_state.crtc[k_video_cr_retrace_end] & 0x10) != 0 ? TRACE_VIDEO_FLAG_IRQ : 0;
+            entry->video.count = (u16)m_state.frame_line_dots;
+            entry->video.param2 = m_state.running ? (u32)(100000.0f / GetFrameTime()) : 0;
+        }
     }
 
     if (line == m_state.ready_line)
@@ -1209,6 +1228,9 @@ void Video::StartFrame(u64 clocks)
     m_partial_x = 0;
     UpdateGeometry();
     UpdateNextEvent();
+
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_VIDEO)))
+        TraceFrameStart(clocks);
 }
 
 // The picture is finished as soon as retrace starts, which is also when the start address latches
@@ -1227,6 +1249,9 @@ void Video::CompleteFrame()
         return;
 
     m_state.start_address = (GetStartAddress() + ((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03)) & GetCounterMask();
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_FRAME)))
+        TraceFrameComplete();
 
     if (blink != GetBlinkPhase() && (m_state.attribute[k_video_ar_mode] & 0x09) == 0x09)
         UpdateAttributeColors();
@@ -1502,65 +1527,371 @@ void Video::UpdateEGAColors()
     UpdateAttributeColors();
 }
 
-// Index writes only select, so the events are the data writes with what the register holds afterwards
-void Video::TraceWrite(u16 port, u8 value, u64 clocks)
+u8 Video::GetTraceAdapter() const
 {
+    if (m_cga)
+        return TRACE_VIDEO_ADAPTER_CGA;
+
+    if (m_cirrus)
+        return TRACE_VIDEO_ADAPTER_CIRRUS;
+
+    return m_ega ? TRACE_VIDEO_ADAPTER_EGA : TRACE_VIDEO_ADAPTER_VGA;
+}
+
+// Index writes only select, so the events are the data writes with what the register holds afterwards
+void Video::WriteTraced(u16 port, u8 value, u64 clocks)
+{
+    bool attribute_data = m_state.attribute_data;
+    u8 attribute_index = m_state.attribute_index & 0x1F;
+    bool hidden = port == 0x3C6 && IsUnlocked() && m_state.hidden_dac_reads == 4;
+    u8 dac_component = m_state.dac_component;
+    u8 dac_address = m_state.dac_address;
+    u8 sequencer_index = m_state.sequencer_index;
+    u8 sr = sequencer_index & (m_cirrus ? 0x1F : (m_ega ? 0x0F : 0x07));
+    u8 gr = m_state.graphics_index;
+    u8 cr = m_state.crtc_index;
+
+    ApplyWrite(port, value, clocks);
+
     switch (port)
     {
         case 0x3C0:
-            if (!m_state.attribute_data)
-                TraceEvent(TRACE_VIDEO_OUTPUT, m_state.attribute_index & 0x1F, value, value, 2, 0, clocks);
-            break;
-        case 0x3C2:
-            TraceEvent(TRACE_VIDEO_OUTPUT, 0, value, value, 3, 0, clocks);
-            break;
-        case 0x3C5:
-            TraceEvent(TRACE_VIDEO_OUTPUT, m_state.sequencer_index, value, value, 0, 0, clocks);
-            break;
-        case 0x3C9:
+        case 0x3C1:
         {
-            const u8* color = m_state.dac_cache;
-            u8 component = (m_state.dac_component + 2) % 3;
-            u8 index = m_state.dac_address - (component == 2 ? 1 : 0);
-            u32 rgb = ((u32)color[0] << 16) | ((u32)color[1] << 8) | color[2];
-            TraceEvent(TRACE_VIDEO_PALETTE, index, component, value, 0, rgb, clocks);
+            if (!attribute_data || (port == 0x3C1 && !m_ega))
+                break;
+
+            bool stored = attribute_index < VIDEO_ATTRIBUTE_COUNT;
+            GDOX_Trace_Entry* entry = TraceEvent(TRACE_VIDEO_OUTPUT, attribute_index,
+                stored ? m_state.attribute[attribute_index] : value, value, TRACE_VIDEO_BANK_AR, 0, clocks);
+
+            if (IsValidPointer(entry) && (!stored || m_state.attribute[attribute_index] != value))
+                entry->flags |= TRACE_ENTRY_IGNORED;
             break;
         }
-        case 0x3CF:
-            TraceEvent(TRACE_VIDEO_OUTPUT, m_state.graphics_index, value, value, 1, 0, clocks);
+        case 0x3C2:
+            TraceEvent(TRACE_VIDEO_OUTPUT, 0, m_state.misc, value, TRACE_VIDEO_BANK_MISC, 0, clocks);
             break;
+        case 0x3C5:
+        {
+            bool stored = sr < VIDEO_SEQUENCER_COUNT || (m_cirrus && sr < VIDEO_SEQUENCER_EXT_COUNT);
+            u8 kept = stored ? m_state.sequencer[sr] : value;
+            GDOX_Trace_Entry* entry = TraceEvent(sr == 0x02 ? TRACE_VIDEO_DATAPATH : TRACE_VIDEO_OUTPUT, sr, kept, value,
+                TRACE_VIDEO_BANK_SR, 0, clocks);
+
+            if (!IsValidPointer(entry))
+                break;
+
+            if (!stored || kept != value)
+                entry->flags |= TRACE_ENTRY_IGNORED;
+
+            if (m_cirrus && (sr == 0x10 || sr == 0x11))
+                entry->video.index_bits = sequencer_index >> 5;
+            break;
+        }
+        case 0x3C6:
+            FlushPaletteLoad();
+
+            if (hidden)
+                TraceEvent(TRACE_VIDEO_DAC, 0, m_state.hidden_dac, value, TRACE_VIDEO_BANK_HIDDEN_DAC,
+                    GetExtendedBytesPerPixel(), clocks);
+            else
+                TraceEvent(TRACE_VIDEO_DAC, 0, m_state.pel_mask, value, TRACE_VIDEO_BANK_PEL_MASK, 0, clocks);
+            break;
+        case 0x3C7:
+        case 0x3C8:
+            FlushPaletteLoad();
+            TraceEvent(TRACE_VIDEO_DAC, value, value, value, port == 0x3C7 ? TRACE_VIDEO_BANK_DAC_READ :
+                TRACE_VIDEO_BANK_DAC_WRITE, 0, clocks);
+            break;
+        case 0x3C9:
+            if (dac_component == 2)
+                TraceColor(dac_address, clocks);
+            break;
+        case 0x3CA:
+        case 0x3CC:
+            if (m_ega)
+                TraceEvent(TRACE_VIDEO_OUTPUT, port == 0x3CA ? 1 : 0, m_state.ega_position[port == 0x3CA ? 1 : 0], value,
+                    TRACE_VIDEO_BANK_EGA_POSITION, 0, clocks);
+            break;
+        case 0x3CF:
+        {
+            bool stored = gr < VIDEO_GRAPHICS_COUNT || (m_cirrus && gr < VIDEO_GRAPHICS_EXT_COUNT);
+            u8 kept = stored ? m_state.graphics[gr] : value;
+            u8 event = gr <= 0x04 || gr == 0x08 ? TRACE_VIDEO_DATAPATH :
+                m_cirrus && gr >= 0x20 && gr <= 0x39 ? TRACE_VIDEO_BLT_REGISTER : TRACE_VIDEO_OUTPUT;
+            u32 bank = m_cirrus && (gr == 0x09 || gr == 0x0A) ? GetBankOffset(gr - 0x09) : 0;
+            GDOX_Trace_Entry* entry = TraceEvent(event, gr, kept, value, TRACE_VIDEO_BANK_GR, bank, clocks);
+
+            if (!IsValidPointer(entry))
+                break;
+
+            if (!stored || kept != value)
+                entry->flags |= TRACE_ENTRY_IGNORED;
+
+            if (m_cirrus && (gr == 0x09 || gr == 0x0A))
+                entry->flags |= TRACE_VIDEO_FLAG_BANK;
+            break;
+        }
         case 0x3B5:
         case 0x3D5:
-            if (IsCRTCBlockSelected(port))
-                TraceEvent(TRACE_VIDEO_CRTC, m_state.crtc_index, value, value, 0, 0, clocks);
+        {
+            if (!IsCRTCBlockSelected(port))
+                break;
+
+            bool stored = cr < VIDEO_CRTC_COUNT || (m_cirrus && cr < VIDEO_CRTC_EXT_COUNT);
+            u8 kept = stored ? m_state.crtc[cr] : value;
+            GDOX_Trace_Entry* entry = TraceEvent(TRACE_VIDEO_CRTC, cr, kept, value, 0, 0, clocks);
+
+            if (IsValidPointer(entry) && (!stored || kept != value))
+                entry->flags |= TRACE_ENTRY_IGNORED;
+
+            if (cr == 0x0C || cr == 0x0D)
+                m_trace.start_line = m_state.running ? (u16)GetBeamLine(clocks) : 0xFFFF;
             break;
+        }
         default:
             break;
     }
+
+    FlushDeferred(clocks);
 }
 
-void Video::TraceEvent(u8 event, u8 reg, u16 value, u8 raw, u8 bank, u32 param, u64 clocks)
+void Video::FlushDeferred(u64 clocks)
 {
-    if (!m_trace_logger->IsEventEnabled(TRACE_VIDEO, event))
+    if (m_trace.deferred == 0)
         return;
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_VIDEO;
-    entry.event = event;
-    entry.video.param = param;
-    entry.video.value = value;
-    entry.video.reg = reg;
-    entry.video.raw = raw;
-    entry.video.bank = bank;
-    entry.video.line = 0xFFFF;
+    if ((m_trace.deferred & 0x01) != 0)
+        TraceEvent(TRACE_VIDEO_VSYNC_CLEAR, 0, 0, 0, 0, m_state.frame_count, clocks);
+
+    if ((m_trace.deferred & 0x02) != 0)
+        m_trace_logger->TraceLog(m_trace_blt);
+
+    m_trace.deferred = 0;
+}
+
+GDOX_Trace_Entry* Video::TraceEvent(u8 event, u8 reg, u16 value, u8 raw, u8 bank, u32 param, u64 clocks)
+{
+    if (!m_trace_logger->IsEventEnabled(TRACE_VIDEO, event))
+        return NULL;
+
+    if (event != TRACE_VIDEO_PALETTE && m_trace.load_count != 0)
+        FlushPaletteLoad();
+
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_VIDEO, event);
+    entry->video.param = param;
+    entry->video.value = value;
+    entry->video.reg = reg;
+    entry->video.raw = raw;
+    entry->video.bank = bank;
+    entry->video.adapter = GetTraceAdapter();
+    entry->video.line = 0xFFFF;
 
     if (m_state.running)
     {
-        entry.video.line = (u16)GetBeamLine(clocks);
-        entry.video.dot = (u16)GetBeamDot(clocks);
+        entry->video.line = (u16)GetBeamLine(clocks);
+        entry->video.dot = (u16)GetBeamDot(clocks);
     }
 
-    m_trace_logger->TraceLog(entry);
+    return entry;
+}
+
+void Video::TraceColor(u8 index, u64 clocks)
+{
+    const u8* color = m_state.dac_cache;
+    u32 rgb = ((u32)color[0] << 16) | ((u32)color[1] << 8) | color[2];
+    bool extended = IsUnlocked() && (m_state.sequencer[k_video_sr_cursor_attributes] & 0x02) != 0;
+    u16 line = m_state.running ? (u16)GetBeamLine(clocks) : 0xFFFF;
+
+    if (m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_PALETTE))
+    {
+        GDOX_Trace_Entry* entry = TraceEvent(TRACE_VIDEO_PALETTE, index, 0, 0, 0, rgb, clocks);
+        entry->flags |= extended ? TRACE_VIDEO_FLAG_EXTENDED_DAC : 0;
+    }
+
+    if (!m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_PALETTE_LOAD))
+        return;
+
+    if (m_trace.load_count != 0 && (index != (u8)m_trace.load_next || extended != m_trace.load_extended))
+        FlushPaletteLoad();
+
+    if (m_trace.load_count == 0)
+    {
+        m_trace.load_clocks = m_trace_logger->GetClocks();
+        m_trace.load_first = index;
+        m_trace.load_first_rgb = rgb;
+        m_trace.load_first_line = line;
+        m_trace.load_extended = extended;
+    }
+
+    m_trace.load_last_rgb = rgb;
+    m_trace.load_last_line = line;
+    m_trace.load_next = (u8)(index + 1);
+    m_trace.load_count++;
+}
+
+void Video::FlushPaletteLoad()
+{
+    if (m_trace.load_count == 0)
+        return;
+
+    u16 count = m_trace.load_count;
+    m_trace.load_count = 0;
+
+    if (!m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_PALETTE_LOAD))
+        return;
+
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_VIDEO, TRACE_VIDEO_PALETTE_LOAD, m_trace.load_clocks);
+    entry->flags |= m_trace.load_extended ? TRACE_VIDEO_FLAG_EXTENDED_DAC : 0;
+    entry->video.reg = (u8)m_trace.load_first;
+    entry->video.count = count;
+    entry->video.param = m_trace.load_first_rgb;
+    entry->video.param2 = m_trace.load_last_rgb;
+    entry->video.line = m_trace.load_first_line;
+    entry->video.last_line = m_trace.load_last_line;
+    entry->video.adapter = GetTraceAdapter();
+}
+
+void Video::TraceFrameStart(u64 clocks)
+{
+    if (m_trace.status_reads != 0 && m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_STATUS))
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_VIDEO, TRACE_VIDEO_STATUS);
+        entry->status.reads = m_trace.status_reads;
+        entry->status.retrace = m_trace.status_retrace;
+        entry->status.display_off = m_trace.status_off;
+        entry->status.frame = m_state.frame_count;
+        entry->status.first_line = m_trace.status_first_line;
+        entry->status.last_line = m_trace.status_last_line;
+    }
+
+    m_trace.status_reads = 0;
+    m_trace.status_retrace = 0;
+    m_trace.status_off = 0;
+
+    if (!m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_MODE))
+        return;
+
+    bool text = m_cga ? (m_state.cga_mode & 0x02) == 0 : IsTextMode();
+    u8 format = 0;
+    u8 bpp = 0;
+
+    if (m_cga)
+        format = text ? 0 : 4;
+    else if (!text && IsExtendedMode())
+    {
+        format = 5;
+        bpp = (u8)GetExtendedBytesPerPixel();
+    }
+    else if (!text)
+    {
+        Video_Format shift = GetShiftFormat();
+        format = shift == VIDEO_FORMAT_PLANAR ? 1 : shift == VIDEO_FORMAT_CGA ? 2 : 3;
+        bpp = shift == VIDEO_FORMAT_256 ? 1 : 0;
+    }
+
+    u32 refresh = m_state.running ? (u32)(100000.0f / GetFrameTime()) : 0;
+    u8 char_width = text && !m_cga ? (u8)GetCharacterClockDots() : 8;
+    u8 char_height = text && !m_cga ? (u8)((m_state.crtc[k_video_cr_max_scan] & 0x1F) + 1) : 0;
+    u8 misc = m_cga ? m_state.cga_mode : m_state.misc;
+    u8 extended = !m_cga && IsExtendedMode() ? (u8)GetExtendedFormat() : 0;
+    u32 signature[6] = { (u32)m_canvas_width | ((u32)m_canvas_height << 16),
+        (u32)char_width | ((u32)char_height << 8) | ((u32)format << 16) | ((u32)extended << 24),
+        (u32)bpp | ((u32)misc << 8) | ((u32)GetCard() << 16) | ((u32)GetTraceAdapter() << 24),
+        m_cga ? 0 : GetOffsetRegister(), (refresh + 50) / 100, text ? 1U : 0U };
+
+    if (memcmp(signature, m_trace.mode, sizeof(signature)) == 0)
+        return;
+
+    memcpy(m_trace.mode, signature, sizeof(signature));
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_VIDEO, TRACE_VIDEO_MODE);
+    entry->mode.refresh = refresh;
+    entry->mode.offset = signature[3];
+    entry->mode.start = m_state.start_address;
+    entry->mode.width = (u16)m_canvas_width;
+    entry->mode.height = (u16)m_canvas_height;
+    entry->mode.lines = (u16)m_state.frame_lines;
+    entry->mode.char_width = char_width;
+    entry->mode.char_height = char_height;
+    entry->mode.format = format;
+    entry->mode.extended = extended;
+    entry->mode.bpp = bpp;
+    entry->mode.misc = misc;
+    entry->mode.card = (u8)GetCard();
+    entry->mode.adapter = GetTraceAdapter();
+    UNUSED(clocks);
+}
+
+void Video::TraceFrameComplete()
+{
+    u32 values[4] = { m_state.start_address, GetLineCompare(), GetOffsetRegister(),
+        (u32)(m_state.attribute[0x13] & 0x0F) | ((u32)((m_state.crtc[k_video_cr_preset_row] >> 5) & 0x03) << 8) };
+
+    if (memcmp(values, m_trace.frame, sizeof(values)) == 0)
+        return;
+
+    memcpy(m_trace.frame, values, sizeof(values));
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_VIDEO, TRACE_VIDEO_FRAME);
+    entry->frame.start = values[0];
+    entry->frame.line_compare = values[1];
+    entry->frame.offset = values[2];
+    entry->frame.frame = m_state.frame_count;
+    entry->frame.pel = (u8)(values[3] & 0x0F);
+    entry->frame.byte_pan = (u8)(values[3] >> 8);
+    entry->frame.line = m_trace.start_line;
+}
+
+void Video::CountStatusRead(u64 clocks)
+{
+    u8 status = GetSyncStatus(clocks);
+    u16 line = m_state.running ? (u16)GetBeamLine(clocks) : 0xFFFF;
+
+    if (m_trace.status_reads == 0)
+        m_trace.status_first_line = line;
+
+    m_trace.status_last_line = line;
+    m_trace.status_reads++;
+    m_trace.status_retrace += (status & 0x08) != 0 ? 1 : 0;
+    m_trace.status_off += (status & 0x01) != 0 ? 1 : 0;
+}
+
+void Video::TraceBlt(u8 event, u64 clocks)
+{
+    const u8* graphics = m_state.graphics;
+    u8 mode = graphics[k_video_gr_blt_mode];
+    u8 extensions = m_pci ? graphics[k_video_gr_blt_extensions] : 0x00;
+    bool system = (mode & 0x04) != 0 || (!m_pci && (mode & 0x02) != 0);
+    GDOX_Trace_Entry* entry = &m_trace_blt;
+
+    if (event == TRACE_VIDEO_BLT_DONE)
+        entry = m_trace_logger->Begin(TRACE_VIDEO, event);
+    else
+    {
+        memset(entry, 0, sizeof(GDOX_Trace_Entry));
+        entry->type = TRACE_VIDEO;
+        entry->event = event;
+        m_trace.deferred |= 0x02;
+    }
+
+    entry->blt.destination = m_state.blt_dst;
+    entry->blt.source = m_state.blt_src;
+    entry->blt.colors = (u32)graphics[0x01] | ((u32)graphics[0x11] << 8) | ((u32)graphics[0x00] << 16) |
+        ((u32)graphics[0x10] << 24);
+    entry->blt.key = (u32)graphics[k_video_gr_blt_key] | ((u32)graphics[k_video_gr_blt_key + 1] << 8) |
+        ((u32)graphics[k_video_gr_blt_key_mask] << 16) | ((u32)graphics[k_video_gr_blt_key_mask + 1] << 24);
+    entry->blt.width = (u16)GetBltWidth();
+    entry->blt.height = (u16)GetBltHeight();
+    entry->blt.dst_pitch = (u16)GetBltPitch(k_video_gr_blt_dst_pitch);
+    entry->blt.src_pitch = (u16)GetBltPitch(k_video_gr_blt_src_pitch);
+    entry->blt.mode = mode;
+    entry->blt.rop = graphics[k_video_gr_blt_rop];
+    entry->blt.extensions = extensions;
+    entry->blt.pixel_bytes = (u8)GetBltPixelBytes();
+    entry->blt.kind = system ? VIDEO_BLT_SYSTEM : ((mode & 0x80) != 0 || (extensions & 0x04) != 0) ? VIDEO_BLT_EXPAND :
+        (mode & 0x40) != 0 ? VIDEO_BLT_PATTERN : VIDEO_BLT_SCREEN;
+    entry->blt.line = m_state.running ? (u16)GetBeamLine(clocks) : 0xFFFF;
+    entry->blt.dot = m_state.running ? (u16)GetBeamDot(clocks) : 0;
 }
 
 void Video::SaveState(std::ostream& stream)

@@ -29,7 +29,7 @@ SerialPorts::SerialPorts()
 {
     InitPointer(m_pic);
     InitPointer(m_scheduler);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     m_mouse_attached = false;
 
     for (int i = 0; i < SERIAL_PORTS; i++)
@@ -59,7 +59,7 @@ void SerialPorts::Init(PIC* pic, Scheduler* scheduler, Input* input)
 
 void SerialPorts::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
     m_mouse->SetTraceLogger(trace_logger);
 }
 
@@ -92,6 +92,11 @@ u8 SerialPorts::Read(u16 port, u64 clocks)
 
     Synchronize(clocks);
     u8 value = m_uart[index]->Read(port & 0x07, clocks);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_READ)) && (port & 0x07) == 0 &&
+        (m_uart[index]->GetState()->lcr & 0x80) == 0)
+        TraceEvent(TRACE_SERIAL_READ, index, 0, value, 0);
+
     UpdateIRQ();
     UpdateEvent();
     return value;
@@ -108,14 +113,36 @@ void SerialPorts::Write(u16 port, u8 value, u64 clocks)
     u8 reg = port & 0x07;
 
     Synchronize(clocks);
-    TraceEvent(TRACE_SERIAL_WRITE, index, reg, value, 0);
-    m_uart[index]->Write(reg, value, clocks);
+
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_SERIAL)))
+        WriteTraced(index, reg, value, clocks);
+    else
+        m_uart[index]->Write(reg, value, clocks);
 
     if (reg == 4)
         UpdateModemLines(index, clocks);
 
     UpdateIRQ();
     UpdateEvent();
+}
+
+void SerialPorts::WriteTraced(int index, u8 reg, u8 value, u64 clocks)
+{
+    UART::UART_State* state = m_uart[index]->GetState();
+    bool dlab = (state->lcr & 0x80) != 0;
+    u32 config = (u32)state->lcr | ((u32)state->fcr << 8) | ((u32)state->ier << 16) | ((u32)state->mcr << 24);
+    u32 divisor = m_uart[index]->GetDivisor();
+
+    m_uart[index]->Write(reg, value, clocks);
+
+    if (m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_WRITE))
+        TraceEvent(TRACE_SERIAL_WRITE, index, reg, value, dlab ? 1 : 0);
+
+    u32 now = (u32)state->lcr | ((u32)state->fcr << 8) | ((u32)state->ier << 16) | ((u32)state->mcr << 24);
+
+    if (m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_CONFIG) &&
+        (now != config || m_uart[index]->GetDivisor() != divisor))
+        TraceEvent(TRACE_SERIAL_CONFIG, index, reg, value, 0);
 }
 
 u64 SerialPorts::GetReadStableUntil(u16 port) const
@@ -142,18 +169,22 @@ void SerialPorts::Synchronize(u64 clocks)
 
         if (next == m_uart[0]->GetNextEventClocks())
         {
-            if (m_uart[0]->HandleEvent(next, value))
+            if (m_uart[0]->HandleEvent(next, value) && unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL,
+                TRACE_SERIAL_TRANSMIT)))
                 TraceEvent(TRACE_SERIAL_TRANSMIT, 0, 0, value, 0);
         }
         else if (next == m_uart[1]->GetNextEventClocks())
         {
-            if (m_uart[1]->HandleEvent(next, value))
+            if (m_uart[1]->HandleEvent(next, value) && unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL,
+                TRACE_SERIAL_TRANSMIT)))
                 TraceEvent(TRACE_SERIAL_TRANSMIT, 1, 0, value, 0);
         }
         else if (m_mouse->HandleEvent(next, value))
         {
             m_uart[0]->Receive(value, k_serial_mouse_data_bits, k_serial_mouse_divisor, next);
-            TraceEvent(TRACE_SERIAL_RECEIVE, 0, 0, value, m_uart[0]->GetLineStatus());
+
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_RECEIVE)))
+                TraceEvent(TRACE_SERIAL_RECEIVE, 0, 0, value, 0);
         }
 
         UpdateIRQ();
@@ -188,7 +219,9 @@ void SerialPorts::UpdateModemLines(int index, u64 clocks)
         return;
 
     m_modem_outputs[index] = outputs;
-    TraceEvent(TRACE_SERIAL_MODEM, index, 4, outputs, 0);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_MODEM)))
+        TraceEvent(TRACE_SERIAL_MODEM, index, 4, outputs, 0);
 
     if (index == 0 && m_mouse_attached)
         m_mouse->SetRTS((outputs & k_uart_rts) != 0, clocks);
@@ -205,7 +238,9 @@ void SerialPorts::UpdateIRQ()
 
         m_irq[i] = irq;
         m_pic->SetIRQLine(k_serial_ports_irq[i], irq);
-        TraceEvent(TRACE_SERIAL_IRQ, i, 2, m_uart[i]->GetInterruptIdentification(), irq ? 1 : 0);
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_IRQ)))
+            TraceEvent(TRACE_SERIAL_IRQ, i, 2, 0, irq ? 1 : 0);
     }
 }
 
@@ -236,17 +271,22 @@ bool SerialPorts::GetIRQ(int index) const
 
 void SerialPorts::TraceEvent(u8 event, int index, u8 reg, u8 value, u8 flags)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_SERIAL, event))
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_SERIAL;
-    entry.event = event;
-    entry.serial.port = (u8)index;
-    entry.serial.reg = reg;
-    entry.serial.value = value;
-    entry.serial.flags = flags;
-    m_trace_logger->TraceLog(entry);
+    const UART* uart = m_uart[index];
+    const UART::UART_State* state = m_uart[index]->GetState();
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SERIAL, event);
+    entry->flags |= event == TRACE_SERIAL_WRITE && flags != 0 ? TRACE_SERIAL_FLAG_DLAB : 0;
+    entry->serial.port = (u8)index;
+    entry->serial.reg = reg;
+    entry->serial.value = value;
+    entry->serial.flags = flags;
+    entry->serial.divisor = (u16)uart->GetDivisor();
+    entry->serial.lcr = state->lcr;
+    entry->serial.fcr = state->fcr;
+    entry->serial.ier = state->ier;
+    entry->serial.mcr = state->mcr;
+    entry->serial.lsr = uart->GetLineStatus();
+    entry->serial.msr = state->msr;
+    entry->serial.iir = uart->GetInterruptIdentification();
 }
 
 void SerialPorts::SaveState(std::ostream& stream)

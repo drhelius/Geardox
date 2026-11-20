@@ -24,7 +24,7 @@
 
 Input::Input()
 {
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     m_joystick_type = GDOX_JOYSTICK_GAMEPAD;
     Reset();
 }
@@ -36,7 +36,7 @@ void Input::Init()
 
 void Input::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void Input::Reset()
@@ -120,7 +120,7 @@ void Input::UpdateMouseButtons()
     u8 previous = m_state.mouse_buttons;
     m_state.mouse_buttons = m_physical_mouse_buttons | m_injected_mouse_buttons | m_gamepad_mouse_buttons;
 
-    if (unlikely(previous != m_state.mouse_buttons))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_CHANGE)) && previous != m_state.mouse_buttons)
         TraceChange(TRACE_INPUT_DEVICE_MOUSE, m_state.mouse_buttons, previous);
 }
 
@@ -137,20 +137,14 @@ void Input::UpdateJoystickState()
 
     u16 current = (u16)(m_state.joystick.buttons | (m_state.joystick.hat << 4));
 
-    if (unlikely(previous != current))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_CHANGE)) && previous != current)
         TraceChange(TRACE_INPUT_DEVICE_JOYSTICK, current, previous);
 }
 
 void Input::TraceChange(u8 device, u16 buttons, u16 previous)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_CHANGE))
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_INPUT;
-    entry.event = TRACE_INPUT_CHANGE;
-    entry.input.device = device;
-    entry.input.buttons = buttons;
-    entry.input.previous = previous;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_INPUT, TRACE_INPUT_CHANGE);
+    entry->input.device = device;
+    entry->input.buttons = buttons;
+    entry->input.previous = previous;
 }

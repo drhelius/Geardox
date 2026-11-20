@@ -90,6 +90,13 @@ struct FatImage_File
     u32 first_cluster;
 };
 
+struct FatImage_Extent
+{
+    u32 first;
+    u32 last;
+    int file;
+};
+
 struct FatImage_Rule
 {
     std::string source;
@@ -143,6 +150,7 @@ public:
     bool Read(const char* path);
     void CloseRead();
     const std::vector<FatImage_File>& GetFiles() const;
+    void GetSectorMap(std::vector<FatImage_Extent>* extents) const;
     const char* GetReadError() const;
     bool GetFileCRC(const FatImage_File& file, u32* crc);
     bool GetFileData(const FatImage_File& file, std::string* data, u32* crc);

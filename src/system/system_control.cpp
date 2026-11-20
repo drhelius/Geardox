@@ -23,6 +23,7 @@
 #include "pic.h"
 #include "pit.h"
 #include "../common/state_serializer.h"
+#include "../common/trace_logger.h"
 #include "../i386/x87.h"
 
 SystemControl::SystemControl()
@@ -31,7 +32,9 @@ SystemControl::SystemControl()
     InitPointer(m_pic);
     InitPointer(m_pit);
     InitPointer(m_x87);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    m_trace_read_only = 0;
+    m_trace_open = 0;
     memset(&m_state, 0, sizeof(m_state));
     m_power_on_a20_port_92 = true;
     m_shadow_control = false;
@@ -53,7 +56,7 @@ void SystemControl::Init(Memory* memory, PIC* pic, PIT* pit)
 
 void SystemControl::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void SystemControl::SetFPU(X87* fpu)
@@ -115,6 +118,10 @@ void SystemControl::ApplyShadow()
     u64 rom_pages = read_only & ((1ULL << k_system_control_bios_page) - 1);
     u64 bios_pages = read_only >> k_system_control_bios_page;
 
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_MEMORY_MAP)) &&
+        (read_only != m_trace_read_only || open != m_trace_open))
+        TraceShadow(read_only, open);
+
     m_memory->SetRegionPages(GDOX_DEBUG_REGION_SHADOW_ROM, rom_pages);
     m_memory->SetRegionPages(GDOX_DEBUG_REGION_SHADOW_BIOS, bios_pages);
     m_memory->SetRegionPages(GDOX_DEBUG_REGION_UPPER_MEMORY, open);
@@ -150,7 +157,7 @@ void SystemControl::Reset()
     m_state.port_92 = m_power_on_a20_port_92 ? 0x02 : 0x00;
     m_state.keyboard_a20 = !m_power_on_a20_port_92;
     m_power_off_requested = false;
-    UpdateA20();
+    UpdateA20(TRACE_A20_POWER_ON);
     LockShadow();
     ApplyShadow();
 }
@@ -205,34 +212,79 @@ u8 SystemControl::Peek(u16 port, u64 clocks) const
 
 void SystemControl::Write(u16 port, u8 value, u64 clocks)
 {
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_SYSTEM)))
+    {
+        WriteTraced(port, value, clocks);
+        return;
+    }
+
+    ApplyWrite(port, value, clocks);
+}
+
+void SystemControl::WriteTraced(u16 port, u8 value, u64 clocks)
+{
     u8 previous = 0;
+    u8 event = TRACE_SYSTEM_CONTROL;
 
     switch (port)
     {
         case 0x0061:
             previous = m_state.port_61;
+            break;
+        case 0x0070:
+            previous = m_state.nmi_mask ? 0x80 : 0x00;
+            break;
+        case 0x0080:
+            previous = m_state.post_code;
+            event = TRACE_SYSTEM_POST;
+            break;
+        case 0x0406:
+            previous = m_state.shadow_locked ? 1 : 0;
+            break;
+        default:
+            break;
+    }
+
+    ApplyWrite(port, value, clocks);
+
+    if (!m_trace_logger->IsEventEnabled(TRACE_SYSTEM, event) || port == 0x0092 || port == 0x00F1 ||
+        (port == 0x0070 && ((value ^ previous) & 0x80) == 0) || (port == 0x0080 && value == previous))
+        return;
+
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, event);
+    entry->system.port = port;
+    entry->system.value = value;
+    entry->system.previous = previous;
+    entry->system.flags = (u8)((IsA20Enabled() ? 0x01 : 0x00) | (m_state.nmi_mask ? 0x02 : 0x00));
+}
+
+void SystemControl::ApplyWrite(u16 port, u8 value, u64 clocks)
+{
+    switch (port)
+    {
+        case 0x0061:
             m_state.port_61 = value & 0x0F;
             m_pit->SetSpeaker((value & 0x01) != 0, (value & 0x02) != 0, clocks);
             break;
         case 0x0070:
-            previous = m_state.nmi_mask ? 0x80 : 0x00;
             m_state.nmi_mask = (value & 0x80) != 0;
             break;
         case 0x0080:
-            previous = m_state.post_code;
             m_state.post_code = value;
             break;
         case 0x0092:
-            previous = m_state.port_92;
+        {
+            u8 previous = m_state.port_92;
             m_state.port_92 = value & 0x03;
             m_state.reset_a20 = false;
-            UpdateA20();
+            UpdateA20(TRACE_A20_PORT_92);
 
             // The fast reset pulses on a rising bit 0
             if ((value & 0x01) != 0 && (previous & 0x01) == 0)
-                RequestCPUReset(k_system_control_reset_fast);
+                RequestCPUReset(k_system_control_reset_fast, 0x0092);
 
             break;
+        }
         case 0x00F0:
             if (m_state.fpu_error)
             {
@@ -254,7 +306,6 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
             m_state.shadow_rom_start = value;
             break;
         case 0x0406:
-            previous = m_state.shadow_locked ? 1 : 0;
             m_state.shadow_locked = (value & 0x01) != 0;
             LockShadow();
             ApplyShadow();
@@ -263,11 +314,8 @@ void SystemControl::Write(u16 port, u8 value, u64 clocks)
             m_power_off_requested = m_power_off_requested || ((value & 0x01) != 0);
             break;
         default:
-            return;
+            break;
     }
-
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEnabled(TRACE_SYSTEM)))
-        TraceWrite(port, value, previous);
 }
 
 // Port 61h moves with the refresh toggle and OUT2, the other ports only with writes
@@ -302,29 +350,26 @@ void SystemControl::AcknowledgePowerOff()
     m_power_off_requested = false;
 }
 
-void SystemControl::RequestCPUReset(u8 cause)
+void SystemControl::RequestCPUReset(u8 cause, u16 port)
 {
     m_state.reset_cause |= cause;
     m_state.reset_pending = true;
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RESET)))
-    {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_SYSTEM;
-        entry.event = TRACE_SYSTEM_RESET;
-        entry.system.flags = cause;
-        m_trace_logger->TraceLog(entry);
-    }
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RESET)))
+        TraceReset(cause, port, false);
 }
 
 void SystemControl::AcknowledgeCPUReset()
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_RESET)))
+        TraceReset(m_state.reset_cause, 0, true);
+
     m_state.last_reset_cause = m_state.reset_cause;
     m_state.reset_cause = 0;
     m_state.reset_pending = false;
     m_state.reset_count++;
     m_state.reset_a20 = true;
-    UpdateA20();
+    UpdateA20(TRACE_A20_RESET);
 }
 
 // The coprocessor's ERROR# latches IRQ13 until a write to port F0h
@@ -335,38 +380,62 @@ void SystemControl::SetFPUError()
 
     m_state.fpu_error = true;
     m_pic->SetIRQLine(k_system_control_fpu_irq, true);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_CONTROL)))
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_CONTROL);
+        entry->system.port = 0x00F0;
+        entry->system.kind = 1;
+    }
 }
 
 void SystemControl::SetKeyboardA20(bool enabled)
 {
     m_state.keyboard_a20 = enabled;
     m_state.reset_a20 = false;
-    UpdateA20();
+    UpdateA20(TRACE_A20_KEYBOARD);
 }
 
-void SystemControl::UpdateA20()
+void SystemControl::UpdateA20(u8 source)
 {
-    m_memory->SetA20(IsA20Enabled());
+    bool enabled = IsA20Enabled();
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SYSTEM, TRACE_SYSTEM_MEMORY_MAP)) &&
+        enabled != m_memory->IsA20Enabled())
+        TraceA20(enabled, source);
+
+    m_memory->SetA20(enabled);
 }
 
-void SystemControl::TraceWrite(u16 port, u8 value, u8 previous)
+void SystemControl::TraceA20(bool enabled, u8 source)
 {
-    u8 event = port == 0x0080 ? TRACE_SYSTEM_POST : port == 0x0092 ? TRACE_SYSTEM_MEMORY_MAP : TRACE_SYSTEM_CONTROL;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_MEMORY_MAP);
+    entry->system.kind = TRACE_SYSTEM_MAP_A20;
+    entry->system.source = source;
+    entry->system.value = enabled ? 1 : 0;
+    entry->system.flags = (u8)((m_state.port_92 & 0x02) != 0 ? 0x01 : 0x00) | (m_state.keyboard_a20 ? 0x02 : 0x00) |
+        (m_state.reset_a20 ? 0x04 : 0x00);
+    entry->system.port = source == TRACE_A20_PORT_92 ? 0x0092 : source == TRACE_A20_KEYBOARD ? 0x0064 : 0;
+}
 
-    if (!m_trace_logger->IsEventEnabled(TRACE_SYSTEM, event))
-        return;
+void SystemControl::TraceShadow(u64 read_only, u64 open)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_MEMORY_MAP);
+    entry->system.kind = TRACE_SYSTEM_MAP_SHADOW;
+    entry->system.read_only_pages = read_only;
+    entry->system.open_pages = open;
+    entry->system.value = m_state.shadow_locked ? 1 : 0;
+    m_trace_read_only = read_only;
+    m_trace_open = open;
+}
 
-    if (event == TRACE_SYSTEM_MEMORY_MAP && ((value ^ previous) & 0x02) == 0)
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_SYSTEM;
-    entry.event = event;
-    entry.system.port = port;
-    entry.system.value = value;
-    entry.system.address = previous;
-    entry.system.flags = (u8)((IsA20Enabled() ? 0x01 : 0x00) | (m_state.nmi_mask ? 0x02 : 0x00));
-    m_trace_logger->TraceLog(entry);
+void SystemControl::TraceReset(u8 cause, u16 port, bool performed)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_SYSTEM, TRACE_SYSTEM_RESET);
+    entry->flags |= performed ? TRACE_SYSTEM_FLAG_PERFORMED : 0;
+    entry->system.flags = cause;
+    entry->system.port = port;
+    entry->system.value = (u8)m_state.reset_count;
 }
 
 void SystemControl::SaveState(std::ostream& stream)
@@ -409,7 +478,7 @@ void SystemControl::SanitizeState()
 {
     m_state.port_61 &= 0x0F;
     m_state.port_92 &= 0x03;
-    UpdateA20();
+    UpdateA20(TRACE_A20_STATE_LOAD);
 
     if (!m_page_control)
         LockShadow();

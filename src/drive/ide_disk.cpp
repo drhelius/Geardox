@@ -40,7 +40,8 @@ static const u32 k_ide_seek_us[k_ide_seek_points + 1] =
 
 IdeDisk::IdeDisk()
 {
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    m_trace_features = 0;
     memset(&m_state, 0, sizeof(m_state));
     m_state.event_clocks = GDOX_NO_EVENT;
     m_id = 0;
@@ -60,7 +61,7 @@ void IdeDisk::Init(int id)
 
 void IdeDisk::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 // The image only changes at a reset, so the geometry stays put between them
@@ -245,8 +246,15 @@ void IdeDisk::Schedule(u8 phase, u64 clocks)
 
 void IdeDisk::Execute(u8 command, u8 features, u64 clocks)
 {
+    m_trace_features = features;
+
     if (!IsAttached())
+    {
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IDE, TRACE_IDE_IGNORED)))
+            Trace(TRACE_IDE_IGNORED, command);
+
         return;
+    }
 
     m_state.command = command;
     m_state.positioned = false;
@@ -257,7 +265,9 @@ void IdeDisk::Execute(u8 command, u8 features, u64 clocks)
     m_state.error = 0;
     m_state.interrupt = false;
     m_state.status = k_ide_status_bsy | k_ide_status_drdy | k_ide_status_dsc;
-    Trace(TRACE_IDE_COMMAND);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IDE, TRACE_IDE_COMMAND)))
+        Trace(TRACE_IDE_COMMAND, command);
 
     if (ExecuteMedia(command, clocks))
         return;
@@ -394,7 +404,8 @@ void IdeDisk::Finish(u8 error)
     m_state.error = error;
     m_state.status = (u8)(k_ide_status_drdy | k_ide_status_dsc | (error != 0 ? k_ide_status_err : 0));
     m_state.interrupt = true;
-    Trace(TRACE_IDE_END);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IDE, TRACE_IDE_END)))
+        Trace(TRACE_IDE_END, m_state.command);
 }
 
 // Bit 6 of Device/Head picks LBA or CHS. A seek or a format only needs a track, so any sector will do
@@ -509,7 +520,8 @@ void IdeDisk::EndDataIn(u64 clocks)
     m_state.length = 0;
     m_state.position = 0;
     m_state.status = k_ide_status_drdy | k_ide_status_dsc;
-    Trace(TRACE_IDE_END);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IDE, TRACE_IDE_END)))
+        Trace(TRACE_IDE_END, m_state.command);
 }
 
 // DRQ comes first, as the AT BIOS only polls for it briefly, so the overhead is paid here
@@ -658,13 +670,18 @@ void IdeDisk::HoldReset()
     m_state.remaining = 0;
     m_state.interrupt = false;
     m_state.status = k_ide_status_bsy;
-    Trace(TRACE_IDE_RESET);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IDE, TRACE_IDE_RESET)))
+        Trace(TRACE_IDE_RESET, m_state.command);
 }
 
 void IdeDisk::ReleaseReset(u64 clocks)
 {
     if (IsAttached())
         Schedule(IDE_PHASE_RESET, clocks + k_ide_reset_clocks);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IDE, TRACE_IDE_RESET_RELEASE)) && IsAttached())
+        Trace(TRACE_IDE_RESET_RELEASE, m_state.command);
 }
 
 // Strings have their first character in the high byte of each word
@@ -772,23 +789,19 @@ u64 IdeDisk::GetReadClocks(u32 lba, u32 count, u64 clocks, u64 overhead)
     return ready;
 }
 
-void IdeDisk::Trace(u8 event)
+void IdeDisk::Trace(u8 event, u8 command)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_IDE, event))
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_IDE;
-    entry.event = event;
-    entry.ide.id = (u8)m_id;
-    entry.ide.command = m_state.command;
-    entry.ide.status = m_state.status;
-    entry.ide.error = m_state.error;
-    entry.ide.count = m_state.sector_count;
-    entry.ide.sector = m_state.sector_number;
-    entry.ide.head = m_state.device_head;
-    entry.ide.cylinder = (u16)(m_state.cylinder_low | (m_state.cylinder_high << 8));
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_IDE, event);
+    entry->ide.id = (u8)m_id;
+    entry->ide.command = command;
+    entry->ide.status = m_state.status;
+    entry->ide.error = m_state.error;
+    entry->ide.count = m_state.sector_count;
+    entry->ide.sector = m_state.sector_number;
+    entry->ide.head = m_state.device_head;
+    entry->ide.cylinder = (u16)(m_state.cylinder_low | (m_state.cylinder_high << 8));
+    entry->ide.features = m_trace_features;
+    entry->ide.lba_mode = (m_state.device_head & 0x40) != 0 ? 1 : 0;
 }
 
 void IdeDisk::SaveState(std::ostream& stream)

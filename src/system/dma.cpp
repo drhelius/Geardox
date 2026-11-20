@@ -27,7 +27,7 @@ DMA::DMA()
 {
     InitPointer(m_memory);
     InitPointer(m_scheduler);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     InitPointer(m_debug_callback);
     InitPointer(m_debugger);
     memset(m_endpoints, 0, sizeof(m_endpoints));
@@ -58,7 +58,7 @@ void DMA::Reset()
 
 void DMA::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void DMA::SetDebugCallback(GDOX_DMA_Debug_Fn callback, void* debugger)
@@ -101,11 +101,14 @@ void DMA::Write(u16 port, u8 value)
         m_state.stalled = 0;
         UpdateNextEvent();
         CheckUnsupported();
+
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_UNSUPPORTED)))
+            TraceUnsupported(chip, reg, value);
     }
 
     NotifyChange(port, chip, reg, value);
 
-    if (unlikely(IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_REGISTER)))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_REGISTER)))
         TraceWrite(port, chip, reg, value);
 }
 
@@ -118,8 +121,8 @@ void DMA::SetRequest(int channel, bool active)
     int index = channel & 0x03;
     u8 bit = (u8)(1 << channel);
 
-    if (active && IS_NOT_SET_BIT(chip.GetState()->request_levels, index) && IsValidPointer(m_trace_logger) &&
-        m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_REQUEST))
+    if (unlikely(active && m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_REQUEST)) &&
+        IS_NOT_SET_BIT(chip.GetState()->request_levels, index))
         TraceEvent(TRACE_DMA_REQUEST, channel, 0, 0, false);
 
     chip.SetRequestLine(index, active);
@@ -341,10 +344,10 @@ bool DMA::TransferUnit(int channel, u64 clocks, bool& terminal)
 // The end callback is the I/O channel's T/C line, a pulse that also comes with auto-init
 void DMA::FinishService(int channel)
 {
-    if (IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_END))
-        TraceEvent(TRACE_DMA_END, channel, 0, 0, true);
-
     GetChip(channel).Terminate(channel & 0x03);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_DMA, TRACE_DMA_END)))
+        TraceEvent(TRACE_DMA_END, channel, 0, 0, true);
 
     if (IsValidPointer(m_endpoints[channel].end))
         m_endpoints[channel].end(m_endpoints[channel].device);
@@ -451,7 +454,8 @@ void DMA::TraceWrite(u16 port, int chip, int reg, u8 value)
             }
         }
 
-        TraceEvent(TRACE_DMA_REGISTER, 0, (u8)(0x10 | (port & 0x0F)), value, false);
+        GDOX_Trace_Entry* entry = TraceEvent(TRACE_DMA_REGISTER, 0, (u8)(0x10 | (port & 0x0F)), value, false);
+        entry->flags |= TRACE_ENTRY_UNMAPPED;
         return;
     }
 
@@ -465,21 +469,37 @@ void DMA::TraceWrite(u16 port, int chip, int reg, u8 value)
     TraceEvent(TRACE_DMA_REGISTER, (chip * 4) + channel, (u8)reg, value, false);
 }
 
-void DMA::TraceEvent(u8 event, int channel, u8 reg, u8 value, bool terminal)
+void DMA::TraceUnsupported(int chip, int reg, u8 value)
 {
-    const I8237::I8237_Channel& state = GetChip(channel).GetState()->channels[channel & 0x03];
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_DMA;
-    entry.event = event;
-    entry.dma.address = GetPhysicalAddress(channel);
-    entry.dma.count = state.current_count;
-    entry.dma.channel = (u8)channel;
-    entry.dma.mode = state.mode;
-    entry.dma.reg = reg;
-    entry.dma.value = value;
-    entry.dma.terminal = terminal ? 1 : 0;
-    entry.dma.mask = (u8)((m_chips[1].GetState()->mask << 4) | m_chips[0].GetState()->mask);
-    m_trace_logger->TraceLog(entry);
+    int channel = (chip * 4) + (value & 0x03);
+
+    if (reg == 0x08 && (value & ~k_i8237_command_disable) != 0)
+        TraceEvent(TRACE_DMA_UNSUPPORTED, chip * 4, (u8)reg, value, false)->dma.reason = 0;
+    else if (reg == k_i8237_reg_mode && GetChip(channel).GetTransfer(channel & 0x03) == k_i8237_illegal &&
+        GetChip(channel).GetService(channel & 0x03) != k_i8237_cascade)
+        TraceEvent(TRACE_DMA_UNSUPPORTED, channel, (u8)reg, value, false)->dma.reason = 1;
+    else if (m_chips[0].GetServiceChannel(GetExcluded(0)) >= 0 && GetServiceChannel() < 0)
+        TraceEvent(TRACE_DMA_UNSUPPORTED, k_dma_cascade_channel, (u8)reg, value, false)->dma.reason = 2;
+}
+
+GDOX_Trace_Entry* DMA::TraceEvent(u8 event, int channel, u8 reg, u8 value, bool terminal)
+{
+    const I8237::I8237_State* chip = GetChip(channel).GetState();
+    const I8237::I8237_Channel& state = chip->channels[channel & 0x03];
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_DMA, event);
+    entry->dma.address = GetPhysicalAddress(channel);
+    entry->dma.count = state.current_count;
+    entry->dma.base_address = state.base_address;
+    entry->dma.base_count = state.base_count;
+    entry->dma.channel = (u8)channel;
+    entry->dma.mode = state.mode;
+    entry->dma.reg = reg;
+    entry->dma.value = value;
+    entry->dma.terminal = terminal ? 1 : 0;
+    entry->dma.mask = (u8)((m_chips[1].GetState()->mask << 4) | m_chips[0].GetState()->mask);
+    entry->dma.flip_flop = chip->flip_flop ? 1 : 0;
+    entry->dma.page = m_state.pages[k_dma_channel_pages[channel & 0x07]];
+    return entry;
 }
 
 void DMA::SaveState(std::ostream& stream)

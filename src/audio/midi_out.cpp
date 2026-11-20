@@ -19,6 +19,7 @@
 
 #include "midi_out.h"
 #include "../common/state_serializer.h"
+#include "../common/trace_logger.h"
 
 static const u8 k_midi_out_lengths[8] = { 3, 3, 3, 3, 2, 2, 3, 0 };
 static const u8 k_midi_out_gm_on[6] = { 0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7 };
@@ -28,6 +29,8 @@ static const char* const k_midi_out_gm_displays[2] = { "SCSCSCFY!           ", "
 
 MidiOut::MidiOut()
 {
+    m_trace_logger = TraceLogger::GetDisabled();
+    m_trace_source = 0;
     m_device_known = false;
     m_capture = MIDI_OUT_CAPTURE_OFF;
     m_position = 0;
@@ -61,8 +64,10 @@ void MidiOut::Reset()
 // Real Time goes out alone wherever it falls and leaves running status alone (SPEC p35). F9h and FDh are undefined, F4h
 // and F5h too, and those two clear running status as System Common and SysEx do (SPEC p65). Any status byte but Real
 // Time ends a SysEx (SPEC p80)
-void MidiOut::Write(u8 value)
+void MidiOut::Write(u8 value, u8 source)
 {
+    m_trace_source = source;
+
     if (value >= 0xF8)
     {
         if ((value != 0xF9) && (value != 0xFD))
@@ -257,8 +262,26 @@ void MidiOut::Detect(const u8* data, int size)
         m_state.detected = GDOX_MIDI_SYNTH_MT32;
 }
 
+void MidiOut::SetTraceLogger(TraceLogger* trace_logger)
+{
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+}
+
+void MidiOut::TraceMessage(const u8* data, int size)
+{
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_MIDI, TRACE_MIDI_OUT);
+    entry->midi.source = m_trace_source;
+    entry->midi.length = (u16)MIN(size, 0xFFFF);
+    entry->midi.count = (u8)MIN(size, 24);
+    entry->midi.value = data[0];
+    memcpy(entry->midi.bytes, data, entry->midi.count);
+}
+
 void MidiOut::Emit(const u8* data, int size)
 {
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_MIDI, TRACE_MIDI_OUT)))
+        TraceMessage(data, size);
+
     if (data[0] == 0xF0)
         Detect(data, size);
 

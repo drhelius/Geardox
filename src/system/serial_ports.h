@@ -63,7 +63,8 @@ private:
     void UpdateModemLines(int index, u64 clocks);
     void UpdateIRQ();
     void UpdateEvent();
-    void TraceEvent(u8 event, int index, u8 reg, u8 value, u8 flags);
+    NO_INLINE void WriteTraced(int index, u8 reg, u8 value, u64 clocks);
+    NO_INLINE void TraceEvent(u8 event, int index, u8 reg, u8 value, u8 flags);
     void Serialize(StateSerializer& serializer);
 
 private:

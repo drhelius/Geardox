@@ -129,6 +129,8 @@ GeardoxCore::GeardoxCore()
     m_dev_magic_breakpoint = false;
     m_dev_stop_at_entry = false;
     m_debug_recheck = false;
+    m_trace_stopped = false;
+    m_trace_frame = 0xFFFFFFFF;
     m_game_timing = GDOX_MACHINE_AUTO;
     ResolveMachineConfig();
     m_machine_config = m_pending_machine_config;
@@ -337,6 +339,7 @@ void GeardoxCore::Init()
     m_key_mapper->Init(m_key_map);
     m_gamepad_keys->Init(m_input, &GeardoxCore::GamepadKeyCallback, this);
     m_trace_logger->Init(&m_scheduler->GetState()->clocks);
+    m_trace_logger->SetPCSource(m_i386->GetCodeBasePointer(), m_i386->GetEIPPointer());
     m_profiler->Init(&m_scheduler->GetState()->clocks);
     m_i386->SetTraceLogger(m_trace_logger);
     m_i386->SetProfiler(m_profiler);
@@ -351,6 +354,10 @@ void GeardoxCore::Init()
     m_audio->SetTraceLogger(m_trace_logger);
     m_fdc->SetTraceLogger(m_trace_logger);
     m_ide->SetTraceLogger(m_trace_logger);
+    m_cdrom_audio->SetTraceLogger(m_trace_logger);
+    m_pci_bus->SetTraceLogger(m_trace_logger);
+    m_debug_console->SetTraceLogger(m_trace_logger, 0x0402);
+    m_dev_port->SetTraceLogger(m_trace_logger);
     m_input->SetTraceLogger(m_trace_logger);
     m_ps2_mouse->SetTraceLogger(m_trace_logger);
     m_serial_ports->SetTraceLogger(m_trace_logger);
@@ -405,9 +412,24 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
 
     bool debugging = debugger && IsValidPointer(debug);
     m_trace_logger->SetActive(debugging);
+
+    if (unlikely(m_trace_logger->IsRecording()))
+    {
+        if (m_trace_stopped && !debug->step_debugger && !debug->step_over)
+        {
+            m_trace_logger->Mark(TRACE_MARK_CONTINUE, frame_start);
+            m_trace_stopped = false;
+        }
+
+        if (m_video->GetState()->frame_count != m_trace_frame)
+        {
+            m_trace_frame = m_video->GetState()->frame_count;
+            m_trace_logger->Mark(TRACE_MARK_FRAME, m_trace_frame);
+        }
+    }
     m_profiler->SetActive(debugging);
     m_i386->EnableDebuggerChecks(debugging);
-    m_dma->SetDebugCallback(debugging ? &GeardoxCore::DMADebugCallback : NULL, m_i386);
+    m_dma->SetDebugCallback(debugging && m_i386->HasDebuggerMemoryChecks() ? &GeardoxCore::DMADebugCallback : NULL, m_i386);
 
     if (debugging)
     {
@@ -666,6 +688,12 @@ NO_INLINE bool GeardoxCore::AcceptDebuggerHit(GDOX_Debug_Run* debug)
 
 void GeardoxCore::StopDebugger(GDOX_Debug_Run* debug, bool breakpoint)
 {
+    if (breakpoint || (!debug->step_debugger && !debug->step_over))
+    {
+        m_trace_logger->Mark(TRACE_MARK_STOP, m_scheduler->GetClocks(), 0, breakpoint ? 1 : 0);
+        m_trace_stopped = true;
+    }
+
     debug->stopped = true;
     debug->breakpoint_hit = breakpoint;
     m_debug_step = GDOX_DEBUG_STEP_NONE;
@@ -702,6 +730,7 @@ INLINE GDOX_Bus_Access_Context GeardoxCore::BeginSlice()
     context.synchronize = &GeardoxCore::SynchronizeIOCallback;
     context.synchronize_memory = &GeardoxCore::SynchronizeMemoryCallback;
     context.poll_port = &GeardoxCore::PollPortCallback;
+    context.trace_clocks = &GeardoxCore::TraceClocksCallback;
     context.synchronize_context = this;
     m_video->BeginSlice();
     return context;
@@ -783,6 +812,11 @@ u32 GeardoxCore::PollPortCallback(void* core, u16 port, int width)
     return scheduler->GetCyclesBefore(MIN(stable, scheduler->GetNextEventClocks()));
 }
 
+u64 GeardoxCore::TraceClocksCallback(void* core, u32 cycles)
+{
+    return ((GeardoxCore*)core)->m_scheduler->GetClocksAfter(cycles);
+}
+
 // A halted CPU idles through the slice
 // Events due by the end of the slice run before the CPU samples INTR at its boundary
 // The debugger holds the IRQ back when the slice hit a breakpoint, so it stops right after the instruction
@@ -834,6 +868,8 @@ INLINE bool GeardoxCore::EnterPendingInterrupt(GDOX_Bus_Access_Context& context)
 
 INLINE void GeardoxCore::DispatchEvents()
 {
+    m_trace_logger->SetDispatching(true);
+
     while (m_scheduler->IsEventDue())
     {
         u64 clocks = m_scheduler->GetClocks();
@@ -864,7 +900,10 @@ INLINE void GeardoxCore::DispatchEvents()
 
                 // A block can outlast several frames, and the frame loop only looks between slices
                 if (m_video->IsFrameReady())
+                {
+                    m_trace_logger->SetDispatching(false);
                     return;
+                }
 
                 break;
             case SCHEDULER_EVENT_AUDIO:
@@ -877,6 +916,8 @@ INLINE void GeardoxCore::DispatchEvents()
                 break;
         }
     }
+
+    m_trace_logger->SetDispatching(false);
 }
 
 bool GeardoxCore::PowerOn()
@@ -1196,16 +1237,13 @@ void GeardoxCore::DebugWritePort(u16 port, u32 value, int size)
 {
     GDOX_Bus_Access_Context context = BeginSlice();
 
-    if (m_trace_logger->IsEventEnabled(TRACE_IO, TRACE_IO_WRITE))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_IO, TRACE_IO_WRITE)))
     {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_IO;
-        entry.event = TRACE_IO_WRITE;
-        entry.io.pc = m_i386->GetCurrentLinearPC();
-        entry.io.value = value;
-        entry.io.port = port;
-        entry.io.size = (u8)(size >> 3);
-        m_trace_logger->TraceLog(entry);
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_IO, TRACE_IO_WRITE);
+        entry->flags |= TRACE_ENTRY_DEBUGGER;
+        entry->io.value = value;
+        entry->io.port = port;
+        entry->io.size = (u8)(size >> 3);
     }
 
     if (size == 8)
@@ -1888,6 +1926,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     }
 
     ApplyBusTiming();
+    m_trace_logger->Mark(TRACE_MARK_STATE_LOAD, m_scheduler->GetClocks());
     return true;
 }
 
@@ -2305,6 +2344,7 @@ void GeardoxCore::Reset()
 // Only the CPU restarts, memory, A20 and devices keep their state
 void GeardoxCore::ResetCPU()
 {
+    m_trace_logger->Mark(TRACE_MARK_RESET, m_scheduler->GetClocks(), 0, 1);
     m_system_control->AcknowledgeCPUReset();
     m_i386->Reset();
 }

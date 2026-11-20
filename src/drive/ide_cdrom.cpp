@@ -82,7 +82,8 @@ IdeCdRom::IdeCdRom()
     InitPointer(m_cdrom_media);
     InitPointer(m_cdrom_audio);
     InitPointer(m_audio);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
+    m_trace_features = 0;
     memset(&m_state, 0, sizeof(m_state));
     m_state.event_clocks = GDOX_NO_EVENT;
     m_fitted = false;
@@ -107,7 +108,7 @@ void IdeCdRom::Init(int id, CdRomMedia* cdrom_media, CdRomAudio* cdrom_audio, Au
 
 void IdeCdRom::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 void IdeCdRom::SetFitted(bool fitted, int id, int speed)
@@ -290,7 +291,8 @@ void IdeCdRom::Finish()
 
     m_state.status = (u8)((m_state.drdy ? GetReadyBits() : 0) | (m_state.check ? k_ide_cdrom_status_chk : 0));
     m_state.interrupt = true;
-    Trace(TRACE_CDROM_COMPLETE);
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_CDROM)))
+        Trace(TRACE_CDROM_COMPLETE);
 }
 
 // Every ATA command but PACKET and SERVICE stops a play (SFF-8020i 2.6 Table 74)
@@ -315,7 +317,8 @@ void IdeCdRom::Execute(u8 command, u8 features, u64 clocks)
     m_state.result = 0;
     m_state.event_clocks = GDOX_NO_EVENT;
     m_state.status = k_ide_status_bsy;
-    Trace(TRACE_CDROM_COMMAND);
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_CDROM)))
+        Trace(TRACE_CDROM_COMMAND);
 
     if ((command != k_ide_cdrom_command_packet) && (command != k_ide_cdrom_command_service))
         StopPlay(clocks);
@@ -373,6 +376,8 @@ void IdeCdRom::Execute(u8 command, u8 features, u64 clocks)
 // since ATA-4's later abort for it would fail that driver
 void IdeCdRom::StartPacket(u8 features, u64 clocks)
 {
+    m_trace_features = features;
+
     if ((features & 0x03) != 0)
     {
         Abort(clocks);
@@ -518,7 +523,8 @@ void IdeCdRom::EndDataIn(u64 clocks)
     m_state.block_length = 0;
     m_state.ata_data = false;
     m_state.status = GetReadyBits();
-    Trace(TRACE_CDROM_COMPLETE);
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_CDROM)))
+        Trace(TRACE_CDROM_COMPLETE);
 }
 
 bool IdeCdRom::ReadData(u16& value, u64 clocks)
@@ -603,6 +609,12 @@ void IdeCdRom::ReleaseReset(u64 clocks)
 {
     if (m_fitted)
         Schedule(IDE_CDROM_PHASE_RESET, clocks + k_cdrom_reset_clocks);
+
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_RESET)) && m_fitted)
+    {
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_CDROM, TRACE_CDROM_RESET);
+        entry->cdrom.flags = (u8)m_id;
+    }
 }
 
 // A unit attention goes to the first command that can report it, which clears it. UDVD2 never asks for sense
@@ -612,7 +624,8 @@ void IdeCdRom::ExecutePacket(u64 clocks)
 {
     u8 op = m_state.packet[0];
     m_state.packet_run = true;
-    Trace(TRACE_CDROM_PACKET);
+    if (unlikely(m_trace_logger->IsEnabled(TRACE_CDROM)))
+        Trace(TRACE_CDROM_PACKET);
     SyncAudio(clocks);
 
     bool spinning = m_state.spinning_up && (clocks < m_state.ready_clocks);
@@ -774,6 +787,8 @@ bool IdeCdRom::CheckReady(u64 clocks)
         }
 
         m_state.spinning_up = false;
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
         TraceMedia(TRACE_CDROM_MEDIA_READY);
     }
 
@@ -852,6 +867,8 @@ void IdeCdRom::CommandStartStop(u64 clocks)
         m_state.tray_open = true;
         m_state.spinning_up = false;
         m_state.ahead_end = m_state.ahead_lba;
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
         TraceMedia(TRACE_CDROM_MEDIA_TRAY_OPEN);
         Complete(clocks);
         return;
@@ -869,6 +886,8 @@ void IdeCdRom::CommandStartStop(u64 clocks)
     {
         m_state.motor_on = false;
         m_state.ahead_end = m_state.ahead_lba;
+        if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
+            if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
         TraceMedia(TRACE_CDROM_MEDIA_STOP);
         Complete(clocks);
         return;
@@ -1064,7 +1083,9 @@ void IdeCdRom::StageSectors(u64 clocks)
         return;
     }
 
-    TraceData(first, m_state.lba);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_DATA)))
+        TraceData(first, m_state.lba);
+
     StartBlock();
 }
 
@@ -1974,7 +1995,7 @@ u64 IdeCdRom::GetArrivalClocks(u32 lba) const
 void IdeCdRom::InsertDisc(u64 clocks)
 {
     if (IsValidPointer(m_cdrom_audio))
-        m_cdrom_audio->Stop();
+        m_cdrom_audio->Stop(TRACE_CDDA_STOP_INSERT);
 
     m_state.audio_active = false;
     m_state.audio_status = IDE_CDROM_AUDIO_NONE;
@@ -1985,7 +2006,8 @@ void IdeCdRom::InsertDisc(u64 clocks)
     m_state.unit_attention = 0x28;
     m_state.head_lba = 0;
     m_state.ahead_end = m_state.ahead_lba;
-    TraceMedia(TRACE_CDROM_MEDIA_INSERT);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
+        TraceMedia(TRACE_CDROM_MEDIA_INSERT);
 }
 
 // A host eject works even when software prevents removal, as the emergency eject hole does
@@ -1994,14 +2016,15 @@ void IdeCdRom::EjectDisc(u64 clocks)
     UNUSED(clocks);
 
     if (IsValidPointer(m_cdrom_audio))
-        m_cdrom_audio->Stop();
+        m_cdrom_audio->Stop(TRACE_CDDA_STOP_EJECT);
 
     m_state.audio_active = false;
     m_state.audio_status = IDE_CDROM_AUDIO_NONE;
     m_state.tray_open = true;
     m_state.spinning_up = false;
     m_state.ahead_end = m_state.ahead_lba;
-    TraceMedia(TRACE_CDROM_MEDIA_EJECT);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
+        TraceMedia(TRACE_CDROM_MEDIA_EJECT);
 
     if (m_state.media_read && (m_state.phase != IDE_CDROM_PHASE_IDLE) && (m_state.phase != IDE_CDROM_PHASE_COMPLETE))
     {
@@ -2017,7 +2040,8 @@ void IdeCdRom::CloseTray(u64 clocks)
         return;
 
     m_state.tray_open = false;
-    TraceMedia(TRACE_CDROM_MEDIA_TRAY_CLOSE);
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA)))
+        TraceMedia(TRACE_CDROM_MEDIA_TRAY_CLOSE);
 
     if (!HasDisc())
         return;
@@ -2031,60 +2055,62 @@ void IdeCdRom::CloseTray(u64 clocks)
 
 void IdeCdRom::Trace(u8 event)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_CDROM, event))
+    u8 command = m_state.packet_run ? m_state.packet[0] : m_state.command;
+    bool polling = m_state.packet_run && (command == 0x00 || command == 0x4A || command == 0xBD);
+
+    if (polling && event != TRACE_CDROM_COMMAND)
+        event = TRACE_CDROM_POLL;
+
+    if (!m_trace_logger->IsEventEnabled(TRACE_CDROM, event))
         return;
 
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_CDROM;
-    entry.event = event;
-    entry.cdrom.flags = (u8)m_id;
-    entry.cdrom.command = m_state.packet_run ? m_state.packet[0] : m_state.command;
-    entry.cdrom.value = m_state.status;
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_CDROM, event);
+    entry->cdrom.flags = (u8)m_id;
+    entry->cdrom.command = command;
+    entry->cdrom.value = m_state.status;
+    entry->cdrom.features = m_trace_features;
+    entry->cdrom.limit = (u16)(m_state.byte_count_low | ((u16)m_state.byte_count_high << 8));
 
-    if (event == TRACE_CDROM_PACKET)
-        memcpy(entry.cdrom.bytes, m_state.packet, IDE_CDROM_PACKET_SIZE);
-    else if (event == TRACE_CDROM_COMPLETE)
+    if (event == TRACE_CDROM_PACKET || event == TRACE_CDROM_POLL)
+        memcpy(entry->cdrom.bytes, m_state.packet, IDE_CDROM_PACKET_SIZE);
+
+    if (event == TRACE_CDROM_COMPLETE || (event == TRACE_CDROM_POLL && m_state.interrupt))
     {
-        entry.cdrom.bytes[0] = m_state.check ? m_state.sense_key : 0;
-        entry.cdrom.bytes[1] = m_state.check ? m_state.sense_asc : 0;
-        entry.cdrom.bytes[2] = m_state.check ? m_state.sense_ascq : 0;
-        entry.cdrom.bytes[3] = m_state.error;
-        entry.cdrom.bytes[4] = m_state.packet_run ? 1 : 0;
+        entry->cdrom.sense[0] = m_state.check ? m_state.sense_key : 0;
+        entry->cdrom.sense[1] = m_state.check ? m_state.sense_asc : 0;
+        entry->cdrom.sense[2] = m_state.check ? m_state.sense_ascq : 0;
+        entry->cdrom.bytes[3] = m_state.error;
+        entry->cdrom.bytes[4] = m_state.packet_run ? 1 : 0;
+        entry->cdrom.bytes[5] = 1;
+
+        if (m_state.packet_run && command == 0x03 && !m_state.check)
+        {
+            entry->cdrom.sense[0] = m_state.buffer[2] & 0x0F;
+            entry->cdrom.sense[1] = m_state.buffer[12];
+            entry->cdrom.sense[2] = m_state.buffer[13];
+            entry->cdrom.bytes[6] = 1;
+        }
     }
     else if (event == TRACE_CDROM_COMMAND)
-        entry.cdrom.bytes[0] = m_state.reason;
-
-    m_trace_logger->TraceLog(entry);
+        entry->cdrom.bytes[0] = m_state.reason;
 }
 
 void IdeCdRom::TraceData(u32 first, u32 end)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_DATA))
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_CDROM;
-    entry.event = TRACE_CDROM_DATA;
-    entry.cdrom.flags = (u8)m_id;
-    entry.cdrom.command = m_state.packet[0];
-    entry.cdrom.lba = first;
-    entry.cdrom.end_lba = end;
-    entry.cdrom.size = (u16)MIN(m_state.length, 0xFFFFU);
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_CDROM, TRACE_CDROM_DATA);
+    entry->cdrom.flags = (u8)m_id;
+    entry->cdrom.command = m_state.packet[0];
+    entry->cdrom.lba = first;
+    entry->cdrom.end_lba = end;
+    entry->cdrom.size = m_state.length;
 }
 
 void IdeCdRom::TraceMedia(u8 kind)
 {
-    if (!IsValidPointer(m_trace_logger) || !m_trace_logger->IsEventEnabled(TRACE_CDROM, TRACE_CDROM_MEDIA))
-        return;
-
-    GDOX_Trace_Entry entry = {};
-    entry.type = TRACE_CDROM;
-    entry.event = TRACE_CDROM_MEDIA;
-    entry.cdrom.flags = (u8)m_id;
-    entry.cdrom.value = kind;
-    entry.cdrom.lba = m_state.head_lba;
-    m_trace_logger->TraceLog(entry);
+    GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_CDROM, TRACE_CDROM_MEDIA);
+    entry->cdrom.flags = (u8)m_id;
+    entry->cdrom.value = kind;
+    entry->cdrom.lba = m_state.head_lba;
 }
 
 void IdeCdRom::SaveState(std::ostream& stream)

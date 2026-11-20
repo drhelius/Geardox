@@ -31,6 +31,7 @@
 class Memory;
 class Scheduler;
 class TraceLogger;
+struct GDOX_Trace_Entry;
 class StateSerializer;
 
 typedef bool (*GDOX_DMA_Read_Fn)(void* device, u16& value, bool word);
@@ -96,8 +97,9 @@ private:
     void NotifyChange(u16 port, int chip, int reg, u8 value);
     void UpdateNextEvent();
     void CheckUnsupported();
-    void TraceWrite(u16 port, int chip, int reg, u8 value);
-    void TraceEvent(u8 event, int channel, u8 reg, u8 value, bool terminal);
+    NO_INLINE void TraceWrite(u16 port, int chip, int reg, u8 value);
+    NO_INLINE void TraceUnsupported(int chip, int reg, u8 value);
+    GDOX_Trace_Entry* TraceEvent(u8 event, int channel, u8 reg, u8 value, bool terminal);
     void Serialize(StateSerializer& serializer, int version);
     void SanitizeState();
 

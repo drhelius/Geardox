@@ -29,7 +29,7 @@ static const u8 k_game_port_flightstick_codes[8] = { 0x00, 0x40, 0x80, 0xC0, 0xE
 GamePort::GamePort()
 {
     InitPointer(m_input);
-    InitPointer(m_trace_logger);
+    m_trace_logger = TraceLogger::GetDisabled();
     Reset();
 }
 
@@ -45,7 +45,7 @@ void GamePort::Init(Input* input)
 
 void GamePort::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = trace_logger;
+    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
 }
 
 // The one-shots are idle, so their bits read 0 until the first fire
@@ -90,21 +90,19 @@ void GamePort::Write(u64 clocks)
         m_state.pulse_end[i] = IsAxisConnected(type, i) ? clocks + GetPulseClocks(GetAxisPosition(type, i)) : GDOX_NO_EVENT;
     }
 
-    if (IsValidPointer(m_trace_logger) && m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_JOYSTICK_FIRE))
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_INPUT, TRACE_INPUT_JOYSTICK_FIRE)))
     {
-        GDOX_Trace_Entry entry = {};
-        entry.type = TRACE_INPUT;
-        entry.event = TRACE_INPUT_JOYSTICK_FIRE;
-        entry.input.device = TRACE_INPUT_DEVICE_JOYSTICK;
-        entry.input.count = GDOX_JOYSTICK_AXIS_COUNT;
+        GDOX_Trace_Entry* entry = m_trace_logger->Begin(TRACE_INPUT, TRACE_INPUT_JOYSTICK_FIRE);
+        entry->input.device = TRACE_INPUT_DEVICE_JOYSTICK;
+        entry->input.count = GDOX_JOYSTICK_AXIS_COUNT;
+        entry->input.switches = (u8)GetSwitches(m_state.latched);
 
         for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
         {
             u64 pulse = m_state.pulse_end[i] == GDOX_NO_EVENT ? 0 : m_state.pulse_end[i] - clocks;
-            entry.input.data[i] = (u8)MIN((pulse * 1000000 / GDOX_MACHINE_CLOCK_RATE) / 5, (u64)255);
+            entry->input.data[i] = (u8)MIN((pulse * 1000000 / GDOX_MACHINE_CLOCK_RATE) / 5, (u64)255);
+            entry->input.positions[i] = IsAxisConnected(type, i) ? GetAxisPosition(type, i) : 0;
         }
-
-        m_trace_logger->TraceLog(entry);
     }
 }
 
