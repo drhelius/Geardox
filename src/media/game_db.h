@@ -3663,7 +3663,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MONKEY.EXE\n"
-        "args = v mo i\n"
+        "args = v a\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
