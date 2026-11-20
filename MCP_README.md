@@ -22,7 +22,7 @@ This server provides tools for game development, rom hacking, translation, rever
 - **Game Descriptors**: Load a `.gdox` descriptor, a folder or ZIP with one or that the game database recognises, or a game's DOS program, to open its game with its machine and DOS settings, choose whether it runs the game, its setup or the DOS prompt, and read what was applied
 - **Bookmarks**: Memory and disassembler bookmarks for navigation
 - **Call Stack**: View calls, interrupts and exceptions with their vectors
-- **Trace Logger**: CPU instruction trace with interleaved hardware events (interrupts, I/O ports, PIC, timers, DMA, video, FM, PCM, mixer, MIDI, CD-ROM, FDC, IDE, keyboard, mouse and joystick, serial, parallel, system), in memory or streamed to disk
+- **Trace Logger**: CPU instruction trace with interleaved hardware events (interrupts and exceptions, mode, paging and task switches, I/O ports, PIC, timers, DMA, video, FM, PCM, mixer, MIDI, CD-ROM, FDC, IDE with the file a sector belongs to, keyboard, mouse and joystick, serial, parallel, system, PCI, debug console), each with the address of the code behind it, in memory or streamed to disk. Only the instruction stream steps the CPU; device and I/O streams record while the dynarec runs
 - **Profiler**: Per-function and per-interrupt-vector call counts, calls per frame, and inclusive/exclusive cycle statistics
 - **Screenshot Capture**: Get current frame as PNG image
 - **Video Recording**: Record emulated video and audio to AVI files on disk
@@ -472,8 +472,8 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `close_key_mapper` - Close the keyboard mapper, saving the game's bindings
 
 ### Trace Logger (`trace`)
-- `get_trace_log` - Read trace logger entries (CPU + hardware events) using absolute sequence pagination, with `enabled` and, after a reset, power or media change stopped the logger, `stopped_by`. Use `set_trace_log` to start or stop the logger
-- `set_trace_log` - Start or stop trace logging and configure exact event filters and memory or disk storage
+- `get_trace_log` - Read trace logger entries (CPU + hardware events) using absolute sequence pagination, with `enabled` and `stopped_by` when something stopped it. Optional `types` (filter groups, plus `mark`), `contains` (text), `pc_range` (linear hex `start-end` of the code behind each entry) and `compact` (CPU lines without registers, segments, flags, bytes and linear address). Use `set_trace_log` to start or stop the logger
+- `set_trace_log` - Start or stop trace logging and configure exact event filters, capture filters (`code`, `ports`, `interrupts`), `keep_across_resets` and memory or disk storage
 
 #### Trace pagination
 
@@ -486,7 +486,9 @@ Results report the `linear` address, and `logical` and `physical` addresses wher
 - `next_sequence`: absolute sequence to pass as the next `start`.
 - `count`: number of returned entries.
 - `overrun`: `true` when a requested `start` had expired and was clamped to `oldest_sequence`.
-- `lines`: formatted trace entries in sequence order, each starting with the machine clock and the clocks since the previous entry (`@000000012345 +42`, or `RESET` when the clock went back). Instruction lines carry the linear address, CS:EIP, general and segment registers, EFLAGS, Intel syntax and bytes.
+- `overwritten`: entries the memory ring dropped since it was cleared.
+- `lines`: formatted trace entries in sequence order, each starting with the machine clock and the signed clocks since the previous entry (`@000000012345 +42`). An event stamped at its own time (a timer edge found during a catch-up, a palette load, an interrupt inside a batch) can come before the line above it, with a negative delta. Instruction lines carry the linear address, CS:EIP, general and segment registers, EFLAGS, Intel syntax and bytes.
+- `scanned` and `sequences`: with `types`, `contains` or `pc_range`, up to 500000 entries are scanned from `start`; `sequences` gives the sequence of each returned line and `next_sequence` where to go on.
 
 When `start` is omitted, the latest 100 retained entries are returned. A negative `start` requests that many entries from the retained tail. Positive starts are absolute sequences. `count` defaults to 100 and is capped at 1000. A requested sequence older than `oldest_sequence` starts at the oldest retained entry and sets `overrun` to `true`. A sequence at or beyond `total_logged` returns an empty page with `start` and `next_sequence` equal to the requested value and `overrun` set to `false`.
 
@@ -497,87 +499,52 @@ Memory-mode counters shown in the GUI and written by manual export use the same 
 Omitting `filters` enables the default of CPU instructions, IRQs and exceptions. When supplied, `filters` must be non-empty and unique. Each entry is one of these streams, or a group name, the part before the dot (`cpu`, `io`, `fdc`...), which enables all of its streams:
 
 ```text
-cpu.instructions
-cpu.irqs
-cpu.exceptions
-cpu.software_ints
-io.reads
-io.writes
-pic.requests
-pic.mask
-pic.commands
-pic.init
-timer.timeouts
-timer.counters
-timer.speaker
-dma.registers
-dma.requests
-dma.ends
-video.crtc
-video.output
-video.palette
-video.vsync
-video.missed_vblank
-video.blt
-fm.key
-fm.frequency
-fm.operators
-fm.channels
-fm.global
-fm.timers
-pcm.commands
-pcm.transfers
-pcm.irqs
-mixer.volume
-mixer.control
-midi.data
-midi.commands
-midi.messages
-cdrom.packets
-cdrom.status
-cdrom.data
-cdrom.media
-cdrom.cdda
-fdc.commands
-fdc.results
-fdc.drives
-ide.commands
-ide.results
-ide.resets
-keyboard.keys
-keyboard.reads
-keyboard.commands
-input.changes
-input.commands
-input.packets
-input.fires
-serial.writes
-serial.data
-serial.control
-parallel.data
-parallel.control
-system.reset
-system.a20
-system.control
-system.post
-system.rtc
-gus.registers
-gus.irqs
-gus.dma
-gus.latches
+cpu.instructions      cpu.irqs              cpu.exceptions        cpu.software_ints
+cpu.modes             cpu.returns           cpu.msrs
+io.reads              io.writes             io.polls              io.denied
+pic.requests          pic.mask              pic.commands          pic.init
+pic.spurious          pic.line_low
+timer.timeouts        timer.counters        timer.speaker         timer.reads
+dma.registers         dma.requests          dma.ends              dma.unsupported
+video.mode            video.crtc            video.output          video.datapath
+video.dac             video.palette_load    video.palette         video.vsync
+video.frame           video.status          video.missed_vblank   video.blt
+video.blt_registers
+fm.key                fm.frequency          fm.operators          fm.channels
+fm.global             fm.timers
+pcm.commands          pcm.transfers         pcm.irqs              pcm.resets
+pcm.direct
+mixer.volume          mixer.control         mixer.reads
+midi.out              midi.data             midi.commands         midi.messages
+cdrom.packets         cdrom.status          cdrom.data            cdrom.media
+cdrom.cdda            cdrom.resets          cdrom.polls
+fdc.commands          fdc.results           fdc.drives            fdc.sectors
+ide.commands          ide.results           ide.resets
+keyboard.keys         keyboard.reads        keyboard.commands     keyboard.bytes
+keyboard.empty_reads
+input.changes         input.commands        input.packets         input.fires
+serial.writes         serial.data           serial.control        serial.reads
+parallel.data         parallel.control      parallel.strobes
+system.reset          system.a20            system.control        system.post
+system.rtc            system.rtc_reads      system.pci            system.console
+gus.registers         gus.irqs              gus.dma               gus.latches
 ```
 
-Hardware events are decoded as the guest sees them: register names and fields, IRQ lines and vectors, DMA channels, ATAPI packet commands, FDC commands and results, IDE commands, keyboard messages with the key name, mouse packets and joystick buttons. Video register writes carry the beam line and dot.
+`cpu.instructions` is the only stream that runs the machine one instruction at a time. Every other stream records while the frame runs batched with the dynarec, with times as exact as the stepped run: I/O and the events it causes are stamped at the access, scheduler events at their time, interrupt and exception entries with the CPU's time inside the batch. `io.polls` writes one `POLL` line per collapsed polling loop (port, value, count, cycles) instead of one line per read.
+
+Hardware events are decoded as the guest sees them: register names per adapter (VGA, EGA, Cirrus, 6845), the value the chip kept next to the byte written when they differ, IRQ lines and vectors with the line an EOI cleared, DMA blocks with base, length and auto-init, ATAPI packets decoded by command, FDC commands and results per command, IDE commands per command with the DOS file a sector belongs to on a FAT disk, keyboard bytes with the scan set, mouse packets, MIDI messages as the synth gets them, DSP commands by name. Video register writes carry the beam line and dot. `[MARK]` lines mark frames, debugger stops and continues, state loads, resets, power and media changes and the debugger turning off.
+
+Capture filters cut what is recorded, not only what is shown. `code` takes up to 4 linear hex ranges of the instructions recorded, like `F0000-FFFFF`, and up to 4 excluded ones with `!`. `ports` takes up to 4 port ranges and 4 excluded ones (`388-389 !3DA`), with `:r` or `:w` for one direction. `interrupts` takes up to 8 software INT vectors, each with `:AH` (two hex digits) or `:AX` (four), like `21:3D 31 2F:1687`. Giving any of the three replaces all three; empty strings record everything. They persist in the configuration and the Trace Logger window's Capture menu shows them.
 
 `video.missed_vblank` detects frames where the game missed VBlank. It watches one linear address, set with `vblank_watch_address` (hex, e.g. `1234ABCD`, `0x1234ABCD`, or `$1234ABCD`), for the access set with `vblank_watch_operation` (`read`, `write`, or `read_write`). CPU data accesses count, instruction fetches do not. At each VSYNC the frame that just ended is checked, and if the watched access did not happen during it, a `VBLANK MISSED` entry is logged with the watched address, operation, and the number of consecutive missed frames. The first VSYNC after starting the logger, changing the watch, resetting, or loading a state only arms the check. Both parameters persist in the configuration and keep their current values when omitted; the response echoes them when `video.missed_vblank` is active.
 
-The trace logger records while the debugger runs the machine, so `set_trace_log` with `enabled` true turns the debugger on, opens the Trace Logger window and starts recording. Memory output allocates its buffer when recording starts. Entry times are machine clocks (the 28.636 MHz timebase, twice the 14.318 MHz master clock, not CPU cycles), and an event inside an instruction carries the instruction's start time.
+The trace logger records while the debugger runs the machine, so `set_trace_log` with `enabled` true turns the debugger on, opens the Trace Logger window and starts recording. Memory output allocates its buffer when recording starts. Entry times are machine clocks (the 28.636 MHz timebase, twice the 14.318 MHz master clock, not CPU cycles), and an event inside an instruction carries the instruction's start time. Each entry is 96 bytes.
 
 #### Trace storage
 
 Starting a stopped logger without `output` selects `memory`. Memory capacities are `100K`, `500K`, `1M`, `2M`, and `5M` entries; the persisted default is `100K`. Disk limits are `10MB`, `50MB`, `100MB`, `250MB`, `500MB`, `1GB`, and `unbounded`; the persisted default is `100MB`.
 
-Storage changes while tracing is active cleanly stop and restart the logger. Repeating the active storage configuration is idempotent and only updates filters. Stopping preserves retained memory entries; changing memory capacity or starting disk output resets the ring used by that recording. Resets, power cycles and media changes stop the logger.
+Storage changes while tracing is active cleanly stop and restart the logger. Repeating the active storage configuration is idempotent and only updates filters. Stopping preserves retained memory entries; changing memory capacity or starting disk output resets the ring used by that recording. Resets, power cycles and media changes write a `[MARK]` line and recording goes on; with `keep_across_resets` false they stop the logger and `stopped_by` says which. Disk output stops when its staging buffer overflows and the window shows how many entries were lost.
 
 `output_path` is a directory only, not a filename. Geardox creates a unique timestamped trace filename in that directory. When omitted, the configured default, media, or custom directory policy remains in effect.
 
