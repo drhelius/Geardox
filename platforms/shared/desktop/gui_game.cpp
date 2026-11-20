@@ -92,6 +92,7 @@ void gui_game_menu(void)
     ImGui::Separator();
     menu_boot(open && !loading);
     menu_files(open);
+    ImGui::Separator();
 
     if (ImGui::MenuItem("Last Save Report...", NULL, false, emu_game_get_last_write_back().done ||
         emu_game_get_last_write_back().refused))

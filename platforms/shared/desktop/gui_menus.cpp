@@ -979,19 +979,23 @@ static void menu_machine(void)
     if (menu_machine_fpu(profile))
         changed = true;
 
-    if (menu_machine_floppy(0))
-        changed = true;
+    ImGui::Separator();
 
-    if (menu_machine_floppy(1))
+    if (menu_machine_video())
         changed = true;
 
     if (menu_machine_sound())
         changed = true;
 
-    if (menu_machine_video())
+    if (menu_machine_mouse())
         changed = true;
 
-    if (menu_machine_mouse())
+    ImGui::Separator();
+
+    if (menu_machine_floppy(0))
+        changed = true;
+
+    if (menu_machine_floppy(1))
         changed = true;
 
     ImGui::BeginDisabled(emu_game_is_open());
@@ -1006,6 +1010,8 @@ static void menu_machine(void)
 
     if (menu_machine_drive_timing())
         changed = true;
+
+    ImGui::Separator();
 
     menu_machine_hardware(core->GetPendingMachineConfig());
 
@@ -1041,8 +1047,6 @@ static void menu_machine(void)
         ImGui::EndTooltip();
     }
 
-    ImGui::Separator();
-
     if (ImGui::MenuItem("BIOS Boot Menu", "", &config_emulator.bios_boot_menu))
         emu_apply_bios_settings();
 
@@ -1051,8 +1055,6 @@ static void menu_machine(void)
             "Reset the emulator to apply changes.");
 
 #if !defined(GDOX_DISABLE_DYNAREC)
-
-    ImGui::Separator();
 
     if (ImGui::MenuItem("CPU Dynarec", "", &config_emulator.dynarec))
         emu_set_dynarec(config_emulator.dynarec);
@@ -2275,6 +2277,54 @@ static void menu_video(void)
             ImGui::EndTooltip();
         }
 
+        ImGui::Separator();
+
+        if (ImGui::BeginMenu("Vertical Sync"))
+        {
+#if defined(_WIN32)
+            const char* sync_modes = "Disabled\0Fixed Vertical Sync\0Variable Refresh Rate (VRR)\0\0";
+#else
+            const char* sync_modes = "Disabled\0Enabled\0\0";
+#endif
+            ImGui::PushItemWidth(get_combo_items_width(sync_modes));
+
+            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, sync_modes))
+            {
+                if (config_video.sync_mode != config_VideoSync_Disabled)
+                {
+                    config_audio.sync = true;
+                    config_emulator.ffwd = false;
+                    emu_audio_reset();
+                }
+
+                display_use_vsync_if_enabled();
+            }
+
+            ImGui::PopItemWidth();
+
+#if defined(_WIN32)
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::Text("Disabled: do not synchronize presentation to the monitor.");
+                ImGui::Text("Fixed Vertical Sync: use normal VSync.");
+                ImGui::Text("VRR: present at the emulator frame rate.");
+                ImGui::Text("\nVRR requires fullscreen, a VRR display, and G-SYNC,");
+                ImGui::Text("FreeSync, or Adaptive Sync enabled in your monitor and GPU driver settings.");
+                ImGui::EndTooltip();
+            }
+#endif
+            ImGui::EndMenu();
+        }
+
+        ImGui::MenuItem("Show FPS", "", &config_video.fps);
+
+        ImGui::Separator();
+
+        gui_shader_menu();
+
+        ImGui::Separator();
+
         int cga_source = emu_game_get_source("machine", "cga_output");
 
         if (begin_game_menu("CGA Output", cga_source))
@@ -2327,52 +2377,6 @@ static void menu_video(void)
             ImGui::PopItemWidth();
             ImGui::EndMenu();
         }
-
-        ImGui::Separator();
-
-        if (ImGui::BeginMenu("Vertical Sync"))
-        {
-#if defined(_WIN32)
-            const char* sync_modes = "Disabled\0Fixed Vertical Sync\0Variable Refresh Rate (VRR)\0\0";
-#else
-            const char* sync_modes = "Disabled\0Enabled\0\0";
-#endif
-            ImGui::PushItemWidth(get_combo_items_width(sync_modes));
-
-            if (ImGui::Combo("##sync_mode", &config_video.sync_mode, sync_modes))
-            {
-                if (config_video.sync_mode != config_VideoSync_Disabled)
-                {
-                    config_audio.sync = true;
-                    config_emulator.ffwd = false;
-                    emu_audio_reset();
-                }
-
-                display_use_vsync_if_enabled();
-            }
-
-            ImGui::PopItemWidth();
-
-#if defined(_WIN32)
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::BeginTooltip();
-                ImGui::Text("Disabled: do not synchronize presentation to the monitor.");
-                ImGui::Text("Fixed Vertical Sync: use normal VSync.");
-                ImGui::Text("VRR: present at the emulator frame rate.");
-                ImGui::Text("\nVRR requires fullscreen, a VRR display, and G-SYNC,");
-                ImGui::Text("FreeSync, or Adaptive Sync enabled in your monitor and GPU driver settings.");
-                ImGui::EndTooltip();
-            }
-#endif
-            ImGui::EndMenu();
-        }
-
-        ImGui::MenuItem("Show FPS", "", &config_video.fps);
-
-        ImGui::Separator();
-
-        gui_shader_menu();
 
         ImGui::Separator();
 
