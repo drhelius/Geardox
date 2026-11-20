@@ -11,3 +11,6 @@ args = Vga Roland MT-32
 
 [machine]
 model = 386dx_33
+
+[sound]
+midi = mt32

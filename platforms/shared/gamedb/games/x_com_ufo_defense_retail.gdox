@@ -8,3 +8,6 @@ folder = C:\UFO
 [run]
 exe = UFO.BAT
 setup = SETUP.EXE
+
+[sound]
+midi = mt32

@@ -10,5 +10,8 @@ exe = DUNEPRG.EXE
 args = SPA VGA SDB2225 EMS 386
 setup = INSTALL.EXE
 
+[sound]
+midi = mt32
+
 [dos]
 memory = ems

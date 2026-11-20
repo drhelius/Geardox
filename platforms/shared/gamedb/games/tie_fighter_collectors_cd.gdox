@@ -5,6 +5,9 @@ version = 1
 name = Star Wars: TIE Fighter Collector's CD
 folder = C:\
 
+[sound]
+midi = gm
+
 [input]
 joystick = standard
 

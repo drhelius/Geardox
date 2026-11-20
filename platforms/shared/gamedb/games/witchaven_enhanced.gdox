@@ -8,3 +8,6 @@ folder = C:\WHAVEN
 [run]
 exe = EGWH1.EXE
 setup = EGSETUP.EXE
+
+[sound]
+midi = gm

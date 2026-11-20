@@ -9,6 +9,9 @@ folder = C:\
 exe = D:\UW2\UW2.EXE
 setup = D:\INSTALL2.EXE
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024
 

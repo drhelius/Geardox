@@ -12,5 +12,8 @@ setup = INSTALL.EXE
 [machine]
 model = 486sx_33
 
+[sound]
+midi = mt32
+
 [dos]
 system = msdos

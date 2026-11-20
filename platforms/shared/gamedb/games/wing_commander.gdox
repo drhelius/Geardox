@@ -11,6 +11,9 @@ exe = WC.EXE
 [machine]
 model = 386sx_20
 
+[sound]
+midi = mt32
+
 [input]
 joystick = standard
 

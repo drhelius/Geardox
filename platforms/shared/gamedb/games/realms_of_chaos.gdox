@@ -8,3 +8,6 @@ folder = C:\ROC
 [run]
 exe = ROC.EXE
 setup = SETUP.EXE
+
+[sound]
+midi = gm

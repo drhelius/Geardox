@@ -8,5 +8,8 @@ folder = C:\CD
 [run]
 exe = D:\SW.EXE
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024

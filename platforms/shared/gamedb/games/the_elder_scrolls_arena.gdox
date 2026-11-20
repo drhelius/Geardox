@@ -13,6 +13,9 @@ args = -Ssbpdig.adv -IOS220 -IRQS5 -DMAS1 -Mgenmidi.adv -IOM330 -IRQM2 -DMAM1
 model = 486sx_33
 ram_mb = 32
 
+[sound]
+midi = gm
+
 [dos]
 ems_kb = 2048
 

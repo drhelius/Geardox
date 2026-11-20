@@ -8,3 +8,6 @@ folder = C:\
 [run]
 exe = MISSION.EXE
 setup = SETSOUND.EXE
+
+[sound]
+midi = gm

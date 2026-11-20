@@ -7,3 +7,6 @@ folder = C:\
 
 [run]
 exe = SCIV.EXE
+
+[sound]
+midi = mt32

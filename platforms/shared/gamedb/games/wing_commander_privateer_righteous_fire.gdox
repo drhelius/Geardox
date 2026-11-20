@@ -9,5 +9,8 @@ folder = C:\
 exe = PRIV.EXE
 args = r
 
+[sound]
+midi = gm
+
 [dos]
 ems_kb = 1024

@@ -10,3 +10,6 @@ exe = SWARS\MAIN.EXE
 args = /w /g
 cwd = SWARS
 setup = SWARS\SETSOUND.EXE
+
+[sound]
+midi = gm

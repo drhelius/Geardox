@@ -7,3 +7,6 @@ folder = C:\SIERRA\KQ4
 
 [run]
 exe = SCIV.EXE
+
+[sound]
+midi = mt32

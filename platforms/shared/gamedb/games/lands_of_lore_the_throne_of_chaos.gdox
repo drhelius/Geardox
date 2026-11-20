@@ -9,5 +9,8 @@ folder = C:\
 exe = LOLCD.EXE
 setup = SETUP.EXE
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024

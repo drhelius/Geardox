@@ -13,5 +13,8 @@ setup = SPELLJAM\SOUND.EXE
 [machine]
 model = 386sx_20
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024

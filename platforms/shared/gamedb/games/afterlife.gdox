@@ -12,3 +12,6 @@ setup = SETUPDOS.EXE
 [machine]
 model = pentium_75
 ram_mb = 16
+
+[sound]
+midi = gm

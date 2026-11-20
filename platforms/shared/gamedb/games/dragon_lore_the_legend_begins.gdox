@@ -11,3 +11,6 @@ args = AMR S162225 HIM WRIC:\
 
 [machine]
 model = 386dx_33
+
+[sound]
+midi = gm

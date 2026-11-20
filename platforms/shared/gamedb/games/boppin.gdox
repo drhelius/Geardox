@@ -8,3 +8,6 @@ folder = C:\BOPPIN
 [run]
 exe = BOPPIN.EXE
 setup = SETUP.EXE
+
+[sound]
+midi = gm

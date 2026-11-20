@@ -8,3 +8,6 @@ folder = C:\CURSE
 [run]
 exe = CURSE.EXE
 setup = SETUP.EXE
+
+[sound]
+midi = mt32

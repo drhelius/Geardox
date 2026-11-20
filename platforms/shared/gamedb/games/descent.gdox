@@ -8,3 +8,6 @@ folder = C:\
 [run]
 exe = DESCENT.BAT
 setup = SETUP.EXE
+
+[sound]
+midi = gm

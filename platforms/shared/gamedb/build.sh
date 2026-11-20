@@ -71,8 +71,11 @@ def descriptor(entry, path):
         strip = line.strip()
         if strip.startswith("[") and strip.endswith("]"):
             section = strip[1:-1].strip().lower()
-            if section in RELEASE_SECTIONS:
+            if section in RELEASE_SECTIONS and section != "sound":
                 fail("[%s]: the descriptor has [%s], which belongs to releases" % (entry, section))
+        elif "=" in strip and section == "sound":
+            if strip.split("=", 1)[0].strip().lower() != "midi":
+                fail("[%s]: the descriptor's [sound] can only have midi, the rest belongs to releases" % entry)
         elif "=" in strip and section == "game":
             key, value = [x.strip() for x in strip.split("=", 1)]
             if key.lower() == "source":

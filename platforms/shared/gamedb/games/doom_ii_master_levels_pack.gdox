@@ -8,3 +8,6 @@ folder = C:\DOOM2
 [run]
 exe = DOOM2.EXE
 setup = SETUP.EXE
+
+[sound]
+midi = gm

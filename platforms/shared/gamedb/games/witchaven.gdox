@@ -8,3 +8,6 @@ folder = C:\WHAVEN
 [run]
 exe = WH.EXE
 setup = SETUP.EXE
+
+[sound]
+midi = gm

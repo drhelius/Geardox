@@ -15,6 +15,9 @@ setup = CONFIG\MAIN.EXE
 model = 386dx_33
 ram_mb = 16
 
+[sound]
+midi = gm
+
 [autoexec]
 CD \GAME
 INTRO -C:/THEME.CD

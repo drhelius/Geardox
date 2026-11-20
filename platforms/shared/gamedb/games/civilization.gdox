@@ -7,3 +7,6 @@ folder = C:\CIV
 
 [run]
 exe = CIV.EXE
+
+[sound]
+midi = mt32

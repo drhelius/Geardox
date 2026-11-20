@@ -9,3 +9,6 @@ folder = C:\
 exe = DOOM2\DOOM2.EXE
 args = -config ..\default.cfg
 setup = SETUP.EXE
+
+[sound]
+midi = gm

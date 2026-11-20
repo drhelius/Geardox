@@ -9,5 +9,8 @@ folder = C:\BTHORNE
 exe = BTHORNE.EXE
 setup = SETUP.EXE
 
+[sound]
+midi = gm
+
 [dos]
 ems_kb = 2048

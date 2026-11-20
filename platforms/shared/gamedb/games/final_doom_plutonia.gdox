@@ -9,3 +9,6 @@ folder = C:\
 exe = PLUTONIA\FINAL.EXE
 args = -config ..\default.cfg
 setup = SETUP.EXE
+
+[sound]
+midi = gm

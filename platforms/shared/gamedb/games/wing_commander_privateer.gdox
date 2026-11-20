@@ -8,5 +8,8 @@ folder = C:\
 [run]
 exe = PRIV.EXE
 
+[sound]
+midi = gm
+
 [dos]
 ems_kb = 1024

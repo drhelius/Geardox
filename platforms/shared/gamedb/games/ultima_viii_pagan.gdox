@@ -8,3 +8,6 @@ folder = C:\
 [run]
 exe = U8.EXE
 setup = INSTALL.EXE
+
+[sound]
+midi = gm

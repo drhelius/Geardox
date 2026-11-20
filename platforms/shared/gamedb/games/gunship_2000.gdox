@@ -11,3 +11,6 @@ model = 386dx_33
 [run]
 exe = MPS\GS2000CD\GS2000.COM
 setup = MPS\GS2000CD\SETUP.EXE
+
+[sound]
+midi = mt32

@@ -12,3 +12,6 @@ setup = SETSOUND.EXE
 [machine]
 model = pentium_75
 ram_mb = 32
+
+[sound]
+midi = gm

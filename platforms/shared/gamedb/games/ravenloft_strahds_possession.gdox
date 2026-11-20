@@ -8,3 +8,6 @@ folder = C:\
 [run]
 exe = RLOFT\R.EXE
 setup = RLOFT\SINSTALL.EXE
+
+[sound]
+midi = gm

@@ -7,3 +7,6 @@ folder = C:\
 
 [run]
 exe = ATLANTIS.EXE
+
+[sound]
+midi = mt32

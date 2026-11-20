@@ -8,3 +8,6 @@ folder = C:\XENO
 [run]
 exe = XPR.BAT
 setup = SETUP.BAT
+
+[sound]
+midi = gm

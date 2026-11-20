@@ -7,3 +7,6 @@ folder = C:\SILENT
 
 [run]
 exe = SILENT.BAT
+
+[sound]
+midi = mt32

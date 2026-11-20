@@ -8,3 +8,6 @@ folder = C:\DISCWLD
 [run]
 exe = DISC.BAT
 setup = CONFIG.BAT
+
+[sound]
+midi = gm

@@ -13,5 +13,8 @@ setup = SOUND.BAT
 [machine]
 model = 486sx_33
 
+[sound]
+midi = gm
+
 [dos]
 ems_kb = 1024

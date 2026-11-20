@@ -11,5 +11,8 @@ exe = SWORDS.EXE
 [machine]
 ram_mb = 32
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024

@@ -9,5 +9,8 @@ folder = C:\MARTIAN
 exe = MARTIAN.EXE
 setup = INSTALL.EXE
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024

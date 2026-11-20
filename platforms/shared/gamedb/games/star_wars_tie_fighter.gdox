@@ -9,5 +9,8 @@ folder = C:\
 exe = TIE.EXE
 setup = INSTALL.EXE
 
+[sound]
+midi = gm
+
 [dos]
 ems_kb = 2048

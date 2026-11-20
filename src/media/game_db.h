@@ -81,7 +81,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
-        "ram_mb = 16\n" },
+        "ram_mb = 16\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "albion", "Albion",
         "[geardox]\n"
         "version = 1\n"
@@ -92,7 +95,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ALBION.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "alien_breed", "Alien Breed",
         "[geardox]\n"
         "version = 1\n"
@@ -106,7 +112,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = CONFIG.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "alien_breed_2", "Alien Breed 2",
         "[geardox]\n"
         "version = 1\n"
@@ -205,7 +214,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ANVIL.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "apache_longbow", "Apache Longbow",
         "[geardox]\n"
         "version = 1\n"
@@ -356,6 +368,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = BTHORNE.EXE\n"
         "setup = SETUP.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = gm\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 2048\n" },
     { "blake_stone_aliens_of_gold", "Blake Stone: Aliens of Gold",
@@ -393,7 +408,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
-        "ram_mb = 16\n" },
+        "ram_mb = 16\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "boppin", "Boppin'",
         "[geardox]\n"
         "version = 1\n"
@@ -404,7 +422,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BOPPIN.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "call_of_cthulhu_prisoner_of_ice", "Call of Cthulhu: Prisoner of Ice",
         "[geardox]\n"
         "version = 1\n"
@@ -418,7 +439,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = CD\\ICE640.EXE -config\n"
         "\n"
         "[machine]\n"
-        "model = pentium_75\n" },
+        "model = pentium_75\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "cannon_fodder", "Cannon Fodder",
         "[geardox]\n"
         "version = 1\n"
@@ -433,6 +457,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[autoexec]\n"
         "INTRO.EXE\n" },
@@ -526,7 +553,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = START.EXE\n"
         "\n"
         "[machine]\n"
-        "video = ega\n" },
+        "video = ega\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "civilization", "Civilization",
         "[geardox]\n"
         "version = 1\n"
@@ -536,7 +566,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\CIV\n"
         "\n"
         "[run]\n"
-        "exe = CIV.EXE\n" },
+        "exe = CIV.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "constructor", "Constructor",
         "[geardox]\n"
         "version = 1\n"
@@ -660,7 +693,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = CURSE.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "curse_of_the_azure_bonds", "Curse of the Azure Bonds",
         "[geardox]\n"
         "version = 1\n"
@@ -739,6 +775,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386dx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "dark_sun_wake_of_the_ravager", "Dark Sun: Wake of the Ravager",
@@ -757,6 +796,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 486sx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = gm\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "darklands", "Darklands",
@@ -773,6 +815,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 176\n" },
@@ -830,7 +875,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DESCENT.BAT\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "descent_2", "Descent 2",
         "[geardox]\n"
         "version = 1\n"
@@ -844,7 +892,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_75\n" },
+        "model = pentium_75\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "discworld", "Discworld",
         "[geardox]\n"
         "version = 1\n"
@@ -855,7 +906,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DISC.BAT\n"
-        "setup = CONFIG.BAT\n" },
+        "setup = CONFIG.BAT\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "doom", "The Ultimate DOOM",
         "[geardox]\n"
         "version = 1\n"
@@ -866,7 +920,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "doom_ii", "DOOM II: Hell on Earth",
         "[geardox]\n"
         "version = 1\n"
@@ -878,7 +935,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DOOM2\\DOOM2.EXE\n"
         "args = -config ..\\default.cfg\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "doom_ii_master_levels", "DOOM II: Master Levels",
         "[geardox]\n"
         "version = 1\n"
@@ -889,7 +949,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MASTER\\DOOMIT.BAT\n"
-        "setup = DOOM2\\SETUP.EXE\n" },
+        "setup = DOOM2\\SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "doom_ii_master_levels_pack", "DOOM II: Hell on Earth",
         "[geardox]\n"
         "version = 1\n"
@@ -900,7 +963,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "doom_registered", "Doom",
         "[geardox]\n"
         "version = 1\n"
@@ -911,7 +977,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "dragon_lore_the_legend_begins", "Dragon Lore: The Legend Begins",
         "[geardox]\n"
         "version = 1\n"
@@ -925,7 +994,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "args = AMR S162225 HIM WRIC:\\\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "dragons_of_flame", "Dragons of Flame",
         "[geardox]\n"
         "version = 1\n"
@@ -956,6 +1028,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 2048\n" },
@@ -1020,7 +1095,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_133\n" },
+        "model = pentium_133\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "duke_nukem_3d_atomic_edition", "Duke Nukem 3D: Atomic Edition",
         "[geardox]\n"
         "version = 1\n"
@@ -1034,7 +1112,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_133\n" },
+        "model = pentium_133\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "duke_nukem_ii", "Duke Nukem II",
         "[geardox]\n"
         "version = 1\n"
@@ -1058,6 +1139,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "args = SPA VGA SDB2225 EMS 386\n"
         "setup = INSTALL.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "memory = ems\n" },
     { "dungeon_hack", "Dungeon Hack",
@@ -1074,6 +1158,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -1191,7 +1278,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = AESOP.EXE\n"
         "args = eye start\n"
-        "setup = SOUND.EXE\n" },
+        "setup = SOUND.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "f117a_nighthawk_stealth_fighter_2", "F-117A Nighthawk Stealth Fighter 2.0",
         "[geardox]\n"
         "version = 1\n"
@@ -1205,7 +1295,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "f19_stealth_fighter", "F-19 Stealth Fighter",
         "[geardox]\n"
         "version = 1\n"
@@ -1253,7 +1346,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = PLUTONIA\\FINAL.EXE\n"
         "args = -config ..\\default.cfg\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "final_doom_plutonia_experiment", "Final Doom: The Plutonia Experiment",
         "[geardox]\n"
         "version = 1\n"
@@ -1264,7 +1360,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "final_doom_tnt", "Final DOOM: TNT Evilution",
         "[geardox]\n"
         "version = 1\n"
@@ -1276,7 +1375,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = TNT\\FINAL.EXE\n"
         "args = -config ..\\default.cfg\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "final_doom_tnt_evilution", "Final Doom: TNT Evilution",
         "[geardox]\n"
         "version = 1\n"
@@ -1287,7 +1389,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "flashback", "Flashback",
         "[geardox]\n"
         "version = 1\n"
@@ -1310,7 +1415,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = CKIT.EXE\n"
         "args = SB220 SI7 RB330\n"
-        "setup = INSTALL.EXE\n" },
+        "setup = INSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "gabriel_knight_sins_of_the_fathers", "Gabriel Knight: Sins of the Fathers",
         "[geardox]\n"
         "version = 1\n"
@@ -1372,7 +1480,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MPS\\GS2000CD\\GS2000.COM\n"
-        "setup = MPS\\GS2000CD\\SETUP.EXE\n" },
+        "setup = MPS\\GS2000CD\\SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "halloween_harry", "Halloween Harry",
         "[geardox]\n"
         "version = 1\n"
@@ -1413,7 +1524,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HERETIC.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "heroes_of_might_and_magic", "Heroes of Might and Magic",
         "[geardox]\n"
         "version = 1\n"
@@ -1424,7 +1538,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEROES.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "heroes_of_might_and_magic_2_gold", "Heroes of Might and Magic 2: Gold",
         "[geardox]\n"
         "version = 1\n"
@@ -1435,7 +1552,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEROES2.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup = INSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "heroes_of_the_lance", "Heroes of the Lance",
         "[geardox]\n"
         "version = 1\n"
@@ -1460,7 +1580,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEXEN.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "hexen_deathkings_of_the_dark_citadel", "Hexen: Deathkings of the Dark Citadel",
         "[geardox]\n"
         "version = 1\n"
@@ -1471,7 +1594,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEXENDK.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "hillsfar", "Hillsfar",
         "[geardox]\n"
         "version = 1\n"
@@ -1498,7 +1624,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "holiday_lemmings", "Holiday Lemmings",
         "[geardox]\n"
         "version = 1\n"
@@ -1532,7 +1661,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = ATLANTIS.EXE\n" },
+        "exe = ATLANTIS.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "indiana_jones_and_the_last_crusade", "Indiana Jones and the Last Crusade",
         "[geardox]\n"
         "version = 1\n"
@@ -1732,7 +1864,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\SIERRA\\KQ4\n"
         "\n"
         "[run]\n"
-        "exe = SCIV.EXE\n" },
+        "exe = SCIV.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "kings_quest_5", "King's Quest V: Absence Makes the Heart Go Yonder",
         "[geardox]\n"
         "version = 1\n"
@@ -1743,6 +1878,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SIERRA.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -1768,6 +1906,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = LOLCD.EXE\n"
         "setup = SETUP.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "laser_squad", "Laser Squad",
@@ -1779,7 +1920,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\LASER\n"
         "\n"
         "[run]\n"
-        "exe = LASER.EXE\n" },
+        "exe = LASER.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "lemmings", "Lemmings",
         "[geardox]\n"
         "version = 1\n"
@@ -1913,7 +2057,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = M.EXE\n"
-        "setup = SOUND_PM.EXE\n" },
+        "setup = SOUND_PM.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "might_and_magic_1", "Might and Magic: Book One",
         "[geardox]\n"
         "version = 1\n"
@@ -1956,7 +2103,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "might_and_magic_world_of_xeen", "Might and Magic: World of Xeen",
         "[geardox]\n"
         "version = 1\n"
@@ -1970,7 +2120,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 486sx_33\n" },
+        "model = 486sx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "might_and_magic_world_of_xeen_cd", "Might and Magic: World of Xeen (CD)",
         "[geardox]\n"
         "version = 1\n"
@@ -1986,6 +2139,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 486sx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "mission_critical", "Mission Critical",
@@ -1998,7 +2154,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MISSION.EXE\n"
-        "setup = SETSOUND.EXE\n" },
+        "setup = SETSOUND.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "monkey_island_2_lechuck_revenge", "Monkey Island 2: LeChuck Revenge",
         "[geardox]\n"
         "version = 1\n"
@@ -2008,7 +2167,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\MONKEY2\n"
         "\n"
         "[run]\n"
-        "exe = MONKEY2.EXE\n" },
+        "exe = MONKEY2.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "monster_bash_1", "Monster Bash 1",
         "[geardox]\n"
         "version = 1\n"
@@ -2103,7 +2265,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = MS.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "mystic_towers", "Mystic Towers",
         "[geardox]\n"
         "version = 1\n"
@@ -2236,6 +2401,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = D:\\PIRATESG.CD\\PIRATESG.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[autoexec]\n"
         "LH D:\\PIRATESG.CD\\CDPATCH.EXE\n" },
     { "pool_of_radiance", "Pool of Radiance",
@@ -2274,7 +2442,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "args = Vga Roland MT-32\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "populous_2", "Populous II: Trials of the Olympian Gods",
         "[geardox]\n"
         "version = 1\n"
@@ -2300,7 +2471,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\PRINCE\n"
         "\n"
         "[run]\n"
-        "exe = PRINCE.EXE\n" },
+        "exe = PRINCE.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "prince_of_persia_2_the_shadow_and_the_flame", "Prince of Persia 2: The Shadow and the Flame",
         "[geardox]\n"
         "version = 1\n"
@@ -2325,7 +2499,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_90\n" },
+        "model = pentium_90\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "puzzle_fun_pack", "Puzzle Fun-Pack",
         "[geardox]\n"
         "version = 1\n"
@@ -2408,7 +2585,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
-        "video = ega\n" },
+        "video = ega\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "quest_for_glory_1_vga", "Quest for Glory: So You Want To Be A Hero (VGA)",
         "[geardox]\n"
         "version = 1\n"
@@ -2440,7 +2620,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
-        "video = ega\n" },
+        "video = ega\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "quest_for_glory_3_wages_of_war", "Quest for Glory 3: Wages of War",
         "[geardox]\n"
         "version = 1\n"
@@ -2494,7 +2677,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RAP.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "ravenloft_stone_prophet", "Ravenloft: Stone Prophet",
         "[geardox]\n"
         "version = 1\n"
@@ -2505,7 +2691,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = PROPHET\\SP.EXE\n"
-        "setup = PROPHET\\SOUND_PM.EXE\n" },
+        "setup = PROPHET\\SOUND_PM.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "ravenloft_strahds_possession", "Ravenloft: Strahd's Possession",
         "[geardox]\n"
         "version = 1\n"
@@ -2516,7 +2705,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RLOFT\\R.EXE\n"
-        "setup = RLOFT\\SINSTALL.EXE\n" },
+        "setup = RLOFT\\SINSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "realm_of_thor", "Realm of Thor",
         "[geardox]\n"
         "version = 1\n"
@@ -2559,6 +2751,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 486sx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n"
         "\n"
@@ -2591,7 +2786,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ROC.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "revenge_of_thor", "Revenge of Thor",
         "[geardox]\n"
         "version = 1\n"
@@ -2615,7 +2813,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ROTT.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "sam_and_max_hit_the_road", "Sam and Max Hit the Road",
         "[geardox]\n"
         "version = 1\n"
@@ -2637,7 +2838,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SAVAGE.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup = INSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "secret_agent_1", "Secret Agent 1",
         "[geardox]\n"
         "version = 1\n"
@@ -2693,7 +2897,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = SS.BAT\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "shadow_warrior", "Shadow Warrior",
         "[geardox]\n"
         "version = 1\n"
@@ -2708,7 +2915,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "shadow_warrior_twin_dragon", "Shadow Warrior: Twin Dragon",
         "[geardox]\n"
         "version = 1\n"
@@ -2724,7 +2934,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "shadow_warrior_wanton_destruction", "Shadow Warrior: Wanton Destruction",
         "[geardox]\n"
         "version = 1\n"
@@ -2739,7 +2952,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "shadoworlds", "Shadoworlds",
         "[geardox]\n"
         "version = 1\n"
@@ -2750,6 +2966,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = D:\\SW.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -2808,7 +3027,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\SILENT\n"
         "\n"
         "[run]\n"
-        "exe = SILENT.BAT\n" },
+        "exe = SILENT.BAT\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "simcity_2000", "SimCity 2000 Special Edition",
         "[geardox]\n"
         "version = 1\n"
@@ -2861,7 +3083,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = VGA\\SCIDHUV.EXE\n"
         "cwd = VGA\n"
-        "setup = VGA\\INSTALL.EXE\n" },
+        "setup = VGA\\INSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "space_quest_2_vohauls_revenge", "Space Quest II: Vohaul's Revenge",
         "[geardox]\n"
         "version = 1\n"
@@ -2884,7 +3109,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\\n"
         "\n"
         "[run]\n"
-        "exe = SCIV.EXE\n" },
+        "exe = SCIV.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "space_quest_4", "Space Quest 4: Roger Wilco and the Time Rippers",
         "[geardox]\n"
         "version = 1\n"
@@ -2934,6 +3162,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386sx_20\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "star_control", "Star Control",
@@ -2946,7 +3177,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STARCON.EXE\n"
-        "setup = KEYS.EXE\n" },
+        "setup = KEYS.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "star_control_2", "Star Control 2",
         "[geardox]\n"
         "version = 1\n"
@@ -2960,7 +3194,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = KEYS.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "star_control_2_super_melee", "Star Control 2 Super-Melee",
         "[geardox]\n"
         "version = 1\n"
@@ -2974,7 +3211,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = KEYS.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "star_control_iii", "Star Control III",
         "[geardox]\n"
         "version = 1\n"
@@ -2989,7 +3229,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "star_general", "Star General",
         "[geardox]\n"
         "version = 1\n"
@@ -3116,6 +3359,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = TIE.EXE\n"
         "setup = INSTALL.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = gm\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 2048\n" },
     { "star_wars_x_wing", "Star Wars: X-Wing",
@@ -3183,7 +3429,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = STRONG.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "stunt_island", "Stunt Island",
         "[geardox]\n"
         "version = 1\n"
@@ -3194,7 +3443,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STUNT.EXE\n"
-        "setup = INSTALL.EXE -S\n" },
+        "setup = INSTALL.EXE -S\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "supernova", "SuperNova",
         "[geardox]\n"
         "version = 1\n"
@@ -3217,7 +3469,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = SWORD.EXE\n"
         "\n"
         "[machine]\n"
-        "video = ega\n" },
+        "video = ega\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "swords_of_xeen", "Might and Magic - Swords of Xeen",
         "[geardox]\n"
         "version = 1\n"
@@ -3231,6 +3486,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -3259,7 +3517,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = SWARS\\MAIN.EXE\n"
         "args = /w /g\n"
         "cwd = SWARS\n"
-        "setup = SWARS\\SETSOUND.EXE\n" },
+        "setup = SWARS\\SETSOUND.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "system_shock", "System Shock",
         "[geardox]\n"
         "version = 1\n"
@@ -3273,7 +3534,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "system_shock_cd", "System Shock (CD)",
         "[geardox]\n"
         "version = 1\n"
@@ -3287,7 +3551,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SSHOCK\\INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "terminal_velocity", "Terminal Velocity",
         "[geardox]\n"
         "version = 1\n"
@@ -3310,7 +3577,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DQK.EXE\n"
         "args = SB220 SI7 RB330\n"
-        "setup = INSTALL.EXE\n" },
+        "setup = INSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "the_elder_scrolls_adventures_redguard", "The Elder Scrolls Adventures: Redguard",
         "[geardox]\n"
         "version = 1\n"
@@ -3346,6 +3616,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "model = 486sx_33\n"
         "ram_mb = 32\n"
         "\n"
+        "[sound]\n"
+        "midi = gm\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 2048\n"
         "\n"
@@ -3366,7 +3639,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
-        "ram_mb = 64\n" },
+        "ram_mb = 64\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "the_lost_adventures_of_kroz", "The Lost Adventures Of Kroz",
         "[geardox]\n"
         "version = 1\n"
@@ -3387,7 +3663,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MONKEY.EXE\n"
-        "args = v mo i\n" },
+        "args = v mo i\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "the_settlers_2_gold", "The Settlers II Gold Edition",
         "[geardox]\n"
         "version = 1\n"
@@ -3401,7 +3680,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "ram_mb = 16\n" },
+        "ram_mb = 16\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "the_summoning", "The Summoning",
         "[geardox]\n"
         "version = 1\n"
@@ -3415,7 +3697,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.COM\n"
         "\n"
         "[machine]\n"
-        "model = 386dx_33\n" },
+        "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "theme_hospital", "Theme Hospital",
         "[geardox]\n"
         "version = 1\n"
@@ -3426,7 +3711,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HOSPITAL.EXE\n"
-        "setup = SOUND\\SETSOUND.EXE\n" },
+        "setup = SOUND\\SETSOUND.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "theme_park", "Theme Park",
         "[geardox]\n"
         "version = 1\n"
@@ -3445,6 +3733,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "model = 386dx_33\n"
         "ram_mb = 16\n"
         "\n"
+        "[sound]\n"
+        "midi = gm\n"
+        "\n"
         "[autoexec]\n"
         "CD \\GAME\n"
         "INTRO -C:/THEME.CD\n" },
@@ -3455,6 +3746,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[game]\n"
         "name = Star Wars: TIE Fighter Collector's CD\n"
         "folder = C:\\\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n"
         "\n"
         "[input]\n"
         "joystick = standard\n"
@@ -3476,7 +3770,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "tomb_raider", "Tomb Raider",
         "[geardox]\n"
         "version = 1\n"
@@ -3577,7 +3874,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "ram_mb = 32\n" },
+        "ram_mb = 32\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "ultima_7_serpent_isle", "Ultima VII - Serpent Isle",
         "[geardox]\n"
         "version = 1\n"
@@ -3592,6 +3892,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "system = msdos\n" },
@@ -3609,6 +3912,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "system = msdos\n" },
@@ -3684,6 +3990,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = MARTIAN.EXE\n"
         "setup = INSTALL.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "ultima_underworld_i", "Ultima Underworld: The Stygian Abyss",
@@ -3696,6 +4005,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = D:\\UW\\UW.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n"
@@ -3719,6 +4031,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = D:\\UW2\\UW2.EXE\n"
         "setup = D:\\INSTALL2.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n"
@@ -3755,7 +4070,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 386sx_20\n" },
+        "model = 386sx_20\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "ultima_viii_pagan", "Ultima VIII: Pagan",
         "[geardox]\n"
         "version = 1\n"
@@ -3766,7 +4084,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = U8.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup = INSTALL.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "wacky_wheels", "Wacky Wheels",
         "[geardox]\n"
         "version = 1\n"
@@ -3780,7 +4101,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WW.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "war_of_the_lance", "War of the Lance",
         "[geardox]\n"
         "version = 1\n"
@@ -3806,7 +4130,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "folder = C:\\WAR2\n"
         "\n"
         "[run]\n"
-        "exe = WAR2.EXE\n" },
+        "exe = WAR2.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "warcraft_orcs_and_humans", "Warcraft: Orcs and Humans",
         "[geardox]\n"
         "version = 1\n"
@@ -3817,7 +4144,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WAR.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "warlords_ii_deluxe", "Warlords II Deluxe",
         "[geardox]\n"
         "version = 1\n"
@@ -3861,6 +4191,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386sx_20\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[input]\n"
         "joystick = standard\n"
         "\n"
@@ -3881,6 +4214,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386dx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "wing_commander_ii_secret_operations_1", "Wing Commander II: Special Operations 1",
@@ -3898,6 +4234,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -3917,6 +4256,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386dx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "wing_commander_ii_special_operations_1", "Wing Commander II - Special Operations 1",
@@ -3934,6 +4276,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386dx_33\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "wing_commander_ii_special_operations_2", "Wing Commander II - Special Operations 2",
@@ -3950,6 +4295,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -3979,6 +4327,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = PRIV.EXE\n"
         "\n"
+        "[sound]\n"
+        "midi = gm\n"
+        "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
     { "wing_commander_privateer_righteous_fire", "Wing Commander: Privateer - Righteous Fire",
@@ -3992,6 +4343,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = PRIV.EXE\n"
         "args = r\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -4009,6 +4363,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = 386sx_20\n"
         "\n"
+        "[sound]\n"
+        "midi = mt32\n"
+        "\n"
         "[input]\n"
         "joystick = standard\n"
         "\n"
@@ -4024,7 +4381,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WH.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "witchaven_enhanced", "Witchaven (Enhanced)",
         "[geardox]\n"
         "version = 1\n"
@@ -4035,7 +4395,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = EGWH1.EXE\n"
-        "setup = EGSETUP.EXE\n" },
+        "setup = EGSETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "witchaven_ii_blood_vengeance", "Witchaven II: Blood Vengeance",
         "[geardox]\n"
         "version = 1\n"
@@ -4046,7 +4409,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WH2.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "witchaven_ii_blood_vengeance_enhanced", "Witchaven II: Blood Vengeance (Enhanced)",
         "[geardox]\n"
         "version = 1\n"
@@ -4057,7 +4423,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = EGWH2.EXE\n"
-        "setup = EGSETUP.EXE\n" },
+        "setup = EGSETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "wizardry_6", "Wizardry 6: Bane of the Cosmic Forge",
         "[geardox]\n"
         "version = 1\n"
@@ -4205,7 +4574,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_75\n" },
+        "model = pentium_75\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "x_com_ufo_defense", "X-COM: UFO Defense",
         "[geardox]\n"
         "version = 1\n"
@@ -4219,7 +4591,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 486sx_33\n" },
+        "model = 486sx_33\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "x_com_ufo_defense_retail", "X-COM: UFO Defense",
         "[geardox]\n"
         "version = 1\n"
@@ -4230,7 +4605,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = UFO.BAT\n"
-        "setup = SETUP.EXE\n" },
+        "setup = SETUP.EXE\n"
+        "\n"
+        "[sound]\n"
+        "midi = mt32\n" },
     { "xcom_terror_from_the_deep", "X-COM: Terror from the Deep",
         "[geardox]\n"
         "version = 1\n"
@@ -4256,7 +4634,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = XPR.BAT\n"
-        "setup = SETUP.BAT\n" },
+        "setup = SETUP.BAT\n"
+        "\n"
+        "[sound]\n"
+        "midi = gm\n" },
     { "xmas_lemmings", "Xmas Lemmings",
         "[geardox]\n"
         "version = 1\n"
@@ -4460,372 +4841,364 @@ const GDOX_DB_Release k_game_database_releases[] =
         "irq = 7\n" },
     { 107, 259, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = homm1.gog\n" },
-    { 108, 261, 2, 1, NULL, NULL, "[drives]\n"
-        "cdrom = homm2.ins\n"
-        "[sound]\n"
-        "midi = mt32\n" },
-    { 109, 264, 2, 0, NULL, NULL, NULL },
-    { 110, 266, 2, 1, NULL, NULL, "[drives]\n"
+    { 108, 261, 2, 0, NULL, NULL, "[drives]\n"
+        "cdrom = homm2.ins\n" },
+    { 109, 263, 2, 0, NULL, NULL, NULL },
+    { 110, 265, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 111, 269, 2, 1, NULL, NULL, "[drives]\n"
+    { 111, 268, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 112, 272, 2, 0, NULL, NULL, NULL },
-    { 113, 274, 2, 0, NULL, NULL, NULL },
-    { 113, 276, 2, 0, NULL, NULL, NULL },
-    { 114, 278, 2, 0, NULL, NULL, NULL },
-    { 115, 280, 2, 0, NULL, NULL, NULL },
-    { 116, 282, 2, 0, "OTHER>.", NULL, NULL },
-    { 117, 284, 2, 0, "_OTHER>.", NULL, NULL },
-    { 118, 286, 2, 0, NULL, NULL, NULL },
-    { 119, 288, 2, 0, NULL, NULL, NULL },
-    { 120, 290, 2, 0, NULL, NULL, NULL },
-    { 120, 292, 2, 0, NULL, NULL, NULL },
-    { 121, 294, 2, 0, NULL, NULL, NULL },
-    { 122, 296, 2, 0, NULL, NULL, NULL },
-    { 123, 298, 2, 0, NULL, NULL, NULL },
-    { 124, 300, 2, 0, NULL, NULL, "[drives]\n"
+    { 112, 271, 2, 0, NULL, NULL, NULL },
+    { 113, 273, 2, 0, NULL, NULL, NULL },
+    { 113, 275, 2, 0, NULL, NULL, NULL },
+    { 114, 277, 2, 0, NULL, NULL, NULL },
+    { 115, 279, 2, 0, NULL, NULL, NULL },
+    { 116, 281, 2, 0, "OTHER>.", NULL, NULL },
+    { 117, 283, 2, 0, "_OTHER>.", NULL, NULL },
+    { 118, 285, 2, 0, NULL, NULL, NULL },
+    { 119, 287, 2, 0, NULL, NULL, NULL },
+    { 120, 289, 2, 0, NULL, NULL, NULL },
+    { 120, 291, 2, 0, NULL, NULL, NULL },
+    { 121, 293, 2, 0, NULL, NULL, NULL },
+    { 122, 295, 2, 0, NULL, NULL, NULL },
+    { 123, 297, 2, 0, NULL, NULL, NULL },
+    { 124, 299, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n" },
-    { 125, 302, 2, 1, NULL, NULL, "[drives]\n"
+    { 125, 301, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = JA1.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 126, 305, 2, 1, "__SUPPORT/APP/CLOUD_SAVES>.", NULL, "[sound]\n"
+    { 126, 304, 2, 1, "__SUPPORT/APP/CLOUD_SAVES>.", NULL, "[sound]\n"
         "irq = 7\n"
         "gus = on\n" },
-    { 127, 308, 2, 1, NULL, NULL, "[sound]\n"
+    { 127, 307, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 128, 311, 1, 0, NULL, NULL, NULL },
-    { 129, 312, 2, 0, NULL, NULL, NULL },
-    { 130, 314, 2, 0, NULL, NULL, NULL },
-    { 131, 316, 2, 0, NULL, NULL, NULL },
-    { 132, 318, 2, 0, NULL, NULL, NULL },
-    { 133, 320, 2, 0, NULL, NULL, NULL },
-    { 134, 322, 2, 0, NULL, NULL, NULL },
-    { 135, 324, 2, 0, NULL, NULL, NULL },
-    { 136, 326, 2, 1, NULL, NULL, "[drives]\n"
+    { 128, 310, 1, 0, NULL, NULL, NULL },
+    { 129, 311, 2, 0, NULL, NULL, NULL },
+    { 130, 313, 2, 0, NULL, NULL, NULL },
+    { 131, 315, 2, 0, NULL, NULL, NULL },
+    { 132, 317, 2, 0, NULL, NULL, NULL },
+    { 133, 319, 2, 0, NULL, NULL, NULL },
+    { 134, 321, 2, 0, NULL, NULL, NULL },
+    { 135, 323, 2, 0, NULL, NULL, NULL },
+    { 136, 325, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 137, 329, 2, 0, NULL, NULL, NULL },
-    { 138, 331, 2, 0, NULL, NULL, NULL },
-    { 139, 333, 2, 0, NULL, NULL, NULL },
-    { 140, 335, 2, 1, "CLOUD_SAVES>.", NULL, "[sound]\n"
+    { 137, 328, 2, 0, NULL, NULL, NULL },
+    { 138, 330, 2, 0, NULL, NULL, NULL },
+    { 139, 332, 2, 0, NULL, NULL, NULL },
+    { 140, 334, 2, 1, "CLOUD_SAVES>.", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 141, 338, 2, 0, NULL, NULL, NULL },
-    { 142, 340, 2, 0, NULL, NULL, NULL },
-    { 143, 342, 2, 0, NULL, NULL, NULL },
-    { 143, 344, 2, 0, NULL, NULL, NULL },
-    { 144, 346, 2, 0, NULL, NULL, NULL },
-    { 144, 348, 2, 1, NULL, NULL, "[sound]\n"
+    { 141, 337, 2, 0, NULL, NULL, NULL },
+    { 142, 339, 2, 0, NULL, NULL, NULL },
+    { 143, 341, 2, 0, NULL, NULL, NULL },
+    { 143, 343, 2, 0, NULL, NULL, NULL },
+    { 144, 345, 2, 0, NULL, NULL, NULL },
+    { 144, 347, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 145, 351, 2, 2, NULL, NULL, "[sound]\n"
-        "irq = 7\n"
-        "midi = mt32\n" },
-    { 146, 355, 2, 0, NULL, NULL, NULL },
-    { 147, 357, 2, 0, NULL, NULL, NULL },
-    { 148, 359, 2, 0, NULL, NULL, NULL },
-    { 149, 361, 2, 1, NULL, NULL, "[drives]\n"
+    { 145, 350, 2, 2, NULL, NULL, "[sound]\n"
+        "irq = 7\n" },
+    { 146, 354, 2, 0, NULL, NULL, NULL },
+    { 147, 356, 2, 0, NULL, NULL, NULL },
+    { 148, 358, 2, 0, NULL, NULL, NULL },
+    { 149, 360, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
-        "irq = 7\n"
-        "midi = mt32\n" },
-    { 150, 364, 2, 0, NULL, NULL, NULL },
-    { 151, 366, 2, 0, NULL, NULL, NULL },
-    { 152, 368, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 153, 371, 2, 1, NULL, NULL, "[sound]\n"
+    { 150, 363, 2, 0, NULL, NULL, NULL },
+    { 151, 365, 2, 0, NULL, NULL, NULL },
+    { 152, 367, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 154, 374, 2, 1, NULL, NULL, "[drives]\n"
+    { 153, 370, 2, 1, NULL, NULL, "[sound]\n"
+        "irq = 7\n" },
+    { 154, 373, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME1.INS, GAME2.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 155, 377, 2, 1, NULL, NULL, "[sound]\n"
-        "midi = mt32\n" },
-    { 156, 380, 2, 0, NULL, NULL, NULL },
-    { 157, 382, 2, 0, NULL, NULL, NULL },
-    { 158, 384, 2, 0, NULL, NULL, NULL },
-    { 159, 386, 2, 0, NULL, NULL, NULL },
-    { 160, 388, 2, 0, NULL, NULL, NULL },
-    { 161, 390, 2, 0, NULL, NULL, NULL },
-    { 162, 392, 2, 0, NULL, NULL, NULL },
-    { 163, 394, 2, 0, NULL, NULL, NULL },
-    { 164, 396, 2, 0, NULL, NULL, NULL },
-    { 165, 398, 2, 0, NULL, NULL, NULL },
-    { 166, 400, 2, 0, NULL, NULL, NULL },
-    { 167, 402, 2, 0, NULL, NULL, NULL },
-    { 168, 404, 2, 0, NULL, NULL, NULL },
-    { 169, 406, 2, 0, NULL, NULL, NULL },
-    { 170, 408, 2, 0, NULL, NULL, NULL },
-    { 171, 410, 2, 0, NULL, NULL, NULL },
-    { 172, 412, 2, 0, NULL, NULL, NULL },
-    { 173, 414, 2, 0, NULL, NULL, NULL },
-    { 174, 416, 2, 0, NULL, NULL, NULL },
-    { 175, 418, 2, 1, NULL, NULL, "[drives]\n"
+    { 155, 376, 2, 0, NULL, NULL, NULL },
+    { 156, 378, 2, 0, NULL, NULL, NULL },
+    { 157, 380, 2, 0, NULL, NULL, NULL },
+    { 158, 382, 2, 0, NULL, NULL, NULL },
+    { 159, 384, 2, 0, NULL, NULL, NULL },
+    { 160, 386, 2, 0, NULL, NULL, NULL },
+    { 161, 388, 2, 0, NULL, NULL, NULL },
+    { 162, 390, 2, 0, NULL, NULL, NULL },
+    { 163, 392, 2, 0, NULL, NULL, NULL },
+    { 164, 394, 2, 0, NULL, NULL, NULL },
+    { 165, 396, 2, 0, NULL, NULL, NULL },
+    { 166, 398, 2, 0, NULL, NULL, NULL },
+    { 167, 400, 2, 0, NULL, NULL, NULL },
+    { 168, 402, 2, 0, NULL, NULL, NULL },
+    { 169, 404, 2, 0, NULL, NULL, NULL },
+    { 170, 406, 2, 0, NULL, NULL, NULL },
+    { 171, 408, 2, 0, NULL, NULL, NULL },
+    { 172, 410, 2, 0, NULL, NULL, NULL },
+    { 173, 412, 2, 0, NULL, NULL, NULL },
+    { 174, 414, 2, 0, NULL, NULL, NULL },
+    { 175, 416, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = DATA.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 176, 421, 2, 0, NULL, NULL, NULL },
-    { 177, 423, 2, 0, NULL, NULL, NULL },
-    { 178, 425, 2, 0, NULL, NULL, NULL },
-    { 179, 427, 2, 0, NULL, NULL, NULL },
-    { 180, 429, 2, 0, NULL, NULL, NULL },
-    { 181, 431, 2, 0, NULL, NULL, NULL },
+    { 176, 419, 2, 0, NULL, NULL, NULL },
+    { 177, 421, 2, 0, NULL, NULL, NULL },
+    { 178, 423, 2, 0, NULL, NULL, NULL },
+    { 179, 425, 2, 0, NULL, NULL, NULL },
+    { 180, 427, 2, 0, NULL, NULL, NULL },
+    { 181, 429, 2, 0, NULL, NULL, NULL },
+    { 182, 431, 2, 0, NULL, NULL, NULL },
     { 182, 433, 2, 0, NULL, NULL, NULL },
-    { 182, 435, 2, 0, NULL, NULL, NULL },
-    { 183, 437, 2, 0, NULL, NULL, NULL },
-    { 184, 439, 2, 0, NULL, NULL, "[drives]\n"
+    { 183, 435, 2, 0, NULL, NULL, NULL },
+    { 184, 437, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.CUE\n" },
-    { 185, 441, 2, 0, NULL, NULL, "[drives]\n"
+    { 185, 439, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAMED.CUE\n" },
-    { 186, 443, 2, 0, NULL, NULL, "[drives]\n"
+    { 186, 441, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAMEA.CUE\n" },
-    { 187, 445, 2, 0, NULL, NULL, NULL },
-    { 188, 447, 2, 0, NULL, NULL, NULL },
-    { 189, 449, 2, 0, NULL, NULL, NULL },
-    { 190, 451, 2, 0, NULL, NULL, NULL },
-    { 191, 453, 2, 0, NULL, NULL, NULL },
-    { 192, 455, 2, 0, NULL, NULL, NULL },
-    { 193, 457, 2, 0, NULL, NULL, NULL },
-    { 194, 459, 2, 0, NULL, NULL, NULL },
-    { 195, 461, 2, 1, NULL, NULL, "[drives]\n"
+    { 187, 443, 2, 0, NULL, NULL, NULL },
+    { 188, 445, 2, 0, NULL, NULL, NULL },
+    { 189, 447, 2, 1, NULL, NULL, "[sound]\n"
+        "midi = gm\n" },
+    { 190, 450, 2, 0, NULL, NULL, NULL },
+    { 191, 452, 2, 0, NULL, NULL, NULL },
+    { 192, 454, 2, 0, NULL, NULL, NULL },
+    { 193, 456, 2, 0, NULL, NULL, NULL },
+    { 194, 458, 2, 0, NULL, NULL, NULL },
+    { 195, 460, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GOG.GAME\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 196, 464, 2, 1, NULL, NULL, "[drives]\n"
+    { 196, 463, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
-        "irq = 7\n"
-        "midi = mt32\n" },
-    { 197, 467, 2, 0, NULL, NULL, NULL },
-    { 198, 469, 2, 0, NULL, NULL, "[drives]\n"
+        "irq = 7\n" },
+    { 197, 466, 2, 0, NULL, NULL, NULL },
+    { 198, 468, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n" },
-    { 199, 471, 2, 1, NULL, NULL, "[sound]\n"
+    { 199, 470, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 200, 474, 2, 1, NULL, NULL, "[sound]\n"
+    { 200, 473, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 201, 477, 2, 0, NULL, NULL, NULL },
-    { 202, 479, 2, 0, NULL, NULL, NULL },
-    { 203, 481, 2, 0, NULL, NULL, NULL },
-    { 203, 483, 2, 0, NULL, NULL, NULL },
-    { 204, 485, 2, 0, NULL, NULL, NULL },
-    { 205, 487, 2, 0, NULL, NULL, NULL },
-    { 206, 489, 2, 0, NULL, NULL, NULL },
-    { 207, 491, 2, 0, NULL, NULL, NULL },
-    { 208, 493, 2, 0, NULL, NULL, NULL },
-    { 209, 495, 2, 0, NULL, NULL, NULL },
-    { 210, 497, 2, 0, NULL, NULL, NULL },
-    { 211, 499, 2, 1, NULL, NULL, "[sound]\n"
+    { 201, 476, 2, 0, NULL, NULL, NULL },
+    { 202, 478, 2, 0, NULL, NULL, NULL },
+    { 203, 480, 2, 0, NULL, NULL, NULL },
+    { 203, 482, 2, 0, NULL, NULL, NULL },
+    { 204, 484, 2, 0, NULL, NULL, NULL },
+    { 205, 486, 2, 0, NULL, NULL, NULL },
+    { 206, 488, 2, 0, NULL, NULL, NULL },
+    { 207, 490, 2, 0, NULL, NULL, NULL },
+    { 208, 492, 2, 0, NULL, NULL, NULL },
+    { 209, 494, 2, 0, NULL, NULL, NULL },
+    { 210, 496, 2, 0, NULL, NULL, NULL },
+    { 211, 498, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 212, 502, 2, 1, NULL, NULL, "[sound]\n"
+    { 212, 501, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 213, 505, 2, 1, "WANTON.DAT>SW.EXE", NULL, "[sound]\n"
+    { 213, 504, 2, 1, "WANTON.DAT>SW.EXE", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 214, 508, 1, 0, NULL, NULL, "[drives]\n"
+    { 214, 507, 1, 0, NULL, NULL, "[drives]\n"
         "cdrom = SHADOW.img\n" },
-    { 215, 509, 2, 0, NULL, NULL, NULL },
-    { 216, 511, 2, 1, NULL, NULL, "[drives]\n"
+    { 215, 508, 2, 0, NULL, NULL, NULL },
+    { 216, 510, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = COLONIZE/COLONIZE.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 217, 514, 1, 0, NULL, NULL, NULL },
-    { 218, 515, 2, 0, NULL, NULL, NULL },
-    { 219, 517, 2, 1, NULL, NULL, "[drives]\n"
+    { 217, 513, 1, 0, NULL, NULL, NULL },
+    { 218, 514, 2, 0, NULL, NULL, NULL },
+    { 219, 516, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SC2000SE.DAT\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 220, 520, 2, 1, NULL, NULL, "[drives]\n"
+    { 220, 519, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = SC2000SE.DAT\n"
         "[sound]\n"
         "midi = mt32\n" },
-    { 221, 523, 2, 0, NULL, NULL, NULL },
-    { 222, 525, 2, 1, NULL, NULL, "[sound]\n"
+    { 221, 522, 2, 0, NULL, NULL, NULL },
+    { 222, 524, 2, 1, NULL, NULL, "[sound]\n"
         "midi = mt32\n" },
-    { 223, 528, 2, 0, NULL, NULL, NULL },
-    { 224, 530, 2, 0, NULL, NULL, NULL },
-    { 225, 532, 2, 0, NULL, NULL, NULL },
-    { 226, 534, 2, 0, NULL, NULL, NULL },
-    { 227, 536, 2, 0, NULL, NULL, NULL },
-    { 228, 538, 2, 1, NULL, NULL, "[sound]\n"
+    { 223, 527, 2, 0, NULL, NULL, NULL },
+    { 224, 529, 2, 0, NULL, NULL, NULL },
+    { 225, 531, 2, 0, NULL, NULL, NULL },
+    { 226, 533, 2, 0, NULL, NULL, NULL },
+    { 227, 535, 2, 0, NULL, NULL, NULL },
+    { 228, 537, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro2\n"
         "irq = 7\n" },
-    { 229, 541, 2, 0, NULL, NULL, NULL },
-    { 230, 543, 2, 0, NULL, NULL, NULL },
-    { 231, 545, 2, 0, NULL, NULL, NULL },
-    { 232, 547, 2, 1, NULL, NULL, "[drives]\n"
-        "cdrom = GAME.INS\n"
-        "[sound]\n"
-        "midi = mt32\n" },
-    { 233, 550, 2, 0, NULL, NULL, "[drives]\n"
+    { 229, 540, 2, 0, NULL, NULL, NULL },
+    { 230, 542, 2, 0, NULL, NULL, NULL },
+    { 231, 544, 2, 0, NULL, NULL, NULL },
+    { 232, 546, 2, 0, NULL, NULL, "[drives]\n"
+        "cdrom = GAME.INS\n" },
+    { 233, 548, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = ../../CD/STARGENE.CUE\n" },
-    { 234, 552, 2, 0, NULL, NULL, NULL },
-    { 235, 554, 2, 0, NULL, NULL, NULL },
-    { 236, 556, 2, 0, NULL, NULL, NULL },
-    { 237, 558, 2, 0, NULL, NULL, NULL },
-    { 238, 560, 2, 0, NULL, NULL, NULL },
-    { 239, 562, 2, 0, NULL, NULL, NULL },
-    { 240, 564, 2, 0, NULL, NULL, NULL },
-    { 241, 566, 2, 0, NULL, NULL, NULL },
-    { 242, 568, 2, 0, NULL, NULL, NULL },
-    { 243, 570, 2, 0, NULL, NULL, NULL },
-    { 244, 572, 2, 0, NULL, NULL, NULL },
-    { 245, 574, 2, 0, NULL, NULL, NULL },
-    { 246, 576, 2, 1, NULL, NULL, "[drives]\n"
+    { 234, 550, 2, 0, NULL, NULL, NULL },
+    { 235, 552, 2, 0, NULL, NULL, NULL },
+    { 236, 554, 2, 0, NULL, NULL, NULL },
+    { 237, 556, 2, 0, NULL, NULL, NULL },
+    { 238, 558, 2, 0, NULL, NULL, NULL },
+    { 239, 560, 2, 0, NULL, NULL, NULL },
+    { 240, 562, 2, 0, NULL, NULL, NULL },
+    { 241, 564, 2, 0, NULL, NULL, NULL },
+    { 242, 566, 2, 0, NULL, NULL, NULL },
+    { 243, 568, 2, 0, NULL, NULL, NULL },
+    { 244, 570, 2, 0, NULL, NULL, NULL },
+    { 245, 572, 2, 1, NULL, NULL, "[sound]\n"
+        "midi = gm\n" },
+    { 246, 575, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.ins\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 247, 579, 2, 0, "STARFLT>.", NULL, NULL },
-    { 248, 581, 2, 0, NULL, NULL, NULL },
-    { 249, 583, 2, 0, NULL, NULL, NULL },
-    { 250, 585, 2, 1, NULL, NULL, "[sound]\n"
+    { 247, 578, 2, 0, "STARFLT>.", NULL, NULL },
+    { 248, 580, 2, 0, NULL, NULL, NULL },
+    { 249, 582, 2, 0, NULL, NULL, NULL },
+    { 250, 584, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 251, 588, 2, 0, NULL, NULL, NULL },
-    { 252, 590, 2, 0, NULL, NULL, NULL },
-    { 253, 592, 2, 1, NULL, NULL, "[sound]\n"
+    { 251, 587, 2, 0, NULL, NULL, NULL },
+    { 252, 589, 2, 0, NULL, NULL, NULL },
+    { 253, 591, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 254, 595, 2, 1, NULL, NULL, "[sound]\n"
+    { 254, 594, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 255, 598, 2, 0, NULL, NULL, "[drives]\n"
+    { 255, 597, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = SWARS/GAME.INS\n" },
-    { 256, 600, 2, 0, NULL, NULL, NULL },
-    { 257, 602, 2, 0, NULL, NULL, "[drives]\n"
+    { 256, 599, 2, 0, NULL, NULL, NULL },
+    { 257, 601, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = CD/SystemShock.bin\n" },
-    { 258, 604, 2, 0, NULL, NULL, NULL },
-    { 258, 606, 2, 0, NULL, NULL, NULL },
-    { 259, 608, 2, 0, NULL, NULL, NULL },
-    { 260, 610, 2, 2, NULL, NULL, "[drives]\n"
+    { 258, 603, 2, 0, NULL, NULL, NULL },
+    { 258, 605, 2, 0, NULL, NULL, NULL },
+    { 259, 607, 2, 0, NULL, NULL, NULL },
+    { 260, 609, 2, 2, NULL, NULL, "[drives]\n"
         "cdrom = GAME.INS\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 261, 614, 2, 0, NULL, NULL, "[drives]\n"
+    { 261, 613, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = ./\n" },
-    { 262, 616, 2, 1, NULL, NULL, "[sound]\n"
+    { 262, 615, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 263, 619, 1, 0, NULL, NULL, NULL },
-    { 264, 620, 2, 0, NULL, NULL, NULL },
-    { 265, 622, 2, 1, NULL, NULL, "[drives]\n"
-        "cdrom = SETTLERS2.ins\n"
-        "[sound]\n"
-        "midi = mt32\n" },
-    { 266, 625, 2, 0, NULL, NULL, NULL },
-    { 267, 627, 2, 0, NULL, NULL, NULL },
-    { 268, 629, 2, 1, NULL, "GAME/MAIN.EXE 99E19 2E 3E", "[sound]\n"
+    { 263, 618, 1, 0, NULL, NULL, NULL },
+    { 264, 619, 2, 0, NULL, NULL, NULL },
+    { 265, 621, 2, 0, NULL, NULL, "[drives]\n"
+        "cdrom = SETTLERS2.ins\n" },
+    { 266, 623, 2, 0, NULL, NULL, NULL },
+    { 267, 625, 2, 0, NULL, NULL, NULL },
+    { 268, 627, 2, 1, NULL, "GAME/MAIN.EXE 99E19 2E 3E", "[sound]\n"
         "irq = 7\n" },
-    { 269, 632, 2, 1, NULL, NULL, "[drives]\n"
+    { 269, 630, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = game.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 270, 635, 2, 0, NULL, NULL, "[drives]\n"
+    { 270, 633, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n" },
-    { 271, 637, 2, 1, NULL, NULL, "[drives]\n"
+    { 271, 635, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.DAT\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 272, 640, 2, 0, NULL, NULL, NULL },
-    { 273, 642, 2, 0, NULL, NULL, NULL },
-    { 274, 644, 2, 0, NULL, NULL, NULL },
-    { 275, 646, 2, 0, NULL, NULL, NULL },
-    { 276, 648, 2, 0, NULL, NULL, NULL },
-    { 277, 650, 2, 0, NULL, NULL, NULL },
-    { 278, 652, 2, 0, NULL, NULL, NULL },
-    { 279, 654, 2, 0, NULL, NULL, NULL },
-    { 280, 656, 2, 1, "__SUPPORT/APP/SERPENT.CFG>SERPENT.CFG", NULL, "[sound]\n"
+    { 272, 638, 2, 0, NULL, NULL, NULL },
+    { 273, 640, 2, 0, NULL, NULL, NULL },
+    { 274, 642, 2, 0, NULL, NULL, NULL },
+    { 275, 644, 2, 0, NULL, NULL, NULL },
+    { 276, 646, 2, 0, NULL, NULL, NULL },
+    { 277, 648, 2, 0, NULL, NULL, NULL },
+    { 278, 650, 2, 0, NULL, NULL, NULL },
+    { 279, 652, 2, 0, NULL, NULL, NULL },
+    { 280, 654, 2, 1, "__SUPPORT/APP/SERPENT.CFG>SERPENT.CFG", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 281, 659, 2, 1, "__SUPPORT/APP/U7.CFG>U7.CFG", NULL, "[sound]\n"
+    { 281, 657, 2, 1, "__SUPPORT/APP/U7.CFG>U7.CFG", NULL, "[sound]\n"
         "irq = 7\n" },
-    { 282, 662, 2, 0, NULL, NULL, NULL },
-    { 283, 664, 2, 0, NULL, NULL, NULL },
-    { 284, 666, 2, 0, NULL, NULL, NULL },
-    { 285, 668, 2, 0, NULL, NULL, NULL },
-    { 286, 670, 2, 1, NULL, NULL, "[sound]\n"
+    { 282, 660, 2, 0, NULL, NULL, NULL },
+    { 283, 662, 2, 0, NULL, NULL, NULL },
+    { 284, 664, 2, 0, NULL, NULL, NULL },
+    { 285, 666, 2, 0, NULL, NULL, NULL },
+    { 286, 668, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 287, 673, 2, 1, NULL, NULL, "[drives]\n"
+    { 287, 671, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 288, 676, 2, 1, NULL, NULL, "[drives]\n"
+    { 288, 674, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 289, 679, 2, 0, NULL, NULL, NULL },
-    { 290, 681, 2, 0, NULL, NULL, NULL },
-    { 291, 683, 2, 1, NULL, NULL, "[sound]\n"
+    { 289, 677, 2, 0, NULL, NULL, NULL },
+    { 290, 679, 2, 0, NULL, NULL, NULL },
+    { 291, 681, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 291, 686, 2, 1, NULL, NULL, "[sound]\n"
+    { 291, 684, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 291, 689, 2, 1, NULL, NULL, "[sound]\n"
+    { 291, 687, 2, 1, NULL, NULL, "[sound]\n"
         "card = sbpro\n" },
-    { 292, 692, 2, 1, NULL, NULL, "[sound]\n"
+    { 292, 690, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 292, 695, 2, 0, NULL, NULL, NULL },
-    { 293, 697, 2, 0, NULL, NULL, NULL },
-    { 294, 699, 2, 0, NULL, NULL, "[drives]\n"
+    { 292, 693, 2, 0, NULL, NULL, NULL },
+    { 293, 695, 2, 0, NULL, NULL, NULL },
+    { 294, 697, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = DISC/WAR2.cue\n" },
-    { 295, 701, 2, 1, NULL, NULL, "[drives]\n"
+    { 295, 699, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = WAR1.CUE\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 296, 704, 2, 1, NULL, NULL, "[sound]\n"
+    { 296, 702, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 297, 707, 2, 0, NULL, NULL, NULL },
-    { 298, 709, 2, 0, NULL, NULL, NULL },
+    { 297, 705, 2, 0, NULL, NULL, NULL },
+    { 298, 707, 2, 0, NULL, NULL, NULL },
+    { 299, 709, 2, 0, NULL, NULL, NULL },
     { 299, 711, 2, 0, NULL, NULL, NULL },
-    { 299, 713, 2, 0, NULL, NULL, NULL },
-    { 300, 715, 2, 0, NULL, NULL, NULL },
-    { 301, 717, 2, 0, NULL, NULL, NULL },
-    { 302, 719, 2, 0, NULL, NULL, NULL },
-    { 303, 721, 2, 0, NULL, NULL, NULL },
-    { 304, 723, 2, 0, NULL, NULL, "[drives]\n"
+    { 300, 713, 2, 0, NULL, NULL, NULL },
+    { 301, 715, 2, 0, NULL, NULL, NULL },
+    { 302, 717, 2, 0, NULL, NULL, NULL },
+    { 303, 719, 2, 0, NULL, NULL, NULL },
+    { 304, 721, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = DATA.DAT\n" },
-    { 305, 725, 2, 0, NULL, NULL, "[drives]\n"
+    { 305, 723, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 306, 727, 2, 0, NULL, NULL, "[drives]\n"
+    { 306, 725, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = GAME.GOG\n" },
-    { 307, 729, 2, 0, NULL, NULL, NULL },
-    { 308, 731, 2, 1, NULL, NULL, "[sound]\n"
+    { 307, 727, 2, 0, NULL, NULL, NULL },
+    { 308, 729, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 309, 734, 2, 1, NULL, NULL, "[sound]\n"
+    { 309, 732, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 310, 737, 2, 1, NULL, NULL, "[drives]\n"
+    { 310, 735, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = ../../witch2.iso\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 311, 740, 2, 1, NULL, NULL, "[drives]\n"
+    { 311, 738, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = ../../witch2.iso\n"
         "[sound]\n"
         "card = sbpro\n"
         "irq = 7\n" },
-    { 312, 743, 2, 0, NULL, NULL, NULL },
-    { 313, 745, 2, 0, NULL, NULL, NULL },
-    { 314, 747, 2, 0, NULL, NULL, NULL },
-    { 315, 749, 2, 0, NULL, NULL, NULL },
-    { 316, 751, 2, 0, NULL, NULL, NULL },
-    { 317, 753, 2, 0, NULL, NULL, NULL },
-    { 318, 755, 2, 0, NULL, NULL, NULL },
-    { 319, 757, 2, 0, NULL, NULL, NULL },
-    { 320, 759, 2, 0, NULL, NULL, NULL },
-    { 321, 761, 2, 0, NULL, NULL, NULL },
-    { 322, 763, 2, 0, NULL, NULL, NULL },
-    { 323, 765, 2, 0, NULL, NULL, "[drives]\n"
+    { 312, 741, 2, 0, NULL, NULL, NULL },
+    { 313, 743, 2, 0, NULL, NULL, NULL },
+    { 314, 745, 2, 0, NULL, NULL, NULL },
+    { 315, 747, 2, 0, NULL, NULL, NULL },
+    { 316, 749, 2, 0, NULL, NULL, NULL },
+    { 317, 751, 2, 0, NULL, NULL, NULL },
+    { 318, 753, 2, 0, NULL, NULL, NULL },
+    { 319, 755, 2, 0, NULL, NULL, NULL },
+    { 320, 757, 2, 0, NULL, NULL, NULL },
+    { 321, 759, 2, 0, NULL, NULL, NULL },
+    { 322, 761, 2, 0, NULL, NULL, NULL },
+    { 323, 763, 2, 0, NULL, NULL, "[drives]\n"
         "cdrom = WORMS.DAT\n" },
-    { 324, 767, 2, 1, NULL, NULL, "[drives]\n"
+    { 324, 765, 2, 1, NULL, NULL, "[drives]\n"
         "cdrom = CD/XCOM.cue\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 325, 770, 2, 1, NULL, NULL, "[sound]\n"
+    { 325, 768, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 326, 773, 2, 1, NULL, NULL, "[sound]\n"
+    { 326, 771, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 327, 776, 2, 1, NULL, NULL, "[sound]\n"
+    { 327, 774, 2, 1, NULL, NULL, "[sound]\n"
         "irq = 7\n" },
-    { 328, 779, 2, 0, NULL, NULL, NULL },
-    { 329, 781, 2, 0, NULL, NULL, NULL },
+    { 328, 777, 2, 0, NULL, NULL, NULL },
+    { 329, 779, 2, 0, NULL, NULL, NULL },
 };
 
 const int k_game_database_release_count = 346;
@@ -5095,7 +5468,6 @@ const GDOX_DB_File k_game_database_files[] =
     { 19945814, 0x334B5A2B, "DATA/HEROES.AGG" },
     { 1503974, 0x31708061, "HEROES2.EXE" },
     { 43363026, 0xB940073F, "DATA/HEROES2.AGG" },
-    { 199, 0x7284112B, "SOUND/MDI.INI" },
     { 97005, 0xEA2A4941, "START.EXE" },
     { 64256, 0xC85FF368, "OS1234.DAT" },
     { 923019, 0xBBC55DF2, "HEXEN.EXE" },
@@ -5211,7 +5583,6 @@ const GDOX_DB_File k_game_database_files[] =
     { 29, 0xC807E993, "WORLD/XEEN.CFG" },
     { 1238417, 0x5296E523, "MISSION.EXE" },
     { 11722758, 0x955C69E0, "MISSION/Q/MC005.Q" },
-    { 216, 0x443147AD, "MDI.INI" },
     { 114195, 0xC568563E, "MONKEY2.EXE" },
     { 9093581, 0xEB123FFE, "MONKEY2.001" },
     { 75353, 0x3B320BB4, "BASH1.EXE" },
@@ -5283,6 +5654,7 @@ const GDOX_DB_File k_game_database_files[] =
     { 76179, 0xB1F69B40, "SCIV.EXE" },
     { 6570147, 0xF52EDAD3, "RESOURCE.000" },
     { 147387, 0x252C6B75, "SCIDHUV.EXE" },
+    { 258, 0xABA91ECC, "RESOURCE.CFG" },
     { 983617, 0x6639F781, "RESOURCE.004" },
     { 59150, 0xD5420A3B, "SCIV.EXE" },
     { 5868000, 0xBB23746B, "RESOURCE.000" },
@@ -5381,7 +5753,6 @@ const GDOX_DB_File k_game_database_files[] =
     { 67742, 0xC5807FF8, "MELEE.PKG" },
     { 1189325, 0xE4027C76, "SC3.EXE" },
     { 9393362, 0x632847E0, "STAR715.PIC" },
-    { 198, 0x09C6CD30, "MDI.INI" },
     { 2216607, 0xE0C59CE4, "SGDOS.EXE" },
     { 464313, 0xB4C245CD, "SHAPES/SCREENS.SHP" },
     { 33112, 0xA0F6F2AE, "TREK1.EXE" },
@@ -5408,6 +5779,7 @@ const GDOX_DB_File k_game_database_files[] =
     { 2202936, 0x31E86D7E, "RESOURCE/TIESPCH.LFD" },
     { 275053, 0x639AB115, "BWING.EXE" },
     { 940595, 0x79BB584B, "RESOURCE/SPEECH.LFD" },
+    { 26, 0xCF58EFA6, "LANDRU.CFG" },
     { 291871, 0x1FD26125, "BWING.EXE" },
     { 594916, 0x14A85307, "BFRONT.OVL" },
     { 420, 0x58825585, "SETMUSE.INI" },
@@ -5456,7 +5828,6 @@ const GDOX_DB_File k_game_database_files[] =
     { 1176686, 0x5981AD38, "DISK03.LEC" },
     { 1934962, 0x98C4E727, "S2.EXE" },
     { 598588, 0x46D1F45C, "DATA/CREDITS.LST" },
-    { 215, 0x7DE7BE4E, "DRIVERS/MDI.INI" },
     { 1476, 0xE7F6A271, "SUMMON.COM" },
     { 1721979, 0x06A2D426, "RESOURCE" },
     { 1655539, 0x72D443F6, "HOSPITAL.EXE" },
@@ -5617,7 +5988,7 @@ const GDOX_DB_File k_game_database_files[] =
     { 59992, 0xC5ECFD1A, "MAIN.DAT" },
 };
 
-const int k_game_database_file_count = 783;
+const int k_game_database_file_count = 781;
 
 const GDOX_DB_Key k_game_database_keys[] =
 {

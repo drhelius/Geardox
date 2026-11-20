@@ -7,3 +7,6 @@ folder = C:\LASER
 
 [run]
 exe = LASER.EXE
+
+[sound]
+midi = mt32

@@ -12,5 +12,8 @@ setup = WORLD\INSTALL.EXE
 [machine]
 model = 486sx_33
 
+[sound]
+midi = mt32
+
 [dos]
 ems_kb = 1024

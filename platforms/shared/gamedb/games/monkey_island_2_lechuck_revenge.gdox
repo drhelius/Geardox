@@ -7,3 +7,6 @@ folder = C:\MONKEY2
 
 [run]
 exe = MONKEY2.EXE
+
+[sound]
+midi = mt32

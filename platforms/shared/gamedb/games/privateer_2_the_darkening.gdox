@@ -11,3 +11,6 @@ setup = SETSOUND.EXE
 
 [machine]
 model = pentium_90
+
+[sound]
+midi = gm

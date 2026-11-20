@@ -11,3 +11,6 @@ setup = SETUP.EXE
 
 [machine]
 model = pentium_133
+
+[sound]
+midi = gm

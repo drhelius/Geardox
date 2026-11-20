@@ -11,3 +11,6 @@ setup = CD\ICE640.EXE -config
 
 [machine]
 model = pentium_75
+
+[sound]
+midi = gm

@@ -8,3 +8,6 @@ folder = C:\RAPTOR
 [run]
 exe = RAP.EXE
 setup = SETUP.EXE
+
+[sound]
+midi = gm

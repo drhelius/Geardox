@@ -7,3 +7,6 @@ folder = C:\WAR2
 
 [run]
 exe = WAR2.EXE
+
+[sound]
+midi = gm

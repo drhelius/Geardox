@@ -12,5 +12,8 @@ args = /f
 [machine]
 model = 386dx_33
 
+[sound]
+midi = mt32
+
 [autoexec]
 INTRO.EXE

@@ -10,3 +10,6 @@ exe = START.EXE
 
 [machine]
 video = ega
+
+[sound]
+midi = mt32

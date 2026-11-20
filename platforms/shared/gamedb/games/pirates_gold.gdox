@@ -11,5 +11,8 @@ ram_mb = 32
 [run]
 exe = D:\PIRATESG.CD\PIRATESG.EXE
 
+[sound]
+midi = mt32
+
 [autoexec]
 LH D:\PIRATESG.CD\CDPATCH.EXE
