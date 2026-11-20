@@ -91,7 +91,8 @@ full path. For example, a descriptor at `Games/Orion.gdox` with `source = Orion`
 with spaces are written without surrounding quotes.
 
 Paths in `exe`, `setup` and `cwd` are relative to the game's DOS folder. For example, `exe = GAME\ORION.EXE`
-with `folder = C:\ORION` starts `C:\ORION\GAME\ORION.EXE`.
+with `folder = C:\ORION` starts `C:\ORION\GAME\ORION.EXE`. A program on the CD takes its drive letter instead, such as
+`exe = D:\WC3.EXE`.
 
 ## Use a ZIP or CD Image
 
@@ -476,28 +477,31 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | `[game]` | Yes | The game's name, where its files are on your computer, and where they go on the DOS C: drive |
 | `[run]` | No | The program that starts the game, its setup program, and what happens when it quits |
 | `[drives]` | No | Floppy disks, extra hard disks and CDs, as in the **Drives** menu |
-| `[machine]` | No | The emulated PC: model, CPU speed, RAM, coprocessor, floppy and CD-ROM drive types, and video card |
-| `[sound]` | No | The sound card and its IRQ and DMA |
+| `[machine]` | No | The emulated PC: model, CPU clock and turbo, RAM, coprocessor, floppy and CD-ROM drives, drive timing, video card and CGA monitor |
+| `[sound]` | No | The sound card and its IRQ and DMA, the Gravis UltraSound, the MPU-401, MIDI music and the volumes |
 | `[input]` | No | The mouse and the joystick |
 | `[keys]` | No | Your keys and the PC keys they press |
 | `[pad1]`, `[pad2]` | No | The first and second gamepads: the PC keys and mouse buttons they press, and what moves the mouse |
-| `[dos]` | No | DOS memory management and other DOS settings |
+| `[dos]` | No | The DOS the game runs on, its memory management, keyboard layout and other DOS settings |
 | `[env]` | No | DOS environment variables |
 | `[config_sys]`, `[autoexec]` | No | Extra DOS startup lines |
 
 ### Editing Rules
 
-- Each section starts with a `[section]` heading, followed by `key = value` lines. Section and key names are not
-  case-sensitive, and sections can appear in any order.
+- Each section starts with a `[section]` heading, followed by `key = value` lines. Section and key names, and values
+  chosen from a list such as `on` or `sb16`, are not case-sensitive, and sections can appear in any order.
 - Paths are written without surrounding quotes and accept `/` or `\`. Paths to files on your computer, such as
   `source` and disk images, are relative to the descriptor's folder. Program paths in `[run]` are relative to
   `folder` on the DOS C: drive.
 - Spaces within a value are preserved; leading and trailing spaces are removed. Lists of disk images are separated
   by commas.
-- There is no `auto` value, except for `ems_frame`: to let Geardox choose, leave the setting out.
+- To let Geardox choose, leave the setting out. `auto` is a value only for `ems_frame`, `cga_output` and `mt32_model`,
+  where it is a choice of its own.
 - Comments occupy a whole line starting with `;` or `#`. Text after a value on the same line is part of that value.
-- Unknown settings produce a warning and are ignored. Invalid values, duplicate settings and missing required
-  settings prevent loading. Descriptors requiring a newer format version cannot be loaded.
+  In `[config_sys]` and `[autoexec]`, such lines are startup lines like any other.
+- Unknown sections and settings produce a warning and are ignored, as do lines in `[keys]`, `[pad1]` and `[pad2]` with
+  a key Geardox doesn't know. Invalid values, duplicate settings, lines without `=` or outside any section, and missing
+  required settings prevent loading. Descriptors requiring a newer format version cannot be loaded.
 - Save as UTF-8 plain text, using Windows or Unix line endings. The maximum file size is 64 KB.
 
 ### `[geardox]`
@@ -511,20 +515,22 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
 | `name` | No | The game's title, shown in the window title and used for save state names and the C: volume label | Text | The descriptor's file name | `name = Master of Orion` |
-| `folder` | Yes | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it. Each folder name has up to 8 characters, plus an optional 3-character extension, and no spaces. The first folder cannot be `FREEDOS` or `TEMP` | — | `folder = C:\ORION` |
+| `folder` | Yes | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it of up to 48 characters after `C:\`. Each folder name has up to 8 characters, plus an optional 3-character extension, made of letters, digits and ``$ % ' - _ @ ~ ` ! ( ) { } ^ # &``, without spaces. The first folder cannot be `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) | — | `folder = C:\ORION` |
 | `source` | No | The game's files on your computer | A folder, a `.zip` file, or a folder inside a ZIP | The folder or ZIP containing the descriptor | `source = Orion.zip` or `source = Collection.zip/ORION` |
 | `free_mb` | No | Free space on C: for saves and other files the game creates, in MB | `16` to `1024` | `64` | `free_mb = 256` |
 
 ### `[run]`
 
-Program paths are relative to `folder`: with `folder = C:\ORION`, `exe = ORION.EXE` runs `C:\ORION\ORION.EXE`.
+Program paths are relative to `folder`: with `folder = C:\ORION`, `exe = ORION.EXE` runs `C:\ORION\ORION.EXE`. A path
+that starts with another drive's letter, such as `exe = D:\WC3.EXE`, runs the program from that drive, for games that
+run from their CD.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
-| `exe` | No | The program that starts the game | A `.EXE`, `.COM` or `.BAT` path | None: Geardox stops at the DOS prompt | `exe = ORION.EXE` |
+| `exe` | No | The program that starts the game | A `.EXE`, `.COM` or `.BAT` path, relative to `folder` or on another drive. Without `args`, options can follow it after a space | None: Geardox stops at the DOS prompt | `exe = ORION.EXE` |
 | `args` | No | Options passed to `exe` | Text | None | `args = -nosound` |
-| `cwd` | No | The folder the game starts in, for games that must run from a folder other than their program's | A DOS path, relative to `folder` | The folder containing `exe` | `cwd = DATA` |
-| `setup` | No | The game's setup program, with any options. **Game > Boot To > Setup** runs it | A program path, optionally followed by options | None: **Boot To > Setup** is unavailable | `setup = INSTALL.EXE -S` |
+| `cwd` | No | The folder the game starts in, for games that must run from a folder other than their program's. Not used for a program on another drive | A DOS path, relative to `folder` | The folder containing `exe` | `cwd = DATA` |
+| `setup` | No | The game's setup program, with any options. **Game > Boot To > Setup** runs it | A program path as in `exe`, optionally followed by options | None: **Boot To > Setup** is unavailable | `setup = INSTALL.EXE -S` |
 | `on_exit` | No | What happens when the game quits | `prompt`: return to the DOS prompt. `poweroff`: power off the emulated PC. With **Game > Quit When a Game Powers Off**, Geardox closes too | `prompt` | `on_exit = poweroff` |
 | `boot` | No | The drive the emulated PC starts from | `c`: the hard disk. `a`: the floppy in A:, for games that boot directly from a floppy | `c` | `boot = a` |
 
@@ -536,11 +542,11 @@ game's hard disks use, Geardox moves it to the Secondary Master for that game.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
-| `floppy_a`, `floppy_b` | No | Floppy disk images for drives A: and B:. The first disk is inserted; the others can be swapped in | Image paths, comma separated | None | `floppy_a = Disk1.img, Disk2.img` |
+| `floppy_a`, `floppy_b` | No | Floppy disk images for drives A: and B:. The first disk is inserted; the others can be swapped in. Images inside the game's ZIP are extracted automatically | `.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.xdf`, `.mfm`, `.d77`, `.d88` or `.hdm` paths, comma separated, or one `.m3u` playlist | None | `floppy_a = Disk1.img, Disk2.img` |
 | `hdd_primary_slave` | No | An extra hard disk on the Primary Slave, D:. Its changes stay in its own disk image instead of being copied back to the folder or ZIP | A folder, ZIP or hard disk image | None | `hdd_primary_slave = Extras.zip` |
 | `hdd_secondary_slave` | No | An extra hard disk on the Secondary Slave: E:, or D: without `hdd_primary_slave`. Its changes stay in its own disk image, as with `hdd_primary_slave` | A folder, ZIP or hard disk image | None | `hdd_secondary_slave = Data` |
 | `cdrom` | No | CD images for a CD-ROM drive on the Secondary Master. Images inside the game's ZIP are extracted automatically | `.cue`, `.iso` or `.chd` paths, comma separated, one `.m3u` playlist, a CUE sheet or disc image under another name, or a folder ending in `/` | None | `cdrom = Discs/WAR2.cue` |
-| `cdrom_label` | No | The volume name of a CD built from a folder | Up to 32 letters, digits and `_` | The folder's name | `cdrom_label = WAR2` |
+| `cdrom_label` | No | The volume name of a CD built from a folder | Up to 32 letters, digits and `_`. Letters become capitals, any other character `_`, and a longer name is cut | The folder's name | `cdrom_label = WAR2` |
 
 ### `[machine]`
 
@@ -550,14 +556,14 @@ options in RetroArch. The **Default** column shows what those are unless you cha
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
 | `model` | No | The emulated PC. The Pentiums are on a PCI board | `386sx_20`, `386dx_33`, `486sx_33`, `486dx2_66`, `486dx4_100`, `pentium_75`, `pentium_90`, `pentium_133`, `pentium_166`, `pentium_200` | Your setting (`486dx2_66`) | `model = 386dx_33` |
-| `cpu_mhz` | No | The CPU clock, in MHz | `16`, `20`, `25`, `33`, `40`, `50`, `66`, `75`, `90`, `100`, `133`, `166`, `200` | Your setting (the model's own clock: 20, 33, 66, 100, or the Pentium's) | `cpu_mhz = 25` |
+| `cpu_mhz` | No | The CPU clock, in MHz. Any of the values works on any model | `16`, `20`, `25`, `33`, `40`, `50`, `66`, `75`, `90`, `100`, `133`, `166`, `200` | Your setting (the model's own clock: 20, 33, 66, 100, or the Pentium's) | `cpu_mhz = 25` |
 | `turbo` | No | The turbo switch. `off` runs the CPU at a third of its clock, for games that run too fast | `on`, `off` | Your setting (`on`) | `turbo = off` |
-| `ram_mb` | No | Memory, in MB | `1`, `2`, `4`, `8`, `16` on the 386s; `4`, `8`, `16`, `32`, `64` on the 486s; `8`, `16`, `32`, `64`, `128` on the Pentiums | Your setting (`8`, `16` on the Pentiums), raised if needed to fit `ems_kb` | `ram_mb = 16` |
-| `fpu` | No | The math coprocessor on the 386s, or the 487SX on the 486SX. The 486DX2 and 486DX4 always have one built in | `none`, `80387` | Your setting (`80387`) | `fpu = none` |
+| `ram_mb` | No | Memory, in MB. A size the model doesn't take becomes the next size up it takes, or its largest, with a warning | `1`, `2`, `4`, `8`, `16` on the 386s; `4`, `8`, `16`, `32`, `64` on the 486s; `8`, `16`, `32`, `64`, `128` on the Pentiums | Your setting (`8`, `16` on the Pentiums), raised if needed to fit `ems_kb` | `ram_mb = 16` |
+| `fpu` | No | The math coprocessor on the 386s, or the 487SX on the 486SX. The 486DX2, 486DX4 and Pentiums always have one built in, whatever this says | `none`, `80387` | Your setting (`80387`) | `fpu = none` |
 | `floppy_a_type`, `floppy_b_type` | No | The floppy drive types | `360k`, `720k`, `1200k`, `1440k`, `2880k` | Your setting (detected from the disk in the drive) | `floppy_a_type = 1200k` |
 | `cdrom_speed` | No | The CD-ROM drive speed | `1x`, `2x`, `4x`, `8x` | Your setting (`4x`) | `cdrom_speed = 2x` |
 | `drive_timing` | No | How long the drives' mechanics take: seeks, the wait for a sector to come round, and spinning up a CD. `fast` takes a sixteenth of the time, so games load sooner; `real` is for programs that time the drive. Transfers keep their speed either way | `real`, `fast` | Your setting (Auto, which is `fast` for games) | `drive_timing = real` |
-| `video` | No | The video card. `cga` and `ega` are IBM's own cards, for games written for them | `cga`, `ega`, `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486s only), `gd5446` (Cirrus PCI, Pentiums only) | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486s, `gd5446` on the Pentiums) | `video = cga` |
+| `video` | No | The video card. `cga` and `ega` are IBM's own cards, for games written for them. On a model without its slot, `gd5428_vlb` or `gd5446` becomes `gd5428`, with a warning | `cga`, `ega`, `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486s only), `gd5446` (Cirrus PCI, Pentiums only) | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486s, `gd5446` on the Pentiums) | `video = cga` |
 | `cga_output` | No | The monitor on the CGA. `auto` shows composite colour when the game turns on 640x200 with the colour burst, and RGB otherwise; `composite` is for games drawn for a composite monitor | `auto`, `rgb`, `composite` | Your setting (`auto`) | `cga_output = composite` |
 
 ### `[sound]`
@@ -604,7 +610,8 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 ### `[keys]`
 
 Each line names one of your keys, as a USB keyboard reports it, whatever your layout. See [Remap keys](#remap-keys).
-A line with a name Geardox doesn't know, or more than four PC keys, is ignored with a warning.
+A line with a key name Geardox doesn't know, more than four PC keys or the same PC key twice is ignored with a warning.
+One of your keys set on two lines prevents loading.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
@@ -620,12 +627,13 @@ Your keys: `a` to `z`, `0` to `9`, `f1` to `f24`, `return`, `escape`, `backspace
 
 PC keys: the same names for the keys a PC keyboard has, `left_gui`, `right_gui` and `menu` being its Windows keys,
 plus `sysrq` (Alt+Print Screen). A PC has no `f13` to `f24`, `kp_equals`, `kp_comma`, `kp_00`, `kp_000`, `help`,
-`international` or `lang` keys, and `non_us_hash` is its `backslash`.
+`international` or `lang` keys, `non_us_hash` is its `backslash`, and `sysreq` its `sysrq`.
 
 ### `[pad1]` and `[pad2]`
 
 The first and second gamepads, on desktop only. See [Use a gamepad](#use-a-gamepad). Settings left out follow your
-own, from **Input > Host Gamepad 1** and **Host Gamepad 2**. A button with a name Geardox doesn't know is ignored with a warning.
+own, from **Input > Host Gamepad 1** and **Host Gamepad 2**. A button or PC key with a name Geardox doesn't know is
+ignored with a warning.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
@@ -648,9 +656,9 @@ Buttons, by their place on the gamepad as on an Xbox one: `a`, `b`, `x`, `y`, `d
 | `files` | No | DOS `FILES=`: how many files can be open at once | `8` to `255` | `40` | `files = 60` |
 | `buffers` | No | DOS `BUFFERS=`: the number of disk buffers | `1` to `99` | `20` | `buffers = 30` |
 | `system` | No | The DOS the game runs on; see [Use your own MS-DOS](#use-your-own-ms-dos) | `freedos`, `msdos` | MS-DOS when imported, FreeDOS otherwise | `system = freedos` |
-| `version` | No | The DOS version FreeDOS reports to programs, for games that check it. Ignored on MS-DOS, which has only `SETVER` | `x.yy` | The DOS's own | `version = 5.00` |
+| `version` | No | The DOS version FreeDOS reports to programs, for games that check it. Ignored on MS-DOS, which has only `SETVER` | A digit from `1` to `9`, a point and two digits, such as `5.00` or `6.22` | The DOS's own | `version = 5.00` |
 | `system_files` | No | Whether the DOS's files in the root of C: appear in `DIR` | `visible`, `hidden` | `visible` | `system_files = hidden` |
-| `keyboard` | No | The keyboard layout DOS uses for this game, overriding your own setting; see [Keyboard layout](#keyboard-layout) | `us`, `uk`, `fr`, `gr` (German), `it`, `sp` (Spain), `la` (Latin America), `be`, `nl`, `sv`, `su` (Finland), `sf` and `sg` (Swiss French and German), `br` | Your setting (`us`) | `keyboard = sp` |
+| `keyboard` | No | The keyboard layout DOS uses for this game, overriding your own setting; see [Keyboard layout](#keyboard-layout) | `us` (United States), `uk` (United Kingdom), `fr` (France), `gr` (Germany), `it` (Italy), `sp` (Spain), `la` (Latin America), `be` (Belgium), `nl` (Netherlands), `sv` (Sweden), `su` (Finland), `sf` and `sg` (Swiss French and German), `br` (Brazil) | Your setting (`us`) | `keyboard = sp` |
 | `cache` | No | Loads the DOS's disk cache: SMARTDRV on MS-DOS, LBACACHE on FreeDOS. It caches reads only, so a save is never held back, and uses 1 to 2 MB of extended memory. Not loaded with `memory = none` | `off`, `on` | `off` | `cache = on` |
 
 ### `[env]`
@@ -660,12 +668,12 @@ replace values such as `BLASTER`.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
-| Any variable name | No | `NAME = value` becomes `SET NAME=value` | Text | None | `DOS4G = QUIET` |
+| Any variable name | No | `NAME = value` becomes `SET NAME=value`. The name is set in capitals and can't contain spaces or `=` | Text | None | `DOS4G = QUIET` |
 
 ### `[config_sys]` and `[autoexec]`
 
-These advanced sections hold DOS startup lines instead of `key = value` settings. Each line is used as written; use
-`REM` for comments.
+These advanced sections hold DOS startup lines instead of `key = value` settings. Each line is used as written, lines
+starting with `;` or `#` too, and blank lines are left out. Use `REM` for comments.
 
 | Section | Required | Contents | Where the lines go | Example |
 | --- | --- | --- | --- | --- |
