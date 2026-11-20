@@ -3591,7 +3591,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 486sx_33\n" },
+        "model = 486sx_33\n"
+        "\n"
+        "[dos]\n"
+        "system = msdos\n" },
     { "ultima_7_the_black_gate", "Ultima VII: The Black Gate + The Forge of Virtue",
         "[geardox]\n"
         "version = 1\n"
@@ -3605,7 +3608,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
-        "model = 486sx_33\n" },
+        "model = 486sx_33\n"
+        "\n"
+        "[dos]\n"
+        "system = msdos\n" },
     { "ultima_i", "Ultima I: The First Age of Darkness",
         "[geardox]\n"
         "version = 1\n"
