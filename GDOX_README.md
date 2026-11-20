@@ -221,7 +221,7 @@ These locations apply to the game's files. Geardox save states are stored separa
 
 On desktop, changes made while a game is open are saved as settings for that game: **Emulator > Machine**,
 **Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices, **Audio > MIDI Out > Game
-Synth** and **DOS > Game**. Geardox confirms each one with **Saved for** and the game's name. You can also record
+Music**, **Audio > Built-in Synths > MT-32 > Model** and **DOS > Game**. Geardox confirms each one with **Saved for** and the game's name. You can also record
 settings in the descriptor, for example:
 
 ```ini
@@ -570,17 +570,23 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `dma` | No | The sound card's 8-bit DMA channel | `1`, `3` | Your setting (`1`) | `dma = 3` |
 | `gus` | No | A Gravis UltraSound next to the sound card, at port 240. See [Use a Gravis UltraSound](#use-a-gravis-ultrasound) | `on`, `off` | Your setting (`off`) | `gus = on` |
 | `mpu` | No | The MPU-401 MIDI port at 330. `on` is the MPU-401's own sequencer, which older MT-32 games need; `uart` is the plain MIDI port, for a game that misbehaves with `on`. The Sound Blaster 16 has its own, on the card's IRQ. With the other cards it's a separate MPU-401 card on IRQ 2 (9) | `on`, `uart`, `off` | Your setting (`on`) | `mpu = uart` |
-| `midi` | No | The synth the game was set up for in its setup program, which picks the MIDI port it plays through on desktop | `gm` (General MIDI), `mt32` (Roland MT-32) | Your setting (`gm`) | `midi = mt32` |
-| `midi_port` | No | A MIDI port for this game, by its name on your computer. Picking a port in **Audio > MIDI Out > Game Synth** writes it to the game's own settings; a `.gdox` for other computers is better without it | Any port name | The port `midi` picks | `midi_port = SC-55` |
+| `midi` | No | The kind of MIDI music the game plays, which picks the output it plays on. Without it, Geardox starts on General MIDI and switches to MT-32 when the game sends something only an MT-32 understands; set it for a game that gets this wrong | `gm` (General MIDI, GS or XG), `mt32` (Roland MT-32) | Your setting (Auto) | `midi = mt32` |
+| `midi_out` | No | Where this game's music plays, over your output for its synth. `builtin` is Geardox's own MT-32 or General MIDI synth, the one `midi` picks; `external` is a MIDI port on your computer | `builtin`, `external` | Your output for the synth `midi` picks (`builtin`), or `external` with `midi_port` | `midi_out = external` |
+| `midi_port` | No | The external MIDI port for this game, by its name on your computer. Picking one in **Audio > MIDI Out > Game Music** writes it to the game's own settings; a `.gdox` for other computers is better without it | Any MIDI port name | Your port for the synth `midi` picks | `midi_port = SC-55` |
+| `mt32_model` | No | The unit the built-in MT-32 plays, from your ROMs. `auto` plays a CM-32L when its ROMs are there, then an MT-32; `mt32_old` is the first MT-32 (ROMs 1.0x), `mt32_new` the later one (2.0x), `cm32l` the CM-32L with its extra sound effects. A model with no ROMs plays the one `auto` picks | `auto`, `mt32_old`, `mt32_new`, `cm32l` | Your setting (`auto`) | `mt32_model = mt32_old` |
 
 The sound port is 220. The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the
 DOS `BLASTER` variable automatically to match the selected card, IRQ and DMA, and `ULTRASND` and `ULTRADIR` when the
 Gravis UltraSound is on.
 
-MIDI music plays through a synthesizer outside Geardox: a software synth or emulator that offers a MIDI port, or a
-real module. On desktop, choose a port for each kind in **Audio > MIDI Out**; `midi` picks which one the game uses,
-and `midi_port` can name any other. With only one of the two ports set, every game uses it. In RetroArch, turn on
-MIDI output in **Settings > Audio > MIDI**; `midi` and `midi_port` have no effect there.
+MIDI music plays on Geardox's built-in MT-32 and General MIDI synths, from your own MT-32 ROMs and sound bank (a
+SoundFont file), or through a synthesizer outside Geardox. On desktop, set the output for each synth in **Audio > MIDI
+Out** and the built-in synths' files in **Audio > Built-in Synths**; the kind of music, detected or set with `midi`,
+picks which output the game uses, and `midi_out` and `midi_port` change it for this game. A synth with no output, or
+with no files for its built-in synth, plays on the other one's. In RetroArch, the **MIDI Out** core option is the
+default for `midi_out`: Built-in Synth plays on the synth for the kind of music (MT-32 ROMs in `<system>/geardox/mt32` or `<system>`, a sound bank in
+`<system>/geardox/soundfonts`), and External Port plays on the port in **Settings > Audio > MIDI**, where MIDI output
+must be on; `midi_port` isn't used.
 
 ### `[input]`
 

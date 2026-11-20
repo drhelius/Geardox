@@ -196,7 +196,7 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 
 **Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So
 are **Video > CGA Output**, **Input > Emulated Joystick**, the **Host Gamepad** choices, **Audio > MIDI Out > Game
-Synth** and the DOS chosen in **DOS > Game**. While the game is open, the menus show its settings in colour: orange
+Music**, **Audio > Built-in Synths > MT-32 > Model** and the DOS chosen in **DOS > Game**. While the game is open, the menus show its settings in colour: orange
 for your changes, violet for what its `.gdox` sets, blue for what the game database sets. **Game Default**, first in
 each list, undoes one change, and **Game > Game Files > Forget This Game's Changes** undoes them all. The **DOS** menu
 also has **Import MS-DOS...** and **Remove MS-DOS**.
@@ -231,27 +231,51 @@ suits the Sound Blaster's defaults; the `GDXGUS` and `SET ULTRASND` lines are th
 ## MIDI Music
 
 Games set up for **General MIDI** (including GS and XG) or a **Roland MT-32** send their music to the MPU-401 at port
-`330`. Geardox passes it to a synthesizer outside it, so one has to be running: a software synth or emulator that
+`330`. Geardox plays it on its own built-in synths, or sends it to a synthesizer outside it: a software synth that
 offers a MIDI port, the General MIDI synth Windows includes, or a real module on a USB MIDI interface.
 
-Then in **Audio > MIDI Out**:
+**The built-in synths** need files that Geardox doesn't include. Set them up in **Audio > Built-in Synths**, where
+each synth's last line shows what it found:
 
-1. Choose the port for each kind of music: **General MIDI Port** for General MIDI, GS and XG synths, and **MT-32 Port**
-   for an MT-32, CM-32L or LAPC-I, or an emulator of one. The lists are read again each time they open, so a synth
-   started after Geardox shows up. With only one synth, set just its port: every game plays through it.
-2. In **Game Synth**, pick what the game was set up for in its setup program, General MIDI or MT-32. With a game open,
-   the choice is only that game's, and it can also be any port, for example an SC-55 for one game and an MU2000 for
-   another. With no game open, it's the default for games. A `.gdox` can set it with `midi` or `midi_port` under
-   `[sound]`.
+- **MT-32:** the control and PCM ROMs of an MT-32 or CM-32L, which you have to dump from your own unit. Put them in
+  the `mt32` folder inside Geardox's settings folder, or in a `roms` folder in your home folder, or choose any folder
+  with **Custom Location** in **MT-32 > ROMs**. The files are known by their contents, so their names don't matter,
+  and ROMs split in two halves are joined. **MT-32 > Model** picks the unit: Auto plays a CM-32L when its ROMs are
+  there, which plays everything an MT-32 does plus the sound effects of later Sierra games, then an MT-32.
+- **General MIDI:** a sound bank (a SoundFont file, `.sf2` or `.sf3`), such as the free GeneralUser GS or FluidR3_GM.
+  Put it in the `soundfonts` folder inside Geardox's settings folder, or in the system's usual place
+  (`~/Library/Audio/Sounds/Banks` on macOS, `/usr/share/soundfonts` or `/usr/share/sounds/sf2` on Linux, `soundfonts`
+  next to Geardox on Windows), or choose a file with **Custom Location** in **General MIDI > Sound Bank**. The first
+  one by name is used.
 
-The last line of the menu shows where the music is playing in green, or the missing port in red.
+With the files in place, MT-32 and General MIDI games play with no setup.
 
-A synth that's closed and opened again gets its port back within two seconds, with the game's instruments sent again.
-Pausing, fast-forwarding, rewinding and loading states stop hanging notes. If a game plays MIDI and its port isn't
-set, Geardox says so.
+**Audio > MIDI Out** chooses where the music goes:
 
-The music plays in the synth's own audio: Geardox's volume sliders and recordings don't include it, and
-**Audio > Mute MIDI** or **Mute All Audio** stop its notes.
+1. **General MIDI** and **MT-32** set the output for games set up for each synth: **Built-in Synth**, **External
+   Port**, or **None**. With External Port, **Port** lists the MIDI ports on your computer; the list is read again
+   each time it opens, so a synth started after Geardox shows up. A synth with no output, or whose built-in synth
+   has no files, plays on the other one's output.
+2. **Game Music** is the kind of music the game plays. **Auto**, the default, starts on General MIDI and switches to
+   MT-32 when the game sends something only an MT-32 understands, as MT-32 games do when their music starts. So a game
+   set up for Roland MT-32 or LAPC-I in its setup program plays on the MT-32 output with nothing to choose here. Pick
+   **General MIDI** or **MT-32** for a game that Auto gets wrong. With a game open, the list also has the MIDI ports
+   on your computer: one of them sends that game's music there, whatever its kind. With no game open, the choice is
+   the default for games.
+
+The last line of the menu shows the kind of music and where it's playing in green, or what's missing in red. If a game plays MIDI
+and nothing can play it, Geardox says so. A `.gdox` sets these with `midi`, `midi_out`, `midi_port` and `mt32_model`
+under `[sound]`.
+
+The built-in synths play inside the emulated machine's time: they stop when it pauses and go on where they were, and
+they're in Geardox's mix, so **Audio > MIDI Volume**, its **Mute** and the recordings include them. They're silent while
+fast-forwarding. Loading a state brings the game's instruments back, MT-32 custom sounds included, and the music
+goes on from the next note.
+
+An outside synth that's closed and opened again gets its port back within two seconds, with the game's instruments
+sent again. Pausing, fast-forwarding, rewinding and loading states stop its hanging notes. It plays in its own audio:
+Geardox's volume sliders and recordings don't include it, and **Mute** in **Audio > MIDI Volume** or **Mute All
+Audio** stop its notes.
 
 ## Keyboard, Mouse and Joystick
 
@@ -341,6 +365,6 @@ the games' disks, settings and key maps with it.
 | The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
 | The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
-| No music with General MIDI or MT-32 | Start the synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
+| No music with General MIDI or MT-32 | Add the MT-32 ROMs or a sound bank in **Audio > Built-in Synths**, or start an outside synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
 | The game asks for expanded memory (EMS) | Open it with a `.gdox` and set `ems_kb`. See [Memory](GDOX_README.md#memory). |
 | A built-in disk is broken | **DOS > Recreate Built-in MS-DOS Disk...** or **Recreate Built-in FreeDOS Disk...**. It erases what was on it. |
