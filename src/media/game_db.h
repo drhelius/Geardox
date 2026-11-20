@@ -4493,7 +4493,7 @@ const GDOX_DB_Release k_game_database_releases[] =
         "cdrom = JA1.gog\n"
         "[sound]\n"
         "irq = 7\n" },
-    { 126, 305, 2, 1, NULL, NULL, "[sound]\n"
+    { 126, 305, 2, 1, "__SUPPORT/APP/CLOUD_SAVES>.", NULL, "[sound]\n"
         "irq = 7\n"
         "gus = on\n" },
     { 127, 308, 2, 1, NULL, NULL, "[sound]\n"
