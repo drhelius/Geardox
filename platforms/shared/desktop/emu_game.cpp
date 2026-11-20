@@ -188,7 +188,7 @@ bool emu_game_start(void)
             continue;
 
         std::string list = floppies.size() > 1 ? write_list(floppies, drive == 0 ? "a.m3u" : "b.m3u") : floppies[0];
-        game_floppies[drive] = emu_floppy_insert(drive, list.c_str(), false);
+        game_floppies[drive] = emu_floppy_insert(drive, list.c_str(), false, disk.IsWritingToOverlay());
 
         if (!game_floppies[drive])
             gui_notify(gui_NotificationWarning, ICON_MD_SAVE, "Unable to insert the game's floppy", list.c_str());

@@ -203,17 +203,48 @@ static void drive_menu(int drive, int drives)
         ImGui::EndMenu();
     }
 
-    ImGui::MenuItem("Remember Changes", NULL, &config_emulator.floppy_persistence);
+    if (ImGui::BeginMenu("Remember Changes"))
+    {
+        static const char* const k_changes[config_FloppyChanges_Count] = { "Off", "Original Image", "Working Copy" };
+        static const char* const k_image_tooltip = "Writes go straight into the image file.\n"
+            "ZIP, MFM, multi-disk and read-only images\nuse a working copy instead.\n"
+            "So do a game's floppies when Save Games To\nis Geardox's Save Folder.";
+        static const char* const k_tooltips[config_FloppyChanges_Count] =
+        {
+            "Disks are inserted write protected.",
+            k_image_tooltip,
+            "The image file is never written.\nWrites go to a copy in the save files folder."
+        };
+        int selected = config_emulator.floppy_changes;
+        float text_width = 0.0f;
+
+        for (int i = 0; i < config_FloppyChanges_Count; i++)
+            text_width = MAX(text_width, ImGui::CalcTextSize(k_changes[i]).x);
+
+        ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+        if (ImGui::BeginCombo("##floppy_changes", k_changes[selected]))
+        {
+            for (int i = 0; i < config_FloppyChanges_Count; i++)
+            {
+                if (ImGui::Selectable(k_changes[i], selected == i))
+                    config_emulator.floppy_changes = i;
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", k_tooltips[i]);
+            }
+
+            ImGui::EndCombo();
+        }
+        else if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", k_tooltips[selected]);
+
+        ImGui::PopItemWidth();
+        ImGui::EndMenu();
+    }
 
     if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::Text("On: changes go to a working copy, never to the image.");
-        ImGui::Text("Working copies are kept in the save files folder.");
-        ImGui::Text("Off: disks are inserted write-protected.");
-        ImGui::Text("Applies from the next disk inserted.");
-        ImGui::EndTooltip();
-    }
+        ImGui::SetTooltip("Where floppy writes go.\nApplies from the next disk inserted.");
 
     if (drives > 1)
     {
@@ -356,7 +387,7 @@ static bool perform(bool discard_changes)
     {
         case Floppy_Action_Insert:
             done = pending_open ? emu_floppy_open(pending_path.c_str(), discard_changes, &second) :
-                emu_floppy_insert(pending_drive, pending_path.c_str(), discard_changes);
+                emu_floppy_insert(pending_drive, pending_path.c_str(), discard_changes, false);
             break;
         case Floppy_Action_Select:
             done = emu_floppy_select_disk(pending_drive, pending_index, discard_changes);
@@ -412,6 +443,11 @@ static bool perform(bool discard_changes)
             snprintf(message, sizeof(message), "Disk inserted in floppy drive %d", pending_drive + 1);
 
         gui_notify(gui_NotificationInfo, eject ? ICON_MD_EJECT : ICON_MD_SAVE, message, detail);
+
+        if ((pending_action == Floppy_Action_Insert) && (config_emulator.floppy_changes == config_FloppyChanges_Image) &&
+            info.working_path[0] && (strcmp(info.working_path, info.path) != 0))
+            gui_notify(gui_NotificationInfo, ICON_MD_SAVE, "This image can't be written, changes go to a working copy",
+                info.working_path);
 
         Emu_FloppyInfo second;
 

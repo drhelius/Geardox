@@ -4612,7 +4612,7 @@ json DebugAdapter::InsertFloppy(int drive, const std::string& file_path, const j
     if (drive < 0 || drive >= MIN(FDC_DRIVES, m_core->GetMachineConfig().floppy_drives))
         return {{"error", "This machine has no drive " + std::to_string(drive)}};
 
-    if (!emu_floppy_insert(drive, file_path.c_str(), false))
+    if (!emu_floppy_insert(drive, file_path.c_str(), false, false))
         return {{"error", "Failed to insert the floppy image"}};
 
     if (write_protected.is_boolean())

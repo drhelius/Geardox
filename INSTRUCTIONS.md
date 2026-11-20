@@ -130,7 +130,8 @@ Where the changes go:
 | Disk | What DOS writes |
 | --- | --- |
 | `FreeDOS.hdd`, `MS-DOS.hdd` and your `.hdd`, `.img` and `.vhd` images | Written into the image itself. |
-| `.chd` hard disks and floppy images | Kept in a working copy in the save folder. The original file stays as it was. Use **Save As...** in the drive's menu to write a floppy out. |
+| `.chd` hard disks | Kept in a working copy in the save folder. The original file stays as it was. |
+| Floppy images | Kept in a working copy in the save folder. **Drives > Floppies > Drive 1 > Remember Changes** can write them into the image instead, or insert disks write protected. Use **Save As...** in the drive's menu to write a floppy out. |
 | A folder or ZIP attached as a disk | Kept in Geardox's copy of the folder. If the folder changes on your computer, **Rebuild From Folder...** in the disk's menu picks that up and drops what DOS wrote. |
 | A game opened with a `.gdox` | Copied back to the game's folder, or to the save folder, when the game ends. |
 
