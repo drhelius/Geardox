@@ -44,12 +44,15 @@ static MidiSynth* get_synth(void);
 static int get_wanted_mt32(void);
 static bool open_mt32(void);
 static void add_folder(std::vector<std::string>& folders, const char* base, const char* component);
+static void create_folder(int engine, const char* component);
 static void update_mt32_status(void);
 static void update_soundfont_status(void);
 static const char* file_name(const char* path);
 
 void emu_synth_init(void)
 {
+    create_folder(GDOX_MIDI_ENGINE_MT32, "mt32");
+    create_folder(GDOX_MIDI_ENGINE_SOUNDFONT, "soundfonts");
     emu_synth_scan_mt32();
     emu_synth_find_soundfont();
 }
@@ -141,9 +144,6 @@ void emu_synth_get_default_folders(int engine, std::vector<std::string>& folders
     if (engine == GDOX_MIDI_ENGINE_MT32)
     {
         add_folder(folders, config_root_path, "mt32");
-#if !defined(_WIN32)
-        add_folder(folders, SDL_GetUserFolder(SDL_FOLDER_HOME), "roms");
-#endif
         return;
     }
 
@@ -301,6 +301,16 @@ static void add_folder(std::vector<std::string>& folders, const char* base, cons
     std::string path(base);
     append_path_component(path, component);
     folders.push_back(path);
+}
+
+static void create_folder(int engine, const char* component)
+{
+    if (!MidiSynth::IsAvailable(engine) || !IsValidPointer(config_root_path) || (config_root_path[0] == 0))
+        return;
+
+    std::string path(config_root_path);
+    append_path_component(path, component);
+    MediaFile::MakeDirectory(path.c_str());
 }
 
 static void update_mt32_status(void)

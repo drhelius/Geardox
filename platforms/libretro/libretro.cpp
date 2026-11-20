@@ -202,6 +202,7 @@ static void update_frameskip(void);
 static void midi_begin_frame(int av_enable);
 static void midi_end_frame(int av_enable, int frame_samples);
 static void midi_write(MidiOut* midi);
+static void midi_create_folders(const std::string& mt32, const std::string& soundfonts);
 static void midi_scan(void);
 static int midi_get_kind(void);
 static bool midi_is_builtin(void);
@@ -1110,6 +1111,22 @@ static void midi_end_frame(int av_enable, int frame_samples)
         midi_frame_base += (u64)MAX(frame_samples, 0);
 }
 
+static void midi_create_folders(const std::string& mt32, const std::string& soundfonts)
+{
+    if (!MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_MT32) && !MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_SOUNDFONT))
+        return;
+
+    std::string parent(retro_system_directory);
+    append_path_component(parent, "geardox");
+    MediaFile::MakeDirectory(parent.c_str());
+
+    if (MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_MT32))
+        MediaFile::MakeDirectory(mt32.c_str());
+
+    if (MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_SOUNDFONT))
+        MediaFile::MakeDirectory(soundfonts.c_str());
+}
+
 static void midi_scan(void)
 {
     MidiSynth* synth = core->GetAudio()->GetMidiSynth();
@@ -1126,6 +1143,7 @@ static void midi_scan(void)
 
     if (retro_system_directory[0] != 0)
     {
+        midi_create_folders(mt32, soundfonts);
         midi_mt32_count = MidiSynth::ScanMT32ROMs(mt32.c_str(), midi_mt32_sets, MIDI_SYNTH_MT32_SETS);
 
         if (midi_mt32_count == 0)

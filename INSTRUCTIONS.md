@@ -238,10 +238,10 @@ offers a MIDI port, the General MIDI synth Windows includes, or a real module on
 each synth's last line shows what it found:
 
 - **MT-32:** the control and PCM ROMs of an MT-32 or CM-32L, which you have to dump from your own unit. Put them in
-  the `mt32` folder inside Geardox's settings folder, or in a `roms` folder in your home folder, or choose any folder
-  with **Custom Location** in **MT-32 > ROMs**. The files are known by their contents, so their names don't matter,
-  and ROMs split in two halves are joined. **MT-32 > Model** picks the unit: Auto plays a CM-32L when its ROMs are
-  there, which plays everything an MT-32 does plus the sound effects of later Sierra games, then an MT-32.
+  the `mt32` folder inside Geardox's settings folder, or choose any folder with **Custom Location** in
+  **MT-32 > ROMs**. The files are known by their contents, so their names don't matter, and ROMs split in two halves
+  are joined. **MT-32 > Model** picks the unit: Auto plays a CM-32L when its ROMs are there, which plays everything
+  an MT-32 does plus the sound effects of later Sierra games, then an MT-32.
 - **General MIDI:** a sound bank (a SoundFont file, `.sf2` or `.sf3`), such as the free GeneralUser GS or FluidR3_GM.
   Put it in the `soundfonts` folder inside Geardox's settings folder, or in the system's usual place
   (`~/Library/Audio/Sounds/Banks` on macOS, `/usr/share/soundfonts` or `/usr/share/sounds/sf2` on Linux, `soundfonts`
