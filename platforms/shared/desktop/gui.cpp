@@ -290,12 +290,12 @@ void gui_hotkey(config_HotkeyIndex hotkey, bool pressed)
         config_audio.enable = !config_audio.enable;
         emu_audio_mute(!config_audio.enable);
         gui_notify(gui_NotificationInfo, config_audio.enable ? ICON_MD_VOLUME_UP : ICON_MD_VOLUME_OFF,
-            config_audio.enable ? "Audio unmuted" : "Audio muted", NULL, "mute", 1500);
+            config_audio.enable ? "Audio unmuted" : "Audio muted", NULL, "mute", gui_NotificationDurationShort);
         break;
     case config_HotkeyIndex_Turbo:
         emu_set_turbo(!emu_get_core()->IsTurbo());
         gui_notify(gui_NotificationInfo, ICON_MD_SPEED, emu_get_core()->IsTurbo() ? "Turbo on" : "Turbo off", NULL, "turbo",
-            1500);
+            gui_NotificationDurationShort);
         break;
     case config_HotkeyIndex_SaveState:
         gui_action_save_state(NULL);
@@ -1082,7 +1082,7 @@ static void select_save_slot(int slot)
 
     char message[32];
     snprintf(message, sizeof(message), "Save slot %d selected", slot + 1);
-    gui_notify(gui_NotificationInfo, ICON_MD_SAVE, message, NULL, "slot", 1500);
+    gui_notify(gui_NotificationInfo, ICON_MD_SAVE, message, NULL, "slot", gui_NotificationDurationShort);
 }
 
 static bool finish_loading_rom(void)

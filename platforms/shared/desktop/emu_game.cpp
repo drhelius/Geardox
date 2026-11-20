@@ -241,7 +241,7 @@ bool emu_game_start(void)
 
     if (disk.IsFolderReadOnly())
         gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, "The game's folder is read-only: saves go to the save folder",
-            disk.GetOverlayPath());
+            disk.GetOverlayPath(), NULL, gui_NotificationDurationLong);
 
     if (disk.IsFromDatabase())
     {

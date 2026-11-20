@@ -872,15 +872,30 @@ static void menu_emulator(void)
         ImGui::Separator();
 
         //ImGui::MenuItem("Show Media Info", "", &config_emulator.show_info);
-        ImGui::MenuItem("Show Notifications", "", &config_emulator.show_notifications);
 
-        if (ImGui::BeginMenu("Drive Activity"))
+        if (ImGui::BeginMenu("Notifications"))
         {
-            ImGui::MenuItem("Enabled", "", &config_emulator.show_drive_activity);
+            ImGui::MenuItem("Enabled", "", &config_emulator.show_notifications);
+
+            if (ImGui::BeginMenu("Duration"))
+            {
+                ImGui::SliderInt("##notification_duration", &config_emulator.notification_duration, 3, 10, "Seconds = %d",
+                    ImGuiSliderFlags_AlwaysClamp);
+                ImGui::EndMenu();
+            }
+
             ImGui::Separator();
-            ImGui::MenuItem("CD-ROM", "", &config_emulator.show_drive_activity_cdrom, config_emulator.show_drive_activity);
-            ImGui::MenuItem("Hard Disk", "", &config_emulator.show_drive_activity_hard_disk, config_emulator.show_drive_activity);
-            ImGui::MenuItem("Floppy", "", &config_emulator.show_drive_activity_floppy, config_emulator.show_drive_activity);
+
+            if (ImGui::BeginMenu("Drive Activity"))
+            {
+                ImGui::MenuItem("Enabled", "", &config_emulator.show_drive_activity);
+                ImGui::Separator();
+                ImGui::MenuItem("CD-ROM", "", &config_emulator.show_drive_activity_cdrom, config_emulator.show_drive_activity);
+                ImGui::MenuItem("Hard Disk", "", &config_emulator.show_drive_activity_hard_disk, config_emulator.show_drive_activity);
+                ImGui::MenuItem("Floppy", "", &config_emulator.show_drive_activity_floppy, config_emulator.show_drive_activity);
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMenu();
         }
 
@@ -3423,7 +3438,7 @@ static void menu_debug(void)
             if (ImGui::MenuItem("Start Server", "", false, !gdb_running))
             {
                 if (!emu_gdb_start(config_debug.gdb_port, false))
-                    gui_notify(gui_NotificationError, ICON_MD_BUG_REPORT, "Unable to start the GDB server", NULL, "gdb", 3000);
+                    gui_notify(gui_NotificationError, ICON_MD_BUG_REPORT, "Unable to start the GDB server", NULL, "gdb");
             }
 
             if (ImGui::MenuItem("Stop Server", "", false, gdb_running))
