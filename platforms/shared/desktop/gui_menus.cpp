@@ -1020,6 +1020,8 @@ static void menu_machine(void)
         ImGui::EndTooltip();
     }
 
+    ImGui::Separator();
+
     if (ImGui::MenuItem("BIOS Boot Menu", "", &config_emulator.bios_boot_menu))
         emu_apply_bios_settings();
 
