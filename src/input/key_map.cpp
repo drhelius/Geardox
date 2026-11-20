@@ -367,7 +367,8 @@ bool KeyMap::Unbind(u16 usage, GDOX_Keys key)
     if (!IsValidPointer(GetHostKeyName(usage)))
         return false;
 
-    const GDOX_Key_Map_Entry& current = GetEntry(usage);
+    GDOX_Key_Map_Layer layer = GDOX_KEY_MAP_BUILT_IN;
+    const GDOX_Key_Map_Entry& current = GetEntry(usage, &layer);
     GDOX_Key_Map_Entry entry = k_key_map_empty;
     entry.set = true;
 
@@ -379,6 +380,13 @@ bool KeyMap::Unbind(u16 usage, GDOX_Keys key)
 
     if (entry.count == current.count)
         return false;
+
+    if ((entry.count == 0) && (layer == GDOX_KEY_MAP_USER))
+    {
+        m_layers[GDOX_KEY_MAP_USER][usage] = k_key_map_empty;
+        m_changed = true;
+        return true;
+    }
 
     SetUserEntry(usage, entry);
     return true;

@@ -310,10 +310,11 @@ set up for it, so `:`, `/` and the rest are where your keys say, and so does a b
 **To move a key,** press **Ctrl+F1** (**Cmd+F1** on macOS). The PC stops and a picture of its keyboard appears. Click a
 PC key, then press the key of your keyboard that should drive it, on its own. The PC key stays selected for more keys of
 yours; click it again to deselect it. Each PC key lists the keys that drive it, built-in ones first: click the **x** on
-one to remove it, or right click the PC key to remove all but the built-in ones. Red keys are ones no key of yours
-reaches. Press the same hotkey again, or click **Close**, to go back to the game. Changes are kept for that game only,
-beside its other files; with no game open, they're kept for the disc, floppy or hard disk image you opened. A
-descriptor can set them too, including one key that sends several, such as Ctrl, Alt and Del; see
+one to remove it. Removing the last binding you gave a key of yours gives it back its default, while removing a
+built-in one leaves that key doing nothing. Right click the PC key to remove all but the built-in ones. Red keys are
+ones no key of yours reaches. Press the same hotkey again, or click **Close**, to go back to the game. Changes are kept
+for that game only, beside its other files; with no game open, they're kept for the disc, floppy or hard disk image you
+opened. A descriptor can set them too, including one key that sends several, such as Ctrl, Alt and Del; see
 [Remap keys](GDOX_README.md#remap-keys).
 
 **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key changes off and on, for instance to type a character's name in
