@@ -95,6 +95,8 @@ static inline void process(config_Operation operation)
 
     // Trace logger
     CONFIG_BOOL("Debug", "TraceCounter", config_debug.trace_counter, true);
+    CONFIG_BOOL("Debug", "TraceTime", config_debug.trace_time, false);
+    CONFIG_BOOL("Debug", "TraceKeepAcrossResets", config_debug.trace_keep_across_resets, true);
     CONFIG_BOOL("Debug", "TraceCycles", config_debug.trace_cycles, false);
     CONFIG_BOOL("Debug", "TraceLinear", config_debug.trace_linear, false);
     CONFIG_BOOL("Debug", "TraceRegisters", config_debug.trace_registers, false);
@@ -124,29 +126,29 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Debug", "TraceCpuInterruptEvents", config_debug.trace_cpu_interrupt_events,
         TRACE_CPU_INTERRUPT_EVENT_DEFAULT, 0, TRACE_CPU_INTERRUPT_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceIoEvents", config_debug.trace_io_events, TRACE_IO_EVENT_ALL, 0, TRACE_IO_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TracePicEvents", config_debug.trace_pic_events, TRACE_PIC_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TracePicEvents", config_debug.trace_pic_events, TRACE_PIC_EVENT_DEFAULT, 0,
         TRACE_PIC_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceTimerEvents", config_debug.trace_timer_events, TRACE_TIMER_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceTimerEvents", config_debug.trace_timer_events, TRACE_TIMER_EVENT_DEFAULT, 0,
         TRACE_TIMER_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceDmaEvents", config_debug.trace_dma_events, TRACE_DMA_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceDmaEvents", config_debug.trace_dma_events, TRACE_DMA_EVENT_DEFAULT, 0,
         TRACE_DMA_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceVideoEvents", config_debug.trace_video_events, TRACE_VIDEO_EVENT_DEFAULT, 0,
         TRACE_VIDEO_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceFmEvents", config_debug.trace_fm_events, TRACE_FM_EVENT_DEFAULT, 0,
         TRACE_FM_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TracePcmEvents", config_debug.trace_pcm_events, TRACE_PCM_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TracePcmEvents", config_debug.trace_pcm_events, TRACE_PCM_EVENT_DEFAULT, 0,
         TRACE_PCM_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceMixerEvents", config_debug.trace_mixer_events, TRACE_MIXER_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceMixerEvents", config_debug.trace_mixer_events, TRACE_MIXER_EVENT_DEFAULT, 0,
         TRACE_MIXER_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceMidiEvents", config_debug.trace_midi_events, TRACE_MIDI_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceMidiEvents", config_debug.trace_midi_events, TRACE_MIDI_EVENT_DEFAULT, 0,
         TRACE_MIDI_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceCdromEvents", config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceCdromEvents", config_debug.trace_cdrom_events, TRACE_CDROM_EVENT_DEFAULT, 0,
         TRACE_CDROM_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceFdcEvents", config_debug.trace_fdc_events, TRACE_FDC_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceFdcEvents", config_debug.trace_fdc_events, TRACE_FDC_EVENT_DEFAULT, 0,
         TRACE_FDC_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceIdeEvents", config_debug.trace_ide_events, TRACE_IDE_EVENT_ALL, 0,
         TRACE_IDE_EVENT_ALL);
-    CONFIG_INT_RANGE("Debug", "TraceKeyboardEvents", config_debug.trace_keyboard_events, TRACE_KEYBOARD_EVENT_ALL, 0,
+    CONFIG_INT_RANGE("Debug", "TraceKeyboardEvents", config_debug.trace_keyboard_events, TRACE_KEYBOARD_EVENT_DEFAULT, 0,
         TRACE_KEYBOARD_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceInputEvents", config_debug.trace_input_events, TRACE_INPUT_EVENT_DEFAULT, 0,
         TRACE_INPUT_EVENT_ALL);
@@ -165,6 +167,9 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Debug", "TraceDiskDirOption", config_debug.trace_disk_dir_option, 0, 0, 2);
     CONFIG_INT_RANGE("Debug", "TraceDiskSize", config_debug.trace_disk_size, 2, 0, 6);
     CONFIG_STRING_NOT_EMPTY("Debug", "TraceDiskPath", config_debug.trace_disk_path, config_root_path);
+    CONFIG_STRING("Debug", "TraceFilterCode", config_debug.trace_filter_code, "");
+    CONFIG_STRING("Debug", "TraceFilterPorts", config_debug.trace_filter_ports, "");
+    CONFIG_STRING("Debug", "TraceFilterInterrupts", config_debug.trace_filter_interrupts, "");
 
     // Disassembler
     CONFIG_BOOL("Debug", "DisBytes", config_debug.dis_show_bytes, true);

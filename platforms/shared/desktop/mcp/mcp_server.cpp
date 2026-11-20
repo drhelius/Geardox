@@ -2826,8 +2826,10 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_trace_log"},
         {"title", "Get Trace Log"},
-        {"description", "Read trace entries: instructions and hardware events, each line starting with the CPU clock. "
-            "enabled says whether it records; after a reset, power or media change stopped it, stopped_by says which."},
+        {"description", "Read trace entries: instructions and hardware events, each line starting with the machine clock "
+            "(28.636 MHz) and its signed delta. With types, contains or pc_range up to 500000 entries are scanned from "
+            "start; sequences gives each line's sequence and next_sequence where to go on. overwritten counts entries the "
+            "ring dropped. enabled says whether it records; stopped_by says what stopped it."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2841,6 +2843,25 @@ json McpServer::BuildToolList()
                     {"description", "Entries. Default 100."},
                     {"minimum", 1},
                     {"maximum", 1000}
+                }},
+                {"types", {
+                    {"type", "array"},
+                    {"description", "Only these groups, the set_trace_log filter groups plus mark."},
+                    {"items", {
+                        {"type", "string"}
+                    }}
+                }},
+                {"contains", {
+                    {"type", "string"},
+                    {"description", "Only lines containing this text, case sensitive."}
+                }},
+                {"pc_range", {
+                    {"type", "string"},
+                    {"description", "Only entries whose code address is in this linear hex range, like 1000-1FFF."}
+                }},
+                {"compact", {
+                    {"type", "boolean"},
+                    {"description", "Leave out registers, segments, flags, bytes and the linear address on CPU lines."}
                 }}
             }},
             {"additionalProperties", false}
@@ -2850,8 +2871,10 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "set_trace_log"},
         {"title", "Set Trace Logger"},
-        {"description", "Start or stop the trace logger, to memory or disk, with event filters. It records while the "
-            "debugger runs the machine, so starting it turns the debugger on. A reset, power or media change stops it."},
+        {"description", "Start or stop the trace logger, to memory or disk, with event filters and capture filters. It "
+            "records while the debugger runs the machine, so starting it turns the debugger on. Only the CPU instruction "
+            "stream makes the debugger step instruction by instruction; device and I/O streams record with the dynarec. "
+            "A reset, power or media change writes a marker and recording goes on, unless keep_across_resets is false."},
         {"annotations", {{"readOnlyHint", false}, {"destructiveHint", true}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
@@ -2896,6 +2919,25 @@ json McpServer::BuildToolList()
                     }},
                     {"minItems", 1},
                     {"uniqueItems", true}
+                }},
+                {"code", {
+                    {"type", "string"},
+                    {"description", "Instructions recorded: up to 4 linear hex ranges like F0000-FFFFF, and up to 4 "
+                        "excluded ones with !. Empty records all. Giving code, ports or interrupts replaces all three."}
+                }},
+                {"ports", {
+                    {"type", "string"},
+                    {"description", "I/O recorded: up to 4 port ranges like 388-389 and 4 excluded like !3DA, :r or :w "
+                        "for one direction."}
+                }},
+                {"interrupts", {
+                    {"type", "string"},
+                    {"description", "Software INTs recorded: up to 8 vectors in hex, each with :AH or :AX, like 21:3D, "
+                        "31, 2F:1687. Empty records all."}
+                }},
+                {"keep_across_resets", {
+                    {"type", "boolean"},
+                    {"description", "Default true: reset, power and media changes write a marker and recording goes on."}
                 }}
             }},
             {"required", json::array({"enabled"})},
@@ -4039,7 +4081,46 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     // Trace and profiler
     else if (normalizedTool == "get_trace_log")
     {
-        return m_debugAdapter.GetTraceLog(arguments.value("start", (s64)-100), arguments.value("count", 100));
+        u32 types = 0;
+        u32 pc_first = 0;
+        u32 pc_last = 0xFFFFFFFFU;
+
+        if (arguments.contains("types"))
+        {
+            const json& list = arguments["types"];
+
+            for (json::const_iterator it = list.begin(); it != list.end(); ++it)
+            {
+                std::string name = it->get<std::string>();
+                u32 mask = name == "mark" ? TRACE_FLAG_MARK : 0;
+
+                for (int i = 0; i < k_mcp_trace_filter_count; i++)
+                {
+                    std::string filter = k_mcp_trace_filters[i].name;
+
+                    if (filter.compare(0, filter.find('.'), name) == 0 && filter.find('.') == name.size())
+                        mask |= 1U << k_mcp_trace_filters[i].type;
+                }
+
+                if (mask == 0)
+                    return {{"error", "Unknown trace type: " + name}};
+
+                types |= mask;
+            }
+        }
+
+        if (arguments.contains("pc_range"))
+        {
+            std::string range = arguments.value("pc_range", "");
+            size_t dash = range.find('-');
+
+            if (dash == std::string::npos || !parse_hex_with_prefix(range.substr(0, dash), &pc_first) ||
+                !parse_hex_with_prefix(range.substr(dash + 1), &pc_last) || pc_first > pc_last)
+                return {{"error", "Invalid pc_range, use start-end in hex"}};
+        }
+
+        return m_debugAdapter.GetTraceLog(arguments.value("start", (s64)-100), arguments.value("count", 100), types,
+            arguments.value("contains", ""), pc_first, pc_last, arguments.value("compact", false));
     }
     else if (normalizedTool == "set_trace_log")
     {
@@ -4048,18 +4129,18 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         u32 event_filters[TRACE_TYPE_COUNT] = {};
         event_filters[TRACE_CPU_INTERRUPT] = TRACE_CPU_INTERRUPT_EVENT_DEFAULT;
         event_filters[TRACE_IO] = TRACE_IO_EVENT_ALL;
-        event_filters[TRACE_PIC] = TRACE_PIC_EVENT_ALL;
-        event_filters[TRACE_TIMER] = TRACE_TIMER_EVENT_ALL;
-        event_filters[TRACE_DMA] = TRACE_DMA_EVENT_ALL;
+        event_filters[TRACE_PIC] = TRACE_PIC_EVENT_DEFAULT;
+        event_filters[TRACE_TIMER] = TRACE_TIMER_EVENT_DEFAULT;
+        event_filters[TRACE_DMA] = TRACE_DMA_EVENT_DEFAULT;
         event_filters[TRACE_VIDEO] = TRACE_VIDEO_EVENT_DEFAULT;
         event_filters[TRACE_FM] = TRACE_FM_EVENT_DEFAULT;
-        event_filters[TRACE_PCM] = TRACE_PCM_EVENT_ALL;
-        event_filters[TRACE_MIXER] = TRACE_MIXER_EVENT_ALL;
-        event_filters[TRACE_MIDI] = TRACE_MIDI_EVENT_ALL;
-        event_filters[TRACE_CDROM] = TRACE_CDROM_EVENT_ALL;
-        event_filters[TRACE_FDC] = TRACE_FDC_EVENT_ALL;
+        event_filters[TRACE_PCM] = TRACE_PCM_EVENT_DEFAULT;
+        event_filters[TRACE_MIXER] = TRACE_MIXER_EVENT_DEFAULT;
+        event_filters[TRACE_MIDI] = TRACE_MIDI_EVENT_DEFAULT;
+        event_filters[TRACE_CDROM] = TRACE_CDROM_EVENT_DEFAULT;
+        event_filters[TRACE_FDC] = TRACE_FDC_EVENT_DEFAULT;
         event_filters[TRACE_IDE] = TRACE_IDE_EVENT_ALL;
-        event_filters[TRACE_KEYBOARD] = TRACE_KEYBOARD_EVENT_ALL;
+        event_filters[TRACE_KEYBOARD] = TRACE_KEYBOARD_EVENT_DEFAULT;
         event_filters[TRACE_INPUT] = TRACE_INPUT_EVENT_DEFAULT;
         event_filters[TRACE_SERIAL] = TRACE_SERIAL_EVENT_DEFAULT;
         event_filters[TRACE_PARALLEL] = TRACE_PARALLEL_EVENT_DEFAULT;
@@ -4094,6 +4175,16 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         std::string output_path = arguments.value("output_path", "");
         std::string vblank_watch_address = arguments.value("vblank_watch_address", "");
         std::string vblank_watch_operation = arguments.value("vblank_watch_operation", "");
+
+        if (arguments.contains("keep_across_resets"))
+            m_debugAdapter.SetTraceKeepAcrossResets(arguments.value("keep_across_resets", true));
+
+        if (enabled && (arguments.contains("code") || arguments.contains("ports") || arguments.contains("interrupts")) &&
+            !m_debugAdapter.SetTraceCaptureFilters(arguments.value("code", ""), arguments.value("ports", ""),
+            arguments.value("interrupts", "")))
+            return {{"error", "Invalid code, ports or interrupts filter: up to 4 hex ranges or ! ranges, ports "
+                "with :r or :w, up to 8 vectors with :AH or :AX"}};
+
         return m_debugAdapter.SetTraceLog(enabled, flags, output, memory_size, disk_size, output_path, event_filters,
             vblank_watch_address, vblank_watch_operation);
     }

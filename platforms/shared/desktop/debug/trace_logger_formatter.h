@@ -38,6 +38,9 @@ struct GDOX_Trace_Format_Options
 };
 
 void trace_log_format_cpu_address(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size);
+void trace_log_format_cpu_instruction(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size);
+void trace_log_reset_file_names(void);
+bool trace_log_parse_filters(const char* code, const char* ports, const char* interrupts, GDOX_Trace_Filters& filters);
 void trace_log_format_cpu_flags(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size);
 void trace_log_format_cpu_bytes(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size);
 void trace_log_format_cycle_prefix(const GDOX_Trace_Entry& entry, bool previous_cycle_valid,
