@@ -194,7 +194,7 @@ static void menu_files(bool open)
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("Forgets every change made for this game:\nMachine, CGA Output, Emulated Joystick,\n"
-            "Host Gamepads, Game Synth and DOS.\nThe key map is kept.");
+            "Host Gamepads, Game Music and DOS.\nThe key map is kept.");
 
     ImGui::EndMenu();
 }

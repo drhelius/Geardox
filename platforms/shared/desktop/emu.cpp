@@ -41,6 +41,7 @@
 #include "video/mc6845.h"
 #include "emu_hard_disk.h"
 #include "emu_midi.h"
+#include "emu_synth.h"
 #include "events.h"
 #include "gui_notifications.h"
 #include "input_macro.h"
@@ -167,6 +168,8 @@ bool emu_init(void)
 
     sound_queue_init();
     emu_midi_init();
+    emu_synth_init();
+    emu_midi_update_port();
 
     for (int i = 0; i < 5; i++)
         InitPointer(emu_savestates_screenshots[i].data);
@@ -1041,6 +1044,9 @@ void emu_audio_set_source_volume(int source, float volume)
             break;
         case Audio::AUDIO_SOURCE_GUS:
             audio->SetGUSVolume(volume);
+            break;
+        case Audio::AUDIO_SOURCE_MIDI:
+            audio->SetMIDIVolume(volume);
             break;
         default:
             break;

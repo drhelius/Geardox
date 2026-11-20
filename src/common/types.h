@@ -338,6 +338,43 @@ struct GDOX_MIDI_Synth_Info
     const char* id;
 };
 
+enum GDOX_MIDI_Engine
+{
+    GDOX_MIDI_ENGINE_NONE = 0,
+    GDOX_MIDI_ENGINE_MT32,
+    GDOX_MIDI_ENGINE_SOUNDFONT,
+    GDOX_MIDI_ENGINE_COUNT
+};
+
+enum GDOX_MIDI_Out
+{
+    GDOX_MIDI_OUT_BUILTIN = 0,
+    GDOX_MIDI_OUT_EXTERNAL,
+    GDOX_MIDI_OUT_NONE,
+    GDOX_MIDI_OUT_COUNT
+};
+
+struct GDOX_MIDI_Out_Info
+{
+    const char* name;
+    const char* id;
+};
+
+enum GDOX_MT32_Model
+{
+    GDOX_MT32_MODEL_AUTO = 0,
+    GDOX_MT32_MODEL_MT32_OLD,
+    GDOX_MT32_MODEL_MT32_NEW,
+    GDOX_MT32_MODEL_CM32L,
+    GDOX_MT32_MODEL_COUNT
+};
+
+struct GDOX_MT32_Model_Info
+{
+    const char* name;
+    const char* id;
+};
+
 enum GDOX_Joystick_Type
 {
     GDOX_JOYSTICK_NONE = 0,

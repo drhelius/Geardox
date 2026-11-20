@@ -644,7 +644,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_mpu",
         "MPU-401 (restart)",
         NULL,
-        "The MIDI port at 330. The Sound Blaster 16 has its own; other cards get a separate MPU-401 on IRQ 2 (9). Intelligent has the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port most later games use. Turn on MIDI output in Settings > Audio > MIDI.",
+        "The MIDI port at 330. The Sound Blaster 16 has its own; other cards get a separate MPU-401 on IRQ 2 (9). Intelligent has the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port most later games use. The music plays as MIDI sets.",
         NULL,
         "system",
         {
@@ -654,6 +654,36 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { NULL, NULL },
         },
         "enabled"
+    },
+    {
+        "geardox_midi",
+        "MIDI Out",
+        NULL,
+        "Where MIDI music plays. Built-in Synth plays MT-32 music, told from what the game sends, on an MT-32 from your own ROMs in <system>/geardox/mt32 (or <system>), and General MIDI games on a sound bank (.sf2 or .sf3) in <system>/geardox/soundfonts; a game plays on the other one when its own is missing. External Port sends it to the port in Settings > Audio > MIDI. A .gdox picks one for its game with midi_out in [sound].",
+        NULL,
+        "system",
+        {
+            { "builtin",   "Built-in Synth" },
+            { "retroarch", "External Port" },
+            { NULL, NULL },
+        },
+        "builtin"
+    },
+    {
+        "geardox_mt32_model",
+        "Built-in MT-32 Model",
+        NULL,
+        "The unit the built-in MT-32 plays, when its ROMs are there. Auto plays a CM-32L first, then an MT-32. A .gdox picks one for its game with mt32_model in [sound].",
+        NULL,
+        "system",
+        {
+            { "auto",     "Auto" },
+            { "mt32_old", "MT-32 (old)" },
+            { "mt32_new", "MT-32 (new)" },
+            { "cm32l",    "CM-32L" },
+            { NULL, NULL },
+        },
+        "auto"
     },
     {
         "geardox_gus",

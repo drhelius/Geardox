@@ -73,6 +73,7 @@ public:
         bool sysex;
         u32 sysex_size;
         u8 sysex_buffer[MIDI_OUT_SYSEX_SIZE];
+        int detected;
         MidiOut_Synth machine;
     };
 
@@ -94,19 +95,23 @@ public:
     void Silence();
     void Sync();
     void ForgetSynth();
+    void ResetSynth();
     int GetMessageCount() const;
     const MidiOut_Message* GetMessages() const;
     const u8* GetData() const;
     void Clear();
     bool HasPlayed();
     bool TakeReset();
+    int GetDetected() const;
     const MidiOut_Stats* GetStats() const;
+    void AddDropped(u32 count);
     MidiOut_State* GetState();
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream);
 
 private:
     void EndSysEx();
+    void Detect(const u8* data, int size);
     void Emit(const u8* data, int size);
     bool Send(const u8* data, int size, u16 offset);
     void SendShort(u8 status, u8 data1, u8 data2, int size);
@@ -120,6 +125,7 @@ private:
     static void ClearSynth(MidiOut_Synth& synth);
     static void ClearChannel(MidiOut_Synth& synth, int channel);
     static bool IsReset(const u8* data, int size);
+    static bool IsMT32Only(const u8* data, int size);
     static bool HasNotes(const MidiOut_Synth& synth, int channel);
 
 private:

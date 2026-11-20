@@ -23,6 +23,8 @@
 static const u8 k_midi_out_lengths[8] = { 3, 3, 3, 3, 2, 2, 3, 0 };
 static const u8 k_midi_out_gm_on[6] = { 0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7 };
 static const u8 k_midi_out_mt32_reset[11] = { 0xF0, 0x41, 0x10, 0x16, 0x12, 0x7F, 0x00, 0x00, 0x00, 0x01, 0xF7 };
+static const u8 k_midi_out_xg_on[4] = { 0x00, 0x00, 0x7E, 0x00 };
+static const char* const k_midi_out_gm_displays[2] = { "SCSCSCFY!           ", "Bye.                " };
 
 MidiOut::MidiOut()
 {
@@ -51,6 +53,7 @@ void MidiOut::Reset()
     m_state.sysex = false;
     m_state.sysex_size = 0;
     memset(m_state.sysex_buffer, 0, sizeof(m_state.sysex_buffer));
+    m_state.detected = -1;
     ClearSynth(m_state.machine);
     m_reset = true;
 }
@@ -186,6 +189,12 @@ void MidiOut::ForgetSynth()
     m_device_known = false;
 }
 
+void MidiOut::ResetSynth()
+{
+    ClearSynth(m_device);
+    m_device_known = true;
+}
+
 bool MidiOut::HasPlayed()
 {
     bool played = m_played;
@@ -215,8 +224,44 @@ void MidiOut::EndSysEx()
     m_state.sysex_size = 0;
 }
 
+void MidiOut::Detect(const u8* data, int size)
+{
+    if ((size == 6) && (data[1] == 0x7E) && (data[3] == 0x09) && (data[4] == 0x01))
+    {
+        m_state.detected = GDOX_MIDI_SYNTH_GM;
+        return;
+    }
+
+    if ((size == 9) && (data[1] == 0x43) && ((data[2] & 0xF0) == 0x10) && (data[3] == 0x4C) &&
+        (memcmp(data + 4, k_midi_out_xg_on, sizeof(k_midi_out_xg_on)) == 0))
+    {
+        m_state.detected = GDOX_MIDI_SYNTH_GM;
+        return;
+    }
+
+    if ((size < 10) || (data[1] != 0x41))
+        return;
+
+    if (data[3] == 0x42)
+    {
+        if ((data[4] == 0x12) && (data[5] == 0x40) && (data[6] == 0x00) && (data[7] == 0x7F))
+            m_state.detected = GDOX_MIDI_SYNTH_GM;
+
+        return;
+    }
+
+    if ((data[3] != 0x16) && (data[3] != 0x14))
+        return;
+
+    if ((data[4] == 0x11) || ((data[4] == 0x12) && IsMT32Only(data, size)))
+        m_state.detected = GDOX_MIDI_SYNTH_MT32;
+}
+
 void MidiOut::Emit(const u8* data, int size)
 {
+    if (data[0] == 0xF0)
+        Detect(data, size);
+
     Apply(m_state.machine, data, size);
 
     bool note_on = ((data[0] & 0xF0) == 0x90) && (size == 3) && (data[2] != 0);
@@ -464,6 +509,27 @@ bool MidiOut::IsReset(const u8* data, int size)
     return (data[3] == 0x16) && (data[5] == 0x7F);
 }
 
+bool MidiOut::IsMT32Only(const u8* data, int size)
+{
+    switch (data[5])
+    {
+        case 0x10:
+        case 0x7F:
+            return false;
+        case 0x05:
+            return (size != 11) && (size != 12);
+        case 0x20:
+            for (int i = 0; i < 2; i++)
+            {
+                if ((size == 30) && (memcmp(data + 8, k_midi_out_gm_displays[i], 20) == 0))
+                    return false;
+            }
+            return true;
+        default:
+            return true;
+    }
+}
+
 bool MidiOut::HasNotes(const MidiOut_Synth& synth, int channel)
 {
     const u32* notes = synth.notes[channel];
@@ -494,6 +560,7 @@ void MidiOut::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.sysex);
     G_SERIALIZE(serializer, m_state.sysex_size);
     G_SERIALIZE_ARRAY(serializer, m_state.sysex_buffer, MIDI_OUT_SYSEX_SIZE);
+    G_SERIALIZE(serializer, m_state.detected);
     G_SERIALIZE_ARRAY(serializer, machine.program, MIDI_OUT_CHANNELS);
     G_SERIALIZE_ARRAY(serializer, machine.pressure, MIDI_OUT_CHANNELS);
     G_SERIALIZE_ARRAY(serializer, machine.bend, MIDI_OUT_CHANNELS);
@@ -516,6 +583,9 @@ void MidiOut::SanitizeState()
         m_state.count = 0;
 
     m_state.sysex_size = MIN(m_state.sysex_size, (u32)(MIDI_OUT_SYSEX_SIZE + 1));
+
+    if ((m_state.detected < -1) || (m_state.detected >= GDOX_MIDI_SYNTH_COUNT))
+        m_state.detected = -1;
     machine.log_size = MIN(machine.log_size, (u32)MIDI_OUT_LOG_SIZE);
 
     for (int i = 0; i < MIDI_OUT_CHANNELS; i++)

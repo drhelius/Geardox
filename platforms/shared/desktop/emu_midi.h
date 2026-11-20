@@ -38,7 +38,10 @@ EXTERN void emu_midi_state_loaded(void);
 EXTERN void emu_midi_update_port(void);
 EXTERN bool emu_midi_prepare(void);
 EXTERN int emu_midi_get_synth(void);
-EXTERN const char* emu_midi_get_synth_port(int synth);
+EXTERN int emu_midi_get_forced_synth(void);
+EXTERN bool emu_midi_is_detected(void);
+EXTERN const char* emu_midi_get_synth_label(int synth);
+EXTERN int emu_midi_get_wanted_engine(void);
 EXTERN const char* emu_midi_get_wanted_port(void);
 EXTERN const char* emu_midi_get_port(void);
 

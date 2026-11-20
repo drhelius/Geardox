@@ -2,6 +2,8 @@ PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
 STATIC_LINKING := 0
 AR             ?= ar
 DISABLE_DYNAREC ?= 0
+DISABLE_MT32 ?= 0
+DISABLE_SOUNDFONT ?= 0
 
 ifeq ($(platform),)
 	platform = unix
@@ -334,6 +336,14 @@ ifeq ($(DISABLE_DYNAREC), 1)
 	PLATFORM_FLAGS += -DGDOX_DISABLE_DYNAREC
 endif
 
+ifeq ($(DISABLE_MT32), 1)
+	PLATFORM_FLAGS += -DGDOX_DISABLE_MT32
+endif
+
+ifeq ($(DISABLE_SOUNDFONT), 1)
+	PLATFORM_FLAGS += -DGDOX_DISABLE_SOUNDFONT
+endif
+
 ifneq (,$(filter unix% win% classic_armv7_a7 rs90 gcw0 retrofw miyoo,$(platform)))
 	PLATFORM_FLAGS += -pthread
 	LDFLAGS += -pthread
@@ -378,6 +388,16 @@ OBJECTS := $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
 INCLUDES += -I$(CORE_DIR) -I$(SOURCE_DIR)
 INCLUDES += -I$(DEPS_DIR)/miniz
 INCLUDES += -I$(DEPS_DIR)/minivorbis
+INCLUDES += -I$(DEPS_DIR)/mt32emu/src
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/include
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/bindings
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/drivers
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/midi
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/rvoice
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/sfloader
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/synth
+INCLUDES += -I$(DEPS_DIR)/fluidsynth/src/utils
 INCLUDES += -I$(DEPS_DIR)/libchdr/include
 INCLUDES += -I$(DEPS_DIR)/zstd
 INCLUDES += -I$(DEPS_DIR)/lzma/include

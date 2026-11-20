@@ -42,8 +42,12 @@ static int game_midi = -1;
 static int base_midi = -1;
 static int game_cga_output = -1;
 static int base_cga_output = -1;
+static int game_midi_out = -1;
+static int base_midi_out = -1;
 static std::string game_midi_port;
 static std::string base_midi_port;
+static int game_mt32_model = -1;
+static int base_mt32_model = -1;
 static GDOX_Gamepad_Game game_gamepads[GDOX_MAX_GAMEPADS];
 static GDOX_Gamepad_Game base_gamepads[GDOX_MAX_GAMEPADS];
 static bool preparing = false;
@@ -66,7 +70,8 @@ static const char* const k_game_keys[][2] = {
     { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
     { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
     { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" },
-    { "sound", "midi" }, { "sound", "midi_port" }, { "input", "mouse" }, { "input", "joystick" } };
+    { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" }, { "sound", "mt32_model" },
+    { "input", "mouse" }, { "input", "joystick" } };
 
 static std::string get_save_directory(void);
 static const std::vector<std::pair<std::string, std::string> >& get_game_keys(void);
@@ -317,7 +322,9 @@ bool emu_game_close(void)
     game_joystick = -1;
     game_cga_output = -1;
     game_midi = -1;
+    game_midi_out = -1;
     game_midi_port.clear();
+    game_mt32_model = -1;
 
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
         GamepadKeys::ClearGame(&game_gamepads[i]);
@@ -490,8 +497,14 @@ void emu_game_apply_machine(void)
     if ((game_midi != base_midi) && (game_midi >= 0))
         overrides.Set("sound", "midi", k_midi_synths[game_midi].id);
 
+    if ((game_midi_out != base_midi_out) && (game_midi_out >= 0))
+        overrides.Set("sound", "midi_out", k_midi_outs[game_midi_out].id);
+
     if (game_midi_port != base_midi_port)
         overrides.Set("sound", "midi_port", game_midi_port.c_str());
+
+    if ((game_mt32_model != base_mt32_model) && (game_mt32_model >= 0))
+        overrides.Set("sound", "mt32_model", k_mt32_models[game_mt32_model].id);
 
     for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
     {
@@ -604,12 +617,31 @@ int emu_game_get_base_midi(void)
     return emu_game_is_open() ? base_midi : -1;
 }
 
-void emu_game_set_midi(int synth, const char* port)
+void emu_game_set_midi(int synth)
 {
     if (!emu_game_is_open())
         return;
 
     game_midi = synth;
+    emu_game_apply_machine();
+}
+
+int emu_game_get_midi_out(void)
+{
+    return emu_game_is_open() ? game_midi_out : -1;
+}
+
+int emu_game_get_base_midi_out(void)
+{
+    return emu_game_is_open() ? base_midi_out : -1;
+}
+
+void emu_game_set_midi_out(int out, const char* port)
+{
+    if (!emu_game_is_open())
+        return;
+
+    game_midi_out = out;
     game_midi_port = port;
     emu_game_apply_machine();
 }
@@ -622,6 +654,25 @@ const char* emu_game_get_midi_port(void)
 const char* emu_game_get_base_midi_port(void)
 {
     return emu_game_is_open() ? base_midi_port.c_str() : "";
+}
+
+int emu_game_get_mt32_model(void)
+{
+    return emu_game_is_open() ? game_mt32_model : -1;
+}
+
+int emu_game_get_base_mt32_model(void)
+{
+    return emu_game_is_open() ? base_mt32_model : -1;
+}
+
+void emu_game_set_mt32_model(int model)
+{
+    if (!emu_game_is_open())
+        return;
+
+    game_mt32_model = model;
+    emu_game_apply_machine();
 }
 
 bool emu_game_has_overrides(void)
@@ -1105,8 +1156,12 @@ static void update_machines(void)
     base_cga_output = stripped.GetInfo().cga_output;
     game_midi = disk.GetDescriptor().GetInfo().midi;
     base_midi = stripped.GetInfo().midi;
+    game_midi_out = disk.GetDescriptor().GetInfo().midi_out;
+    base_midi_out = stripped.GetInfo().midi_out;
     game_midi_port = disk.GetDescriptor().GetInfo().midi_port;
     base_midi_port = stripped.GetInfo().midi_port;
+    game_mt32_model = disk.GetDescriptor().GetInfo().mt32_model;
+    base_mt32_model = stripped.GetInfo().mt32_model;
 
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
     {

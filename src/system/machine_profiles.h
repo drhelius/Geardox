@@ -195,6 +195,21 @@ const GDOX_MIDI_Synth_Info k_midi_synths[GDOX_MIDI_SYNTH_COUNT] =
     { "MT-32", "mt32" }
 };
 
+const GDOX_MIDI_Out_Info k_midi_outs[GDOX_MIDI_OUT_COUNT] =
+{
+    { "Built-in Synth", "builtin" },
+    { "External Port", "external" },
+    { "None", "none" }
+};
+
+const GDOX_MT32_Model_Info k_mt32_models[GDOX_MT32_MODEL_COUNT] =
+{
+    { "Auto", "auto" },
+    { "MT-32 (old)", "mt32_old" },
+    { "MT-32 (new)", "mt32_new" },
+    { "CM-32L", "cm32l" }
+};
+
 const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 {
     { "None", "none" },

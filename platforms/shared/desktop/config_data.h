@@ -178,11 +178,19 @@ struct config_Audio
     float cdda_volume;
     float buzzer_volume;
     float gus_volume;
+    float midi_volume;
     int buffer_count;
+    int midi_gm_out;
     std::string midi_gm_port;
+    int midi_mt32_out;
     std::string midi_mt32_port;
     int midi_default;
     bool midi_mute;
+    int mt32_rom_dir_option;
+    std::string mt32_rom_path;
+    int mt32_model;
+    int soundfont_option;
+    std::string soundfont;
 };
 
 struct config_Rewind

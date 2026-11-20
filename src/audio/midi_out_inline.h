@@ -58,9 +58,19 @@ INLINE void MidiOut::Clear()
     m_data_size = 0;
 }
 
+INLINE int MidiOut::GetDetected() const
+{
+    return m_state.detected;
+}
+
 INLINE const MidiOut::MidiOut_Stats* MidiOut::GetStats() const
 {
     return &m_stats;
+}
+
+INLINE void MidiOut::AddDropped(u32 count)
+{
+    m_stats.dropped += count;
 }
 
 INLINE MidiOut::MidiOut_State* MidiOut::GetState()

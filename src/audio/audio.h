@@ -27,6 +27,7 @@
 #include "mpu401.h"
 #include "ultrasound.h"
 #include "midi_out.h"
+#include "midi_synth.h"
 #include "vgm_recorder.h"
 
 #define AUDIO_OPL_CHIPS 2
@@ -49,6 +50,7 @@ public:
         AUDIO_SOURCE_CDDA,
         AUDIO_SOURCE_BUZZER,
         AUDIO_SOURCE_GUS,
+        AUDIO_SOURCE_MIDI,
         AUDIO_SOURCE_COUNT
     };
 
@@ -81,6 +83,7 @@ public:
     void SetCDDAGains(const s32* gains);
     void SetBuzzerVolume(float volume);
     void SetGUSVolume(float volume);
+    void SetMIDIVolume(float volume);
     void Synchronize(u64 clocks);
     void SynchronizeBuzzer(u64 clocks);
     void SynchronizeDMA(u64 clocks);
@@ -97,6 +100,7 @@ public:
     SoundBlaster* GetSoundBlaster();
     MPU401* GetMPU401();
     MidiOut* GetMidiOut();
+    MidiSynth* GetMidiSynth();
     UltraSound* GetUltraSound();
     bool HasGUS() const;
     bool HasMPU() const;
@@ -141,6 +145,7 @@ private:
     SoundBlaster* m_sound_blaster;
     MPU401* m_mpu401;
     MidiOut* m_midi_out;
+    MidiSynth* m_midi_synth;
     UltraSound* m_ultrasound;
     DMA* m_dma;
     int m_dma_routes[8];
@@ -164,6 +169,7 @@ private:
     float m_cdda_volume;
     float m_buzzer_volume;
     float m_gus_volume;
+    float m_midi_volume;
     Audio_State m_state;
     float m_pcm_cutoff;
     u16 m_pcm_lowpass_alpha_q15;
@@ -178,6 +184,8 @@ private:
     s16 m_cdda_buffer[GDOX_AUDIO_BUFFER_SIZE];
     s16 m_buzzer_buffer[GDOX_AUDIO_BUFFER_SIZE];
     s16 m_gus_buffer[GDOX_AUDIO_BUFFER_SIZE];
+    s16 m_midi_buffer[GDOX_AUDIO_BUFFER_SIZE];
+    bool m_midi_rendered;
     int m_buffer_index;
     bool m_buffer_overflow;
     int m_frame_samples;

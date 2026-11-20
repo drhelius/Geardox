@@ -81,7 +81,9 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "mpu", DESCRIPTOR_CHOICE, "on,uart,off", 0, 0 },
     { "sound", "gus", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
     { "sound", "midi", DESCRIPTOR_CHOICE, "gm,mt32", 0, 0 },
+    { "sound", "midi_out", DESCRIPTOR_CHOICE, "builtin,external", 0, 0 },
     { "sound", "midi_port", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "sound", "mt32_model", DESCRIPTOR_CHOICE, "auto,mt32_old,mt32_new,cm32l", 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "pad1", "use", DESCRIPTOR_CHOICE, "keys,joystick", 0, 0 },
@@ -1095,7 +1097,22 @@ void GameDescriptor::Build()
             info.midi = i;
     }
 
+    info.midi_out = -1;
+
+    for (int i = 0; Has("sound", "midi_out") && (i < GDOX_MIDI_OUT_NONE); i++)
+    {
+        if (Get("sound", "midi_out") == k_midi_outs[i].id)
+            info.midi_out = i;
+    }
+
     info.midi_port = Get("sound", "midi_port");
+    info.mt32_model = -1;
+
+    for (int i = 0; Has("sound", "mt32_model") && (i < GDOX_MT32_MODEL_COUNT); i++)
+    {
+        if (Get("sound", "mt32_model") == k_mt32_models[i].id)
+            info.mt32_model = i;
+    }
 
     for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
     {

@@ -36,6 +36,7 @@ Audio::Audio()
     InitPointer(m_sound_blaster);
     InitPointer(m_mpu401);
     InitPointer(m_midi_out);
+    InitPointer(m_midi_synth);
     InitPointer(m_ultrasound);
     InitPointer(m_dma);
     InitPointer(m_cdrom_audio);
@@ -50,6 +51,7 @@ Audio::Audio()
     m_cdda_volume = 1.0f;
     m_buzzer_volume = 1.0f;
     m_gus_volume = 1.0f;
+    m_midi_volume = 1.0f;
     m_opl_chips = 0;
     m_opl3 = false;
     m_dsp = false;
@@ -89,6 +91,8 @@ Audio::Audio()
     memset(m_cdda_buffer, 0, sizeof(m_cdda_buffer));
     memset(m_buzzer_buffer, 0, sizeof(m_buzzer_buffer));
     memset(m_gus_buffer, 0, sizeof(m_gus_buffer));
+    memset(m_midi_buffer, 0, sizeof(m_midi_buffer));
+    m_midi_rendered = false;
     memset(m_fm_channel_buffer, 0, sizeof(m_fm_channel_buffer));
 }
 
@@ -96,6 +100,7 @@ Audio::~Audio()
 {
     SafeDelete(m_ultrasound);
     SafeDelete(m_mpu401);
+    SafeDelete(m_midi_synth);
     SafeDelete(m_midi_out);
     SafeDelete(m_sound_blaster);
     SafeDelete(m_opl[1]);
@@ -125,10 +130,14 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
     if (!IsValidPointer(m_midi_out))
         m_midi_out = new MidiOut();
 
+    if (!IsValidPointer(m_midi_synth))
+        m_midi_synth = new MidiSynth();
+
     if (!IsValidPointer(m_ultrasound))
         m_ultrasound = new UltraSound();
 
     m_mpu401->Init(m_midi_out);
+    m_midi_synth->Init(m_midi_out);
     m_sound_blaster->Init(pic, dma, m_midi_out);
     m_ultrasound->Init(pic, dma, m_midi_out);
 
@@ -550,6 +559,17 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
     m_buffer_overflow = false;
     m_frame_samples = samples;
 
+    if (m_midi_synth->IsActive() && (m_midi_out->GetCapture() != MidiOut::MIDI_OUT_CAPTURE_OFF) && (samples > 0))
+    {
+        m_midi_synth->Render(m_midi_buffer, samples >> 1);
+        m_midi_rendered = true;
+    }
+    else if (m_midi_rendered)
+    {
+        memset(m_midi_buffer, 0, sizeof(m_midi_buffer));
+        m_midi_rendered = false;
+    }
+
     if (!IsValidPointer(sample_buffer) || !IsValidPointer(sample_count))
     {
         if (IsValidPointer(sample_count))
@@ -571,19 +591,21 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
     float cdda_volume = m_source_mute[AUDIO_SOURCE_CDDA] ? 0.0f : m_cdda_volume;
     float buzzer_volume = m_source_mute[AUDIO_SOURCE_BUZZER] ? 0.0f : m_buzzer_volume;
     float gus_volume = m_source_mute[AUDIO_SOURCE_GUS] ? 0.0f : m_gus_volume;
+    float midi_volume = m_source_mute[AUDIO_SOURCE_MIDI] ? 0.0f : m_midi_volume;
 
     s32 dc_left = m_state.output_dc_left;
     s32 dc_right = m_state.output_dc_right;
 
     // No source gives the relative levels: FM, PCM and CD-DA all enter at full scale
     if ((m_master_volume == 1.0f) && (fm_volume == 1.0f) && (pcm_volume == 1.0f) && (cdda_volume == 1.0f) &&
-        (buzzer_volume == 1.0f) && (gus_volume == 1.0f))
+        (buzzer_volume == 1.0f) && (gus_volume == 1.0f) && (midi_volume == 1.0f))
     {
         for (int i = 0; i < samples; i += 2)
         {
-            s32 left = (s32)m_fm_buffer[i] + m_pcm_buffer[i] + m_cdda_buffer[i] + m_buzzer_buffer[i] + m_gus_buffer[i];
+            s32 left = (s32)m_fm_buffer[i] + m_pcm_buffer[i] + m_cdda_buffer[i] + m_buzzer_buffer[i] + m_gus_buffer[i] +
+                m_midi_buffer[i];
             s32 right = (s32)m_fm_buffer[i + 1] + m_pcm_buffer[i + 1] + m_cdda_buffer[i + 1] + m_buzzer_buffer[i + 1] +
-                m_gus_buffer[i + 1];
+                m_gus_buffer[i + 1] + m_midi_buffer[i + 1];
             left = HighPass(dc_left, left);
             right = HighPass(dc_right, right);
             sample_buffer[i] = (s16)CLAMP(left, -32768, 32767);
@@ -596,10 +618,10 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
         {
             float left = (float)m_fm_buffer[i] * fm_volume + (float)m_pcm_buffer[i] * pcm_volume +
                 (float)m_cdda_buffer[i] * cdda_volume + (float)m_buzzer_buffer[i] * buzzer_volume +
-                (float)m_gus_buffer[i] * gus_volume;
+                (float)m_gus_buffer[i] * gus_volume + (float)m_midi_buffer[i] * midi_volume;
             float right = (float)m_fm_buffer[i + 1] * fm_volume + (float)m_pcm_buffer[i + 1] * pcm_volume +
                 (float)m_cdda_buffer[i + 1] * cdda_volume + (float)m_buzzer_buffer[i + 1] * buzzer_volume +
-                (float)m_gus_buffer[i + 1] * gus_volume;
+                (float)m_gus_buffer[i + 1] * gus_volume + (float)m_midi_buffer[i + 1] * midi_volume;
             s32 out_left = (s32)((float)HighPass(dc_left, (s32)left) * m_master_volume);
             s32 out_right = (s32)((float)HighPass(dc_right, (s32)right) * m_master_volume);
             sample_buffer[i] = (s16)CLAMP(out_left, -32768, 32767);

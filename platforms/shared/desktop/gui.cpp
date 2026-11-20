@@ -168,6 +168,7 @@ void gui_apply_settings(void)
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_CDDA, config_audio.cdda_volume);
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_BUZZER, config_audio.buzzer_volume);
     emu_audio_set_source_volume(Audio::AUDIO_SOURCE_GUS, config_audio.gus_volume);
+    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_MIDI, config_audio.midi_volume);
 
     emu_update_joystick_type();
 
@@ -175,6 +176,8 @@ void gui_apply_settings(void)
     strncpy_fit(gui_savefiles_path, config_emulator.savefiles_path.c_str(), sizeof(gui_savefiles_path));
     strncpy_fit(gui_screenshots_path, config_emulator.screenshots_path.c_str(), sizeof(gui_screenshots_path));
     strncpy_fit(gui_video_recordings_path, config_emulator.video_recordings_path.c_str(), sizeof(gui_video_recordings_path));
+    strncpy_fit(gui_mt32_path, config_audio.mt32_rom_path.c_str(), sizeof(gui_mt32_path));
+    strncpy_fit(gui_soundfont_path, config_audio.soundfont.c_str(), sizeof(gui_soundfont_path));
 
     strncpy_fit(gui_mcp_http_address, config_emulator.mcp_http_address.c_str(), sizeof(gui_mcp_http_address));
 

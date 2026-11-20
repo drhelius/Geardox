@@ -75,6 +75,11 @@ INLINE void Audio::SetGUSVolume(float volume)
     m_gus_volume = volume;
 }
 
+INLINE void Audio::SetMIDIVolume(float volume)
+{
+    m_midi_volume = volume;
+}
+
 INLINE OPL* Audio::GetOPL(int chip)
 {
     return m_opl[chip];
@@ -98,6 +103,11 @@ INLINE MPU401* Audio::GetMPU401()
 INLINE MidiOut* Audio::GetMidiOut()
 {
     return m_midi_out;
+}
+
+INLINE MidiSynth* Audio::GetMidiSynth()
+{
+    return m_midi_synth;
 }
 
 INLINE UltraSound* Audio::GetUltraSound()
@@ -158,6 +168,8 @@ INLINE const s16* Audio::GetSourceBuffer(int source) const
             return m_cdda_buffer;
         case AUDIO_SOURCE_GUS:
             return m_gus_buffer;
+        case AUDIO_SOURCE_MIDI:
+            return m_midi_buffer;
         default:
             return m_buzzer_buffer;
     }

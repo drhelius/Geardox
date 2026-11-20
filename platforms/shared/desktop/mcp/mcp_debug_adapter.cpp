@@ -3800,7 +3800,17 @@ json DebugAdapter::GetSoundStatus()
     result["midi"] = {{"capture", k_captures[midi->GetCapture()]}, {"messages", stats->messages}, {"bytes", stats->bytes},
         {"dropped", stats->dropped + midi_queue_get_dropped()}, {"sysex_log", synth.log_size},
         {"sysex_log_full", synth.log_full}, {"synth", k_midi_synths[emu_midi_get_synth()].id},
-        {"port", emu_midi_get_port()}, {"wanted_port", emu_midi_get_wanted_port()}};
+        {"synth_detected", emu_midi_is_detected()}, {"port", emu_midi_get_port()},
+        {"wanted_port", emu_midi_get_wanted_port()}};
+
+    MidiSynth::MidiSynth_Status status;
+    audio->GetMidiSynth()->GetStatus(&status);
+    static const char* const k_engines[GDOX_MIDI_ENGINE_COUNT] = { "none", "mt32", "soundfont" };
+    result["midi_synth"] = {{"destination", status.engine != GDOX_MIDI_ENGINE_NONE ? "builtin" :
+        (midi_queue_is_open() ? "external" : "none")}, {"engine", k_engines[status.engine]},
+        {"mt32_rom", status.mt32_name}, {"soundfont", status.soundfont_path}, {"voices", status.voices},
+        {"max_voices", status.max_voices}, {"render_ms", status.render_ms}, {"dropped", status.dropped},
+        {"muted", audio->IsSourceMuted(Audio::AUDIO_SOURCE_MIDI)}};
 
     return result;
 }
@@ -4133,6 +4143,8 @@ json DebugAdapter::SetAudioMute(const std::string& source, int channel, bool mut
         audio->SetSourceMute(Audio::AUDIO_SOURCE_CDDA, mute);
     else if (source == "gus")
         audio->SetSourceMute(Audio::AUDIO_SOURCE_GUS, mute);
+    else if (source == "midi")
+        audio->SetSourceMute(Audio::AUDIO_SOURCE_MIDI, mute);
     else
         audio->SetSourceMute(Audio::AUDIO_SOURCE_BUZZER, mute);
 
@@ -5656,8 +5668,8 @@ json DebugAdapter::GetGameInfo()
         { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" }, { "machine", "fpu" },
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
         { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" },
-        { "sound", "mpu" }, { "sound", "gus" }, { "sound", "midi" }, { "sound", "midi_port" }, { "input", "mouse" },
-        { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
+        { "sound", "mpu" }, { "sound", "gus" }, { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" },
+        { "sound", "mt32_model" }, { "input", "mouse" }, { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
         { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
         { "drives", "hdd_primary_slave" }, { "drives", "hdd_secondary_slave" }, { "drives", "cdrom" }, { "run", "exe" },
@@ -5701,7 +5713,10 @@ json DebugAdapter::GetGameInfo()
             {"video", k_video_cards[config.video_card].id},
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
                 json(k_joysticks[emu_game_get_joystick()].id) : json()}, {"midi", emu_game_get_midi() >= 0 ?
-                json(k_midi_synths[emu_game_get_midi()].id) : json()}, {"midi_port", emu_game_get_midi_port()}}},
+                json(k_midi_synths[emu_game_get_midi()].id) : json()}, {"midi_out", emu_game_get_midi_out() >= 0 ?
+                json(k_midi_outs[emu_game_get_midi_out()].id) : json()}, {"midi_port", emu_game_get_midi_port()},
+                {"mt32_model", emu_game_get_mt32_model() >= 0 ? json(k_mt32_models[emu_game_get_mt32_model()].id) :
+                json()}}},
         {"target", k_targets[emu_game_get_target()]},
         {"keyboard_layout", disk->GetKeyboardLayout()},
         {"system", {{"name", disk->GetSystemName()}, {"id", disk->GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos"},

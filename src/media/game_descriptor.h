@@ -123,7 +123,9 @@ struct GDOX_Game_Info
     int joystick;
     int cga_output;
     int midi;
+    int midi_out;
     std::string midi_port;
+    int mt32_model;
     GDOX_Gamepad_Game gamepads[GDOX_MAX_GAMEPADS];
     std::vector<GDOX_Game_Env> env;
     std::string keys;

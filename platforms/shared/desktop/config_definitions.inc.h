@@ -348,15 +348,19 @@ static inline void process(config_Operation operation)
     CONFIG_FLOAT_RANGE("Audio", "CDDAVolume", config_audio.cdda_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_FLOAT_RANGE("Audio", "BuzzerVolume", config_audio.buzzer_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_FLOAT_RANGE("Audio", "GUSVolume", config_audio.gus_volume, 1.0f, 0.0f, 2.0f);
+    CONFIG_FLOAT_RANGE("Audio", "MIDIVolume", config_audio.midi_volume, 1.0f, 0.0f, 2.0f);
     CONFIG_INT("Audio", "BufferCount", config_audio.buffer_count, 3);
-#if defined(_WIN32)
-    CONFIG_STRING("Audio", "MIDIGMPort", config_audio.midi_gm_port, "Microsoft GS Wavetable Synth");
-#else
+    CONFIG_INT_RANGE("Audio", "MIDIGMOut", config_audio.midi_gm_out, GDOX_MIDI_OUT_BUILTIN, 0, GDOX_MIDI_OUT_COUNT - 1);
     CONFIG_STRING("Audio", "MIDIGMPort", config_audio.midi_gm_port, "");
-#endif
+    CONFIG_INT_RANGE("Audio", "MIDIMT32Out", config_audio.midi_mt32_out, GDOX_MIDI_OUT_BUILTIN, 0, GDOX_MIDI_OUT_COUNT - 1);
     CONFIG_STRING("Audio", "MIDIMT32Port", config_audio.midi_mt32_port, "");
-    CONFIG_INT_RANGE("Audio", "MIDIDefault", config_audio.midi_default, GDOX_MIDI_SYNTH_GM, 0, GDOX_MIDI_SYNTH_COUNT - 1);
+    CONFIG_INT_RANGE("Audio", "MIDIDefault", config_audio.midi_default, 0, 0, GDOX_MIDI_SYNTH_COUNT);
     CONFIG_BOOL("Audio", "MIDIMute", config_audio.midi_mute, false);
+    CONFIG_INT_RANGE("Audio", "MT32ROMDirOption", config_audio.mt32_rom_dir_option, 0, 0, 1);
+    CONFIG_STRING("Audio", "MT32ROMPath", config_audio.mt32_rom_path, "");
+    CONFIG_INT_RANGE("Audio", "MT32Model", config_audio.mt32_model, GDOX_MT32_MODEL_AUTO, 0, GDOX_MT32_MODEL_COUNT - 1);
+    CONFIG_INT_RANGE("Audio", "SoundFontOption", config_audio.soundfont_option, 0, 0, 1);
+    CONFIG_STRING("Audio", "SoundFont", config_audio.soundfont, "");
 
     //**************************************
     // Rewind

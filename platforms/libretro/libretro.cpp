@@ -79,6 +79,14 @@ static bool midi_notified = false;
 static u8 midi_restores = 0;
 static u64 midi_frame_base = 0;
 static u64 midi_last_sample = 0;
+static bool midi_builtin = true;
+static int midi_mt32_model = GDOX_MT32_MODEL_AUTO;
+static MidiSynth::MidiSynth_MT32_ROMs midi_mt32_sets[MIDI_SYNTH_MT32_SETS];
+static int midi_mt32_count = 0;
+static int midi_mt32_index = -1;
+static bool midi_mt32_failed = false;
+static std::string midi_soundfont;
+static bool midi_soundfont_failed = false;
 static bool frameskip_threshold_visible = true;
 
 static char retro_save_directory[4096];
@@ -194,6 +202,12 @@ static void update_frameskip(void);
 static void midi_begin_frame(int av_enable);
 static void midi_end_frame(int av_enable, int frame_samples);
 static void midi_write(MidiOut* midi);
+static void midi_scan(void);
+static int midi_get_kind(void);
+static bool midi_is_builtin(void);
+static int midi_get_engine(void);
+static bool midi_activate(int engine);
+static int midi_get_mt32_index(void);
 static void set_controller_info(void);
 static void set_input_descriptors(void);
 static int add_input_descriptors(struct retro_input_descriptor* descriptors, int count, unsigned port, const struct retro_input_descriptor* source, int source_count);
@@ -775,7 +789,7 @@ bool retro_unserialize(const void *data, size_t size)
         {
             midi_restores |= 1;
 
-            if (midi_output)
+            if (midi_output || core->GetAudio()->GetMidiSynth()->IsActive())
                 core->GetAudio()->GetMidiOut()->Sync();
         }
     }
@@ -847,6 +861,7 @@ static bool load_content(const char* path)
     clear_input_state();
     msdos_zip = msdos_import();
     ultrasnd_zip = ultrasnd_import();
+    midi_scan();
     bool game = false;
 
     if (!game_open(path, &game) || (!game && !disk_load(path)))
@@ -1011,10 +1026,19 @@ static void report_machine(void)
 static void midi_begin_frame(int av_enable)
 {
     MidiOut* midi = core->GetAudio()->GetMidiOut();
-    bool output = midi_supported && midi_interface.output_enabled();
+    MidiSynth* synth = core->GetAudio()->GetMidiSynth();
+    bool wanted = midi_is_builtin();
+    bool output = !wanted && midi_supported && midi_interface.output_enabled();
     bool fast = false;
     bool rewinding = midi_restores == 3;
     midi_restores = (u8)((midi_restores & 1) << 1);
+
+    if (synth->IsOpen(GDOX_MIDI_ENGINE_MT32) && (midi_get_mt32_index() != midi_mt32_index))
+        midi_activate(GDOX_MIDI_ENGINE_MT32);
+
+    int engine = wanted ? midi_get_engine() : GDOX_MIDI_ENGINE_NONE;
+    synth->SetEngine(midi_activate(engine) ? engine : GDOX_MIDI_ENGINE_NONE);
+    bool builtin = synth->IsActive();
 
     if (output != midi_output)
     {
@@ -1031,7 +1055,9 @@ static void midi_begin_frame(int av_enable)
     {
         midi_notified = false;
 
-        if (output)
+        if (builtin)
+            synth->Reset();
+        else if (output)
             midi->Sync();
     }
 
@@ -1039,15 +1065,16 @@ static void midi_begin_frame(int av_enable)
         fast = false;
 
     MidiOut::MidiOut_Capture capture = MidiOut::MIDI_OUT_CAPTURE_OFF;
+    MidiOut::MidiOut_Capture quiet = builtin ? MidiOut::MIDI_OUT_CAPTURE_OFF : MidiOut::MIDI_OUT_CAPTURE_SILENT;
 
-    if (output && ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0))
-        capture = fast || rewinding ? MidiOut::MIDI_OUT_CAPTURE_SILENT : MidiOut::MIDI_OUT_CAPTURE_ON;
+    if ((output || builtin) && ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0))
+        capture = fast || rewinding ? quiet : MidiOut::MIDI_OUT_CAPTURE_ON;
 
     MidiOut::MidiOut_Capture current = midi->GetCapture();
 
-    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == MidiOut::MIDI_OUT_CAPTURE_SILENT))
+    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == quiet))
         midi->Silence();
-    else if ((current == MidiOut::MIDI_OUT_CAPTURE_SILENT) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
+    else if ((current == quiet) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
         midi->Sync();
 
     midi->SetCapture(capture);
@@ -1057,19 +1084,162 @@ static void midi_end_frame(int av_enable, int frame_samples)
 {
     MidiOut* midi = core->GetAudio()->GetMidiOut();
 
-    if (midi->HasPlayed() && !midi_output && midi_supported && !midi_notified)
+    bool builtin = core->GetAudio()->GetMidiSynth()->IsActive();
+    bool wanted = midi_is_builtin();
+
+    if (midi->HasPlayed() && !midi_output && !builtin && !midi_notified && (wanted || midi_supported))
     {
         midi_notified = true;
-        show_message("This game plays MIDI music. Turn on MIDI output in Settings > Audio > MIDI", 4, RETRO_LOG_INFO);
+
+        if (!wanted)
+            show_message("This game plays MIDI music. Turn on MIDI output in Settings > Audio > MIDI", 4,
+                RETRO_LOG_INFO);
+        else if (midi_get_kind() == GDOX_MIDI_SYNTH_MT32)
+            show_message("This game plays MT-32 music. Put MT-32 ROMs in <system>/geardox/mt32", 4, RETRO_LOG_INFO);
+        else
+            show_message("This game plays General MIDI music. Put a sound bank (.sf2) in <system>/geardox/soundfonts", 4,
+                RETRO_LOG_INFO);
     }
 
     if (midi_output)
         midi_write(midi);
-    else
+    else if (!builtin)
         midi->Clear();
 
     if ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0)
         midi_frame_base += (u64)MAX(frame_samples, 0);
+}
+
+static void midi_scan(void)
+{
+    MidiSynth* synth = core->GetAudio()->GetMidiSynth();
+    std::string mt32(retro_system_directory);
+    std::string soundfonts(retro_system_directory);
+    append_path_component(mt32, "geardox");
+    append_path_component(mt32, "mt32");
+    append_path_component(soundfonts, "geardox");
+    append_path_component(soundfonts, "soundfonts");
+    std::string soundfont;
+    midi_mt32_count = 0;
+    midi_mt32_failed = false;
+    midi_soundfont_failed = false;
+
+    if (retro_system_directory[0] != 0)
+    {
+        midi_mt32_count = MidiSynth::ScanMT32ROMs(mt32.c_str(), midi_mt32_sets, MIDI_SYNTH_MT32_SETS);
+
+        if (midi_mt32_count == 0)
+            midi_mt32_count = MidiSynth::ScanMT32ROMs(retro_system_directory, midi_mt32_sets, MIDI_SYNTH_MT32_SETS);
+
+        MidiSynth::FindSoundFont(soundfonts.c_str(), soundfont);
+    }
+
+    for (int i = 0; i < midi_mt32_count; i++)
+        log_cb(RETRO_LOG_INFO, "MT-32 ROMs: %s\n", midi_mt32_sets[i].name);
+
+    if (synth->IsOpen(GDOX_MIDI_ENGINE_MT32))
+    {
+        midi_mt32_index = -1;
+        synth->CloseMT32();
+    }
+
+    if (soundfont != midi_soundfont)
+        synth->CloseSoundFont();
+
+    midi_soundfont = soundfont;
+}
+
+static int midi_get_kind(void)
+{
+    int kind = game_active ? game_disk.GetDescriptor().GetInfo().midi : -1;
+
+    if (kind < 0)
+        kind = core->GetAudio()->GetMidiOut()->GetDetected();
+
+    return kind >= 0 ? kind : GDOX_MIDI_SYNTH_GM;
+}
+
+static bool midi_is_builtin(void)
+{
+    int out = game_active ? game_disk.GetDescriptor().GetInfo().midi_out : -1;
+
+    if ((out < 0) && game_active && !game_disk.GetDescriptor().GetInfo().midi_port.empty())
+        out = GDOX_MIDI_OUT_EXTERNAL;
+
+    return out >= 0 ? out == GDOX_MIDI_OUT_BUILTIN : midi_builtin;
+}
+
+static int midi_get_engine(void)
+{
+    int engine = midi_get_kind() == GDOX_MIDI_SYNTH_MT32 ? GDOX_MIDI_ENGINE_MT32 : GDOX_MIDI_ENGINE_SOUNDFONT;
+    bool mt32 = (midi_mt32_count > 0) && !midi_mt32_failed;
+    bool soundfont = !midi_soundfont.empty() && !midi_soundfont_failed;
+
+    if ((engine == GDOX_MIDI_ENGINE_MT32) && !mt32)
+        engine = soundfont ? GDOX_MIDI_ENGINE_SOUNDFONT : GDOX_MIDI_ENGINE_NONE;
+    else if ((engine == GDOX_MIDI_ENGINE_SOUNDFONT) && !soundfont)
+        engine = mt32 ? GDOX_MIDI_ENGINE_MT32 : GDOX_MIDI_ENGINE_NONE;
+
+    return engine;
+}
+
+static int midi_get_mt32_index(void)
+{
+    int model = game_active ? game_disk.GetDescriptor().GetInfo().mt32_model : -1;
+
+    if (model < 0)
+        model = midi_mt32_model;
+
+    return MidiSynth::FindMT32ROMs(midi_mt32_sets, midi_mt32_count, model);
+}
+
+static bool midi_activate(int engine)
+{
+    MidiSynth* synth = core->GetAudio()->GetMidiSynth();
+
+    if (engine == GDOX_MIDI_ENGINE_MT32)
+    {
+        int index = midi_get_mt32_index();
+
+        if (synth->IsOpen(engine) && (index == midi_mt32_index))
+            return true;
+
+        midi_mt32_index = index;
+
+        if ((index < 0) || midi_mt32_failed)
+            return false;
+
+        if (synth->OpenMT32(midi_mt32_sets[index]))
+        {
+            log_cb(RETRO_LOG_INFO, "Built-in MT-32: %s\n", midi_mt32_sets[index].name);
+            return true;
+        }
+
+        log_cb(RETRO_LOG_ERROR, "Unable to open the %s ROMs\n", midi_mt32_sets[index].name);
+        midi_mt32_failed = true;
+        return false;
+    }
+
+    if (engine == GDOX_MIDI_ENGINE_SOUNDFONT)
+    {
+        if (synth->IsOpen(engine))
+            return true;
+
+        if (midi_soundfont.empty() || midi_soundfont_failed)
+            return false;
+
+        if (synth->OpenSoundFont(midi_soundfont.c_str()))
+        {
+            log_cb(RETRO_LOG_INFO, "Built-in SoundFont: %s\n", midi_soundfont.c_str());
+            return true;
+        }
+
+        log_cb(RETRO_LOG_ERROR, "Unable to load the SoundFont %s\n", midi_soundfont.c_str());
+        midi_soundfont_failed = true;
+        return false;
+    }
+
+    return false;
 }
 
 // Each message's first byte carries the time since the previous one, from where it fell in the frame's audio
@@ -2121,6 +2291,24 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         machine_settings.gus = strcmp(var.value, "enabled") == 0 ? 1 : 0;
+
+    var.key = "geardox_midi";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        midi_builtin = strcmp(var.value, "retroarch") != 0;
+
+    var.key = "geardox_mt32_model";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        for (int i = 0; i < GDOX_MT32_MODEL_COUNT; i++)
+        {
+            if (strcmp(var.value, k_mt32_models[i].id) == 0)
+                midi_mt32_model = i;
+        }
+    }
 
     var.key = "geardox_turbo";
     var.value = NULL;

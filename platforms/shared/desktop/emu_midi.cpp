@@ -23,6 +23,7 @@
 #include "config.h"
 #include "emu.h"
 #include "emu_game.h"
+#include "emu_synth.h"
 #include "gui_notifications.h"
 #include "midi_port.h"
 #include "midi_queue.h"
@@ -34,8 +35,17 @@ static bool emu_midi_stopped = false;
 static bool emu_midi_rewinding = false;
 static bool emu_midi_notified = false;
 static u64 emu_midi_last_try = 0;
+static bool emu_midi_muted = false;
 
 static MidiOut* get_midi(void);
+static MidiSynth* get_synth(void);
+static bool is_builtin(void);
+static int get_out(int synth);
+static const char* get_out_port(int synth);
+static bool resolve(int synth, int out, const char* port, int* engine, const char** name);
+static void resolve_synth(int synth, int* engine, const char** name);
+static void resolve_wanted(int* engine, const char** name);
+static void close_port(MidiOut* midi);
 static void update_port(MidiOut* midi, bool force);
 static void sync(MidiOut* midi);
 static void silence(MidiOut* midi);
@@ -68,37 +78,48 @@ void emu_midi_begin_frame(void)
     if (!IsValidPointer(midi))
         return;
 
+    emu_synth_update();
     update_port(midi, false);
     bool open = midi_queue_is_open();
+    bool builtin = is_builtin();
 
     if (midi->TakeReset())
     {
         emu_midi_notified = false;
 
-        if (open)
+        if (builtin)
+            get_synth()->Reset();
+        else if (open)
             sync(midi);
     }
 
-    if ((emu_midi_stopped || emu_midi_rewinding) && open)
+    if ((emu_midi_stopped && open) || (emu_midi_rewinding && (open || builtin)))
         sync(midi);
 
     emu_midi_stopped = false;
     emu_midi_rewinding = false;
 
     MidiOut::MidiOut_Capture capture = MidiOut::MIDI_OUT_CAPTURE_OFF;
+    MidiOut::MidiOut_Capture quiet = builtin ? MidiOut::MIDI_OUT_CAPTURE_OFF : MidiOut::MIDI_OUT_CAPTURE_SILENT;
 
-    if (open)
-        capture = config_emulator.ffwd || !config_audio.enable || config_audio.midi_mute ?
-            MidiOut::MIDI_OUT_CAPTURE_SILENT : MidiOut::MIDI_OUT_CAPTURE_ON;
+    if (open || builtin)
+        capture = config_emulator.ffwd || !config_audio.enable || (open && config_audio.midi_mute) ? quiet :
+            MidiOut::MIDI_OUT_CAPTURE_ON;
 
     MidiOut::MidiOut_Capture current = midi->GetCapture();
 
-    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == MidiOut::MIDI_OUT_CAPTURE_SILENT))
+    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == quiet))
         silence(midi);
-    else if ((current == MidiOut::MIDI_OUT_CAPTURE_SILENT) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
+    else if ((current == quiet) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
         sync(midi);
 
     midi->SetCapture(capture);
+
+    if (config_audio.midi_mute != emu_midi_muted)
+    {
+        emu_midi_muted = config_audio.midi_mute;
+        emu_get_core()->GetAudio()->SetSourceMute(Audio::AUDIO_SOURCE_MIDI, emu_midi_muted);
+    }
 }
 
 // Called after the frame's samples are queued, so its messages play with them
@@ -109,9 +130,12 @@ void emu_midi_end_frame(int sample_count)
     if (!IsValidPointer(midi))
         return;
 
-    midi_queue_frame(midi, sample_count / 2);
+    bool builtin = is_builtin();
 
-    if ((emu_midi_last_try != 0) && midi->HasPlayed() && !midi_queue_is_open() && !emu_midi_notified)
+    if (!builtin)
+        midi_queue_frame(midi, sample_count / 2);
+
+    if ((emu_midi_last_try != 0) && midi->HasPlayed() && !midi_queue_is_open() && !builtin && !emu_midi_notified)
         notify();
 }
 
@@ -139,7 +163,7 @@ void emu_midi_rewind(void)
     {
         emu_midi_rewinding = true;
 
-        if (midi_queue_is_open())
+        if (midi_queue_is_open() || is_builtin())
             silence(midi);
     }
 
@@ -150,7 +174,7 @@ void emu_midi_state_loaded(void)
 {
     MidiOut* midi = get_midi();
 
-    if (IsValidPointer(midi) && midi_queue_is_open())
+    if (IsValidPointer(midi) && (midi_queue_is_open() || is_builtin()))
         sync(midi);
 }
 
@@ -164,31 +188,76 @@ void emu_midi_update_port(void)
 
 bool emu_midi_prepare(void)
 {
-    return midi_queue_prepare();
+    bool ready = midi_queue_prepare();
+    MidiOut* midi = get_midi();
+
+    if (IsValidPointer(midi))
+        update_port(midi, false);
+
+    return ready;
 }
 
 int emu_midi_get_synth(void)
 {
-    int synth = emu_game_get_midi();
-    return synth >= 0 ? synth : CLAMP(config_audio.midi_default, 0, GDOX_MIDI_SYNTH_COUNT - 1);
+    int synth = emu_midi_get_forced_synth();
+
+    if (synth >= 0)
+        return synth;
+
+    MidiOut* midi = get_midi();
+    int detected = IsValidPointer(midi) ? midi->GetDetected() : -1;
+    return detected >= 0 ? detected : GDOX_MIDI_SYNTH_GM;
 }
 
-const char* emu_midi_get_synth_port(int synth)
+int emu_midi_get_forced_synth(void)
 {
-    bool mt32 = synth == GDOX_MIDI_SYNTH_MT32;
-    const std::string& port = mt32 ? config_audio.midi_mt32_port : config_audio.midi_gm_port;
-    const std::string& other = mt32 ? config_audio.midi_gm_port : config_audio.midi_mt32_port;
-    return !port.empty() ? port.c_str() : other.c_str();
+    int synth = emu_game_get_midi();
+
+    if (synth >= 0)
+        return synth;
+
+    return config_audio.midi_default > 0 ? CLAMP(config_audio.midi_default - 1, 0, GDOX_MIDI_SYNTH_COUNT - 1) : -1;
+}
+
+bool emu_midi_is_detected(void)
+{
+    MidiOut* midi = get_midi();
+    return (emu_midi_get_forced_synth() < 0) && IsValidPointer(midi) && (midi->GetDetected() >= 0);
+}
+
+const char* emu_midi_get_synth_label(int synth)
+{
+    int engine = GDOX_MIDI_ENGINE_NONE;
+    const char* name = "";
+    resolve_synth(synth, &engine, &name);
+
+    if (engine != GDOX_MIDI_ENGINE_NONE)
+        return emu_synth_get_label(engine);
+
+    return name[0] != 0 ? name : k_midi_outs[GDOX_MIDI_OUT_NONE].name;
+}
+
+int emu_midi_get_wanted_engine(void)
+{
+    int engine = GDOX_MIDI_ENGINE_NONE;
+    const char* name = "";
+    resolve_wanted(&engine, &name);
+    return engine;
 }
 
 const char* emu_midi_get_wanted_port(void)
 {
-    const char* port = emu_game_get_midi_port();
-    return port[0] != 0 ? port : emu_midi_get_synth_port(emu_midi_get_synth());
+    int engine = GDOX_MIDI_ENGINE_NONE;
+    const char* name = "";
+    resolve_wanted(&engine, &name);
+    return name;
 }
 
 const char* emu_midi_get_port(void)
 {
+    if (is_builtin())
+        return emu_synth_get_playing_name(get_synth()->GetEngine());
+
     return midi_queue_is_open() ? midi_queue_get_port() : "";
 }
 
@@ -198,11 +267,124 @@ static MidiOut* get_midi(void)
     return IsValidPointer(core) ? core->GetAudio()->GetMidiOut() : NULL;
 }
 
+static MidiSynth* get_synth(void)
+{
+    GeardoxCore* core = emu_get_core();
+    return IsValidPointer(core) ? core->GetAudio()->GetMidiSynth() : NULL;
+}
+
+static bool is_builtin(void)
+{
+    MidiSynth* synth = get_synth();
+    return IsValidPointer(synth) && synth->IsActive();
+}
+
+static int get_out(int synth)
+{
+    int out = synth == GDOX_MIDI_SYNTH_MT32 ? config_audio.midi_mt32_out : config_audio.midi_gm_out;
+
+    if ((out == GDOX_MIDI_OUT_BUILTIN) && !emu_synth_is_compiled(emu_synth_get_engine(synth)))
+        return GDOX_MIDI_OUT_NONE;
+
+    return CLAMP(out, 0, GDOX_MIDI_OUT_COUNT - 1);
+}
+
+static const char* get_out_port(int synth)
+{
+    return synth == GDOX_MIDI_SYNTH_MT32 ? config_audio.midi_mt32_port.c_str() : config_audio.midi_gm_port.c_str();
+}
+
+static bool resolve(int synth, int out, const char* port, int* engine, const char** name)
+{
+    if (out == GDOX_MIDI_OUT_BUILTIN)
+    {
+        if (!emu_synth_is_available(emu_synth_get_engine(synth)))
+            return false;
+
+        *engine = emu_synth_get_engine(synth);
+        *name = "";
+        return true;
+    }
+
+    if ((out != GDOX_MIDI_OUT_EXTERNAL) || (port[0] == 0))
+        return false;
+
+    *engine = GDOX_MIDI_ENGINE_NONE;
+    *name = port;
+    return true;
+}
+
+static void resolve_synth(int synth, int* engine, const char** name)
+{
+    int other = synth == GDOX_MIDI_SYNTH_MT32 ? GDOX_MIDI_SYNTH_GM : GDOX_MIDI_SYNTH_MT32;
+    *engine = GDOX_MIDI_ENGINE_NONE;
+    *name = "";
+
+    if (resolve(synth, get_out(synth), get_out_port(synth), engine, name) ||
+        resolve(other, get_out(other), get_out_port(other), engine, name))
+        return;
+
+#if defined(_WIN32)
+    if (get_out(GDOX_MIDI_SYNTH_GM) == GDOX_MIDI_OUT_BUILTIN)
+        *name = "Microsoft GS Wavetable Synth";
+#endif
+}
+
+static void resolve_wanted(int* engine, const char** name)
+{
+    int synth = emu_midi_get_synth();
+    int out = emu_game_get_midi_out();
+    const char* port = emu_game_get_midi_port();
+
+    if ((out >= 0) || (port[0] != 0))
+    {
+        if (out < 0)
+            out = GDOX_MIDI_OUT_EXTERNAL;
+
+        if (port[0] == 0)
+            port = get_out_port(synth);
+
+        if (resolve(synth, out, port, engine, name))
+            return;
+    }
+
+    resolve_synth(synth, engine, name);
+}
+
+static void close_port(MidiOut* midi)
+{
+    if (midi_queue_is_lost())
+        Log("MIDI Out: %s stopped taking messages", midi_queue_get_port());
+    else
+    {
+        silence(midi);
+        midi_queue_drain(k_emu_midi_drain_ms);
+    }
+
+    midi_queue_close();
+    midi->ForgetSynth();
+    midi->SetCapture(MidiOut::MIDI_OUT_CAPTURE_OFF);
+}
+
 // A port that went away, or a synth started after Geardox, is tried again every two seconds. A newly opened synth
 // knows nothing, so it gets everything the machine has sent
 static void update_port(MidiOut* midi, bool force)
 {
-    const char* wanted = emu_midi_get_wanted_port();
+    int engine = GDOX_MIDI_ENGINE_NONE;
+    const char* wanted = "";
+    resolve_wanted(&engine, &wanted);
+    MidiSynth* synth = get_synth();
+
+    if (engine != GDOX_MIDI_ENGINE_NONE)
+    {
+        if (midi_queue_is_open())
+            close_port(midi);
+
+        synth->SetEngine(emu_synth_activate(engine) ? engine : GDOX_MIDI_ENGINE_NONE);
+        return;
+    }
+
+    synth->SetEngine(GDOX_MIDI_ENGINE_NONE);
 
     if ((wanted[0] != 0) && !midi_queue_prepare())
         return;
@@ -223,17 +405,7 @@ static void update_port(MidiOut* midi, bool force)
         if (!lost && (wanted[0] != 0) && MidiPort::IsSamePort(wanted, midi_queue_get_port()))
             return;
 
-        if (lost)
-            Log("MIDI Out: %s stopped taking messages", midi_queue_get_port());
-        else
-        {
-            silence(midi);
-            midi_queue_drain(k_emu_midi_drain_ms);
-        }
-
-        midi_queue_close();
-        midi->ForgetSynth();
-        midi->SetCapture(MidiOut::MIDI_OUT_CAPTURE_OFF);
+        close_port(midi);
     }
 
     if ((wanted[0] == 0) || !due || !midi_queue_open(wanted))
@@ -246,34 +418,52 @@ static void update_port(MidiOut* midi, bool force)
 static void sync(MidiOut* midi)
 {
     midi->Sync();
-    midi_queue_flush(midi);
+
+    if (!is_builtin())
+        midi_queue_flush(midi);
 }
 
 static void silence(MidiOut* midi)
 {
     midi->Silence();
-    midi_queue_flush(midi);
+
+    if (!is_builtin())
+        midi_queue_flush(midi);
 }
 
 static void notify(void)
 {
     emu_midi_notified = true;
     const char* wanted = emu_midi_get_wanted_port();
-    const char* synth = k_midi_synths[emu_midi_get_synth()].name;
+    int kind = emu_midi_get_synth();
+    const char* synth = k_midi_synths[kind].name;
+    bool builtin = get_out(kind) == GDOX_MIDI_OUT_BUILTIN;
     char message[256];
 
-    if (!MidiPort::IsSupported())
+    if (!MidiPort::IsSupported() && !builtin)
         return;
 
-    if (wanted[0] == 0)
+    if ((wanted[0] == 0) && builtin && (kind == GDOX_MIDI_SYNTH_MT32))
     {
-        snprintf(message, sizeof(message), "This game is playing %s music, and no MIDI port is set", synth);
+        snprintf(message, sizeof(message), "This game is playing %s music, and no MT-32 ROMs were found", synth);
+        gui_notify(gui_NotificationWarning, ICON_MD_MUSIC_NOTE, message,
+            "Choose their folder in Audio > Built-in Synths > MT-32.", "midi");
+    }
+    else if ((wanted[0] == 0) && builtin)
+    {
+        snprintf(message, sizeof(message), "This game is playing %s music, and no sound bank was found", synth);
+        gui_notify(gui_NotificationWarning, ICON_MD_MUSIC_NOTE, message,
+            "Choose one in Audio > Built-in Synths > General MIDI.", "midi");
+    }
+    else if (wanted[0] == 0)
+    {
+        snprintf(message, sizeof(message), "This game is playing %s music, and no MIDI output is set", synth);
         gui_notify(gui_NotificationWarning, ICON_MD_MUSIC_NOTE, message, "Choose one in Audio > MIDI Out.", "midi");
     }
     else
     {
         snprintf(message, sizeof(message), "This game is playing %s music, and %s isn't there", synth, wanted);
         gui_notify(gui_NotificationWarning, ICON_MD_MUSIC_NOTE, message,
-            "Start the synth, or choose another port in Audio > MIDI Out.", "midi");
+            "Start the synth, or choose another output in Audio > MIDI Out.", "midi");
     }
 }

@@ -55,6 +55,7 @@ static void draw_opl_channel(Audio* audio, OPL* opl, int chip, int channel);
 static void draw_dsp_transfer(SoundBlaster* blaster);
 static void draw_mixer(SoundBlaster* blaster);
 static void draw_mpu(Audio* audio);
+static void draw_midi_synth(Audio* audio);
 static void draw_gus_global(UltraSound* gus);
 static void draw_gus_voices(UltraSound* gus);
 static void draw_gus_flag(const char* label, bool on);
@@ -446,6 +447,8 @@ static void draw_mpu(Audio* audio)
         ImGui::EndTable();
     }
 
+    draw_midi_synth(audio);
+
     if (!intelligent)
         return;
 
@@ -780,7 +783,7 @@ void gui_debug_window_sound_control(void)
 
     ImGui::PopFont();
 
-    static const char* sources[Audio::AUDIO_SOURCE_COUNT] = { "FM", "PCM", "CD-DA", "Buzzer", "GUS" };
+    static const char* sources[Audio::AUDIO_SOURCE_COUNT] = { "FM", "PCM", "CD-DA", "Buzzer", "GUS", "MIDI" };
 
     if (ImGui::BeginTable("##debugger_mutes", 2, flags))
     {
@@ -965,6 +968,51 @@ static void draw_scope(const char* id, const s16* data, int stride, int count, f
     }
 
     ImPlot::PopStyleVar();
+}
+
+static void draw_midi_synth(Audio* audio)
+{
+    MidiSynth::MidiSynth_Status status;
+    audio->GetMidiSynth()->GetStatus(&status);
+    static const char* const k_engines[GDOX_MIDI_ENGINE_COUNT] = { "PORT", "MT-32", "SOUNDFONT" };
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "MIDI SYNTH");
+    ImGui::Separator();
+
+    bool muted = audio->IsSourceMuted(Audio::AUDIO_SOURCE_MIDI);
+
+    if (draw_mute_button("##midi_mute", muted, "Mute MIDI"))
+        audio->SetSourceMute(Audio::AUDIO_SOURCE_MIDI, !muted);
+
+    ImGui::SameLine();
+    draw_stereo_scope("##midi_mix", Audio::AUDIO_SOURCE_MIDI, 1.0f / 32768.0f, ImVec2(200, 50));
+
+    if (!ImGui::BeginTable("##midi_synth", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX))
+        return;
+
+    bool builtin = status.engine != GDOX_MIDI_ENGINE_NONE;
+
+    ImGui::TableNextRow();
+    draw_grid_label("ENGINE");
+    ImGui::TextColored(builtin ? green : gray, "%s", k_engines[status.engine]);
+    draw_grid_label("VOICES");
+    ImGui::TextColored(status.voices > 0 ? yellow : gray, "%d/%d", status.voices, status.max_voices);
+
+    ImGui::TableNextRow();
+    draw_grid_label("RENDER");
+    ImGui::TextColored(white, "%.2f ms", status.render_ms);
+    draw_grid_label("DROPPED");
+    ImGui::TextColored(status.dropped > 0 ? red : gray, "%u", status.dropped);
+
+    ImGui::TableNextRow();
+    draw_grid_label("MT-32");
+    ImGui::TextColored(status.mt32_open ? white : gray, "%s", status.mt32_open ? status.mt32_name : "-");
+    draw_grid_label("SOUNDFONT");
+    ImGui::TextColored(status.soundfont_open ? white : gray, "%s", status.soundfont_open ?
+        status.soundfont_path : "-");
+
+    ImGui::EndTable();
 }
 
 static void draw_stereo_scope(const char* id, int source, float scale, ImVec2 size)
