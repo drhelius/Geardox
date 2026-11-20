@@ -1029,6 +1029,8 @@ struct GDOX_Trace_Entry
             u8 kind;
             char text[64];
         } console;
+
+        u8 raw[GDOX_TRACE_ENTRY_SIZE - GDOX_TRACE_HEADER_SIZE];
     };
 };
 
