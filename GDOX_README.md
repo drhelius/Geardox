@@ -10,10 +10,14 @@ included FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 - [Run setup or use the DOS prompt](#run-setup-or-use-the-dos-prompt)
 - [Find your saves](#find-your-saves)
 - [Adjust a game's settings](#adjust-a-games-settings)
+- [Remap keys](#remap-keys)
+- [Use a gamepad](#use-a-gamepad)
 - [Use your own MS-DOS](#use-your-own-ms-dos)
 - [Use a Gravis UltraSound](#use-a-gravis-ultrasound)
 - [Troubleshooting](#troubleshooting)
+- [Other ways to open a game](#other-ways-to-open-a-game)
 - [Settings reference](#settings-reference)
+- [Advanced DOS details](#advanced-dos-details)
 
 ## Start with a Game Folder
 
@@ -30,7 +34,7 @@ To create a descriptor for an installed DOS game:
 
 Geardox saves the descriptor in the game's folder and starts the game, so opening or dropping the folder finds it
 next time, and so does **Game > Recent Games**. With **Game > Save Games To > Geardox's Save Folder**, or when the
-folder is read only, it goes to Geardox's save folder instead, and Recent Games brings it back. To save a copy of the
+folder is read-only, it goes to Geardox's save folder instead, and Recent Games brings it back. To save a copy of the
 descriptor in a location of your choice, use **Game > Game Files > Save Descriptor As...**.
 
 If the game asks you to run setup first, see [Run setup or use the DOS prompt](#run-setup-or-use-the-dos-prompt).
@@ -86,7 +90,7 @@ characters, without spaces). Use `folder = C:\` to place the game files directly
 If you leave out `source`, Geardox uses the folder containing the descriptor. If the descriptor is inside a ZIP, it
 uses that ZIP instead. Set `source` when you want to keep the descriptor somewhere else.
 
-Paths in `source` and external disk image entries are relative to the descriptor's location, unless you specify a
+Paths in `source` and the disk images in `[drives]` are relative to the descriptor's location, unless you specify a
 full path. For example, a descriptor at `Games/Orion.gdox` with `source = Orion` uses the folder `Games/Orion`. Paths
 with spaces are written without surrounding quotes.
 
@@ -168,7 +172,8 @@ Geardox finds them even when the CUE names them with backslashes or in another c
 The CD normally appears as D: in DOS. If you also add hard disks with `hdd_primary_slave` or `hdd_secondary_slave`,
 the CD uses the next free letter after them. Geardox loads the CD driver automatically.
 
-Disc images can also be inside the game's ZIP: use their path inside the ZIP, such as `cdrom = Discs/WAR2.cue`.
+Disc and floppy images can also be inside the game's ZIP: use their path inside the ZIP, such as
+`cdrom = Discs/WAR2.cue`.
 For multiple discs, list them separated by commas, or use one `.m3u` playlist.
 
 ## Run Setup or Use the DOS Prompt
@@ -235,8 +240,8 @@ This selects a slower PC, which can help with older games that run too fast or f
 
 Geardox uses settings in this order:
 
-1. **Emulator > Machine** changes remembered for this game.
-2. Settings in the descriptor.
+1. Changes made in the menus while this game was open.
+2. Settings in the descriptor, or in the game database's entry for a recognised game.
 3. Your general Geardox settings.
 4. Built-in defaults for anything still unspecified.
 
@@ -288,8 +293,8 @@ ems_kb = 1024
 ```
 
 When `ems_kb` is specified and `ram_mb` is omitted, Geardox can increase the emulated RAM to meet the EMS
-requirement.
-The advanced `memory` and `ems_frame` settings control the DOS memory manager; see [Memory modes](#memory-modes).
+requirement. The advanced `memory` and `ems_frame` settings control the DOS memory manager; see
+[Memory modes](#memory-modes).
 
 ## Remap Keys
 
@@ -371,8 +376,8 @@ folder or save location whichever DOS runs.
 
 - **One game on FreeDOS:** while the game is open, choose **DOS > Game > FreeDOS**. Geardox closes the game, saving
   its changes, and opens it again on FreeDOS. The choice is kept for that game, and **Game Default** in the same list
-  or **Forget This Game's Changes** clears it. **DOS > Game** and your MS-DOS's name, such as **MS-DOS 6.22**,
-  switches it back.
+  or **Forget This Game's Changes** clears it. Your MS-DOS's name in the same list, such as **MS-DOS 6.22**, switches
+  it back.
 - **In a descriptor:** `system = freedos` or `system = msdos` under `[dos]`. A game that asks for MS-DOS doesn't
   start until MS-DOS is imported.
 - **Removing it:** **DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
@@ -384,9 +389,9 @@ such as "MS-DOS 6.22", comes from your copy's own `COMMAND.COM`. A disk or file 
 read, or a compressed file that doesn't expand is reported with the disk it should be on. A damaged byte inside a
 compressed file can't be detected, because MS-DOS's compression has no checksum. MS-DOS 4 and older aren't supported.
 
-MS-DOS 5.0 has no CD-ROM extensions, so a game's CD uses SHSUCDX, Geardox's own, as FreeDOS does. Its EMM386 sets the
-whole of its EMS aside when it loads: with `memory = ems`, a game gets all the extended memory as EMS and has little
-XMS left, unless `ems_kb` asks for less. `cache = on` loads nothing, as 5.0 has no SMARTDRV.EXE.
+MS-DOS 5.0 has no CD-ROM extensions, so a game's CD uses FreeDOS's SHSUCDX, which Geardox adds to `C:\GEARDOX`. Its
+EMM386 sets the whole of its EMS aside when it loads: with `memory = ems`, a game gets all the extended memory as EMS
+and has little XMS left, unless `ems_kb` asks for less. `cache = on` loads nothing, as 5.0 has no SMARTDRV.EXE.
 
 In RetroArch, put the Setup disk images, or a ZIP of them, in `geardox/msdos` inside RetroArch's system folder.
 Geardox imports them the next time content loads, and again whenever they change. Removing them goes back to FreeDOS.
@@ -399,9 +404,9 @@ in the save folder.
 
 Geardox can add a Gravis UltraSound next to the Sound Blaster, as most owners had it. It's off unless a game asks for
 it: `gus = on` under `[sound]`, or **Emulator > Machine > Sound Card > Gravis UltraSound** for every game. The card is
-at port 240 with 1 MB of memory. It uses IRQ 5 and DMA 3, or IRQ 7 and DMA 1 when the Sound Blaster
-already has those. Geardox sets the DOS `ULTRASND` and `ULTRADIR` variables to match and gets the card ready before
-the game starts, so a game's setup finds it.
+at port 240 with 1 MB of memory. It takes IRQ 5, or IRQ 7 when the Sound Blaster has IRQ 5, and DMA 3, or DMA 1 when
+the Sound Blaster has DMA 3: IRQ 7 and DMA 3 next to the default Sound Blaster. Geardox sets the DOS `ULTRASND` and
+`ULTRADIR` variables to match and gets the card ready before the game starts, so a game's setup finds it.
 
 Trackers, demos and games that load their own sounds play with nothing more. Games whose music plays through Gravis's
 instrument patches, such as those using ULTRAMID, need the patches, which come on Gravis's install disks and aren't
@@ -415,7 +420,7 @@ Geardox unpacks the disks itself, checking every file, and keeps its own copy, `
 Every game with the card on then gets the software and patches in `C:\ULTRASND`. Other versions of the install disks
 aren't supported. **Audio > Remove UltraSound Software** deletes Geardox's copy; your disks aren't touched.
 
-In RetroArch, turn on the **Gravis UltraSound** core option, and put the install disks, or a ZIP of them, in
+In RetroArch, turn on the **Gravis UltraSound (restart)** core option, and put the install disks, or a ZIP of them, in
 `geardox/ultrasnd` inside RetroArch's system folder. Geardox imports them the next time content loads.
 
 ## Troubleshooting
@@ -426,7 +431,7 @@ In RetroArch, turn on the **Gravis UltraSound** core option, and put the install
 | The game database recognises a game but its settings don't suit your copy | Create a descriptor for it with **Game > New Game Descriptor...**: a descriptor in the folder always wins. **Game > Use Game Database** turns recognition off. |
 | Geardox cannot find the game folder or ZIP | Check `source` under `[game]`. Relative paths start from the descriptor's folder, and paths should not have surrounding quotes. |
 | "Bad command or filename" | Check `exe` under `[run]`. It starts from the game's folder inside DOS; include any subfolder inside your folder or ZIP. |
-| "Please run SETUP" or a missing configuration file | Run the game's setup using **Game > Boot To > Setup**, or start it from **DOS Prompt**. |
+| "Please run SETUP" or a missing configuration file | Run the game's setup using **Game > Boot To > Setup**, or start it from **Game > Boot To > DOS Prompt**. |
 | The game runs too fast, gives "Runtime error 200" or "Divide error", or hangs while loading | Try `model = 386dx_33` under `[machine]`. You can also try `turbo = off`. These errors can have other causes. |
 | The game asks for more RAM | Try `ram_mb = 16` under `[machine]`, or the amount the game requires. |
 | The game asks for expanded memory or EMS | Add `ems_kb = 1024` under `[dos]`, or the required amount in KB. |
@@ -440,14 +445,17 @@ In RetroArch, turn on the **Gravis UltraSound** core option, and put the install
 
 ## Other Ways to Open a Game
 
-On the command line, pass a descriptor, a folder or ZIP containing one or one the game database recognises, or a
-game's program:
+On the command line, pass a descriptor, a folder or ZIP holding one or a game the database recognises, or a game's
+program:
 
 ```sh
 geardox "Master of Orion.gdox"
 geardox --target setup "Master of Orion.gdox"
 geardox --target prompt "Master of Orion.gdox"
 ```
+
+`--target` chooses what runs, as **Game > Boot To** does: `game`, the default, `setup` or `prompt`. `--target debug`
+runs the game's program through GDXDBG, for programs you are developing; see [DEV_README.md](DEV_README.md).
 
 In RetroArch, load the `.gdox` file or a ZIP containing one at its top level. Use **Game Runs (restart)** to choose
 the game, setup or DOS prompt, then restart the content. Machine options controlled by the descriptor are hidden
@@ -584,18 +592,19 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `<source>_mute` | No | Silences one sound source for this game: the same sources without `master`. Desktop only | `on`, `off` | Your setting (`off`) | `cdda_mute = on` |
 | `mt32_model` | No | The unit the built-in MT-32 plays, from your ROMs. `auto` plays a CM-32L when its ROMs are there, then an MT-32; `mt32_old` is the first MT-32 (ROMs 1.0x), `mt32_new` the later one (2.0x), `cm32l` the CM-32L with its extra sound effects. A model with no ROMs plays the one `auto` picks | `auto`, `mt32_old`, `mt32_new`, `cm32l` | Your setting (`auto`) | `mt32_model = mt32_old` |
 
-The sound port is 220. The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the
-DOS `BLASTER` variable automatically to match the selected card, IRQ and DMA, and `ULTRASND` and `ULTRADIR` when the
-Gravis UltraSound is on.
+The sound port is 220. The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the DOS `BLASTER`
+variable automatically to match the selected card, IRQ and DMA, and `ULTRASND` and `ULTRADIR` when the Gravis
+UltraSound is on.
 
 MIDI music plays on Geardox's built-in MT-32 and General MIDI synths, from your own MT-32 ROMs and sound bank (a
 SoundFont file), or through a synthesizer outside Geardox. On desktop, set the output for each synth in **Audio > MIDI
 Out** and the built-in synths' files in **Audio > Built-in Synths**; the kind of music, detected or set with `midi`,
 picks which output the game uses, and `midi_out` and `midi_port` change it for this game. A synth with no output, or
 with no files for its built-in synth, plays on the other one's. In RetroArch, the **MIDI Out** core option is the
-default for `midi_out`: Built-in Synth plays on the synth for the kind of music (MT-32 ROMs in `<system>/geardox/mt32` or `<system>`, a sound bank in
-`<system>/geardox/soundfonts`), and External Port plays on the port in **Settings > Audio > MIDI**, where MIDI output
-must be on; `midi_port` isn't used.
+default for `midi_out`: Built-in Synth plays on the synth for the kind of music (MT-32 ROMs in
+`<system>/geardox/mt32` or `<system>`, a sound bank in `<system>/geardox/soundfonts`), and External Port plays on the
+port in **Settings > Audio > MIDI**, where MIDI output must be on; `midi_port` isn't used. The **Built-in MT-32
+Model** core option is the default for `mt32_model`.
 
 ### `[input]`
 

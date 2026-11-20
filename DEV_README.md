@@ -21,9 +21,9 @@ own debugger, or with an AI agent.
 You need Geardox, a DOS toolchain and, to debug at source level, gdb. The commands are for macOS; Linux and Windows
 have the same tools in their package managers.
 
-1. **Geardox.** Build it from this repository (see [README.md](README.md)) or install a release, and note where the
-   `geardox` program is. The examples call `geardox`, so either put it on your `PATH` or give its full path where
-   asked below.
+1. **Geardox.** Build it from this repository (see [Build Instructions](README.md#build-instructions)), and note
+   where the `geardox` program is. The examples call `geardox`, so either put it on your `PATH` or give its full path
+   where asked below.
 2. **A toolchain.** Pick one to start with:
    - **DJGPP** (C and C++, 32-bit): unpack a [release](https://github.com/andrewwutw/build-djgpp/releases) and add its
      `bin` folder to `PATH`. DJGPP programs also need `CWSDPMI.EXE` from `csdpmi7b.zip` (DJGPP's `v2misc` folder):
@@ -87,8 +87,8 @@ the **Problems** panel; click one to jump to the line.
 
 ### Step 4: Run
 
-Open the Command Palette (**⇧⌘P**), choose **Tasks: Run Task**, then **Run**. A Geardox window opens, DOS boots, and the
-program runs. Its output shows in VS Code's terminal panel:
+Open the Command Palette (**⇧⌘P**, or **Ctrl+Shift+P**), choose **Tasks: Run Task**, then **Run**. A Geardox window
+opens, DOS boots, and the program runs. Its output shows in VS Code's terminal panel:
 
 ```
 total 140
@@ -125,7 +125,8 @@ the program returns 0, and fails otherwise. The example returns 1 if its sum is 
 6. Remove the breakpoint and press **F5** again. The program runs to its end. Its output appears in the **Debug
    Console**, the session ends with its exit code, and Geardox closes.
 
-The **Debug Console** also takes gdb commands after `-exec`. These ask Geardox itself:
+The **Debug Console** also takes gdb commands after `-exec`. These ask Geardox itself, and the rest are in
+[gdb in a terminal](#8-gdb-in-a-terminal):
 
 ```
 -exec monitor program       where DOS loaded the program, its base and its exit code
@@ -194,10 +195,15 @@ To print to the console without touching the screen, for example from a game's m
 gdx_printf("frame %d, player at %d,%d\n", frame, x, y);
 ```
 
-In NASM, `%include "gdxdbg.inc"` and use `GDX_WRITE text, length`. The helpers do nothing when the program runs outside
-Geardox. `gdxdbg.h`, `gdxdbg.c` and `gdxdbg.inc` are under the MIT license, so they can go into any program.
+`gdx_printf` formats up to 511 characters per call, `gdx_puts(text)` adds a line break, and `gdx_write(text, length)`
+prints a buffer as it is. They do nothing when the program runs outside Geardox; `gdx_present()` tells you which.
 
-Port E9h also prints, one character at a time, when **Debug → Program → E9h Console** is on or with `--e9`.
+In NASM, `%include "gdxdbg.inc"` and use `GDX_WRITE text, length`. The NASM macros don't check for Geardox: a program
+that also runs elsewhere reads port 520h first, which returns `'G'` in Geardox. `gdxdbg.h`, `gdxdbg.c` and
+`gdxdbg.inc` are under the MIT license, so they can go into any program.
+
+Port E9h also prints, one character at a time, when **Debug → Program → E9h Console** is on or with `--e9`:
+`gdx_e9(c)` in C and `GDX_E9 char` in NASM write to it.
 
 ## 6. Tests and Scripts
 
@@ -209,7 +215,7 @@ echo $?
 - **The exit code** is the program's. 124 means the time ran out, and 255 means the program couldn't be loaded.
 - **stdout** holds only what the program printed. Geardox's own messages go to stderr.
 - **Settings:** a headless run leaves Geardox's settings untouched.
-- **Speed:** a headless run goes at full host speed.
+- **Speed:** a headless run of a program goes at full host speed, unless `--speed normal` asks otherwise.
 - **`--run`** picks the program and its arguments, relative to the project's folder. Without it, `--target debug`
   runs the descriptor's `exe`.
 - **`--no-write-back`** keeps the program's files out of the project folder, so several runs can go at once.
@@ -219,19 +225,22 @@ echo $?
 Turn on **Debug → Enable**. Then:
 
 - **Debug → Program → Show Program** shows the program, where DOS loaded it, its symbols, its exit code and what it
-  printed. **Run Again** rebuilds the disk and runs the program again.
+  printed. Its **Program** menu has **Run Again**, which rebuilds the disk and runs the program again, and **Run
+  Again, Stop at Entry**. **Debug → Program → Run Program Again** does the same from the main menu.
 - **Symbols load by themselves.** A map file next to the program with the same name (`hello.map`, `.sym` or `.nm`)
   loads when the program starts, moved to where DOS loaded it. That covers NASM, GNU ld, `nm`, Borland TLINK `/m`,
   Microsoft LINK `/MAP` and Watcom `option map` files, so the disassembler, breakpoints and call stack show your
-  function names. They go away when the program exits.
-- **Stop at the first instruction:** `--stop-at-entry`, or `GDXDBG /S PROGRAM.EXE` at a DOS prompt.
+  function names. They go away when the program exits. A file with another name loads while the program runs, with
+  **Program > Load Program Symbols...** in the same window or `monitor symbols FILE` in gdb.
+- **Stop at the first instruction:** `--stop-at-entry`, **Run Again, Stop at Entry**, or `GDXDBG /S PROGRAM.EXE` at a
+  DOS prompt. `GDXDBG /Q` runs a program without copying its output to the program console.
 - **Break from your code:**
-  - `gdx_break()` stops the debugger.
+  - `gdx_break()` in C and `GDX_STOP` in NASM stop the debugger.
   - With **Debug → Program → Magic Breakpoint** on (or `--magic-break`), the instruction `XCHG BX,BX` stops it too.
     `GDX_MAGIC_BREAK()` in C and `GDX_BREAK` in NASM write it.
 
-While a breakpoint, a data watch or the trace logger is set, the machine runs one instruction at a time, which is
-slower. Without any of them, a program runs at full speed under the debugger.
+While a breakpoint of any kind, CPU tracing in the trace logger or the profiler is on, the machine runs one
+instruction at a time, which is slower. Without any of them, a program runs at full speed under the debugger.
 
 ## 8. gdb in a Terminal
 
@@ -259,6 +268,7 @@ gdb -ex "set gnutarget coff-go32-exe" -ex "file build/hello.exe" -ex "target rem
 | `monitor mode linear`, `program`, `auto` | The address mode |
 | `monitor base ADDRESS`, `auto` | Set the program's base by hand |
 | `monitor symbols FILE` | Load symbols into Geardox's debugger |
+| `monitor help` | List these commands |
 
 ## 9. AI Agents
 
@@ -291,8 +301,8 @@ npx skills add drhelius/geardox --skill geardox-dosdev
 | `--exit-on-exit` | Quits when the program exits, with its exit code |
 | `--timeout SECONDS` | Quits with exit code 124 if the program is still running |
 | `--stop-at-entry` | Stops in the debugger at the program's first instruction |
-| `--boot-speed max` | Boots at full host speed, then runs the program at normal speed |
-| `--speed max`, `normal` | Full host speed or normal speed throughout; headless runs default to `max` |
+| `--boot-speed max`, `normal` | `max` boots at full host speed, then runs the program at normal speed; `normal`, the default, doesn't |
+| `--speed max`, `normal` | Full host speed or normal speed throughout; headless program runs default to `max` |
 | `--no-write-back` | The program's files stay in Geardox's save folder |
 | `--e9` | Port E9h prints to the program console |
 | `--magic-break` | `XCHG BX,BX` stops in the debugger |
@@ -301,7 +311,7 @@ npx skills add drhelius/geardox --skill geardox-dosdev
 | `--gdb-wait` | Starts the gdb server and holds gdb until the program starts |
 | `--headless` | No window; needs `--run`, `--target debug`, `--gdb` or MCP |
 
-Any of them turns the debugger on for that run only.
+Every option but `--headless` turns the debugger on for that run only.
 
 | Toolchain | Debugging |
 |-----------|-----------|

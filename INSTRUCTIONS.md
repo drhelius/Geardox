@@ -1,18 +1,20 @@
 # Getting Started with Geardox
 
-Geardox is an early-90s PC in a window: a 386 or 486 with a Sound Blaster, VGA or SVGA graphics, floppy drives,
-hard disks and a CD-ROM drive. A real PC needs DOS to run games, so Geardox comes with **FreeDOS built in**. You never
-have to install DOS yourself. If you own MS-DOS, import it once and games and the built-in disk run on it instead: see
-[Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos).
+Geardox is a 90s PC in a window: a 386, 486 or Pentium with a Sound Blaster, CGA, EGA, VGA or SVGA graphics, floppy
+drives, hard disks and a CD-ROM drive. A real PC needs DOS to run games, so Geardox comes with **FreeDOS built in**.
+You never have to install DOS yourself. If you own MS-DOS, import it once and games and the built-in disk run on it
+instead: see [Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos).
 
 - [Play a game](#play-a-game)
 - [Starting with nothing attached](#starting-with-nothing-attached)
 - [Using the DOS prompt](#using-the-dos-prompt)
 - [Attaching disks and discs](#attaching-disks-and-discs)
 - [Installing a game from floppies or a CD](#installing-a-game-from-floppies-or-a-cd)
+- [Windows 3.11 and Windows 95](#windows-311-and-windows-95)
 - [Two rules that explain most surprises](#two-rules-that-explain-most-surprises)
 - [While a game is open](#while-a-game-is-open)
 - [Machine settings](#machine-settings)
+- [MIDI music](#midi-music)
 - [Keyboard, mouse and joystick](#keyboard-mouse-and-joystick)
 - [Where Geardox keeps its files](#where-geardox-keeps-its-files)
 - [Quick fixes](#quick-fixes)
@@ -40,7 +42,7 @@ If Geardox doesn't recognise the game and it has no `.gdox` yet:
 3. Pick the program that starts it, such as `GAME.EXE` or `PLAY.BAT`.
 
 Geardox writes the `.gdox` into the game's folder and starts the game. Next time, open the folder again or pick it in
-**Game > Recent Games**. If the folder is read only, or **Game > Save Games To** is **Geardox's Save Folder**, the
+**Game > Recent Games**. If the folder is read-only, or **Game > Save Games To** is **Geardox's Save Folder**, the
 `.gdox` goes to the save folder and Recent Games brings it back.
 
 Many games need their setup program run once, to choose a sound card. **Game > Boot To** restarts the PC into one of
@@ -118,8 +120,8 @@ Drag a file onto the window, or use the **Drives** menu. What happens depends on
 | --- | --- |
 | A folder or ZIP with a `.gdox` | The game opens, as in [Play a game](#play-a-game). |
 | A folder or ZIP with no `.gdox` | It becomes a second hard disk, **D:**, next to the built-in disk on C:. Type `D:` and run the game. DOS can write to D:, but those changes stay in Geardox's copy and your folder is never touched. |
-| A hard disk image (`.hdd`, `.img`, fixed-size `.vhd`, `.chd`) | It **replaces the built-in disk as C:** and the PC boots from it. This is for a DOS PC you've already set up. If C: is already one of your own disks, the image takes the next free position. |
-| A floppy image (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`) | It goes into drive A: right away, with no restart. |
+| A hard disk image (`.hdd`, an `.img` larger than a floppy, fixed-size `.vhd`, `.chd`) | It **replaces the built-in disk as C:** and the PC boots from it. This is for a DOS PC you've already set up. If C: is already one of your own disks, the image takes the next free position. |
+| A floppy image (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.xdf`, `.mfm`, `.d77`, `.d88`, `.hdm`) | It goes into drive A: right away, with no restart. |
 | A ZIP of floppy images | One disk goes into A: and the next into B:. **Drives > Floppies > Drive 1 > Disk in Image** swaps in any other. |
 | A CD image (`.cue`, `.iso`, `.chd`) or an `.m3u` list | It goes into the CD drive right away. On a built-in disk it gets the next free letter, D: or E:. |
 
@@ -164,8 +166,8 @@ into the image, and everything you install stays there.
 
 - **Windows 3.11:** install the Cirrus driver with **Main > Windows Setup > Options > Change System Settings**,
   choosing **Other display** in the Display list and typing the folder with the driver files. Change resolution and
-  colours the same way, from the "GD5426/28" entries. Cirrus's SETRES utility only offers 640x480 in 16 colours for
-  now.
+  colours the same way, from the "GD5426/28" entries, or with Cirrus's SETRES utility, which lists every mode the
+  card's 2 MB can show.
 - **Windows 95** finds the card by itself. Change resolution and colours in the desktop's **Properties > Settings**;
   a colour change needs the restart Windows offers. Windows 95 also runs on the GD5428, with its own Cirrus driver.
   **Shut Down** turns the PC off.
@@ -175,10 +177,10 @@ into the image, and everything you install stays there.
 ## Two Rules That Explain Most Surprises
 
 1. **Hard disks only change at a reset.** If the PC is running, a new hard disk waits, and the notice says "At the
-   next reset". Use **Drives > Hard Disks > Reset to Apply Changes**, or **Geardox > Reset** (Ctrl+Shift+R). Floppies and
-   CDs can be swapped at any time, like on a real PC.
+   next reset". Use **Drives > Hard Disks > Reset to Apply Changes**, or **Geardox > Reset** (Ctrl+Shift+R).
+   Floppies and CDs can be swapped at any time, like on a real PC.
 2. **The PC tries the floppy first, then the hard disk.** A disk left in A: is tried first at a reset. To boot from
-   something else, use **Geardox > Reset and Boot From > Floppy 1, Hard Disk or CD-ROM**. With
+   something else, use **Geardox > Reset and Boot From > Floppy 1, Floppy 2, Hard Disk or CD-ROM**. With
    **Emulator > Machine > BIOS Boot Menu** on, pressing Esc in the first seconds of a boot shows a boot menu.
 
 ## While a Game Is Open
@@ -195,12 +197,14 @@ game's hard disks use, it moves to the Secondary Master while the game is open.
 or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
 
 **Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So are
-**Video > CGA Output**, **Input > Emulated Joystick**, the **Host Gamepad** choices, **Audio > MIDI Out > Game Music**,
-**Audio > Built-in Synths > MT-32 > Model**, the volumes and mutes in **Audio** and the DOS chosen in **DOS > Game**.
+**Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices,
+**Audio > MIDI Out > Game Music**, **Audio > Built-in Synths > MT-32 > Model**, the volumes and mutes in **Audio** and
+the DOS chosen in **DOS > Game**.
 While the game is open, the menus show its settings in colour: orange for your changes, violet for what its `.gdox`
 sets, blue for what the game database sets. **Game Default**, first in each list, undoes one change, and
 **Game > Game Files > Forget This Game's Changes** undoes them all. The **DOS** menu also has **Import MS-DOS...** and
 **Remove MS-DOS**.
+
 ## Machine Settings
 
 **Emulator > Machine** chooses the PC. Most changes take effect at the next reset, and the menu offers
@@ -213,10 +217,10 @@ sets, blue for what the game database sets. **Game Default**, first in each list
 | Sound Card | Sound Blaster 16, IRQ 5, DMA 1 | Match it in the game's setup. |
 | Gravis UltraSound | Off | A second sound card for games, trackers and demos made for it, at port 240 next to the Sound Blaster. The game's setup finds it on its own. Music played with Gravis's patches needs **Audio > Import UltraSound Software...** once: see [Use a Gravis UltraSound](GDOX_README.md#use-a-gravis-ultrasound). |
 | MPU-401 | Intelligent | The MIDI port at 330 for General MIDI and MT-32 music. Intelligent is the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port, for a game that misbehaves with it. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
-| Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428 on the 386s and 486s, the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
+| Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428, ISA on the 386s and VL-Bus on the 486s, and the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
-| Drive Timing | Auto | Fast for games: seeks, the wait for a sector and a CD's spin-up take a sixteenth of the time. Real keeps the drives' mechanics. |
+| Drive Timing | Auto | Fast for games and Real otherwise. Fast takes a sixteenth of the time for seeks, the wait for a sector and a CD's spin-up; Real keeps the drives' mechanics. |
 
 **Turbo** works at once: off runs the CPU at a third of its speed, for games that are too fast. It's Ctrl+Shift+T, and
 a "TURBO OFF" badge shows while it's off.
@@ -226,7 +230,8 @@ otherwise, and Composite Monitor suits games drawn for a television. It applies 
 
 If you change the sound card's IRQ or DMA, the built-in disks don't follow. Edit the `SET BLASTER` line with
 `EDIT C:\AUTOEXEC.BAT`. The built-in disks also set up a Gravis UltraSound at IRQ 7 and DMA 3 when it's on, which
-suits the Sound Blaster's defaults; the `GDXGUS` and `SET ULTRASND` lines are the ones to edit. Games opened with a `.gdox` get the right `BLASTER` automatically.
+suits the Sound Blaster's defaults; the `GDXGUS` and `SET ULTRASND` lines are the ones to edit. Games opened with a
+`.gdox` get the right `BLASTER` and `ULTRASND` automatically.
 
 ## MIDI Music
 
@@ -244,9 +249,9 @@ each synth's last line shows what it found:
   an MT-32 does plus the sound effects of later Sierra games, then an MT-32.
 - **General MIDI:** a sound bank (a SoundFont file, `.sf2` or `.sf3`), such as the free GeneralUser GS or FluidR3_GM.
   Put it in the `soundfonts` folder inside Geardox's settings folder, or in the system's usual place
-  (`~/Library/Audio/Sounds/Banks` on macOS, `/usr/share/soundfonts` or `/usr/share/sounds/sf2` on Linux, `soundfonts`
-  next to Geardox on Windows), or choose a file with **Custom Location** in **General MIDI > Sound Bank**. The first
-  one by name is used.
+  (`~/Library/Audio/Sounds/Banks` on macOS, `/usr/share/soundfonts`, `/usr/share/sounds/sf2` or
+  `/usr/local/share/soundfonts` on Linux, `soundfonts` next to Geardox on Windows), or choose a file with
+  **Custom Location** in **General MIDI > Sound Bank**. The first one by name is used.
 
 With the files in place, MT-32 and General MIDI games play with no setup.
 
@@ -263,9 +268,9 @@ With the files in place, MT-32 and General MIDI games play with no setup.
    on your computer: one of them sends that game's music there, whatever its kind. With no game open, the choice is
    the default for games.
 
-The last line of the menu shows the kind of music and where it's playing in green, or what's missing in red. If a game plays MIDI
-and nothing can play it, Geardox says so. A `.gdox` sets these with `midi`, `midi_out`, `midi_port` and `mt32_model`
-under `[sound]`.
+The last line of the menu shows the kind of music and where it's playing in green, or what's missing in red. If a
+game plays MIDI and nothing can play it, Geardox says so. A `.gdox` sets these with `midi`, `midi_out`, `midi_port`
+and `mt32_model` under `[sound]`.
 
 The built-in synths play inside the emulated machine's time: they stop when it pauses and go on where they were, and
 they're in Geardox's mix, so **Audio > Built-in MT-32 Volume** and **Built-in General MIDI Volume**, their **Mute** and
@@ -279,8 +284,9 @@ Geardox's volume sliders, their mutes and recordings don't include it, and **Mut
 ## Keyboard, Mouse and Joystick
 
 **Keys go to the PC** while Geardox's window has focus, so Ctrl+C and the like reach DOS. Geardox keeps only its
-hotkeys, which use Ctrl+Shift or Ctrl with an F-key. On macOS, Cmd replaces Ctrl in all of them; on a Mac keyboard the
-F-keys may need Fn. **Input > Keyboard > Paste as Keystrokes** types the clipboard into the PC.
+hotkeys, which use Ctrl+Shift, Ctrl with an F-key or a digit, and Alt+Enter. On macOS, Cmd replaces Ctrl in all of
+them; on a Mac keyboard the F-keys may need Fn. **Input > Keyboard > Paste as Keystrokes** types the clipboard into
+the PC.
 
 **Game Focus is for playing.** Press **Ctrl+F10**, or go fullscreen with **Alt+Enter**. The mouse is then locked in
 the window, and every hotkey is off except Ctrl+F10, Alt+Enter, Ctrl+F1 and Ctrl+F2, so even a game's own Ctrl and
@@ -305,8 +311,9 @@ PC key, then press the key of your keyboard that should drive it, on its own. Th
 yours; click it again to deselect it. Each PC key lists the keys that drive it, built-in ones first: click the **x** on
 one to remove it, or right click the PC key to remove all but the built-in ones. Red keys are ones no key of yours
 reaches. Press the same hotkey again, or click **Close**, to go back to the game. Changes are kept for that game only,
-beside its other files. A descriptor can set them too, including one key that sends several, such as Ctrl, Alt and Del;
-see [Keys](GDOX_README.md#remap-keys).
+beside its other files; with no game open, they're kept for the disc, floppy or hard disk image you opened. A
+descriptor can set them too, including one key that sends several, such as Ctrl, Alt and Del; see
+[Remap keys](GDOX_README.md#remap-keys).
 
 **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key changes off and on, for instance to type a character's name in
 a game that moves on letters. Every game starts with them on.
@@ -315,10 +322,11 @@ a game that moves on letters. Every game starts with them on.
 locks it inside the window.
 
 **A gamepad** presses the PC's keys and moves its mouse. Out of the box, the D-pad sends the cursor keys, the left
-stick moves the mouse, A and B click, X is Space, Y is Ctrl, L1 is Alt, R1 is Shift, Back is Esc and Start is Enter.
-**Input > Host Gamepad 1 > Key Mapping** changes them: click a button's row, then press the PC key or choose a mouse
-button. **Mouse** in the same menu picks what moves the mouse, or nothing. During a game, these changes are for that
-game only, and a descriptor can set them too; see [Gamepads](GDOX_README.md#use-a-gamepad). **Host Gamepad 2** works
+stick moves the mouse, A and B click, X is Space, Y is Left Ctrl, L1 is Left Alt, R1 is Left Shift, Back is Esc and
+Start is Enter. **Input > Host Gamepad 1 > Key Mapping** changes them: click a button's row, then press the PC key or
+choose a mouse button. **Mouse > Move Mouse With** in the same menu picks what moves the mouse, or nothing. During a
+game, these changes are for that game only, and a descriptor can set them too; see
+[Use a gamepad](GDOX_README.md#use-a-gamepad). **Host Gamepad 2** works
 the same, for games where two players share the keyboard.
 
 **For joystick games,** set **Input > Host Gamepad 1 > Use As** to **Joystick**. That gamepad then drives the PC's
@@ -344,14 +352,17 @@ In this folder:
 
 - `FreeDOS.hdd` is the built-in FreeDOS disk.
 - `MS-DOS.hdd` is the built-in MS-DOS disk, made from your import the first time it's needed.
-- `msdos.zip` is your imported MS-DOS, when you've imported it.
+- `msdos.zip` is your imported MS-DOS, when you've imported it, and `ultrasnd.zip` your imported Gravis UltraSound
+  software.
+- `mt32` and `soundfonts` are the folders where the built-in synths look for MT-32 ROMs and sound banks.
 - `<name>.<id>.geardox.hdd` files are the disks made from folders and ZIPs.
 - `<name>.<id>.gdox.hdd` files are the C: drives games build, and `<name>.<id>.gdox.ini` and `<name>.<id>.keys` keep
-  each game's own settings and key map.
+  each game's own settings and key map. `<name>.<id>.gdox` folders hold the saves of games that don't save into their
+  own folder.
 - `config.ini` holds your settings.
 
 **Emulator > Directories** moves save files, save states, screenshots and recordings somewhere else. Save Files takes
-the games' disks, settings and key maps with it.
+the games' disks, saves, settings and key maps with it; the built-in disks and imports stay here.
 
 ## Quick Fixes
 
@@ -362,7 +373,7 @@ the games' disks, settings and key maps with it.
 | The games I installed are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **Drives > Hard Disks > Default Disk** switches back, or attach both to copy them. |
 | Hotkeys don't work | Game Focus is on, as the window title says. Press Ctrl+F10. |
 | The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
-| The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine**. |
+| The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine > Model**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
 | No music with General MIDI or MT-32 | Add the MT-32 ROMs or a sound bank in **Audio > Built-in Synths**, or start an outside synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
 | The game asks for expanded memory (EMS) | Open it with a `.gdox` and set `ems_kb`. See [Memory](GDOX_README.md#memory). |
