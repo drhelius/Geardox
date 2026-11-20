@@ -420,7 +420,7 @@ static void default_menu(void)
     bool imported = emu_dos_get_msdos_name()[0] != 0;
     const std::string& custom = config_emulator.hard_disk_default_path;
     std::string names[config_DefaultDisk_Count] = { std::string("Built-in ") + builtin_name(GDOX_GAME_SYSTEM_MSDOS),
-        "Built-in FreeDOS", custom.empty() ? "" : get_filename(custom.c_str()), "None" };
+        "Built-in FreeDOS", custom.empty() ? "" : std::string("Custom (") + get_filename(custom.c_str()) + ")", "None" };
     int selected = emu_hard_disk_get_default();
     float text_width = 0.0f;
 
@@ -466,7 +466,7 @@ static void default_menu(void)
 
     ImGui::PopItemWidth();
 
-    if (ImGui::MenuItem("Choose Image...", NULL, false, !loading))
+    if (ImGui::MenuItem("Choose Custom Image...", NULL, false, !loading))
         gui_file_dialog_choose_default_hard_disk();
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))

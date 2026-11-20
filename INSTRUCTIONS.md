@@ -69,9 +69,10 @@ and you get a DOS prompt: `C:\>`. There are two, and both can live side by side:
 - **The MS-DOS disk,** `MS-DOS.hdd`, once you've imported your own MS-DOS (see
   [Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos)). It's then the one that boots.
 
-**Drives > Hard Disks > Default Disk** chooses which one boots: your MS-DOS, FreeDOS, your own hard disk image picked
-with **Choose Image...**, or **None**, which boots only floppies and CD-ROMs. If the old default is the only hard disk
-attached, the new one takes its place at the next reset. If your own image is missing, FreeDOS boots instead.
+**Drives > Hard Disks > Default Disk** chooses which one boots: your MS-DOS, FreeDOS, **Custom**, your own hard disk
+image picked with **Choose Custom Image...**, or **None**, which boots only floppies and CD-ROMs. If the old default is
+the only hard disk attached, the new one takes its place at the next reset. If your own image is missing, FreeDOS
+boots instead.
 
 Each is a file in [Geardox's settings folder](#where-geardox-keeps-its-files), a hard disk of about 500 MB. Geardox
 makes it the first time it's needed and then it's yours: anything you copy or install on it stays there, session after
