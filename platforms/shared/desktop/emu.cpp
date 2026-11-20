@@ -1015,53 +1015,37 @@ void emu_audio_mute(bool mute)
     emu_audio_reset();
 }
 
-void emu_audio_set_master_volume(float volume)
-{
-    if (IsValidPointer(geardox))
-        geardox->GetAudio()->SetMasterVolume(volume);
-}
-
-void emu_audio_set_source_volume(int source, float volume)
+void emu_audio_update_levels(void)
 {
     if (!IsValidPointer(geardox))
         return;
 
     Audio* audio = geardox->GetAudio();
+    float levels[GDOX_AUDIO_LEVEL_COUNT];
 
-    switch (source)
-    {
-        case Audio::AUDIO_SOURCE_FM:
-            audio->SetFMVolume(volume);
-            break;
-        case Audio::AUDIO_SOURCE_PCM:
-            audio->SetPCMVolume(volume);
-            break;
-        case Audio::AUDIO_SOURCE_CDDA:
-            audio->SetCDDAVolume(volume);
-            break;
-        case Audio::AUDIO_SOURCE_BUZZER:
-            audio->SetBuzzerVolume(volume);
-            break;
-        case Audio::AUDIO_SOURCE_GUS:
-            audio->SetGUSVolume(volume);
-            break;
-        case Audio::AUDIO_SOURCE_MIDI:
-            audio->SetMIDIVolume(volume);
-            break;
-        default:
-            break;
-    }
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+        levels[i] = emu_audio_get_mute(i) ? 0.0f : emu_audio_get_volume(i);
+
+    audio->SetMasterVolume(levels[GDOX_AUDIO_LEVEL_MASTER]);
+    audio->SetFMVolume(levels[GDOX_AUDIO_LEVEL_FM]);
+    audio->SetPCMVolume(levels[GDOX_AUDIO_LEVEL_PCM]);
+    audio->SetCDDAVolume(levels[GDOX_AUDIO_LEVEL_CDDA]);
+    audio->SetBuzzerVolume(levels[GDOX_AUDIO_LEVEL_BUZZER]);
+    audio->SetGUSVolume(levels[GDOX_AUDIO_LEVEL_GUS]);
+    audio->SetMT32Volume(levels[GDOX_AUDIO_LEVEL_MT32]);
+    audio->SetGMVolume(levels[GDOX_AUDIO_LEVEL_GM]);
 }
 
-void emu_audio_set_source_mute(int source, bool mute)
+float emu_audio_get_volume(int level)
 {
-    if (IsValidPointer(geardox))
-        geardox->GetAudio()->SetSourceMute(source, mute);
+    int game = emu_game_get_volume(level);
+    return game >= 0 ? (float)game / 100.0f : config_audio.volumes[level];
 }
 
-bool emu_audio_is_source_muted(int source)
+bool emu_audio_get_mute(int level)
 {
-    return IsValidPointer(geardox) && geardox->GetAudio()->IsSourceMuted(source);
+    int game = emu_game_get_mute(level);
+    return game >= 0 ? (game == 1) : config_audio.mutes[level];
 }
 
 void emu_audio_reset(void)

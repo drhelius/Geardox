@@ -220,9 +220,10 @@ These locations apply to the game's files. Geardox save states are stored separa
 ## Adjust a Game's Settings
 
 On desktop, changes made while a game is open are saved as settings for that game: **Emulator > Machine**,
-**Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices, **Audio > MIDI Out > Game
-Music**, **Audio > Built-in Synths > MT-32 > Model** and **DOS > Game**. Geardox confirms each one with **Saved for** and the game's name. You can also record
-settings in the descriptor, for example:
+**Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices, **Audio > MIDI Out >
+Game Music**, **Audio > Built-in Synths > MT-32 > Model**, the volumes and mutes in **Audio** and **DOS > Game**.
+Geardox confirms each one with **Saved for** and the game's name. You can also record settings in the descriptor, for
+example:
 
 ```ini
 [machine]
@@ -573,6 +574,8 @@ Like `[machine]`, these settings follow your own Geardox settings when left out.
 | `midi` | No | The kind of MIDI music the game plays, which picks the output it plays on. Without it, Geardox starts on General MIDI and switches to MT-32 when the game sends something only an MT-32 understands; set it for a game that gets this wrong | `gm` (General MIDI, GS or XG), `mt32` (Roland MT-32) | Your setting (Auto) | `midi = mt32` |
 | `midi_out` | No | Where this game's music plays, over your output for its synth. `builtin` is Geardox's own MT-32 or General MIDI synth, the one `midi` picks; `external` is a MIDI port on your computer | `builtin`, `external` | Your output for the synth `midi` picks (`builtin`), or `external` with `midi_port` | `midi_out = external` |
 | `midi_port` | No | The external MIDI port for this game, by its name on your computer. Picking one in **Audio > MIDI Out > Game Music** writes it to the game's own settings; a `.gdox` for other computers is better without it | Any MIDI port name | Your port for the synth `midi` picks | `midi_port = SC-55` |
+| `<source>_volume` | No | The volume of one sound source for this game, in percent: `master`, `fm`, `pcm`, `cdda` (CD audio), `buzzer` (the PC speaker), `gus` (the Gravis UltraSound), `mt32` (the built-in MT-32) or `gm` (the built-in General MIDI synth). An external MIDI port keeps its own volume. Desktop only: in RetroArch, the volumes are core options, which its per-game options save for one game | `0` to `200`; `100` leaves the source as it plays | Your setting (`100`) | `mt32_volume = 140` |
+| `<source>_mute` | No | Silences one sound source for this game: the same sources without `master`. Desktop only | `on`, `off` | Your setting (`off`) | `cdda_mute = on` |
 | `mt32_model` | No | The unit the built-in MT-32 plays, from your ROMs. `auto` plays a CM-32L when its ROMs are there, then an MT-32; `mt32_old` is the first MT-32 (ROMs 1.0x), `mt32_new` the later one (2.0x), `cm32l` the CM-32L with its extra sound effects. A model with no ROMs plays the one `auto` picks | `auto`, `mt32_old`, `mt32_new`, `cm32l` | Your setting (`auto`) | `mt32_model = mt32_old` |
 
 The sound port is 220. The Sound Blaster 16 uses high DMA 5 and MIDI port 330. Geardox sets the

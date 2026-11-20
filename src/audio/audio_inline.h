@@ -75,9 +75,14 @@ INLINE void Audio::SetGUSVolume(float volume)
     m_gus_volume = volume;
 }
 
-INLINE void Audio::SetMIDIVolume(float volume)
+INLINE void Audio::SetMT32Volume(float volume)
 {
-    m_midi_volume = volume;
+    m_mt32_volume = volume;
+}
+
+INLINE void Audio::SetGMVolume(float volume)
+{
+    m_gm_volume = volume;
 }
 
 INLINE OPL* Audio::GetOPL(int chip)

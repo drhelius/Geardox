@@ -83,7 +83,8 @@ public:
     void SetCDDAGains(const s32* gains);
     void SetBuzzerVolume(float volume);
     void SetGUSVolume(float volume);
-    void SetMIDIVolume(float volume);
+    void SetMT32Volume(float volume);
+    void SetGMVolume(float volume);
     void Synchronize(u64 clocks);
     void SynchronizeBuzzer(u64 clocks);
     void SynchronizeDMA(u64 clocks);
@@ -171,7 +172,8 @@ private:
     float m_cdda_volume;
     float m_buzzer_volume;
     float m_gus_volume;
-    float m_midi_volume;
+    float m_mt32_volume;
+    float m_gm_volume;
     Audio_State m_state;
     float m_pcm_cutoff;
     u16 m_pcm_lowpass_alpha_q15;

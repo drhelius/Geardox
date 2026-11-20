@@ -126,6 +126,8 @@ struct GDOX_Game_Info
     int midi_out;
     std::string midi_port;
     int mt32_model;
+    int volumes[GDOX_AUDIO_LEVEL_COUNT];
+    int mutes[GDOX_AUDIO_LEVEL_COUNT];
     GDOX_Gamepad_Game gamepads[GDOX_MAX_GAMEPADS];
     std::vector<GDOX_Game_Env> env;
     std::string keys;

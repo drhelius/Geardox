@@ -172,20 +172,14 @@ struct config_Audio
 {
     bool enable;
     bool sync;
-    float master_volume;
-    float fm_volume;
-    float pcm_volume;
-    float cdda_volume;
-    float buzzer_volume;
-    float gus_volume;
-    float midi_volume;
+    float volumes[GDOX_AUDIO_LEVEL_COUNT];
+    bool mutes[GDOX_AUDIO_LEVEL_COUNT];
     int buffer_count;
     int midi_gm_out;
     std::string midi_gm_port;
     int midi_mt32_out;
     std::string midi_mt32_port;
     int midi_default;
-    bool midi_mute;
     int mt32_rom_dir_option;
     std::string mt32_rom_path;
     int mt32_model;

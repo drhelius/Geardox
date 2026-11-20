@@ -377,6 +377,27 @@ struct GDOX_MT32_Model_Info
     const char* id;
 };
 
+enum GDOX_Audio_Level
+{
+    GDOX_AUDIO_LEVEL_MASTER = 0,
+    GDOX_AUDIO_LEVEL_FM,
+    GDOX_AUDIO_LEVEL_PCM,
+    GDOX_AUDIO_LEVEL_CDDA,
+    GDOX_AUDIO_LEVEL_BUZZER,
+    GDOX_AUDIO_LEVEL_GUS,
+    GDOX_AUDIO_LEVEL_MT32,
+    GDOX_AUDIO_LEVEL_GM,
+    GDOX_AUDIO_LEVEL_COUNT
+};
+
+struct GDOX_Audio_Level_Info
+{
+    const char* name;
+    const char* id;
+    const char* volume_key;
+    const char* mute_key;
+};
+
 enum GDOX_Joystick_Type
 {
     GDOX_JOYSTICK_NONE = 0,

@@ -3668,6 +3668,17 @@ json DebugAdapter::GetBiosLog(int max_bytes)
     };
 }
 
+static const char* get_level_source(const char* key)
+{
+    static const char* const k_sources[3] = { "user", "descriptor", "change" };
+    int source = emu_game_get_source("sound", key);
+
+    if ((source == Emu_Game_Source_Descriptor) && emu_game_is_from_database())
+        return "database";
+
+    return k_sources[source];
+}
+
 json DebugAdapter::GetSoundStatus()
 {
     Audio* audio = m_core->GetAudio();
@@ -3812,6 +3823,24 @@ json DebugAdapter::GetSoundStatus()
         {"max_voices", status.max_voices}, {"render_ms", status.render_ms}, {"dropped", status.dropped},
         {"muted", audio->IsSourceMuted(Audio::AUDIO_SOURCE_MIDI)}};
 
+    json levels = json::object();
+
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+    {
+        const GDOX_Audio_Level_Info& info = k_audio_levels[i];
+        json level = {{"volume", (int)((emu_audio_get_volume(i) * 100.0f) + 0.5f)},
+            {"volume_source", get_level_source(info.volume_key)}};
+
+        if (IsValidPointer(info.mute_key))
+        {
+            level["muted"] = emu_audio_get_mute(i);
+            level["mute_source"] = get_level_source(info.mute_key);
+        }
+
+        levels[info.id] = level;
+    }
+
+    result["levels"] = levels;
     return result;
 }
 

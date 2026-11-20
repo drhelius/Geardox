@@ -84,6 +84,21 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "midi_out", DESCRIPTOR_CHOICE, "builtin,external", 0, 0 },
     { "sound", "midi_port", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "sound", "mt32_model", DESCRIPTOR_CHOICE, "auto,mt32_old,mt32_new,cm32l", 0, 0 },
+    { "sound", "master_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "fm_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "pcm_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "cdda_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "buzzer_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "gus_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "mt32_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "gm_volume", DESCRIPTOR_NUMBER, NULL, 0, 200 },
+    { "sound", "fm_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "pcm_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "cdda_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "buzzer_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "gus_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "mt32_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "sound", "gm_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "pad1", "use", DESCRIPTOR_CHOICE, "keys,joystick", 0, 0 },
@@ -1112,6 +1127,13 @@ void GameDescriptor::Build()
     {
         if (Get("sound", "mt32_model") == k_mt32_models[i].id)
             info.mt32_model = i;
+    }
+
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+    {
+        const char* mute = k_audio_levels[i].mute_key;
+        info.volumes[i] = parse_number(Get("sound", k_audio_levels[i].volume_key), &number) ? number : -1;
+        info.mutes[i] = (IsValidPointer(mute) && Has("sound", mute)) ? (Get("sound", mute) == "on" ? 1 : 0) : -1;
     }
 
     for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)

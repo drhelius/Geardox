@@ -48,6 +48,10 @@ static std::string game_midi_port;
 static std::string base_midi_port;
 static int game_mt32_model = -1;
 static int base_mt32_model = -1;
+static int game_volumes[GDOX_AUDIO_LEVEL_COUNT] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+static int base_volumes[GDOX_AUDIO_LEVEL_COUNT] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+static int game_mutes[GDOX_AUDIO_LEVEL_COUNT] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+static int base_mutes[GDOX_AUDIO_LEVEL_COUNT] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 static GDOX_Gamepad_Game game_gamepads[GDOX_MAX_GAMEPADS];
 static GDOX_Gamepad_Game base_gamepads[GDOX_MAX_GAMEPADS];
 static bool preparing = false;
@@ -121,6 +125,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
     saved_boot_device = emu_get_core()->GetBootDevice();
     update_machines();
     apply_game_settings();
+    emu_audio_update_levels();
     prepare_config = emu_get_core()->GetPendingMachineConfig();
     preparing = true;
     prepared = false;
@@ -326,11 +331,18 @@ bool emu_game_close(void)
     game_midi_port.clear();
     game_mt32_model = -1;
 
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+    {
+        game_volumes[i] = -1;
+        game_mutes[i] = -1;
+    }
+
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
         GamepadKeys::ClearGame(&game_gamepads[i]);
 
     emu_update_joystick_type();
     emu_update_cga_output();
+    emu_audio_update_levels();
     emu_apply_machine_settings();
     return true;
 }
@@ -506,6 +518,15 @@ void emu_game_apply_machine(void)
     if ((game_mt32_model != base_mt32_model) && (game_mt32_model >= 0))
         overrides.Set("sound", "mt32_model", k_mt32_models[game_mt32_model].id);
 
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+    {
+        if ((game_volumes[i] != base_volumes[i]) && (game_volumes[i] >= 0))
+            overrides.Set("sound", k_audio_levels[i].volume_key, std::to_string(game_volumes[i]).c_str());
+
+        if ((game_mutes[i] != base_mutes[i]) && (game_mutes[i] >= 0) && IsValidPointer(k_audio_levels[i].mute_key))
+            overrides.Set("sound", k_audio_levels[i].mute_key, game_mutes[i] == 1 ? "on" : "off");
+    }
+
     for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
     {
         const GDOX_Gamepad_Game& gamepad = game_gamepads[p];
@@ -675,6 +696,38 @@ void emu_game_set_mt32_model(int model)
     emu_game_apply_machine();
 }
 
+int emu_game_get_volume(int level)
+{
+    return emu_game_is_open() ? game_volumes[level] : -1;
+}
+
+int emu_game_get_base_volume(int level)
+{
+    return emu_game_is_open() ? base_volumes[level] : -1;
+}
+
+int emu_game_get_mute(int level)
+{
+    return emu_game_is_open() ? game_mutes[level] : -1;
+}
+
+int emu_game_get_base_mute(int level)
+{
+    return emu_game_is_open() ? base_mutes[level] : -1;
+}
+
+void emu_game_set_level(int level, int volume, int mute, bool save)
+{
+    if (!emu_game_is_open())
+        return;
+
+    game_volumes[level] = volume;
+    game_mutes[level] = mute;
+
+    if (save)
+        emu_game_apply_machine();
+}
+
 bool emu_game_has_overrides(void)
 {
     return emu_game_is_open() && !disk.GetOverrides().IsEmpty();
@@ -689,6 +742,7 @@ bool emu_game_reset_settings(void)
     apply_game_settings();
     emu_update_joystick_type();
     emu_update_cga_output();
+    emu_audio_update_levels();
     return true;
 }
 
@@ -953,6 +1007,14 @@ static const std::vector<std::pair<std::string, std::string> >& get_game_keys(vo
     for (size_t i = 0; i < sizeof(k_game_keys) / sizeof(k_game_keys[0]); i++)
         game_keys.push_back(std::make_pair(std::string(k_game_keys[i][0]), std::string(k_game_keys[i][1])));
 
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+    {
+        game_keys.push_back(std::make_pair(std::string("sound"), std::string(k_audio_levels[i].volume_key)));
+
+        if (IsValidPointer(k_audio_levels[i].mute_key))
+            game_keys.push_back(std::make_pair(std::string("sound"), std::string(k_audio_levels[i].mute_key)));
+    }
+
     for (int p = 0; p < GDOX_MAX_GAMEPADS; p++)
     {
         std::string section = GameDescriptor::GetGamepadSection(p);
@@ -1162,6 +1224,14 @@ static void update_machines(void)
     base_midi_port = stripped.GetInfo().midi_port;
     game_mt32_model = disk.GetDescriptor().GetInfo().mt32_model;
     base_mt32_model = stripped.GetInfo().mt32_model;
+
+    for (int i = 0; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+    {
+        game_volumes[i] = disk.GetDescriptor().GetInfo().volumes[i];
+        base_volumes[i] = stripped.GetInfo().volumes[i];
+        game_mutes[i] = disk.GetDescriptor().GetInfo().mutes[i];
+        base_mutes[i] = stripped.GetInfo().mutes[i];
+    }
 
     for (int i = 0; i < GDOX_MAX_GAMEPADS; i++)
     {

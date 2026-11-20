@@ -210,6 +210,18 @@ const GDOX_MT32_Model_Info k_mt32_models[GDOX_MT32_MODEL_COUNT] =
     { "CM-32L", "cm32l" }
 };
 
+const GDOX_Audio_Level_Info k_audio_levels[GDOX_AUDIO_LEVEL_COUNT] =
+{
+    { "Master Volume", "master", "master_volume", NULL },
+    { "FM Volume", "fm", "fm_volume", "fm_mute" },
+    { "PCM Volume", "pcm", "pcm_volume", "pcm_mute" },
+    { "CD-DA Volume", "cdda", "cdda_volume", "cdda_mute" },
+    { "Buzzer Volume", "buzzer", "buzzer_volume", "buzzer_mute" },
+    { "GUS Volume", "gus", "gus_volume", "gus_mute" },
+    { "Built-in MT-32 Volume", "mt32", "mt32_volume", "mt32_mute" },
+    { "Built-in General MIDI Volume", "gm", "gm_volume", "gm_mute" }
+};
+
 const GDOX_Joystick_Info k_joysticks[GDOX_JOYSTICK_TYPE_COUNT] =
 {
     { "None", "none" },

@@ -162,13 +162,7 @@ void gui_apply_settings(void)
     emu_audio_sync = config_audio.sync;
 
     emu_audio_mute(!config_audio.enable);
-    emu_audio_set_master_volume(config_audio.master_volume);
-    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_FM, config_audio.fm_volume);
-    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_PCM, config_audio.pcm_volume);
-    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_CDDA, config_audio.cdda_volume);
-    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_BUZZER, config_audio.buzzer_volume);
-    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_GUS, config_audio.gus_volume);
-    emu_audio_set_source_volume(Audio::AUDIO_SOURCE_MIDI, config_audio.midi_volume);
+    emu_audio_update_levels();
 
     emu_update_joystick_type();
 

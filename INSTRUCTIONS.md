@@ -194,13 +194,13 @@ game's hard disks use, it moves to the Secondary Master while the game is open.
 **Game > Close** followed by the game's name turns the PC off and saves what the game changed. Opening another game,
 or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
 
-**Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So
-are **Video > CGA Output**, **Input > Emulated Joystick**, the **Host Gamepad** choices, **Audio > MIDI Out > Game
-Music**, **Audio > Built-in Synths > MT-32 > Model** and the DOS chosen in **DOS > Game**. While the game is open, the menus show its settings in colour: orange
-for your changes, violet for what its `.gdox` sets, blue for what the game database sets. **Game Default**, first in
-each list, undoes one change, and **Game > Game Files > Forget This Game's Changes** undoes them all. The **DOS** menu
-also has **Import MS-DOS...** and **Remove MS-DOS**.
-
+**Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So are
+**Video > CGA Output**, **Input > Emulated Joystick**, the **Host Gamepad** choices, **Audio > MIDI Out > Game Music**,
+**Audio > Built-in Synths > MT-32 > Model**, the volumes and mutes in **Audio** and the DOS chosen in **DOS > Game**.
+While the game is open, the menus show its settings in colour: orange for your changes, violet for what its `.gdox`
+sets, blue for what the game database sets. **Game Default**, first in each list, undoes one change, and
+**Game > Game Files > Forget This Game's Changes** undoes them all. The **DOS** menu also has **Import MS-DOS...** and
+**Remove MS-DOS**.
 ## Machine Settings
 
 **Emulator > Machine** chooses the PC. Most changes take effect at the next reset, and the menu offers
@@ -268,14 +268,13 @@ and nothing can play it, Geardox says so. A `.gdox` sets these with `midi`, `mid
 under `[sound]`.
 
 The built-in synths play inside the emulated machine's time: they stop when it pauses and go on where they were, and
-they're in Geardox's mix, so **Audio > MIDI Volume**, its **Mute** and the recordings include them. They're silent while
-fast-forwarding. Loading a state brings the game's instruments back, MT-32 custom sounds included, and the music
-goes on from the next note.
+they're in Geardox's mix, so **Audio > Built-in MT-32 Volume** and **Built-in General MIDI Volume**, their **Mute** and
+the recordings include them. They're silent while fast-forwarding. Loading a state brings the game's instruments back,
+MT-32 custom sounds included, and the music goes on from the next note.
 
 An outside synth that's closed and opened again gets its port back within two seconds, with the game's instruments
 sent again. Pausing, fast-forwarding, rewinding and loading states stop its hanging notes. It plays in its own audio:
-Geardox's volume sliders and recordings don't include it, and **Mute** in **Audio > MIDI Volume** or **Mute All
-Audio** stop its notes.
+Geardox's volume sliders, their mutes and recordings don't include it, and **Mute All Audio** stops its notes.
 
 ## Keyboard, Mouse and Joystick
 

@@ -162,10 +162,9 @@ EXTERN void emu_set_native_resolution(bool enabled);
 EXTERN void emu_apply_machine_settings(void);
 
 EXTERN void emu_audio_mute(bool mute);
-EXTERN void emu_audio_set_master_volume(float volume);
-EXTERN void emu_audio_set_source_volume(int source, float volume);
-EXTERN void emu_audio_set_source_mute(int source, bool mute);
-EXTERN bool emu_audio_is_source_muted(int source);
+EXTERN void emu_audio_update_levels(void);
+EXTERN float emu_audio_get_volume(int level);
+EXTERN bool emu_audio_get_mute(int level);
 EXTERN void emu_audio_reset(void);
 EXTERN void emu_audio_restart(void);
 EXTERN bool emu_is_audio_open(void);

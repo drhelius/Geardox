@@ -213,6 +213,38 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         },
         "100"
     },
+    {
+        "geardox_mt32_volume",
+        "Built-in MT-32 Volume",
+        NULL,
+        "Volume of Geardox's own MT-32, as a percentage where 100 is the default. An external MIDI port keeps its own volume.",
+        NULL,
+        "audio",
+        {
+            { "0",   NULL }, { "10",  NULL }, { "20",  NULL }, { "30",  NULL }, { "40",  NULL },
+            { "50",  NULL }, { "60",  NULL }, { "70",  NULL }, { "80",  NULL }, { "90",  NULL },
+            { "100", NULL }, { "110", NULL }, { "120", NULL }, { "130", NULL }, { "140", NULL },
+            { "150", NULL }, { "160", NULL }, { "170", NULL }, { "180", NULL }, { "190", NULL },
+            { "200", NULL }, { NULL, NULL }
+        },
+        "100"
+    },
+    {
+        "geardox_gm_volume",
+        "Built-in General MIDI Volume",
+        NULL,
+        "Volume of Geardox's own General MIDI synth, as a percentage where 100 is the default. An external MIDI port keeps its own volume.",
+        NULL,
+        "audio",
+        {
+            { "0",   NULL }, { "10",  NULL }, { "20",  NULL }, { "30",  NULL }, { "40",  NULL },
+            { "50",  NULL }, { "60",  NULL }, { "70",  NULL }, { "80",  NULL }, { "90",  NULL },
+            { "100", NULL }, { "110", NULL }, { "120", NULL }, { "130", NULL }, { "140", NULL },
+            { "150", NULL }, { "160", NULL }, { "170", NULL }, { "180", NULL }, { "190", NULL },
+            { "200", NULL }, { NULL, NULL }
+        },
+        "100"
+    },
 
     /* Input */
 

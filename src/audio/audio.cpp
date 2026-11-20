@@ -52,7 +52,8 @@ Audio::Audio()
     m_cdda_volume = 1.0f;
     m_buzzer_volume = 1.0f;
     m_gus_volume = 1.0f;
-    m_midi_volume = 1.0f;
+    m_mt32_volume = 1.0f;
+    m_gm_volume = 1.0f;
     m_opl_chips = 0;
     m_opl3 = false;
     m_dsp = false;
@@ -627,7 +628,8 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
     float cdda_volume = m_source_mute[AUDIO_SOURCE_CDDA] ? 0.0f : m_cdda_volume;
     float buzzer_volume = m_source_mute[AUDIO_SOURCE_BUZZER] ? 0.0f : m_buzzer_volume;
     float gus_volume = m_source_mute[AUDIO_SOURCE_GUS] ? 0.0f : m_gus_volume;
-    float midi_volume = m_source_mute[AUDIO_SOURCE_MIDI] ? 0.0f : m_midi_volume;
+    float midi_volume = m_source_mute[AUDIO_SOURCE_MIDI] ? 0.0f :
+        (m_midi_synth->GetEngine() == GDOX_MIDI_ENGINE_MT32) ? m_mt32_volume : m_gm_volume;
 
     s32 dc_left = m_state.output_dc_left;
     s32 dc_right = m_state.output_dc_right;

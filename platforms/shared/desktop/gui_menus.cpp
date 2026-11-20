@@ -124,8 +124,11 @@ static void draw_directory_tooltip(int option, const char* custom, const char* a
 static void menu_video(void);
 static void menu_input(void);
 static void menu_audio(void);
-static void menu_audio_source_mute(int source);
-static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume);
+static void menu_audio_level(int level);
+static void menu_audio_level_default(int level, int volume_source, int mute_source);
+static void menu_audio_level_mute(int level, int source);
+static void menu_audio_level_volume(int level, int source);
+static int get_volume_percent(float volume);
 static void menu_audio_midi(void);
 static void menu_audio_midi_out(const char* label, int synth, int* out, std::string* port);
 static void menu_audio_midi_port(const char* id, std::string* port);
@@ -2570,35 +2573,11 @@ static void menu_audio(void)
 
         ImGui::Separator();
 
-        if (ImGui::BeginMenu("Master Volume", config_audio.enable))
-        {
-            ImGui::PushItemWidth(200.0f);
-
-            if (ImGui::SliderFloat("##master_volume", &config_audio.master_volume, 0.0f, 2.0f, "Volume = %.2f", ImGuiSliderFlags_AlwaysClamp))
-            {
-                emu_audio_set_master_volume(config_audio.master_volume);
-            }
-
-            ImGui::PopItemWidth();
-
-            if (ImGui::IsItemHovered())
-            {
-                ImGui::BeginTooltip();
-                ImGui::Text("Anything above 1.00 may cause clipping.");
-                ImGui::EndTooltip();
-            }
-
-            ImGui::EndMenu();
-        }
-
+        menu_audio_level(GDOX_AUDIO_LEVEL_MASTER);
         ImGui::Separator();
 
-        menu_audio_source_volume("FM Volume", "##fm_volume", Audio::AUDIO_SOURCE_FM, &config_audio.fm_volume);
-        menu_audio_source_volume("PCM Volume", "##pcm_volume", Audio::AUDIO_SOURCE_PCM, &config_audio.pcm_volume);
-        menu_audio_source_volume("CD-DA Volume", "##cdda_volume", Audio::AUDIO_SOURCE_CDDA, &config_audio.cdda_volume);
-        menu_audio_source_volume("Buzzer Volume", "##buzzer_volume", Audio::AUDIO_SOURCE_BUZZER, &config_audio.buzzer_volume);
-        menu_audio_source_volume("GUS Volume", "##gus_volume", Audio::AUDIO_SOURCE_GUS, &config_audio.gus_volume);
-        menu_audio_source_volume("MIDI Volume", "##midi_volume", Audio::AUDIO_SOURCE_MIDI, &config_audio.midi_volume);
+        for (int i = GDOX_AUDIO_LEVEL_FM; i < GDOX_AUDIO_LEVEL_COUNT; i++)
+            menu_audio_level(i);
 
         ImGui::Separator();
         menu_audio_midi();
@@ -2674,57 +2653,125 @@ static void menu_audio(void)
     }
 }
 
-static void menu_audio_source_mute(int source)
+static void menu_audio_level(int level)
 {
-    if (source == Audio::AUDIO_SOURCE_MIDI)
-    {
-        ImGui::MenuItem("Mute", "", &config_audio.midi_mute);
+    const GDOX_Audio_Level_Info& info = k_audio_levels[level];
+    int engine = (level == GDOX_AUDIO_LEVEL_MT32) ? GDOX_MIDI_ENGINE_MT32 :
+        (level == GDOX_AUDIO_LEVEL_GM) ? GDOX_MIDI_ENGINE_SOUNDFONT : GDOX_MIDI_ENGINE_NONE;
+    bool enabled = config_audio.enable && ((engine == GDOX_MIDI_ENGINE_NONE) || emu_synth_is_compiled(engine));
+    int volume_source = emu_game_get_source("sound", info.volume_key);
+    int mute_source = IsValidPointer(info.mute_key) ? emu_game_get_source("sound", info.mute_key) :
+        (int)Emu_Game_Source_User;
 
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::BeginTooltip();
-            ImGui::Text("Silences built-in and external MIDI.");
-            ImGui::Text("The game's instruments stay loaded.");
-            ImGui::EndTooltip();
-        }
-
+    if (!begin_game_menu(info.name, MAX(volume_source, mute_source), enabled))
         return;
-    }
 
-    bool mute = emu_audio_is_source_muted(source);
-
-    if (ImGui::MenuItem("Mute", "", &mute))
-        emu_audio_set_source_mute(source, mute);
+    ImGui::PushID(level);
+    menu_audio_level_default(level, volume_source, mute_source);
+    menu_audio_level_mute(level, mute_source);
+    menu_audio_level_volume(level, volume_source);
+    ImGui::PopID();
+    ImGui::EndMenu();
 }
 
-static void menu_audio_source_volume(const char* label, const char* id, int source, float* volume)
+static void menu_audio_level_default(int level, int volume_source, int mute_source)
 {
-    if (ImGui::BeginMenu(label, config_audio.enable))
+    int base_volume = emu_game_get_base_volume(level);
+    int base_mute = emu_game_get_base_mute(level);
+    int volume = base_volume >= 0 ? base_volume : get_volume_percent(config_audio.volumes[level]);
+    bool muted = base_mute >= 0 ? (base_mute == 1) : config_audio.mutes[level];
+    bool changed = (volume_source == Emu_Game_Source_Change) || (mute_source == Emu_Game_Source_Change);
+    char value[32];
+    char label[64];
+    snprintf(value, sizeof(value), "%d%%%s", volume, muted ? ", muted" : "");
+    get_game_default_label(value, label, sizeof(label));
+
+    if (game_default_item(label, changed ? Emu_Game_Source_Change : Emu_Game_Source_User))
     {
-        menu_audio_source_mute(source);
-        ImGui::Separator();
-        ImGui::PushItemWidth(200.0f);
-
-        if (ImGui::SliderFloat(id, volume, 0.0f, 2.0f, "Volume = %.2f", ImGuiSliderFlags_AlwaysClamp))
-            emu_audio_set_source_volume(source, *volume);
-
-        ImGui::PopItemWidth();
-
-        if (ImGui::IsItemHovered())
-        {
-            ImGui::BeginTooltip();
-
-            if (source == Audio::AUDIO_SOURCE_MIDI)
-            {
-                ImGui::Text("Built-in synths only.");
-            }
-
-            ImGui::Text("Anything above 1.00 may cause clipping.");
-            ImGui::EndTooltip();
-        }
-
-        ImGui::EndMenu();
+        emu_game_set_level(level, base_volume, base_mute, true);
+        emu_audio_update_levels();
     }
+}
+
+static void menu_audio_level_mute(int level, int source)
+{
+    if (!IsValidPointer(k_audio_levels[level].mute_key))
+        return;
+
+    bool synth = (level == GDOX_AUDIO_LEVEL_MT32) || (level == GDOX_AUDIO_LEVEL_GM);
+    bool mute = emu_audio_get_mute(level);
+    bool pushed = gui_push_game_source_color(source);
+    bool clicked = ImGui::MenuItem("Mute", "", &mute);
+
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    if (clicked)
+    {
+        if (emu_game_is_open())
+            emu_game_set_level(level, emu_game_get_volume(level), mute ? 1 : 0, true);
+        else
+            config_audio.mutes[level] = mute;
+
+        emu_audio_update_levels();
+    }
+
+    if (ImGui::IsItemHovered() && (synth || (source != Emu_Game_Source_User)))
+    {
+        ImGui::BeginTooltip();
+
+        if (synth)
+            ImGui::Text("The game's instruments stay loaded.");
+
+        gui_draw_game_source_tooltip(source);
+        ImGui::EndTooltip();
+    }
+
+    ImGui::Separator();
+}
+
+static void menu_audio_level_volume(int level, int source)
+{
+    int volume = get_volume_percent(emu_audio_get_volume(level));
+    bool pushed = gui_push_game_source_color(source);
+    ImGui::PushItemWidth(200.0f);
+
+    if (ImGui::SliderInt("##volume", &volume, 0, 200, "Volume = %d%%", ImGuiSliderFlags_AlwaysClamp))
+    {
+        if (emu_game_is_open())
+            emu_game_set_level(level, volume, emu_game_get_mute(level), false);
+        else
+            config_audio.volumes[level] = (float)volume / 100.0f;
+
+        emu_audio_update_levels();
+    }
+
+    if (ImGui::IsItemDeactivatedAfterEdit() && emu_game_is_open())
+        emu_game_set_level(level, emu_game_get_volume(level), emu_game_get_mute(level), true);
+
+    ImGui::PopItemWidth();
+
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+
+        if (level == GDOX_AUDIO_LEVEL_MT32)
+            ImGui::Text("Geardox's own MT-32.\nAn external port keeps its own volume.");
+        else if (level == GDOX_AUDIO_LEVEL_GM)
+            ImGui::Text("Geardox's own General MIDI synth.\nAn external port keeps its own volume.");
+
+        ImGui::Text("Anything above 100%% may cause clipping.");
+        gui_draw_game_source_tooltip(source);
+        ImGui::EndTooltip();
+    }
+}
+
+static int get_volume_percent(float volume)
+{
+    return (int)((volume * 100.0f) + 0.5f);
 }
 
 static void menu_audio_midi(void)

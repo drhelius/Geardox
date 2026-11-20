@@ -2125,6 +2125,22 @@ static void check_variables(void)
         core->GetAudio()->SetBuzzerVolume((float)CLAMP(atoi(var.value), 0, 200) / 100.0f);
     }
 
+    var.key = "geardox_mt32_volume";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        core->GetAudio()->SetMT32Volume((float)CLAMP(atoi(var.value), 0, 200) / 100.0f);
+    }
+
+    var.key = "geardox_gm_volume";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        core->GetAudio()->SetGMVolume((float)CLAMP(atoi(var.value), 0, 200) / 100.0f);
+    }
+
     var.key = "geardox_cdrom_preload";
     var.value = NULL;
 

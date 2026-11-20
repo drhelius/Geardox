@@ -1690,8 +1690,8 @@ json McpServer::BuildToolList()
         {"title", "Get Sound Status"},
         {"description", "Report the sound card: OPL status, timers and channels, the DSP's transfer, IRQ and DMA, "
             "the mixer's levels, the MPU-401, the Gravis UltraSound, and MIDI out: capture, messages sent, the SysEx log, "
-            "the kind of music (detected from what the game sends unless the game sets it), the external port, and the built-in MT-32 or General MIDI synth: its ROMs or sound bank, voices and render "
-            "time."},
+            "the kind of music (detected from what the game sends unless the game sets it), the external port, the built-in MT-32 or General MIDI synth: its ROMs or sound bank, voices and render "
+            "time, and the volume and mute settings of each source, the game's or yours."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {
             {"type", "object"},
