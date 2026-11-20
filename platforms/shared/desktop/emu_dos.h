@@ -38,6 +38,7 @@ EXTERN bool emu_dos_import_msdos(const char* path, std::string* message);
 EXTERN bool emu_dos_remove_msdos(void);
 EXTERN std::string emu_dos_get_ultrasnd_path(void);
 EXTERN const char* emu_dos_get_ultrasnd_name(void);
+EXTERN int emu_dos_get_ultrasnd_patches(void);
 EXTERN bool emu_dos_import_ultrasnd(const char* path, std::string* message);
 EXTERN bool emu_dos_remove_ultrasnd(void);
 

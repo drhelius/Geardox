@@ -29,6 +29,7 @@
 static std::string msdos_name;
 static bool msdos_checked = false;
 static std::string ultrasnd_name;
+static int ultrasnd_patches = 0;
 static bool ultrasnd_checked = false;
 
 std::string emu_dos_get_msdos_path(void)
@@ -112,17 +113,27 @@ const char* emu_dos_get_ultrasnd_name(void)
         s64 modified = 0;
         ultrasnd_checked = true;
         ultrasnd_name.clear();
+        ultrasnd_patches = 0;
 
         if (MediaFile::GetFileInfo(path.c_str(), &size, &modified))
         {
             if (GusImport::Load(path.c_str(), &software, &error))
+            {
                 ultrasnd_name = software.name;
+                ultrasnd_patches = software.patches;
+            }
             else
                 Log("%s", error.c_str());
         }
     }
 
     return ultrasnd_name.c_str();
+}
+
+int emu_dos_get_ultrasnd_patches(void)
+{
+    emu_dos_get_ultrasnd_name();
+    return ultrasnd_patches;
 }
 
 bool emu_dos_import_ultrasnd(const char* path, std::string* message)

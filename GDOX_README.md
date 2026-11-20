@@ -412,13 +412,14 @@ Trackers, demos and games that load their own sounds play with nothing more. Gam
 instrument patches, such as those using ULTRAMID, need the patches, which come on Gravis's install disks and aren't
 included with Geardox. Import them once:
 
-1. Choose **Audio > Import UltraSound Software...**.
+1. Choose **Audio > Gravis UltraSound > Import Software...**.
 2. Select a ZIP of the Gravis UltraSound 4.11 install disks, or any file of those disks. A folder holding an
    installed copy, with `ULTRASND.INI` and a `MIDI` folder, works too: select any file in it.
 
 Geardox unpacks the disks itself, checking every file, and keeps its own copy, `ultrasnd.zip`, in its settings folder.
 Every game with the card on then gets the software and patches in `C:\ULTRASND`. Other versions of the install disks
-aren't supported. **Audio > Remove UltraSound Software** deletes Geardox's copy; your disks aren't touched.
+aren't supported. The **Audio > Gravis UltraSound** menu shows the imported software and its patch count in green, or
+in red when nothing is imported. **Remove Software** there deletes Geardox's copy; your disks aren't touched.
 
 In RetroArch, turn on the **Gravis UltraSound (restart)** core option, and put the install disks, or a ZIP of them, in
 `geardox/ultrasnd` inside RetroArch's system folder. Geardox imports them the next time content loads.

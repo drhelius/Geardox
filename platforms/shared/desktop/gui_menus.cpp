@@ -83,6 +83,8 @@ static const GuiColor& service_mcp_http_color = green;
 static const GuiColor& service_mcp_stdio_color = amber;
 static const GuiColor& midi_playing_color = green;
 static const GuiColor& midi_stopped_color = red;
+static const GuiColor& ultrasnd_imported_color = green;
+static const GuiColor& ultrasnd_missing_color = red;
 static const GuiColor& rewind_recording_color = green;
 static const GuiColor& rewind_stopped_color = red;
 static const GuiColor& video_recording_color = red;
@@ -138,6 +140,7 @@ static void menu_audio_synth_mt32(void);
 static void menu_audio_synth_mt32_model(void);
 static void menu_audio_synth_gm(void);
 static void draw_synth_location_tooltip(int engine, int option, const char* custom, const char* about);
+static void menu_audio_ultrasnd(void);
 static const char* get_builtin_label(int engine);
 static int find_midi_port(const char* port);
 static void update_midi_ports(void);
@@ -2582,24 +2585,7 @@ static void menu_audio(void)
         ImGui::Separator();
         menu_audio_midi();
         menu_audio_synths();
-        ImGui::Separator();
-
-        bool ultrasnd = emu_dos_get_ultrasnd_name()[0] != 0;
-
-        if (ImGui::MenuItem("Import UltraSound Software..."))
-            gui_file_dialog_import_ultrasnd();
-
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Your Gravis UltraSound 4.11 install disks: a ZIP of them,\n"
-                "or any file of the disks or of an installed ULTRASND folder.\n"
-                "Games with the card on get its patches in C:\\ULTRASND.");
-
-        if (ImGui::MenuItem("Remove UltraSound Software", NULL, false, ultrasnd))
-            gui_dos_remove_ultrasnd();
-
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Your disks aren't touched.");
-
+        menu_audio_ultrasnd();
         ImGui::Separator();
 
         if (ImGui::BeginMenu("Buffer Size", config_audio.enable))
@@ -3230,6 +3216,53 @@ static void menu_audio_synth_gm(void)
 
     if (found && ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", emu_synth_get_soundfont());
+
+    ImGui::EndMenu();
+}
+
+static void menu_audio_ultrasnd(void)
+{
+    if (!ImGui::BeginMenu("Gravis UltraSound"))
+        return;
+
+    const char* name = emu_dos_get_ultrasnd_name();
+    bool imported = name[0] != 0;
+
+    if (ImGui::MenuItem("Import Software..."))
+        gui_file_dialog_import_ultrasnd();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Your Gravis UltraSound 4.11 install disks.");
+        ImGui::Text("A ZIP of them, or any file of the disks.");
+        ImGui::Text("An installed ULTRASND folder works too: any file in it.");
+        ImGui::Text("Games with the card on get its patches in C:\\ULTRASND.");
+        ImGui::EndTooltip();
+    }
+
+    if (ImGui::MenuItem("Remove Software", NULL, false, imported))
+        gui_dos_remove_ultrasnd();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Deletes the imported copy.");
+        ImGui::Text("Your disks aren't touched.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::Separator();
+
+    if (imported)
+    {
+        ImGui::TextColored(ultrasnd_imported_color, "%s, %d patches", name, emu_dos_get_ultrasnd_patches());
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", emu_dos_get_ultrasnd_path().c_str());
+    }
+    else
+        ImGui::TextColored(ultrasnd_missing_color, "No software imported");
 
     ImGui::EndMenu();
 }

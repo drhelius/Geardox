@@ -43,8 +43,8 @@ static const u32 k_gus_group_stride = 88;
 static const char k_gus_volume_base[] = "ULTRASND";
 static const char k_gus_family_411[] = "gus411";
 static const char k_gus_family_installed[] = "gusfolder";
-static const char k_gus_name_411[] = "UltraSound 4.11";
-static const char k_gus_name_installed[] = "UltraSound";
+static const char k_gus_name_411[] = "Gravis UltraSound 4.11";
+static const char k_gus_name_installed[] = "Gravis UltraSound";
 static const char k_gus_ini[] = "ULTRASND.INI";
 static const char k_gus_midi[] = "MIDI";
 static const char k_gus_refuse[] = "isn't supported: import the 4.11 disks";
@@ -937,7 +937,7 @@ GusImport_Result GusImport::ImportDisks(const char* zip_path)
         return m_result;
     }
 
-    return Finish(zip_path, k_gus_family_411, k_gus_name_411, "UltraSound software 4.11", patches, output);
+    return Finish(zip_path, k_gus_family_411, k_gus_name_411, "Gravis UltraSound software 4.11", patches, output);
 }
 
 GusImport_Result GusImport::ImportInstalled(const char* zip_path)
@@ -967,7 +967,7 @@ GusImport_Result GusImport::ImportInstalled(const char* zip_path)
             patches++;
     }
 
-    return Finish(zip_path, k_gus_family_installed, k_gus_name_installed, "UltraSound software", patches, output);
+    return Finish(zip_path, k_gus_family_installed, k_gus_name_installed, "Gravis UltraSound software", patches, output);
 }
 
 GusImport_Result GusImport::Finish(const char* zip_path, const char* family, const char* name, const char* title, int patches,
@@ -1167,8 +1167,7 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
         return false;
     }
 
-    software->name = get_value(text, "name");
-    software->name = software->name.empty() ? std::string(k_gus_name_installed) : software->name;
+    software->name = (id == k_gus_family_411) ? k_gus_name_411 : k_gus_name_installed;
     software->patches = atoi(get_value(text, "patches").c_str());
     software->zip.assign((const char*)data.data(), data.size());
     software->crc = (u32)mz_crc32(0, data.data(), data.size());
