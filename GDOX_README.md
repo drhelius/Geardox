@@ -360,12 +360,13 @@ mouse. For joystick games, choose **PC Joystick** as the device type.
 Geardox includes FreeDOS and needs nothing else. If you own MS-DOS, games and the built-in disk can run on it
 instead. Geardox doesn't include MS-DOS: you import your own Setup disks once.
 
-1. Choose **DOS > Import MS-DOS...**.
+1. Choose **DOS > MS-DOS > Import Setup Disks...**.
 2. Select one of the Setup disk images, or a ZIP containing them. When you select an image, Geardox reads every
    image in its folder.
 
 Geardox expands the files as MS-DOS Setup does and keeps its own copy, `msdos.zip`, in its settings folder. Your
 disk images are never changed. Any floppy image format Geardox can open works, and the disks can be in any order.
+The **DOS > MS-DOS** menu shows the imported MS-DOS in green, or in red when nothing is imported.
 
 From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. With nothing attached,
 the PC boots the built-in MS-DOS disk, `MS-DOS.hdd`, made from your import the first time; see
@@ -380,8 +381,8 @@ folder or save location whichever DOS runs.
   it back.
 - **In a descriptor:** `system = freedos` or `system = msdos` under `[dos]`. A game that asks for MS-DOS doesn't
   start until MS-DOS is imported.
-- **Removing it:** **DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next one
-  opened, and so does the built-in disk. `MS-DOS.hdd` stays, with what you installed on it.
+- **Removing it:** **DOS > MS-DOS > Remove MS-DOS** deletes Geardox's copy. Games run on FreeDOS again from the next
+  one opened, and so does the built-in disk. `MS-DOS.hdd` stays, with what you installed on it.
 
 **MS-DOS 5.0, 6.0, 6.2, 6.21 and 6.22** can be imported, in any language. Geardox installs the files MS-DOS Setup
 installs, as the Setup disks list them, and leaves out supplemental disks, which Setup never installs. The name shown,

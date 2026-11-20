@@ -203,8 +203,8 @@ or quitting Geardox, does the same. **Game > Last Save Report...** shows what wa
 the DOS chosen in **DOS > Game**.
 While the game is open, the menus show its settings in colour: orange for your changes, violet for what its `.gdox`
 sets, blue for what the game database sets. **Game Default**, first in each list, undoes one change, and
-**Game > Game Files > Forget This Game's Changes** undoes them all. The **DOS** menu also has **Import MS-DOS...** and
-**Remove MS-DOS**.
+**Game > Game Files > Forget This Game's Changes** undoes them all. **DOS > MS-DOS** imports or removes your MS-DOS and
+shows the one imported.
 
 ## Machine Settings
 

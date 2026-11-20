@@ -28,6 +28,7 @@
 #include "emu_dos.h"
 #include "emu_game.h"
 #include "gui.h"
+#include "gui_colors.h"
 #include "gui_filedialogs.h"
 #include "gui_game.h"
 #include "gui_hard_disks.h"
@@ -35,10 +36,13 @@
 #include "gui_notifications.h"
 #include "media/game_descriptor.h"
 
+static const GuiColor& msdos_imported_color = green;
+static const GuiColor& msdos_missing_color = red;
+
 static void menu_game(bool loading);
 static void menu_keyboard_layout(void);
 static void menu_recreate(bool loading);
-static void menu_import(bool loading);
+static void menu_msdos(bool loading);
 
 void gui_dos_menu(void)
 {
@@ -52,7 +56,7 @@ void gui_dos_menu(void)
     ImGui::Separator();
     menu_recreate(loading);
     ImGui::Separator();
-    menu_import(loading);
+    menu_msdos(loading);
     ImGui::EndMenu();
 }
 
@@ -219,16 +223,25 @@ static void menu_recreate(bool loading)
         ImGui::SetTooltip("A new FreeDOS.hdd.\nEverything installed on it is lost.");
 }
 
-static void menu_import(bool loading)
+static void menu_msdos(bool loading)
 {
-    bool imported = emu_dos_get_msdos_name()[0] != 0;
+    if (!ImGui::BeginMenu("MS-DOS"))
+        return;
 
-    if (ImGui::MenuItem("Import MS-DOS...", NULL, false, !loading))
+    const char* name = emu_dos_get_msdos_name();
+    bool imported = name[0] != 0;
+
+    if (ImGui::MenuItem("Import Setup Disks...", NULL, false, !loading))
         gui_file_dialog_import_msdos();
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Your MS-DOS 5.0 to 6.22 Setup disks, any language.\nA disk image or a ZIP of them.\n"
-            "Games and the built-in disk boot it unless set to FreeDOS.");
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Your MS-DOS 5.0 to 6.22 Setup disks, any language.");
+        ImGui::Text("A disk image or a ZIP of them.");
+        ImGui::Text("Games and the built-in disk boot it unless set to FreeDOS.");
+        ImGui::EndTooltip();
+    }
 
     if (ImGui::MenuItem("Remove MS-DOS", NULL, false, imported && !loading))
     {
@@ -240,5 +253,25 @@ static void menu_import(bool loading)
     }
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Games and the built-in disk revert to FreeDOS.\nMS-DOS.hdd and your Setup disks are kept.");
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Deletes the imported copy.");
+        ImGui::Text("Games and the built-in disk revert to FreeDOS.");
+        ImGui::Text("MS-DOS.hdd and your Setup disks are kept.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::Separator();
+
+    if (imported)
+    {
+        ImGui::TextColored(msdos_imported_color, "%s", name);
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", emu_dos_get_msdos_path().c_str());
+    }
+    else
+        ImGui::TextColored(msdos_missing_color, "No MS-DOS imported");
+
+    ImGui::EndMenu();
 }
