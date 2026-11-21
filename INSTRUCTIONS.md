@@ -220,6 +220,7 @@ shows the one imported.
 | Gravis UltraSound | Off | A second sound card for games, trackers and demos made for it, at port 240 next to the Sound Blaster. The game's setup finds it on its own. Music played with Gravis's patches needs **Audio > Gravis UltraSound > Import Software...** once: see [Use a Gravis UltraSound](GDOX_README.md#use-a-gravis-ultrasound). |
 | MPU-401 | Intelligent | The MIDI port at 330 for General MIDI and MT-32 music. Intelligent is the MPU-401's own sequencer, which older MT-32 games need; UART Only is the plain port, for a game that misbehaves with it. The Sound Blaster 16 has its own; with the other cards it's a separate card on IRQ 2 (9). |
 | Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428, ISA on the 386s and VL-Bus on the 486s, and the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
+| 3Dfx Voodoo Graphics | Off | A second PCI card with 4 MB for DOS games with 3Dfx support, on the Pentiums. Games that load `GLIDE2X.OVL` need **Video > 3Dfx Voodoo Driver > Import Driver...** once: see [Use a 3Dfx Voodoo](GDOX_README.md#use-a-3dfx-voodoo). |
 | Mouse | PS/2 | |
 | CD-ROM Drive | Secondary Master, 4x | |
 | Drive Timing | Auto | Fast for games and Real otherwise. Fast takes a sixteenth of the time for seeks, the wait for a sector and a CD's spin-up; Real keeps the drives' mechanics. |
@@ -355,8 +356,8 @@ In this folder:
 
 - `FreeDOS.hdd` is the built-in FreeDOS disk.
 - `MS-DOS.hdd` is the built-in MS-DOS disk, made from your import the first time it's needed.
-- `msdos.zip` is your imported MS-DOS, when you've imported it, and `ultrasnd.zip` your imported Gravis UltraSound
-  software.
+- `msdos.zip` is your imported MS-DOS, when you've imported it, `ultrasnd.zip` your imported Gravis UltraSound
+  software and `glide2x.ovl` your imported 3Dfx Voodoo driver.
 - `mt32` and `soundfonts` are the folders where the built-in synths look for MT-32 ROMs and sound banks.
 - `<name>.<id>.geardox.hdd` files are the disks made from folders and ZIPs.
 - `<name>.<id>.gdox.hdd` files are the C: drives games build, and `<name>.<id>.gdox.ini` and `<name>.<id>.keys` keep
