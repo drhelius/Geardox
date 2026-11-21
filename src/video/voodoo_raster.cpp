@@ -501,6 +501,8 @@ void VoodooRaster::RunJob(u32 type, const u32* payload)
 }
 
 #if defined(GDOX_ENABLE_VOODOO_THREAD)
+static const int k_voodoo_raster_spins = 2000;
+
 u32* VoodooRaster::BeginJob(u32 type, u32 words)
 {
     u32 offset = (u32)(m_write & (VOODOO_RASTER_RING_WORDS - 1));
@@ -534,8 +536,13 @@ void VoodooRaster::EndJob(u32 words)
 
 void VoodooRaster::WaitSpace(u32 words)
 {
-    if (m_write + words - m_read.load() <= VOODOO_RASTER_RING_WORDS)
-        return;
+    for (int i = 0; i < k_voodoo_raster_spins; i++)
+    {
+        if (m_write + words - m_read.load() <= VOODOO_RASTER_RING_WORDS)
+            return;
+
+        std::this_thread::yield();
+    }
 
     std::unique_lock<std::mutex> lock(m_mutex);
     m_producer_waiting.store(true);
@@ -581,6 +588,12 @@ void VoodooRaster::WorkerThread()
     while (true)
     {
         u64 write = m_published.load();
+
+        for (int i = 0; (i < k_voodoo_raster_spins) && (read == write); i++)
+        {
+            std::this_thread::yield();
+            write = m_published.load();
+        }
 
         if (read == write)
         {
