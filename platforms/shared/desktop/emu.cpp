@@ -39,6 +39,7 @@
 #include "gdb/gdb_target.h"
 #include "osd/osd_font.h"
 #include "video/mc6845.h"
+#include "media/media_file.h"
 #include "emu_hard_disk.h"
 #include "emu_midi.h"
 #include "emu_synth.h"
@@ -823,13 +824,11 @@ bool emu_cdrom_playlist_load(const char* path, bool* floppies)
 {
     emu_cdrom_playlist_clear();
 
-    std::ifstream file;
-    open_ifstream_utf8(file, path, std::ios::in | std::ios::binary);
+    std::string text;
 
-    if (!file.is_open())
+    if (!MediaFile::ReadFile(path, k_media_file_no_limit, &text, true))
         return false;
 
-    std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     std::vector<Media::PlaylistEntry> entries;
 
     if (!Media::ParsePlaylist(path, text.c_str(), text.size(), entries))
@@ -2246,13 +2245,10 @@ static void update_key_map(void)
     if (!key_map->SetLayer(GDOX_KEY_MAP_GAME, emu_game_get_keys(), &error))
         key_map->ClearLayer(GDOX_KEY_MAP_GAME);
 
-    std::ifstream file;
-    open_ifstream_utf8(file, path.c_str(), std::ios::in | std::ios::binary);
+    std::string text;
 
-    if (!file.is_open())
+    if (!MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
         return;
-
-    std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
     if (!key_map->SetLayer(GDOX_KEY_MAP_USER, text.c_str(), &error))
     {
@@ -2386,16 +2382,8 @@ static void save_cmos(void)
 
     u8 data[GDOX_CMOS_FILE_SIZE];
     geardox->GetRTC()->SaveCMOSFile(data);
-    std::string temporary(path);
-    temporary += ".tmp";
-    std::ofstream file;
-    open_ofstream_utf8(file, temporary.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
-    file.write(reinterpret_cast<const char*>(data), GDOX_CMOS_FILE_SIZE);
-    file.close();
-
-    if (!file.good() || !SDL_RenamePath(temporary.c_str(), path))
+    if (!MediaFile::WriteFileAtomic(path, data, GDOX_CMOS_FILE_SIZE))
     {
-        SDL_RemovePath(temporary.c_str());
         Error("Unable to save CMOS: %s", path);
         return;
     }

@@ -34,6 +34,7 @@
 #include "gui_filedialogs.h"
 #include "gui_notifications.h"
 #include "utils.h"
+#include "media/media_file.h"
 
 static std::vector<GameDisk_Found> choices;
 static std::vector<std::string> programs;
@@ -48,7 +49,6 @@ static void menu_boot(bool enabled);
 static void menu_files(bool open);
 static void menu_options(void);
 static void show_folder(const char* path);
-static bool is_folder(const char* path);
 static void menu_recent(void);
 static void popup_choice(void);
 static void popup_programs(void);
@@ -172,7 +172,7 @@ static void menu_files(bool open)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", disk->GetSourcePath());
 
-    if (ImGui::MenuItem("Show Saves Folder", NULL, false, is_folder(emu_game_get_saves_path())))
+    if (ImGui::MenuItem("Show Saves Folder", NULL, false, MediaFile::IsDirectory(emu_game_get_saves_path())))
         show_folder(emu_game_get_saves_path());
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
@@ -291,12 +291,6 @@ static void show_folder(const char* path)
 
     if (!SDL_OpenURL(url.c_str()))
         gui_notify(gui_NotificationError, NULL, "Unable to show the folder", path);
-}
-
-static bool is_folder(const char* path)
-{
-    SDL_PathInfo info;
-    return (path[0] != 0) && SDL_GetPathInfo(path, &info) && (info.type == SDL_PATHTYPE_DIRECTORY);
 }
 
 void gui_game_popups(void)

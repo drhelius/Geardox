@@ -43,6 +43,7 @@
 #include "gui_dos.h"
 #include "utils.h"
 #include "drive/floppy_image.h"
+#include "media/media_file.h"
 
 enum FileDialogID
 {
@@ -604,9 +605,8 @@ static void remember_dialog_location(FileDialogID id, const char* path)
         return;
 
     std::string location(path);
-    SDL_PathInfo info;
 
-    if (!SDL_GetPathInfo(path, &info) || (info.type != SDL_PATHTYPE_DIRECTORY))
+    if (!MediaFile::IsDirectory(path))
         location.erase(location.find_last_of("/\\") + 1);
     else if (location.find_last_of("/\\") != location.size() - 1)
     {
