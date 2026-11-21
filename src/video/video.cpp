@@ -38,6 +38,7 @@ Video::Video()
     InitPointer(m_frame_buffer);
     InitPointer(m_voodoo);
     m_voodoo_enabled = false;
+    m_voodoo_threaded = false;
     m_voodoo_shown = false;
     m_render_requested = false;
     m_render = false;
@@ -182,17 +183,39 @@ void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
 
     m_mc6845->Init();
 
-    if (!IsValidPointer(m_voodoo))
-        m_voodoo = new Voodoo();
+    if (IsValidPointer(m_voodoo))
+        m_voodoo->Init(this, scheduler, memory);
 
-    m_voodoo->Init(this, scheduler, memory);
     Reset();
 }
 
 void Video::SetVoodoo(bool enabled)
 {
     m_voodoo_enabled = enabled;
-    m_voodoo->SetEnabled(enabled);
+
+    if (!enabled)
+    {
+        SafeDelete(m_voodoo);
+        return;
+    }
+
+    if (!IsValidPointer(m_voodoo))
+    {
+        m_voodoo = new Voodoo();
+        m_voodoo->SetTraceLogger(m_trace_logger);
+        m_voodoo->Init(this, m_scheduler, m_memory);
+        m_voodoo->SetThreaded(m_voodoo_threaded);
+    }
+
+    m_voodoo->SetEnabled(true);
+}
+
+void Video::SetVoodooThreaded(bool threaded)
+{
+    m_voodoo_threaded = threaded;
+
+    if (IsValidPointer(m_voodoo))
+        m_voodoo->SetThreaded(threaded);
 }
 
 // A card change takes effect at the next reset

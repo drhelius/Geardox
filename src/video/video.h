@@ -153,6 +153,7 @@ public:
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCard(int card);
     void SetVoodoo(bool enabled);
+    void SetVoodooThreaded(bool threaded);
     bool HasVoodoo() const;
     bool IsVoodooShown() const;
     Voodoo* GetVoodoo();
@@ -440,6 +441,7 @@ private:
     u8* m_frame_buffer;
     Voodoo* m_voodoo;
     bool m_voodoo_enabled;
+    bool m_voodoo_threaded;
     bool m_voodoo_shown;
     bool m_render_requested;
     bool m_render;

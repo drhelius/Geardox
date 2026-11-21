@@ -971,7 +971,7 @@ void emu_set_turbo(bool turbo)
 void emu_set_voodoo_thread(bool enabled)
 {
     if (IsValidPointer(geardox))
-        geardox->GetVideo()->GetVoodoo()->SetThreaded(enabled);
+        geardox->GetVideo()->SetVoodooThreaded(enabled);
 }
 
 bool emu_is_dynarec_enabled(void)

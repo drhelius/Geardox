@@ -2461,7 +2461,7 @@ static void check_variables(void)
     var.value = NULL;
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
-        core->GetVideo()->GetVoodoo()->SetThreaded(strcmp(var.value, "enabled") == 0);
+        core->GetVideo()->SetVoodooThreaded(strcmp(var.value, "enabled") == 0);
 #endif
 
 #if !defined(GDOX_DISABLE_DYNAREC)

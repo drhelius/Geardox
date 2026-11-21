@@ -251,8 +251,6 @@ void rewind_push(bool frame_completed)
         dirty_regions[3].page_shift = 12;
         dirty_regions[3].name = "Voodoo texture memory";
     }
-    else
-        voodoo->SetDirtyTracking(false);
 
     GDOX_Runtime_Info runtime;
     emu_get_runtime(runtime);
@@ -1075,7 +1073,9 @@ static void set_dirty_tracking(bool enabled)
     Video* video = emu_get_core()->GetVideo();
     emu_get_core()->GetMemory()->SetDirtyTracking(enabled);
     audio->GetUltraSound()->SetDirtyTracking(enabled && audio->HasGUS());
-    video->GetVoodoo()->SetDirtyTracking(enabled && video->HasVoodoo());
+
+    if (video->HasVoodoo())
+        video->GetVoodoo()->SetDirtyTracking(enabled);
 }
 
 static void clear_dirty_pages(void)
