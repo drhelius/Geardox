@@ -324,7 +324,11 @@ else
 endif
 
 ifneq (,$(filter unix% osx% win% ios% tvos% classic_armv7_a7,$(platform)))
-	PLATFORM_FLAGS += -DGDOX_ENABLE_CDROM_CUEBIN_READAHEAD -DGDOX_ENABLE_VOODOO_THREAD
+	PLATFORM_FLAGS += -DGDOX_ENABLE_CDROM_CUEBIN_READAHEAD
+endif
+
+ifneq (,$(filter unix% osx% win% ios% tvos% classic_armv7_a7 libnx,$(platform)))
+	PLATFORM_FLAGS += -DGDOX_ENABLE_VOODOO_THREAD
 endif
 
 ifneq (,$(filter rs90 retrofw miyoo,$(platform)))

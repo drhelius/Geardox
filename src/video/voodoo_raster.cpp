@@ -19,6 +19,9 @@
 
 #include "voodoo_raster.h"
 #include "voodoo_regs.h"
+#if defined(GDOX_ENABLE_VOODOO_THREAD) && defined(__SWITCH__)
+#include <switch.h>
+#endif
 
 enum VoodooRaster_Job_Type
 {
@@ -147,6 +150,9 @@ VoodooRaster::VoodooRaster()
     m_worker_sleeping = false;
     m_producer_waiting = false;
     m_stop = false;
+#if defined(__SWITCH__)
+    m_host_core = 0;
+#endif
 #endif
 #if defined(GDOX_VOODOO_CHECK)
     InitPointer(m_shadow);
@@ -553,6 +559,27 @@ void VoodooRaster::WaitSpace(u32 words)
     m_producer_waiting.store(false);
 }
 
+#if defined(__SWITCH__)
+static void voodoo_raster_leave_core(int core)
+{
+    u64 mask = 0;
+
+    if (R_FAILED(svcGetInfo(&mask, InfoType_CoreMask, CUR_PROCESS_HANDLE, 0)))
+        return;
+
+    mask &= ~(1ULL << core);
+
+    for (int i = 63; i >= 0; i--)
+    {
+        if ((mask & (1ULL << i)) != 0)
+        {
+            svcSetThreadCoreMask(CUR_THREAD_HANDLE, i, 1U << i);
+            return;
+        }
+    }
+}
+#endif
+
 void VoodooRaster::StartWorker()
 {
     m_ring = new u32[VOODOO_RASTER_RING_WORDS];
@@ -561,6 +588,9 @@ void VoodooRaster::StartWorker()
     m_read.store(0);
     m_stop.store(false);
     m_threaded = true;
+#if defined(__SWITCH__)
+    m_host_core = (int)svcGetCurrentProcessorNumber();
+#endif
     m_worker = std::thread(&VoodooRaster::WorkerThread, this);
 }
 
@@ -584,6 +614,10 @@ void VoodooRaster::StopWorker()
 void VoodooRaster::WorkerThread()
 {
     u64 read = 0;
+
+#if defined(__SWITCH__)
+    voodoo_raster_leave_core(m_host_core);
+#endif
 
     while (true)
     {

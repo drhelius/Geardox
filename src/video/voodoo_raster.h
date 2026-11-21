@@ -231,6 +231,9 @@ private:
     std::condition_variable m_work_condition;
     std::condition_variable m_done_condition;
     std::thread m_worker;
+#if defined(__SWITCH__)
+    int m_host_core;
+#endif
 #endif
 #if defined(GDOX_VOODOO_CHECK)
     VoodooRaster* m_shadow;
