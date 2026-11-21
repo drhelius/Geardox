@@ -458,7 +458,7 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
     SafeDelete(m_output);
     std::vector<u8>().swap(m_buffer);
     std::vector<u16>().swap(m_fat);
-    ok = ok && MediaFile::ReplaceFile(temporary.c_str(), path);
+    ok = ok && MediaFile::MoveIntoPlace(temporary.c_str(), path);
 
     if (!ok)
     {

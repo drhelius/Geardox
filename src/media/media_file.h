@@ -43,7 +43,7 @@ public:
     static bool ReadFile(const char* path, u64 max_size, std::vector<u8>* data, bool allow_empty = false);
     static bool ReadFile(const char* path, u64 max_size, std::string* data, bool allow_empty = false);
     static bool WriteFileAtomic(const char* path, const void* data, u64 size);
-    static bool ReplaceFile(const char* temporary, const char* path);
+    static bool MoveIntoPlace(const char* temporary, const char* path);
     static bool RenameFile(const char* from, const char* to);
     static bool RemoveFile(const char* path);
     static bool MakeDirectory(const char* path);

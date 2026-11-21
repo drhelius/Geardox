@@ -163,7 +163,7 @@ bool MediaZip::ExtractToFile(mz_uint index, const char* path)
     MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
     bool ok = IsValidPointer(file) && ExtractTo(index, file, 0) && file->Flush();
     SafeDelete(file);
-    ok = ok && MediaFile::ReplaceFile(temporary.c_str(), path);
+    ok = ok && MediaFile::MoveIntoPlace(temporary.c_str(), path);
 
     if (!ok)
         MediaFile::RemoveFile(temporary.c_str());

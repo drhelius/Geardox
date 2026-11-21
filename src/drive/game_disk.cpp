@@ -1822,7 +1822,7 @@ bool GameDisk::WriteConflict(FatImage* image, const FatImage_File& file, const s
         return false;
     }
 
-    if (MediaFile::ReplaceFile(temporary.c_str(), path.c_str()))
+    if (MediaFile::MoveIntoPlace(temporary.c_str(), path.c_str()))
         return true;
 
     MediaFile::RemoveFile(temporary.c_str());
@@ -2011,7 +2011,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
             std::string temporary = destination + ".tmp";
 
             if (!make_directories(path_directory(destination)) || !image.CopyOut(*file, temporary.c_str()) ||
-                !MediaFile::ReplaceFile(temporary.c_str(), destination.c_str()))
+                !MediaFile::MoveIntoPlace(temporary.c_str(), destination.c_str()))
             {
                 MediaFile::RemoveFile(temporary.c_str());
                 result->kept++;
@@ -2147,7 +2147,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
         std::string temporary = destination + ".tmp";
 
         if (!make_directories(path_directory(destination)) || !image.CopyOut(file, temporary.c_str()) ||
-            !MediaFile::ReplaceFile(temporary.c_str(), destination.c_str()))
+            !MediaFile::MoveIntoPlace(temporary.c_str(), destination.c_str()))
         {
             MediaFile::RemoveFile(temporary.c_str());
             result->kept++;
