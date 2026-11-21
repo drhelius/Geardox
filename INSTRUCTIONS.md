@@ -175,6 +175,10 @@ into the image, and everything you install stays there.
   **Shut Down** turns the PC off.
 - **DirectX games** install DirectX from their own CD. DirectX 5's setup offers a newer Cirrus 5446 display driver:
   accept it and restart. If Windows then starts in Safe Mode, restart once more from the Start menu.
+- **3Dfx Voodoo:** turn on **Emulator > Machine > Video Card > 3Dfx Voodoo Graphics** and reset. Windows 95 finds a
+  "PCI Early non-VGA Device" and asks for its driver: unpack 3Dfx's Voodoo Graphics driver kit for Windows 95 (3.01.00
+  works) to a folder, choose **Other Locations...** and type that folder, and type it again when Windows asks for the
+  "Voodoo Graphics Drivers" disk. After the restart, the desktop's **Properties** has a **3Dfx Voodoo Graphics** tab.
 
 ## Two Rules That Explain Most Surprises
 
