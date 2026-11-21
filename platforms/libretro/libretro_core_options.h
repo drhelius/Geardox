@@ -971,7 +971,7 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_voodoo_thread",
         "3Dfx Voodoo Render Thread",
         NULL,
-        "Draw the 3Dfx Voodoo's pixels on a second host thread. The picture is the same either way; turn it off only to diagnose a problem.",
+        "Draw the 3Dfx Voodoo's pixels on other host threads, two on hosts with four cores or more. The picture is the same either way; turn it off only to diagnose a problem.",
         NULL,
         "system",
         {

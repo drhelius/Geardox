@@ -125,6 +125,11 @@ static INLINE s32 edge_ceil(s32 px, s32 py, s32 qx, s32 qy, s32 yc)
     return (s32)ceil_div(numerator, dy * 16);
 }
 
+INLINE bool VoodooRaster::OwnsLine(s32 y) const
+{
+    return ((u32)y & m_line_mask) == m_line_owner;
+}
+
 VoodooRaster::VoodooRaster()
 {
     InitPointer(m_frame_buffer);
@@ -137,6 +142,8 @@ VoodooRaster::VoodooRaster()
     m_frame_buffer_pixels = 0;
     memset(&m_decoded, 0, sizeof(m_decoded));
     m_threaded = false;
+    m_line_mask = 0;
+    m_line_owner = 0;
     m_job_textured = false;
     memset(&m_job_pipeline, 0, sizeof(m_job_pipeline));
     memset(&m_job_texture, 0, sizeof(m_job_texture));
@@ -147,9 +154,16 @@ VoodooRaster::VoodooRaster()
     m_write = 0;
     m_published = 0;
     m_read = 0;
-    m_worker_sleeping = false;
+    m_helper_read = 0;
+    m_workers_sleeping = 0;
     m_producer_waiting = false;
     m_stop = false;
+    InitPointer(m_helper);
+    InitPointer(m_helper_texture);
+    InitPointer(m_helper_frame_pages);
+    memset(m_helper_counters, 0, sizeof(m_helper_counters));
+    memset(m_helper_texture_pages, 0, sizeof(m_helper_texture_pages));
+    m_marked = false;
 #if defined(__SWITCH__)
     m_host_core = 0;
 #endif
@@ -278,7 +292,12 @@ void VoodooRaster::Sync()
 {
 #if defined(GDOX_ENABLE_VOODOO_THREAD)
     if (m_threaded)
+    {
         WaitSpace(VOODOO_RASTER_RING_WORDS);
+
+        if (IsValidPointer(m_helper))
+            MergeHelper();
+    }
 #endif
 #if defined(GDOX_VOODOO_CHECK)
     if (IsValidPointer(m_shadow))
@@ -288,6 +307,14 @@ void VoodooRaster::Sync()
 
 void VoodooRaster::Reload()
 {
+#if defined(GDOX_ENABLE_VOODOO_THREAD)
+    if (IsValidPointer(m_helper))
+    {
+        Sync();
+        memcpy(m_helper_texture, m_texture_memory, VOODOO_TREX_MEMORY_SIZE);
+        memset(m_helper_counters, 0, sizeof(m_helper_counters));
+    }
+#endif
 #if defined(GDOX_VOODOO_CHECK)
     if (!IsValidPointer(m_shadow))
         return;
@@ -533,18 +560,29 @@ void VoodooRaster::EndJob(u32 words)
     m_write += words;
     m_published.store(m_write);
 
-    if (m_worker_sleeping.load())
+    if (m_workers_sleeping.load() > 0)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_work_condition.notify_one();
+        m_work_condition.notify_all();
     }
+}
+
+u64 VoodooRaster::GetReadPosition() const
+{
+    u64 read = m_read.load();
+
+    if (!IsValidPointer(m_helper))
+        return read;
+
+    u64 helper_read = m_helper_read.load();
+    return MIN(read, helper_read);
 }
 
 void VoodooRaster::WaitSpace(u32 words)
 {
     for (int i = 0; i < k_voodoo_raster_spins; i++)
     {
-        if (m_write + words - m_read.load() <= VOODOO_RASTER_RING_WORDS)
+        if (m_write + words - GetReadPosition() <= VOODOO_RASTER_RING_WORDS)
             return;
 
         std::this_thread::yield();
@@ -553,32 +591,49 @@ void VoodooRaster::WaitSpace(u32 words)
     std::unique_lock<std::mutex> lock(m_mutex);
     m_producer_waiting.store(true);
 
-    while (m_write + words - m_read.load() > VOODOO_RASTER_RING_WORDS)
+    while (m_write + words - GetReadPosition() > VOODOO_RASTER_RING_WORDS)
         m_done_condition.wait(lock);
 
     m_producer_waiting.store(false);
 }
 
 #if defined(__SWITCH__)
-static void voodoo_raster_leave_core(int core)
+static u64 voodoo_raster_core_mask()
 {
     u64 mask = 0;
 
     if (R_FAILED(svcGetInfo(&mask, InfoType_CoreMask, CUR_PROCESS_HANDLE, 0)))
-        return;
+        return 0;
 
-    mask &= ~(1ULL << core);
+    return mask;
+}
+
+static void voodoo_raster_leave_core(int core, int index)
+{
+    u64 mask = voodoo_raster_core_mask() & ~(1ULL << core);
 
     for (int i = 63; i >= 0; i--)
     {
-        if ((mask & (1ULL << i)) != 0)
-        {
-            svcSetThreadCoreMask(CUR_THREAD_HANDLE, i, 1U << i);
-            return;
-        }
+        if ((mask & (1ULL << i)) == 0)
+            continue;
+
+        if (index-- > 0)
+            continue;
+
+        svcSetThreadCoreMask(CUR_THREAD_HANDLE, i, 1U << i);
+        return;
     }
 }
 #endif
+
+static bool voodoo_raster_helper_available()
+{
+#if defined(__SWITCH__)
+    return __builtin_popcountll(voodoo_raster_core_mask()) >= 3;
+#else
+    return std::thread::hardware_concurrency() >= 4;
+#endif
+}
 
 void VoodooRaster::StartWorker()
 {
@@ -586,12 +641,20 @@ void VoodooRaster::StartWorker()
     m_write = 0;
     m_published.store(0);
     m_read.store(0);
+    m_helper_read.store(0);
     m_stop.store(false);
     m_threaded = true;
 #if defined(__SWITCH__)
     m_host_core = (int)svcGetCurrentProcessorNumber();
 #endif
-    m_worker = std::thread(&VoodooRaster::WorkerThread, this);
+
+    if (voodoo_raster_helper_available())
+        StartHelper();
+
+    m_worker = std::thread(&VoodooRaster::WorkerThread, this, this, &m_read, 0);
+
+    if (IsValidPointer(m_helper))
+        m_helper_worker = std::thread(&VoodooRaster::WorkerThread, this, m_helper, &m_helper_read, 1);
 }
 
 void VoodooRaster::StopWorker()
@@ -601,22 +664,78 @@ void VoodooRaster::StopWorker()
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_stop.store(true);
-        m_work_condition.notify_one();
+        m_work_condition.notify_all();
     }
 
     if (m_worker.joinable())
         m_worker.join();
 
+    if (m_helper_worker.joinable())
+        m_helper_worker.join();
+
     m_threaded = false;
+    StopHelper();
     SafeDeleteArray(m_ring);
 }
 
-void VoodooRaster::WorkerThread()
+void VoodooRaster::StartHelper()
+{
+    u32 pages = (m_frame_buffer_pixels * 2 + 4095) >> 12;
+    m_helper = new VoodooRaster();
+#if defined(GDOX_VOODOO_CHECK)
+    m_helper->m_is_shadow = true;
+#endif
+    m_helper_texture = new u8[VOODOO_TREX_MEMORY_SIZE];
+    m_helper_frame_pages = new u8[pages];
+    memcpy(m_helper_texture, m_texture_memory, VOODOO_TREX_MEMORY_SIZE);
+    memset(m_helper_frame_pages, 0, pages);
+    memset(m_helper_counters, 0, sizeof(m_helper_counters));
+    m_helper->Init(m_frame_buffer, m_frame_buffer_pixels, m_helper_texture, m_helper_texture_pages, m_helper_counters,
+        m_helper_frame_pages);
+    m_helper->m_line_mask = 1;
+    m_helper->m_line_owner = 1;
+    m_line_mask = 1;
+    m_line_owner = 0;
+}
+
+void VoodooRaster::StopHelper()
+{
+    SafeDelete(m_helper);
+    SafeDeleteArray(m_helper_texture);
+    SafeDeleteArray(m_helper_frame_pages);
+    m_line_mask = 0;
+    m_line_owner = 0;
+}
+
+void VoodooRaster::MergeHelper()
+{
+    for (int i = 0; i < VOODOO_RASTER_COUNTERS; i++)
+    {
+        m_counters[i] += m_helper_counters[i];
+        m_helper_counters[i] = 0;
+    }
+
+    if (!m_helper->m_marked)
+        return;
+
+    u32 pages = (m_frame_buffer_pixels * 2 + 4095) >> 12;
+    m_helper->m_marked = false;
+
+    for (u32 i = 0; i < pages; i++)
+    {
+        m_dirty_pages[i] |= m_helper_frame_pages[i];
+        m_helper_frame_pages[i] = 0;
+    }
+}
+
+void VoodooRaster::WorkerThread(VoodooRaster* executor, std::atomic<u64>* position, int index)
 {
     u64 read = 0;
 
 #if defined(__SWITCH__)
-    voodoo_raster_leave_core(m_host_core);
+    voodoo_raster_leave_core(m_host_core, index);
+#else
+    UNUSED(index);
 #endif
 
     while (true)
@@ -632,12 +751,12 @@ void VoodooRaster::WorkerThread()
         if (read == write)
         {
             std::unique_lock<std::mutex> lock(m_mutex);
-            m_worker_sleeping.store(true);
+            m_workers_sleeping++;
 
             while (((write = m_published.load()) == read) && !m_stop.load())
                 m_work_condition.wait(lock);
 
-            m_worker_sleeping.store(false);
+            m_workers_sleeping--;
 
             if (read == write)
                 return;
@@ -649,10 +768,10 @@ void VoodooRaster::WorkerThread()
             u32 header = m_ring[offset];
 
             if ((header & 0xFF) != VOODOO_JOB_PAD)
-                RunJob(header & 0xFF, &m_ring[offset + 1]);
+                executor->RunJob(header & 0xFF, &m_ring[offset + 1]);
 
             read += header >> 8;
-            m_read.store(read);
+            position->store(read);
 
             if (m_producer_waiting.load())
             {
@@ -871,6 +990,10 @@ void VoodooRaster::MarkDirty(const u16* start, s32 count)
 
     for (u32 page = first >> 12; page <= (last >> 12); page++)
         m_dirty_pages[page] = 1;
+
+#if defined(GDOX_ENABLE_VOODOO_THREAD)
+    m_marked = true;
+#endif
 }
 
 u32 VoodooRaster::CombineColor(const VoodooRaster_Pipeline& p, u32 iterated, u32 texel, u32 iterz, bool& killed)
@@ -1198,6 +1321,9 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
     s32 x1 = span.x1;
     s32 scry = (fbz_mode & k_voodoo_fbz_y_origin) != 0 ? p.y_origin - y : y;
 
+    if (!OwnsLine(scry))
+        return;
+
     m_counters[k_voodoo_counter_pixels_in] += (u32)(x1 - x0);
 
     if ((fbz_mode & k_voodoo_fbz_clip) != 0)
@@ -1449,6 +1575,9 @@ void VoodooRaster::RunFastFill(const VoodooRaster_Pipeline& p)
     {
         s32 scry = (fbz_mode & k_voodoo_fbz_y_origin) != 0 ? p.y_origin - y : y;
 
+        if (!OwnsLine(scry))
+            continue;
+
         if ((fbz_mode & k_voodoo_fbz_rgb_write) != 0)
         {
             s32 x0 = p.clip_left;
@@ -1490,6 +1619,9 @@ void VoodooRaster::RunFastFill(const VoodooRaster_Pipeline& p)
 void VoodooRaster::RunLfbPixel(const VoodooRaster_Pipeline& p, u32 buffer, s32 x, s32 y, u32 color, u32 depth,
     u32 present)
 {
+    if (!OwnsLine(y))
+        return;
+
     s32 x0 = x;
     s32 x1 = x + 1;
     u16* dest = GetRow(buffer, p.row_pixels, y, x0, x1);
@@ -1532,6 +1664,9 @@ void VoodooRaster::RunPipelineLfbPixel(const VoodooRaster_Pipeline& p, u32 buffe
 {
     u32 fbz_mode = p.fbz_mode;
     s32 scry = (fbz_mode & k_voodoo_fbz_y_origin) != 0 ? p.y_origin - y : y;
+
+    if (!OwnsLine(scry))
+        return;
 
     m_counters[k_voodoo_counter_pixels_in]++;
 

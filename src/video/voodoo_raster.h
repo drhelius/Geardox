@@ -177,9 +177,13 @@ private:
     u32* BeginJob(u32 type, u32 words);
     void EndJob(u32 words);
     void WaitSpace(u32 words);
+    u64 GetReadPosition() const;
     void StartWorker();
     void StopWorker();
-    void WorkerThread();
+    void StartHelper();
+    void StopHelper();
+    void MergeHelper();
+    void WorkerThread(VoodooRaster* executor, std::atomic<u64>* position, int index);
 #endif
 #if defined(GDOX_VOODOO_CHECK)
     void CompareShadow();
@@ -187,6 +191,7 @@ private:
         const VoodooRaster_Triangle& triangle, const VoodooRaster_Span* spans, int count, Span_Function generic,
         Span_Function specialised);
 #endif
+    bool OwnsLine(s32 y) const;
     u16* GetRow(u32 base, u32 row_pixels, s32 y, s32& x0, s32& x1);
     void MarkDirty(const u16* start, s32 count);
     static u32 ClampColor(u32 iter);
@@ -214,6 +219,8 @@ private:
     Span_Function m_generic_span;
     Span_Function m_spans[VOODOO_RASTER_SPAN_KEYS];
     bool m_threaded;
+    u32 m_line_mask;
+    u32 m_line_owner;
     VoodooRaster_Pipeline m_job_pipeline;
     VoodooTrex::VoodooTrex_Texture m_job_texture;
     bool m_job_textured;
@@ -224,13 +231,21 @@ private:
     u64 m_write;
     std::atomic<u64> m_published;
     std::atomic<u64> m_read;
-    std::atomic<bool> m_worker_sleeping;
+    std::atomic<u64> m_helper_read;
+    std::atomic<int> m_workers_sleeping;
     std::atomic<bool> m_producer_waiting;
     std::atomic<bool> m_stop;
     std::mutex m_mutex;
     std::condition_variable m_work_condition;
     std::condition_variable m_done_condition;
     std::thread m_worker;
+    std::thread m_helper_worker;
+    VoodooRaster* m_helper;
+    u8* m_helper_texture;
+    u8* m_helper_frame_pages;
+    u32 m_helper_counters[VOODOO_RASTER_COUNTERS];
+    u8 m_helper_texture_pages[VOODOO_TREX_PAGES];
+    bool m_marked;
 #if defined(__SWITCH__)
     int m_host_core;
 #endif
