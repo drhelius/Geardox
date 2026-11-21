@@ -50,7 +50,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 
 ### Basic Usage
 - **Getting Started**: [INSTRUCTIONS.md](INSTRUCTIONS.md) covers playing games, the built-in DOS disks, the DOS prompt, Windows 3.11 and Windows 95, disks and discs, machine settings, MIDI, keyboard, mouse, gamepads and where files are kept.
-- **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, and importing MS-DOS, the Gravis UltraSound software and the 3Dfx Voodoo driver.
+- **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, and importing MS-DOS, the Gravis UltraSound software and the 3dfx Voodoo driver.
 - **MIDI Music**: The built-in synths need your own MT-32 ROMs and a SoundFont sound bank, set in **Audio → Built-in Synths**. See [MIDI music](INSTRUCTIONS.md#midi-music).
 - **Portable Mode**: Run with `--portable`, or create an empty file named `portable.ini` in the same directory as the application binary. On macOS, place the file next to the `.app` bundle.
 
