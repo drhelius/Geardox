@@ -75,9 +75,7 @@ static void update_continue(void);
 static void request_continue(void);
 static void set_max_speed(bool enabled);
 static void load_symbols(void);
-static std::string find_no_case(const std::string& directory, const std::string& name);
-static std::string replace_extension(const std::string& name, const char* extension);
-static bool starts_with_no_case(const std::string& text, const std::string& prefix);
+static std::string find_in_folder(const std::string& directory, const std::string& name);
 
 void emu_dev_init(void)
 {
@@ -305,12 +303,12 @@ bool emu_dev_dos_to_host(const char* dos_path, std::string* host_path)
     {
         size_t slash = rest.find('\\');
         std::string part = slash == std::string::npos ? rest : rest.substr(0, slash);
-        std::string found = find_no_case(current, part);
+        std::string found = find_in_folder(current, part);
 
         if (found.empty())
             return false;
 
-        current = current + "/" + found;
+        current = path_join(current, found);
         rest = slash == std::string::npos ? std::string() : rest.substr(slash + 1);
     }
 
@@ -530,23 +528,22 @@ static void load_symbols(void)
     if (program.host_path.empty())
         return;
 
-    size_t slash = program.host_path.find_last_of('/');
-    std::string directory = slash == std::string::npos ? std::string(".") : program.host_path.substr(0, slash);
-    std::string name = slash == std::string::npos ? program.host_path : program.host_path.substr(slash + 1);
+    std::string directory = path_directory(program.host_path);
+    std::string name = path_strip_extension(path_filename(program.host_path));
 
     for (size_t i = 0; i < sizeof(k_extensions) / sizeof(k_extensions[0]); i++)
     {
-        std::string found = find_no_case(directory, replace_extension(name, k_extensions[i]));
+        std::string found = find_in_folder(directory, name + k_extensions[i]);
 
         if (!found.empty())
         {
-            emu_dev_load_program_symbols((directory + "/" + found).c_str());
+            emu_dev_load_program_symbols(path_join(directory, found).c_str());
             return;
         }
     }
 }
 
-static std::string find_no_case(const std::string& directory, const std::string& name)
+static std::string find_in_folder(const std::string& directory, const std::string& name)
 {
     std::vector<std::string> folders;
     std::vector<std::string> files;
@@ -567,15 +564,4 @@ static std::string find_no_case(const std::string& directory, const std::string&
     }
 
     return std::string();
-}
-
-static std::string replace_extension(const std::string& name, const char* extension)
-{
-    size_t dot = name.find_last_of('.');
-    return (dot == std::string::npos ? name : name.substr(0, dot)) + extension;
-}
-
-static bool starts_with_no_case(const std::string& text, const std::string& prefix)
-{
-    return (text.size() >= prefix.size()) && (SDL_strncasecmp(text.c_str(), prefix.c_str(), prefix.size()) == 0);
 }

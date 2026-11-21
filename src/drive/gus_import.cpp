@@ -111,37 +111,6 @@ struct Gus_Record
     u16 time;
 };
 
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
-
-    return result;
-}
-
-static std::string join(const std::string& directory, const std::string& name)
-{
-    if (directory.empty())
-        return name;
-
-    char last = directory[directory.size() - 1];
-    return ((last == '/') || (last == '\\')) ? directory + name : directory + "/" + name;
-}
-
-static std::string directory_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? std::string(".") : path.substr(0, slash);
-}
-
-static std::string file_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
 static bool read_file(const std::string& path, u32 limit, std::vector<u8>* data)
 {
     u64 size = 0;
@@ -300,17 +269,6 @@ static int gus_decode(Gus_Bits* bits, const Gus_Huffman* huffman)
     return -1;
 }
 
-static std::string find_name(const std::vector<std::string>& names, const std::string& wanted)
-{
-    for (size_t i = 0; i < names.size(); i++)
-    {
-        if (upper(names[i]) == wanted)
-            return names[i];
-    }
-
-    return "";
-}
-
 GusImport::GusImport()
 {
     m_patches = 0;
@@ -348,7 +306,7 @@ bool GusImport::AddSource(const char* path)
         return AddZipData(archive.data(), archive.size(), 0);
     }
 
-    std::string directory = directory_of(source);
+    std::string directory = path_directory(source);
 
     if (IsInstalled(directory))
         return AddInstalled(directory, "", 0);
@@ -361,14 +319,15 @@ bool GusImport::IsInstalled(const std::string& path) const
     std::vector<std::string> folders;
     std::vector<std::string> files;
 
-    if (!MediaFile::ListDirectory(path.c_str(), folders, files) || find_name(files, k_gus_ini).empty())
+    if (!MediaFile::ListDirectory(path.c_str(), folders, files) || (find_no_case(files, k_gus_ini) < 0))
         return false;
 
-    std::string midi = find_name(folders, k_gus_midi);
+    int found = find_no_case(folders, k_gus_midi);
+    std::string midi = found >= 0 ? folders[found] : "";
     folders.clear();
     files.clear();
 
-    if (midi.empty() || !MediaFile::ListDirectory(join(path, midi).c_str(), folders, files))
+    if (midi.empty() || !MediaFile::ListDirectory(path_join(path, midi).c_str(), folders, files))
         return false;
 
     for (size_t i = 0; i < files.size(); i++)
@@ -395,15 +354,17 @@ bool GusImport::AddInstalled(const std::string& path, const std::string& prefix,
     {
         std::vector<u8> data;
 
-        if ((files[i][0] == '.') || !read_file(join(path, files[i]), k_gus_max_installed_size, &data))
+        if ((files[i][0] == '.') || !read_file(path_join(path, files[i]), k_gus_max_installed_size, &data))
             continue;
 
-        m_installed.push_back(std::make_pair(prefix + upper(files[i]), std::string((const char*)data.data(), data.size())));
+        m_installed.push_back(std::make_pair(prefix + to_upper_ascii(files[i]),
+            std::string((const char*)data.data(), data.size())));
     }
 
     for (size_t i = 0; i < folders.size(); i++)
     {
-        if ((folders[i][0] != '.') && !AddInstalled(join(path, folders[i]), prefix + upper(folders[i]) + "/", depth + 1))
+        if ((folders[i][0] != '.') &&
+            !AddInstalled(path_join(path, folders[i]), prefix + to_upper_ascii(folders[i]) + "/", depth + 1))
             return false;
     }
 
@@ -423,11 +384,11 @@ bool GusImport::AddFolder(const std::string& path, int depth)
 
     for (size_t i = 0; i < files.size(); i++)
     {
-        std::string name = upper(files[i]);
-        std::string full = join(path, files[i]);
+        std::string name = to_upper_ascii(files[i]);
+        std::string full = path_join(path, files[i]);
         std::vector<u8> data;
 
-        if ((files[i][0] == '.') || ((name.size() > 4) && (name.compare(name.size() - 4, 4, ".ZIP") == 0)))
+        if ((files[i][0] == '.') || ends_with_no_case(name, ".zip"))
         {
             if ((files[i][0] != '.') && read_file(full, k_gus_max_zip_size, &data) &&
                 !AddZipData(data.data(), data.size(), depth))
@@ -458,7 +419,7 @@ bool GusImport::AddFolder(const std::string& path, int depth)
 
     for (size_t i = 0; (depth < k_gus_max_depth) && (i < folders.size()); i++)
     {
-        if ((folders[i][0] != '.') && !AddFolder(join(path, folders[i]), depth + 1))
+        if ((folders[i][0] != '.') && !AddFolder(path_join(path, folders[i]), depth + 1))
             return false;
     }
 
@@ -482,8 +443,8 @@ bool GusImport::AddZipData(const u8* data, size_t size, int depth)
         if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory)
             continue;
 
-        std::string name = upper(file_of(stat.m_filename));
-        bool nested = (name.size() > 4) && (name.compare(name.size() - 4, 4, ".ZIP") == 0);
+        std::string name = to_upper_ascii(path_filename(stat.m_filename));
+        bool nested = ends_with_no_case(name, ".zip");
         bool image = FloppyImage::IsImageName(name.c_str());
 
         if ((name[0] == '.') || (stat.m_uncomp_size > k_gus_max_zip_size) || (!nested && !image && !is_wanted(name)))
@@ -583,7 +544,7 @@ bool GusImport::ReadFloppy(const u8* raw, u32 size)
         std::string extension((const char*)entry + 8, 3);
         base.erase(base.find_last_not_of(' ') + 1);
         extension.erase(extension.find_last_not_of(' ') + 1);
-        std::string name = upper(extension.empty() ? base : base + "." + extension);
+        std::string name = to_upper_ascii(extension.empty() ? base : base + "." + extension);
 
         if (!is_wanted(name))
         {
@@ -1188,19 +1149,21 @@ bool GusImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
     std::string text;
     bool ok = read_version_text(&zip, &text);
     mz_zip_reader_end(&zip);
-    *fingerprint = (u32)strtoul(get_value(text, "source").c_str(), NULL, 16);
+    std::string source = get_value(text, "source");
+
+    if (!parse_hex_string(source.c_str(), source.size(), fingerprint))
+        *fingerprint = 0;
+
     return ok;
 }
 
 bool GusImport::Fail(GusImport_Result result, const char* format, ...)
 {
-    char text[512];
     va_list args;
     va_start(args, format);
-    vsnprintf(text, sizeof(text), format, args);
+    m_error = vformat_string(format, args);
     va_end(args);
     m_result = result;
-    m_error = text;
-    Log("UltraSound import: %s", text);
+    Log("UltraSound import: %s", m_error.c_str());
     return false;
 }

@@ -37,16 +37,6 @@ static bool is_layout(const char* layout)
     return false;
 }
 
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
-
-    return result;
-}
-
 bool DosDisk::Write(const char* path, int system, const DosImport_System* msdos, const char* layout, bool replace)
 {
     bool ms = system == GDOX_GAME_SYSTEM_MSDOS;
@@ -97,7 +87,7 @@ std::string DosDisk::GetAutoexec(int system, const DosImport_System* msdos, cons
     out += "IF NOT ERRORLEVEL 1 SET ULTRADIR=C:\\ULTRASND\r\nPROMPT $P$G\r\n";
 
     if (is_layout(layout))
-        out += "LH KEYB " + upper(layout) + (ms ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" :
+        out += "LH KEYB " + to_upper_ascii(layout) + (ms ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" :
             ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
 
     out += "LH CTMOUSE\r\n";

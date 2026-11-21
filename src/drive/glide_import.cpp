@@ -45,37 +45,6 @@ static const GlideImport_Known k_glide_known[] =
     { 0xA85E0BE1, "Driver 2.48 (3Dfx Voodoo Graphics 3.01.00)" }
 };
 
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
-
-    return result;
-}
-
-static std::string join(const std::string& directory, const std::string& name)
-{
-    if (directory.empty())
-        return name;
-
-    char last = directory[directory.size() - 1];
-    return ((last == '/') || (last == '\\')) ? directory + name : directory + "/" + name;
-}
-
-static std::string file_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
-static bool ends_with(const std::string& text, const char* suffix)
-{
-    size_t length = strlen(suffix);
-    return (text.size() >= length) && (text.compare(text.size() - length, length, suffix) == 0);
-}
-
 static bool read_file(const std::string& path, std::string* data)
 {
     u64 size = 0;
@@ -249,8 +218,8 @@ bool GlideImport::SearchZip(const u8* data, size_t size, int depth)
         if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory || (stat.m_uncomp_size > k_glide_max_file_size))
             continue;
 
-        std::string name = upper(file_of(stat.m_filename));
-        bool nested = ends_with(name, ".ZIP");
+        std::string name = to_upper_ascii(path_filename(stat.m_filename));
+        bool nested = ends_with_no_case(name, ".zip");
 
         if (!nested && (name != k_glide_overlay) && (name != k_glide_compressed))
             continue;
@@ -289,16 +258,17 @@ bool GlideImport::SearchFolder(const std::string& path, int depth)
 
     for (size_t i = 0; m_overlay.empty() && (i < files.size()); i++)
     {
-        std::string name = upper(files[i]);
+        std::string name = to_upper_ascii(files[i]);
         std::string data;
 
-        if ((files[i][0] == '.') || (!ends_with(name, ".ZIP") && (name != k_glide_overlay) && (name != k_glide_compressed)))
+        if ((files[i][0] == '.') ||
+            (!ends_with_no_case(name, ".zip") && (name != k_glide_overlay) && (name != k_glide_compressed)))
             continue;
 
-        if (!read_file(join(path, files[i]), &data))
+        if (!read_file(path_join(path, files[i]), &data))
             continue;
 
-        if (ends_with(name, ".ZIP"))
+        if (ends_with_no_case(name, ".zip"))
             SearchZip((const u8*)data.data(), data.size(), depth);
         else
             Consider(name, data);
@@ -307,7 +277,7 @@ bool GlideImport::SearchFolder(const std::string& path, int depth)
     for (size_t i = 0; m_overlay.empty() && (depth < k_glide_max_depth) && (i < folders.size()); i++)
     {
         if (folders[i][0] != '.')
-            SearchFolder(join(path, folders[i]), depth + 1);
+            SearchFolder(path_join(path, folders[i]), depth + 1);
     }
 
     return true;
@@ -318,7 +288,7 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
     std::vector<std::string> folders;
     std::vector<std::string> files;
     std::string path(source);
-    std::string name = upper(file_of(path));
+    std::string name = to_upper_ascii(path_filename(path));
     m_overlay.clear();
     m_stub = false;
 
@@ -334,7 +304,7 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
             return GLIDE_IMPORT_ERROR;
         }
 
-        if (ends_with(name, ".ZIP"))
+        if (ends_with_no_case(name, ".zip"))
             SearchZip((const u8*)data.data(), data.size(), 0);
         else
             Consider(name == k_glide_compressed ? name : std::string(k_glide_overlay), data);

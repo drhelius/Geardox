@@ -50,6 +50,7 @@ static const char k_game_disk_conflicts[] = ".conflicts";
 static const char k_game_disk_config_sys[] = "CONFIG.SYS";
 static const char k_game_disk_autoexec[] = "AUTOEXEC.BAT";
 static const char k_game_disk_glide[] = "GLIDE2X.OVL";
+static const char k_game_disk_line_blanks[] = " \t\r\x1A";
 static const u32 k_game_disk_startup_lines = 8;
 
 // The names of C:'s root the system owns: a game's entry with one is left out, and DOS's writes there never go back
@@ -60,16 +61,6 @@ static const char* const k_game_disk_freedos_reserved[] =
 
 // MS-DOS's root files come from its version's table, these follow them
 static const char* const k_game_disk_msdos_reserved[] = { "DOS", "GEARDOX", "TEMP", "CONFIG.SYS", "AUTOEXEC.BAT" };
-
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
-
-    return result;
-}
 
 static std::string slashes(const std::string& path)
 {
@@ -123,23 +114,6 @@ static std::string backslashes(const std::string& path)
     return result;
 }
 
-static bool is_absolute(const std::string& path)
-{
-    return !path.empty() && ((path[0] == '/') || (path[0] == '\\') || ((path.size() > 1) && (path[1] == ':')));
-}
-
-static std::string directory_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? std::string(".") : path.substr(0, slash == 0 ? 1 : slash);
-}
-
-static std::string file_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
 static std::string join(const std::string& directory, const std::string& relative)
 {
     std::string path(directory);
@@ -152,16 +126,6 @@ static std::string join(const std::string& directory, const std::string& relativ
         return path;
 
     append_path_component(path, rest.c_str());
-    return path;
-}
-
-static std::string trim_trailing(const std::string& source)
-{
-    std::string path(source);
-
-    while ((path.size() > 1) && ((path[path.size() - 1] == '/') || (path[path.size() - 1] == '\\')))
-        path.resize(path.size() - 1);
-
     return path;
 }
 
@@ -199,7 +163,7 @@ static bool make_directories(const std::string& path)
     if (is_folder(path))
         return true;
 
-    std::string parent = directory_of(path);
+    std::string parent = path_directory(path);
 
     if ((parent != path) && (parent != ".") && !make_directories(parent))
         return false;
@@ -223,7 +187,7 @@ static s64 dos_to_host_time(u16 date, u16 time_value)
 
 static bool is_scratch_path(const std::string& dos_path)
 {
-    return upper(dos_path).compare(0, 5, "TEMP\\") == 0;
+    return to_upper_ascii(dos_path).compare(0, 5, "TEMP\\") == 0;
 }
 
 static std::string read_text(const std::string& path)
@@ -461,7 +425,7 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
     if (!IsValidPointer(path) || (path[0] == 0))
         return false;
 
-    std::string source = trim_trailing(path);
+    std::string source = trim_trailing_separators(path);
 
     if (GameDescriptor::IsDescriptor(source.c_str()))
     {
@@ -473,14 +437,14 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
 
     if (IsDosProgram(source.c_str()) && exists(source) && !is_folder(source))
     {
-        std::string folder = directory_of(source);
+        std::string folder = path_directory(source);
 
         if (Find(folder.c_str(), found))
             return true;
 
         GameDisk_Found item;
         item.path = folder;
-        item.inner = std::string(k_game_disk_program) + file_of(source);
+        item.inner = std::string(k_game_disk_program) + path_filename(source);
         found->push_back(item);
         return true;
     }
@@ -511,7 +475,7 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
                 GameDisk_Found item;
                 item.path = source;
                 item.inner = name;
-                sorted.push_back(std::make_pair(upper(name), item));
+                sorted.push_back(std::make_pair(to_upper_ascii(name), item));
             }
         }
 
@@ -526,7 +490,7 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
 
             GameDisk_Found item;
             item.path = join(source, files[i]);
-            sorted.push_back(std::make_pair(upper(files[i]), item));
+            sorted.push_back(std::make_pair(to_upper_ascii(files[i]), item));
         }
     }
 
@@ -546,7 +510,7 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
                 known = known || (sorted[j].second.inner == item.inner);
 
             if (!known)
-                sorted.push_back(std::make_pair(upper(GameDatabase::GetName(matches[i].entry)), item));
+                sorted.push_back(std::make_pair(to_upper_ascii(GameDatabase::GetName(matches[i].entry)), item));
         }
     }
 
@@ -587,7 +551,7 @@ std::string GameDisk::GetFoundName(const GameDisk_Found& found)
     if (found.inner.compare(0, strlen(k_game_disk_program), k_game_disk_program) == 0)
         return found.inner.substr(strlen(k_game_disk_program));
 
-    return found.inner.empty() ? file_of(found.path) : found.inner;
+    return found.inner.empty() ? path_filename(found.path) : found.inner;
 }
 
 bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
@@ -604,7 +568,7 @@ bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
     }
 
     if (chosen < 0)
-        return Fail("%s isn't recognised in %s any more", id.c_str(), file_of(found.path).c_str());
+        return Fail("%s isn't recognised in %s any more", id.c_str(), path_filename(found.path).c_str());
 
     const GameDatabase_Match& match = matches[chosen];
     const char* text = GameDatabase::GetDescriptor(match.entry);
@@ -656,11 +620,11 @@ bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
     {
         m_source = found.path;
         m_zip_prefix = root.empty() ? std::string() : root + "/";
-        m_base_directory = directory_of(found.path);
+        m_base_directory = path_directory(found.path);
     }
     else
     {
-        m_source = root.empty() ? trim_trailing(found.path) : join(trim_trailing(found.path), root);
+        m_source = root.empty() ? trim_trailing_separators(found.path) : join(trim_trailing_separators(found.path), root);
         m_base_directory = m_source;
     }
 
@@ -683,7 +647,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     m_ultrasnd_path = (IsValidPointer(ultrasnd_path) && exists(ultrasnd_path)) ? std::string(ultrasnd_path) : std::string();
     m_glide_path = (IsValidPointer(glide_path) && exists(glide_path)) ? std::string(glide_path) : std::string();
     m_descriptor_path = found.path;
-    m_save_directory = IsValidPointer(save_directory) ? trim_trailing(save_directory) : std::string();
+    m_save_directory = IsValidPointer(save_directory) ? trim_trailing_separators(save_directory) : std::string();
 
     if (found.inner.compare(0, strlen(k_game_disk_database), k_game_disk_database) == 0)
     {
@@ -693,21 +657,21 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     else if (found.inner.compare(0, strlen(k_game_disk_program), k_game_disk_program) == 0)
     {
         std::string program = found.inner.substr(strlen(k_game_disk_program));
-        std::string text = "[geardox]\nversion = 1\n\n[game]\nname = " + file_of(found.path) +
+        std::string text = "[geardox]\nversion = 1\n\n[game]\nname = " + path_filename(found.path) +
             "\nfolder = C:\\\n\n[run]\nexe = " + program + "\n";
         std::string name = join(found.path, program + ".gdox");
 
         if (!m_base.Parse(name.c_str(), text.data(), text.size()))
             return Fail("%s: %s", program.c_str(), m_base.GetError());
 
-        m_base_directory = trim_trailing(found.path);
+        m_base_directory = trim_trailing_separators(found.path);
     }
     else if (found.inner.empty())
     {
         if (!m_base.Load(found.path.c_str()))
-            return Fail("%s: %s", file_of(found.path).c_str(), m_base.GetError());
+            return Fail("%s: %s", path_filename(found.path).c_str(), m_base.GetError());
 
-        m_base_directory = directory_of(found.path);
+        m_base_directory = path_directory(found.path);
     }
     else
     {
@@ -723,7 +687,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
         }
 
         if (!IsValidPointer(data))
-            return Fail("Unable to read %s in %s", found.inner.c_str(), file_of(found.path).c_str());
+            return Fail("Unable to read %s in %s", found.inner.c_str(), path_filename(found.path).c_str());
 
         std::string name = join(found.path, found.inner);
         bool parsed = m_base.Parse(name.c_str(), (const char*)data, size);
@@ -732,21 +696,21 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
         if (!parsed)
             return Fail("%s: %s", found.inner.c_str(), m_base.GetError());
 
-        m_base_directory = directory_of(found.path);
+        m_base_directory = path_directory(found.path);
     }
 
     const GDOX_Game_Info& base = m_base.GetInfo();
 
     if (!m_base.Has("game", "folder"))
         return Fail("%s: no folder in [game], the game's folder on C: such as C:\\GAME, or C:\\ for the root",
-            file_of(found.inner.empty() ? found.path : found.inner).c_str());
+            path_filename(found.inner.empty() ? found.path : found.inner).c_str());
 
     if (!m_database && base.source.empty())
         m_source = found.inner.empty() ? m_base_directory : found.path;
     else if (!m_database)
     {
-        m_source = trim_trailing(is_absolute(base.source) ? base.source : join(m_base_directory, base.source));
-        size_t inside = upper(slashes(m_source)).find(".ZIP/");
+        m_source = trim_trailing_separators(is_absolute_path(base.source) ? base.source : join(m_base_directory, base.source));
+        size_t inside = to_upper_ascii(slashes(m_source)).find(".ZIP/");
 
         if ((inside != std::string::npos) && !exists(m_source))
         {
@@ -764,7 +728,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
 
     if (IsValidPointer(overrides_directory) && (overrides_directory[0] != 0))
     {
-        m_overrides_path = join(trim_trailing(overrides_directory), label + "." + key + ".gdox.ini");
+        m_overrides_path = join(trim_trailing_separators(overrides_directory), label + "." + key + ".gdox.ini");
         u64 size = 0;
         s64 modified = 0;
 
@@ -783,10 +747,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     m_media_directory = join(m_save_directory, label + "." + key + ".gdox.media");
     std::string source_key = m_zip_prefix.empty() ? m_source : m_source + "|" + m_zip_prefix;
     key = crc_key(source_key);
-    std::string source_name = file_of(m_source);
-
-    if (ends_with_no_case(source_name.c_str(), ".zip"))
-        source_name.resize(source_name.size() - 4);
+    std::string source_name = path_strip_extension(path_filename(m_source), ".zip");
 
     m_overlay = join(m_save_directory, safe_name(source_name) + "." + key + ".gdox");
     m_write_overlay = m_source_zip || !write_to_folder;
@@ -876,7 +837,7 @@ bool GameDisk::SaveOverrides(const GameDescriptor& overrides)
     if (overrides.IsEmpty())
         return ClearOverrides();
 
-    if (!make_directories(directory_of(m_overrides_path)) || !overrides.WriteFile(m_overrides_path.c_str()))
+    if (!make_directories(path_directory(m_overrides_path)) || !overrides.WriteFile(m_overrides_path.c_str()))
         return Fail("Unable to write the game settings %s", m_overrides_path.c_str());
 
     m_overrides = overrides;
@@ -987,7 +948,7 @@ bool GameDisk::UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine)
     if (space != std::string::npos)
         program = program.substr(0, space);
 
-    if ((program.size() > 1) && (program[1] == ':') && (toupper((unsigned char)program[0]) != 'C'))
+    if ((program.size() > 1) && (program[1] == ':') && (to_upper_ascii(program[0]) != 'C'))
         return true;
 
     std::string path = (program.size() > 1) && (program[1] == ':') ? collapse(program.substr(2)) :
@@ -1164,7 +1125,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         if (!ResolveMedia(info.cds[i], &path))
             return false;
 
-        if (is_folder(path) && !BuildFolderCd(trim_trailing(path), info.cdrom_label, &path))
+        if (is_folder(path) && !BuildFolderCd(trim_trailing_separators(path), info.cdrom_label, &path))
             return false;
 
         m_cdroms.push_back(path);
@@ -1175,7 +1136,8 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         if (info.hard_disks[i].empty())
             continue;
 
-        m_hard_disks[i] = is_absolute(info.hard_disks[i]) ? info.hard_disks[i] : join(m_base_directory, info.hard_disks[i]);
+        m_hard_disks[i] = is_absolute_path(info.hard_disks[i]) ? info.hard_disks[i] :
+            join(m_base_directory, info.hard_disks[i]);
 
         if (!exists(m_hard_disks[i]))
             return Fail("The game's hard disk isn't there: %s", m_hard_disks[i].c_str());
@@ -1354,7 +1316,7 @@ static void add_run(std::string* out, const std::string& base, const std::string
     std::string where = cwd.empty() ? directory : backslashes(cwd);
     bool batch = ends_with_no_case(program.c_str(), ".bat");
 
-    if ((target.size() > 1) && (target[1] == ':') && (toupper((unsigned char)target[0]) != 'C'))
+    if ((target.size() > 1) && (target[1] == ':') && (to_upper_ascii(target[0]) != 'C'))
     {
         std::string inside = directory.size() > 2 ? directory.substr(2) : std::string();
 
@@ -1370,7 +1332,8 @@ static void add_run(std::string* out, const std::string& base, const std::string
     }
 
     *out += "CD \\" + under(base, where) + "\r\n";
-    *out += std::string(batch ? "CALL " : "") + (upper(where) == upper(directory) ? program : "C:\\" + under(base, target));
+    *out += std::string(batch ? "CALL " : "") +
+        (strings_equal_ignore_case(where, directory) ? program : "C:\\" + under(base, target));
     *out += rest.empty() ? "\r\n" : " " + rest + "\r\n";
 }
 
@@ -1415,7 +1378,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     // KEYB with the VGA's code page 437, from MS-DOS's HELP KEYB and FreeDOS's KEYB documents
     if (strcmp(GetKeyboardLayout(), k_keyboard_layouts[0].id) != 0)
     {
-        std::string layout = upper(GetKeyboardLayout());
+        std::string layout = to_upper_ascii(GetKeyboardLayout());
         bool low = (info.memory == GDOX_GAME_MEMORY_NONE) || (info.memory == GDOX_GAME_MEMORY_XMS);
 
         if (!msdos && low)
@@ -1576,7 +1539,7 @@ const char* GameDisk::GetError() const
 // Inside the game's folder on C:, and none of the system's
 bool GameDisk::IsSystemPath(const std::string& dos_path) const
 {
-    std::string path = upper(dos_path);
+    std::string path = to_upper_ascii(dos_path);
 
     for (size_t i = 0; i < m_system.reserved.size(); i++)
     {
@@ -1591,8 +1554,8 @@ bool GameDisk::IsSystemPath(const std::string& dos_path) const
 
 bool GameDisk::IsGamePath(const std::string& dos_path) const
 {
-    std::string base = upper(m_descriptor.GetInfo().folder);
-    std::string path = upper(dos_path);
+    std::string base = to_upper_ascii(m_descriptor.GetInfo().folder);
+    std::string path = to_upper_ascii(dos_path);
 
     if (IsSystemPath(path))
         return false;
@@ -1603,13 +1566,11 @@ bool GameDisk::IsGamePath(const std::string& dos_path) const
 
 bool GameDisk::Fail(const char* format, ...)
 {
-    char text[1024];
     va_list args;
     va_start(args, format);
-    vsnprintf(text, sizeof(text), format, args);
+    m_error = vformat_string(format, args);
     va_end(args);
-    m_error = text;
-    Log("%s", text);
+    Log("%s", m_error.c_str());
     return false;
 }
 
@@ -1637,7 +1598,7 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
         system->reserved.assign(k_game_disk_freedos_reserved, k_game_disk_freedos_reserved +
             sizeof(k_game_disk_freedos_reserved) / sizeof(k_game_disk_freedos_reserved[0]));
 
-    std::string top = upper(info.folder.substr(0, info.folder.find('\\')));
+    std::string top = to_upper_ascii(info.folder.substr(0, info.folder.find('\\')));
 
     if (!top.empty() && (std::find(system->reserved.begin(), system->reserved.end(), top) != system->reserved.end()))
         return Fail("The game's folder, C:\\%s, is the system's: give it another folder in [game]", info.folder.c_str());
@@ -1694,12 +1655,12 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
 // Relative to the descriptor's folder, then inside the game's ZIP, taken out to the media folder
 bool GameDisk::ResolveMedia(const std::string& value, std::string* path)
 {
-    *path = is_absolute(value) ? value : join(m_base_directory, value);
+    *path = is_absolute_path(value) ? value : join(m_base_directory, value);
 
     if (exists(*path))
         return true;
 
-    std::string inner = m_source_zip && !is_absolute(value) ? collapse(m_zip_prefix + slashes(value)) : std::string();
+    std::string inner = m_source_zip && !is_absolute_path(value) ? collapse(m_zip_prefix + slashes(value)) : std::string();
 
     if (!inner.empty() && ExtractFromZip(inner, path))
         return true;
@@ -1710,16 +1671,16 @@ bool GameDisk::ResolveMedia(const std::string& value, std::string* path)
 // A CUE takes its folder in the ZIP with it, for its tracks
 bool GameDisk::BuildFolderCd(const std::string& folder, const std::string& label, std::string* path)
 {
-    if ((folder.size() <= 3) || (folder == directory_of(folder)))
+    if ((folder.size() <= 3) || (folder == path_directory(folder)))
         return Fail("A drive's root can't be the game's CD: %s", folder.c_str());
 
     IsoImage image;
-    image.SetLabel(label.empty() ? file_of(folder).c_str() : label.c_str());
+    image.SetLabel(label.empty() ? path_filename(folder).c_str() : label.c_str());
 
     if (!image.AddFolder(folder.c_str()))
         return Fail("Unable to read the folder for the game's CD: %s", folder.c_str());
 
-    *path = join(m_media_directory, safe_name(file_of(folder)) + ".iso");
+    *path = join(m_media_directory, safe_name(path_filename(folder)) + ".iso");
     u32 fingerprint = 0;
 
     if (IsoImage::ReadFingerprint(path->c_str(), &fingerprint) && (fingerprint == image.GetFingerprint()))
@@ -1741,8 +1702,8 @@ bool GameDisk::ExtractFromZip(const std::string& inner, std::string* path)
     if (!open_zip(m_source.c_str(), &zip, &file))
         return false;
 
-    std::string wanted = upper(inner);
-    std::string folder = upper(directory_of(inner));
+    std::string wanted = to_upper_ascii(inner);
+    std::string folder = to_upper_ascii(path_directory(inner));
     folder = folder == "." ? std::string() : folder + "/";
     bool cue = ends_with_no_case(inner.c_str(), ".cue");
     bool found = false;
@@ -1768,7 +1729,7 @@ bool GameDisk::ExtractEntries(mz_zip_archive* zip, const std::string& wanted, co
             continue;
 
         std::string name = slashes(stat.m_filename);
-        std::string key = upper(name);
+        std::string key = to_upper_ascii(name);
         bool wanted_file = key == wanted;
         bool sibling = cue && (key.compare(0, folder.size(), folder) == 0) &&
             (key.find('/', folder.size()) == std::string::npos);
@@ -1783,8 +1744,8 @@ bool GameDisk::ExtractEntries(mz_zip_archive* zip, const std::string& wanted, co
 
         if (!fresh)
         {
-            Log("Taking %s out of %s", name.c_str(), file_of(m_source).c_str());
-            ok = make_directories(directory_of(out)) && extract_zip_entry(zip, i, out);
+            Log("Taking %s out of %s", name.c_str(), path_filename(m_source).c_str());
+            ok = make_directories(path_directory(out)) && extract_zip_entry(zip, i, out);
         }
 
         if (wanted_file)
@@ -1964,7 +1925,7 @@ bool GameDisk::WriteConflict(FatImage* image, const FatImage_File& file, const s
     std::string path = join(join(m_overlay, k_game_disk_conflicts), host_path);
     std::string temporary = path + ".tmp";
 
-    if (!make_directories(directory_of(path)) || !image->CopyOut(file, temporary.c_str()))
+    if (!make_directories(path_directory(path)) || !image->CopyOut(file, temporary.c_str()))
     {
         MediaFile::RemoveFile(temporary.c_str());
         return false;
@@ -1977,15 +1938,12 @@ bool GameDisk::WriteConflict(FatImage* image, const FatImage_File& file, const s
 void GameDisk::LoadDeleted()
 {
     m_deleted.clear();
-    std::string text = read_text(join(m_overlay, k_game_disk_deleted));
-    size_t start = 0;
+    std::vector<std::string> lines;
+    split_string(read_text(join(m_overlay, k_game_disk_deleted)), '\n', &lines);
 
-    while (start < text.size())
+    for (size_t i = 0; i < lines.size(); i++)
     {
-        size_t end = text.find('\n', start);
-        end = end == std::string::npos ? text.size() : end;
-        std::string line = text.substr(start, end - start);
-        start = end + 1;
+        std::string line = lines[i];
 
         if (!line.empty() && (line[line.size() - 1] == '\r'))
             line.resize(line.size() - 1);
@@ -2017,7 +1975,7 @@ bool GameDisk::IsDeleted(const std::string& host_path) const
 {
     for (size_t i = 0; i < m_deleted.size(); i++)
     {
-        if (upper(m_deleted[i]) == upper(host_path))
+        if (strings_equal_ignore_case(m_deleted[i], host_path))
             return true;
     }
 
@@ -2028,7 +1986,7 @@ void GameDisk::SetDeleted(const std::string& host_path, bool deleted)
 {
     for (size_t i = m_deleted.size(); i > 0; i--)
     {
-        if (upper(m_deleted[i - 1]) == upper(host_path))
+        if (strings_equal_ignore_case(m_deleted[i - 1], host_path))
             m_deleted.erase(m_deleted.begin() + (i - 1));
     }
 
@@ -2084,27 +2042,27 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     bool deleted_changed = false;
 
     for (size_t i = 0; i < files.size(); i++)
-        found[upper(files[i].path)] = i;
+        found[to_upper_ascii(files[i].path)] = i;
 
     for (size_t i = 0; i < entries.size(); i++)
     {
-        known[upper(entries[i].dos_path)] = i;
+        known[to_upper_ascii(entries[i].dos_path)] = i;
 
         if (entries[i].directory)
-            folders[upper(entries[i].dos_path)] = entries[i].host_path;
+            folders[to_upper_ascii(entries[i].dos_path)] = entries[i].host_path;
     }
 
     std::string base = m_descriptor.GetInfo().folder;
 
     if (!base.empty())
-        folders[upper(base)] = "";
+        folders[to_upper_ascii(base)] = "";
 
     std::vector<GameDisk_Manifest_Entry> updated;
 
     for (size_t i = 0; i < entries.size(); i++)
     {
         const GameDisk_Manifest_Entry& entry = entries[i];
-        std::map<std::string, size_t>::const_iterator it = found.find(upper(entry.dos_path));
+        std::map<std::string, size_t>::const_iterator it = found.find(to_upper_ascii(entry.dos_path));
         const FatImage_File* file = it == found.end() ? NULL : &files[it->second];
 
         if (entry.system)
@@ -2158,7 +2116,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 
             std::string temporary = destination + ".tmp";
 
-            if (!make_directories(directory_of(destination)) || !image.CopyOut(*file, temporary.c_str()) ||
+            if (!make_directories(path_directory(destination)) || !image.CopyOut(*file, temporary.c_str()) ||
                 !replace_file(temporary, destination))
             {
                 MediaFile::RemoveFile(temporary.c_str());
@@ -2175,7 +2133,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
                 deleted_changed = true;
             }
 
-            written_hosts[upper(entry.dos_path)] = entry.host_path;
+            written_hosts[to_upper_ascii(entry.dos_path)] = entry.host_path;
             result->written++;
             continue;
         }
@@ -2207,7 +2165,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     {
         const GameDisk_Manifest_Entry& entry = entries[i - 1];
 
-        if (!entry.directory || entry.system || (found.count(upper(entry.dos_path)) != 0))
+        if (!entry.directory || entry.system || (found.count(to_upper_ascii(entry.dos_path)) != 0))
             continue;
 
         std::string destination = entry.overlay ? join(m_overlay, entry.host_path) : GetDestination(entry.host_path);
@@ -2231,7 +2189,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     for (size_t i = 0; i < files.size(); i++)
     {
         const FatImage_File& file = files[i];
-        std::string key = upper(file.path);
+        std::string key = to_upper_ascii(file.path);
 
         if (known.count(key) != 0)
             continue;
@@ -2248,7 +2206,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
         }
 
         size_t slash = file.path.find_last_of('\\');
-        std::string parent = slash == std::string::npos ? std::string() : upper(file.path.substr(0, slash));
+        std::string parent = slash == std::string::npos ? std::string() : to_upper_ascii(file.path.substr(0, slash));
         std::string name = slash == std::string::npos ? file.path : file.path.substr(slash + 1);
         std::map<std::string, std::string>::const_iterator folder = folders.find(parent);
         std::string host_parent = parent.empty() ? std::string() : folder == folders.end() ? backslashes(parent) : folder->second;
@@ -2280,14 +2238,8 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 
         std::vector<std::string> host_folders;
         std::vector<std::string> host_files;
-        bool taken = false;
-        MediaFile::ListDirectory(directory_of(destination).c_str(), host_folders, host_files);
-
-        for (size_t f = 0; f < host_files.size(); f++)
-            taken = taken || (upper(host_files[f]) == upper(name));
-
-        for (size_t f = 0; f < host_folders.size(); f++)
-            taken = taken || (upper(host_folders[f]) == upper(name));
+        MediaFile::ListDirectory(path_directory(destination).c_str(), host_folders, host_files);
+        bool taken = (find_no_case(host_files, name) >= 0) || (find_no_case(host_folders, name) >= 0);
 
         if (taken)
         {
@@ -2300,7 +2252,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 
         std::string temporary = destination + ".tmp";
 
-        if (!make_directories(directory_of(destination)) || !image.CopyOut(file, temporary.c_str()) ||
+        if (!make_directories(path_directory(destination)) || !image.CopyOut(file, temporary.c_str()) ||
             !MediaFile::RenameFile(temporary.c_str(), destination.c_str()))
         {
             MediaFile::RemoveFile(temporary.c_str());
@@ -2330,7 +2282,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     for (size_t i = 0; i < files.size(); i++)
     {
         const FatImage_File& file = files[i];
-        std::string key = upper(file.path);
+        std::string key = to_upper_ascii(file.path);
         std::map<std::string, size_t>::const_iterator old = known.find(key);
         GameDisk_Manifest_Entry entry;
         entry.dos_path = file.path;
@@ -2402,20 +2354,10 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     return true;
 }
 
-static std::string trim_line(const std::string& line)
-{
-    size_t start = line.find_first_not_of(" \t\r\x1A");
-
-    if (start == std::string::npos)
-        return "";
-
-    return line.substr(start, line.find_last_not_of(" \t\r\x1A") - start + 1);
-}
-
 // The next launch writes CONFIG.SYS and AUTOEXEC.BAT again, so the lines DOS added are named
 void GameDisk::NoteStartupFile(FatImage* image, const FatImage_File* file, const GameDisk_Manifest_Entry& entry, GameDisk_Result* result)
 {
-    std::string name = upper(entry.dos_path);
+    std::string name = to_upper_ascii(entry.dos_path);
     bool config = name == k_game_disk_config_sys;
 
     if (!config && (name != k_game_disk_autoexec))
@@ -2440,26 +2382,19 @@ void GameDisk::NoteStartupFile(FatImage* image, const FatImage_File* file, const
     const std::string& generated = config ? m_system.config_sys : m_system.autoexec;
     std::vector<std::string> known;
     std::vector<std::string> added;
-    size_t start = 0;
+    std::vector<std::string> lines;
+    split_string(generated, '\n', &lines);
 
-    while (start < generated.size())
+    for (size_t i = 0; i < lines.size(); i++)
+        known.push_back(to_upper_ascii(trim_chars(lines[i], k_game_disk_line_blanks)));
+
+    split_string(data, '\n', &lines);
+
+    for (size_t i = 0; i < lines.size(); i++)
     {
-        size_t end = generated.find('\n', start);
-        end = end == std::string::npos ? generated.size() : end;
-        known.push_back(upper(trim_line(generated.substr(start, end - start))));
-        start = end + 1;
-    }
+        std::string line = trim_chars(lines[i], k_game_disk_line_blanks);
 
-    start = 0;
-
-    while (start < data.size())
-    {
-        size_t end = data.find('\n', start);
-        end = end == std::string::npos ? data.size() : end;
-        std::string line = trim_line(data.substr(start, end - start));
-        start = end + 1;
-
-        if (!line.empty() && (std::find(known.begin(), known.end(), upper(line)) == known.end()))
+        if (!line.empty() && (std::find(known.begin(), known.end(), to_upper_ascii(line)) == known.end()))
             added.push_back(line);
     }
 

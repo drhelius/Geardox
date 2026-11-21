@@ -72,21 +72,6 @@ static const char* const k_fat_devices[] =
     "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3", "CLOCK$"
 };
 
-static char to_upper(char c)
-{
-    return ((c >= 'a') && (c <= 'z')) ? (char)(c - 32) : c;
-}
-
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = to_upper(result[i]);
-
-    return result;
-}
-
 static bool is_name_character(char c)
 {
     return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || ((c != 0) && (strchr(k_fat_name_characters, c) != NULL));
@@ -97,10 +82,7 @@ static bool is_clutter(const std::string& name)
     if (name.empty() || (name[0] == '.'))
         return true;
 
-    std::string lower(name);
-
-    for (size_t i = 0; i < lower.size(); i++)
-        lower[i] = ((lower[i] >= 'A') && (lower[i] <= 'Z')) ? (char)(lower[i] + 32) : lower[i];
+    std::string lower = to_lower_ascii(name);
 
     for (size_t i = 0; i < sizeof(k_fat_clutter) / sizeof(k_fat_clutter[0]); i++)
     {
@@ -138,7 +120,7 @@ static std::string clean_part(const std::string& text)
         if ((byte == ' ') || (byte == '.') || ((byte & 0xC0) == 0x80))
             continue;
 
-        char c = to_upper(text[i]);
+        char c = to_upper_ascii(text[i]);
         result += is_name_character(c) ? c : '_';
     }
 
@@ -152,7 +134,7 @@ static bool is_clean_part(const std::string& text, size_t max_size)
 
     for (size_t i = 0; i < text.size(); i++)
     {
-        if (!is_name_character(to_upper(text[i])))
+        if (!is_name_character(to_upper_ascii(text[i])))
             return false;
     }
 
@@ -168,7 +150,7 @@ static bool is_clean_name(const std::string& name)
     if (base.empty() || !is_clean_part(base, 8) || !is_clean_part(extension, 3))
         return false;
 
-    std::string device = upper(base);
+    std::string device = to_upper_ascii(base);
 
     for (size_t i = 0; i < sizeof(k_fat_devices) / sizeof(k_fat_devices[0]); i++)
     {
@@ -209,26 +191,9 @@ static void get_dos_time(s64 modified, u16* date, u16* time_value)
     *time_value = (u16)((local.tm_hour << 11) | (local.tm_min << 5) | (local.tm_sec / 2));
 }
 
-static std::string trim_path(const char* source)
-{
-    std::string path(source);
-
-    while ((path.size() > 1) && ((path[path.size() - 1] == '/') || (path[path.size() - 1] == '\\')))
-        path.resize(path.size() - 1);
-
-    return path;
-}
-
 static std::string get_source_name(const char* source)
 {
-    std::string path = trim_path(source);
-    size_t separator = path.find_last_of("/\\");
-    std::string name = separator == std::string::npos ? path : path.substr(separator + 1);
-
-    if (ends_with_no_case(name.c_str(), ".zip"))
-        name.resize(name.size() - 4);
-
-    return name;
+    return path_strip_extension(path_filename(trim_trailing_separators(source)), ".zip");
 }
 
 static u32 get_logical_heads(u32 total)
@@ -366,7 +331,7 @@ void FatImage::SetLabel(const char* label)
         if ((byte & 0xC0) == 0x80)
             continue;
 
-        char c = to_upper(text[i]);
+        char c = to_upper_ascii(text[i]);
 
         if ((c == ' ') && !result.empty())
             result += c;
@@ -544,7 +509,7 @@ bool FatImage::ReadFingerprint(const char* path, u32* fingerprint)
 
 void FatImage::GetImageName(const char* source, std::string* name)
 {
-    *name = get_source_name(source) + "." + crc_key(trim_path(source)) + ".geardox.hdd";
+    *name = get_source_name(source) + "." + crc_key(trim_trailing_separators(source)) + ".geardox.hdd";
 }
 
 void FatImage::Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report)
@@ -589,28 +554,20 @@ bool FatImage::AddGame(const char* source, const char* dir, const char* prefix)
 
     if (IsValidPointer(prefix) && (prefix[0] != 0))
     {
-        m_zip_prefix = upper(prefix);
+        m_zip_prefix = to_upper_ascii(prefix);
         std::replace(m_zip_prefix.begin(), m_zip_prefix.end(), '\\', '/');
 
         if (m_zip_prefix[m_zip_prefix.size() - 1] != '/')
             m_zip_prefix += "/";
     }
 
-    std::string path = IsValidPointer(dir) ? dir : "";
-    size_t start = 0;
+    std::vector<std::string> parts;
+    split_string(IsValidPointer(dir) ? dir : "", '\\', &parts, false);
 
-    while (start < path.size())
+    for (size_t i = 0; i < parts.size(); i++)
     {
-        size_t end = path.find('\\', start);
-        end = end == std::string::npos ? path.size() : end;
-
-        if (end > start)
-        {
-            m_base = AddEntry(m_base, path.substr(start, end - start), true);
-            m_entries[m_base].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-        }
-
-        start = end + 1;
+        m_base = AddEntry(m_base, parts[i], true);
+        m_entries[m_base].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     }
 
     if (ends_with_no_case(source, ".zip"))
@@ -631,7 +588,7 @@ bool FatImage::AddGame(const char* source, const char* dir, const char* prefix)
         if (!ScanZip())
             return false;
     }
-    else if (!WalkFolder(trim_path(source), m_base, 0))
+    else if (!WalkFolder(trim_trailing_separators(source), m_base, 0))
         return false;
 
     for (size_t i = m_entries[m_base].children.size(); i > 0; i--)
@@ -653,20 +610,17 @@ bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
         u32 parent = m_base;
         int source = (int)m_base;
         std::string host;
-        size_t start = 0;
+        std::vector<std::string> parts;
+        split_string(rule.source, '/', &parts);
 
-        while ((source >= 0) && (start < rule.source.size()))
+        for (size_t p = 0; (source >= 0) && (p < parts.size()); p++)
         {
-            size_t end = rule.source.find('/', start);
-            end = end == std::string::npos ? rule.source.size() : end;
             parent = (u32)source;
-            source = FindChild(parent, rule.source.substr(start, end - start));
+            source = FindChild(parent, parts[p]);
 
             if (source >= 0)
                 host = !m_entries[source].host.empty() ? m_entries[source].host : (host.empty() ?
                     m_entries[source].name : host + "/" + m_entries[source].name);
-
-            start = end + 1;
         }
 
         if ((source < 0) || ((u32)source == m_base))
@@ -688,14 +642,11 @@ bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
             continue;
 
         u32 destination = m_base;
-        start = 0;
+        split_string(target_folder, '/', &parts);
 
-        while (start < target_folder.size())
+        for (size_t p = 0; p < parts.size(); p++)
         {
-            size_t end = target_folder.find('/', start);
-            end = end == std::string::npos ? target_folder.size() : end;
-            std::string part = target_folder.substr(start, end - start);
-            int found = FindChild(destination, part);
+            int found = FindChild(destination, parts[p]);
 
             if ((found >= 0) && !m_entries[found].directory)
             {
@@ -703,8 +654,7 @@ bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
                 found = -1;
             }
 
-            destination = found >= 0 ? (u32)found : AddEntry(destination, part, true);
-            start = end + 1;
+            destination = found >= 0 ? (u32)found : AddEntry(destination, parts[p], true);
         }
 
         if (destination == (u32)source)
@@ -752,7 +702,7 @@ bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
 // what the guest removed, one path from the root a line
 bool FatImage::AddOverlay(const char* path)
 {
-    std::string root = trim_path(path);
+    std::string root = trim_trailing_separators(path);
     u64 size = 0;
     s64 modified = 0;
 
@@ -843,31 +793,24 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
 
 void FatImage::ApplyDeleted(const std::string& list)
 {
-    size_t start = 0;
+    std::vector<std::string> lines;
+    std::vector<std::string> names;
+    split_string(list, '\n', &lines);
 
-    while (start < list.size())
+    for (size_t l = 0; l < lines.size(); l++)
     {
-        size_t end = list.find('\n', start);
-        end = end == std::string::npos ? list.size() : end;
-        std::string line = list.substr(start, end - start);
-        start = end + 1;
+        std::string line = lines[l];
 
         if (!line.empty() && (line[line.size() - 1] == '\r'))
             line.resize(line.size() - 1);
 
         u32 directory = m_base;
         int found = -1;
-        size_t part = 0;
+        split_string(line, '/', &names, false);
 
-        while (part <= line.size())
+        for (size_t n = 0; n < names.size(); n++)
         {
-            size_t next = line.find('/', part);
-            next = next == std::string::npos ? line.size() : next;
-            std::string name = line.substr(part, next - part);
-            part = next + 1;
-
-            if (name.empty())
-                continue;
+            const std::string& name = names[n];
 
             if (found >= 0)
             {
@@ -1029,7 +972,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
         if (name.empty() || (name.find('/') != std::string::npos))
             continue;
 
-        bool boot = (directory == 0) && (std::find(pinned.begin(), pinned.end(), upper(name)) != pinned.end());
+        bool boot = (directory == 0) && (std::find(pinned.begin(), pinned.end(), to_upper_ascii(name)) != pinned.end());
         u32 entry = AddEntry(directory, name, false);
         FatImage_Entry& file = m_entries[entry];
         file.size = stat.m_uncomp_size;
@@ -1192,7 +1135,7 @@ void FatImage::PinEntries()
     {
         for (size_t i = 0; i < children.size(); i++)
         {
-            if (upper(m_entries[children[i]].name) == m_pinned[p])
+            if (to_upper_ascii(m_entries[children[i]].name) == m_pinned[p])
             {
                 pinned.push_back(children[i]);
                 children.erase(children.begin() + i);
@@ -1210,7 +1153,7 @@ void FatImage::LeaveOutReserved(const std::vector<std::string>& reserved)
     for (size_t i = m_entries[0].children.size(); i > 0; i--)
     {
         u32 child = m_entries[0].children[i - 1];
-        std::string name = upper(m_entries[child].name);
+        std::string name = to_upper_ascii(m_entries[child].name);
 
         if (std::find(reserved.begin(), reserved.end(), name) != reserved.end())
         {
@@ -1246,7 +1189,7 @@ bool FatImage::GetFile(const char* path, std::string* data)
 
 void FatImage::LeaveOutMatching(const char* name, bool (*match)(const std::string& data))
 {
-    LeaveOutMatching(0, upper(name), match);
+    LeaveOutMatching(0, to_upper_ascii(name), match);
 }
 
 void FatImage::LeaveOutMatching(u32 directory, const std::string& name, bool (*match)(const std::string& data))
@@ -1264,7 +1207,7 @@ void FatImage::LeaveOutMatching(u32 directory, const std::string& name, bool (*m
 
         std::string data;
 
-        if ((upper(entry.name) == name) && ReadEntry(entry, &data) && match(data))
+        if ((to_upper_ascii(entry.name) == name) && ReadEntry(entry, &data) && match(data))
         {
             m_left_out++;
             RemoveChild(directory, child);
@@ -1368,13 +1311,13 @@ void FatImage::ListDirectory(u32 directory, const std::string& dos_path, const s
 
 int FatImage::FindChild(u32 directory, const std::string& name) const
 {
-    std::string wanted = upper(name);
+    std::string wanted = to_upper_ascii(name);
 
     for (size_t i = 0; i < m_entries[directory].children.size(); i++)
     {
         u32 child = m_entries[directory].children[i];
 
-        if (upper(m_entries[child].name) == wanted)
+        if (to_upper_ascii(m_entries[child].name) == wanted)
             return (int)child;
     }
 
@@ -1922,7 +1865,7 @@ bool FatImage::ScanZip()
         if (!mz_zip_reader_file_stat(&m_zip, i, &stat))
             return false;
 
-        order.push_back(std::make_pair(upper(stat.m_filename), i));
+        order.push_back(std::make_pair(to_upper_ascii(stat.m_filename), i));
     }
 
     std::sort(order.begin(), order.end());
@@ -1941,7 +1884,7 @@ bool FatImage::ScanZip()
 
         if (!m_zip_prefix.empty())
         {
-            if (upper(name).compare(0, m_zip_prefix.size(), m_zip_prefix) != 0)
+            if (to_upper_ascii(name).compare(0, m_zip_prefix.size(), m_zip_prefix) != 0)
                 continue;
 
             name = name.substr(m_zip_prefix.size());
@@ -2065,7 +2008,7 @@ void FatImage::AssignNames(u32 directory)
     for (size_t i = 0; i < children.size(); i++)
     {
         const FatImage_Entry& entry = m_entries[children[i]];
-        order.push_back(std::make_pair(std::make_pair(!is_clean_name(entry.name), upper(entry.name)),
+        order.push_back(std::make_pair(std::make_pair(!is_clean_name(entry.name), to_upper_ascii(entry.name)),
             std::make_pair(entry.name, children[i])));
     }
 

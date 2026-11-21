@@ -83,37 +83,6 @@ struct Kwaj_Huffman
     u16 symbol[256];
 };
 
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
-
-    return result;
-}
-
-static std::string join(const std::string& directory, const std::string& name)
-{
-    if (directory.empty())
-        return name;
-
-    char last = directory[directory.size() - 1];
-    return ((last == '/') || (last == '\\')) ? directory + name : directory + "/" + name;
-}
-
-static std::string directory_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? std::string(".") : path.substr(0, slash);
-}
-
-static std::string file_of(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? path : path.substr(slash + 1);
-}
-
 static bool read_file(const std::string& path, u32 limit, std::vector<u8>* data)
 {
     u64 size = 0;
@@ -201,29 +170,28 @@ static bool is_listed_name(const std::string& name)
 // "DISK 1"), whatever the language. MS-DOS 6 lists a file as its stored and its expanded name, MS-DOS 5 as one name
 static void parse_names(const std::string& text, std::vector<Dos_Listed>* pairs, std::vector<Dos_Listed>* singles)
 {
-    size_t start = 0;
+    std::vector<std::string> lines;
     int disk = 0;
+    split_string(text, '\n', &lines);
 
-    while (start < text.size())
+    for (size_t i = 0; i < lines.size(); i++)
     {
-        size_t end = text.find('\n', start);
-        end = end == std::string::npos ? text.size() : end;
-        std::string line = text.substr(start, end - start);
-        start = end + 1;
+        const std::string& line = lines[i];
         size_t hash = line.find('#');
-        char first[64];
-        char second[64];
+        char first[64] = "";
+        char second[64] = "";
         char third[8];
         int count = sscanf(line.c_str(), "%63s %63s %7s", first, second, third);
 
         if ((hash != std::string::npos) && (hash + 1 < line.size()) && (line[hash + 1] >= '1') && (line[hash + 1] <= '9'))
             disk = line[hash + 1] - '0';
-        else if ((count == 2) && (strlen(second) == 1) && (second[0] >= '1') && (second[0] <= '9') && !is_listed_name(upper(first)))
+        else if ((count == 2) && (strlen(second) == 1) && (second[0] >= '1') && (second[0] <= '9') &&
+            !is_listed_name(to_upper_ascii(first)))
             disk = second[0] - '0';
 
         Dos_Listed item;
-        item.stored = upper(first);
-        item.name = count == 2 ? upper(second) : item.stored;
+        item.stored = to_upper_ascii(first);
+        item.name = count == 2 ? to_upper_ascii(second) : item.stored;
         item.disk = disk;
 
         if ((count == 2) && is_listed_name(item.stored) && is_listed_name(item.name))
@@ -250,8 +218,8 @@ static void add_names(const std::string& text, std::set<std::string>* names)
             continue;
         }
 
-        if (is_listed_name(upper(token)))
-            names->insert(upper(token));
+        if (is_listed_name(to_upper_ascii(token)))
+            names->insert(to_upper_ascii(token));
 
         token.clear();
     }
@@ -457,9 +425,9 @@ bool DosImport::AddSource(const char* path)
         return AddZip(source);
 
     if (FloppyImage::IsImageName(source.c_str()))
-        return AddFolder(directory_of(source));
+        return AddFolder(path_directory(source));
 
-    return Fail(DOS_IMPORT_ERROR, "Not a folder, a ZIP or a disk image: %s", file_of(source).c_str());
+    return Fail(DOS_IMPORT_ERROR, "Not a folder, a ZIP or a disk image: %s", path_filename(source).c_str());
 }
 
 bool DosImport::AddFolder(const std::string& path)
@@ -483,7 +451,7 @@ bool DosImport::AddFolder(const std::string& path)
         if (++found > k_dos_max_images)
             return Fail(DOS_IMPORT_ERROR, "More than %d disk images in %s", (int)k_dos_max_images, path.c_str());
 
-        if (zip ? !AddZip(join(path, files[i])) : !AddImageFile(join(path, files[i])))
+        if (zip ? !AddZip(path_join(path, files[i])) : !AddImageFile(path_join(path, files[i])))
             return false;
     }
 
@@ -503,10 +471,10 @@ bool DosImport::AddZip(const std::string& path)
     int count = FloppyImage::GetZipImageCount(archive.data(), archive.size());
 
     if (count <= 0)
-        return Fail(DOS_IMPORT_ERROR, "No disk images in %s", file_of(path).c_str());
+        return Fail(DOS_IMPORT_ERROR, "No disk images in %s", path_filename(path).c_str());
 
     if ((size_t)count > k_dos_max_images)
-        return Fail(DOS_IMPORT_ERROR, "More than %d disk images in %s", (int)k_dos_max_images, file_of(path).c_str());
+        return Fail(DOS_IMPORT_ERROR, "More than %d disk images in %s", (int)k_dos_max_images, path_filename(path).c_str());
 
     for (int i = 0; i < count; i++)
     {
@@ -515,7 +483,7 @@ bool DosImport::AddZip(const std::string& path)
         char name[256];
 
         if (!FloppyImage::ExtractFromZip(archive.data(), archive.size(), i, &data, &size, name, sizeof(name)))
-            return Fail(DOS_IMPORT_ERROR, "Unable to read the images in %s", file_of(path).c_str());
+            return Fail(DOS_IMPORT_ERROR, "Unable to read the images in %s", path_filename(path).c_str());
 
         bool ok = AddImage(data, size, name);
         SafeDeleteArray(data);
@@ -534,7 +502,7 @@ bool DosImport::AddImageFile(const std::string& path)
     if (!read_file(path, k_dos_max_image_size, &data))
         return Fail(DOS_IMPORT_ERROR, "Unable to read %s", path.c_str());
 
-    return AddImage(data.data(), (u32)data.size(), file_of(path));
+    return AddImage(data.data(), (u32)data.size(), path_filename(path));
 }
 
 bool DosImport::AddImage(const u8* data, u32 size, const std::string& name)
@@ -555,7 +523,7 @@ bool DosImport::AddImage(const u8* data, u32 size, const std::string& name)
     if (!ReadFloppy(raw.data(), (u32)raw.size(), (int)m_images.size()))
         return Fail(DOS_IMPORT_ERROR, "Not a FAT12 floppy: %s", name.c_str());
 
-    m_images.push_back(std::make_pair(upper(name), CalculateCRC32(0, data, size)));
+    m_images.push_back(std::make_pair(to_upper_ascii(name), CalculateCRC32(0, data, size)));
     return true;
 }
 
@@ -610,7 +578,7 @@ bool DosImport::ReadFloppy(const u8* raw, u32 size, int image)
         if (!base.empty() && ((u8)base[0] == 0x05))
             base[0] = (char)0xE5;
 
-        std::string name = upper(extension.empty() ? base : base + "." + extension);
+        std::string name = to_upper_ascii(extension.empty() ? base : base + "." + extension);
 
         if ((m_files.count(name) != 0) || (found.count(name) != 0))
             continue;
@@ -1164,19 +1132,21 @@ bool DosImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
     std::string text;
     bool ok = read_version_text(&zip, &text);
     mz_zip_reader_end(&zip);
-    *fingerprint = (u32)strtoul(get_value(text, "source").c_str(), NULL, 16);
+    std::string source = get_value(text, "source");
+
+    if (!parse_hex_string(source.c_str(), source.size(), fingerprint))
+        *fingerprint = 0;
+
     return ok;
 }
 
 bool DosImport::Fail(DosImport_Result result, const char* format, ...)
 {
-    char text[512];
     va_list args;
     va_start(args, format);
-    vsnprintf(text, sizeof(text), format, args);
+    m_error = vformat_string(format, args);
     va_end(args);
     m_result = result;
-    m_error = text;
-    Log("MS-DOS import: %s", text);
+    Log("MS-DOS import: %s", m_error.c_str());
     return false;
 }

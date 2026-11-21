@@ -38,7 +38,6 @@ public:
     static bool RenameFile(const char* from, const char* to);
     static bool RemoveFile(const char* path);
     static bool MakeDirectory(const char* path);
-    static bool IsCdRomUriPath(const char* path);
 
     virtual bool Open(const char* path, bool writable) override;
     virtual bool Create(const char* path) override;

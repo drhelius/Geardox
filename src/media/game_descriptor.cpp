@@ -146,37 +146,6 @@ static const char* const k_descriptor_sections[] =
 static const int k_descriptor_key_count = (int)(sizeof(k_descriptor_keys) / sizeof(k_descriptor_keys[0]));
 static const int k_descriptor_section_count = (int)(sizeof(k_descriptor_sections) / sizeof(k_descriptor_sections[0]));
 
-static std::string lower(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'A') && (result[i] <= 'Z')) ? (char)(result[i] + 32) : result[i];
-
-    return result;
-}
-
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = ((result[i] >= 'a') && (result[i] <= 'z')) ? (char)(result[i] - 32) : result[i];
-
-    return result;
-}
-
-static std::string trim(const std::string& text)
-{
-    size_t start = text.find_first_not_of(" \t\r\n");
-
-    if (start == std::string::npos)
-        return "";
-
-    size_t end = text.find_last_not_of(" \t\r\n");
-    return text.substr(start, end - start + 1);
-}
-
 static bool parse_number(const std::string& text, int* value)
 {
     if (text.empty() || (text.size() > 9))
@@ -196,61 +165,37 @@ static bool parse_number(const std::string& text, int* value)
     return true;
 }
 
-static bool in_choices(const char* choices, const std::string& value)
-{
-    std::string list(choices);
-    size_t start = 0;
-
-    while (start <= list.size())
-    {
-        size_t end = list.find(',', start);
-        end = end == std::string::npos ? list.size() : end;
-
-        if (list.compare(start, end - start, value) == 0)
-            return true;
-
-        start = end + 1;
-    }
-
-    return false;
-}
-
 static int choice_index(const char* choices, const std::string& value)
 {
-    std::string list(choices);
-    size_t start = 0;
-    int index = 0;
+    std::vector<std::string> list;
+    split_string(choices, ',', &list);
 
-    while (start <= list.size())
+    for (size_t i = 0; i < list.size(); i++)
     {
-        size_t end = list.find(',', start);
-        end = end == std::string::npos ? list.size() : end;
-
-        if (list.compare(start, end - start, value) == 0)
-            return index;
-
-        start = end + 1;
-        index++;
+        if (list[i] == value)
+            return (int)i;
     }
 
     return -1;
 }
 
+static bool in_choices(const char* choices, const std::string& value)
+{
+    return choice_index(choices, value) >= 0;
+}
+
 static void split_list(const std::string& text, std::vector<std::string>* items)
 {
-    size_t start = 0;
+    std::vector<std::string> parts;
+    split_string(text, ',', &parts);
     items->clear();
 
-    while (start <= text.size())
+    for (size_t i = 0; i < parts.size(); i++)
     {
-        size_t end = text.find(',', start);
-        end = end == std::string::npos ? text.size() : end;
-        std::string item = trim(text.substr(start, end - start));
+        std::string item = trim_chars(parts[i]);
 
         if (!item.empty())
             items->push_back(item);
-
-        start = end + 1;
     }
 }
 
@@ -262,25 +207,19 @@ static bool is_dos_character(char c)
 // C:\ for the root, or DOS names from it with \ or /: C:\GAMES\ORION. FREEDOS and TEMP are the system's
 static bool check_dos_dir(const std::string& value, std::string* normalized)
 {
-    std::string text = upper(trim(value));
+    std::string text = to_upper_ascii(trim_chars(value));
     std::replace(text.begin(), text.end(), '/', '\\');
 
     if ((text.compare(0, 2, "C:") != 0) || ((text.size() > 2) && (text[2] != '\\')))
         return false;
 
     std::string result;
-    size_t start = 2;
+    std::vector<std::string> parts;
+    split_string(text.substr(2), '\\', &parts, false);
 
-    while (start <= text.size())
+    for (size_t p = 0; p < parts.size(); p++)
     {
-        size_t end = text.find('\\', start);
-        end = end == std::string::npos ? text.size() : end;
-        std::string part = text.substr(start, end - start);
-        start = end + 1;
-
-        if (part.empty())
-            continue;
-
+        const std::string& part = parts[p];
         size_t dot = part.find('.');
         std::string base = dot == std::string::npos ? part : part.substr(0, dot);
         std::string extension = dot == std::string::npos ? std::string() : part.substr(dot + 1);
@@ -344,20 +283,9 @@ static bool is_section(const std::string& section)
     return false;
 }
 
-static int find_model(const std::string& value)
-{
-    for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
-    {
-        if (k_machine_profiles[i].emulated && (value == k_machine_profiles[i].key))
-            return i;
-    }
-
-    return -1;
-}
-
 static bool check_value(const Descriptor_Key& key, const std::string& value, std::string* normalized)
 {
-    std::string text = lower(value);
+    std::string text = to_lower_ascii(value);
     int number = 0;
     *normalized = text;
 
@@ -377,7 +305,7 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
             *normalized = int_to_string(number);
             return true;
         case DESCRIPTOR_MODEL:
-            return find_model(text) >= 0;
+            return find_machine_model(text.c_str()) >= 0;
         case DESCRIPTOR_CPU:
             for (int i = 0; parse_number(text, &number) && (i < GDOX_MACHINE_CPU_SPEED_COUNT); i++)
             {
@@ -395,37 +323,13 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
 
             return false;
         case DESCRIPTOR_SOUND:
-            for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
-            {
-                if (text == k_sound_cards[i].id)
-                    return true;
-            }
-
-            return false;
+            return find_sound_card(text.c_str()) >= 0;
         case DESCRIPTOR_VIDEO:
-            for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
-            {
-                if (text == k_video_cards[i].id)
-                    return true;
-            }
-
-            return false;
+            return find_video_card(text.c_str()) >= 0;
         case DESCRIPTOR_MOUSE:
-            for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
-            {
-                if (text == k_mice[i].id)
-                    return true;
-            }
-
-            return false;
+            return find_mouse_type(text.c_str()) >= 0;
         case DESCRIPTOR_JOYSTICK:
-            for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
-            {
-                if (text == k_joysticks[i].id)
-                    return true;
-            }
-
-            return false;
+            return find_joystick_type(text.c_str()) >= 0;
         case DESCRIPTOR_KEYBOARD:
             for (int i = 0; i < k_keyboard_layout_count; i++)
             {
@@ -435,13 +339,7 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
 
             return false;
         case DESCRIPTOR_CD_SPEED:
-            for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
-            {
-                if (text == k_cdrom_speeds[i].id)
-                    return true;
-            }
-
-            return false;
+            return find_cdrom_speed(text.c_str()) >= 0;
         case DESCRIPTOR_FRAME:
         {
             if ((text == "auto") || (text == "none"))
@@ -454,7 +352,7 @@ static bool check_value(const Descriptor_Key& key, const std::string& value, std
                 ((segment & 0x3FF) != 0))
                 return false;
 
-            *normalized = upper(text);
+            *normalized = to_upper_ascii(text);
             return true;
         }
         case DESCRIPTOR_DOS_DIR:
@@ -508,25 +406,23 @@ bool GameDescriptor::Parse(const char* path, const char* text, size_t size)
         data.erase(0, 3);
 
     std::string section;
-    size_t start = 0;
+    std::vector<std::string> lines;
     int number = 0;
+    split_string(data, '\n', &lines);
 
-    while (start < data.size())
+    for (size_t l = 0; l < lines.size(); l++)
     {
-        size_t end = data.find('\n', start);
-        end = end == std::string::npos ? data.size() : end;
-        std::string line = data.substr(start, end - start);
-        start = end + 1;
+        std::string line = lines[l];
         number++;
 
         if (!line.empty() && (line[line.size() - 1] == '\r'))
             line.resize(line.size() - 1);
 
-        std::string trimmed = trim(line);
+        std::string trimmed = trim_chars(line);
 
         if (!trimmed.empty() && (trimmed[0] == '[') && (trimmed[trimmed.size() - 1] == ']'))
         {
-            section = lower(trim(trimmed.substr(1, trimmed.size() - 2)));
+            section = to_lower_ascii(trim_chars(trimmed.substr(1, trimmed.size() - 2)));
 
             if (!is_section(section))
                 Warn(number, "Unknown section [%s], ignored", section.c_str());
@@ -608,8 +504,8 @@ bool GameDescriptor::ParseLine(const std::string& section, const std::string& li
     if (equals == std::string::npos)
         return Fail(number, "Expected key = value");
 
-    std::string key = lower(trim(line.substr(0, equals)));
-    std::string value = trim(line.substr(equals + 1));
+    std::string key = to_lower_ascii(trim_chars(line.substr(0, equals)));
+    std::string value = trim_chars(line.substr(equals + 1));
 
     if (section.empty())
         return Fail(number, "%s is outside of any section", key.c_str());
@@ -619,7 +515,7 @@ bool GameDescriptor::ParseLine(const std::string& section, const std::string& li
 
     if (section == "env")
     {
-        std::string name = upper(key);
+        std::string name = to_upper_ascii(key);
 
         if (name.empty() || (name.find_first_of(" \t=") != std::string::npos))
             return Fail(number, "Bad variable name in [env]");
@@ -738,14 +634,12 @@ void GameDescriptor::SetKeys(const std::string& text)
         m_values.erase("keys." + m_keys_order[i]);
 
     m_keys_order.clear();
-    size_t start = 0;
+    std::vector<std::string> lines;
+    split_string(text, '\n', &lines);
 
-    while (start < text.size())
+    for (size_t l = 0; l < lines.size(); l++)
     {
-        size_t end = text.find('\n', start);
-        end = end == std::string::npos ? text.size() : end;
-        std::string line = trim(text.substr(start, end - start));
-        start = end + 1;
+        std::string line = trim_chars(lines[l]);
         size_t equals = line.find('=');
         u16 usage = 0;
         GDOX_Key_Map_Entry entry;
@@ -908,9 +802,10 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
 {
     clear_machine_settings(settings);
     int number = 0;
+    int found = -1;
 
     if (Has("machine", "model"))
-        settings->model = find_model(Get("machine", "model"));
+        settings->model = find_machine_model(Get("machine", "model").c_str());
 
     if (parse_number(Get("machine", "cpu_mhz"), &number))
         settings->cpu_mhz = number;
@@ -932,17 +827,15 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
             settings->floppy_type[i] = choice_index("360k,1200k,720k,1440k,2880k", Get("machine", floppy_keys[i])) + 1;
     }
 
-    for (int i = 0; Has("machine", "video") && (i < GDOX_VIDEO_CARD_COUNT); i++)
-    {
-        if (Get("machine", "video") == k_video_cards[i].id)
-            settings->video_card = i;
-    }
+    found = Has("machine", "video") ? find_video_card(Get("machine", "video").c_str()) : -1;
 
-    for (int i = 0; Has("sound", "card") && (i < GDOX_SOUND_CARD_COUNT); i++)
-    {
-        if (Get("sound", "card") == k_sound_cards[i].id)
-            settings->sound_card = i;
-    }
+    if (found >= 0)
+        settings->video_card = found;
+
+    found = Has("sound", "card") ? find_sound_card(Get("sound", "card").c_str()) : -1;
+
+    if (found >= 0)
+        settings->sound_card = found;
 
     if (parse_number(Get("sound", "irq"), &number))
         settings->sound_irq = number;
@@ -960,23 +853,20 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
     if (Has("machine", "voodoo"))
         settings->voodoo = Get("machine", "voodoo") == "on" ? 1 : 0;
 
-    for (int i = 0; Has("input", "mouse") && (i < GDOX_MOUSE_TYPE_COUNT); i++)
-    {
-        if (Get("input", "mouse") == k_mice[i].id)
-            settings->mouse = i;
-    }
+    found = Has("input", "mouse") ? find_mouse_type(Get("input", "mouse").c_str()) : -1;
 
-    for (int i = 0; Has("machine", "cdrom_speed") && (i < GDOX_CDROM_SPEED_COUNT); i++)
-    {
-        if (Get("machine", "cdrom_speed") == k_cdrom_speeds[i].id)
-            settings->cdrom_speed = i;
-    }
+    if (found >= 0)
+        settings->mouse = found;
 
-    for (int i = 0; Has("machine", "drive_timing") && (i < GDOX_DRIVE_TIMING_COUNT); i++)
-    {
-        if (Get("machine", "drive_timing") == k_drive_timings[i].id)
-            settings->drive_timing = i;
-    }
+    found = Has("machine", "cdrom_speed") ? find_cdrom_speed(Get("machine", "cdrom_speed").c_str()) : -1;
+
+    if (found >= 0)
+        settings->cdrom_speed = found;
+
+    found = Has("machine", "drive_timing") ? find_drive_timing(Get("machine", "drive_timing").c_str()) : -1;
+
+    if (found >= 0)
+        settings->drive_timing = found;
 
     if (Has("drives", "cdrom"))
         settings->cdrom = GDOX_CDROM_SECONDARY_MASTER;
@@ -1026,13 +916,12 @@ int GameDescriptor::GetEMSRAM(int ems_kb, int model, bool cirrus, int system)
 
 bool GameDescriptor::Fail(int line, const char* format, ...)
 {
-    char text[512];
     va_list args;
     va_start(args, format);
-    vsnprintf(text, sizeof(text), format, args);
+    std::string text = vformat_string(format, args);
     va_end(args);
     m_error_line = line;
-    m_error = line > 0 ? "Line " + int_to_string(line) + ": " + text : std::string(text);
+    m_error = line > 0 ? "Line " + int_to_string(line) + ": " + text : text;
     m_values.clear();
     Build();
     return false;
@@ -1040,10 +929,9 @@ bool GameDescriptor::Fail(int line, const char* format, ...)
 
 void GameDescriptor::Warn(int line, const char* format, ...)
 {
-    char text[512];
     va_list args;
     va_start(args, format);
-    vsnprintf(text, sizeof(text), format, args);
+    std::string text = vformat_string(format, args);
     va_end(args);
     m_warnings.push_back("Line " + int_to_string(line) + ": " + text);
 }
@@ -1057,11 +945,7 @@ void GameDescriptor::Build()
 
     if (info.name.empty() && !m_path.empty())
     {
-        size_t slash = m_path.find_last_of("/\\");
-        info.name = slash == std::string::npos ? m_path : m_path.substr(slash + 1);
-
-        if (ends_with_no_case(info.name.c_str(), ".gdox"))
-            info.name.resize(info.name.size() - 5);
+        info.name = path_strip_extension(path_filename(m_path), ".gdox");
     }
 
     info.ems_kb = parse_number(Get("dos", "ems_kb"), &number) ? number : 0;
@@ -1098,21 +982,8 @@ void GameDescriptor::Build()
     info.setup_args = Get("run", "setup_args");
     info.exit = Get("run", "on_exit") == "poweroff" ? GDOX_GAME_EXIT_POWEROFF : GDOX_GAME_EXIT_PROMPT;
     info.boot_floppy = Get("run", "boot") == "a";
-    info.joystick = -1;
-
-    for (int i = 0; Has("input", "joystick") && (i < GDOX_JOYSTICK_TYPE_COUNT); i++)
-    {
-        if (Get("input", "joystick") == k_joysticks[i].id)
-            info.joystick = i;
-    }
-
-    info.cga_output = -1;
-
-    for (int i = 0; Has("machine", "cga_output") && (i < GDOX_CGA_OUTPUT_COUNT); i++)
-    {
-        if (Get("machine", "cga_output") == k_cga_outputs[i].id)
-            info.cga_output = i;
-    }
+    info.joystick = Has("input", "joystick") ? find_joystick_type(Get("input", "joystick").c_str()) : -1;
+    info.cga_output = Has("machine", "cga_output") ? find_cga_output(Get("machine", "cga_output").c_str()) : -1;
 
     info.midi = -1;
 

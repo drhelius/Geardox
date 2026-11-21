@@ -84,4 +84,9 @@ INLINE u8 DecToBcd(u8 val)
     return ((val / 10) << 4) | (val % 10);
 }
 
+inline bool IsCdRomUri(const char* path)
+{
+    return IsValidPointer(path) && (strncmp(path, "cdrom://", 8) == 0);
+}
+
 #endif /* CDROM_COMMON_H */

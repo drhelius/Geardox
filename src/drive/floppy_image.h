@@ -48,6 +48,8 @@ public:
     static bool IsRaw(const u8* data, u32 size);
     static bool IsMFM(const u8* data, u32 size);
     static bool IsImageName(const char* name);
+    static bool IsRawName(const char* name);
+    static bool IsSaveName(const char* name);
     static int GetDiskCount(const u8* data, u32 size);
     static bool GetDisk(const u8* data, u32 size, int index, u32* offset, u32* disk_size);
     static bool HasEarlierCopy(const u8* data, u32 size, int index);

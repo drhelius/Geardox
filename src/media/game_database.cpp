@@ -33,16 +33,8 @@ typedef std::map<std::string, const GameDatabase_File*> GameDatabase_View;
 
 static std::string upper_path(const std::string& path)
 {
-    std::string out(path);
-
-    for (size_t i = 0; i < out.size(); i++)
-    {
-        if (out[i] == '\\')
-            out[i] = '/';
-        else if (out[i] >= 'a' && out[i] <= 'z')
-            out[i] = (char)(out[i] - 'a' + 'A');
-    }
-
+    std::string out = to_upper_ascii(path);
+    std::replace(out.begin(), out.end(), '\\', '/');
     return out;
 }
 
@@ -117,7 +109,7 @@ static bool list_folder(const std::string& host, const std::string& relative, in
         if (names[i].empty() || names[i][0] == '.')
             continue;
 
-        std::string full = host + "/" + names[i];
+        std::string full = path_join(host, names[i]);
         u64 size = 0;
         s64 modified = 0;
 
@@ -143,7 +135,7 @@ static bool list_folder(const std::string& host, const std::string& relative, in
         if (folders[i].empty() || folders[i][0] == '.')
             continue;
 
-        std::string full = host + "/" + folders[i];
+        std::string full = path_join(host, folders[i]);
 
         if (MediaFile::IsFolderLink(full.c_str()))
             continue;
@@ -347,9 +339,7 @@ bool GameDatabase::List(const char* path, std::vector<GameDatabase_File>* files)
     if (MediaFile::ListDirectory(path, folders, names))
         return list_folder(path, std::string(), 0, files);
 
-    std::string name = upper_path(path);
-
-    if ((name.size() > 4) && (name.compare(name.size() - 4, 4, ".ZIP") == 0))
+    if (ends_with_no_case(path, ".zip"))
         return list_zip(path, files);
 
     return false;
@@ -487,17 +477,12 @@ void GameDatabase::GetLayout(int release, std::vector<GameDatabase_Rule>* rules)
         !IsValidPointer(k_game_database_releases[release].layout))
         return;
 
-    std::string text(k_game_database_releases[release].layout);
-    size_t start = 0;
+    std::vector<std::string> items;
+    split_string(k_game_database_releases[release].layout, ';', &items);
 
-    while (start <= text.size())
+    for (size_t i = 0; i < items.size(); i++)
     {
-        size_t end = text.find(';', start);
-
-        if (end == std::string::npos)
-            end = text.size();
-
-        std::string item = text.substr(start, end - start);
+        const std::string& item = items[i];
         size_t arrow = item.find('>');
 
         if (arrow != std::string::npos)
@@ -514,31 +499,12 @@ void GameDatabase::GetLayout(int release, std::vector<GameDatabase_Rule>* rules)
             rule.file = (last.find('.') != std::string::npos) && !rule.target.empty();
             rules->push_back(rule);
         }
-
-        start = end + 1;
     }
 }
 
 static bool hex_bytes(const std::string& text, std::string* bytes)
 {
-    bytes->clear();
-
-    if ((text.size() % 2) != 0)
-        return false;
-
-    for (size_t i = 0; i < text.size(); i += 2)
-    {
-        char* end = NULL;
-        std::string pair = text.substr(i, 2);
-        long value = strtol(pair.c_str(), &end, 16);
-
-        if (*end != '\0')
-            return false;
-
-        bytes->push_back((char)value);
-    }
-
-    return !bytes->empty();
+    return parse_hex_bytes(text.c_str(), text.size(), bytes) && !bytes->empty();
 }
 
 void GameDatabase::GetPatches(int release, std::vector<GameDatabase_Patch>* patches)
@@ -549,17 +515,12 @@ void GameDatabase::GetPatches(int release, std::vector<GameDatabase_Patch>* patc
         !IsValidPointer(k_game_database_releases[release].patches))
         return;
 
-    std::string text(k_game_database_releases[release].patches);
-    size_t start = 0;
+    std::vector<std::string> items;
+    split_string(k_game_database_releases[release].patches, ';', &items);
 
-    while (start <= text.size())
+    for (size_t i = 0; i < items.size(); i++)
     {
-        size_t end = text.find(';', start);
-
-        if (end == std::string::npos)
-            end = text.size();
-
-        std::istringstream item(text.substr(start, end - start));
+        std::istringstream item(items[i]);
         std::string offset;
         std::string before;
         std::string after;
@@ -571,7 +532,5 @@ void GameDatabase::GetPatches(int release, std::vector<GameDatabase_Patch>* patc
             patch.offset = (u32)strtoul(offset.c_str(), NULL, 16);
             patches->push_back(patch);
         }
-
-        start = end + 1;
     }
 }

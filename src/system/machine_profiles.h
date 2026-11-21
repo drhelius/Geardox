@@ -255,6 +255,105 @@ const GDOX_Machine_CPU_Info k_machine_cpus[GDOX_MACHINE_CPU_COUNT] =
     { "Pentium", true, 5, true, 0x00000521, 0x00000010, 64, 1, 16, true, false }
 };
 
+static inline int find_machine_model(const char* key)
+{
+    for (int i = 0; i < GDOX_MACHINE_COUNT; i++)
+    {
+        if (k_machine_profiles[i].emulated && (strcmp(k_machine_profiles[i].key, key) == 0))
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_video_card(const char* id)
+{
+    for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
+    {
+        if (strcmp(k_video_cards[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_sound_card(const char* id)
+{
+    for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
+    {
+        if (strcmp(k_sound_cards[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_mouse_type(const char* id)
+{
+    for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
+    {
+        if (strcmp(k_mice[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_cdrom_position(const char* id)
+{
+    for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
+    {
+        if (strcmp(k_cdrom_positions[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_cdrom_speed(const char* id)
+{
+    for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
+    {
+        if (strcmp(k_cdrom_speeds[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_cga_output(const char* id)
+{
+    for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
+    {
+        if (strcmp(k_cga_outputs[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_drive_timing(const char* id)
+{
+    for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
+    {
+        if (strcmp(k_drive_timings[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
+static inline int find_joystick_type(const char* id)
+{
+    for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
+    {
+        if (strcmp(k_joysticks[i].id, id) == 0)
+            return i;
+    }
+
+    return -1;
+}
+
 static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
 {
     settings->model = GDOX_MACHINE_AUTO;

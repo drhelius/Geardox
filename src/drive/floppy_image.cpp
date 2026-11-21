@@ -205,15 +205,34 @@ bool FloppyImage::IsMFM(const u8* data, u32 size)
     return list <= size && entries <= (size - list) / k_floppy_mfm_entry_size;
 }
 
+static bool has_floppy_extension(const char* name, const char* const* extensions, size_t count)
+{
+    for (size_t i = 0; IsValidPointer(name) && (i < count); i++)
+    {
+        if (ends_with_no_case(name, extensions[i]))
+            return true;
+    }
+
+    return false;
+}
+
 bool FloppyImage::IsImageName(const char* name)
 {
-    if (!IsValidPointer(name))
-        return false;
+    static const char* const k_extensions[] =
+        { ".d77", ".d88", ".hdm", ".xdf", ".img", ".ima", ".vfd", ".flp", ".dsk", ".mfm" };
+    return has_floppy_extension(name, k_extensions, sizeof(k_extensions) / sizeof(k_extensions[0]));
+}
 
-    return ends_with_no_case(name, ".d77") || ends_with_no_case(name, ".d88") || ends_with_no_case(name, ".hdm") ||
-        ends_with_no_case(name, ".xdf") || ends_with_no_case(name, ".img") || ends_with_no_case(name, ".ima") ||
-        ends_with_no_case(name, ".vfd") || ends_with_no_case(name, ".flp") || ends_with_no_case(name, ".dsk") ||
-        ends_with_no_case(name, ".mfm");
+bool FloppyImage::IsRawName(const char* name)
+{
+    static const char* const k_extensions[] = { ".hdm", ".xdf", ".img", ".ima", ".vfd", ".flp", ".dsk", ".bin" };
+    return has_floppy_extension(name, k_extensions, sizeof(k_extensions) / sizeof(k_extensions[0]));
+}
+
+bool FloppyImage::IsSaveName(const char* name)
+{
+    static const char* const k_extensions[] = { ".d77", ".d88", ".hdm", ".img", ".xdf", ".ima", ".vfd", ".flp", ".dsk" };
+    return has_floppy_extension(name, k_extensions, sizeof(k_extensions) / sizeof(k_extensions[0]));
 }
 
 int FloppyImage::GetDiskCount(const u8* data, u32 size)

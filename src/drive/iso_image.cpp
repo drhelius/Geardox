@@ -52,21 +52,6 @@ static const char* const k_iso_devices[] =
     "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3", "CLOCK$"
 };
 
-static char to_upper(char c)
-{
-    return ((c >= 'a') && (c <= 'z')) ? (char)(c - 32) : c;
-}
-
-static std::string upper(const std::string& text)
-{
-    std::string result(text);
-
-    for (size_t i = 0; i < result.size(); i++)
-        result[i] = to_upper(result[i]);
-
-    return result;
-}
-
 static bool is_name_character(char c)
 {
     return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '_');
@@ -77,10 +62,7 @@ static bool is_clutter(const std::string& name)
     if (name.empty() || (name[0] == '.'))
         return true;
 
-    std::string lower(name);
-
-    for (size_t i = 0; i < lower.size(); i++)
-        lower[i] = ((lower[i] >= 'A') && (lower[i] <= 'Z')) ? (char)(lower[i] + 32) : lower[i];
+    std::string lower = to_lower_ascii(name);
 
     for (size_t i = 0; i < sizeof(k_iso_clutter) / sizeof(k_iso_clutter[0]); i++)
     {
@@ -117,7 +99,7 @@ static std::string clean_part(const std::string& text)
         if ((byte == ' ') || (byte == '.') || ((byte & 0xC0) == 0x80))
             continue;
 
-        char c = to_upper(text[i]);
+        char c = to_upper_ascii(text[i]);
         result += is_name_character(c) ? c : '_';
     }
 
@@ -131,7 +113,7 @@ static bool is_clean_part(const std::string& text, size_t max_size)
 
     for (size_t i = 0; i < text.size(); i++)
     {
-        if (!is_name_character(to_upper(text[i])))
+        if (!is_name_character(to_upper_ascii(text[i])))
             return false;
     }
 
@@ -151,7 +133,7 @@ static bool is_clean_name(const std::string& name, bool directory)
     if (base.empty() || !is_clean_part(base, 8) || !is_clean_part(extension, 3))
         return false;
 
-    std::string device = upper(base);
+    std::string device = to_upper_ascii(base);
 
     for (size_t i = 0; i < sizeof(k_iso_devices) / sizeof(k_iso_devices[0]); i++)
     {
@@ -331,7 +313,7 @@ void IsoImage::SetLabel(const char* label)
         if ((byte & 0xC0) == 0x80)
             continue;
 
-        char c = to_upper(text[i]);
+        char c = to_upper_ascii(text[i]);
         result += is_name_character(c) ? c : '_';
     }
 
@@ -529,7 +511,7 @@ void IsoImage::AssignNames(u32 directory)
     for (size_t i = 0; i < children.size(); i++)
     {
         const IsoImage_Entry& entry = m_entries[children[i]];
-        order.push_back(std::make_pair(std::make_pair(!is_clean_name(entry.name, entry.directory), upper(entry.name)),
+        order.push_back(std::make_pair(std::make_pair(!is_clean_name(entry.name, entry.directory), to_upper_ascii(entry.name)),
             std::make_pair(entry.name, children[i])));
     }
 
