@@ -37,7 +37,9 @@
 #include "drive/fat_image.h"
 #include "drive/dos_disk.h"
 #include "drive/game_disk.h"
+#include "drive/glide_import.h"
 #include "video/video.h"
+#include "video/voodoo.h"
 #include "libretro_core_options.h"
 #include "libretro_vfs_file.h"
 
@@ -170,6 +172,7 @@ static bool hard_disk_image_attached = false;
 static int dos_disk = 0;
 static std::string msdos_zip;
 static std::string ultrasnd_zip;
+static std::string glide_ovl;
 static int floppy_drive = 0;
 static bool floppy_multidrive = false;
 static bool save_disk = false;
@@ -283,6 +286,7 @@ static bool hard_disk_is_cdrom_slot(int id);
 static int hard_disk_get_builtin_slot(void);
 static std::string msdos_import(void);
 static std::string ultrasnd_import(void);
+static std::string glide_import(void);
 static void hard_disk_update(void);
 static void cmos_load(void);
 static void cmos_save(void);
@@ -499,6 +503,7 @@ void retro_deinit(void)
     machine_settings.sound_dma = GDOX_MACHINE_AUTO;
     machine_settings.mpu = GDOX_MPU_INTELLIGENT;
     machine_settings.gus = 0;
+    machine_settings.voodoo = 0;
     machine_settings.mouse = GDOX_MOUSE_PS2;
     machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
     machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
@@ -862,6 +867,7 @@ static bool load_content(const char* path)
     clear_input_state();
     msdos_zip = msdos_import();
     ultrasnd_zip = ultrasnd_import();
+    glide_ovl = glide_import();
     midi_scan();
     bool game = false;
 
@@ -1927,7 +1933,7 @@ static bool update_game_options_display(void)
         { "geardox_turbo", "machine", "turbo" }, { "geardox_main_ram", "machine", "ram_mb" },
         { "geardox_fpu", "machine", "fpu" }, { "geardox_floppy_a", "machine", "floppy_a_type" },
         { "geardox_floppy_b", "machine", "floppy_b_type" }, { "geardox_video_card", "machine", "video" },
-        { "geardox_cga_output", "machine", "cga_output" },
+        { "geardox_cga_output", "machine", "cga_output" }, { "geardox_voodoo", "machine", "voodoo" },
         { "geardox_sound_card", "sound", "card" }, { "geardox_sound_irq", "sound", "irq" },
         { "geardox_sound_dma", "sound", "dma" }, { "geardox_mpu", "sound", "mpu" },
         { "geardox_gus", "sound", "gus" },
@@ -2326,6 +2332,12 @@ static void check_variables(void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         machine_settings.gus = strcmp(var.value, "enabled") == 0 ? 1 : 0;
 
+    var.key = "geardox_voodoo";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        machine_settings.voodoo = strcmp(var.value, "enabled") == 0 ? 1 : 0;
+
     var.key = "geardox_midi";
     var.value = NULL;
 
@@ -2443,6 +2455,14 @@ static void check_variables(void)
     {
         core->GetRTC()->SetStartTime(strcmp(var.value, "Fixed date") == 0 ? RTC_FIXED_DATE : 0);
     }
+
+#if defined(GDOX_ENABLE_VOODOO_THREAD)
+    var.key = "geardox_voodoo_thread";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        core->GetVideo()->GetVoodoo()->SetThreaded(strcmp(var.value, "enabled") == 0);
+#endif
 
 #if !defined(GDOX_DISABLE_DYNAREC)
     var.key = "geardox_dynarec";
@@ -3682,6 +3702,40 @@ static std::string ultrasnd_import(void)
     return zip;
 }
 
+static std::string glide_import(void)
+{
+    std::string ovl(retro_save_directory);
+    std::string source(retro_system_directory);
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+    append_path_component(ovl, k_glide_import_file);
+    append_path_component(source, "geardox");
+    append_path_component(source, "3dfx");
+
+    if ((retro_system_directory[0] == 0) || !MediaFile::ListDirectory(source.c_str(), folders, files) ||
+        (files.empty() && folders.empty()))
+        return "";
+
+    std::string data;
+
+    if (GlideImport::Load(ovl.c_str(), &data, NULL))
+        return ovl;
+
+    GlideImport import;
+    static char message[512];
+
+    if (import.Import(source.c_str(), ovl.c_str()) != GLIDE_IMPORT_DONE)
+    {
+        snprintf(message, sizeof(message), "3Dfx Voodoo driver not imported: %s", import.GetError());
+        show_message(message, 3, RETRO_LOG_WARN);
+        return "";
+    }
+
+    snprintf(message, sizeof(message), "%s from %s", import.GetMessage(), source.c_str());
+    show_message(message, 2, RETRO_LOG_INFO);
+    return ovl;
+}
+
 // A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop. Images, manifests and
 // overlays live in the save directory
 static bool game_open(const char* path, bool* game)
@@ -3703,7 +3757,7 @@ static bool game_open(const char* path, bool* game)
     static char message[1024];
 
     if (!game_disk.Open(found[pick], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str(),
-        ultrasnd_zip.c_str()))
+        ultrasnd_zip.c_str(), glide_ovl.c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);

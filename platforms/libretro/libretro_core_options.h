@@ -563,6 +563,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "auto"
     },
     {
+        "geardox_voodoo",
+        "3Dfx Voodoo Graphics (restart)",
+        NULL,
+        "A 3Dfx Voodoo Graphics with 4 MB as a second PCI card, on the Pentiums only, for DOS games with 3Dfx support. Games that load GLIDE2X.OVL need it from your own 3Dfx DOS driver: put its ZIP, or the GLIDE2X.OVL file, in <system>/geardox/3dfx.",
+        NULL,
+        "system",
+        {
+            { "disabled", "Off" },
+            { "enabled",  "On" },
+            { NULL, NULL },
+        },
+        "disabled"
+    },
+    {
         "geardox_mouse",
         "Mouse (restart)",
         NULL,
@@ -950,6 +964,22 @@ struct retro_core_option_v2_definition option_defs_us[] = {
             { NULL, NULL },
         },
         "Enabled"
+    },
+#endif
+#if defined(GDOX_ENABLE_VOODOO_THREAD)
+    {
+        "geardox_voodoo_thread",
+        "3Dfx Voodoo Render Thread",
+        NULL,
+        "Draw the 3Dfx Voodoo's pixels on a second host thread. The picture is the same either way; turn it off only to diagnose a problem.",
+        NULL,
+        "system",
+        {
+            { "enabled",  "On" },
+            { "disabled", "Off" },
+            { NULL, NULL },
+        },
+        "enabled"
     },
 #endif
 
