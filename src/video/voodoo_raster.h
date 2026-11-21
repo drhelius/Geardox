@@ -37,6 +37,7 @@
 #define VOODOO_RASTER_SCRATCH 4096
 #define VOODOO_RASTER_CHECK_PIXELS 0x100000
 #define VOODOO_RASTER_RING_WORDS 0x100000
+#define VOODOO_RASTER_SPAN_KEYS (3 * 3 * 8)
 
 class VoodooRaster
 {
@@ -97,6 +98,40 @@ public:
         s32 x1;
     };
 
+    struct VoodooRaster_Combine
+    {
+        bool zero_other;
+        bool sub_local;
+        u8 factor;
+        u8 add;
+        s32 factor_invert;
+        s32 invert;
+    };
+
+    struct VoodooRaster_Decoded
+    {
+        bool iterated_rgb;
+        bool iterated_alpha;
+        bool chroma;
+        bool alpha_mask;
+        bool combined;
+        bool wfloat;
+        bool blend_alpha;
+        bool alpha_planes;
+        bool dither_subtract;
+        s32 blend_alpha_source;
+        s32 blend_alpha_dest;
+        const u8* dither_matrix;
+        u8 dither;
+        u8 alpha_form;
+        u8 other_rgb;
+        u8 other_alpha;
+        u8 local_rgb;
+        u8 local_alpha;
+        VoodooRaster_Combine rgb;
+        VoodooRaster_Combine alpha;
+    };
+
 public:
     VoodooRaster();
     ~VoodooRaster();
@@ -121,11 +156,15 @@ private:
     typedef void (VoodooRaster::*Span_Function)(const VoodooRaster_Pipeline&, const VoodooTrex::VoodooTrex_Texture*,
         const VoodooRaster_Triangle&, const VoodooRaster_Span&, u32);
 
-    template<int texture_mode, int depth_mode, int blend_mode, int fog_mode>
+    template<int texture_mode, int combine, int depth_mode, int blend_mode, int fog_mode>
     void DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture,
         const VoodooRaster_Triangle& triangle, const VoodooRaster_Span& span, u32 stipple);
+    template<int texture_mode, int combine, int depth_mode, int blend_mode, int fog_mode>
+    void AddSpan();
+    static int GetSpanKey(int texture_mode, int combine, bool depth, bool blend, bool fog);
     void DrawSpans(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture,
         const VoodooRaster_Triangle& triangle, const VoodooRaster_Span* spans, int count, Span_Function span);
+    void Decode(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture);
     void RunTriangle(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture,
         const VoodooRaster_Triangle& triangle, const VoodooRaster_Span* spans, int count);
     void RunFastFill(const VoodooRaster_Pipeline& p);
@@ -155,10 +194,11 @@ private:
     static u32 GetWFloat(s64 iterw);
     static bool StippleTest(u32 fbz_mode, s32 x, s32 y, u32& stipple);
     static bool Compare(u32 function, u32 value, u32 reference);
-    u32 CombineColor(const VoodooRaster_Pipeline& p, u32 iterated, u32 texel, u32 iterz, bool fast, bool& killed);
+    u32 CombineColor(const VoodooRaster_Pipeline& p, u32 iterated, u32 texel, u32 iterz, bool& killed);
     u16 DitherPixel(u32 fbz_mode, s32 x, s32 y, u32 color) const;
     u32 Fog(const VoodooRaster_Pipeline& p, u32 color, u32 wfloat, u32 iterz, u32 iter_alpha) const;
     u32 Blend(const VoodooRaster_Pipeline& p, u32 color, u32 prefog, u16 destination, u32 dest_alpha, s32 x, s32 y) const;
+    u32 BlendAlpha(u32 color, u16 destination, u32 dest_alpha, s32 x, s32 y) const;
 
 private:
     u16* m_frame_buffer;
@@ -169,6 +209,10 @@ private:
     u8* m_dirty_pages;
     const VoodooRaster_Pipeline* m_pipeline;
     const VoodooTrex::VoodooTrex_Texture* m_texture;
+    VoodooRaster_Decoded m_decoded;
+    Span_Function m_span;
+    Span_Function m_generic_span;
+    Span_Function m_spans[VOODOO_RASTER_SPAN_KEYS];
     bool m_threaded;
     VoodooRaster_Pipeline m_job_pipeline;
     VoodooTrex::VoodooTrex_Texture m_job_texture;
@@ -197,9 +241,7 @@ private:
     u8 m_shadow_texture_pages[VOODOO_TREX_PAGES];
     bool m_is_shadow;
 #endif
-    u8 m_dither4[4][4][2][256];
-    u8 m_dither2[4][4][2][256];
-    u8 m_nodither[2][256];
+    u8 m_dither[3][4][4][2][256];
     u32 m_rgb565[65536];
     u16 m_scratch[VOODOO_RASTER_SCRATCH];
 };
@@ -207,7 +249,16 @@ private:
 static const u8 k_voodoo_dither_4x4[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
 static const u8 k_voodoo_dither_2x2[16] = { 8, 10, 8, 10, 11, 9, 11, 9, 8, 10, 8, 10, 11, 9, 11, 9 };
 static const u32 k_voodoo_tmu_config = 0x11;
-static const int k_voodoo_mode_runtime = 2;
+static const int k_voodoo_mode_runtime = -1;
+static const int k_voodoo_texture_off = 0;
+static const int k_voodoo_texture_point = 1;
+static const int k_voodoo_texture_bilinear = 2;
+static const int k_voodoo_combine_texel = 0;
+static const int k_voodoo_combine_modulate = 1;
+static const int k_voodoo_combine_decoded = 2;
+static const int k_voodoo_alpha_other = 0;
+static const int k_voodoo_alpha_local = 1;
+static const int k_voodoo_alpha_combined = 2;
 static const int k_voodoo_counter_pixels_in = 0;
 static const int k_voodoo_counter_chroma_fail = 1;
 static const int k_voodoo_counter_zfunc_fail = 2;

@@ -93,9 +93,18 @@ public:
     static s32 Log2(double value, int fraction_bits);
     static u32 FetchTexel(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert, double iterw,
         s32 lod_base, u32 dither, s32& lod);
+    template<bool bilinear>
+    static u32 FetchFiltered(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert,
+        double iterw, s32 lod_base, u32 dither, s32& lod);
     static u32 Combine(const VoodooTrex_Texture& texture, u32 local, u32 other, s32 lod);
 
 private:
+    static s32 GetMipLevel(const VoodooTrex_Texture& texture, s32 lod);
+    static void GetCoordinates(const VoodooTrex_Texture& texture, double iters, double itert, double iterw, s32 lod_base,
+        u32 dither, s32& s, s32& t, s32& lod);
+    static u32 ReadTexel(const u32* lookup, const u8* memory, u32 base, u32 index, u32 format);
+    static u32 SamplePoint(const VoodooTrex_Texture& texture, const u8* memory, s32 s, s32 t, s32 ilod);
+    static u32 SampleBilinear(const VoodooTrex_Texture& texture, const u8* memory, s32 s, s32 t, s32 ilod);
     void UpdateTexture();
     void UpdateNCC(int table);
     void BuildLookups();

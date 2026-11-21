@@ -73,6 +73,38 @@ static INLINE u8 dither_g(u32 value, u32 dither)
     return (u8)(((value << 2) - (value >> 4) + (value >> 6) + dither) >> 4);
 }
 
+static INLINE u32 combine_source(u32 select, u32 iterated, u32 texel, u32 color1)
+{
+    return select == 0 ? iterated : select == 1 ? texel : select == 2 ? color1 : 0;
+}
+
+static INLINE s32 combine_channel(const VoodooRaster::VoodooRaster_Combine& c, s32 other, s32 local, s32 local_alpha,
+    s32 other_alpha, s32 texel_alpha)
+{
+    s32 color = c.zero_other ? 0 : other;
+
+    if (c.sub_local)
+        color -= local;
+
+    s32 factor = c.factor == 1 ? local : c.factor == 2 ? other_alpha : c.factor == 3 ? local_alpha :
+        c.factor == 4 ? texel_alpha : 0;
+    color = (color * ((factor ^ c.factor_invert) + 1)) >> 8;
+    color += c.add == 1 ? local : c.add == 2 ? local_alpha : 0;
+    return CLAMP(color, 0, 255) ^ c.invert;
+}
+
+static INLINE void decode_combine(u32 field, bool alpha, VoodooRaster::VoodooRaster_Combine* c)
+{
+    u32 add = (field >> 6) & 0x03;
+    c->zero_other = (field & 0x01) != 0;
+    c->sub_local = (field & 0x02) != 0;
+    c->factor = (u8)((field >> 2) & 0x07);
+    c->factor = c->factor > 4 ? 0 : c->factor;
+    c->factor_invert = (field & 0x20) != 0 ? 0 : 0xFF;
+    c->add = alpha ? (add != 0 ? 1 : 0) : (add == 3 ? 0 : (u8)add);
+    c->invert = (field & 0x100) != 0 ? 0xFF : 0;
+}
+
 static INLINE s64 ceil_div(s64 numerator, s64 denominator)
 {
     s64 quotient = numerator / denominator;
@@ -100,6 +132,7 @@ VoodooRaster::VoodooRaster()
     InitPointer(m_pipeline);
     InitPointer(m_texture);
     m_frame_buffer_pixels = 0;
+    memset(&m_decoded, 0, sizeof(m_decoded));
     m_threaded = false;
     m_job_textured = false;
     memset(&m_job_pipeline, 0, sizeof(m_job_pipeline));
@@ -128,19 +161,45 @@ VoodooRaster::VoodooRaster()
         {
             for (u32 value = 0; value < 256; value++)
             {
-                m_dither4[y][x][0][value] = dither_rb(value, k_voodoo_dither_4x4[y * 4 + x]);
-                m_dither4[y][x][1][value] = dither_g(value, k_voodoo_dither_4x4[y * 4 + x]);
-                m_dither2[y][x][0][value] = dither_rb(value, k_voodoo_dither_2x2[y * 4 + x]);
-                m_dither2[y][x][1][value] = dither_g(value, k_voodoo_dither_2x2[y * 4 + x]);
+                m_dither[0][y][x][0][value] = (u8)(value >> 3);
+                m_dither[0][y][x][1][value] = (u8)(value >> 2);
+                m_dither[1][y][x][0][value] = dither_rb(value, k_voodoo_dither_4x4[y * 4 + x]);
+                m_dither[1][y][x][1][value] = dither_g(value, k_voodoo_dither_4x4[y * 4 + x]);
+                m_dither[2][y][x][0][value] = dither_rb(value, k_voodoo_dither_2x2[y * 4 + x]);
+                m_dither[2][y][x][1][value] = dither_g(value, k_voodoo_dither_2x2[y * 4 + x]);
             }
         }
     }
 
-    for (u32 value = 0; value < 256; value++)
-    {
-        m_nodither[0][value] = (u8)(value >> 3);
-        m_nodither[1][value] = (u8)(value >> 2);
-    }
+    m_generic_span = &VoodooRaster::DrawSpan<k_voodoo_mode_runtime, k_voodoo_mode_runtime, k_voodoo_mode_runtime,
+        k_voodoo_mode_runtime, k_voodoo_mode_runtime>;
+    m_span = m_generic_span;
+
+    for (int i = 0; i < VOODOO_RASTER_SPAN_KEYS; i++)
+        m_spans[i] = m_generic_span;
+
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 0, 0, 0>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 0, 0, 1>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 0, 1, 0>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 0, 1, 1>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 1, 0, 0>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 1, 0, 1>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 1, 1, 0>();
+    AddSpan<k_voodoo_texture_off, k_voodoo_combine_decoded, 1, 1, 1>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_texel, 0, 0, 0>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_texel, 0, 1, 0>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_texel, 0, 1, 1>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_texel, 1, 1, 0>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_modulate, 1, 0, 0>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_modulate, 1, 0, 1>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_modulate, 1, 1, 1>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_modulate, 0, 1, 1>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_decoded, 0, 0, 0>();
+    AddSpan<k_voodoo_texture_bilinear, k_voodoo_combine_decoded, 0, 0, 1>();
+    AddSpan<k_voodoo_texture_point, k_voodoo_combine_texel, 1, 0, 0>();
+    AddSpan<k_voodoo_texture_point, k_voodoo_combine_texel, 1, 1, 0>();
+    AddSpan<k_voodoo_texture_point, k_voodoo_combine_modulate, 1, 0, 0>();
+    AddSpan<k_voodoo_texture_point, k_voodoo_combine_modulate, 1, 1, 0>();
 
     for (u32 i = 0; i < 65536; i++)
     {
@@ -244,7 +303,10 @@ void VoodooRaster::SetState(const VoodooRaster_Pipeline* p, const VoodooTrex::Vo
 #endif
 #if defined(GDOX_ENABLE_VOODOO_THREAD)
     if (!m_threaded)
+    {
+        Decode(*p, texture);
         return;
+    }
 
     bool lookup = IsValidPointer(texture) && texture->dynamic_lookup;
     u32 words = 2 + k_voodoo_pipeline_words + k_voodoo_texture_words + (lookup ? 256 : 0);
@@ -259,6 +321,8 @@ void VoodooRaster::SetState(const VoodooRaster_Pipeline* p, const VoodooTrex::Vo
         memcpy(job + 1 + k_voodoo_pipeline_words + k_voodoo_texture_words, texture->lookup, 256 * 4);
 
     EndJob(words);
+#else
+    Decode(*p, texture);
 #endif
 }
 
@@ -400,6 +464,8 @@ void VoodooRaster::RunJob(u32 type, const u32* payload)
                 memcpy(m_job_lookup, payload + 1 + k_voodoo_pipeline_words + k_voodoo_texture_words, sizeof(m_job_lookup));
                 m_job_texture.lookup = m_job_lookup;
             }
+
+            Decode(m_job_pipeline, m_job_textured ? &m_job_texture : NULL);
             break;
         }
         case VOODOO_JOB_TRIANGLE:
@@ -728,11 +794,8 @@ bool VoodooRaster::Compare(u32 function, u32 value, u32 reference)
 
 u16 VoodooRaster::DitherPixel(u32 fbz_mode, s32 x, s32 y, u32 color) const
 {
-    if ((fbz_mode & k_voodoo_fbz_dither) == 0)
-        return (u16)((m_nodither[0][color_r(color)] << 11) | (m_nodither[1][color_g(color)] << 5) |
-            m_nodither[0][color_b(color)]);
-
-    const u8 (*table)[256] = (fbz_mode & k_voodoo_fbz_dither_2x2) != 0 ? m_dither2[y & 3][x & 3] : m_dither4[y & 3][x & 3];
+    int kind = (fbz_mode & k_voodoo_fbz_dither) == 0 ? 0 : (fbz_mode & k_voodoo_fbz_dither_2x2) != 0 ? 2 : 1;
+    const u8 (*table)[256] = m_dither[kind][y & 3][x & 3];
     return (u16)((table[0][color_r(color)] << 11) | (table[1][color_g(color)] << 5) | table[0][color_b(color)]);
 }
 
@@ -763,50 +826,21 @@ void VoodooRaster::MarkDirty(const u16* start, s32 count)
         m_dirty_pages[page] = 1;
 }
 
-u32 VoodooRaster::CombineColor(const VoodooRaster_Pipeline& p, u32 iterated, u32 texel, u32 iterz, bool fast, bool& killed)
+u32 VoodooRaster::CombineColor(const VoodooRaster_Pipeline& p, u32 iterated, u32 texel, u32 iterz, bool& killed)
 {
-    u32 path = p.fbz_color_path;
-    u32 other;
+    const VoodooRaster_Decoded& d = m_decoded;
+    u32 other = combine_source(d.other_rgb, iterated, texel, p.color1) & 0x00FFFFFF;
 
-    switch (path & 0x03)
-    {
-        case 0:
-            other = iterated & 0x00FFFFFF;
-            break;
-        case 1:
-            other = texel & 0x00FFFFFF;
-            break;
-        case 2:
-            other = p.color1 & 0x00FFFFFF;
-            break;
-        default:
-            other = 0;
-            break;
-    }
-
-    if (((p.fbz_mode & k_voodoo_fbz_chroma) != 0) && (other == (p.chroma_key & 0x00FFFFFF)))
+    if (d.chroma && (other == (p.chroma_key & 0x00FFFFFF)))
     {
         m_counters[k_voodoo_counter_chroma_fail]++;
         killed = true;
         return 0;
     }
 
-    switch ((path >> 2) & 0x03)
-    {
-        case 0:
-            other |= iterated & 0xFF000000;
-            break;
-        case 1:
-            other |= texel & 0xFF000000;
-            break;
-        case 2:
-            other |= p.color1 & 0xFF000000;
-            break;
-        default:
-            break;
-    }
+    other |= combine_source(d.other_alpha, iterated, texel, p.color1) & 0xFF000000;
 
-    if (((p.fbz_mode & k_voodoo_fbz_alpha_mask) != 0) && ((other & 0x01000000) == 0))
+    if (d.alpha_mask && ((other & 0x01000000) == 0))
     {
         m_counters[k_voodoo_counter_afunc_fail]++;
         killed = true;
@@ -815,85 +849,28 @@ u32 VoodooRaster::CombineColor(const VoodooRaster_Pipeline& p, u32 iterated, u32
 
     killed = false;
 
-    if (fast && ((path & 0x03FFFF00) == 0))
+    if (!d.combined)
         return other;
 
-    bool local_color0 = (path & 0x80) != 0 ? (texel & 0x80000000) != 0 : (path & 0x10) != 0;
-    u32 local = local_color0 ? p.color0 & 0x00FFFFFF : iterated & 0x00FFFFFF;
+    bool local_color0 = d.local_rgb == 2 ? (texel & 0x80000000) != 0 : d.local_rgb == 1;
+    u32 local = (local_color0 ? p.color0 : iterated) & 0x00FFFFFF;
 
-    switch ((path >> 5) & 0x03)
-    {
-        case 0:
-            local |= iterated & 0xFF000000;
-            break;
-        case 1:
-            local |= p.color0 & 0xFF000000;
-            break;
-        case 2:
-            local |= (ClampZ(iterz) >> 8) << 24;
-            break;
-        default:
-            break;
-    }
+    if (d.local_alpha == 0)
+        local |= iterated & 0xFF000000;
+    else if (d.local_alpha == 1)
+        local |= p.color0 & 0xFF000000;
+    else if (d.local_alpha == 2)
+        local |= (ClampZ(iterz) >> 8) << 24;
 
-    s32 local_c[4] = { (s32)color_b(local), (s32)color_g(local), (s32)color_r(local), (s32)color_a(local) };
-    s32 other_c[4] = { (s32)color_b(other), (s32)color_g(other), (s32)color_r(other), (s32)color_a(other) };
+    s32 local_alpha = (s32)color_a(local);
+    s32 other_alpha = (s32)color_a(other);
     s32 texel_alpha = (s32)color_a(texel);
-    s32 result[4];
+    s32 r = combine_channel(d.rgb, (s32)color_r(other), (s32)color_r(local), local_alpha, other_alpha, texel_alpha);
+    s32 g = combine_channel(d.rgb, (s32)color_g(other), (s32)color_g(local), local_alpha, other_alpha, texel_alpha);
+    s32 b = combine_channel(d.rgb, (s32)color_b(other), (s32)color_b(local), local_alpha, other_alpha, texel_alpha);
+    s32 a = combine_channel(d.alpha, other_alpha, local_alpha, local_alpha, other_alpha, texel_alpha);
 
-    for (int i = 0; i < 4; i++)
-    {
-        bool alpha = i == 3;
-        u32 shift = alpha ? 9 : 0;
-        s32 color = ((path >> (8 + shift)) & 0x01) != 0 ? 0 : other_c[i];
-
-        if (((path >> (9 + shift)) & 0x01) != 0)
-            color -= local_c[i];
-
-        s32 factor;
-
-        switch ((path >> (10 + shift)) & 0x07)
-        {
-            case 1:
-                factor = alpha ? local_c[3] : local_c[i];
-                break;
-            case 2:
-                factor = other_c[3];
-                break;
-            case 3:
-                factor = local_c[3];
-                break;
-            case 4:
-                factor = texel_alpha;
-                break;
-            default:
-                factor = 0;
-                break;
-        }
-
-        if (((path >> (13 + shift)) & 0x01) == 0)
-            factor ^= 0xFF;
-
-        color = (color * (factor + 1)) >> 8;
-
-        u32 add = (path >> (14 + shift)) & 0x03;
-
-        if (alpha)
-            color += add != 0 ? local_c[3] : 0;
-        else if (add == 1)
-            color += local_c[i];
-        else if (add == 2)
-            color += local_c[3];
-
-        color = CLAMP(color, 0, 255);
-
-        if (((path >> (16 + shift)) & 0x01) != 0)
-            color ^= 0xFF;
-
-        result[i] = color;
-    }
-
-    return ((u32)result[3] << 24) | ((u32)result[2] << 16) | ((u32)result[1] << 8) | (u32)result[0];
+    return ((u32)a << 24) | ((u32)r << 16) | ((u32)g << 8) | (u32)b;
 }
 
 u32 VoodooRaster::Fog(const VoodooRaster_Pipeline& p, u32 color, u32 wfloat, u32 iterz, u32 iter_alpha) const
@@ -1041,32 +1018,100 @@ u32 VoodooRaster::Blend(const VoodooRaster_Pipeline& p, u32 color, u32 prefog, u
     return make_color(alpha, out[0], out[1], out[2]);
 }
 
+void VoodooRaster::Decode(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture)
+{
+    VoodooRaster_Decoded& d = m_decoded;
+    u32 path = p.fbz_color_path;
+    u32 fbz_mode = p.fbz_mode;
+    u32 fog_mode = p.fog_mode;
+    bool fog = (fog_mode & 0x01) != 0;
+    bool blend = (p.alpha_mode & k_voodoo_alpha_blend) != 0;
+    bool depth = ((fbz_mode & k_voodoo_fbz_depth) != 0) ||
+        (((fbz_mode & k_voodoo_fbz_aux_write) != 0) && ((fbz_mode & k_voodoo_fbz_alpha_planes) == 0));
+    u32 rgb_field = (path >> 8) & 0x1FF;
+    u32 alpha_field = (path >> 17) & 0x1FF;
+
+    d.chroma = (fbz_mode & k_voodoo_fbz_chroma) != 0;
+    d.alpha_mask = (fbz_mode & k_voodoo_fbz_alpha_mask) != 0;
+    d.combined = (path & 0x03FFFF00) != 0;
+    d.wfloat = ((fbz_mode & k_voodoo_fbz_wbuffer) != 0) || (fog && ((fog_mode & 0x38) == 0));
+    d.dither = (fbz_mode & k_voodoo_fbz_dither) == 0 ? 0 : (fbz_mode & k_voodoo_fbz_dither_2x2) != 0 ? 2 : 1;
+    d.blend_alpha = (((p.alpha_mode >> 8) & 0x0F) == 1) && (((p.alpha_mode >> 12) & 0x0F) == 5);
+    d.alpha_planes = (fbz_mode & k_voodoo_fbz_alpha_planes) != 0;
+    d.dither_subtract = ((fbz_mode & k_voodoo_fbz_dither_subtract) != 0) && ((fbz_mode & k_voodoo_fbz_dither) != 0);
+    d.blend_alpha_source = ((p.alpha_mode >> 16) & 0x0F) == 4 ? 256 : 0;
+    d.blend_alpha_dest = ((p.alpha_mode >> 20) & 0x0F) == 4 ? 256 : 0;
+    d.dither_matrix = (fbz_mode & k_voodoo_fbz_dither_2x2) != 0 ? k_voodoo_dither_2x2 : k_voodoo_dither_4x4;
+    d.other_rgb = (u8)(path & 0x03);
+    d.other_alpha = (u8)((path >> 2) & 0x03);
+    d.local_rgb = (path & 0x80) != 0 ? 2 : (path & 0x10) != 0 ? 1 : 0;
+    d.local_alpha = (u8)((path >> 5) & 0x03);
+    decode_combine(rgb_field, false, &d.rgb);
+    decode_combine(alpha_field, true, &d.alpha);
+    d.alpha_form = alpha_field == 0 ? k_voodoo_alpha_other :
+        (alpha_field & 0x13F) == 0x021 && (alpha_field & 0xC0) != 0 ? k_voodoo_alpha_local : k_voodoo_alpha_combined;
+    d.iterated_rgb = (d.other_rgb == 0) || (d.combined && (d.local_rgb != 1));
+    d.iterated_alpha = (d.other_alpha == 0) || (d.combined && (d.local_alpha == 0)) ||
+        (fog && ((fog_mode & 0x38) == 0x08));
+
+    int texture_mode = k_voodoo_texture_off;
+    int combine = k_voodoo_combine_decoded;
+    bool special = true;
+
+    if (p.texture)
+    {
+        u32 filter = IsValidPointer(texture) ? texture->texture_mode & 0x06 : 0x02;
+        special = IsValidPointer(texture) && !p.send_config && ((filter == 0) || (filter == 0x06));
+        texture_mode = filter == 0 ? k_voodoo_texture_point : k_voodoo_texture_bilinear;
+
+        if ((d.other_rgb == 1) && (rgb_field == 0x000))
+            combine = k_voodoo_combine_texel;
+        else if ((d.other_rgb == 1) && (d.local_rgb == 0) && (rgb_field == 0x024))
+            combine = k_voodoo_combine_modulate;
+    }
+
+    m_span = special ? m_spans[GetSpanKey(texture_mode, combine, depth, blend, fog)] : m_generic_span;
+}
+
+int VoodooRaster::GetSpanKey(int texture_mode, int combine, bool depth, bool blend, bool fog)
+{
+    return (((texture_mode * 3 + combine) * 2 + (depth ? 1 : 0)) * 2 + (blend ? 1 : 0)) * 2 + (fog ? 1 : 0);
+}
+
+template<int texture_mode, int combine, int depth_mode, int blend_mode, int fog_mode>
+void VoodooRaster::AddSpan()
+{
+    m_spans[GetSpanKey(texture_mode, combine, depth_mode != 0, blend_mode != 0, fog_mode != 0)] =
+        &VoodooRaster::DrawSpan<texture_mode, combine, depth_mode, blend_mode, fog_mode>;
+}
+
+u32 VoodooRaster::BlendAlpha(u32 color, u16 destination, u32 dest_alpha, s32 x, s32 y) const
+{
+    const VoodooRaster_Decoded& d = m_decoded;
+    s32 dr = (destination >> 11) & 0x1F;
+    s32 dg = (destination >> 5) & 0x3F;
+    s32 db = destination & 0x1F;
+    s32 sa = (s32)color_a(color);
+    s32 da = d.alpha_planes ? (s32)(dest_alpha & 0xFF) : 0xFF;
+    s32 dither = d.dither_subtract ? (15 - d.dither_matrix[(y & 3) * 4 + (x & 3)]) >> 1 : 0;
+    s32 source = sa + 1;
+    s32 dest = 0x100 - sa;
+    s32 r = ((s32)color_r(color) * source + (((dr << 3) | (dr >> 2)) + dither) * dest) >> 8;
+    s32 g = ((s32)color_g(color) * source + (((dg << 2) | (dg >> 4)) + (dither >> 1)) * dest) >> 8;
+    s32 b = ((s32)color_b(color) * source + (((db << 3) | (db >> 2)) + dither) * dest) >> 8;
+    s32 alpha = (sa * d.blend_alpha_source + da * d.blend_alpha_dest) >> 8;
+
+    return make_color(alpha, r, g, b);
+}
+
 void VoodooRaster::RunTriangle(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture,
     const VoodooRaster_Triangle& triangle, const VoodooRaster_Span* spans, int count)
 {
-    static const Span_Function k_spans[17] =
-    {
-        &VoodooRaster::DrawSpan<0, 0, 0, 0>, &VoodooRaster::DrawSpan<1, 0, 0, 0>,
-        &VoodooRaster::DrawSpan<0, 1, 0, 0>, &VoodooRaster::DrawSpan<1, 1, 0, 0>,
-        &VoodooRaster::DrawSpan<0, 0, 1, 0>, &VoodooRaster::DrawSpan<1, 0, 1, 0>,
-        &VoodooRaster::DrawSpan<0, 1, 1, 0>, &VoodooRaster::DrawSpan<1, 1, 1, 0>,
-        &VoodooRaster::DrawSpan<0, 0, 0, 1>, &VoodooRaster::DrawSpan<1, 0, 0, 1>,
-        &VoodooRaster::DrawSpan<0, 1, 0, 1>, &VoodooRaster::DrawSpan<1, 1, 0, 1>,
-        &VoodooRaster::DrawSpan<0, 0, 1, 1>, &VoodooRaster::DrawSpan<1, 0, 1, 1>,
-        &VoodooRaster::DrawSpan<0, 1, 1, 1>, &VoodooRaster::DrawSpan<1, 1, 1, 1>,
-        &VoodooRaster::DrawSpan<k_voodoo_mode_runtime, k_voodoo_mode_runtime, k_voodoo_mode_runtime, k_voodoo_mode_runtime>
-    };
-
-    u32 fbz_mode = p.fbz_mode;
-    bool depth = ((fbz_mode & k_voodoo_fbz_depth) != 0) ||
-        (((fbz_mode & k_voodoo_fbz_aux_write) != 0) && ((fbz_mode & k_voodoo_fbz_alpha_planes) == 0));
-    int key = (p.texture ? 1 : 0) | (depth ? 2 : 0) | ((p.alpha_mode & k_voodoo_alpha_blend) != 0 ? 4 : 0) |
-        ((p.fog_mode & 0x01) != 0 ? 8 : 0);
 #if defined(GDOX_VOODOO_CHECK)
-    CheckTriangle(p, texture, triangle, spans, count, k_spans[16], k_spans[key]);
+    CheckTriangle(p, texture, triangle, spans, count, m_generic_span, m_span);
 #endif
 
-    DrawSpans(p, texture, triangle, spans, count, k_spans[key]);
+    DrawSpans(p, texture, triangle, spans, count, m_span);
 }
 
 void VoodooRaster::DrawSpans(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture,
@@ -1089,16 +1134,18 @@ void VoodooRaster::DrawSpans(const VoodooRaster_Pipeline& p, const VoodooTrex::V
     }
 }
 
-template<int texture_mode, int depth_mode, int blend_mode, int fog_mode>
+template<int texture_mode, int combine, int depth_mode, int blend_mode, int fog_mode>
 void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::VoodooTrex_Texture* texture,
     const VoodooRaster_Triangle& triangle, const VoodooRaster_Span& span, u32 stipple)
 {
+    const VoodooRaster_Decoded& d = m_decoded;
     u32 fbz_mode = p.fbz_mode;
     bool generic = texture_mode == k_voodoo_mode_runtime;
-    bool textured = generic ? p.texture : texture_mode != 0;
+    bool textured = generic ? p.texture : texture_mode != k_voodoo_texture_off;
     bool depth_needed = generic ? true : depth_mode != 0;
     bool blend = generic ? (p.alpha_mode & k_voodoo_alpha_blend) != 0 : blend_mode != 0;
     bool fog = generic ? (p.fog_mode & 0x01) != 0 : fog_mode != 0;
+    bool decoded = generic || (combine == k_voodoo_combine_decoded);
     s32 y = span.y;
     s32 x0 = span.x0;
     s32 x1 = span.x1;
@@ -1174,18 +1221,28 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
     u32 alpha_mode = p.alpha_mode;
     u32 alpha_reference = alpha_mode >> 24;
     const u8* lod_dither = &k_voodoo_dither_4x4[(scry & 3) * 4];
+    const u8 (*dither)[2][256] = m_dither[d.dither][scry & 3];
+    bool stippled = (fbz_mode & k_voodoo_fbz_stipple) != 0;
+    bool wfloat_needed = (depth_needed || fog) && d.wfloat;
+    bool iterated_rgb = d.iterated_rgb;
+    bool iterated_alpha = d.iterated_alpha;
+    u32 chroma_key = p.chroma_key & 0x00FFFFFF;
+    u32 pixels_out = 0;
+    u32 chroma_fail = 0;
+    u32 zfunc_fail = 0;
+    u32 afunc_fail = 0;
 
     for (s32 x = x0; x < x1; x++)
     {
         do
         {
-            if (!StippleTest(fbz_mode, x, scry, stipple))
+            if (stippled && !StippleTest(fbz_mode, x, scry, stipple))
                 break;
 
             u32 wfloat = 0;
             u32 depth_value = 0;
 
-            if (depth_needed || fog)
+            if (wfloat_needed)
                 wfloat = GetWFloat(iterw);
 
             if (depth_needed)
@@ -1202,7 +1259,7 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
 
                 if (!Compare(fbz_mode >> 5, source & 0xFFFF, depth[x]))
                 {
-                    m_counters[k_voodoo_counter_zfunc_fail]++;
+                    zfunc_fail++;
                     break;
                 }
             }
@@ -1211,28 +1268,82 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
 
             if (textured)
             {
-                if (p.send_config)
-                    texel = k_voodoo_tmu_config;
+                s32 lod = 0;
+
+                if (generic)
+                {
+                    if (p.send_config)
+                        texel = k_voodoo_tmu_config;
+                    else
+                    {
+                        u32 sample = VoodooTrex::FetchTexel(*texture, m_texture_memory, iters, itert, itertw,
+                            triangle.lod_base, lod_dither[x & 3], lod);
+                        texel = VoodooTrex::Combine(*texture, sample, 0, lod);
+                    }
+                }
                 else
                 {
-                    s32 lod = 0;
-                    u32 sample = VoodooTrex::FetchTexel(*texture, m_texture_memory, iters, itert, itertw,
-                        triangle.lod_base, lod_dither[x & 3], lod);
-                    texel = !generic && texture->replace ? sample : VoodooTrex::Combine(*texture, sample, 0, lod);
+                    u32 sample = VoodooTrex::FetchFiltered<texture_mode == k_voodoo_texture_bilinear>(*texture,
+                        m_texture_memory, iters, itert, itertw, triangle.lod_base, lod_dither[x & 3], lod);
+                    texel = texture->replace ? sample : VoodooTrex::Combine(*texture, sample, 0, lod);
                 }
             }
 
-            u32 iterated = (ClampColor(iter[3]) << 24) | (ClampColor(iter[0]) << 16) | (ClampColor(iter[1]) << 8) |
-                ClampColor(iter[2]);
-            bool killed = false;
-            u32 color = CombineColor(p, iterated, texel, iter[4], !generic, killed);
+            u32 iterated = 0;
 
-            if (killed)
-                break;
+            if (iterated_rgb)
+                iterated = (ClampColor(iter[0]) << 16) | (ClampColor(iter[1]) << 8) | ClampColor(iter[2]);
+
+            if (iterated_alpha)
+                iterated |= ClampColor(iter[3]) << 24;
+
+            u32 color;
+
+            if (decoded)
+            {
+                bool killed = false;
+                color = CombineColor(p, iterated, texel, iter[4], killed);
+
+                if (killed)
+                    break;
+            }
+            else
+            {
+                if (d.chroma && ((texel & 0x00FFFFFF) == chroma_key))
+                {
+                    chroma_fail++;
+                    break;
+                }
+
+                s32 other_alpha = (s32)color_a(combine_source(d.other_alpha, iterated, texel, p.color1));
+
+                if (d.alpha_mask && ((other_alpha & 0x01) == 0))
+                {
+                    afunc_fail++;
+                    break;
+                }
+
+                s32 alpha = other_alpha;
+
+                if (d.alpha_form != k_voodoo_alpha_other)
+                {
+                    s32 local_alpha = d.local_alpha == 0 ? (s32)color_a(iterated) : d.local_alpha == 1 ?
+                        (s32)color_a(p.color0) : d.local_alpha == 2 ? (s32)(ClampZ(iter[4]) >> 8) : 0;
+                    alpha = d.alpha_form == k_voodoo_alpha_local ? local_alpha :
+                        combine_channel(d.alpha, other_alpha, local_alpha, local_alpha, other_alpha, (s32)color_a(texel));
+                }
+
+                if (combine == k_voodoo_combine_texel)
+                    color = ((u32)alpha << 24) | (texel & 0x00FFFFFF);
+                else
+                    color = ((u32)alpha << 24) | (((color_r(texel) * (color_r(iterated) + 1)) >> 8) << 16) |
+                        (((color_g(texel) * (color_g(iterated) + 1)) >> 8) << 8) |
+                        ((color_b(texel) * (color_b(iterated) + 1)) >> 8);
+            }
 
             if (((alpha_mode & k_voodoo_alpha_test) != 0) && !Compare(alpha_mode >> 1, color_a(color), alpha_reference))
             {
-                m_counters[k_voodoo_counter_afunc_fail]++;
+                afunc_fail++;
                 break;
             }
 
@@ -1242,15 +1353,19 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
                 color = Fog(p, color, wfloat, iter[4], color_a(iterated));
 
             if (blend)
-                color = Blend(p, color, prefog, dest[x], depth[x], x, scry);
+                color = !generic && d.blend_alpha ? BlendAlpha(color, dest[x], depth[x], x, scry) :
+                    Blend(p, color, prefog, dest[x], depth[x], x, scry);
 
             if ((fbz_mode & k_voodoo_fbz_rgb_write) != 0)
-                dest[x] = DitherPixel(fbz_mode, x, scry, color);
+            {
+                const u8 (*cell)[256] = dither[x & 3];
+                dest[x] = (u16)((cell[0][color_r(color)] << 11) | (cell[1][color_g(color)] << 5) | cell[0][color_b(color)]);
+            }
 
             if ((fbz_mode & k_voodoo_fbz_aux_write) != 0)
                 depth[x] = (u16)((fbz_mode & k_voodoo_fbz_alpha_planes) != 0 ? color_a(color) : depth_value);
 
-            m_counters[k_voodoo_counter_pixels_out]++;
+            pixels_out++;
         } while (0);
 
         for (int i = 0; i < 5; i++)
@@ -1265,6 +1380,11 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
             itertw += delta_tw;
         }
     }
+
+    m_counters[k_voodoo_counter_pixels_out] += pixels_out;
+    m_counters[k_voodoo_counter_chroma_fail] += chroma_fail;
+    m_counters[k_voodoo_counter_zfunc_fail] += zfunc_fail;
+    m_counters[k_voodoo_counter_afunc_fail] += afunc_fail;
 
     if ((fbz_mode & k_voodoo_fbz_rgb_write) != 0)
         MarkDirty(dest + x0, x1 - x0);

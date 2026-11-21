@@ -82,20 +82,16 @@ INLINE s32 VoodooTrex::GetLodBase(s64 dsdx, s64 dsdy, s64 dtdx, s64 dtdy)
     return Log2(MAX(texdx, texdy), 64) / 2;
 }
 
-INLINE u32 VoodooTrex::FetchTexel(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert,
-    double iterw, s32 lod_base, u32 dither, s32& lod)
+INLINE void VoodooTrex::GetCoordinates(const VoodooTrex_Texture& texture, double iters, double itert, double iterw,
+    s32 lod_base, u32 dither, s32& s, s32& t, s32& lod)
 {
     u32 mode = texture.texture_mode;
-    s32 s;
-    s32 t;
-    lod = lod_base;
 
     if ((mode & 0x01) != 0)
     {
         double recip = 256.0 / iterw;
         s = (s32)(iters * recip);
         t = (s32)(itert * recip);
-        lod -= Log2(iterw, 32);
     }
     else
     {
@@ -109,50 +105,62 @@ INLINE u32 VoodooTrex::FetchTexel(const VoodooTrex_Texture& texture, const u8* m
         t = 0;
     }
 
+    if (texture.lod_min == texture.lod_max)
+    {
+        lod = texture.lod_min;
+        return;
+    }
+
+    lod = lod_base;
+
+    if ((mode & 0x01) != 0)
+        lod -= Log2(iterw, 32);
+
     lod += texture.lod_bias;
 
     if ((mode & 0x10) != 0)
         lod += (s32)(dither << 4);
 
     lod = CLAMP(lod, texture.lod_min, texture.lod_max);
+}
 
-    s32 ilod = lod >> 8;
-    ilod += (s32)((~texture.lod_mask >> ilod) & 1);
-    ilod = MIN(ilod, VOODOO_TREX_LODS - 1);
+INLINE u32 VoodooTrex::ReadTexel(const u32* lookup, const u8* memory, u32 base, u32 index, u32 format)
+{
+    if (format < 8)
+        return lookup[memory[(base + index) & (VOODOO_TREX_MEMORY_SIZE - 1)]];
 
-    u32 base = texture.lod_offset[ilod];
+    u32 address = (base + index * 2) & (VOODOO_TREX_MEMORY_SIZE - 2);
+    u32 texel = memory[address] | ((u32)memory[address + 1] << 8);
+
+    if ((format >= 10) && (format <= 12))
+        return lookup[texel];
+
+    return (lookup[texel & 0xFF] & 0x00FFFFFF) | ((texel & 0xFF00) << 16);
+}
+
+INLINE u32 VoodooTrex::SamplePoint(const VoodooTrex_Texture& texture, const u8* memory, s32 s, s32 t, s32 ilod)
+{
+    u32 mode = texture.texture_mode;
     s32 smax = (s32)(texture.width_mask >> ilod);
     s32 tmax = (s32)(texture.height_mask >> ilod);
-    const u32* lookup = texture.lookup;
-    bool wide = texture.format >= 8;
-    bool split = wide && (texture.format != 10) && (texture.format != 11) && (texture.format != 12);
-    bool magnify = lod == texture.lod_min;
+    s >>= ilod + 8;
+    t >>= ilod + 8;
 
-    if ((magnify && ((mode & 0x04) == 0)) || (!magnify && ((mode & 0x02) == 0)))
-    {
-        s >>= ilod + 8;
-        t >>= ilod + 8;
+    if ((mode & 0x40) != 0)
+        s = CLAMP(s, 0, smax);
 
-        if ((mode & 0x40) != 0)
-            s = CLAMP(s, 0, smax);
+    if ((mode & 0x80) != 0)
+        t = CLAMP(t, 0, tmax);
 
-        if ((mode & 0x80) != 0)
-            t = CLAMP(t, 0, tmax);
+    u32 index = (u32)((t & tmax) * (smax + 1) + (s & smax));
+    return ReadTexel(texture.lookup, memory, texture.lod_offset[ilod], index, texture.format);
+}
 
-        u32 index = (u32)((t & tmax) * (smax + 1) + (s & smax));
-
-        if (!wide)
-            return lookup[memory[(base + index) & (VOODOO_TREX_MEMORY_SIZE - 1)]];
-
-        u32 address = (base + index * 2) & (VOODOO_TREX_MEMORY_SIZE - 2);
-        u32 texel = memory[address] | ((u32)memory[address + 1] << 8);
-
-        if (!split)
-            return lookup[texel];
-
-        return (lookup[texel & 0xFF] & 0x00FFFFFF) | ((texel & 0xFF00) << 16);
-    }
-
+INLINE u32 VoodooTrex::SampleBilinear(const VoodooTrex_Texture& texture, const u8* memory, s32 s, s32 t, s32 ilod)
+{
+    u32 mode = texture.texture_mode;
+    s32 smax = (s32)(texture.width_mask >> ilod);
+    s32 tmax = (s32)(texture.height_mask >> ilod);
     s >>= ilod;
     t >>= ilod;
     s -= 0x80;
@@ -198,31 +206,64 @@ INLINE u32 VoodooTrex::FetchTexel(const VoodooTrex_Texture& texture, const u8* m
     t = (t & tmax) * (smax + 1);
     t1 = (t1 & tmax) * (smax + 1);
 
-    u32 texels[4];
-    u32 indexes[4] = { (u32)(t + s), (u32)(t + s1), (u32)(t1 + s), (u32)(t1 + s1) };
+    u32 base = texture.lod_offset[ilod];
+    const u32* lookup = texture.lookup;
+    u32 format = texture.format;
+    u32 texel0 = ReadTexel(lookup, memory, base, (u32)(t + s), format);
+    u32 texel1 = ReadTexel(lookup, memory, base, (u32)(t + s1), format);
+    u32 texel2 = ReadTexel(lookup, memory, base, (u32)(t1 + s), format);
+    u32 texel3 = ReadTexel(lookup, memory, base, (u32)(t1 + s1), format);
 
-    for (int i = 0; i < 4; i++)
-    {
-        if (!wide)
-            texels[i] = lookup[memory[(base + indexes[i]) & (VOODOO_TREX_MEMORY_SIZE - 1)]];
-        else
-        {
-            u32 address = (base + indexes[i] * 2) & (VOODOO_TREX_MEMORY_SIZE - 2);
-            u32 texel = memory[address] | ((u32)memory[address + 1] << 8);
-            texels[i] = !split ? lookup[texel] : (lookup[texel & 0xFF] & 0x00FFFFFF) | ((texel & 0xFF00) << 16);
-        }
-    }
-
-    u32 rb0 = (texels[0] & 0x00FF00FF) + ((((texels[1] & 0x00FF00FF) - (texels[0] & 0x00FF00FF)) * sfrac) >> 8);
-    u32 rb1 = (texels[2] & 0x00FF00FF) + ((((texels[3] & 0x00FF00FF) - (texels[2] & 0x00FF00FF)) * sfrac) >> 8);
-    u32 ag0 = ((texels[0] >> 8) & 0x00FF00FF) +
-        (((((texels[1] >> 8) & 0x00FF00FF) - ((texels[0] >> 8) & 0x00FF00FF)) * sfrac) >> 8);
-    u32 ag1 = ((texels[2] >> 8) & 0x00FF00FF) +
-        (((((texels[3] >> 8) & 0x00FF00FF) - ((texels[2] >> 8) & 0x00FF00FF)) * sfrac) >> 8);
+    u32 rb0 = (texel0 & 0x00FF00FF) + ((((texel1 & 0x00FF00FF) - (texel0 & 0x00FF00FF)) * sfrac) >> 8);
+    u32 rb1 = (texel2 & 0x00FF00FF) + ((((texel3 & 0x00FF00FF) - (texel2 & 0x00FF00FF)) * sfrac) >> 8);
+    u32 ag0 = ((texel0 >> 8) & 0x00FF00FF) +
+        (((((texel1 >> 8) & 0x00FF00FF) - ((texel0 >> 8) & 0x00FF00FF)) * sfrac) >> 8);
+    u32 ag1 = ((texel2 >> 8) & 0x00FF00FF) +
+        (((((texel3 >> 8) & 0x00FF00FF) - ((texel2 >> 8) & 0x00FF00FF)) * sfrac) >> 8);
     rb0 = (rb0 & 0x00FF00FF) + ((((rb1 & 0x00FF00FF) - (rb0 & 0x00FF00FF)) * tfrac) >> 8);
     ag0 = (ag0 & 0x00FF00FF) + ((((ag1 & 0x00FF00FF) - (ag0 & 0x00FF00FF)) * tfrac) >> 8);
 
     return ((ag0 << 8) & 0xFF00FF00) | (rb0 & 0x00FF00FF);
+}
+
+INLINE s32 VoodooTrex::GetMipLevel(const VoodooTrex_Texture& texture, s32 lod)
+{
+    s32 ilod = lod >> 8;
+    ilod += (s32)((~texture.lod_mask >> ilod) & 1);
+    return MIN(ilod, VOODOO_TREX_LODS - 1);
+}
+
+INLINE u32 VoodooTrex::FetchTexel(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert,
+    double iterw, s32 lod_base, u32 dither, s32& lod)
+{
+    s32 s;
+    s32 t;
+    GetCoordinates(texture, iters, itert, iterw, lod_base, dither, s, t, lod);
+
+    s32 ilod = GetMipLevel(texture, lod);
+    u32 mode = texture.texture_mode;
+    bool magnify = lod == texture.lod_min;
+
+    if ((magnify && ((mode & 0x04) == 0)) || (!magnify && ((mode & 0x02) == 0)))
+        return SamplePoint(texture, memory, s, t, ilod);
+
+    return SampleBilinear(texture, memory, s, t, ilod);
+}
+
+template<bool bilinear>
+INLINE u32 VoodooTrex::FetchFiltered(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert,
+    double iterw, s32 lod_base, u32 dither, s32& lod)
+{
+    s32 s;
+    s32 t;
+    GetCoordinates(texture, iters, itert, iterw, lod_base, dither, s, t, lod);
+
+    s32 ilod = GetMipLevel(texture, lod);
+
+    if (bilinear)
+        return SampleBilinear(texture, memory, s, t, ilod);
+
+    return SamplePoint(texture, memory, s, t, ilod);
 }
 
 INLINE u32 VoodooTrex::Combine(const VoodooTrex_Texture& texture, u32 local, u32 other, s32 lod)
