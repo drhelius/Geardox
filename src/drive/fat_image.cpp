@@ -1222,6 +1222,58 @@ void FatImage::LeaveOutReserved(const std::vector<std::string>& reserved)
     }
 }
 
+bool FatImage::HasFile(const char* path) const
+{
+    u32 directory = 0;
+    std::string rest;
+
+    if (!FindParent(path, &directory, &rest))
+        return false;
+
+    int found = FindChild(directory, rest);
+    return (found >= 0) && !m_entries[found].directory;
+}
+
+bool FatImage::GetFile(const char* path, std::string* data)
+{
+    u32 directory = 0;
+    std::string rest;
+
+    if (!FindParent(path, &directory, &rest))
+        return false;
+
+    int found = FindChild(directory, rest);
+    return (found >= 0) && !m_entries[found].directory && ReadEntry(m_entries[found], data);
+}
+
+void FatImage::LeaveOutMatching(const char* name, bool (*match)(const std::string& data))
+{
+    LeaveOutMatching(0, upper(name), match);
+}
+
+void FatImage::LeaveOutMatching(u32 directory, const std::string& name, bool (*match)(const std::string& data))
+{
+    for (size_t i = m_entries[directory].children.size(); i > 0; i--)
+    {
+        u32 child = m_entries[directory].children[i - 1];
+        FatImage_Entry& entry = m_entries[child];
+
+        if (entry.directory)
+        {
+            LeaveOutMatching(child, name, match);
+            continue;
+        }
+
+        std::string data;
+
+        if ((upper(entry.name) == name) && ReadEntry(entry, &data) && match(data))
+        {
+            m_left_out++;
+            RemoveChild(directory, child);
+        }
+    }
+}
+
 bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attributes)
 {
     u32 directory = 0;

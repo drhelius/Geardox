@@ -143,6 +143,9 @@ public:
         const std::vector<std::string>& pinned, bool shsucdx);
     bool AddUltraSound(const u8* zip, size_t size);
     bool AddMemoryFile(const char* path, const std::string& data, u8 attributes);
+    bool HasFile(const char* path) const;
+    bool GetFile(const char* path, std::string* data);
+    void LeaveOutMatching(const char* name, bool (*match)(const std::string& data));
     bool PatchFile(const char* path, u64 offset, const std::string& before, const std::string& after);
     void FinishGame(const char* label, u64 free_size, const u8* boot_sector);
     const FatImage_Entry& GetEntry(u32 index) const;
@@ -167,6 +170,7 @@ private:
     void RemoveChild(u32 directory, u32 index);
     bool WalkOverlay(const std::string& path, u32 directory, int depth);
     void LeaveOutReserved(const std::vector<std::string>& reserved);
+    void LeaveOutMatching(u32 directory, const std::string& name, bool (*match)(const std::string& data));
     bool AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directory, const char* target);
     bool AddDosTool(u32 directory, const char* name, const u8* data, u32 size);
     void PinEntries();

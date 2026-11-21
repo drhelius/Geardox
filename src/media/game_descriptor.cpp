@@ -75,6 +75,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "machine", "drive_timing", DESCRIPTOR_CHOICE, "real,fast", 0, 0 },
     { "machine", "video", DESCRIPTOR_VIDEO, NULL, 0, 0 },
     { "machine", "cga_output", DESCRIPTOR_CHOICE, "auto,rgb,composite", 0, 0 },
+    { "machine", "voodoo", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
     { "sound", "card", DESCRIPTOR_SOUND, NULL, 0, 0 },
     { "sound", "irq", DESCRIPTOR_CHOICE, "5,7", 0, 0 },
     { "sound", "dma", DESCRIPTOR_CHOICE, "1,3", 0, 0 },
@@ -122,6 +123,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "drives", "cdrom", DESCRIPTOR_LIST, NULL, 0, 0 },
     { "drives", "cdrom_label", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "exe", DESCRIPTOR_PATH, NULL, 0, 0 },
+    { "run", "voodoo_exe", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "args", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "cwd", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "setup", DESCRIPTOR_TEXT, NULL, 0, 0 },
@@ -953,6 +955,9 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
     if (Has("sound", "gus"))
         settings->gus = Get("sound", "gus") == "on" ? 1 : 0;
 
+    if (Has("machine", "voodoo"))
+        settings->voodoo = Get("machine", "voodoo") == "on" ? 1 : 0;
+
     for (int i = 0; Has("input", "mouse") && (i < GDOX_MOUSE_TYPE_COUNT); i++)
     {
         if (Get("input", "mouse") == k_mice[i].id)
@@ -1083,6 +1088,7 @@ void GameDescriptor::Build()
     split_list(Get("drives", "cdrom"), &info.cds);
     info.cdrom_label = Get("drives", "cdrom_label");
     info.exe = Get("run", "exe");
+    info.voodoo_exe = Get("run", "voodoo_exe");
     info.args = Get("run", "args");
     info.cwd = Get("run", "cwd");
     info.setup = Get("run", "setup");

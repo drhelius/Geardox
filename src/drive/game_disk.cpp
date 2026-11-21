@@ -24,6 +24,7 @@
 #include <map>
 #include "game_disk.h"
 #include "freedos.h"
+#include "glide_import.h"
 #include "iso_image.h"
 #include "../cdrom/cdrom_media.h"
 #include "../media/game_database.h"
@@ -47,6 +48,7 @@ static bool game_disk_database = true;
 static const char k_game_disk_conflicts[] = ".conflicts";
 static const char k_game_disk_config_sys[] = "CONFIG.SYS";
 static const char k_game_disk_autoexec[] = "AUTOEXEC.BAT";
+static const char k_game_disk_glide[] = "GLIDE2X.OVL";
 static const u32 k_game_disk_startup_lines = 8;
 
 // The names of C:'s root the system owns: a game's entry with one is left out, and DOS's writes there never go back
@@ -429,6 +431,8 @@ GameDisk::GameDisk()
     m_msdos.cache = false;
     m_msdos.crc = 0;
     m_ultrasnd_loaded = false;
+    m_glide_loaded = false;
+    m_voodoo_exe = false;
     m_ultrasnd.patches = 0;
     m_ultrasnd.crc = 0;
     m_left_out = 0;
@@ -667,12 +671,13 @@ bool GameDisk::IsGameContent(const char* path)
 }
 
 bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory,
-    bool write_to_folder, const char* msdos_path, const char* ultrasnd_path)
+    bool write_to_folder, const char* msdos_path, const char* ultrasnd_path, const char* glide_path)
 {
     Close();
     m_error.clear();
     m_msdos_path = (IsValidPointer(msdos_path) && exists(msdos_path)) ? std::string(msdos_path) : std::string();
     m_ultrasnd_path = (IsValidPointer(ultrasnd_path) && exists(ultrasnd_path)) ? std::string(ultrasnd_path) : std::string();
+    m_glide_path = (IsValidPointer(glide_path) && exists(glide_path)) ? std::string(glide_path) : std::string();
     m_descriptor_path = found.path;
     m_save_directory = IsValidPointer(save_directory) ? trim_trailing(save_directory) : std::string();
 
@@ -839,6 +844,11 @@ void GameDisk::Close()
     m_ultrasnd.zip.clear();
     m_ultrasnd.name.clear();
     m_ultrasnd_loaded = false;
+    m_glide_path.clear();
+    m_glide.clear();
+    m_glide_name.clear();
+    m_glide_loaded = false;
+    m_voodoo_exe = false;
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         m_hard_disks[i].clear();
@@ -962,6 +972,61 @@ bool GameDisk::HasCDExtension() const
 }
 
 // The user's import is read once a session, and refused whole if it doesn't add up
+bool GameDisk::UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine)
+{
+    const GDOX_Game_Info& info = m_descriptor.GetInfo();
+
+    if (!machine.voodoo || info.voodoo_exe.empty())
+        return false;
+
+    std::string program = slashes(info.voodoo_exe);
+    size_t space = program.find(' ');
+
+    if (space != std::string::npos)
+        program = program.substr(0, space);
+
+    if ((program.size() > 1) && (program[1] == ':') && (toupper((unsigned char)program[0]) != 'C'))
+        return true;
+
+    std::string path = (program.size() > 1) && (program[1] == ':') ? collapse(program.substr(2)) :
+        collapse(slashes(info.folder) + "/" + program);
+    std::string data;
+
+    if (!image->GetFile(path.c_str(), &data))
+    {
+        Log("%s: %s isn't in the game, %s runs instead", info.name.c_str(), info.voodoo_exe.c_str(), info.exe.c_str());
+        return false;
+    }
+
+    if (!GlideImport::ImportsOverlay(data) || LoadGlide())
+        return true;
+
+    size_t slash = path.find_last_of('/');
+    std::string folder = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
+    std::string overlay;
+
+    if ((image->GetFile((folder + k_game_disk_glide).c_str(), &overlay) && GlideImport::IsOverlay(overlay)) ||
+        (image->GetFile(k_game_disk_glide, &overlay) && GlideImport::IsOverlay(overlay)))
+        return true;
+
+    Log("%s: %s needs GLIDE2X.OVL from the 3Dfx DOS driver, import it in Video > 3Dfx Voodoo Driver; %s runs instead",
+        info.name.c_str(), info.voodoo_exe.c_str(), info.exe.c_str());
+    return false;
+}
+
+bool GameDisk::LoadGlide()
+{
+    if (m_glide_loaded)
+        return !m_glide.empty();
+
+    m_glide_loaded = true;
+
+    if (!m_glide_path.empty() && !GlideImport::Load(m_glide_path.c_str(), &m_glide, &m_glide_name))
+        Log("%s is not a GLIDE2X.OVL Geardox uses", m_glide_path.c_str());
+
+    return !m_glide.empty();
+}
+
 bool GameDisk::LoadUltraSound()
 {
     if (m_ultrasnd_loaded)
@@ -1340,6 +1405,9 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
         out += line;
     }
 
+    if (machine.voodoo)
+        out += "SET PATH=%PATH%;C:\\\r\n";
+
     out += "PROMPT $P$G\r\n";
 
     // KEYB with the VGA's code page 437, from MS-DOS's HELP KEYB and FreeDOS's KEYB documents
@@ -1376,9 +1444,11 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
 
     out += "GDXRUN\r\nIF ERRORLEVEL 3 GOTO DEBUG\r\nIF ERRORLEVEL 2 GOTO PROMPT\r\nIF ERRORLEVEL 1 GOTO SETUP\r\n";
 
-    if (!info.exe.empty())
+    const std::string& exe = machine.voodoo && m_voodoo_exe ? info.voodoo_exe : info.exe;
+
+    if (!exe.empty())
     {
-        add_run(&out, info.folder, info.exe, info.cwd, info.args);
+        add_run(&out, info.folder, exe, info.cwd, info.args);
 
         if (info.exit == GDOX_GAME_EXIT_POWEROFF)
             out += "POWEROFF\r\n";
@@ -1570,7 +1640,6 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
         return Fail("The game's folder, C:\\%s, is the system's: give it another folder in [game]", info.folder.c_str());
 
     system->config_sys = GetConfigSys(machine);
-    system->autoexec = GetBatch(machine);
 
     if (!image->AddGame(m_source.c_str(), info.folder.c_str(), m_zip_prefix.c_str()))
         return Fail("Unable to read the game's files: %s", m_source.c_str());
@@ -1598,6 +1667,17 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
 
     if (machine.gus && LoadUltraSound() && !image->AddUltraSound((const u8*)m_ultrasnd.zip.data(), m_ultrasnd.zip.size()))
         return Fail("Unable to add %s to the game's disk", m_ultrasnd.name.c_str());
+
+    if (machine.voodoo)
+    {
+        image->LeaveOutMatching(k_game_disk_glide, GlideImport::IsStub);
+
+        if (LoadGlide() && !image->HasFile(k_game_disk_glide) && !image->AddMemoryFile(k_game_disk_glide, m_glide, attributes))
+            return Fail("Unable to add %s to the game's disk", m_glide_name.c_str());
+    }
+
+    m_voodoo_exe = UseVoodooExe(image, machine);
+    system->autoexec = GetBatch(machine);
 
     if (!image->AddMemoryFile(k_game_disk_config_sys, system->config_sys, attributes) ||
         !image->AddMemoryFile(k_game_disk_autoexec, system->autoexec, attributes))

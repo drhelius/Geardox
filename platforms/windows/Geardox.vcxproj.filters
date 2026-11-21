@@ -409,6 +409,9 @@
     <ClCompile Include="..\..\src\drive\gus_import.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\glide_import.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\drive\game_disk.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -856,6 +859,7 @@
     <ClInclude Include="..\..\src\drive\dos_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\dos_import.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\gus_import.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\glide_import.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fdc.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\game_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\ide_controller.h"><Filter>src</Filter></ClInclude>

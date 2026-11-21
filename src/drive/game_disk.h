@@ -85,7 +85,7 @@ public:
     static bool IsDatabaseEnabled();
     static std::string GetFoundName(const GameDisk_Found& found);
     bool Open(const GameDisk_Found& found, const char* save_directory, const char* overrides_directory, bool write_to_folder,
-        const char* msdos_path, const char* ultrasnd_path);
+        const char* msdos_path, const char* ultrasnd_path, const char* glide_path = NULL);
     void Close();
     bool IsOpen() const;
     bool SaveOverrides(const GameDescriptor& overrides);
@@ -139,6 +139,8 @@ private:
     bool HasCDExtension() const;
     bool LoadSystem();
     bool LoadUltraSound();
+    bool LoadGlide();
+    bool UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine);
     bool IsGamePath(const std::string& dos_path) const;
     bool Assemble(FatImage* image, const GDOX_Machine_Config& machine, GameDisk_Manifest_System* system);
     bool ResolveMedia(const std::string& value, std::string* path);
@@ -188,6 +190,11 @@ private:
     bool m_msdos_loaded;
     GusImport_Software m_ultrasnd;
     bool m_ultrasnd_loaded;
+    std::string m_glide_path;
+    std::string m_glide;
+    std::string m_glide_name;
+    bool m_glide_loaded;
+    bool m_voodoo_exe;
     bool m_write_overlay;
     bool m_folder_read_only;
     bool m_built;

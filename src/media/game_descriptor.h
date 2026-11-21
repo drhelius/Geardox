@@ -115,6 +115,7 @@ struct GDOX_Game_Info
     std::vector<std::string> cds;
     std::string cdrom_label;
     std::string exe;
+    std::string voodoo_exe;
     std::string args;
     std::string cwd;
     std::string setup;
