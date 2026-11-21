@@ -325,6 +325,9 @@ endif
 
 ifneq (,$(filter unix osx win,$(platform)))
 	PLATFORM_FLAGS += -DGDOX_ENABLE_CDROM_CUEBIN_READAHEAD
+endif
+
+ifneq (,$(filter unix% osx% win% ios% tvos% classic_armv7_a7,$(platform)))
 	PLATFORM_FLAGS += -DGDOX_ENABLE_VOODOO_THREAD
 endif
 
