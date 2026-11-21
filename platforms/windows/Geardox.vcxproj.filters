@@ -451,6 +451,18 @@
     <ClCompile Include="..\..\src\video\video_render.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\video\voodoo.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\voodoo_dac.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\voodoo_raster.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\video\voodoo_trex.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\video\video_blt.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -865,6 +877,13 @@
     <ClInclude Include="..\..\src\system\i8254_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo_inline.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo_regs.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo_dac.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo_raster.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo_trex.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\video\voodoo_trex_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\mc6845.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\mc6845_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\memory.h"><Filter>src</Filter></ClInclude>

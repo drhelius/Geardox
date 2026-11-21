@@ -62,6 +62,7 @@
 #include "system/parallel_port.h"
 #include "system/machine_profiles.h"
 #include "video/video.h"
+#include "video/voodoo.h"
 #include "osd/key_mapper.h"
 
 GeardoxCore::GeardoxCore()
@@ -1814,7 +1815,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.mouse == machine_config.mouse) &&
         (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed) &&
         (m_machine_config.drive_timing == machine_config.drive_timing) &&
-        (m_machine_config.video_card == machine_config.video_card);
+        (m_machine_config.video_card == machine_config.video_card) && (m_machine_config.voodoo == machine_config.voodoo);
 
     if (!same_machine)
     {
@@ -2082,6 +2083,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.cdrom_speed);
     G_SERIALIZE(serializer, config.video_card);
     G_SERIALIZE(serializer, config.drive_timing);
+    G_SERIALIZE(serializer, config.voodoo);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -2132,6 +2134,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.sound_dma = config.sound_dma == k_sound_card_dmas[1] ? k_sound_card_dmas[1] : k_sound_card_dmas[0];
     config.mpu = config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : (u8)GDOX_MPU_INTELLIGENT;
     config.gus = config.gus != 0 ? 1 : 0;
+    config.voodoo = (config.voodoo != 0) && ((profile.features & GDOX_MACHINE_FEATURE_PCI) != 0) ? 1 : 0;
     config.mouse = config.mouse < GDOX_MOUSE_TYPE_COUNT ? config.mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = config.cdrom < GDOX_CDROM_POSITION_COUNT ? config.cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
@@ -2433,6 +2436,8 @@ void GeardoxCore::ResolveMachineConfig()
     int mpu = pick_setting(game.mpu, user.mpu, -1, &source);
     config.mpu = (mpu >= 0) && (mpu < GDOX_MPU_MODE_COUNT) ? (u8)mpu : (u8)GDOX_MPU_INTELLIGENT;
     config.gus = pick_setting(game.gus, user.gus, -1, &source) > 0 ? 1 : 0;
+    int voodoo = pick_setting(game.voodoo, user.voodoo, -1, &source);
+    config.voodoo = voodoo > 0 ? 1 : 0;
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
@@ -2469,6 +2474,10 @@ void GeardoxCore::ResolveMachineConfig()
 
     if ((video_card == GDOX_VIDEO_CARD_GD5446) && (config.video_card != GDOX_VIDEO_CARD_GD5446))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE, "This machine has no PCI slot");
+
+    if ((voodoo > 0) && (config.voodoo == 0))
+        snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+            "This machine has no PCI slot for the 3Dfx Voodoo");
 
     if ((report.ram == GDOX_MACHINE_SOURCE_GAME) && ((u32)ram_mb * megabyte != config.ram_size))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
@@ -2556,7 +2565,10 @@ void GeardoxCore::ApplyMachineConfig()
     }
 
     if (IsValidPointer(m_video))
+    {
         m_video->SetCard(m_machine_config.video_card);
+        m_video->SetVoodoo(m_machine_config.voodoo != 0);
+    }
 
     if (IsValidPointer(m_pci_bus))
     {
@@ -2568,6 +2580,9 @@ void GeardoxCore::ApplyMachineConfig()
         m_pci_bus->SetEnabled(HasPCIBus());
         m_pci_bus->RegisterDevice(k_pci_device_slot, pci_video ? m_video : NULL, pci_video ? &Video::ReadConfigCallback : NULL,
             pci_video ? &Video::WriteConfigCallback : NULL);
+        bool voodoo = m_machine_config.voodoo != 0;
+        m_pci_bus->RegisterDevice(k_pci_device_voodoo, voodoo ? m_video->GetVoodoo() : NULL,
+            voodoo ? &Voodoo::ReadConfigCallback : NULL, voodoo ? &Voodoo::WriteConfigCallback : NULL);
         m_piix->SetEnabled(HasPCIBus());
         m_system_control->SetPageControl(HasPCIBus());
     }
@@ -2781,6 +2796,20 @@ void GeardoxCore::InitMemoryMap()
     if (!m_memory->RegisterDebugRegion(GDOX_DEBUG_REGION_CMOS, "CMOS RAM", cmos, cmos, GDOX_CMOS_SIZE, 0,
         GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE))
         Error("Unable to register CMOS RAM");
+
+    if (m_video->HasVoodoo())
+    {
+        Voodoo* voodoo = m_video->GetVoodoo();
+
+        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VOODOO, "3Dfx Voodoo", k_voodoo_window_size, 0,
+            GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_MMIO, voodoo,
+            Voodoo::ReadCallback, Voodoo::WriteCallback, Voodoo::PeekCallback) ||
+            !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VOODOO, Voodoo::Write16Callback, Voodoo::Write32Callback) ||
+            !m_memory->SetRegionWideReadHandlers(GDOX_DEBUG_REGION_VOODOO, Voodoo::Read16Callback, Voodoo::Read32Callback))
+            Error("Unable to register the Voodoo window");
+
+        voodoo->UpdateWindow();
+    }
 
     m_video->UpdateVRAMMapping();
 }

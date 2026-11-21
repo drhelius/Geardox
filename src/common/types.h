@@ -630,6 +630,7 @@ struct GDOX_Machine_Config
     u8 cdrom_speed;
     u8 video_card;
     u8 drive_timing;
+    u8 voodoo;
 };
 
 enum GDOX_Sound_Card
@@ -740,6 +741,7 @@ struct GDOX_Machine_Settings
     int cdrom_speed;
     int video_card;
     int drive_timing;
+    int voodoo;
 };
 
 struct GDOX_Machine_Report

@@ -325,6 +325,7 @@ endif
 
 ifneq (,$(filter unix osx win,$(platform)))
 	PLATFORM_FLAGS += -DGDOX_ENABLE_CDROM_CUEBIN_READAHEAD
+	PLATFORM_FLAGS += -DGDOX_ENABLE_VOODOO_THREAD
 endif
 
 # The dynarec needs a GNU lightning backend and executable memory, src/i386/dynarec_platform.h lists the providers

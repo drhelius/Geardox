@@ -255,6 +255,10 @@ SOURCES_CXX := \
     $(SRC_DIR)/video/video.cpp \
     $(SRC_DIR)/video/video_memory.cpp \
     $(SRC_DIR)/video/video_render.cpp \
+    $(SRC_DIR)/video/voodoo.cpp \
+    $(SRC_DIR)/video/voodoo_dac.cpp \
+    $(SRC_DIR)/video/voodoo_raster.cpp \
+    $(SRC_DIR)/video/voodoo_trex.cpp \
     $(SRC_DIR)/video/video_blt.cpp \
     $(SRC_DIR)/video/video_cga.cpp \
     $(SRC_DIR)/video/mc6845.cpp \

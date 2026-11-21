@@ -43,6 +43,7 @@
 #define VIDEO_BLT_BUFFER_SIZE 0x2010
 
 class MC6845;
+class Voodoo;
 class Memory;
 class PIC;
 class TraceLogger;
@@ -151,6 +152,13 @@ public:
     void Init(PIC* pic, Scheduler* scheduler, Memory* memory);
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCard(int card);
+    void SetVoodoo(bool enabled);
+    bool HasVoodoo() const;
+    bool IsVoodooShown() const;
+    Voodoo* GetVoodoo();
+    void ScheduleEvent();
+    void UpdateVoodooOutput();
+    void CompleteVoodooFrame();
     void Reset();
     bool Decodes(u16 port) const;
     u8 Read(u16 port, u64 clocks);
@@ -430,6 +438,10 @@ private:
     Scheduler* m_scheduler;
     Memory* m_memory;
     u8* m_frame_buffer;
+    Voodoo* m_voodoo;
+    bool m_voodoo_enabled;
+    bool m_voodoo_shown;
+    bool m_render_requested;
     bool m_render;
     bool m_frame_ready;
     u64 m_next_event_clocks;

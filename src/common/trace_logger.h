@@ -50,6 +50,7 @@ enum GDOX_Trace_Type : u8
     TRACE_PARALLEL,
     TRACE_SYSTEM,
     TRACE_GUS,
+    TRACE_VOODOO,
     TRACE_MARK,
     TRACE_TYPE_COUNT
 };
@@ -76,6 +77,7 @@ static_assert(TRACE_TYPE_COUNT < 32, "Trace category flags exceed 32 bits");
 #define TRACE_FLAG_PARALLEL         (1U << TRACE_PARALLEL)
 #define TRACE_FLAG_SYSTEM           (1U << TRACE_SYSTEM)
 #define TRACE_FLAG_GUS              (1U << TRACE_GUS)
+#define TRACE_FLAG_VOODOO           (1U << TRACE_VOODOO)
 #define TRACE_FLAG_MARK             (1U << TRACE_MARK)
 
 #define TRACE_ENTRY_NEXT_PC         0x0001
@@ -366,6 +368,29 @@ enum GDOX_Trace_GUS_Event : u8
 #define TRACE_GUS_EVENT_LATCHES   (1U << TRACE_GUS_LATCH)
 #define TRACE_GUS_EVENT_ALL       (TRACE_GUS_EVENT_REGISTERS | TRACE_GUS_EVENT_IRQS | TRACE_GUS_EVENT_DMA | \
     TRACE_GUS_EVENT_LATCHES)
+
+enum GDOX_Trace_Voodoo_Event : u8
+{
+    TRACE_VOODOO_COMMAND = 0,
+    TRACE_VOODOO_CULLED,
+    TRACE_VOODOO_OVERFLOW,
+    TRACE_VOODOO_LFB_READ
+};
+
+enum GDOX_Trace_Voodoo_Command : u8
+{
+    TRACE_VOODOO_TRIANGLE = 0,
+    TRACE_VOODOO_FAST_FILL,
+    TRACE_VOODOO_SWAP,
+    TRACE_VOODOO_NOP
+};
+
+#define TRACE_VOODOO_EVENT_COMMANDS  (1U << TRACE_VOODOO_COMMAND)
+#define TRACE_VOODOO_EVENT_CULLED    (1U << TRACE_VOODOO_CULLED)
+#define TRACE_VOODOO_EVENT_OVERFLOWS (1U << TRACE_VOODOO_OVERFLOW)
+#define TRACE_VOODOO_EVENT_LFB_READS (1U << TRACE_VOODOO_LFB_READ)
+#define TRACE_VOODOO_EVENT_ALL       (TRACE_VOODOO_EVENT_COMMANDS | TRACE_VOODOO_EVENT_CULLED | \
+    TRACE_VOODOO_EVENT_OVERFLOWS | TRACE_VOODOO_EVENT_LFB_READS)
 
 enum GDOX_Trace_MIDI_Event : u8
 {
@@ -907,6 +932,16 @@ struct GDOX_Trace_Entry
             u8 index;
             u8 voice;
         } gus;
+
+        struct
+        {
+            u32 value;
+            u32 data;
+            u32 pixels;
+            u32 queued;
+            u8 command;
+            u8 buffer;
+        } voodoo;
 
         struct
         {

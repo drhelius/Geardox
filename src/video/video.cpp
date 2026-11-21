@@ -19,6 +19,7 @@
 
 #include "video.h"
 #include "mc6845.h"
+#include "voodoo.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
 #include "../system/memory.h"
@@ -35,6 +36,10 @@ Video::Video()
     InitPointer(m_scheduler);
     InitPointer(m_memory);
     InitPointer(m_frame_buffer);
+    InitPointer(m_voodoo);
+    m_voodoo_enabled = false;
+    m_voodoo_shown = false;
+    m_render_requested = false;
     m_render = false;
     m_frame_ready = false;
     m_next_event_clocks = GDOX_NO_EVENT;
@@ -155,11 +160,15 @@ Video::Video()
 Video::~Video()
 {
     SafeDelete(m_mc6845);
+    SafeDelete(m_voodoo);
 }
 
 void Video::SetTraceLogger(TraceLogger* trace_logger)
 {
     m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+
+    if (IsValidPointer(m_voodoo))
+        m_voodoo->SetTraceLogger(trace_logger);
 }
 
 void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
@@ -172,7 +181,18 @@ void Video::Init(PIC* pic, Scheduler* scheduler, Memory* memory)
         m_mc6845 = new MC6845();
 
     m_mc6845->Init();
+
+    if (!IsValidPointer(m_voodoo))
+        m_voodoo = new Voodoo();
+
+    m_voodoo->Init(this, scheduler, memory);
     Reset();
+}
+
+void Video::SetVoodoo(bool enabled)
+{
+    m_voodoo_enabled = enabled;
+    m_voodoo->SetEnabled(enabled);
 }
 
 // A card change takes effect at the next reset
@@ -232,13 +252,19 @@ void Video::Reset()
     UpdateMemoryAccess();
     UpdateAperture();
     UpdateIRQ();
+    m_voodoo_shown = false;
+
+    if (m_voodoo_enabled)
+        m_voodoo->Reset();
+
     StartFrame(m_scheduler->GetClocks());
 }
 
 void Video::BeginFrame(u8* frame_buffer, bool render)
 {
     m_frame_buffer = frame_buffer;
-    m_render = render;
+    m_render_requested = render;
+    m_render = render && !m_voodoo_shown;
     m_frame_ready = false;
     m_trace.status = m_trace_logger->IsEventEnabled(TRACE_VIDEO, TRACE_VIDEO_STATUS);
 
@@ -262,7 +288,7 @@ void Video::BeginFrame(u8* frame_buffer, bool render)
 
 void Video::EndFrame()
 {
-    if (m_frame_ready || m_state.running)
+    if (m_frame_ready || IsRunning())
         return;
 
     m_frame_width = GDOX_FRAME_BUFFER_WIDTH;
@@ -1238,11 +1264,15 @@ void Video::CompleteFrame()
 {
     bool blink = GetBlinkPhase();
 
-    m_frame_width = m_render_width;
-    m_frame_height = m_render_height;
-    m_display_width = m_canvas_width;
-    m_display_height = m_canvas_height;
-    m_frame_ready = true;
+    if (!m_voodoo_shown)
+    {
+        m_frame_width = m_render_width;
+        m_frame_height = m_render_height;
+        m_display_width = m_canvas_width;
+        m_display_height = m_canvas_height;
+        m_frame_ready = true;
+    }
+
     m_state.frame_count++;
 
     if (m_cga)
@@ -1276,7 +1306,7 @@ void Video::UpdateNextEvent()
         m_next_event_clocks = GDOX_NO_EVENT;
         m_edge_clocks = GDOX_NO_EVENT;
         m_vram_deadline = 0;
-        m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_edge_clocks);
+        ScheduleEvent();
         return;
     }
 
@@ -1309,7 +1339,36 @@ void Video::UpdateNextEvent()
 
     m_edge_clocks = GetLineClocks(edge);
     m_vram_deadline = 0;
-    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_edge_clocks);
+    ScheduleEvent();
+}
+
+void Video::ScheduleEvent()
+{
+    u64 clocks = m_edge_clocks;
+
+    if (m_voodoo_enabled)
+        clocks = MIN(clocks, m_voodoo->GetEventClocks());
+
+    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, clocks);
+}
+
+void Video::UpdateVoodooOutput()
+{
+    m_voodoo_shown = m_voodoo_enabled && m_voodoo->IsDisplayed();
+    m_render = m_render_requested && !m_voodoo_shown;
+}
+
+void Video::CompleteVoodooFrame()
+{
+    m_frame_width = m_voodoo->GetFrameWidth();
+    m_frame_height = m_voodoo->GetFrameHeight();
+    m_display_width = m_frame_width;
+    m_display_height = m_frame_height;
+
+    if (m_render_requested && IsValidPointer(m_frame_buffer))
+        m_voodoo->RenderFrame((u32*)m_frame_buffer);
+
+    m_frame_ready = true;
 }
 
 void Video::SetStartCycles(const u32* cycles)
@@ -1899,6 +1958,9 @@ void Video::SaveState(std::ostream& stream)
     StateSerializer serializer(stream);
     Serialize(serializer, GDOX_SAVESTATE_VERSION);
     m_mc6845->SaveState(stream);
+
+    if (m_voodoo_enabled)
+        m_voodoo->SaveState(stream);
 }
 
 void Video::LoadState(std::istream& stream, int version)
@@ -1906,6 +1968,10 @@ void Video::LoadState(std::istream& stream, int version)
     StateSerializer serializer(stream);
     Serialize(serializer, version);
     m_mc6845->LoadState(stream, version);
+
+    if (m_voodoo_enabled)
+        m_voodoo->LoadState(stream);
+
     SanitizeState();
 }
 
@@ -2103,4 +2169,5 @@ void Video::SanitizeState()
     UpdateMemoryAccess();
     UpdateVRAMMapping();
     UpdateAperture();
+    UpdateVoodooOutput();
 }

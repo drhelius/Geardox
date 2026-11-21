@@ -114,6 +114,10 @@
     <ClCompile Include="..\..\src\video\video.cpp" />
     <ClCompile Include="..\..\src\video\video_memory.cpp" />
     <ClCompile Include="..\..\src\video\video_render.cpp" />
+    <ClCompile Include="..\..\src\video\voodoo.cpp" />
+    <ClCompile Include="..\..\src\video\voodoo_dac.cpp" />
+    <ClCompile Include="..\..\src\video\voodoo_raster.cpp" />
+    <ClCompile Include="..\..\src\video\voodoo_trex.cpp" />
     <ClCompile Include="..\..\src\video\video_blt.cpp" />
     <ClCompile Include="..\..\src\video\video_cga.cpp" />
     <ClCompile Include="..\..\src\video\mc6845.cpp" />
@@ -666,6 +670,13 @@
     <ClInclude Include="..\..\src\system\i8254_inline.h" />
     <ClInclude Include="..\..\src\video\video.h" />
     <ClInclude Include="..\..\src\video\video_inline.h" />
+    <ClInclude Include="..\..\src\video\voodoo.h" />
+    <ClInclude Include="..\..\src\video\voodoo_inline.h" />
+    <ClInclude Include="..\..\src\video\voodoo_regs.h" />
+    <ClInclude Include="..\..\src\video\voodoo_dac.h" />
+    <ClInclude Include="..\..\src\video\voodoo_raster.h" />
+    <ClInclude Include="..\..\src\video\voodoo_trex.h" />
+    <ClInclude Include="..\..\src\video\voodoo_trex_inline.h" />
     <ClInclude Include="..\..\src\video\mc6845.h" />
     <ClInclude Include="..\..\src\video\mc6845_inline.h" />
     <ClInclude Include="..\..\src\media\firmware_inline.h" />
@@ -932,7 +943,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>MaxSpeed</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;GDOX_ENABLE_VOODOO_THREAD;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -977,7 +988,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>MaxSpeed</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;GDOX_ENABLE_VOODOO_THREAD;UNICODE;WIN32;WIN64;NDEBUG;_HAS_EXCEPTIONS=0;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -1021,7 +1032,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;GDOX_ENABLE_VOODOO_THREAD;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -1061,7 +1072,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;Z7_ST;GDOX_ENABLE_PHYSICAL_CDROM;GDOX_ENABLE_MIDI_PORT;GDOX_ENABLE_VOODOO_THREAD;DEBUG;UNICODE;WIN32;WIN64;EMULATOR_BUILD="$(EmulatorBuild)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessToFile>false</PreprocessToFile>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>

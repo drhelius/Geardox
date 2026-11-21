@@ -22,6 +22,7 @@
 
 #include "video.h"
 #include "mc6845.h"
+#include "voodoo.h"
 #include "../system/scheduler.h"
 
 INLINE void Video::Synchronize(u64 clocks)
@@ -33,7 +34,11 @@ INLINE void Video::Synchronize(u64 clocks)
 INLINE void Video::HandleEvent(u64 clocks)
 {
     Synchronize(clocks);
-    m_scheduler->Schedule(SCHEDULER_EVENT_VIDEO, m_edge_clocks);
+
+    if (m_voodoo_enabled)
+        m_voodoo->HandleEvent(clocks);
+
+    ScheduleEvent();
 }
 
 INLINE void Video::SynchronizeVRAM()
@@ -67,7 +72,22 @@ INLINE bool Video::IsFrameReady() const
 
 INLINE bool Video::IsRunning() const
 {
-    return m_state.running;
+    return m_state.running || m_voodoo_shown;
+}
+
+INLINE bool Video::HasVoodoo() const
+{
+    return m_voodoo_enabled;
+}
+
+INLINE bool Video::IsVoodooShown() const
+{
+    return m_voodoo_shown;
+}
+
+INLINE Voodoo* Video::GetVoodoo()
+{
+    return m_voodoo;
 }
 
 INLINE int Video::GetFrameWidth() const
@@ -103,6 +123,9 @@ INLINE u32 Video::GetCGABorderColor() const
 // Milliseconds between vertical retraces with the timing latched at the start of the frame
 INLINE float Video::GetFrameTime() const
 {
+    if (m_voodoo_shown)
+        return m_voodoo->GetFrameTime();
+
     if (!m_state.running)
         return 1000.0f / GDOX_VIDEO_FRAME_RATE;
 

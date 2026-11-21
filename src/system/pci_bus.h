@@ -84,5 +84,6 @@ static const int k_pci_bus_last_device = 20;
 static const int k_pci_device_host_bridge = 0;
 static const int k_pci_device_piix = 7;
 static const int k_pci_device_slot = 8;
+static const int k_pci_device_voodoo = 9;
 
 #endif /* PCI_BUS_H */

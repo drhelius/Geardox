@@ -89,6 +89,7 @@ endif
 
 CPPFLAGS += $(INCLUDES)
 CPPFLAGS += -Wall -Wextra -Wformat -fno-exceptions -DEMULATOR_BUILD=\"$(GIT_VERSION)\" -DZ7_ST -DZSTD_DISABLE_ASM
+CPPFLAGS += -DGDOX_ENABLE_VOODOO_THREAD
 
 $(DEPS_DIR)/%.o: CPPFLAGS += -w
 
@@ -109,6 +110,11 @@ endif
 REWIND_CHECK ?= 0
 ifeq ($(REWIND_CHECK), 1)
     CPPFLAGS += -DREWIND_CHECK
+endif
+
+VOODOO_CHECK ?= 0
+ifeq ($(VOODOO_CHECK), 1)
+    CPPFLAGS += -DGDOX_VOODOO_CHECK
 endif
 
 SANITIZE ?= 0
@@ -140,8 +146,8 @@ else ifeq ($(UNAME_S), Darwin)
     TARGET := $(TARGET_NAME)
 else
     PLATFORM = "Generic Unix-like/BSD"
-    LDFLAGS += -lGL `pkg-config --libs sdl3`
-    CXXFLAGS += -std=gnu++11
+    LDFLAGS += -lGL -pthread `pkg-config --libs sdl3`
+    CXXFLAGS += -std=gnu++11 -pthread
     CPPFLAGS += `pkg-config --cflags sdl3`
     TARGET := $(TARGET_NAME)
 endif

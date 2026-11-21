@@ -118,6 +118,10 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/video/video.cpp \
                 $(SOURCE_DIR)/video/video_memory.cpp \
                 $(SOURCE_DIR)/video/video_render.cpp \
+                $(SOURCE_DIR)/video/voodoo.cpp \
+                $(SOURCE_DIR)/video/voodoo_dac.cpp \
+                $(SOURCE_DIR)/video/voodoo_raster.cpp \
+                $(SOURCE_DIR)/video/voodoo_trex.cpp \
                 $(SOURCE_DIR)/video/video_blt.cpp \
                 $(SOURCE_DIR)/video/video_cga.cpp \
                 $(SOURCE_DIR)/video/mc6845.cpp \
