@@ -23,6 +23,7 @@
 #include <set>
 #include "iso_image.h"
 #include "../media/media_file.h"
+#include "../media/crc.h"
 
 static const u32 k_iso_sector_size = 2048;
 static const u32 k_iso_descriptor_sector = 16;
@@ -168,12 +169,6 @@ static std::string pad(const std::string& text, size_t size)
     return result;
 }
 
-static void write_be_32(u8* p, u32 value)
-{
-    write_u16_be(p, (u16)(value >> 16));
-    write_u16_be(p + 2, (u16)value);
-}
-
 static void write_both_16(u8* p, u16 value)
 {
     write_u16_le(p, value);
@@ -183,7 +178,7 @@ static void write_both_16(u8* p, u16 value)
 static void write_both_32(u8* p, u32 value)
 {
     write_u32_le(p, value);
-    write_be_32(p + 4, value);
+    write_u32_be(p + 4, value);
 }
 
 static bool get_time_fields(s64 modified, struct tm* local, int* offset)
@@ -345,7 +340,7 @@ void IsoImage::SetLabel(const char* label)
 
 u32 IsoImage::GetFingerprint() const
 {
-    u32 crc = (u32)mz_crc32(0, (const u8*)m_label, strlen(m_label));
+    u32 crc = CalculateCRC32(0, m_label, strlen(m_label));
     HashEntries(0, &crc);
     return crc;
 }
@@ -612,8 +607,8 @@ void IsoImage::HashEntries(u32 directory, u32* crc) const
             write_u32_le(data + 12, (u32)(entry.modified >> 32));
         }
 
-        *crc = (u32)mz_crc32(*crc, (const u8*)entry.name.data(), entry.name.size());
-        *crc = (u32)mz_crc32(*crc, data, sizeof(data));
+        *crc = CalculateCRC32(*crc, entry.name.data(), entry.name.size());
+        *crc = CalculateCRC32(*crc, data, sizeof(data));
 
         if (entry.directory)
             HashEntries(m_entries[directory].children[i], crc);
@@ -716,7 +711,7 @@ void IsoImage::BuildPathTable(bool big_endian, std::vector<u8>* content) const
 
         if (big_endian)
         {
-            write_be_32(record + 2, entry.extent);
+            write_u32_be(record + 2, entry.extent);
             write_u16_be(record + 6, (u16)numbers[entry.parent]);
         }
         else
@@ -752,7 +747,7 @@ void IsoImage::WriteDescriptor(u8* sector) const
     write_both_16(sector + 128, (u16)k_iso_sector_size);
     write_both_32(sector + 132, m_path_size);
     write_u32_le(sector + 140, k_iso_path_table_sector);
-    write_be_32(sector + 148, k_iso_path_table_sector + m_path_sectors);
+    write_u32_be(sector + 148, k_iso_path_table_sector + m_path_sectors);
     std::vector<u8> record;
     const u8 self_identifier[1] = { 0 };
     add_record(&record, self_identifier, 1, root.extent, root.length, true, root.modified);

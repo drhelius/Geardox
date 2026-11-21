@@ -130,7 +130,7 @@ INLINE u32 VoodooTrex::ReadTexel(const u32* lookup, const u8* memory, u32 base, 
         return lookup[memory[(base + index) & (VOODOO_TREX_MEMORY_SIZE - 1)]];
 
     u32 address = (base + index * 2) & (VOODOO_TREX_MEMORY_SIZE - 2);
-    u32 texel = memory[address] | ((u32)memory[address + 1] << 8);
+    u32 texel = read_u16_le(memory + address);
 
     if ((format >= 10) && (format <= 12))
         return lookup[texel];

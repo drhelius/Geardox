@@ -79,8 +79,7 @@ void FirmwareConfig::SetBootMenu(bool show, u16 wait_ms)
 {
     m_show_menu[0] = show ? 1 : 0;
     m_show_menu[1] = 0;
-    m_menu_wait[0] = (u8)wait_ms;
-    m_menu_wait[1] = (u8)(wait_ms >> 8);
+    write_u16_le(m_menu_wait, wait_ms);
     BuildDirectory();
 }
 
@@ -105,13 +104,8 @@ void FirmwareConfig::SetMemoryHole(u32 ram_size, u32 hole_start)
                 continue;
 
             u8* entry = m_e820 + m_e820_size;
-
-            for (int b = 0; b < 4; b++)
-            {
-                entry[b] = (u8)(starts[i] >> (b * 8));
-                entry[8 + b] = (u8)(lengths[i] >> (b * 8));
-            }
-
+            write_u32_le(entry, starts[i]);
+            write_u32_le(entry + 8, lengths[i]);
             entry[16] = 1;
             m_e820_size += FIRMWARE_CONFIG_E820_ENTRY_SIZE;
         }
@@ -228,12 +222,8 @@ void FirmwareConfig::BuildDirectory()
         u8* entry = m_directory + 4 + count * FIRMWARE_CONFIG_FILE_ENTRY_SIZE;
         count++;
         u16 selector = (u16)(k_firmware_config_file_first + i);
-        entry[0] = (u8)(sizes[i] >> 24);
-        entry[1] = (u8)(sizes[i] >> 16);
-        entry[2] = (u8)(sizes[i] >> 8);
-        entry[3] = (u8)sizes[i];
-        entry[4] = (u8)(selector >> 8);
-        entry[5] = (u8)selector;
+        write_u32_be(entry, sizes[i]);
+        write_u16_be(entry + 4, selector);
         const char* name = k_firmware_config_file_names[i];
 
         if (i == 0 && m_cga_bios)

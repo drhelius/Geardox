@@ -23,6 +23,7 @@
 #include "game_database.h"
 #include "game_db.h"
 #include "media_file.h"
+#include "crc.h"
 
 static const int k_game_database_max_depth = 8;
 static const size_t k_game_database_max_files = 50000;
@@ -78,7 +79,7 @@ static bool crc_of_file(const std::string& path, u32* crc)
         return false;
 
     std::vector<u8> block(k_game_database_crc_block);
-    mz_ulong value = MZ_CRC32_INIT;
+    u32 value = 0;
     bool ok = true;
 
     while (true)
@@ -94,11 +95,11 @@ static bool crc_of_file(const std::string& path, u32* crc)
         if (read == 0)
             break;
 
-        value = mz_crc32(value, &block[0], (size_t)read);
+        value = CalculateCRC32(value, &block[0], (size_t)read);
     }
 
     SafeDelete(file);
-    *crc = (u32)value;
+    *crc = value;
     return ok;
 }
 

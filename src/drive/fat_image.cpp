@@ -25,6 +25,7 @@
 #include "freedos.h"
 #include "../dos/dos_tools.h"
 #include "../media/media_file.h"
+#include "../media/crc.h"
 
 static const u32 k_fat_sector_size = 512;
 static const u32 k_fat_sectors_per_track = 63;
@@ -543,10 +544,7 @@ bool FatImage::ReadFingerprint(const char* path, u32* fingerprint)
 
 void FatImage::GetImageName(const char* source, std::string* name)
 {
-    std::string path = trim_path(source);
-    char suffix[32];
-    snprintf(suffix, sizeof(suffix), ".%08X.geardox.hdd", (u32)mz_crc32(0, (const u8*)path.data(), path.size()));
-    *name = get_source_name(source) + suffix;
+    *name = get_source_name(source) + "." + crc_key(trim_path(source)) + ".geardox.hdd";
 }
 
 void FatImage::Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report)
@@ -1176,7 +1174,7 @@ bool FatImage::AddDosTool(u32 directory, const char* name, const u8* data, u32 s
     u32 entry = AddEntry(directory, name, false);
     m_entries[entry].memory = (int)m_memory.size() - 1;
     m_entries[entry].size = size;
-    m_entries[entry].crc = (u32)mz_crc32(MZ_CRC32_INIT, data, size);
+    m_entries[entry].crc = CalculateCRC32(0, data, size);
     m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     m_entries[entry].date = k_dos_tools_date;
     m_entries[entry].time = k_dos_tools_time;
@@ -1291,7 +1289,7 @@ bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attri
     u32 entry = AddEntry(directory, rest, false);
     m_entries[entry].memory = (int)m_memory.size() - 1;
     m_entries[entry].size = data.size();
-    m_entries[entry].crc = (u32)mz_crc32(0, (const u8*)data.data(), data.size());
+    m_entries[entry].crc = CalculateCRC32(0, data.data(), data.size());
     m_entries[entry].attributes = attributes;
     m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     return true;
@@ -1320,7 +1318,7 @@ bool FatImage::PatchFile(const char* path, u64 offset, const std::string& before
     data.replace((size_t)offset, after.size(), after);
     m_memory.push_back(data);
     entry.memory = (int)m_memory.size() - 1;
-    entry.crc = (u32)mz_crc32(0, (const u8*)data.data(), data.size());
+    entry.crc = CalculateCRC32(0, data.data(), data.size());
     entry.origin = FAT_IMAGE_ORIGIN_SYSTEM;
     return true;
 }
@@ -1333,9 +1331,9 @@ void FatImage::FinishGame(const char* label, u64 free_size, const u8* boot_secto
     u8 data[8];
     write_u32_le(data, (u32)free_size);
     write_u32_le(data + 4, (u32)(free_size >> 32));
-    u32 crc = (u32)mz_crc32(m_fingerprint, boot_sector, k_fat_sector_size);
-    crc = (u32)mz_crc32(crc, k_freedos_mbr, k_freedos_mbr_size);
-    m_fingerprint = (u32)mz_crc32(crc, data, sizeof(data));
+    u32 crc = CalculateCRC32(m_fingerprint, boot_sector, k_fat_sector_size);
+    crc = CalculateCRC32(crc, k_freedos_mbr, k_freedos_mbr_size);
+    m_fingerprint = CalculateCRC32(crc, data, sizeof(data));
 }
 
 const FatImage_Entry& FatImage::GetEntry(u32 index) const
@@ -1809,7 +1807,7 @@ bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, std::s
         if (IsValidPointer(data))
             data->append((const char*)buffer.data(), chunk);
 
-        *crc = (u32)mz_crc32(*crc, buffer.data(), chunk);
+        *crc = CalculateCRC32(*crc, buffer.data(), chunk);
         left -= chunk;
     }
 
@@ -2054,7 +2052,7 @@ void FatImage::Finish()
     AssignNames(0);
     PinEntries();
     LimitPaths(0, "");
-    u32 crc = (u32)mz_crc32(0, (const u8*)m_label, 11);
+    u32 crc = CalculateCRC32(0, m_label, 11);
     HashEntries(0, &crc);
     m_fingerprint = crc;
 }
@@ -2175,15 +2173,15 @@ void FatImage::HashEntries(u32 directory, u32* crc) const
             write_u16_le(data + 10, entry.time);
         }
 
-        *crc = (u32)mz_crc32(*crc, (const u8*)entry.name.data(), entry.name.size());
-        *crc = (u32)mz_crc32(*crc, data, sizeof(data));
+        *crc = CalculateCRC32(*crc, entry.name.data(), entry.name.size());
+        *crc = CalculateCRC32(*crc, data, sizeof(data));
 
         // Generated and system files change with their contents and attributes, not only their size
         if (entry.origin != FAT_IMAGE_ORIGIN_SOURCE)
         {
             u8 extra[6] = { entry.attributes, entry.origin, 0, 0, 0, 0 };
             write_u32_le(extra + 2, entry.crc);
-            *crc = (u32)mz_crc32(*crc, extra, sizeof(extra));
+            *crc = CalculateCRC32(*crc, extra, sizeof(extra));
         }
 
         if (entry.directory)
@@ -2371,7 +2369,7 @@ bool FatImage::CopyFile(FatImage_Entry& entry, u64 offset)
     {
         u32 chunk = (u32)MIN(left, (u64)m_buffer.size());
         ok = file->ReadExact(m_buffer.data(), chunk) && m_output->WriteAt(offset, m_buffer.data(), chunk);
-        crc = (u32)mz_crc32(crc, m_buffer.data(), chunk);
+        crc = CalculateCRC32(crc, m_buffer.data(), chunk);
         offset += chunk;
         left -= chunk;
     }

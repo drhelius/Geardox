@@ -29,6 +29,7 @@
 #include "../cdrom/cdrom_media.h"
 #include "../media/game_database.h"
 #include "../media/media_file.h"
+#include "../media/crc.h"
 #include "../audio/ultrasound.h"
 #include "../system/machine_profiles.h"
 #if defined(_WIN32)
@@ -758,9 +759,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
         return Fail("The game's folder or ZIP isn't there: %s", m_source.c_str());
 
     m_source_zip = ends_with_no_case(m_source.c_str(), ".zip");
-    char key[16];
-    std::string identity = found.path + "|" + found.inner;
-    snprintf(key, sizeof(key), "%08X", (u32)mz_crc32(0, (const u8*)identity.data(), identity.size()));
+    std::string key = crc_key(found.path + "|" + found.inner);
     std::string label = safe_name(base.name);
 
     if (IsValidPointer(overrides_directory) && (overrides_directory[0] != 0))
@@ -783,7 +782,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     m_lock = m_image + ".lock";
     m_media_directory = join(m_save_directory, label + "." + key + ".gdox.media");
     std::string source_key = m_zip_prefix.empty() ? m_source : m_source + "|" + m_zip_prefix;
-    snprintf(key, sizeof(key), "%08X", (u32)mz_crc32(0, (const u8*)source_key.data(), source_key.size()));
+    key = crc_key(source_key);
     std::string source_name = file_of(m_source);
 
     if (ends_with_no_case(source_name.c_str(), ".zip"))

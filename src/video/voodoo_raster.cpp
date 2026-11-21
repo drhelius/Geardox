@@ -867,8 +867,7 @@ void VoodooRaster::RunTexture(u32 start, u32 value, u32 count, bool wide)
         {
             u32 address = (start + i * 2) & (VOODOO_TREX_MEMORY_SIZE - 2);
             u16 texel = (u16)(value >> (i * 16));
-            m_texture_memory[address] = (u8)texel;
-            m_texture_memory[address + 1] = (u8)(texel >> 8);
+            write_u16_le(m_texture_memory + address, texel);
             m_texture_pages[address >> 12] = 1;
         }
         else

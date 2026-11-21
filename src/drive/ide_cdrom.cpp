@@ -57,14 +57,6 @@ static const double k_cdrom_velocity = 1.3;
 static const double k_cdrom_stroke_tracks = 21250.0;
 static const double k_cdrom_pi = 3.14159265358979323846;
 
-static void write_u32_be(u8* p, u32 value)
-{
-    p[0] = (u8)(value >> 24);
-    p[1] = (u8)(value >> 16);
-    p[2] = (u8)(value >> 8);
-    p[3] = (u8)value;
-}
-
 static double cdrom_radius(u32 lba)
 {
     double seconds = (double)lba / 75.0;
@@ -533,7 +525,7 @@ bool IdeCdRom::ReadData(u16& value, u64 clocks)
         return false;
 
     u32 offset = m_state.block_start + m_state.position;
-    value = (u16)(m_state.buffer[offset] | (offset + 1 < IDE_CDROM_BUFFER_SIZE ? m_state.buffer[offset + 1] << 8 : 0));
+    value = offset + 1 < IDE_CDROM_BUFFER_SIZE ? read_u16_le(m_state.buffer + offset) : m_state.buffer[offset];
     m_state.position += 2;
 
     if (m_state.position < m_state.block_length)

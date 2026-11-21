@@ -23,6 +23,7 @@
 #include "gus_import.h"
 #include "floppy_image.h"
 #include "../media/media_file.h"
+#include "../media/crc.h"
 
 static const u32 k_gus_sector_size = 512;
 static const u32 k_gus_max_image_size = 16 * 1024 * 1024;
@@ -809,7 +810,7 @@ GusImport_Result GusImport::ImportDisks(const char* zip_path)
 
     if ((table_start == 0xFFFFFFFF) || (table_start >= volume.size()) ||
         (volume.size() - table_start != k_gus_table_size) ||
-        ((u32)mz_crc32(0, bytes + table_start, k_gus_table_size) != k_gus_table_crc))
+        (CalculateCRC32(0, bytes + table_start, k_gus_table_size) != k_gus_table_crc))
     {
         Fail(GUS_IMPORT_UNSUPPORTED, "This UltraSound software %s", k_gus_refuse);
         return m_result;
@@ -904,7 +905,7 @@ GusImport_Result GusImport::ImportDisks(const char* zip_path)
         else if (!ExpandImplode(packed, record.packed_size, record.size, &data))
             data.clear();
 
-        if ((data.size() != record.size) || ((u32)mz_crc32(0, (const u8*)data.data(), data.size()) != record.crc))
+        if ((data.size() != record.size) || (CalculateCRC32(0, data.data(), data.size()) != record.crc))
         {
             Fail(GUS_IMPORT_INCOMPLETE, "%s doesn't unpack to what the table says: the disk with it may be damaged",
                 record.name.c_str());
@@ -1082,10 +1083,10 @@ u32 GusImport::GetSourceFingerprint() const
     u32 crc = 0;
 
     for (std::map<std::string, std::string>::const_iterator it = m_files.begin(); it != m_files.end(); ++it)
-        files.push_back(std::make_pair(it->first, (u32)mz_crc32(0, (const u8*)it->second.data(), it->second.size())));
+        files.push_back(std::make_pair(it->first, CalculateCRC32(0, it->second.data(), it->second.size())));
 
     for (size_t i = 0; i < m_installed.size(); i++)
-        files.push_back(std::make_pair(m_installed[i].first, (u32)mz_crc32(0, (const u8*)m_installed[i].second.data(),
+        files.push_back(std::make_pair(m_installed[i].first, CalculateCRC32(0, m_installed[i].second.data(),
             m_installed[i].second.size())));
 
     std::sort(files.begin(), files.end());
@@ -1094,8 +1095,8 @@ u32 GusImport::GetSourceFingerprint() const
     {
         u8 value[4];
         write_u32_le(value, files[i].second);
-        crc = (u32)mz_crc32(crc, (const u8*)files[i].first.data(), files[i].first.size());
-        crc = (u32)mz_crc32(crc, value, sizeof(value));
+        crc = CalculateCRC32(crc, files[i].first.data(), files[i].first.size());
+        crc = CalculateCRC32(crc, value, sizeof(value));
     }
 
     return crc;
@@ -1170,7 +1171,7 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
     software->name = (id == k_gus_family_411) ? k_gus_name_411 : k_gus_name_installed;
     software->patches = atoi(get_value(text, "patches").c_str());
     software->zip.assign((const char*)data.data(), data.size());
-    software->crc = (u32)mz_crc32(0, data.data(), data.size());
+    software->crc = CalculateCRC32(0, data.data(), data.size());
     error->clear();
     return true;
 }

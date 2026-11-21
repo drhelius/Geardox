@@ -271,8 +271,8 @@ void UltraSound::FetchVoice(UltraSound_Voice& voice)
         u32 bank = address & 0xC0000;
         u32 low = bank | ((address & 0x1FFFF) << 1);
         u32 high = bank | (((address + 1) & 0x1FFFF) << 1);
-        voice.fetch_first = (s16)(m_state.dram[low] | (m_state.dram[low + 1] << 8));
-        voice.fetch_second = (s16)(m_state.dram[high] | (m_state.dram[high + 1] << 8));
+        voice.fetch_first = (s16)read_u16_le(m_state.dram + low);
+        voice.fetch_second = (s16)read_u16_le(m_state.dram + high);
     }
     else
     {

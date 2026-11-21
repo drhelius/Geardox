@@ -251,7 +251,7 @@ bool MC146818::LoadCMOSFile(const u8* data, size_t size)
 {
     if (size == GDOX_CMOS_FILE_SIZE)
     {
-        if ((data[0] | (data[1] << 8)) != GDOX_CMOS_FILE_MAGIC)
+        if (read_u16_le(data) != GDOX_CMOS_FILE_MAGIC)
             return false;
 
         data += GDOX_CMOS_FILE_HEADER_SIZE;

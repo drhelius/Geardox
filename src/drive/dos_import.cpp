@@ -24,6 +24,7 @@
 #include "dos_import.h"
 #include "floppy_image.h"
 #include "../media/media_file.h"
+#include "../media/crc.h"
 
 static const u32 k_dos_sector_size = 512;
 static const u32 k_dos_max_image_size = 16 * 1024 * 1024;
@@ -554,7 +555,7 @@ bool DosImport::AddImage(const u8* data, u32 size, const std::string& name)
     if (!ReadFloppy(raw.data(), (u32)raw.size(), (int)m_images.size()))
         return Fail(DOS_IMPORT_ERROR, "Not a FAT12 floppy: %s", name.c_str());
 
-    m_images.push_back(std::make_pair(upper(name), (u32)mz_crc32(0, data, size)));
+    m_images.push_back(std::make_pair(upper(name), CalculateCRC32(0, data, size)));
     return true;
 }
 
@@ -1022,8 +1023,8 @@ u32 DosImport::GetSourceFingerprint() const
     {
         u8 value[4];
         write_u32_le(value, images[i].second);
-        crc = (u32)mz_crc32(crc, (const u8*)images[i].first.data(), images[i].first.size());
-        crc = (u32)mz_crc32(crc, value, sizeof(value));
+        crc = CalculateCRC32(crc, images[i].first.data(), images[i].first.size());
+        crc = CalculateCRC32(crc, value, sizeof(value));
     }
 
     return crc;
@@ -1145,7 +1146,7 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
     system->name = system->name.empty() ? std::string("MS-DOS") : system->name;
     system->version = get_version_number(system->name);
     system->zip.assign((const char*)data.data(), data.size());
-    system->crc = (u32)mz_crc32(0, data.data(), data.size());
+    system->crc = CalculateCRC32(0, data.data(), data.size());
     error->clear();
     return true;
 }

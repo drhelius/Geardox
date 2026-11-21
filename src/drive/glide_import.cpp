@@ -21,6 +21,7 @@
 #include <vector>
 #include "glide_import.h"
 #include "../media/media_file.h"
+#include "../media/crc.h"
 
 struct GlideImport_Known
 {
@@ -133,7 +134,7 @@ bool GlideImport::ImportsOverlay(const std::string& data)
 
 const char* GlideImport::GetName(const std::string& data)
 {
-    u32 crc = (u32)mz_crc32(0, (const u8*)data.data(), data.size());
+    u32 crc = CalculateCRC32(0, data.data(), data.size());
 
     for (size_t i = 0; i < sizeof(k_glide_known) / sizeof(k_glide_known[0]); i++)
     {
