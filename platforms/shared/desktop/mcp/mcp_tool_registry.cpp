@@ -267,7 +267,7 @@ static const char* const kMcpSystemTools[] =
 static const char* const kMcpVideoTools[] =
 {
     "get_crtc_status", "get_crtc_registers", "write_crtc_register", "get_video_output_status", "get_vga_registers",
-    "get_palettes", "get_frame_buffer", "get_text_screen"
+    "get_palettes", "get_frame_buffer", "get_text_screen", "get_voodoo_status", "get_voodoo_buffer"
 };
 
 static const char* const kMcpAudioTools[] =

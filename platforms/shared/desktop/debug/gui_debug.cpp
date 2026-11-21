@@ -180,6 +180,9 @@ void gui_debug_windows(void)
         if (config_debug.show_vram_viewer)
             gui_debug_window_vram_viewer();
 
+        if (config_debug.show_voodoo)
+            gui_debug_window_voodoo();
+
         if (config_debug.show_opl)
             gui_debug_window_opl();
 

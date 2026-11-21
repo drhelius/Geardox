@@ -136,6 +136,7 @@ void ogl_renderer_destroy(void)
     glDeleteTextures(1, &ogl_renderer_emu_texture);
     glDeleteTextures(1, &ogl_renderer_emu_savestates);
     glDeleteTextures(1, &ogl_renderer_emu_debug_framebuffer);
+    glDeleteTextures(1, &ogl_renderer_emu_debug_voodoo);
     ogl_shader_chain_destroy();
 
     if (quad_shader_program)
@@ -338,6 +339,8 @@ static void init_ogl_savestates(void)
         SYSTEM_TEXTURE_HEIGHT, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, NULL, false);
     create_texture_2d(&ogl_renderer_emu_debug_framebuffer, EMU_DEBUG_FRAMEBUFFER_WIDTH, EMU_DEBUG_FRAMEBUFFER_HEIGHT,
         GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid*)emu_debug_framebuffer, false);
+    create_texture_2d(&ogl_renderer_emu_debug_voodoo, EMU_DEBUG_FRAMEBUFFER_WIDTH, EMU_DEBUG_FRAMEBUFFER_HEIGHT,
+        GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, NULL, false);
     savestates_texture_slot = -1;
     savestates_texture_generation = 0;
 }
@@ -554,6 +557,14 @@ static void update_system_texture(void)
 
 static void update_debug_texture(void)
 {
+    if (config_debug.debug && config_debug.show_voodoo && (emu_debug_voodoo_width > 0))
+    {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, ogl_renderer_emu_debug_voodoo);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, emu_debug_voodoo_width, emu_debug_voodoo_height, GL_BGRA,
+            GL_UNSIGNED_INT_8_8_8_8_REV, (GLvoid*)emu_debug_voodoo);
+    }
+
     if (!config_debug.debug || !config_debug.show_vram_viewer)
         return;
 

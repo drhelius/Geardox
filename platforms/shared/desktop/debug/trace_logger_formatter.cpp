@@ -59,6 +59,7 @@ static void format_serial(const GDOX_Trace_Entry& entry, char* buffer, size_t si
 static void format_parallel(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_gus(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_voodoo(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_mark(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_bit_list(u8 bits, int base, char* buffer, size_t size);
 static void format_msf(u32 lba, char* buffer, size_t size);
@@ -192,6 +193,9 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
             break;
         case TRACE_GUS:
             format_gus(entry, buffer, buffer_size);
+            break;
+        case TRACE_VOODOO:
+            format_voodoo(entry, buffer, buffer_size);
             break;
         case TRACE_MARK:
             format_mark(entry, buffer, buffer_size);
@@ -2620,6 +2624,47 @@ static void format_gus(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
         default:
             format_event(buffer, size, "GUS", "LATCH", "%s latch = %02X", entry.gus.voice != 0 ? "IRQ" : "DMA",
                 entry.gus.value);
+            break;
+    }
+}
+
+static void format_voodoo(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    switch (entry.event)
+    {
+        case TRACE_VOODOO_COMMAND:
+            switch (entry.voodoo.command)
+            {
+                case TRACE_VOODOO_TRIANGLE:
+                    format_event(buffer, size, "VOODOO", "TRIANGLE", "%u px  buffer %u  fifo %u", entry.voodoo.pixels,
+                        entry.voodoo.buffer, entry.voodoo.queued);
+                    break;
+                case TRACE_VOODOO_FAST_FILL:
+                    format_event(buffer, size, "VOODOO", "FASTFILL", "%u px  buffer %u  fifo %u", entry.voodoo.pixels,
+                        entry.voodoo.buffer, entry.voodoo.queued);
+                    break;
+                case TRACE_VOODOO_SWAP:
+                    format_event(buffer, size, "VOODOO", "SWAP", "%s interval %u  front %u  fifo %u",
+                        (entry.voodoo.value & 0x01) != 0 ? "vsync" : "now", (entry.voodoo.value >> 1) & 0xFF,
+                        entry.voodoo.buffer, entry.voodoo.queued);
+                    break;
+                default:
+                    format_event(buffer, size, "VOODOO", "NOP", "%s  fifo %u",
+                        (entry.voodoo.value & 0x01) != 0 ? "clear counters" : "-", entry.voodoo.queued);
+                    break;
+            }
+            break;
+        case TRACE_VOODOO_CULLED:
+            format_event(buffer, size, "VOODOO", "CULLED", "%s  triangleCMD %08X",
+                entry.voodoo.data != 0 ? "wrong sign" : "zero area", entry.voodoo.value);
+            break;
+        case TRACE_VOODOO_OVERFLOW:
+            format_event(buffer, size, "VOODOO", "OVERFLOW", "%06X = %08X run early  fifo %u", entry.voodoo.value,
+                entry.voodoo.data, entry.voodoo.queued);
+            break;
+        default:
+            format_event(buffer, size, "VOODOO", "LFB READ", "%06X = %08X  fifo drained %u", entry.voodoo.value,
+                entry.voodoo.data, entry.voodoo.queued);
             break;
     }
 }

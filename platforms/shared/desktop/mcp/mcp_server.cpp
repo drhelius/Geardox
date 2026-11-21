@@ -1595,6 +1595,39 @@ json McpServer::BuildToolList()
     });
 
     tools.push_back({
+        {"name", "get_voodoo_status"},
+        {"title", "Get Voodoo Status"},
+        {"description", "Read the 3Dfx Voodoo Graphics: PCI window, status, FIFO and busy time, swaps and buffers, video "
+            "timing and refresh, graphics and video clocks, frame buffer layout, init and video registers, pixel pipeline "
+            "registers, the texture unit and the statistics counters."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", json::object()},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
+        {"name", "get_voodoo_buffer"},
+        {"title", "Get Voodoo Buffer"},
+        {"description", "Image of a 3Dfx Voodoo buffer: the front buffer as the monitor shows it, the back buffer, or the "
+            "auxiliary depth or alpha buffer as grey levels."},
+        {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
+        {"inputSchema", {
+            {"type", "object"},
+            {"properties", {
+                {"buffer", {
+                    {"type", "string"},
+                    {"enum", json::array({"front", "back", "aux"})},
+                    {"description", "Default front."}
+                }}
+            }},
+            {"additionalProperties", false}
+        }}
+    });
+
+    tools.push_back({
         {"name", "get_vga_registers"},
         {"title", "Get VGA Registers"},
         {"description", "Read the miscellaneous, feature, sequencer, graphics, CRTC and attribute registers as hex arrays. "
@@ -3920,6 +3953,14 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetVideoOutputStatus();
     }
+    else if (normalizedTool == "get_voodoo_status")
+    {
+        return m_debugAdapter.GetVoodooStatus();
+    }
+    else if (normalizedTool == "get_voodoo_buffer")
+    {
+        return m_debugAdapter.GetVoodooBuffer(arguments.value("buffer", std::string("front")));
+    }
     else if (normalizedTool == "get_vga_registers")
     {
         return m_debugAdapter.GetVGARegisters();
@@ -4146,6 +4187,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         event_filters[TRACE_PARALLEL] = TRACE_PARALLEL_EVENT_DEFAULT;
         event_filters[TRACE_SYSTEM] = TRACE_SYSTEM_EVENT_DEFAULT;
         event_filters[TRACE_GUS] = TRACE_GUS_EVENT_ALL;
+        event_filters[TRACE_VOODOO] = TRACE_VOODOO_EVENT_ALL;
 
         if (enabled && arguments.contains("filters"))
         {

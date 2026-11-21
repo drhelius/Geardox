@@ -29,6 +29,7 @@
 EXTERN void gui_debug_window_vga(void);
 EXTERN void gui_debug_window_vga_registers(void);
 EXTERN void gui_debug_window_palettes(void);
+EXTERN void gui_debug_window_voodoo(void);
 
 #undef GUI_DEBUG_VIDEO_IMPORT
 #undef EXTERN

@@ -28,6 +28,9 @@
 #include "system/io.h"
 #include "system/scheduler.h"
 #include "audio/audio.h"
+#include "video/video.h"
+#include "video/voodoo.h"
+#include "video/voodoo_trex.h"
 
 static const int DEBUG_MEMORY_MAX_TRANSACTION_SIZE = 0x100000;
 
@@ -81,6 +84,12 @@ static bool gus_region_listed(void)
 {
     GeardoxCore* core = emu_get_core();
     return IsValidPointer(core) && IsValidPointer(core->GetAudio()) && core->GetAudio()->HasGUS();
+}
+
+static bool voodoo_regions_listed(void)
+{
+    GeardoxCore* core = emu_get_core();
+    return IsValidPointer(core) && IsValidPointer(core->GetVideo()) && core->GetVideo()->HasVoodoo();
 }
 
 DebugMemoryProvider::DebugMemoryProvider()
@@ -216,6 +225,9 @@ int DebugMemoryProvider::GetRegionCount() const
 
     if (gus_region_listed())
         count++;
+
+    if (voodoo_regions_listed())
+        count += 2;
 
     return count;
 }
@@ -677,13 +689,28 @@ bool DebugMemoryProvider::GetExternalRegion(int index, GDOX_Debug_Memory_Region&
         index--;
     }
 
-    if (gus_region_listed() && (index == 0))
+    if (gus_region_listed())
+    {
+        if (index == 0)
+        {
+            memset(&region, 0, sizeof(region));
+            region.id = GDOX_DEBUG_REGION_GUS_DRAM;
+            strncpy_fit(region.name, "GUS DRAM", sizeof(region.name));
+            region.size = ULTRASOUND_DRAM_SIZE;
+            region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_AUDIO;
+            return true;
+        }
+
+        index--;
+    }
+
+    if (voodoo_regions_listed() && (index < 2))
     {
         memset(&region, 0, sizeof(region));
-        region.id = GDOX_DEBUG_REGION_GUS_DRAM;
-        strncpy_fit(region.name, "GUS DRAM", sizeof(region.name));
-        region.size = ULTRASOUND_DRAM_SIZE;
-        region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_AUDIO;
+        region.id = index == 0 ? GDOX_DEBUG_REGION_VOODOO_FRAME_BUFFER : GDOX_DEBUG_REGION_VOODOO_TEXTURE;
+        strncpy_fit(region.name, index == 0 ? "Voodoo Frame Buffer" : "Voodoo Texture 0", sizeof(region.name));
+        region.size = index == 0 ? VOODOO_FB_SIZE : VOODOO_TREX_MEMORY_SIZE;
+        region.flags = GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_ROM | GDOX_DEBUG_REGION_VIDEO;
         return true;
     }
 
@@ -750,6 +777,20 @@ bool DebugMemoryProvider::ReadExternalRegion(int id, u32 offset, u8* data, GDOX_
         source = core->GetAudio()->GetUltraSound()->GetDRAM();
         source_size = ULTRASOUND_DRAM_SIZE;
         source_status = GDOX_DEBUG_MEMORY_VALID;
+    }
+
+    if ((id == GDOX_DEBUG_REGION_VOODOO_FRAME_BUFFER) && voodoo_regions_listed())
+    {
+        core->GetVideo()->GetVoodoo()->SyncRender();
+        source = (const u8*)core->GetVideo()->GetVoodoo()->GetFrameBuffer();
+        source_size = VOODOO_FB_SIZE;
+    }
+
+    if ((id == GDOX_DEBUG_REGION_VOODOO_TEXTURE) && voodoo_regions_listed())
+    {
+        core->GetVideo()->GetVoodoo()->SyncRender();
+        source = core->GetVideo()->GetVoodoo()->GetTrex()->GetMemory();
+        source_size = VOODOO_TREX_MEMORY_SIZE;
     }
 
     for (u32 i = 0; i < size; i++)

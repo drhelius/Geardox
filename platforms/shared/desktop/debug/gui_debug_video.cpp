@@ -26,10 +26,14 @@
 #include "system/scheduler.h"
 #include "video/video.h"
 #include "video/mc6845.h"
+#include "video/voodoo.h"
+#include "video/voodoo_dac.h"
+#include "video/voodoo_trex.h"
 #include "../config.h"
 #include "../emu.h"
 #include "../gui.h"
 #include "../gui_colors.h"
+#include "../ogl_renderer.h"
 #include "gui_debug_constants.h"
 #include "gui_debug_widgets.h"
 
@@ -53,6 +57,17 @@ static void cga_write_callback(u16 address, u8 value, void* user_data);
 static void draw_palette_indices(void);
 static void draw_color(int index, u32 color, const u8* components);
 static ImVec4 to_imgui_color(u32 color);
+static void draw_voodoo_status(Voodoo* voodoo);
+static void draw_voodoo_pipeline(Voodoo* voodoo);
+static void draw_voodoo_buffers(Voodoo* voodoo);
+static void draw_voodoo_hex(const char* label, u32 value);
+
+static const char* const k_voodoo_functions[8] = { "NEVER", "<", "==", "<=", ">", "!=", ">=", "ALWAYS" };
+static const char* const k_voodoo_formats[16] = { "RGB332", "YIQ422", "A8", "I8", "AI44", "P8", "RSVD6", "RSVD7",
+    "ARGB8332", "AYIQ8422", "RGB565", "ARGB1555", "ARGB4444", "AI88", "AP88", "RSVD15" };
+static const char* const k_voodoo_blend[16] = { "ZERO", "SRC_A", "COLOR", "DST_A", "ONE", "1-SRC_A", "1-COLOR",
+    "1-DST_A", "RSVD8", "RSVD9", "RSVD10", "RSVD11", "RSVD12", "RSVD13", "RSVD14", "SAT/PREFOG" };
+static const char* const k_voodoo_rgb_select[4] = { "ITERATED", "TEXTURE", "COLOR1", "LFB" };
 
 static const char* mode_name(Video* video)
 {
@@ -1142,4 +1157,397 @@ static void draw_color(int index, u32 color, const u8* components)
 static ImVec4 to_imgui_color(u32 color)
 {
     return ImVec4(((color >> 16) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f, (color & 0xFF) / 255.0f, 1.0f);
+}
+
+void gui_debug_window_voodoo(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::SetNextWindowPos(ImVec2(180, 120), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(560, 620), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Voodoo", &config_debug.show_voodoo);
+
+    Video* video = emu_get_core()->GetVideo();
+
+    if (!video->HasVoodoo())
+    {
+        ImGui::TextColored(gray, "The 3Dfx Voodoo is off");
+        ImGui::End();
+        ImGui::PopStyleVar();
+        return;
+    }
+
+    Voodoo* voodoo = video->GetVoodoo();
+    voodoo->SyncRender();
+
+    if (ImGui::BeginTabBar("##voodoo_tabs"))
+    {
+        if (ImGui::BeginTabItem("STATUS"))
+        {
+            ImGui::PushFont(gui_default_font);
+            draw_voodoo_status(voodoo);
+            ImGui::PopFont();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("PIPELINE"))
+        {
+            ImGui::PushFont(gui_default_font);
+            draw_voodoo_pipeline(voodoo);
+            ImGui::PopFont();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("BUFFERS"))
+        {
+            draw_voodoo_buffers(voodoo);
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+static void draw_voodoo_hex(const char* label, u32 value)
+{
+    draw_grid_label(label);
+    ImGui::TextColored(white, "$%08X", value);
+}
+
+static void draw_voodoo_status(Voodoo* voodoo)
+{
+    const Voodoo::Voodoo_State* state = voodoo->GetState();
+    const Voodoo::Voodoo_Video* timing = voodoo->GetVideo();
+    const u32* regs = state->regs;
+    u64 clocks = emu_get_core()->GetScheduler()->GetClocks();
+    u32 status = voodoo->GetStatus(clocks);
+    u64 busy = voodoo->GetBusyClocks();
+    float space = ImGui::CalcTextSize(" ").x;
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+
+    ImGui::TextColored(cyan, "BOARD"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##voodoo_board", 4, flags))
+    {
+        setup_grid_columns();
+
+        ImGui::TableNextRow();
+        draw_grid_label("WINDOW");
+        ImGui::TextColored(white, "$%08X", state->pci_base);
+        draw_grid_label("PCI CMD");
+        ImGui::TextColored(white, "$%02X", state->pci_command); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->pci_command & 0x02) != 0 ? green : gray, "MEM");
+
+        ImGui::TableNextRow();
+        draw_grid_label("INITENABLE");
+        ImGui::TextColored(white, "$%02X", state->init_enable); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->init_enable & k_voodoo_enable_init_writes) != 0 ? green : gray, "INIT");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->init_enable & k_voodoo_enable_fifo_writes) != 0 ? green : gray, "FIFO");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((state->init_enable & k_voodoo_enable_dac_read) != 0 ? yellow : gray, "DAC");
+        draw_grid_label("OUTPUT");
+        ImGui::TextColored(voodoo->IsDisplayed() ? green : gray, "%s", voodoo->IsDisplayed() ? "VOODOO" : "VGA");
+
+        ImGui::TableNextRow();
+        draw_grid_label("STATUS");
+        ImGui::TextColored(white, "$%08X", status);
+        draw_grid_label("FLAGS");
+        ImGui::TextColored((status & k_voodoo_status_vretrace) == 0 ? yellow : gray, "VRT"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & k_voodoo_status_fbi_busy) != 0 ? orange : gray, "FBI"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & k_voodoo_status_trex_busy) != 0 ? orange : gray, "TREX"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((status & k_voodoo_status_busy) != 0 ? orange : gray, "BUSY");
+
+        ImGui::TableNextRow();
+        draw_grid_label("FIFO");
+        ImGui::TextColored(white, "%u", voodoo->GetQueueCount()); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((regs[k_voodoo_fbi_init0] & k_voodoo_init0_mem_fifo) != 0 ? green : gray, "MEMORY");
+        draw_grid_label("BUSY");
+        ImGui::TextColored(busy > clocks ? orange : gray, "%llu clk", (unsigned long long)(busy > clocks ? busy - clocks : 0));
+
+        ImGui::TableNextRow();
+        draw_grid_label("SWAPS");
+        ImGui::TextColored(white, "%u", state->swaps_pending); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(state->swap_waiting ? yellow : gray, "WAITING");
+        draw_grid_label("BUFFERS");
+        ImGui::TextColored(white, "FRONT %u BACK %u", state->front_buffer, state->back_buffer);
+
+        ImGui::TableNextRow();
+        draw_grid_label("THREAD");
+        ImGui::TextColored(voodoo->IsThreaded() ? green : gray, "%s", voodoo->IsThreaded() ? "ON" : "OFF");
+        draw_grid_label("FRAMES");
+        ImGui::TextColored(white, "%u", state->frame_count);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "VIDEO AND CLOCKS"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##voodoo_video", 4, flags))
+    {
+        setup_grid_columns();
+
+        ImGui::TableNextRow();
+        draw_grid_label("RUNNING");
+        ImGui::TextColored(timing->running ? green : gray, "%s", timing->running ? "ON" : "OFF");
+        draw_grid_label("SIZE");
+        ImGui::TextColored(white, "%ux%u", timing->width, timing->height);
+
+        ImGui::TableNextRow();
+        draw_grid_label("TOTAL");
+        ImGui::TextColored(white, "%ux%u", timing->h_total, timing->v_total);
+        draw_grid_label("REFRESH");
+
+        if (timing->running)
+            ImGui::TextColored(orange, "%.2f Hz", 1000.0f / voodoo->GetFrameTime());
+        else
+            ImGui::TextColored(gray, "--");
+
+        ImGui::TableNextRow();
+        draw_grid_label("PIXEL CLK");
+        ImGui::TextColored(orange, "%.3f MHz", timing->clock / 1000000.0);
+        draw_grid_label("GRAPH CLK");
+        ImGui::TextColored(orange, "%.3f MHz", voodoo->GetFbiClock() / 1000000.0);
+
+        ImGui::TableNextRow();
+        draw_grid_label("ROW PIXELS");
+        ImGui::TextColored(white, "%u", voodoo->GetRowPixels());
+        draw_grid_label("ROWS");
+        ImGui::TextColored(white, "%u", voodoo->GetBufferRows());
+
+        ImGui::TableNextRow();
+        draw_voodoo_hex("fbiInit0", regs[k_voodoo_fbi_init0]);
+        draw_voodoo_hex("fbiInit1", regs[k_voodoo_fbi_init1]);
+        ImGui::TableNextRow();
+        draw_voodoo_hex("fbiInit2", regs[k_voodoo_fbi_init2]);
+        draw_voodoo_hex("fbiInit3", regs[k_voodoo_fbi_init3]);
+        ImGui::TableNextRow();
+        draw_voodoo_hex("fbiInit4", regs[k_voodoo_fbi_init4]);
+        draw_voodoo_hex("backPorch", regs[k_voodoo_back_porch]);
+        ImGui::TableNextRow();
+        draw_voodoo_hex("hSync", regs[k_voodoo_h_sync]);
+        draw_voodoo_hex("vSync", regs[k_voodoo_v_sync]);
+        ImGui::TableNextRow();
+        draw_voodoo_hex("videoDim", regs[k_voodoo_video_dimensions]);
+        draw_grid_label("DAC CLK");
+        ImGui::TextColored(orange, "%.3f MHz", voodoo->GetDac()->GetVideoClock() / 1000000.0);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "COUNTERS AND LAST TRIANGLE"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##voodoo_counters", 4, flags))
+    {
+        setup_grid_columns();
+
+        ImGui::TableNextRow();
+        draw_grid_label("PIXELS IN");
+        ImGui::TextColored(white, "%u", state->counters[0] & 0xFFFFFF);
+        draw_grid_label("PIXELS OUT");
+        ImGui::TextColored(white, "%u", state->counters[4] & 0xFFFFFF);
+
+        ImGui::TableNextRow();
+        draw_grid_label("CHROMA FAIL");
+        ImGui::TextColored(white, "%u", state->counters[1] & 0xFFFFFF);
+        draw_grid_label("Z FAIL");
+        ImGui::TextColored(white, "%u", state->counters[2] & 0xFFFFFF);
+
+        ImGui::TableNextRow();
+        draw_grid_label("A FAIL");
+        ImGui::TextColored(white, "%u", state->counters[3] & 0xFFFFFF);
+        draw_grid_label("W START");
+        ImGui::TextColored(white, "%.6f", (double)state->params.start_w / 4294967296.0);
+
+        const s32* v = state->params.vertex;
+        const char* const names[3] = { "VERTEX A", "VERTEX B", "VERTEX C" };
+
+        for (int i = 0; i < 3; i++)
+        {
+            if ((i & 1) == 0)
+                ImGui::TableNextRow();
+
+            draw_grid_label(names[i]);
+            ImGui::TextColored(white, "%.4f, %.4f", v[i * 2] / 16.0, v[i * 2 + 1] / 16.0);
+        }
+
+        draw_grid_label("RGBA START");
+        ImGui::TextColored(white, "%.1f %.1f %.1f %.1f", (s32)state->params.start[0] / 4096.0,
+            (s32)state->params.start[1] / 4096.0, (s32)state->params.start[2] / 4096.0, (s32)state->params.start[3] / 4096.0);
+
+        ImGui::EndTable();
+    }
+}
+
+static void draw_voodoo_pipeline(Voodoo* voodoo)
+{
+    const u32* regs = voodoo->GetState()->regs;
+    const VoodooTrex::VoodooTrex_State* trex = voodoo->GetTrex()->GetState();
+    u32 path = regs[k_voodoo_fbz_color_path];
+    u32 fbz = regs[k_voodoo_fbz_mode];
+    u32 alpha = regs[k_voodoo_alpha_mode];
+    u32 fog = regs[k_voodoo_fog_mode];
+    u32 lfb = regs[k_voodoo_lfb_mode];
+    u32 mode = trex->texture_mode;
+    float space = ImGui::CalcTextSize(" ").x;
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+
+    ImGui::TextColored(cyan, "FBI"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##voodoo_fbi", 2, flags))
+    {
+        float character = ImGui::CalcTextSize("0").x;
+        ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 13);
+        ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 52);
+
+        ImGui::TableNextRow();
+        draw_grid_label("fbzColorPath");
+        ImGui::TextColored(white, "$%07X", path); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(blue, "RGB %s A %s", k_voodoo_rgb_select[path & 0x03], k_voodoo_rgb_select[(path >> 2) & 0x03]);
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((path & k_voodoo_fbz_cp_texture) != 0 ? green : gray, "TEX"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((path & k_voodoo_fbz_cp_param_adjust) != 0 ? green : gray, "SUBPIX");
+
+        ImGui::TableNextRow();
+        draw_grid_label("fbzMode");
+        ImGui::TextColored(white, "$%06X", fbz); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_clip) != 0 ? green : gray, "CLIP"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_chroma) != 0 ? green : gray, "CHROMA"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_stipple) != 0 ? green : gray, "STIPPLE"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_dither) != 0 ? green : gray, "%s",
+            (fbz & k_voodoo_fbz_dither_2x2) != 0 ? "DITHER2" : "DITHER4"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_rgb_write) != 0 ? green : gray, "RGB"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_aux_write) != 0 ? green : gray, "AUX");
+
+        ImGui::TableNextRow();
+        draw_grid_label("depth");
+        ImGui::TextColored((fbz & k_voodoo_fbz_depth) != 0 ? green : gray, "%s %s",
+            (fbz & k_voodoo_fbz_wbuffer) != 0 ? "W" : "Z", k_voodoo_functions[(fbz >> 5) & 0x07]);
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_depth_bias) != 0 ? green : gray, "BIAS"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_alpha_planes) != 0 ? green : gray, "ALPHA PLANES"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fbz & k_voodoo_fbz_y_origin) != 0 ? green : gray, "Y FLIP"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "DRAW %s", ((fbz >> 14) & 0x03) == 0 ? "FRONT" : ((fbz >> 14) & 0x03) == 1 ? "BACK" : "NONE");
+
+        ImGui::TableNextRow();
+        draw_grid_label("alphaMode");
+        ImGui::TextColored(white, "$%08X", alpha); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((alpha & k_voodoo_alpha_test) != 0 ? green : gray, "TEST %s $%02X",
+            k_voodoo_functions[(alpha >> 1) & 0x07], alpha >> 24);
+
+        ImGui::TableNextRow();
+        draw_grid_label("blend");
+        ImGui::TextColored((alpha & k_voodoo_alpha_blend) != 0 ? green : gray, "RGB %s %s  A %s %s",
+            k_voodoo_blend[(alpha >> 8) & 0x0F], k_voodoo_blend[(alpha >> 12) & 0x0F], k_voodoo_blend[(alpha >> 16) & 0x0F],
+            k_voodoo_blend[(alpha >> 20) & 0x0F]);
+
+        ImGui::TableNextRow();
+        draw_grid_label("fogMode");
+        ImGui::TextColored(white, "$%02X", fog); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((fog & 0x01) != 0 ? green : gray, "FOG"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "%s", (fog & 0x10) != 0 ? "Z" : (fog & 0x08) != 0 ? "ALPHA" : "TABLE");
+
+        ImGui::TableNextRow();
+        draw_grid_label("lfbMode");
+        ImGui::TextColored(white, "$%05X", lfb); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "FORMAT %u WRITE %s READ %s", lfb & 0x0F, ((lfb >> 4) & 0x03) == 0 ? "FRONT" : "BACK",
+            ((lfb >> 6) & 0x03) == 0 ? "FRONT" : ((lfb >> 6) & 0x03) == 1 ? "BACK" : "AUX");
+        ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((lfb & k_voodoo_lfb_pipeline) != 0 ? green : gray, "PIPELINE");
+
+        ImGui::TableNextRow();
+        draw_grid_label("clip");
+        ImGui::TextColored(white, "X %u-%u Y %u-%u", (regs[k_voodoo_clip_left_right] >> 16) & 0x3FF,
+            regs[k_voodoo_clip_left_right] & 0x3FF, (regs[k_voodoo_clip_low_y_high_y] >> 16) & 0x3FF,
+            regs[k_voodoo_clip_low_y_high_y] & 0x3FF);
+
+        ImGui::TableNextRow();
+        draw_grid_label("colors");
+        ImGui::TextColored(white, "C0 $%08X C1 $%08X ZA $%08X", regs[k_voodoo_color0], regs[k_voodoo_color1],
+            regs[k_voodoo_za_color]);
+
+        ImGui::TableNextRow();
+        draw_grid_label("keys");
+        ImGui::TextColored(white, "CHROMA $%06X FOG $%06X STIPPLE $%08X", regs[k_voodoo_chroma_key] & 0xFFFFFF,
+            regs[k_voodoo_fog_color] & 0xFFFFFF, regs[k_voodoo_stipple]);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "TREX"); ImGui::Separator();
+
+    if (ImGui::BeginTable("##voodoo_trex", 2, flags))
+    {
+        float character = ImGui::CalcTextSize("0").x;
+        ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 13);
+        ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 52);
+
+        ImGui::TableNextRow();
+        draw_grid_label("textureMode");
+        ImGui::TextColored(white, "$%08X", mode); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(blue, "%s", k_voodoo_formats[(mode >> 8) & 0x0F]); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((mode & 0x01) != 0 ? green : gray, "PERSP"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((mode & 0x02) != 0 ? green : gray, "MIN"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((mode & 0x04) != 0 ? green : gray, "MAG"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((mode & 0x40) != 0 ? green : gray, "CLAMPS"); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored((mode & 0x80) != 0 ? green : gray, "CLAMPT");
+
+        ImGui::TableNextRow();
+        draw_grid_label("tLOD");
+        ImGui::TextColored(white, "$%08X", trex->tlod); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(white, "MIN %.2f MAX %.2f BIAS %.2f", (trex->tlod & 0x3F) / 4.0, ((trex->tlod >> 6) & 0x3F) / 4.0,
+            (s8)(((trex->tlod >> 12) & 0x3F) << 2) / 16.0);
+
+        ImGui::TableNextRow();
+        draw_grid_label("tDetail");
+        ImGui::TextColored(white, "$%05X", trex->tdetail);
+
+        ImGui::TableNextRow();
+        draw_grid_label("texBaseAddr");
+        ImGui::TextColored(white, "$%05X $%05X $%05X $%05X", trex->tex_base[0], trex->tex_base[1], trex->tex_base[2],
+            trex->tex_base[3]);
+
+        ImGui::TableNextRow();
+        draw_grid_label("trexInit");
+        ImGui::TextColored(white, "$%08X $%08X", trex->trex_init[0], trex->trex_init[1]);
+
+        ImGui::EndTable();
+    }
+}
+
+static void draw_voodoo_buffers(Voodoo* voodoo)
+{
+    ImGui::PushItemWidth(100.0f);
+    ImGui::Combo("Buffer##voodoo_buffer", &config_debug.voodoo_buffer, "Front\0Back\0Aux\0");
+    ImGui::SameLine();
+    ImGui::Combo("Zoom##voodoo_zoom", &config_debug.voodoo_zoom, "1x\0" "2x\0");
+    ImGui::PopItemWidth();
+    ImGui::Separator();
+
+    if ((emu_debug_voodoo_width <= 0) || (emu_debug_voodoo_height <= 0))
+    {
+        ImGui::TextColored(gray, "No buffer layout yet");
+        return;
+    }
+
+    const Voodoo::Voodoo_State* state = voodoo->GetState();
+    int buffer = config_debug.voodoo_buffer == 0 ? state->front_buffer : config_debug.voodoo_buffer == 1 ?
+        state->back_buffer : 2;
+    float zoom = config_debug.voodoo_zoom == 1 ? 2.0f : 1.0f;
+    ImVec2 size((float)emu_debug_voodoo_width * zoom, (float)emu_debug_voodoo_height * zoom);
+    ImVec2 uv((float)emu_debug_voodoo_width / EMU_DEBUG_FRAMEBUFFER_WIDTH,
+        (float)emu_debug_voodoo_height / EMU_DEBUG_FRAMEBUFFER_HEIGHT);
+
+    ImGui::TextColored(violet, "BUFFER %d", buffer); ImGui::SameLine();
+    ImGui::TextColored(white, "%dx%d at $%06X", emu_debug_voodoo_width, emu_debug_voodoo_height,
+        voodoo->GetBufferBase(buffer) * 2);
+
+    ImGui::BeginChild("##voodoo_image", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::Image((ImTextureID)(intptr_t)ogl_renderer_emu_debug_voodoo, size, ImVec2(0, 0), uv);
+    ImGui::EndChild();
 }

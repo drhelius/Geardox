@@ -140,7 +140,11 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "gus.registers", TRACE_GUS, TRACE_GUS_EVENT_REGISTERS },
     { "gus.irqs", TRACE_GUS, TRACE_GUS_EVENT_IRQS },
     { "gus.dma", TRACE_GUS, TRACE_GUS_EVENT_DMA },
-    { "gus.latches", TRACE_GUS, TRACE_GUS_EVENT_LATCHES }
+    { "gus.latches", TRACE_GUS, TRACE_GUS_EVENT_LATCHES },
+    { "voodoo.commands", TRACE_VOODOO, TRACE_VOODOO_EVENT_COMMANDS },
+    { "voodoo.culled", TRACE_VOODOO, TRACE_VOODOO_EVENT_CULLED },
+    { "voodoo.overflows", TRACE_VOODOO, TRACE_VOODOO_EVENT_OVERFLOWS },
+    { "voodoo.lfb_reads", TRACE_VOODOO, TRACE_VOODOO_EVENT_LFB_READS }
 };
 
 static const int k_mcp_trace_filter_count = sizeof(k_mcp_trace_filters) / sizeof(k_mcp_trace_filters[0]);
@@ -280,6 +284,8 @@ public:
     json GetCRTCRegisters();
     json WriteCRTCRegister(int reg, u8 value);
     json GetVideoOutputStatus();
+    json GetVoodooStatus();
+    json GetVoodooBuffer(const std::string& buffer);
     json GetVGARegisters();
     json GetPalettes(const std::string& palette);
     json GetFrameBuffer(const std::string& buffer, int pitch, int format, int start);

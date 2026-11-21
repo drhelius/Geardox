@@ -47,6 +47,9 @@
 #include "system/scheduler.h"
 #include "system/io.h"
 #include "audio/audio.h"
+#include "video/voodoo.h"
+#include "video/voodoo_dac.h"
+#include "video/voodoo_trex.h"
 #include "video/video.h"
 #include "video/mc6845.h"
 #include "cdrom/cdrom_audio.h"
@@ -3032,6 +3035,99 @@ json DebugAdapter::GetFrameBuffer(const std::string& buffer, int pitch, int form
     result["mimeType"] = "image/png";
     result["width"] = info.width;
     result["height"] = info.height;
+    return result;
+}
+
+json DebugAdapter::GetVoodooStatus()
+{
+    Video* video = m_core->GetVideo();
+
+    if (!video->HasVoodoo())
+        return {{"error", "The 3Dfx Voodoo is off"}};
+
+    Voodoo* voodoo = video->GetVoodoo();
+    voodoo->SyncRender();
+    const Voodoo::Voodoo_State* state = voodoo->GetState();
+    const Voodoo::Voodoo_Video* timing = voodoo->GetVideo();
+    const VoodooTrex::VoodooTrex_State* trex = voodoo->GetTrex()->GetState();
+    u64 clocks = m_core->GetScheduler()->GetClocks();
+    u32 status = voodoo->GetStatus(clocks);
+    const u32* regs = state->regs;
+    float refresh = timing->running ? 1000.0f / voodoo->GetFrameTime() : 0.0f;
+
+    json result;
+    result["pci"] = {{"base", Hex(state->pci_base, 8)}, {"command", Hex(state->pci_command, 2)},
+        {"init_enable", Hex(state->init_enable, 8)}, {"interrupt_line", state->pci_line}};
+    result["displayed"] = voodoo->IsDisplayed();
+    result["status"] = Hex(status, 8);
+    result["fifo"] = {{"queued", voodoo->GetQueueCount()},
+        {"memory_fifo", (regs[k_voodoo_fbi_init0] & k_voodoo_init0_mem_fifo) != 0},
+        {"busy", (status & k_voodoo_status_busy) != 0},
+        {"busy_clocks", clocks < voodoo->GetBusyClocks() ? voodoo->GetBusyClocks() - clocks : 0}};
+    result["swap"] = {{"pending", state->swaps_pending}, {"waiting", state->swap_waiting},
+        {"front_buffer", state->front_buffer}, {"back_buffer", state->back_buffer}, {"retraces", state->retrace_count}};
+    result["video"] = {{"running", timing->running}, {"pixel_clock_hz", timing->clock}, {"width", timing->width},
+        {"height", timing->height}, {"h_total", timing->h_total}, {"v_total", timing->v_total}, {"refresh_hz", refresh},
+        {"frames", state->frame_count}, {"render_thread", voodoo->IsThreaded()}};
+    result["clocks"] = {{"graphics_hz", voodoo->GetFbiClock()}, {"dac_video_hz", voodoo->GetDac()->GetVideoClock()}};
+    result["memory"] = {{"row_pixels", voodoo->GetRowPixels()}, {"buffer_rows", voodoo->GetBufferRows()},
+        {"buffer_offset", Hex((regs[k_voodoo_fbi_init2] >> 11) & 0x1FF, 3)},
+        {"y_origin", (regs[k_voodoo_fbi_init3] >> 22) & 0x3FF}};
+    result["init"] = {{"fbiInit0", Hex(regs[k_voodoo_fbi_init0], 8)}, {"fbiInit1", Hex(regs[k_voodoo_fbi_init1], 8)},
+        {"fbiInit2", Hex(regs[k_voodoo_fbi_init2], 8)}, {"fbiInit3", Hex(regs[k_voodoo_fbi_init3], 8)},
+        {"fbiInit4", Hex(regs[k_voodoo_fbi_init4], 8)}, {"hSync", Hex(regs[k_voodoo_h_sync], 8)},
+        {"vSync", Hex(regs[k_voodoo_v_sync], 8)}, {"backPorch", Hex(regs[k_voodoo_back_porch], 8)},
+        {"videoDimensions", Hex(regs[k_voodoo_video_dimensions], 8)}};
+    result["pipeline"] = {{"fbzColorPath", Hex(regs[k_voodoo_fbz_color_path], 8)}, {"fogMode", Hex(regs[k_voodoo_fog_mode], 2)},
+        {"alphaMode", Hex(regs[k_voodoo_alpha_mode], 8)}, {"fbzMode", Hex(regs[k_voodoo_fbz_mode], 8)},
+        {"lfbMode", Hex(regs[k_voodoo_lfb_mode], 8)}, {"clipLeftRight", Hex(regs[k_voodoo_clip_left_right], 8)},
+        {"clipLowYHighY", Hex(regs[k_voodoo_clip_low_y_high_y], 8)}, {"color0", Hex(regs[k_voodoo_color0], 8)},
+        {"color1", Hex(regs[k_voodoo_color1], 8)}, {"zaColor", Hex(regs[k_voodoo_za_color], 8)},
+        {"chromaKey", Hex(regs[k_voodoo_chroma_key], 8)}, {"fogColor", Hex(regs[k_voodoo_fog_color], 8)},
+        {"stipple", Hex(regs[k_voodoo_stipple], 8)}};
+    result["trex"] = {{"textureMode", Hex(trex->texture_mode, 8)}, {"tLOD", Hex(trex->tlod, 8)},
+        {"tDetail", Hex(trex->tdetail, 8)}, {"texBaseAddr", Hex(trex->tex_base[0], 5)},
+        {"trexInit0", Hex(trex->trex_init[0], 8)}, {"trexInit1", Hex(trex->trex_init[1], 8)}};
+    const Voodoo::Voodoo_Params& params = state->params;
+    result["triangle"] = {{"vertex_a", {params.vertex[0] / 16.0, params.vertex[1] / 16.0}},
+        {"vertex_b", {params.vertex[2] / 16.0, params.vertex[3] / 16.0}},
+        {"vertex_c", {params.vertex[4] / 16.0, params.vertex[5] / 16.0}},
+        {"start_rgbaz", {Hex(params.start[0], 8), Hex(params.start[1], 8), Hex(params.start[2], 8), Hex(params.start[3], 8),
+        Hex(params.start[4], 8)}}, {"start_w", (double)params.start_w / 4294967296.0}};
+    result["counters"] = {{"pixels_in", state->counters[0] & 0xFFFFFF}, {"chroma_fail", state->counters[1] & 0xFFFFFF},
+        {"zfunc_fail", state->counters[2] & 0xFFFFFF}, {"afunc_fail", state->counters[3] & 0xFFFFFF},
+        {"pixels_out", state->counters[4] & 0xFFFFFF}};
+    return result;
+}
+
+json DebugAdapter::GetVoodooBuffer(const std::string& buffer)
+{
+    if (!m_core->GetVideo()->HasVoodoo())
+        return {{"error", "The 3Dfx Voodoo is off"}};
+
+    const Voodoo::Voodoo_State* state = m_core->GetVideo()->GetVoodoo()->GetState();
+    int index = buffer == "back" ? state->back_buffer : buffer == "aux" ? 2 : state->front_buffer;
+
+    if ((buffer != "front") && (buffer != "back") && (buffer != "aux"))
+        return {{"error", "buffer must be front, back or aux"}};
+
+    unsigned char* png = NULL;
+    int width = 0;
+    int height = 0;
+    int size = emu_get_voodoo_buffer_png(index, &png, &width, &height);
+
+    if (size <= 0 || !png)
+        return {{"error", "The Voodoo has no buffer layout yet"}};
+
+    std::string base64_png = base64_encode(png, size);
+    free(png);
+
+    json result;
+    result["__mcp_image"] = true;
+    result["data"] = base64_png;
+    result["mimeType"] = "image/png";
+    result["width"] = width;
+    result["height"] = height;
     return result;
 }
 
