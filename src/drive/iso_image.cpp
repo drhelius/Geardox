@@ -381,7 +381,7 @@ bool IsoImage::Write(const char* path)
     SafeDelete(m_output);
     std::vector<u8>().swap(m_buffer);
 
-    ok = ok && MediaFile::RenameFile(temporary.c_str(), path);
+    ok = ok && MediaFile::ReplaceFile(temporary.c_str(), path);
 
     if (!ok)
     {

@@ -69,27 +69,8 @@ static const u32 k_mt32_engine_queue_size = 32768;
 static const int k_mt32_engine_max_frames = GDOX_AUDIO_BUFFER_SIZE / 2;
 static const int k_mt32_engine_native_frames = k_mt32_engine_max_frames + (k_mt32_engine_max_frames / 4);
 static const u32 k_mt32_engine_rate = 48000;
+static const u32 k_mt32_engine_max_rom_size = 0x100000;
 static const u8 k_mt32_engine_reset[11] = { 0xF0, 0x41, 0x10, 0x16, 0x12, 0x7F, 0x00, 0x00, 0x00, 0x01, 0xF7 };
-
-static bool load_file(const std::string& path, std::vector<u8>& data)
-{
-    MediaFile* file = MediaFile::OpenFile(path.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    s64 size = file->GetSize();
-    bool ok = (size > 0) && (size <= 0x100000);
-
-    if (ok)
-    {
-        data.resize((size_t)size);
-        ok = file->ReadExact(&data[0], (u64)size);
-    }
-
-    SafeDelete(file);
-    return ok;
-}
 
 static bool is_rom_size(u64 size)
 {
@@ -116,7 +97,7 @@ static bool make_image(const std::string* paths, MT32Engine_Image& image)
 
     for (int i = 0; i < count; i++)
     {
-        if (!load_file(paths[i], image.data[i]))
+        if (!MediaFile::ReadFile(paths[i].c_str(), k_mt32_engine_max_rom_size, &image.data[i]))
             return false;
 
         image.file[i] = new MT32Emu::ArrayFile(&image.data[i][0], image.data[i].size());
@@ -196,7 +177,7 @@ int MT32Engine::Scan(const char* folder, MidiSynth::MidiSynth_MT32_ROMs* sets, i
 
         std::vector<u8> data;
 
-        if (!load_file(path, data))
+        if (!MediaFile::ReadFile(path.c_str(), k_mt32_engine_max_rom_size, &data))
             continue;
 
         MT32Emu::ArrayFile file(&data[0], data.size());

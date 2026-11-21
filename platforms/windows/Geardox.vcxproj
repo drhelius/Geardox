@@ -55,6 +55,7 @@
     <ClCompile Include="..\..\src\media\media.cpp" />
     <ClCompile Include="..\..\src\media\media_file.cpp" />
     <ClCompile Include="..\..\src\media\media_file_native.cpp" />
+    <ClCompile Include="..\..\src\media\media_zip.cpp" />
     <ClCompile Include="..\..\src\media\ogg_vorbis_decoder.cpp" />
     <ClCompile Include="..\..\src\geardox_core.cpp" />
     <ClCompile Include="..\..\src\common\profiler.cpp" />
@@ -718,6 +719,7 @@
     <ClInclude Include="..\..\src\media\media_inline.h" />
     <ClInclude Include="..\..\src\media\media_file.h" />
     <ClInclude Include="..\..\src\media\media_file_native.h" />
+    <ClInclude Include="..\..\src\media\media_zip.h" />
     <ClInclude Include="..\..\src\media\ogg_vorbis_decoder.h" />
     <ClInclude Include="..\..\src\common\memory_stream.h" />
     <ClInclude Include="..\..\src\common\state_serializer.h" />

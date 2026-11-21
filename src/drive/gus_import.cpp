@@ -23,6 +23,7 @@
 #include "gus_import.h"
 #include "floppy_image.h"
 #include "../media/media_file.h"
+#include "../media/media_zip.h"
 #include "../media/crc.h"
 
 static const u32 k_gus_sector_size = 512;
@@ -110,26 +111,6 @@ struct Gus_Record
     u16 date;
     u16 time;
 };
-
-static bool read_file(const std::string& path, u32 limit, std::vector<u8>* data)
-{
-    u64 size = 0;
-    s64 modified = 0;
-    data->clear();
-
-    if (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) || (size == 0) || (size > limit))
-        return false;
-
-    MediaFile* file = MediaFile::OpenFile(path.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    data->resize((size_t)size);
-    bool ok = file->ReadAt(0, data->data(), size);
-    SafeDelete(file);
-    return ok;
-}
 
 static s64 dos_to_host_time(u16 date, u16 time_value)
 {
@@ -300,7 +281,7 @@ bool GusImport::AddSource(const char* path)
     {
         std::vector<u8> archive;
 
-        if (!read_file(source, k_gus_max_zip_size, &archive))
+        if (!MediaFile::ReadFile(source.c_str(), k_gus_max_zip_size, &archive))
             return Fail(GUS_IMPORT_ERROR, "Unable to read %s", source.c_str());
 
         return AddZipData(archive.data(), archive.size(), 0);
@@ -354,7 +335,8 @@ bool GusImport::AddInstalled(const std::string& path, const std::string& prefix,
     {
         std::vector<u8> data;
 
-        if ((files[i][0] == '.') || !read_file(path_join(path, files[i]), k_gus_max_installed_size, &data))
+        if ((files[i][0] == '.') ||
+            !MediaFile::ReadFile(path_join(path, files[i]).c_str(), k_gus_max_installed_size, &data))
             continue;
 
         m_installed.push_back(std::make_pair(prefix + to_upper_ascii(files[i]),
@@ -390,7 +372,7 @@ bool GusImport::AddFolder(const std::string& path, int depth)
 
         if ((files[i][0] == '.') || ends_with_no_case(name, ".zip"))
         {
-            if ((files[i][0] != '.') && read_file(full, k_gus_max_zip_size, &data) &&
+            if ((files[i][0] != '.') && MediaFile::ReadFile(full.c_str(), k_gus_max_zip_size, &data) &&
                 !AddZipData(data.data(), data.size(), depth))
                 return false;
 
@@ -399,7 +381,8 @@ bool GusImport::AddFolder(const std::string& path, int depth)
 
         if (FloppyImage::IsImageName(name.c_str()))
         {
-            if (read_file(full, k_gus_max_image_size, &data) && !AddImage(data.data(), (u32)data.size(), name))
+            if (MediaFile::ReadFile(full.c_str(), k_gus_max_image_size, &data) &&
+                !AddImage(data.data(), (u32)data.size(), name))
                 return false;
 
             continue;
@@ -411,7 +394,7 @@ bool GusImport::AddFolder(const std::string& path, int depth)
             continue;
         }
 
-        if (!read_file(full, k_gus_max_volume_size, &data))
+        if (!MediaFile::ReadFile(full.c_str(), k_gus_max_volume_size, &data))
             return Fail(GUS_IMPORT_ERROR, "Unable to read %s", full.c_str());
 
         AddFile(name, data.data(), data.size());
@@ -428,19 +411,18 @@ bool GusImport::AddFolder(const std::string& path, int depth)
 
 bool GusImport::AddZipData(const u8* data, size_t size, int depth)
 {
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
 
-    if (!mz_zip_reader_init_mem(&zip, data, size, 0))
+    if (!zip.Open(data, size))
         return Fail(GUS_IMPORT_ERROR, "Not a ZIP file Geardox reads");
 
     bool ok = true;
 
-    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(&zip)); i++)
+    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(zip.GetArchive())); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(zip.GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string name = to_upper_ascii(path_filename(stat.m_filename));
@@ -455,26 +437,24 @@ bool GusImport::AddZipData(const u8* data, size_t size, int depth)
             continue;
         }
 
-        size_t extracted = 0;
-        void* bytes = mz_zip_reader_extract_to_heap(&zip, i, &extracted, 0);
+        std::string bytes;
 
-        if (!IsValidPointer(bytes))
+        if (!zip.Extract(i, &bytes))
         {
             ok = Fail(GUS_IMPORT_ERROR, "Unable to read %s in the ZIP", name.c_str());
             continue;
         }
 
-        if (nested)
-            ok = (depth >= k_gus_max_depth) || AddZipData((const u8*)bytes, extracted, depth + 1);
-        else if (image)
-            ok = AddImage((const u8*)bytes, (u32)extracted, name);
-        else
-            AddFile(name, (const u8*)bytes, extracted);
+        const u8* extracted = (const u8*)bytes.data();
 
-        mz_free(bytes);
+        if (nested)
+            ok = (depth >= k_gus_max_depth) || AddZipData(extracted, bytes.size(), depth + 1);
+        else if (image)
+            ok = AddImage(extracted, (u32)bytes.size(), name);
+        else
+            AddFile(name, extracted, bytes.size());
     }
 
-    mz_zip_reader_end(&zip);
     return ok;
 }
 
@@ -936,8 +916,7 @@ GusImport_Result GusImport::Finish(const char* zip_path, const char* family, con
     const std::vector<Gus_Output>& output)
 {
     char text[128];
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
     m_name = name;
     m_patches = patches;
     snprintf(text, sizeof(text), "%s imported, %d patches", title, patches);
@@ -946,54 +925,29 @@ GusImport_Result GusImport::Finish(const char* zip_path, const char* family, con
         GetSourceFingerprint());
     std::string version_text = text;
 
-    if (!mz_zip_writer_init_heap(&zip, 0, 4 * 1024 * 1024))
+    if (!zip.BeginArchive())
     {
         Fail(GUS_IMPORT_ERROR, "Unable to make %s", k_gus_import_file);
         return m_result;
     }
 
-    bool ok = mz_zip_writer_add_mem(&zip, k_gus_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL);
+    bool ok = zip.AddEntry(k_gus_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL);
 
     for (size_t i = 0; ok && (i < output.size()); i++)
     {
-        MZ_TIME_T modified = (MZ_TIME_T)output[i].modified;
-        ok = mz_zip_writer_add_mem_ex_v2(&zip, output[i].path.c_str(), output[i].data.data(), output[i].data.size(), NULL,
-            0, MZ_DEFAULT_LEVEL, 0, 0, output[i].modified != 0 ? &modified : NULL, NULL, 0, NULL, 0) != 0;
+        s64 modified = output[i].modified;
+        ok = zip.AddEntry(output[i].path.c_str(), output[i].data.data(), output[i].data.size(), MZ_DEFAULT_LEVEL,
+            output[i].modified != 0 ? &modified : NULL);
     }
 
-    void* archive = NULL;
-    size_t archive_size = 0;
-    ok = ok && mz_zip_writer_finalize_heap_archive(&zip, &archive, &archive_size);
-
-    if (!ok)
+    if (!ok || !zip.FinishArchive())
     {
-        mz_zip_writer_end(&zip);
         Fail(GUS_IMPORT_ERROR, "Unable to make %s", k_gus_import_file);
         return m_result;
     }
 
-    std::string temporary = std::string(zip_path) + ".tmp";
-    MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
-    ok = IsValidPointer(file) && file->WriteAt(0, archive, archive_size) && file->Flush();
-    SafeDelete(file);
-    mz_zip_writer_end(&zip);
-
-    if (ok && !MediaFile::RenameFile(temporary.c_str(), zip_path))
+    if (!zip.WriteArchive(zip_path))
     {
-        std::string old = std::string(zip_path) + ".old";
-        MediaFile::RemoveFile(old.c_str());
-        bool moved = MediaFile::RenameFile(zip_path, old.c_str());
-        ok = MediaFile::RenameFile(temporary.c_str(), zip_path);
-
-        if (ok)
-            MediaFile::RemoveFile(old.c_str());
-        else if (moved)
-            MediaFile::RenameFile(old.c_str(), zip_path);
-    }
-
-    if (!ok)
-    {
-        MediaFile::RemoveFile(temporary.c_str());
         Fail(GUS_IMPORT_ERROR, "Unable to write %s", zip_path);
         return m_result;
     }
@@ -1080,17 +1034,9 @@ static std::string get_value(const std::string& text, const char* key)
     return text.substr(at + prefix.size(), end == std::string::npos ? std::string::npos : end - at - prefix.size());
 }
 
-static bool read_version_text(mz_zip_archive* zip, std::string* text)
+static bool read_version_text(MediaZip* zip, std::string* text)
 {
-    size_t size = 0;
-    void* data = mz_zip_reader_extract_file_to_heap(zip, k_gus_import_version, &size, 0);
-
-    if (!IsValidPointer(data))
-        return false;
-
-    text->assign((const char*)data, size);
-    mz_free(data);
-    return !get_value(*text, "id").empty();
+    return zip->Extract(k_gus_import_version, text) && !get_value(*text, "id").empty();
 }
 
 bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::string* error)
@@ -1101,27 +1047,25 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
     software->patches = 0;
     software->crc = 0;
 
-    if (!read_file(zip_path, k_gus_max_zip_size, &data))
+    if (!MediaFile::ReadFile(zip_path, k_gus_max_zip_size, &data))
     {
         *error = std::string("Unable to read ") + zip_path;
         return false;
     }
 
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
     std::string text;
 
-    if (!mz_zip_reader_init_mem(&zip, data.data(), data.size(), 0) || !read_version_text(&zip, &text))
+    if (!zip.Open(data.data(), data.size()) || !read_version_text(&zip, &text))
     {
-        mz_zip_reader_end(&zip);
         *error = std::string("Not an UltraSound import: ") + zip_path;
         return false;
     }
 
     std::string id = get_value(text, "id");
     bool ok = ((id == k_gus_family_411) || (id == k_gus_family_installed)) &&
-        (mz_zip_reader_locate_file(&zip, k_gus_ini, NULL, 0) >= 0);
-    mz_zip_reader_end(&zip);
+        (mz_zip_reader_locate_file(zip.GetArchive(), k_gus_ini, NULL, 0) >= 0);
+    zip.Close();
 
     if (!ok)
     {
@@ -1140,15 +1084,14 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
 bool GusImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
 {
     std::vector<u8> data;
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
 
-    if (!read_file(zip_path, k_gus_max_zip_size, &data) || !mz_zip_reader_init_mem(&zip, data.data(), data.size(), 0))
+    if (!MediaFile::ReadFile(zip_path, k_gus_max_zip_size, &data) || !zip.Open(data.data(), data.size()))
         return false;
 
     std::string text;
     bool ok = read_version_text(&zip, &text);
-    mz_zip_reader_end(&zip);
+    zip.Close();
     std::string source = get_value(text, "source");
 
     if (!parse_hex_string(source.c_str(), source.size(), fingerprint))

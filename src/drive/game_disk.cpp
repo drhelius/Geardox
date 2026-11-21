@@ -138,13 +138,6 @@ static bool exists(const std::string& path)
     return MediaFile::GetFileInfo(path.c_str(), &size, &modified) || MediaFile::ListDirectory(path.c_str(), folders, files);
 }
 
-static bool is_folder(const std::string& path)
-{
-    std::vector<std::string> folders;
-    std::vector<std::string> files;
-    return MediaFile::ListDirectory(path.c_str(), folders, files);
-}
-
 static std::string safe_name(const std::string& name)
 {
     std::string result;
@@ -160,7 +153,7 @@ static std::string safe_name(const std::string& name)
 
 static bool make_directories(const std::string& path)
 {
-    if (is_folder(path))
+    if (MediaFile::IsDirectory(path.c_str()))
         return true;
 
     std::string parent = path_directory(path);
@@ -192,48 +185,14 @@ static bool is_scratch_path(const std::string& dos_path)
 
 static std::string read_text(const std::string& path)
 {
-    u64 size = 0;
-    s64 modified = 0;
-
-    if (!MediaFile::GetFileInfo(path.c_str(), &size, &modified))
-        return "";
-
-    MediaFile* file = MediaFile::OpenFile(path.c_str());
-
-    if (!IsValidPointer(file))
-        return "";
-
-    std::string text((size_t)size, '\0');
-    bool ok = (size == 0) || file->ReadAt(0, &text[0], size);
-    SafeDelete(file);
-    return ok ? text : std::string();
-}
-
-static bool replace_file(const std::string& temporary, const std::string& path)
-{
-    if (MediaFile::RenameFile(temporary.c_str(), path.c_str()))
-        return true;
-
-    MediaFile::RemoveFile(path.c_str());
-    return MediaFile::RenameFile(temporary.c_str(), path.c_str());
+    std::string text;
+    MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true);
+    return text;
 }
 
 static bool write_text(const std::string& path, const std::string& text)
 {
-    std::string temporary = path + ".tmp";
-    MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    bool ok = (text.empty() || file->WriteAt(0, text.data(), text.size())) && file->Flush();
-    SafeDelete(file);
-    ok = ok && replace_file(temporary, path);
-
-    if (!ok)
-        MediaFile::RemoveFile(temporary.c_str());
-
-    return ok;
+    return MediaFile::WriteFileAtomic(path.c_str(), text.data(), text.size());
 }
 
 static void put_u8(std::string* out, u8 value)
@@ -316,62 +275,6 @@ struct Manifest_Reader
     }
 };
 
-static size_t read_zip_file(void* opaque, mz_uint64 offset, void* buffer, size_t size)
-{
-    MediaFile* file = (MediaFile*)opaque;
-    return file->ReadAt(offset, buffer, size) ? size : 0;
-}
-
-static bool open_zip(const char* path, mz_zip_archive* zip, MediaFile** file)
-{
-    memset(zip, 0, sizeof(*zip));
-    *file = MediaFile::OpenFile(path);
-
-    if (!IsValidPointer(*file))
-        return false;
-
-    zip->m_pRead = read_zip_file;
-    zip->m_pIO_opaque = *file;
-
-    if (!mz_zip_reader_init(zip, (mz_uint64)(*file)->GetSize(), 0))
-    {
-        SafeDelete(*file);
-        return false;
-    }
-
-    return true;
-}
-
-static void close_zip(mz_zip_archive* zip, MediaFile** file)
-{
-    mz_zip_reader_end(zip);
-    SafeDelete(*file);
-}
-
-static size_t write_zip_entry(void* opaque, mz_uint64 offset, const void* buffer, size_t size)
-{
-    MediaFile* file = (MediaFile*)opaque;
-    return file->WriteAt(offset, buffer, size) ? size : 0;
-}
-
-static bool extract_zip_entry(mz_zip_archive* zip, mz_uint index, const std::string& path)
-{
-    std::string temporary = path + ".tmp";
-    MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    bool ok = mz_zip_reader_extract_to_callback(zip, index, write_zip_entry, file, 0) && file->Flush();
-    SafeDelete(file);
-    ok = ok && replace_file(temporary, path);
-
-    if (!ok)
-        MediaFile::RemoveFile(temporary.c_str());
-
-    return ok;
-}
-
 static bool sort_found(const std::pair<std::string, GameDisk_Found>& a, const std::pair<std::string, GameDisk_Found>& b)
 {
     return a.first < b.first;
@@ -435,7 +338,7 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
         return true;
     }
 
-    if (IsDosProgram(source.c_str()) && exists(source) && !is_folder(source))
+    if (IsDosProgram(source.c_str()) && exists(source) && !MediaFile::IsDirectory(source.c_str()))
     {
         std::string folder = path_directory(source);
 
@@ -455,17 +358,16 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
 
     if (ends_with_no_case(source.c_str(), ".zip"))
     {
-        mz_zip_archive zip;
-        MediaFile* file = NULL;
+        MediaZip zip;
 
-        if (!open_zip(source.c_str(), &zip, &file))
+        if (!zip.Open(source.c_str()))
             return false;
 
-        for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&zip); i++)
+        for (mz_uint i = 0; i < mz_zip_reader_get_num_files(zip.GetArchive()); i++)
         {
             mz_zip_archive_file_stat stat;
 
-            if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory)
+            if (!mz_zip_reader_file_stat(zip.GetArchive(), i, &stat) || stat.m_is_directory)
                 continue;
 
             std::string name = slashes(stat.m_filename);
@@ -478,8 +380,6 @@ bool GameDisk::Find(const char* path, std::vector<GameDisk_Found>* found)
                 sorted.push_back(std::make_pair(to_upper_ascii(name), item));
             }
         }
-
-        close_zip(&zip, &file);
     }
     else if (MediaFile::ListDirectory(source.c_str(), folders, files))
     {
@@ -675,23 +575,15 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     }
     else
     {
-        mz_zip_archive zip;
-        MediaFile* file = NULL;
-        size_t size = 0;
-        void* data = NULL;
+        MediaZip zip;
+        std::string data;
 
-        if (open_zip(found.path.c_str(), &zip, &file))
-        {
-            data = mz_zip_reader_extract_file_to_heap(&zip, found.inner.c_str(), &size, 0);
-            close_zip(&zip, &file);
-        }
-
-        if (!IsValidPointer(data))
+        if (!zip.Open(found.path.c_str()) || !zip.Extract(found.inner.c_str(), &data))
             return Fail("Unable to read %s in %s", found.inner.c_str(), path_filename(found.path).c_str());
 
+        zip.Close();
         std::string name = join(found.path, found.inner);
-        bool parsed = m_base.Parse(name.c_str(), (const char*)data, size);
-        mz_free(data);
+        bool parsed = m_base.Parse(name.c_str(), data.data(), data.size());
 
         if (!parsed)
             return Fail("%s: %s", found.inner.c_str(), m_base.GetError());
@@ -1125,7 +1017,8 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         if (!ResolveMedia(info.cds[i], &path))
             return false;
 
-        if (is_folder(path) && !BuildFolderCd(trim_trailing_separators(path), info.cdrom_label, &path))
+        if (MediaFile::IsDirectory(path.c_str()) &&
+            !BuildFolderCd(trim_trailing_separators(path), info.cdrom_label, &path))
             return false;
 
         m_cdroms.push_back(path);
@@ -1608,7 +1501,7 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
     if (!image->AddGame(m_source.c_str(), info.folder.c_str(), m_zip_prefix.c_str()))
         return Fail("Unable to read the game's files: %s", m_source.c_str());
 
-    if (is_folder(m_overlay) && !image->AddOverlay(m_overlay.c_str()))
+    if (MediaFile::IsDirectory(m_overlay.c_str()) && !image->AddOverlay(m_overlay.c_str()))
         return Fail("Unable to read the game's saves: %s", m_overlay.c_str());
 
     image->ApplyLayout(m_layout);
@@ -1696,10 +1589,9 @@ bool GameDisk::BuildFolderCd(const std::string& folder, const std::string& label
 
 bool GameDisk::ExtractFromZip(const std::string& inner, std::string* path)
 {
-    mz_zip_archive zip;
-    MediaFile* file = NULL;
+    MediaZip zip;
 
-    if (!open_zip(m_source.c_str(), &zip, &file))
+    if (!zip.Open(m_source.c_str()))
         return false;
 
     std::string wanted = to_upper_ascii(inner);
@@ -1712,20 +1604,19 @@ bool GameDisk::ExtractFromZip(const std::string& inner, std::string* path)
     if (ok && found && !cue && (CdRomMedia::ProbeFile(path->c_str()) == GDOX_CDROM_FILE_CUE))
         ok = ExtractEntries(&zip, wanted, folder, true, path, &found);
 
-    close_zip(&zip, &file);
     return ok && found;
 }
 
-bool GameDisk::ExtractEntries(mz_zip_archive* zip, const std::string& wanted, const std::string& folder, bool cue,
+bool GameDisk::ExtractEntries(MediaZip* zip, const std::string& wanted, const std::string& folder, bool cue,
     std::string* path, bool* found)
 {
     bool ok = true;
 
-    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(zip)); i++)
+    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(zip->GetArchive())); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(zip, i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(zip->GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string name = slashes(stat.m_filename);
@@ -1745,7 +1636,7 @@ bool GameDisk::ExtractEntries(mz_zip_archive* zip, const std::string& wanted, co
         if (!fresh)
         {
             Log("Taking %s out of %s", name.c_str(), path_filename(m_source).c_str());
-            ok = make_directories(path_directory(out)) && extract_zip_entry(zip, i, out);
+            ok = make_directories(path_directory(out)) && zip->ExtractToFile(i, out.c_str());
         }
 
         if (wanted_file)
@@ -1931,8 +1822,11 @@ bool GameDisk::WriteConflict(FatImage* image, const FatImage_File& file, const s
         return false;
     }
 
-    MediaFile::RemoveFile(path.c_str());
-    return MediaFile::RenameFile(temporary.c_str(), path.c_str());
+    if (MediaFile::ReplaceFile(temporary.c_str(), path.c_str()))
+        return true;
+
+    MediaFile::RemoveFile(temporary.c_str());
+    return false;
 }
 
 void GameDisk::LoadDeleted()
@@ -2117,7 +2011,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
             std::string temporary = destination + ".tmp";
 
             if (!make_directories(path_directory(destination)) || !image.CopyOut(*file, temporary.c_str()) ||
-                !replace_file(temporary, destination))
+                !MediaFile::ReplaceFile(temporary.c_str(), destination.c_str()))
             {
                 MediaFile::RemoveFile(temporary.c_str());
                 result->kept++;
@@ -2170,7 +2064,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 
         std::string destination = entry.overlay ? join(m_overlay, entry.host_path) : GetDestination(entry.host_path);
 
-        if (is_folder(destination) && !MediaFile::DeleteDirectory(destination.c_str()))
+        if (MediaFile::IsDirectory(destination.c_str()) && !MediaFile::DeleteDirectory(destination.c_str()))
         {
             result->kept++;
             result->notes.push_back("A folder the game removed isn't empty on the host, kept: " + entry.host_path);
@@ -2253,7 +2147,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
         std::string temporary = destination + ".tmp";
 
         if (!make_directories(path_directory(destination)) || !image.CopyOut(file, temporary.c_str()) ||
-            !MediaFile::RenameFile(temporary.c_str(), destination.c_str()))
+            !MediaFile::ReplaceFile(temporary.c_str(), destination.c_str()))
         {
             MediaFile::RemoveFile(temporary.c_str());
             result->kept++;

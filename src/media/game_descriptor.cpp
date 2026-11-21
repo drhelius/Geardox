@@ -762,20 +762,7 @@ std::string GameDescriptor::Write() const
 bool GameDescriptor::WriteFile(const char* path) const
 {
     std::string text = Write();
-    std::string temporary = std::string(path) + ".tmp";
-    MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    bool ok = file->WriteAt(0, text.data(), text.size()) && file->Flush();
-    SafeDelete(file);
-    ok = ok && MediaFile::RenameFile(temporary.c_str(), path);
-
-    if (!ok)
-        MediaFile::RemoveFile(temporary.c_str());
-
-    return ok;
+    return MediaFile::WriteFileAtomic(path, text.data(), text.size());
 }
 
 const char* GameDescriptor::GetError() const

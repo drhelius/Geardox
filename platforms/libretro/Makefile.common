@@ -95,6 +95,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/media/media_file.cpp \
                 $(SOURCE_DIR)/media/media_file_libretro.cpp \
                 $(SOURCE_DIR)/media/media_file_native.cpp \
+                $(SOURCE_DIR)/media/media_zip.cpp \
                 $(SOURCE_DIR)/media/ogg_vorbis_decoder.cpp \
                 $(SOURCE_DIR)/system/i8254.cpp \
                 $(SOURCE_DIR)/system/dma.cpp \

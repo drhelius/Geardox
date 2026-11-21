@@ -29,6 +29,7 @@
 #include "drive/hard_disk_image.h"
 #include "drive/ide_controller.h"
 #include "media/firmware.h"
+#include "media/media_file.h"
 #include "input/input.h"
 #include "input/gamepad_keys.h"
 #include "input/key_map.h"
@@ -1510,7 +1511,7 @@ bool GeardoxCore::SaveState(const char* path, int index, bool screenshot)
 
     stream.close();
 
-    if (!stream.good() || !rename_file_utf8(temp_path.c_str(), full_path.c_str()))
+    if (!stream.good() || !MediaFile::ReplaceFile(temp_path.c_str(), full_path.c_str()))
     {
         remove_file_utf8(temp_path.c_str());
         Error("Failed to write save state file: %s", full_path.c_str());

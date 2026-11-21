@@ -117,6 +117,28 @@ bool MediaFileNative::GetFileInfo(const char* path, u64* size, s64* modified)
     return true;
 }
 
+bool MediaFileNative::Exists(const char* path)
+{
+#if defined(_WIN32)
+    struct _stat64 info;
+    return _wstat64(utf8_to_wstring(path).c_str(), &info) == 0;
+#else
+    struct stat info;
+    return stat(path, &info) == 0;
+#endif
+}
+
+bool MediaFileNative::IsDirectory(const char* path)
+{
+#if defined(_WIN32)
+    struct _stat64 info;
+    return (_wstat64(utf8_to_wstring(path).c_str(), &info) == 0) && ((info.st_mode & _S_IFDIR) != 0);
+#else
+    struct stat info;
+    return (stat(path, &info) == 0) && S_ISDIR(info.st_mode);
+#endif
+}
+
 bool MediaFileNative::MakeDirectory(const char* path)
 {
     return create_directory_if_not_exists(path);

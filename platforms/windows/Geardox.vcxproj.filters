@@ -490,6 +490,9 @@
     <ClCompile Include="..\..\src\media\media_file_native.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\media\media_zip.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\media\ogg_vorbis_decoder.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -927,6 +930,7 @@
     <ClInclude Include="..\..\src\media\media_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\media_file.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\media_file_native.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\media\media_zip.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\ogg_vorbis_decoder.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\memory_stream.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\state_serializer.h"><Filter>src</Filter></ClInclude>

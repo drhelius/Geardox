@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include "../common/common.h"
+#include "../media/media_zip.h"
 
 class MediaFile;
 
@@ -171,7 +172,7 @@ private:
     bool WalkOverlay(const std::string& path, u32 directory, int depth);
     void LeaveOutReserved(const std::vector<std::string>& reserved);
     void LeaveOutMatching(u32 directory, const std::string& name, bool (*match)(const std::string& data));
-    bool AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directory, const char* target);
+    bool AddFreeDOSFile(MediaZip* zip, const char* name, u32 directory, const char* target);
     bool AddDosTool(u32 directory, const char* name, const u8* data, u32 size);
     void PinEntries();
     void ApplyDeleted(const std::string& list);
@@ -194,25 +195,18 @@ private:
     bool WriteBootSector();
     bool WriteMasterBootRecord();
     u64 GetClusterOffset(u32 cluster) const;
-    static size_t ReadZipFile(void* opaque, mz_uint64 offset, void* buffer, size_t size);
-    static size_t WriteZipEntry(void* opaque, mz_uint64 offset, const void* buffer, size_t size);
 
 private:
     std::vector<FatImage_Entry> m_entries;
     std::vector<u16> m_fat;
     std::vector<u8> m_buffer;
     FatImage_Layout m_layout;
-    mz_zip_archive m_zip;
-    bool m_zip_open;
-    mz_zip_archive m_system_zip;
-    bool m_system_zip_open;
-    mz_zip_archive m_ultrasound_zip;
-    bool m_ultrasound_zip_open;
+    MediaZip m_zip;
+    MediaZip m_system_zip;
+    MediaZip m_ultrasound_zip;
     std::vector<std::string> m_pinned;
     u32 m_pinned_count;
-    MediaFile* m_zip_file;
     MediaFile* m_output;
-    u64 m_zip_offset;
     char m_label[12];
     const u8* m_boot_sector;
     u32 m_fingerprint;

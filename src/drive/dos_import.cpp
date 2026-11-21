@@ -24,6 +24,7 @@
 #include "dos_import.h"
 #include "floppy_image.h"
 #include "../media/media_file.h"
+#include "../media/media_zip.h"
 #include "../media/crc.h"
 
 static const u32 k_dos_sector_size = 512;
@@ -82,26 +83,6 @@ struct Kwaj_Huffman
     u16 count[16];
     u16 symbol[256];
 };
-
-static bool read_file(const std::string& path, u32 limit, std::vector<u8>* data)
-{
-    u64 size = 0;
-    s64 modified = 0;
-    data->clear();
-
-    if (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) || (size == 0) || (size > limit))
-        return false;
-
-    MediaFile* file = MediaFile::OpenFile(path.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    data->resize((size_t)size);
-    bool ok = file->ReadAt(0, data->data(), size);
-    SafeDelete(file);
-    return ok;
-}
 
 static s64 dos_to_host_time(u16 date, u16 time_value)
 {
@@ -465,7 +446,7 @@ bool DosImport::AddZip(const std::string& path)
 {
     std::vector<u8> archive;
 
-    if (!read_file(path, k_dos_max_zip_size, &archive))
+    if (!MediaFile::ReadFile(path.c_str(), k_dos_max_zip_size, &archive))
         return Fail(DOS_IMPORT_ERROR, "Unable to read %s", path.c_str());
 
     int count = FloppyImage::GetZipImageCount(archive.data(), archive.size());
@@ -499,7 +480,7 @@ bool DosImport::AddImageFile(const std::string& path)
 {
     std::vector<u8> data;
 
-    if (!read_file(path, k_dos_max_image_size, &data))
+    if (!MediaFile::ReadFile(path.c_str(), k_dos_max_image_size, &data))
         return Fail(DOS_IMPORT_ERROR, "Unable to read %s", path.c_str());
 
     return AddImage(data.data(), (u32)data.size(), path_filename(path));
@@ -898,10 +879,9 @@ DosImport_Result DosImport::Import(const char* zip_path)
     }
 
     m_name = get_version_name(command->second.data);
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
 
-    if (!mz_zip_writer_init_heap(&zip, 0, 4 * 1024 * 1024))
+    if (!zip.BeginArchive())
     {
         Fail(DOS_IMPORT_ERROR, "Unable to make %s", k_dos_import_file);
         return m_result;
@@ -911,60 +891,32 @@ DosImport_Result DosImport::Import(const char* zip_path)
     char source[32];
     snprintf(source, sizeof(source), "source=%08X\r\n", GetSourceFingerprint());
     version_text += source;
-    bool ok = mz_zip_writer_add_mem(&zip, k_dos_import_version, version_text.data(), version_text.size(),
-        MZ_DEFAULT_LEVEL) && mz_zip_writer_add_mem(&zip, k_dos_import_boot, boot.data(), boot.size(), 0);
+    bool ok = zip.AddEntry(k_dos_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL) &&
+        zip.AddEntry(k_dos_import_boot, boot.data(), boot.size(), 0);
 
     for (std::map<std::string, DosImport_File>::const_iterator it = installed.begin(); ok && (it != installed.end()); ++it)
     {
         const std::string& data = it->second.data;
         Dos_Place place = get_place(it->first);
-        MZ_TIME_T modified = (MZ_TIME_T)dos_to_host_time(it->second.date, it->second.time);
+        s64 modified = dos_to_host_time(it->second.date, it->second.time);
         std::string root = std::string(k_dos_import_root) + it->first;
         std::string dos = std::string(k_dos_import_root) + "DOS/" + it->first;
 
         if (place != DOS_PLACE_DOS)
-            ok = mz_zip_writer_add_mem_ex_v2(&zip, root.c_str(), data.data(), data.size(), NULL, 0, MZ_DEFAULT_LEVEL, 0,
-                0, &modified, NULL, 0, NULL, 0) != 0;
+            ok = zip.AddEntry(root.c_str(), data.data(), data.size(), MZ_DEFAULT_LEVEL, &modified);
 
         if (ok && ((place == DOS_PLACE_DOS) || (place == DOS_PLACE_BOTH)))
-            ok = mz_zip_writer_add_mem_ex_v2(&zip, dos.c_str(), data.data(), data.size(), NULL, 0, MZ_DEFAULT_LEVEL, 0,
-                0, &modified, NULL, 0, NULL, 0) != 0;
+            ok = zip.AddEntry(dos.c_str(), data.data(), data.size(), MZ_DEFAULT_LEVEL, &modified);
     }
 
-    void* archive = NULL;
-    size_t archive_size = 0;
-    ok = ok && mz_zip_writer_finalize_heap_archive(&zip, &archive, &archive_size);
-
-    if (!ok)
+    if (!ok || !zip.FinishArchive())
     {
-        mz_zip_writer_end(&zip);
         Fail(DOS_IMPORT_ERROR, "Unable to make %s", k_dos_import_file);
         return m_result;
     }
 
-    std::string temporary = std::string(zip_path) + ".tmp";
-    MediaFile* file = MediaFile::OpenNewFile(temporary.c_str());
-    ok = IsValidPointer(file) && file->WriteAt(0, archive, archive_size) && file->Flush();
-    SafeDelete(file);
-    mz_zip_writer_end(&zip);
-
-    // Where a rename can't replace a file, the old import steps aside and comes back if the new one can't take its place
-    if (ok && !MediaFile::RenameFile(temporary.c_str(), zip_path))
+    if (!zip.WriteArchive(zip_path))
     {
-        std::string old = std::string(zip_path) + ".old";
-        MediaFile::RemoveFile(old.c_str());
-        bool moved = MediaFile::RenameFile(zip_path, old.c_str());
-        ok = MediaFile::RenameFile(temporary.c_str(), zip_path);
-
-        if (ok)
-            MediaFile::RemoveFile(old.c_str());
-        else if (moved)
-            MediaFile::RenameFile(old.c_str(), zip_path);
-    }
-
-    if (!ok)
-    {
-        MediaFile::RemoveFile(temporary.c_str());
         Fail(DOS_IMPORT_ERROR, "Unable to write %s", zip_path);
         return m_result;
     }
@@ -1020,22 +972,14 @@ static std::string get_value(const std::string& text, const char* key)
     return text.substr(at + prefix.size(), end == std::string::npos ? std::string::npos : end - at - prefix.size());
 }
 
-static bool read_version_text(mz_zip_archive* zip, std::string* text)
+static bool read_version_text(MediaZip* zip, std::string* text)
 {
-    size_t size = 0;
-    void* data = mz_zip_reader_extract_file_to_heap(zip, k_dos_import_version, &size, 0);
-
-    if (!IsValidPointer(data))
-        return false;
-
-    text->assign((const char*)data, size);
-    mz_free(data);
-    return !get_value(*text, "id").empty();
+    return zip->Extract(k_dos_import_version, text) && !get_value(*text, "id").empty();
 }
 
-static bool has_entry(mz_zip_archive* zip, const std::string& name)
+static bool has_entry(MediaZip* zip, const std::string& name)
 {
-    return mz_zip_reader_locate_file(zip, name.c_str(), NULL, 0) >= 0;
+    return mz_zip_reader_locate_file(zip->GetArchive(), name.c_str(), NULL, 0) >= 0;
 }
 
 bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string* error)
@@ -1049,34 +993,28 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
     system->zip.clear();
     system->crc = 0;
 
-    if (!read_file(zip_path, k_dos_max_zip_size, &data))
+    if (!MediaFile::ReadFile(zip_path, k_dos_max_zip_size, &data))
     {
         *error = std::string("Unable to read ") + zip_path;
         return false;
     }
 
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
     std::string text;
 
-    if (!mz_zip_reader_init_mem(&zip, data.data(), data.size(), 0) || !read_version_text(&zip, &text))
+    if (!zip.Open(data.data(), data.size()) || !read_version_text(&zip, &text))
     {
-        mz_zip_reader_end(&zip);
         *error = std::string("Not an MS-DOS import: ") + zip_path;
         return false;
     }
 
-    size_t boot_size = 0;
-    void* boot = mz_zip_reader_extract_file_to_heap(&zip, k_dos_import_boot, &boot_size, 0);
+    std::string boot;
     std::string id = get_value(text, "id");
-    bool ok = ((id == k_dos_family_6) || (id == k_dos_family_5)) && IsValidPointer(boot) && (boot_size == sizeof(system->boot)) &&
-        (read_u16_le((const u8*)boot + 510) == 0xAA55);
+    bool ok = ((id == k_dos_family_6) || (id == k_dos_family_5)) && zip.Extract(k_dos_import_boot, &boot) &&
+        (boot.size() == sizeof(system->boot)) && (read_u16_le((const u8*)boot.data() + 510) == 0xAA55);
 
     if (ok)
-        memcpy(system->boot, boot, sizeof(system->boot));
-
-    if (IsValidPointer(boot))
-        mz_free(boot);
+        memcpy(system->boot, boot.data(), sizeof(system->boot));
 
     for (int i = 0; ok && IsValidPointer(k_dos_boot_files[i]); i++)
         ok = has_entry(&zip, std::string(k_dos_import_root) + k_dos_boot_files[i]);
@@ -1086,10 +1024,10 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
 
     ok = ok && has_entry(&zip, std::string(k_dos_import_root) + k_dos_both_files[0]);
 
-    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(&zip)); i++)
+    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(zip.GetArchive())); i++)
     {
         char name[256];
-        mz_zip_reader_get_filename(&zip, i, name, sizeof(name));
+        mz_zip_reader_get_filename(zip.GetArchive(), i, name, sizeof(name));
         std::string path(name);
 
         if ((path.compare(0, 2, k_dos_import_root) == 0) && (path.find('/', 2) == std::string::npos))
@@ -1098,7 +1036,7 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
 
     system->cd_extension = ok && has_entry(&zip, std::string(k_dos_import_root) + "DOS/" + k_dos_cd_extension);
     system->cache = ok && has_entry(&zip, std::string(k_dos_import_root) + "DOS/" + k_dos_cache);
-    mz_zip_reader_end(&zip);
+    zip.Close();
 
     if (!ok)
     {
@@ -1122,16 +1060,14 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
 bool DosImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
 {
     std::vector<u8> data;
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
-    std::string id;
+    MediaZip zip;
 
-    if (!read_file(zip_path, k_dos_max_zip_size, &data) || !mz_zip_reader_init_mem(&zip, data.data(), data.size(), 0))
+    if (!MediaFile::ReadFile(zip_path, k_dos_max_zip_size, &data) || !zip.Open(data.data(), data.size()))
         return false;
 
     std::string text;
     bool ok = read_version_text(&zip, &text);
-    mz_zip_reader_end(&zip);
+    zip.Close();
     std::string source = get_value(text, "source");
 
     if (!parse_hex_string(source.c_str(), source.size(), fingerprint))

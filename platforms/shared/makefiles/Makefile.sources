@@ -232,6 +232,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/media/media.cpp \
     $(SRC_DIR)/media/media_file.cpp \
     $(SRC_DIR)/media/media_file_native.cpp \
+    $(SRC_DIR)/media/media_zip.cpp \
     $(SRC_DIR)/media/ogg_vorbis_decoder.cpp \
     $(SRC_DIR)/system/i8254.cpp \
     $(SRC_DIR)/system/dma.cpp \

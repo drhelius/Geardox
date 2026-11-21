@@ -23,6 +23,7 @@
 #include <string>
 #include "media.h"
 #include "media_file.h"
+#include "media_zip.h"
 #include "crc.h"
 #include "../cdrom/cdrom_media.h"
 
@@ -302,10 +303,9 @@ bool Media::LoadCdRomFromZipFile(const char* file_path)
 {
     using namespace std;
 
-    mz_zip_archive zip_archive;
-    memset(&zip_archive, 0, sizeof(zip_archive));
+    MediaZip zip;
 
-    if (!mz_zip_reader_init_file(&zip_archive, file_path, 0))
+    if (!zip.Open(file_path))
     {
         Error("Unable to open ZIP file %s", file_path);
         return false;
@@ -313,11 +313,11 @@ bool Media::LoadCdRomFromZipFile(const char* file_path)
 
     string cue_name;
 
-    for (unsigned int i = 0; i < mz_zip_reader_get_num_files(&zip_archive); i++)
+    for (unsigned int i = 0; i < mz_zip_reader_get_num_files(zip.GetArchive()); i++)
     {
         mz_zip_archive_file_stat file_stat;
 
-        if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat))
+        if (!mz_zip_reader_file_stat(zip.GetArchive(), i, &file_stat))
             break;
 
         string name(file_stat.m_filename);
@@ -330,7 +330,7 @@ bool Media::LoadCdRomFromZipFile(const char* file_path)
         }
     }
 
-    mz_zip_reader_end(&zip_archive);
+    zip.Close();
 
     if (cue_name.empty())
         return false;

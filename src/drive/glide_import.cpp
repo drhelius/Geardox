@@ -21,6 +21,7 @@
 #include <vector>
 #include "glide_import.h"
 #include "../media/media_file.h"
+#include "../media/media_zip.h"
 #include "../media/crc.h"
 
 struct GlideImport_Known
@@ -44,26 +45,6 @@ static const GlideImport_Known k_glide_known[] =
     { 0xD62F0CC3, "Driver 2.46 (3Dfx Voodoo Graphics July 1998)" },
     { 0xA85E0BE1, "Driver 2.48 (3Dfx Voodoo Graphics 3.01.00)" }
 };
-
-static bool read_file(const std::string& path, std::string* data)
-{
-    u64 size = 0;
-    s64 modified = 0;
-    data->clear();
-
-    if (!MediaFile::GetFileInfo(path.c_str(), &size, &modified) || (size == 0) || (size > k_glide_max_file_size))
-        return false;
-
-    MediaFile* file = MediaFile::OpenFile(path.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    data->resize((size_t)size);
-    bool ok = file->ReadAt(0, &(*data)[0], size);
-    SafeDelete(file);
-    return ok;
-}
 
 GlideImport::GlideImport()
 {
@@ -116,7 +97,7 @@ const char* GlideImport::GetName(const std::string& data)
 
 bool GlideImport::Load(const char* path, std::string* data, std::string* name)
 {
-    if (!read_file(path, data) || !IsOverlay(*data))
+    if (!MediaFile::ReadFile(path, k_glide_max_file_size, data) || !IsOverlay(*data))
     {
         data->clear();
         return false;
@@ -205,17 +186,17 @@ void GlideImport::Consider(const std::string& name, const std::string& data)
 
 bool GlideImport::SearchZip(const u8* data, size_t size, int depth)
 {
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
+    MediaZip zip;
 
-    if (!mz_zip_reader_init_mem(&zip, data, size, 0))
+    if (!zip.Open(data, size))
         return false;
 
-    for (mz_uint i = 0; m_overlay.empty() && (i < mz_zip_reader_get_num_files(&zip)); i++)
+    for (mz_uint i = 0; m_overlay.empty() && (i < mz_zip_reader_get_num_files(zip.GetArchive())); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory || (stat.m_uncomp_size > k_glide_max_file_size))
+        if (!mz_zip_reader_file_stat(zip.GetArchive(), i, &stat) || stat.m_is_directory ||
+            (stat.m_uncomp_size > k_glide_max_file_size))
             continue;
 
         std::string name = to_upper_ascii(path_filename(stat.m_filename));
@@ -224,24 +205,20 @@ bool GlideImport::SearchZip(const u8* data, size_t size, int depth)
         if (!nested && (name != k_glide_overlay) && (name != k_glide_compressed))
             continue;
 
-        size_t extracted = 0;
-        void* bytes = mz_zip_reader_extract_to_heap(&zip, i, &extracted, 0);
+        std::string bytes;
 
-        if (!IsValidPointer(bytes))
+        if (!zip.Extract(i, &bytes))
             continue;
 
         if (nested)
         {
             if (depth < k_glide_max_depth)
-                SearchZip((const u8*)bytes, extracted, depth + 1);
+                SearchZip((const u8*)bytes.data(), bytes.size(), depth + 1);
         }
         else
-            Consider(name, std::string((const char*)bytes, extracted));
-
-        mz_free(bytes);
+            Consider(name, bytes);
     }
 
-    mz_zip_reader_end(&zip);
     return true;
 }
 
@@ -265,7 +242,7 @@ bool GlideImport::SearchFolder(const std::string& path, int depth)
             (!ends_with_no_case(name, ".zip") && (name != k_glide_overlay) && (name != k_glide_compressed)))
             continue;
 
-        if (!read_file(path_join(path, files[i]), &data))
+        if (!MediaFile::ReadFile(path_join(path, files[i]).c_str(), k_glide_max_file_size, &data))
             continue;
 
         if (ends_with_no_case(name, ".zip"))
@@ -298,7 +275,7 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
     {
         std::string data;
 
-        if (!read_file(path, &data))
+        if (!MediaFile::ReadFile(path.c_str(), k_glide_max_file_size, &data))
         {
             m_error = "Unable to read " + path;
             return GLIDE_IMPORT_ERROR;
@@ -317,17 +294,12 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
         return GLIDE_IMPORT_NOT_FOUND;
     }
 
-    MediaFile* file = MediaFile::OpenNewFile(destination);
-
-    if (!IsValidPointer(file) || (file->Write(m_overlay.data(), m_overlay.size()) != (s64)m_overlay.size()) || !file->Flush())
+    if (!MediaFile::WriteFileAtomic(destination, m_overlay.data(), m_overlay.size()))
     {
-        SafeDelete(file);
-        MediaFile::RemoveFile(destination);
         m_error = std::string("Unable to write ") + destination;
         return GLIDE_IMPORT_ERROR;
     }
 
-    SafeDelete(file);
     m_message = std::string(GetName(m_overlay)) + " imported";
     return GLIDE_IMPORT_DONE;
 }

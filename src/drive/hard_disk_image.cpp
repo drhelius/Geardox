@@ -693,7 +693,7 @@ bool HardDiskImage::Create(const char* path, u64 size, bool formatted)
         return image.Write(path, size);
     }
 
-    FILE* file = fopen_utf8(path, "wb");
+    MediaFile* file = MediaFile::OpenNewFile(path);
 
     if (!IsValidPointer(file))
     {
@@ -702,8 +702,8 @@ bool HardDiskImage::Create(const char* path, u64 size, bool formatted)
     }
 
     u8 zero = 0;
-    bool ok = (fseek(file, (long)(size - 1), SEEK_SET) == 0) && (fwrite(&zero, 1, 1, file) == 1);
-    ok = (fclose(file) == 0) && ok;
+    bool ok = file->WriteAt(size - 1, &zero, 1) && file->Flush();
+    SafeDelete(file);
 
     if (!ok)
         Error("Unable to create hard disk image %s", path);

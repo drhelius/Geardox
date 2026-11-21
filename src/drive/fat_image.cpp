@@ -237,20 +237,12 @@ static void write_entry(u8* out, const u8* name, u8 attributes, u16 date, u16 ti
 
 FatImage::FatImage()
 {
-    InitPointer(m_zip_file);
     InitPointer(m_output);
     InitPointer(m_boot_sector);
     InitPointer(m_read);
     m_read_offset = 0;
-    memset(&m_zip, 0, sizeof(m_zip));
-    memset(&m_system_zip, 0, sizeof(m_system_zip));
-    memset(&m_ultrasound_zip, 0, sizeof(m_ultrasound_zip));
     memset(&m_layout, 0, sizeof(m_layout));
-    m_zip_open = false;
-    m_system_zip_open = false;
-    m_ultrasound_zip_open = false;
     m_pinned_count = 0;
-    m_zip_offset = 0;
     m_label[0] = 0;
     m_fingerprint = 0;
     m_left_out = 0;
@@ -283,10 +275,8 @@ bool FatImage::AddZip(const u8* archive, size_t size)
 {
     Clear();
 
-    if (!IsValidPointer(archive) || !mz_zip_reader_init_mem(&m_zip, archive, size, 0))
+    if (!m_zip.Open(archive, size))
         return false;
-
-    m_zip_open = true;
 
     if (!ScanZip())
         return false;
@@ -298,18 +288,9 @@ bool FatImage::AddZip(const u8* archive, size_t size)
 bool FatImage::AddZipFile(const char* path)
 {
     Clear();
-    m_zip_file = MediaFile::OpenFile(path);
 
-    if (!IsValidPointer(m_zip_file))
+    if (!m_zip.Open(path))
         return false;
-
-    m_zip.m_pRead = ReadZipFile;
-    m_zip.m_pIO_opaque = m_zip_file;
-
-    if (!mz_zip_reader_init(&m_zip, (mz_uint64)m_zip_file->GetSize(), 0))
-        return false;
-
-    m_zip_open = true;
 
     if (!ScanZip())
         return false;
@@ -477,7 +458,7 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
     SafeDelete(m_output);
     std::vector<u8>().swap(m_buffer);
     std::vector<u16>().swap(m_fat);
-    ok = ok && MediaFile::RenameFile(temporary.c_str(), path);
+    ok = ok && MediaFile::ReplaceFile(temporary.c_str(), path);
 
     if (!ok)
     {
@@ -572,18 +553,8 @@ bool FatImage::AddGame(const char* source, const char* dir, const char* prefix)
 
     if (ends_with_no_case(source, ".zip"))
     {
-        m_zip_file = MediaFile::OpenFile(source);
-
-        if (!IsValidPointer(m_zip_file))
+        if (!m_zip.Open(source))
             return false;
-
-        m_zip.m_pRead = ReadZipFile;
-        m_zip.m_pIO_opaque = m_zip_file;
-
-        if (!mz_zip_reader_init(&m_zip, (mz_uint64)m_zip_file->GetSize(), 0))
-            return false;
-
-        m_zip_open = true;
 
         if (!ScanZip())
             return false;
@@ -715,14 +686,8 @@ bool FatImage::AddOverlay(const char* path)
     if (!MediaFile::GetFileInfo(list.c_str(), &size, &modified))
         return true;
 
-    MediaFile* file = MediaFile::OpenFile(list.c_str());
-
-    if (!IsValidPointer(file))
-        return false;
-
-    std::string text((size_t)size, '\0');
-    bool ok = (size == 0) || file->ReadAt(0, &text[0], size);
-    SafeDelete(file);
+    std::string text;
+    bool ok = MediaFile::ReadFile(list.c_str(), k_media_file_no_limit, &text, true);
 
     if (ok)
         ApplyDeleted(text);
@@ -839,12 +804,10 @@ void FatImage::ApplyDeleted(const std::string& list)
 bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 {
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
-    mz_zip_archive zip;
+    MediaZip zip;
     LeaveOutReserved(reserved);
 
-    memset(&zip, 0, sizeof(zip));
-
-    if (!mz_zip_reader_init_mem(&zip, k_freedos_files, k_freedos_files_size, 0))
+    if (!zip.Open(k_freedos_files, k_freedos_files_size))
         return false;
 
     u32 freedos = AddEntry(0, "FREEDOS", true);
@@ -852,11 +815,11 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     m_entries[freedos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     bool ok = true;
 
-    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(&zip)); i++)
+    for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(zip.GetArchive())); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(zip.GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string name(stat.m_filename);
@@ -865,17 +828,16 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
         if (!kernel && (name.compare(0, 8, "FREEDOS/") != 0))
             continue;
 
-        size_t size = 0;
-        void* data = mz_zip_reader_extract_to_heap(&zip, i, &size, 0);
+        m_memory.push_back(std::string());
 
-        if (!IsValidPointer(data))
+        if (!zip.Extract(i, &m_memory.back()))
         {
+            m_memory.pop_back();
             ok = false;
             break;
         }
 
-        m_memory.push_back(std::string((const char*)data, size));
-        mz_free(data);
+        size_t size = m_memory.back().size();
         u32 directory = kernel ? 0 : freedos;
         std::string rest = kernel ? name : name.substr(8);
         size_t slash = rest.find('/');
@@ -908,7 +870,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
             file.attributes = k_fat_attribute_read_only | k_fat_attribute_hidden | k_fat_attribute_system;
     }
 
-    mz_zip_reader_end(&zip);
+    zip.Close();
     int bin = ok ? FindChild(freedos, "BIN") : -1;
     ok = (bin >= 0) && AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool((u32)bin, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
@@ -935,24 +897,18 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
     LeaveOutReserved(reserved);
 
-    if (m_system_zip_open)
-        mz_zip_reader_end(&m_system_zip);
-
-    memset(&m_system_zip, 0, sizeof(m_system_zip));
-    m_system_zip_open = mz_zip_reader_init_mem(&m_system_zip, zip, size, 0) != 0;
-
-    if (!m_system_zip_open)
+    if (!m_system_zip.Open(zip, size))
         return false;
 
     u32 dos = AddEntry(0, "DOS", true);
     m_entries[dos].attributes = k_fat_attribute_directory | hide;
     m_entries[dos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
 
-    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&m_system_zip); i++)
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(m_system_zip.GetArchive()); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&m_system_zip, i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(m_system_zip.GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string name(stat.m_filename);
@@ -987,10 +943,9 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
             file.attributes = k_fat_attribute_archive | hide;
     }
 
-    mz_zip_archive tools;
-    memset(&tools, 0, sizeof(tools));
+    MediaZip tools;
 
-    if (!mz_zip_reader_init_mem(&tools, k_freedos_files, k_freedos_files_size, 0))
+    if (!tools.Open(k_freedos_files, k_freedos_files_size))
         return false;
 
     u32 geardox = AddEntry(0, "GEARDOX", true);
@@ -1010,7 +965,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     if (ok && shsucdx)
         ok = AddFreeDOSFile(&tools, "FREEDOS/BIN/SHSUCDX.COM", geardox, "SHSUCDX.COM");
 
-    mz_zip_reader_end(&tools);
+    tools.Close();
 
     if (!ok)
         return false;
@@ -1022,22 +977,21 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     return true;
 }
 
-bool FatImage::AddFreeDOSFile(mz_zip_archive* zip, const char* name, u32 directory, const char* target)
+bool FatImage::AddFreeDOSFile(MediaZip* zip, const char* name, u32 directory, const char* target)
 {
-    int index = mz_zip_reader_locate_file(zip, name, NULL, 0);
+    int index = mz_zip_reader_locate_file(zip->GetArchive(), name, NULL, 0);
     mz_zip_archive_file_stat stat;
-    size_t size = 0;
 
-    if ((index < 0) || !mz_zip_reader_file_stat(zip, (mz_uint)index, &stat))
+    if ((index < 0) || !mz_zip_reader_file_stat(zip->GetArchive(), (mz_uint)index, &stat))
         return false;
 
-    void* data = mz_zip_reader_extract_to_heap(zip, (mz_uint)index, &size, 0);
+    std::string data;
 
-    if (!IsValidPointer(data))
+    if (!zip->Extract((mz_uint)index, &data))
         return false;
 
-    m_memory.push_back(std::string((const char*)data, size));
-    mz_free(data);
+    size_t size = data.size();
+    m_memory.push_back(data);
     u32 entry = AddEntry(directory, target, false);
     m_entries[entry].memory = (int)m_memory.size() - 1;
     m_entries[entry].size = size;
@@ -1053,24 +1007,18 @@ bool FatImage::AddUltraSound(const u8* zip, size_t size)
     std::vector<std::string> reserved(k_reserved, k_reserved + 1);
     LeaveOutReserved(reserved);
 
-    if (m_ultrasound_zip_open)
-        mz_zip_reader_end(&m_ultrasound_zip);
-
-    memset(&m_ultrasound_zip, 0, sizeof(m_ultrasound_zip));
-    m_ultrasound_zip_open = mz_zip_reader_init_mem(&m_ultrasound_zip, zip, size, 0) != 0;
-
-    if (!m_ultrasound_zip_open)
+    if (!m_ultrasound_zip.Open(zip, size))
         return false;
 
     u32 root = AddEntry(0, "ULTRASND", true);
     m_entries[root].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     m_entries[root].ultrasound = true;
 
-    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&m_ultrasound_zip); i++)
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(m_ultrasound_zip.GetArchive()); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&m_ultrasound_zip, i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(m_ultrasound_zip.GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string rest(stat.m_filename);
@@ -1356,17 +1304,9 @@ bool FatImage::ReadEntry(const FatImage_Entry& entry, std::string* data)
 
     if (entry.source.empty())
     {
-        size_t size = 0;
-        mz_zip_archive* zip = entry.ultrasound ? &m_ultrasound_zip :
-            entry.origin == FAT_IMAGE_ORIGIN_SYSTEM ? &m_system_zip : &m_zip;
-        void* bytes = mz_zip_reader_extract_to_heap(zip, entry.zip_index, &size, 0);
-
-        if (!IsValidPointer(bytes))
-            return false;
-
-        data->assign((const char*)bytes, size);
-        mz_free(bytes);
-        return true;
+        MediaZip& zip = entry.ultrasound ? m_ultrasound_zip :
+            entry.origin == FAT_IMAGE_ORIGIN_SYSTEM ? m_system_zip : m_zip;
+        return zip.Extract(entry.zip_index, data);
     }
 
     MediaFile* file = MediaFile::OpenFile(entry.source.c_str());
@@ -1759,25 +1699,12 @@ bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, std::s
 
 void FatImage::Clear()
 {
-    if (m_zip_open)
-        mz_zip_reader_end(&m_zip);
-
-    if (m_system_zip_open)
-        mz_zip_reader_end(&m_system_zip);
-
-    if (m_ultrasound_zip_open)
-        mz_zip_reader_end(&m_ultrasound_zip);
-
-    memset(&m_zip, 0, sizeof(m_zip));
-    memset(&m_system_zip, 0, sizeof(m_system_zip));
-    memset(&m_ultrasound_zip, 0, sizeof(m_ultrasound_zip));
-    m_zip_open = false;
-    m_system_zip_open = false;
-    m_ultrasound_zip_open = false;
+    m_zip.Close();
+    m_system_zip.Close();
+    m_ultrasound_zip.Close();
     m_pinned.clear();
     m_pinned_count = 0;
     m_zip_prefix.clear();
-    SafeDelete(m_zip_file);
     m_entries.clear();
     m_entries.resize(1);
     m_entries[0].directory = true;
@@ -1855,14 +1782,14 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
 
 bool FatImage::ScanZip()
 {
-    mz_uint count = mz_zip_reader_get_num_files(&m_zip);
+    mz_uint count = mz_zip_reader_get_num_files(m_zip.GetArchive());
     std::vector<std::pair<std::string, mz_uint> > order;
 
     for (mz_uint i = 0; i < count; i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&m_zip, i, &stat))
+        if (!mz_zip_reader_file_stat(m_zip.GetArchive(), i, &stat))
             return false;
 
         order.push_back(std::make_pair(to_upper_ascii(stat.m_filename), i));
@@ -1876,7 +1803,7 @@ bool FatImage::ScanZip()
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&m_zip, order[i].second, &stat))
+        if (!mz_zip_reader_file_stat(m_zip.GetArchive(), order[i].second, &stat))
             return false;
 
         std::string name(stat.m_filename);
@@ -2285,15 +2212,12 @@ bool FatImage::CopyFile(FatImage_Entry& entry, u64 offset)
 
     if (entry.source.empty() && (entry.origin == FAT_IMAGE_ORIGIN_SYSTEM))
     {
-        m_zip_offset = offset;
-        return mz_zip_reader_extract_to_callback(entry.ultrasound ? &m_ultrasound_zip : &m_system_zip, entry.zip_index,
-            WriteZipEntry, this, 0) != 0;
+        return (entry.ultrasound ? m_ultrasound_zip : m_system_zip).ExtractTo(entry.zip_index, m_output, offset);
     }
 
     if (entry.source.empty())
     {
-        m_zip_offset = offset;
-        return mz_zip_reader_extract_to_callback(&m_zip, entry.zip_index, WriteZipEntry, this, 0) != 0;
+        return m_zip.ExtractTo(entry.zip_index, m_output, offset);
     }
 
     MediaFile* file = MediaFile::OpenFile(entry.source.c_str());
@@ -2403,16 +2327,4 @@ u64 FatImage::GetClusterOffset(u32 cluster) const
 {
     u64 sector = k_fat_sectors_per_track + m_layout.first_data + ((u64)(cluster - 2) * m_layout.cluster_sectors);
     return sector * k_fat_sector_size;
-}
-
-size_t FatImage::ReadZipFile(void* opaque, mz_uint64 offset, void* buffer, size_t size)
-{
-    MediaFile* file = (MediaFile*)opaque;
-    return file->ReadAt(offset, buffer, size) ? size : 0;
-}
-
-size_t FatImage::WriteZipEntry(void* opaque, mz_uint64 offset, const void* buffer, size_t size)
-{
-    FatImage* image = (FatImage*)opaque;
-    return image->m_output->WriteAt(image->m_zip_offset + offset, buffer, size) ? size : 0;
 }

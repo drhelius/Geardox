@@ -23,6 +23,7 @@
 #include "game_database.h"
 #include "game_db.h"
 #include "media_file.h"
+#include "media_zip.h"
 #include "crc.h"
 
 static const int k_game_database_max_depth = 8;
@@ -147,37 +148,21 @@ static bool list_folder(const std::string& host, const std::string& relative, in
     return true;
 }
 
-static size_t read_zip(void* opaque, mz_uint64 offset, void* buffer, size_t size)
-{
-    MediaFile* file = (MediaFile*)opaque;
-    return file->ReadAt(offset, buffer, size) ? size : 0;
-}
-
 static bool list_zip(const char* path, std::vector<GameDatabase_File>* files)
 {
-    MediaFile* file = MediaFile::OpenFile(path);
+    MediaZip zip;
 
-    if (!IsValidPointer(file))
+    if (!zip.Open(path))
         return false;
 
-    mz_zip_archive zip;
-    memset(&zip, 0, sizeof(zip));
-    zip.m_pRead = read_zip;
-    zip.m_pIO_opaque = file;
-
-    if (!mz_zip_reader_init(&zip, (mz_uint64)file->GetSize(), 0))
-    {
-        SafeDelete(file);
-        return false;
-    }
-
-    mz_uint count = mz_zip_reader_get_num_files(&zip);
+    mz_uint count = mz_zip_reader_get_num_files(zip.GetArchive());
 
     for (mz_uint i = 0; (i < count) && (files->size() <= k_game_database_max_files); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(&zip, i, &stat) || stat.m_is_directory || (stat.m_uncomp_size > 0xFFFFFFFFULL))
+        if (!mz_zip_reader_file_stat(zip.GetArchive(), i, &stat) || stat.m_is_directory ||
+            (stat.m_uncomp_size > 0xFFFFFFFFULL))
             continue;
 
         GameDatabase_File item;
@@ -188,8 +173,6 @@ static bool list_zip(const char* path, std::vector<GameDatabase_File>* files)
         files->push_back(item);
     }
 
-    mz_zip_reader_end(&zip);
-    SafeDelete(file);
     return files->size() <= k_game_database_max_files;
 }
 

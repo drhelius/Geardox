@@ -132,7 +132,7 @@ public:
 private:
     bool OpenFromDatabase(const GameDisk_Found& found);
     bool BuildFolderCd(const std::string& folder, const std::string& label, std::string* path);
-    bool ExtractEntries(mz_zip_archive* zip, const std::string& wanted, const std::string& folder, bool cue,
+    bool ExtractEntries(MediaZip* zip, const std::string& wanted, const std::string& folder, bool cue,
         std::string* path, bool* found);
     bool Fail(const char* format, ...);
     bool IsSystemPath(const std::string& dos_path) const;
