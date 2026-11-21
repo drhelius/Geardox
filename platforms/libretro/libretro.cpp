@@ -3558,7 +3558,7 @@ static std::string glide_import(void)
 
     if (import.Import(source.c_str(), ovl.c_str()) != GLIDE_IMPORT_DONE)
     {
-        snprintf(message, sizeof(message), "3Dfx Voodoo driver not imported: %s", import.GetError());
+        snprintf(message, sizeof(message), "3dfx Voodoo driver not imported: %s", import.GetError());
         show_message(message, 3, RETRO_LOG_WARN);
         return "";
     }

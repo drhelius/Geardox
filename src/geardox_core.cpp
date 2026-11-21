@@ -2523,7 +2523,7 @@ void GeardoxCore::ResolveMachineConfig()
 
     if ((voodoo > 0) && (config.voodoo == 0))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
-            "This machine has no PCI slot for the 3Dfx Voodoo");
+            "This machine has no PCI slot for the 3dfx Voodoo");
 
     if ((report.ram == GDOX_MACHINE_SOURCE_GAME) && ((u32)ram_mb * megabyte != config.ram_size))
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
@@ -2847,7 +2847,7 @@ void GeardoxCore::InitMemoryMap()
     {
         Voodoo* voodoo = m_video->GetVoodoo();
 
-        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VOODOO, "3Dfx Voodoo", k_voodoo_window_size, 0,
+        if (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_VOODOO, "3dfx Voodoo", k_voodoo_window_size, 0,
             GDOX_DEBUG_REGION_READABLE | GDOX_DEBUG_REGION_WRITABLE | GDOX_DEBUG_REGION_MMIO, voodoo,
             Voodoo::ReadCallback, Voodoo::WriteCallback, Voodoo::PeekCallback) ||
             !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_VOODOO, Voodoo::Write16Callback, Voodoo::Write32Callback) ||

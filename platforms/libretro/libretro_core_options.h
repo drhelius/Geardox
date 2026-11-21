@@ -564,9 +564,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
     },
     {
         "geardox_voodoo",
-        "3Dfx Voodoo Graphics (restart)",
+        "3dfx Voodoo Graphics (restart)",
         NULL,
-        "A 3Dfx Voodoo Graphics with 4 MB as a second PCI card, on the Pentiums only, for DOS games with 3Dfx support. Games that load GLIDE2X.OVL need it from your own 3Dfx DOS driver: put its ZIP, or the GLIDE2X.OVL file, in <system>/geardox/3dfx.",
+        "A 3dfx Voodoo Graphics with 4 MB as a second PCI card, on the Pentiums only, for DOS games with 3dfx support. Games that load GLIDE2X.OVL need it from your own 3dfx DOS driver: put its ZIP, or the GLIDE2X.OVL file, in <system>/geardox/3dfx.",
         NULL,
         "system",
         {
@@ -969,9 +969,9 @@ struct retro_core_option_v2_definition option_defs_us[] = {
 #if defined(GDOX_ENABLE_VOODOO_THREAD)
     {
         "geardox_voodoo_thread",
-        "3Dfx Voodoo Render Thread",
+        "3dfx Voodoo Render Thread",
         NULL,
-        "Draw the 3Dfx Voodoo's pixels on other host threads, two on hosts with four cores or more. The picture is the same either way; turn it off only to diagnose a problem.",
+        "Draw the 3dfx Voodoo's pixels on other host threads, two on hosts with four cores or more. The picture is the same either way; turn it off only to diagnose a problem.",
         NULL,
         "system",
         {

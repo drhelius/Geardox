@@ -166,8 +166,8 @@ static const MemorySourceInfo k_memory_sources[] =
     { GDOX_DEBUG_REGION_VGA_PLANE_3, MEMORY_GROUP_MEMORY, false, "VGA plane 3" },
     { GDOX_DEBUG_REGION_VRAM, MEMORY_GROUP_MEMORY, false, "The CGA's 16 KB: characters and attributes, or graphics in two banks" },
     { GDOX_DEBUG_REGION_GUS_DRAM, MEMORY_GROUP_MEMORY, false, "The Gravis UltraSound's 1 MB of sample memory" },
-    { GDOX_DEBUG_REGION_VOODOO_FRAME_BUFFER, MEMORY_GROUP_MEMORY, false, "The 3Dfx Voodoo's 2 MB frame buffer: colour buffers and the depth or alpha buffer" },
-    { GDOX_DEBUG_REGION_VOODOO_TEXTURE, MEMORY_GROUP_MEMORY, false, "The 3Dfx Voodoo's 2 MB of texture memory" },
+    { GDOX_DEBUG_REGION_VOODOO_FRAME_BUFFER, MEMORY_GROUP_MEMORY, false, "The 3dfx Voodoo's 2 MB frame buffer: colour buffers and the depth or alpha buffer" },
+    { GDOX_DEBUG_REGION_VOODOO_TEXTURE, MEMORY_GROUP_MEMORY, false, "The 3dfx Voodoo's 2 MB of texture memory" },
     { GDOX_DEBUG_REGION_SYSTEM_ROM, MEMORY_GROUP_ROM, false,
         "System BIOS at the top of the address space, where the CPU starts after a reset" },
     { GDOX_DEBUG_REGION_BIOS_COPY, MEMORY_GROUP_CPU_WINDOW, false,
@@ -182,7 +182,7 @@ static const MemorySourceInfo k_memory_sources[] =
     { GDOX_DEBUG_REGION_SHADOW_BIOS, MEMORY_GROUP_CPU_WINDOW, false,
         "The F segment, read-only shadow RAM once SeaBIOS locks it at the end of POST" },
     { GDOX_DEBUG_REGION_VOODOO, MEMORY_GROUP_CPU_WINDOW, false,
-        "The 3Dfx Voodoo's 16 MB PCI window: registers, linear frame buffer and the write-only texture port" },
+        "The 3dfx Voodoo's 16 MB PCI window: registers, linear frame buffer and the write-only texture port" },
     { GDOX_DEBUG_REGION_LINEAR_VRAM, MEMORY_GROUP_CPU_WINDOW, false,
         "The Cirrus card's video memory at the linear aperture SR07 selects" }
 };

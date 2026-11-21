@@ -864,7 +864,7 @@ bool GameDisk::UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine)
         (image->GetFile(k_game_disk_glide, &overlay) && GlideImport::IsOverlay(overlay)))
         return true;
 
-    Log("%s: %s needs GLIDE2X.OVL from the 3Dfx DOS driver, import it in Video > 3Dfx Voodoo Driver; %s runs instead",
+    Log("%s: %s needs GLIDE2X.OVL from the 3dfx DOS driver, import it in Video > 3dfx Voodoo Driver; %s runs instead",
         info.name.c_str(), info.voodoo_exe.c_str(), info.exe.c_str());
     return false;
 }

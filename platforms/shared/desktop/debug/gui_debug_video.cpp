@@ -1170,7 +1170,7 @@ void gui_debug_window_voodoo(void)
 
     if (!video->HasVoodoo())
     {
-        ImGui::TextColored(gray, "The 3Dfx Voodoo is off");
+        ImGui::TextColored(gray, "The 3dfx Voodoo is off");
         ImGui::End();
         ImGui::PopStyleVar();
         return;

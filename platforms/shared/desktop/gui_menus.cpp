@@ -1677,7 +1677,7 @@ static bool menu_machine_video(void)
     bool voodoo = menu_settings->voodoo;
     bool voodoo_pushed = gui_push_game_source_color(voodoo_source);
 
-    if (ImGui::MenuItem("3Dfx Voodoo Graphics", "", &voodoo, pci))
+    if (ImGui::MenuItem("3dfx Voodoo Graphics", "", &voodoo, pci))
     {
         menu_settings->voodoo = voodoo;
         changed = true;
@@ -3315,7 +3315,7 @@ static void menu_audio_ultrasnd(void)
 
 static void menu_video_glide(void)
 {
-    if (!ImGui::BeginMenu("3Dfx Voodoo Driver"))
+    if (!ImGui::BeginMenu("3dfx Voodoo Driver"))
         return;
 
     const char* name = emu_dos_get_glide_name();
@@ -3327,7 +3327,7 @@ static void menu_video_glide(void)
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
     {
         ImGui::BeginTooltip();
-        ImGui::Text("A 3Dfx Voodoo Graphics DOS driver: its ZIP,");
+        ImGui::Text("A 3dfx Voodoo Graphics DOS driver: its ZIP,");
         ImGui::Text("or the GLIDE2X.OVL file in it.");
         ImGui::Text("Games with the Voodoo on get it in C:\\.");
         ImGui::EndTooltip();

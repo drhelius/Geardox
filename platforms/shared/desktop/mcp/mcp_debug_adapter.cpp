@@ -3001,7 +3001,7 @@ json DebugAdapter::GetVoodooStatus()
     Video* video = m_core->GetVideo();
 
     if (!video->HasVoodoo())
-        return {{"error", "The 3Dfx Voodoo is off"}};
+        return {{"error", "The 3dfx Voodoo is off"}};
 
     Voodoo* voodoo = video->GetVoodoo();
     voodoo->SyncRender();
@@ -3061,7 +3061,7 @@ json DebugAdapter::GetVoodooStatus()
 json DebugAdapter::GetVoodooBuffer(const std::string& buffer)
 {
     if (!m_core->GetVideo()->HasVoodoo())
-        return {{"error", "The 3Dfx Voodoo is off"}};
+        return {{"error", "The 3dfx Voodoo is off"}};
 
     const Voodoo::Voodoo_State* state = m_core->GetVideo()->GetVoodoo()->GetState();
     int index = buffer == "back" ? state->back_buffer : buffer == "aux" ? 2 : state->front_buffer;

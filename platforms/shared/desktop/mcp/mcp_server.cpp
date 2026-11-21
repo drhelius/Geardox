@@ -1597,7 +1597,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_voodoo_status"},
         {"title", "Get Voodoo Status"},
-        {"description", "Read the 3Dfx Voodoo Graphics: PCI window, status, FIFO and busy time, swaps and buffers, video "
+        {"description", "Read the 3dfx Voodoo Graphics: PCI window, status, FIFO and busy time, swaps and buffers, video "
             "timing and refresh, graphics and video clocks, frame buffer layout, init and video registers, pixel pipeline "
             "registers, the texture unit and the statistics counters."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
@@ -1611,7 +1611,7 @@ json McpServer::BuildToolList()
     tools.push_back({
         {"name", "get_voodoo_buffer"},
         {"title", "Get Voodoo Buffer"},
-        {"description", "Image of a 3Dfx Voodoo buffer: the front buffer as the monitor shows it, the back buffer, or the "
+        {"description", "Image of a 3dfx Voodoo buffer: the front buffer as the monitor shows it, the back buffer, or the "
             "auxiliary depth or alpha buffer as grey levels."},
         {"annotations", {{"readOnlyHint", true}, {"destructiveHint", false}, {"idempotentHint", true}, {"openWorldHint", false}}},
         {"inputSchema", {

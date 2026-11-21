@@ -42,8 +42,8 @@ static const u8 k_glide_szdd_magic[8] = { 'S', 'Z', 'D', 'D', 0x88, 0xF0, 0x27, 
 static const GlideImport_Known k_glide_known[] =
 {
     { 0xB2268E40, "Driver 2.43 (Orchid Righteous 3D 3.00.00)" },
-    { 0xD62F0CC3, "Driver 2.46 (3Dfx Voodoo Graphics July 1998)" },
-    { 0xA85E0BE1, "Driver 2.48 (3Dfx Voodoo Graphics 3.01.00)" }
+    { 0xD62F0CC3, "Driver 2.46 (3dfx Voodoo Graphics July 1998)" },
+    { 0xA85E0BE1, "Driver 2.48 (3dfx Voodoo Graphics 3.01.00)" }
 };
 
 GlideImport::GlideImport()
@@ -92,7 +92,7 @@ const char* GlideImport::GetName(const std::string& data)
             return k_glide_known[i].name;
     }
 
-    return "3Dfx Voodoo driver";
+    return "3dfx Voodoo driver";
 }
 
 bool GlideImport::Load(const char* path, std::string* data, std::string* name)
@@ -290,7 +290,7 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
     if (m_overlay.empty())
     {
         m_error = m_stub ? "Only a stand-in GLIDE2X.OVL was found, it doesn't drive a Voodoo card" :
-            "No GLIDE2X.OVL found: choose the 3Dfx DOS driver package, its ZIP or the GLIDE2X.OVL file";
+            "No GLIDE2X.OVL found: choose the 3dfx DOS driver package, its ZIP or the GLIDE2X.OVL file";
         return GLIDE_IMPORT_NOT_FOUND;
     }
 
