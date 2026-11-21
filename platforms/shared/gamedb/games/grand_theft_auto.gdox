@@ -7,4 +7,10 @@ folder = C:\
 
 [run]
 exe = gtados\GTA8.EXE
+voodoo_exe = gtados\GTAFX.EXE
 setup = gtados\UVCONFIG.EXE
+
+[machine]
+model = pentium_133
+ram_mb = 16
+voodoo = on

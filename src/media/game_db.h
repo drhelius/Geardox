@@ -1452,7 +1452,13 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = gtados\\GTA8.EXE\n"
-        "setup = gtados\\UVCONFIG.EXE\n" },
+        "voodoo_exe = gtados\\GTAFX.EXE\n"
+        "setup = gtados\\UVCONFIG.EXE\n"
+        "\n"
+        "[machine]\n"
+        "model = pentium_133\n"
+        "ram_mb = 16\n"
+        "voodoo = on\n" },
     { "gunship", "Gunship",
         "[geardox]\n"
         "version = 1\n"
@@ -3784,10 +3790,12 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TOMBRAID\\TOMB.EXE\n"
+        "voodoo_exe = TOMBRAID\\TOMB3DFX.EXE\n"
         "setup = TOMBRAID\\SETUP.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_75\n" },
+        "model = pentium_75\n"
+        "voodoo = on\n" },
     { "treasures_of_the_savage_frontier", "Treasures of the Savage Frontier",
         "[geardox]\n"
         "version = 1\n"
