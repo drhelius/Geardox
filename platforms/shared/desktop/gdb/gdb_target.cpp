@@ -543,12 +543,8 @@ bool GdbTarget::WriteRegister(int index, const std::string& hex)
         X87::X87_State* fpu = m_core->GetX87()->GetState();
         int top = (m_core->GetX87()->GetStatusWord() >> 11) & 7;
         X87::X87_Register& reg = fpu->registers[(top + index - 16) & 7];
-        reg.significand = 0;
-
-        for (int i = 0; i < 8; i++)
-            reg.significand |= (u64)data[i] << (i * 8);
-
-        reg.sign_exponent = (u16)(data[8] | (data[9] << 8));
+        reg.significand = read_u64_le(&data[0]);
+        reg.sign_exponent = read_u16_le(&data[8]);
         return true;
     }
 

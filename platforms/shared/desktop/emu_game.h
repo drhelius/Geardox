@@ -54,6 +54,7 @@ EXTERN bool emu_game_update(void);
 EXTERN config_Machine* emu_game_get_machine(void);
 EXTERN const config_Machine* emu_game_get_base_machine(void);
 EXTERN void emu_game_apply_machine(void);
+EXTERN void emu_game_config_to_settings(const config_Machine& machine, GDOX_Machine_Settings* settings);
 EXTERN int emu_game_get_source(const char* section, const char* key);
 EXTERN bool emu_game_is_from_database(void);
 EXTERN int emu_game_get_joystick(void);

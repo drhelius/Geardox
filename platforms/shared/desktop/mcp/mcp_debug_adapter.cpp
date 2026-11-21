@@ -146,10 +146,10 @@ static std::string to_upper(const std::string& text)
     return result;
 }
 
-static std::string hex_text(u32 value, int digits)
+static std::string hex_text(u64 value, int digits)
 {
-    char text[16];
-    snprintf(text, sizeof(text), "%0*X", digits, value);
+    char text[24];
+    snprintf(text, sizeof(text), "%0*llX", digits, (unsigned long long)value);
     return text;
 }
 
@@ -966,7 +966,7 @@ json DebugAdapter::TranslateAddress(const std::string& text)
             physical.segment_register = -1;
             physical.address = translation.page_directory_entry;
             gui_debug_memory_read(physical, bytes, status, 4);
-            value = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((u32)bytes[3] << 24);
+            value = read_u32_le(bytes);
             result["pde_address"] = Hex32(translation.page_directory_entry);
             result["pde"] = Hex32(value);
 
@@ -974,7 +974,7 @@ json DebugAdapter::TranslateAddress(const std::string& text)
             {
                 physical.address = translation.page_table_entry;
                 gui_debug_memory_read(physical, bytes, status, 4);
-                value = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((u32)bytes[3] << 24);
+                value = read_u32_le(bytes);
                 result["pte_address"] = Hex32(translation.page_table_entry);
                 result["pte"] = Hex32(value);
             }
@@ -1187,12 +1187,7 @@ json DebugAdapter::ListMemoryWatches(int area)
         };
 
         if (watches[i].valid)
-        {
-            std::ostringstream value;
-            value << std::hex << std::uppercase << std::setfill('0') << std::setw(watches[i].size * 2) <<
-                (unsigned long long)watches[i].value;
-            item["value"] = value.str();
-        }
+            item["value"] = hex_text(watches[i].value, watches[i].size * 2);
         else
             item["value"] = json();
 
@@ -1256,7 +1251,7 @@ json DebugAdapter::MemorySearch(int area, const std::string& op, const std::stri
         GDOX_Debug_Memory_Address address = info.source;
         address.address = (u32)compare_value;
         gui_debug_memory_read(address, bytes, status, 4);
-        compare_value = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((u64)bytes[3] << 24);
+        compare_value = read_u32_le(bytes);
     }
     else if (!previous && compare_type != "value")
         return {{"error", "Invalid compare_type"}};
@@ -2088,8 +2083,8 @@ json DebugAdapter::GetDosStatus()
             break;
         }
 
-        u16 owner = (u16)(bytes[1] | (bytes[2] << 8));
-        u16 size = (u16)(bytes[3] | (bytes[4] << 8));
+        u16 owner = read_u16_le(bytes + 1);
+        u16 size = read_u16_le(bytes + 3);
         std::string name;
 
         for (int b = 8; (b < 16) && (bytes[b] >= 0x20) && (bytes[b] < 0x7F); b++)
@@ -5622,7 +5617,6 @@ json DebugAdapter::GetMediaInfo()
         });
     }
 
-    static const char* media_names[] = { "2D", "2DD", "2HD", "ED" };
     json drives = json::array();
 
     for (int i = 0; i < config_floppy_drives; i++)
@@ -5639,7 +5633,7 @@ json DebugAdapter::GetMediaInfo()
                 emu_floppy_get_disk_name(i, info.disk_index) : "";
             drive["disk_index"] = info.disk_index;
             drive["disk_count"] = info.disk_count;
-            drive["media"] = IsValidPointer(disk) ? media_names[disk->GetMedia() % 4] : "";
+            drive["media"] = IsValidPointer(disk) ? k_debug_floppy_media_names[disk->GetMedia() % 4] : "";
             drive["write_protected"] = info.write_protected;
             drive["modified"] = info.dirty;
         }
@@ -5823,7 +5817,6 @@ json DebugAdapter::GetGameInfo()
         return {{"open", false}};
 
     static const char* const k_targets[GDOX_GAME_TARGET_COUNT] = { "game", "setup", "prompt", "debug" };
-    static const char* const k_sources[] = { "user", "game", "model", "media" };
     static const char* const k_mcp_mpu_modes[GDOX_MPU_MODE_COUNT] = { "off", "intelligent", "uart" };
     static const char* const k_keys[][2] = {
         { "game", "source" }, { "game", "folder" }, { "game", "free_mb" }, { "machine", "model" },
@@ -5867,10 +5860,10 @@ json DebugAdapter::GetGameInfo()
         {"descriptor", descriptor.Write()},
         {"overrides_path", disk->GetOverridesPath()},
         {"keys", keys},
-        {"machine", {{"model", k_machine_profiles[config.model].key}, {"model_source", k_sources[report.model]},
-            {"cpu_mhz", config.cpu_clock_rate / 1000000}, {"cpu_source", k_sources[report.cpu_clock]},
-            {"ram_mb", config.ram_size / (1024 * 1024)}, {"ram_source", k_sources[report.ram]},
-            {"fpu", config.fpu}, {"fpu_source", k_sources[report.fpu]}, {"turbo", m_core->IsTurbo()},
+        {"machine", {{"model", k_machine_profiles[config.model].key}, {"model_source", k_mcp_machine_sources[report.model]},
+            {"cpu_mhz", config.cpu_clock_rate / 1000000}, {"cpu_source", k_mcp_machine_sources[report.cpu_clock]},
+            {"ram_mb", config.ram_size / (1024 * 1024)}, {"ram_source", k_mcp_machine_sources[report.ram]},
+            {"fpu", config.fpu}, {"fpu_source", k_mcp_machine_sources[report.fpu]}, {"turbo", m_core->IsTurbo()},
             {"sound_card", k_sound_cards[config.sound_card].id}, {"sound_irq", config.sound_irq},
             {"sound_dma", config.sound_dma}, {"mpu", k_mcp_mpu_modes[config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : 0]},
             {"gus", config.gus != 0},
@@ -7043,7 +7036,7 @@ static json mouse_button_names(u8 buttons)
     return names;
 }
 
-static json hex_bytes(const u8* bytes, int count)
+static json hex_byte_array(const u8* bytes, int count)
 {
     json list = json::array();
     char text[8];
@@ -7090,8 +7083,8 @@ json DebugAdapter::GetMouseState()
             {"clock_enabled", mouse->clock_enabled},
             {"buttons", mouse_button_names(mouse->buttons)},
             {"accumulated", {{"x", mouse->x}, {"y", mouse->y}}},
-            {"queued_bytes", hex_bytes(mouse->reply, mouse->reply_count)},
-            {"last_packet", hex_bytes(mouse->last, mouse->last_count)},
+            {"queued_bytes", hex_byte_array(mouse->reply, mouse->reply_count)},
+            {"last_packet", hex_byte_array(mouse->last, mouse->last_count)},
             {"receiving", m_core->GetPS2Mouse()->IsReceiving()},
             {"resetting", mouse->resetting}
         };
@@ -7105,7 +7098,7 @@ json DebugAdapter::GetMouseState()
             {"rts", mouse->rts},
             {"ready", mouse->ready},
             {"buttons", mouse_button_names(mouse->buttons)},
-            {"queued_bytes", hex_bytes(mouse->queue, mouse->queue_count)},
+            {"queued_bytes", hex_byte_array(mouse->queue, mouse->queue_count)},
             {"identification_pending", mouse->ident_clocks != GDOX_NO_EVENT}
         };
     }
@@ -7419,10 +7412,7 @@ void DebugAdapter::ClearInjectedInput()
 
 std::string DebugAdapter::Hex(u32 value, int digits) const
 {
-    std::ostringstream stream;
-
-    stream << std::hex << std::uppercase << std::setfill('0') << std::setw(digits) << value;
-    return stream.str();
+    return hex_text(value, digits);
 }
 
 std::string DebugAdapter::Hex32(u32 value) const

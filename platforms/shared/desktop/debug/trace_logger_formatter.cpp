@@ -37,6 +37,7 @@
 static const char* const k_trace_pit_names[3] = { "CH0", "CH1", "CH2" };
 static const char* const k_trace_pcm_formats[6] = { "PCM8", "PCM16", "ADPCM2", "ADPCM3", "ADPCM4", "SILENCE" };
 static const char* const k_trace_uart_registers[8] = { "RBR/THR", "IER", "IIR/FCR", "LCR", "MCR", "LSR", "MSR", "SCR" };
+static const char* const k_trace_cpu_modes[3] = { "REAL", "PM", "V86" };
 
 static void format_event(char* buffer, size_t size, const char* tag, const char* name, const char* format, ...);
 static void format_cpu(const GDOX_Trace_Entry& entry, const GDOX_Trace_Format_Options& options, char* buffer, size_t size);
@@ -284,7 +285,6 @@ static void format_far_address(u16 cs, u32 eip, u8 mode, char* buffer, size_t si
 
 static void format_cpu_event(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
-    static const char* const k_modes[3] = { "REAL", "PM", "V86" };
     static const char* const k_causes[15] = { "MOV CR0", "LMSW", "MOV CR3", "MOV CR4", "INVLPG", "LGDT", "LIDT", "CPUID",
         "RDTSC", "RDMSR", "WRMSR", "JMP", "CALL", "IRET", "INTERRUPT" };
     static const char* const k_classes[3] = { "FAULT", "TRAP", "ABORT" };
@@ -334,12 +334,13 @@ static void format_cpu_event(const GDOX_Trace_Entry& entry, char* buffer, size_t
         }
         case TRACE_CPU_INTERRUPT_RETURN:
             format_event(buffer, size, "CPU", "IRET", "From:%s  To:%s  %s:%u->%s:%u  EFLAGS:$%08X  Calls:%u", at, to,
-                k_modes[mode], entry.cpu_event.modes >> 4, k_modes[to_mode], entry.cpu_event.vector2 >> 4, new_value,
-                entry.cpu_event.extra);
+                k_trace_cpu_modes[mode], entry.cpu_event.modes >> 4, k_trace_cpu_modes[to_mode],
+                entry.cpu_event.vector2 >> 4, new_value, entry.cpu_event.extra);
             break;
         case TRACE_CPU_INTERRUPT_MODE:
             format_event(buffer, size, "CPU", "MODE", "%s  CR0:$%08X->$%08X  PE:%u->%u PG:%u->%u  Now %s  At:%s", cause,
-                old_value, new_value, old_value & 1, new_value & 1, old_value >> 31, new_value >> 31, k_modes[mode], at);
+                old_value, new_value, old_value & 1, new_value & 1, old_value >> 31, new_value >> 31,
+                k_trace_cpu_modes[mode], at);
             break;
         case TRACE_CPU_INTERRUPT_PAGING:
             if (entry.cpu_event.cause == TRACE_CPU_CAUSE_INVLPG)
@@ -381,7 +382,6 @@ static void format_interrupt(const GDOX_Trace_Entry& entry, char* buffer, size_t
         return;
     }
 
-    static const char* const k_modes[3] = { "REAL", "PM", "V86" };
     char name[16];
     char description[64];
     char from[24];
@@ -400,7 +400,8 @@ static void format_interrupt(const GDOX_Trace_Entry& entry, char* buffer, size_t
     format_far_address(entry.interrupt.to_cs, entry.interrupt.to_eip, to_mode, to, sizeof(to));
 
     if (from_mode != to_mode || from_cpl != to_cpl)
-        snprintf(change, sizeof(change), "  %s:%u->%s:%u", k_modes[from_mode], from_cpl, k_modes[to_mode], to_cpl);
+        snprintf(change, sizeof(change), "  %s:%u->%s:%u", k_trace_cpu_modes[from_mode], from_cpl,
+            k_trace_cpu_modes[to_mode], to_cpl);
 
     switch (entry.event)
     {
@@ -1495,11 +1496,6 @@ static void format_midi(const GDOX_Trace_Entry& entry, char* buffer, size_t size
     }
 }
 
-static u32 be32(const u8* b)
-{
-    return ((u32)b[0] << 24) | ((u32)b[1] << 16) | ((u32)b[2] << 8) | b[3];
-}
-
 static void format_packet_detail(const u8* b, char* buffer, size_t size)
 {
     buffer[0] = 0;
@@ -1507,13 +1503,13 @@ static void format_packet_detail(const u8* b, char* buffer, size_t size)
     switch (b[0])
     {
         case 0x28:
-            snprintf(buffer, size, "  LBA:%u Count:%u", be32(b + 2), ((u32)b[7] << 8) | b[8]);
+            snprintf(buffer, size, "  LBA:%u Count:%u", read_u32_be(b + 2), read_u16_be(b + 7));
             break;
         case 0xA8:
-            snprintf(buffer, size, "  LBA:%u Count:%u", be32(b + 2), be32(b + 6));
+            snprintf(buffer, size, "  LBA:%u Count:%u", read_u32_be(b + 2), read_u32_be(b + 6));
             break;
         case 0xBE:
-            snprintf(buffer, size, "  LBA:%u Count:%u  Type:%u  Fields:$%02X", be32(b + 2),
+            snprintf(buffer, size, "  LBA:%u Count:%u  Type:%u  Fields:$%02X", read_u32_be(b + 2),
                 ((u32)b[6] << 16) | ((u32)b[7] << 8) | b[8], (b[1] >> 2) & 0x07, b[9]);
             break;
         case 0xB9:
@@ -1521,26 +1517,26 @@ static void format_packet_detail(const u8* b, char* buffer, size_t size)
             break;
         case 0x43:
             snprintf(buffer, size, "  Format:%u %s Track:%u Length:%u", (b[2] & 0x0F) != 0 ? b[2] & 0x0F : b[9] >> 6,
-                (b[1] & 0x02) != 0 ? "MSF" : "LBA", b[6], ((u32)b[7] << 8) | b[8]);
+                (b[1] & 0x02) != 0 ? "MSF" : "LBA", b[6], read_u16_be(b + 7));
             break;
         case 0x1A:
         case 0x5A:
             snprintf(buffer, size, "  Page:$%02X Control:%u Length:%u", b[2] & 0x3F, b[2] >> 6,
-                b[0] == 0x1A ? b[4] : ((u32)b[7] << 8) | b[8]);
+                b[0] == 0x1A ? b[4] : read_u16_be(b + 7));
             break;
         case 0x15:
         case 0x55:
-            snprintf(buffer, size, "  PF:%u Length:%u", (b[1] >> 4) & 0x01, b[0] == 0x15 ? b[4] : ((u32)b[7] << 8) | b[8]);
+            snprintf(buffer, size, "  PF:%u Length:%u", (b[1] >> 4) & 0x01, b[0] == 0x15 ? b[4] : read_u16_be(b + 7));
             break;
         case 0x42:
             snprintf(buffer, size, "  %s SubQ:%u Format:%u Track:%u", (b[1] & 0x02) != 0 ? "MSF" : "LBA", (b[2] >> 6) & 0x01,
                 b[3], b[6]);
             break;
         case 0x45:
-            snprintf(buffer, size, "  LBA:%u Count:%u", be32(b + 2), ((u32)b[7] << 8) | b[8]);
+            snprintf(buffer, size, "  LBA:%u Count:%u", read_u32_be(b + 2), read_u16_be(b + 7));
             break;
         case 0xA5:
-            snprintf(buffer, size, "  LBA:%u Count:%u", be32(b + 2), be32(b + 6));
+            snprintf(buffer, size, "  LBA:%u Count:%u", read_u32_be(b + 2), read_u32_be(b + 6));
             break;
         case 0x47:
             snprintf(buffer, size, "  %02u:%02u:%02u-%02u:%02u:%02u", b[3], b[4], b[5], b[6], b[7], b[8]);
@@ -1549,7 +1545,7 @@ static void format_packet_detail(const u8* b, char* buffer, size_t size)
             snprintf(buffer, size, "  %s", (b[8] & 0x01) != 0 ? "RESUME" : "PAUSE");
             break;
         case 0x2B:
-            snprintf(buffer, size, "  LBA:%u", be32(b + 2));
+            snprintf(buffer, size, "  LBA:%u", read_u32_be(b + 2));
             break;
         case 0x1B:
             snprintf(buffer, size, "  %s%s", (b[4] & 0x02) != 0 ? ((b[4] & 0x01) != 0 ? "LOAD" : "EJECT") : "",
@@ -1559,7 +1555,7 @@ static void format_packet_detail(const u8* b, char* buffer, size_t size)
             snprintf(buffer, size, "  %s", (b[4] & 0x01) != 0 ? "PREVENT" : "ALLOW");
             break;
         case 0xBB:
-            snprintf(buffer, size, "  Read:%u KB/s", ((u32)b[2] << 8) | b[3]);
+            snprintf(buffer, size, "  Read:%u KB/s", read_u16_be(b + 2));
             break;
         case 0x03:
         case 0x12:

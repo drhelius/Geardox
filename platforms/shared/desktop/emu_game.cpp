@@ -31,6 +31,7 @@
 #include "emu_dev.h"
 #include "gui_notifications.h"
 #include "media/media_file.h"
+#include "media/crc.h"
 
 static GameDisk disk;
 static int target = GDOX_GAME_TARGET_GAME;
@@ -83,7 +84,6 @@ static const std::vector<std::pair<std::string, std::string> >& get_game_keys(vo
 static bool same_overrides(const GameDescriptor& a, const GameDescriptor& b);
 static void notify_saved(void);
 static void notify_shadowed(void);
-static void config_to_settings(const config_Machine& machine, GDOX_Machine_Settings* settings);
 static void overlay_settings(config_Machine* machine, const GDOX_Machine_Settings& game);
 static void update_machines(void);
 static void apply_game_settings(void);
@@ -288,7 +288,7 @@ bool emu_game_close(void)
     if (emu_is_powered_on())
         emu_power_off();
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
         Emu_HardDiskInfo info;
         emu_hard_disk_get_info(i, &info);
@@ -955,9 +955,8 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
         return false;
     }
 
-    char id[16];
     std::string directory = get_save_directory();
-    snprintf(id, sizeof(id), "%08X", (u32)mz_crc32(0, (const u8*)source.data(), source.size()));
+    std::string id = crc_key(source);
     create_directory_if_not_exists(directory.c_str());
     join_path(directory.c_str(), (name + "." + id + ".gdox").c_str(), file, sizeof(file));
     *path = file;
@@ -1138,7 +1137,7 @@ bool emu_game_get_found(GameDisk_Found* found)
     return true;
 }
 
-static void config_to_settings(const config_Machine& machine, GDOX_Machine_Settings* settings)
+void emu_game_config_to_settings(const config_Machine& machine, GDOX_Machine_Settings* settings)
 {
     settings->model = machine.model;
     settings->cpu_mhz = machine.cpu_mhz;
@@ -1196,7 +1195,7 @@ static void update_machines(void)
     const std::vector<std::pair<std::string, std::string> >& keys = get_game_keys();
     GameDescriptor stripped = disk.GetDescriptor();
 
-    config_to_settings(config_machine, &user);
+    emu_game_config_to_settings(config_machine, &user);
     disk.GetGameSettings(user, &game);
     game_machine = config_machine;
     overlay_settings(&game_machine, game);
@@ -1250,7 +1249,7 @@ static void apply_game_settings(void)
 {
     GDOX_Machine_Settings user;
     GDOX_Machine_Settings game;
-    config_to_settings(config_machine, &user);
+    emu_game_config_to_settings(config_machine, &user);
     disk.GetGameSettings(user, &game);
     emu_get_core()->SetGameSettings(game, disk.GetName());
 }

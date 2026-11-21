@@ -991,24 +991,7 @@ void emu_apply_machine_settings(void)
         return;
 
     GDOX_Machine_Settings settings;
-    settings.model = config_machine.model;
-    settings.cpu_mhz = config_machine.cpu_mhz;
-    settings.ram_mb = config_machine.ram_mb;
-    settings.fpu = config_machine.fpu;
-    settings.floppy_type[0] = config_machine.floppy_type[0];
-    settings.floppy_type[1] = config_machine.floppy_type[1];
-    settings.sound_card = config_machine.sound_card;
-    settings.sound_irq = config_machine.sound_irq;
-    settings.sound_dma = config_machine.sound_dma;
-    settings.mpu = config_machine.mpu;
-    settings.gus = config_machine.gus ? 1 : 0;
-    settings.video_card = config_machine.video_card;
-    settings.voodoo = config_machine.voodoo ? 1 : 0;
-    settings.mouse = config_machine.mouse;
-    settings.cdrom = config_machine.cdrom;
-    settings.cdrom_speed = config_machine.cdrom_speed;
-    settings.drive_timing = config_machine.drive_timing;
-    settings.speed_mode = config_machine.turbo ? 1 : 0;
+    emu_game_config_to_settings(config_machine, &settings);
     geardox->SetMachineSettings(settings);
     emu_game_apply_machine();
 }
@@ -1563,7 +1546,7 @@ static void debug_decode_linear(u32* pixels, const Emu_Debug_Buffer_Info& info)
                 line[x] = debug_rgba(((u32)source[2] << 16) | ((u32)source[1] << 8) | source[0]);
             else
             {
-                u32 value = source[0] | ((u32)source[1] << 8);
+                u32 value = read_u16_le(source);
                 bool is_565 = info.format == Emu_Debug_Linear_16;
                 u32 red = is_565 ? (value >> 11) & 0x1F : (value >> 10) & 0x1F;
                 u32 green = is_565 ? (value >> 5) & 0x3F : (value >> 5) & 0x1F;

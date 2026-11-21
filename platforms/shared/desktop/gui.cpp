@@ -88,8 +88,6 @@ static void update_key_mapper_pointer(const ImVec2& min, const ImVec2& max);
 static void set_style(void);
 static void set_style_light(ImGuiStyle& style);
 static void set_style_dark(ImGuiStyle& style);
-static ImVec4 make_color(unsigned int rgb, float alpha = 1.0f);
-static ImVec4 lerp(const ImVec4& a, const ImVec4& b, float t);
 
 bool gui_init(void)
 {
@@ -508,14 +506,10 @@ static void start_loading_rom(const char* path, const char* symbol_path)
     gui_debug_auto_save_settings();
     emu_resume();
 
-    strncpy(loading_rom_path, path, sizeof(loading_rom_path) - 1);
-    loading_rom_path[sizeof(loading_rom_path) - 1] = '\0';
+    strncpy_fit(loading_rom_path, path, sizeof(loading_rom_path));
 
     if (IsValidPointer(symbol_path) && (strlen(symbol_path) > 0))
-    {
-        strncpy(loading_symbol_path, symbol_path, sizeof(loading_symbol_path) - 1);
-        loading_symbol_path[sizeof(loading_symbol_path) - 1] = '\0';
-    }
+        strncpy_fit(loading_symbol_path, symbol_path, sizeof(loading_symbol_path));
     else
         loading_symbol_path[0] = '\0';
 
@@ -1194,25 +1188,25 @@ static void set_style_light(ImGuiStyle& style)
 {
     ImGui::StyleColorsLight();
 
-    const ImVec4 text = make_color(0x21201C);
-    const ImVec4 text_secondary = make_color(0x63635E);
-    const ImVec4 window = make_color(0xF9F9F8);
-    const ImVec4 child = make_color(0xFDFDFC);
-    const ImVec4 popup = make_color(0xFDFDFC);
-    const ImVec4 control = make_color(0xF1F0EF);
-    const ImVec4 neutral_active = make_color(0xE2E1DE);
-    const ImVec4 border_subtle = make_color(0xDAD9D6);
-    const ImVec4 border = make_color(0xCFCECA);
-    const ImVec4 grab = make_color(0xBCBBB5);
-    const ImVec4 grab_hover = make_color(0x82827C);
-    const ImVec4 slider_grab = make_color(0x8D8D86);
-    const ImVec4 accent_soft = make_color(0xD2F7F5);
-    const ImVec4 accent_hover = make_color(0xC8F4F2);
-    const ImVec4 accent_selected = make_color(0xB0EDEA);
-    const ImVec4 accent_edge = make_color(0x3DCFC8);
-    const ImVec4 accent_ink = make_color(0x007974);
-    const ImVec4 accent_strong = make_color(0x003D3A);
-    const ImVec4 accent_bright = make_color(0x03D1C8);
+    const ImVec4 text = gui_color(0x21201C);
+    const ImVec4 text_secondary = gui_color(0x63635E);
+    const ImVec4 window = gui_color(0xF9F9F8);
+    const ImVec4 child = gui_color(0xFDFDFC);
+    const ImVec4 popup = gui_color(0xFDFDFC);
+    const ImVec4 control = gui_color(0xF1F0EF);
+    const ImVec4 neutral_active = gui_color(0xE2E1DE);
+    const ImVec4 border_subtle = gui_color(0xDAD9D6);
+    const ImVec4 border = gui_color(0xCFCECA);
+    const ImVec4 grab = gui_color(0xBCBBB5);
+    const ImVec4 grab_hover = gui_color(0x82827C);
+    const ImVec4 slider_grab = gui_color(0x8D8D86);
+    const ImVec4 accent_soft = gui_color(0xD2F7F5);
+    const ImVec4 accent_hover = gui_color(0xC8F4F2);
+    const ImVec4 accent_selected = gui_color(0xB0EDEA);
+    const ImVec4 accent_edge = gui_color(0x3DCFC8);
+    const ImVec4 accent_ink = gui_color(0x007974);
+    const ImVec4 accent_strong = gui_color(0x003D3A);
+    const ImVec4 accent_bright = gui_color(0x03D1C8);
 
     style.Colors[ImGuiCol_Text] = text;
     style.Colors[ImGuiCol_TextDisabled] = text_secondary;
@@ -1220,7 +1214,7 @@ static void set_style_light(ImGuiStyle& style)
     style.Colors[ImGuiCol_ChildBg] = child;
     style.Colors[ImGuiCol_PopupBg] = popup;
     style.Colors[ImGuiCol_Border] = border;
-    style.Colors[ImGuiCol_BorderShadow] = make_color(0x000000, 0.0f);
+    style.Colors[ImGuiCol_BorderShadow] = gui_color(0x000000, 0.0f);
     style.Colors[ImGuiCol_FrameBg] = control;
     style.Colors[ImGuiCol_FrameBgHovered] = accent_soft;
     style.Colors[ImGuiCol_FrameBgActive] = accent_selected;
@@ -1244,9 +1238,9 @@ static void set_style_light(ImGuiStyle& style)
     style.Colors[ImGuiCol_Separator] = border_subtle;
     style.Colors[ImGuiCol_SeparatorHovered] = accent_ink;
     style.Colors[ImGuiCol_SeparatorActive] = accent_ink;
-    style.Colors[ImGuiCol_ResizeGrip] = make_color(0xBCBBB5, 0.55f);
-    style.Colors[ImGuiCol_ResizeGripHovered] = make_color(0x3DCFC8, 0.80f);
-    style.Colors[ImGuiCol_ResizeGripActive] = make_color(0x007974, 0.95f);
+    style.Colors[ImGuiCol_ResizeGrip] = gui_color(0xBCBBB5, 0.55f);
+    style.Colors[ImGuiCol_ResizeGripHovered] = gui_color(0x3DCFC8, 0.80f);
+    style.Colors[ImGuiCol_ResizeGripActive] = gui_color(0x007974, 0.95f);
     style.Colors[ImGuiCol_Tab] = control;
     style.Colors[ImGuiCol_TabHovered] = accent_soft;
     style.Colors[ImGuiCol_TabActive] = accent_selected;
@@ -1259,16 +1253,16 @@ static void set_style_light(ImGuiStyle& style)
     style.Colors[ImGuiCol_TableHeaderBg] = control;
     style.Colors[ImGuiCol_TableBorderStrong] = border;
     style.Colors[ImGuiCol_TableBorderLight] = border_subtle;
-    style.Colors[ImGuiCol_TableRowBg] = make_color(0x000000, 0.0f);
-    style.Colors[ImGuiCol_TableRowBgAlt] = make_color(0x21201C, 0.03f);
+    style.Colors[ImGuiCol_TableRowBg] = gui_color(0x000000, 0.0f);
+    style.Colors[ImGuiCol_TableRowBgAlt] = gui_color(0x21201C, 0.03f);
     style.Colors[ImGuiCol_TextSelectedBg] = accent_hover;
     style.Colors[ImGuiCol_DragDropTarget] = accent_ink;
-    style.Colors[ImGuiCol_NavHighlight] = make_color(0x007974, 0.90f);
-    style.Colors[ImGuiCol_NavWindowingHighlight] = make_color(0x21201C, 0.70f);
-    style.Colors[ImGuiCol_NavWindowingDimBg] = make_color(0x21201C, 0.20f);
-    style.Colors[ImGuiCol_ModalWindowDimBg] = make_color(0x21201C, 0.30f);
+    style.Colors[ImGuiCol_NavHighlight] = gui_color(0x007974, 0.90f);
+    style.Colors[ImGuiCol_NavWindowingHighlight] = gui_color(0x21201C, 0.70f);
+    style.Colors[ImGuiCol_NavWindowingDimBg] = gui_color(0x21201C, 0.20f);
+    style.Colors[ImGuiCol_ModalWindowDimBg] = gui_color(0x21201C, 0.30f);
 
-    style.Colors[ImGuiCol_DockingPreview] = make_color(0x03D1C8, 0.45f);
+    style.Colors[ImGuiCol_DockingPreview] = gui_color(0x03D1C8, 0.45f);
     style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(config_video.background_color_debugger[config_Theme_Light][0],
         config_video.background_color_debugger[config_Theme_Light][1],
         config_video.background_color_debugger[config_Theme_Light][2], 1.0f);
@@ -1283,7 +1277,7 @@ static void set_style_dark(ImGuiStyle& style)
 {
     ImGui::StyleColorsDark();
 
-    const ImVec4 accent = make_color(0x03D1C8);
+    const ImVec4 accent = gui_color(0x03D1C8);
 
     style.Colors[ImGuiCol_Text] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
     style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.5921568870544434f, 0.5921568870544434f, 0.5921568870544434f, 1.0f);
@@ -1305,7 +1299,7 @@ static void set_style_dark(ImGuiStyle& style)
     style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.9999899864196777f, 0.9999899864196777f, 1.0f, 1.0f);
     style.Colors[ImGuiCol_CheckMark] = accent;
     style.Colors[ImGuiCol_SliderGrab] = accent;
-    style.Colors[ImGuiCol_SliderGrabActive] = lerp(accent, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), 0.4f);
+    style.Colors[ImGuiCol_SliderGrabActive] = gui_lerp_color(accent, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), 0.4f);
     style.Colors[ImGuiCol_Button] = ImVec4(0.184547483921051f, 0.184547483921051f, 0.1845493316650391f, 1.0f);
     style.Colors[ImGuiCol_ButtonHovered] = accent;
     style.Colors[ImGuiCol_ButtonActive] = accent;
@@ -1342,22 +1336,9 @@ static void set_style_dark(ImGuiStyle& style)
     style.Colors[ImGuiCol_DockingPreview] = style.Colors[ImGuiCol_HeaderActive] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
     style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(config_video.background_color_debugger[config_emulator.theme][0], config_video.background_color_debugger[config_emulator.theme][1], config_video.background_color_debugger[config_emulator.theme][2], 1.00f);
     style.Colors[ImGuiCol_TabHovered] = style.Colors[ImGuiCol_HeaderHovered];
-    style.Colors[ImGuiCol_TabSelected] = lerp(style.Colors[ImGuiCol_HeaderActive], style.Colors[ImGuiCol_TitleBgActive], 0.60f);
+    style.Colors[ImGuiCol_TabSelected] = gui_lerp_color(style.Colors[ImGuiCol_HeaderActive], style.Colors[ImGuiCol_TitleBgActive], 0.60f);
     style.Colors[ImGuiCol_TabSelectedOverline] = style.Colors[ImGuiCol_HeaderActive];
-    style.Colors[ImGuiCol_TabDimmed] = lerp(style.Colors[ImGuiCol_Tab], style.Colors[ImGuiCol_TitleBg], 0.60f);
-    style.Colors[ImGuiCol_TabDimmedSelected] = lerp(style.Colors[ImGuiCol_TabSelected], style.Colors[ImGuiCol_TitleBg], 0.40f);
-    style.Colors[ImGuiCol_TabDimmedSelectedOverline] = lerp(style.Colors[ImGuiCol_TabSelected], style.Colors[ImGuiCol_TitleBg], 0.20f);
-}
-
-static ImVec4 make_color(unsigned int rgb, float alpha)
-{
-    return ImVec4(((rgb >> 16) & 0xFF) / 255.0f,
-                  ((rgb >> 8) & 0xFF) / 255.0f,
-                  (rgb & 0xFF) / 255.0f,
-                  alpha);
-}
-
-static ImVec4 lerp(const ImVec4& a, const ImVec4& b, float t)
-{
-    return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t);
+    style.Colors[ImGuiCol_TabDimmed] = gui_lerp_color(style.Colors[ImGuiCol_Tab], style.Colors[ImGuiCol_TitleBg], 0.60f);
+    style.Colors[ImGuiCol_TabDimmedSelected] = gui_lerp_color(style.Colors[ImGuiCol_TabSelected], style.Colors[ImGuiCol_TitleBg], 0.40f);
+    style.Colors[ImGuiCol_TabDimmedSelectedOverline] = gui_lerp_color(style.Colors[ImGuiCol_TabSelected], style.Colors[ImGuiCol_TitleBg], 0.20f);
 }

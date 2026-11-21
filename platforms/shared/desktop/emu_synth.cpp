@@ -40,7 +40,6 @@ static char emu_synth_mt32_status[256] = "";
 static char emu_synth_soundfont_status[256] = "";
 static char emu_synth_playing[GDOX_MIDI_ENGINE_COUNT][MIDI_SYNTH_NAME_SIZE + 64];
 
-static MidiSynth* get_synth(void);
 static int get_wanted_mt32(void);
 static bool open_mt32(void);
 static void add_folder(std::vector<std::string>& folders, const char* base, const char* component);
@@ -59,7 +58,7 @@ void emu_synth_init(void)
 
 void emu_synth_scan_mt32(void)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
     std::vector<std::string> folders;
     emu_synth_set_count = 0;
     emu_synth_mt32_index = -1;
@@ -93,7 +92,7 @@ void emu_synth_scan_mt32(void)
 
 void emu_synth_find_soundfont(void)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
     std::vector<std::string> folders;
     emu_synth_soundfont_path.clear();
     emu_synth_soundfont_failed = false;
@@ -131,7 +130,7 @@ void emu_synth_find_soundfont(void)
 
 void emu_synth_update(void)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
 
     if (IsValidPointer(synth) && synth->IsOpen(GDOX_MIDI_ENGINE_MT32) && (get_wanted_mt32() != emu_synth_mt32_index))
         open_mt32();
@@ -179,7 +178,7 @@ bool emu_synth_is_available(int engine)
 
 bool emu_synth_activate(int engine)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
 
     if (!IsValidPointer(synth) || !emu_synth_is_available(engine))
         return false;
@@ -214,7 +213,7 @@ const char* emu_synth_get_label(int engine)
 
 const char* emu_synth_get_playing_name(int engine)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
     engine = CLAMP(engine, 0, GDOX_MIDI_ENGINE_COUNT - 1);
     char* name = emu_synth_playing[engine];
 
@@ -250,7 +249,7 @@ const char* emu_synth_get_soundfont_status(void)
     return emu_synth_soundfont_status;
 }
 
-static MidiSynth* get_synth(void)
+MidiSynth* emu_synth_get_midi_synth(void)
 {
     GeardoxCore* core = emu_get_core();
     return IsValidPointer(core) ? core->GetAudio()->GetMidiSynth() : NULL;
@@ -268,7 +267,7 @@ static int get_wanted_mt32(void)
 
 static bool open_mt32(void)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
     int index = get_wanted_mt32();
     emu_synth_mt32_index = index;
 

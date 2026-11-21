@@ -37,7 +37,6 @@ static bool emu_midi_notified = false;
 static u64 emu_midi_last_try = 0;
 
 static MidiOut* get_midi(void);
-static MidiSynth* get_synth(void);
 static bool is_builtin(void);
 static int get_out(int synth);
 static const char* get_out_port(int synth);
@@ -87,7 +86,7 @@ void emu_midi_begin_frame(void)
         emu_midi_notified = false;
 
         if (builtin)
-            get_synth()->Reset();
+            emu_synth_get_midi_synth()->Reset();
         else if (open)
             sync(midi);
     }
@@ -248,7 +247,7 @@ const char* emu_midi_get_wanted_port(void)
 const char* emu_midi_get_port(void)
 {
     if (is_builtin())
-        return emu_synth_get_playing_name(get_synth()->GetEngine());
+        return emu_synth_get_playing_name(emu_synth_get_midi_synth()->GetEngine());
 
     return midi_queue_is_open() ? midi_queue_get_port() : "";
 }
@@ -259,15 +258,9 @@ static MidiOut* get_midi(void)
     return IsValidPointer(core) ? core->GetAudio()->GetMidiOut() : NULL;
 }
 
-static MidiSynth* get_synth(void)
-{
-    GeardoxCore* core = emu_get_core();
-    return IsValidPointer(core) ? core->GetAudio()->GetMidiSynth() : NULL;
-}
-
 static bool is_builtin(void)
 {
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
     return IsValidPointer(synth) && synth->IsActive();
 }
 
@@ -365,7 +358,7 @@ static void update_port(MidiOut* midi, bool force)
     int engine = GDOX_MIDI_ENGINE_NONE;
     const char* wanted = "";
     resolve_wanted(&engine, &wanted);
-    MidiSynth* synth = get_synth();
+    MidiSynth* synth = emu_synth_get_midi_synth();
 
     if (engine != GDOX_MIDI_ENGINE_NONE)
     {

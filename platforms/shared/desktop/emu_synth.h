@@ -31,6 +31,7 @@
 #endif
 
 EXTERN void emu_synth_init(void);
+EXTERN MidiSynth* emu_synth_get_midi_synth(void);
 EXTERN void emu_synth_scan_mt32(void);
 EXTERN void emu_synth_find_soundfont(void);
 EXTERN void emu_synth_update(void);
