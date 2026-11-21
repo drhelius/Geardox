@@ -53,6 +53,7 @@
 #include "video_recorder.h"
 #include "ogl_renderer.h"
 #include "video/video.h"
+#include "video/voodoo.h"
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
 #include "cdrom/cdrom_drive.h"
 #endif
@@ -967,6 +968,12 @@ void emu_set_turbo(bool turbo)
         geardox->SetTurbo(turbo);
 }
 
+void emu_set_voodoo_thread(bool enabled)
+{
+    if (IsValidPointer(geardox))
+        geardox->GetVideo()->GetVoodoo()->SetThreaded(enabled);
+}
+
 bool emu_is_dynarec_enabled(void)
 {
     return IsValidPointer(geardox) && geardox->GetI386()->IsDynarecEnabled();
@@ -996,6 +1003,7 @@ void emu_apply_machine_settings(void)
     settings.mpu = config_machine.mpu;
     settings.gus = config_machine.gus ? 1 : 0;
     settings.video_card = config_machine.video_card;
+    settings.voodoo = config_machine.voodoo ? 1 : 0;
     settings.mouse = config_machine.mouse;
     settings.cdrom = config_machine.cdrom;
     settings.cdrom_speed = config_machine.cdrom_speed;
@@ -1394,12 +1402,40 @@ static bool init_debug(void)
         return false;
 
     memset(emu_debug_framebuffer, 0, size);
-    return true;
+    emu_debug_voodoo = new (std::nothrow) u32[EMU_DEBUG_FRAMEBUFFER_WIDTH * EMU_DEBUG_FRAMEBUFFER_HEIGHT];
+    emu_debug_voodoo_width = 0;
+    emu_debug_voodoo_height = 0;
+    return IsValidPointer(emu_debug_voodoo);
 }
 
 static void destroy_debug(void)
 {
     SafeDeleteArray(emu_debug_framebuffer);
+    SafeDeleteArray(emu_debug_voodoo);
+}
+
+static void update_debug_voodoo(void)
+{
+    emu_debug_voodoo_width = 0;
+    emu_debug_voodoo_height = 0;
+
+    if (!config_debug.debug || !config_debug.show_voodoo || emu_is_empty() || !geardox->GetVideo()->HasVoodoo())
+        return;
+
+    Voodoo* voodoo = geardox->GetVideo()->GetVoodoo();
+    const Voodoo::Voodoo_Video* video = voodoo->GetVideo();
+    const Voodoo::Voodoo_State* state = voodoo->GetState();
+    u32 width = MIN(video->running ? video->width : voodoo->GetRowPixels(), (u32)EMU_DEBUG_FRAMEBUFFER_WIDTH);
+    u32 height = MIN(video->running ? video->height : voodoo->GetBufferRows(), (u32)EMU_DEBUG_FRAMEBUFFER_HEIGHT);
+    int buffer = config_debug.voodoo_buffer == 0 ? state->front_buffer : config_debug.voodoo_buffer == 1 ?
+        state->back_buffer : 2;
+
+    if ((width == 0) || (height == 0))
+        return;
+
+    voodoo->RenderBuffer(buffer, emu_debug_voodoo, width, height);
+    emu_debug_voodoo_width = (int)width;
+    emu_debug_voodoo_height = (int)height;
 }
 
 static u32 debug_rgba(u32 color)
@@ -1722,6 +1758,8 @@ void emu_debug_update(void)
 {
     static u64 last_key = 0;
 
+    update_debug_voodoo();
+
     if (!config_debug.show_vram_viewer || emu_is_empty())
     {
         last_key = 0;
@@ -1765,6 +1803,37 @@ int emu_get_debug_buffer_png(int buffer, int pitch, int format, int start, unsig
     int size = 0;
     *out_buffer = stbi_write_png_to_mem(pixels, EMU_DEBUG_FRAMEBUFFER_WIDTH * 4, info.width, info.height, 4, &size);
     SafeDeleteArray(pixels);
+    return size;
+}
+
+int emu_get_voodoo_buffer_png(int buffer, unsigned char** out_buffer, int* width, int* height)
+{
+    if (!IsValidPointer(out_buffer) || emu_is_empty() || !geardox->GetVideo()->HasVoodoo())
+        return 0;
+
+    *out_buffer = NULL;
+    Voodoo* voodoo = geardox->GetVideo()->GetVoodoo();
+    const Voodoo::Voodoo_Video* video = voodoo->GetVideo();
+    u32 w = video->running ? video->width : voodoo->GetRowPixels();
+    u32 h = video->running ? video->height : voodoo->GetBufferRows();
+
+    if ((w == 0) || (h == 0))
+        return 0;
+
+    u32* pixels = new u32[w * h];
+    voodoo->RenderBuffer(buffer, pixels, w, h);
+
+    for (u32 i = 0; i < w * h; i++)
+    {
+        u32 c = pixels[i];
+        pixels[i] = 0xFF000000 | ((c & 0xFF) << 16) | (c & 0xFF00) | ((c >> 16) & 0xFF);
+    }
+
+    int size = 0;
+    *out_buffer = stbi_write_png_to_mem((const unsigned char*)pixels, (int)w * 4, (int)w, (int)h, 4, &size);
+    SafeDeleteArray(pixels);
+    *width = (int)w;
+    *height = (int)h;
     return size;
 }
 

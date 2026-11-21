@@ -41,6 +41,10 @@ EXTERN const char* emu_dos_get_ultrasnd_name(void);
 EXTERN int emu_dos_get_ultrasnd_patches(void);
 EXTERN bool emu_dos_import_ultrasnd(const char* path, std::string* message);
 EXTERN bool emu_dos_remove_ultrasnd(void);
+EXTERN std::string emu_dos_get_glide_path(void);
+EXTERN const char* emu_dos_get_glide_name(void);
+EXTERN bool emu_dos_import_glide(const char* path, std::string* message);
+EXTERN bool emu_dos_remove_glide(void);
 
 #undef EMU_DOS_IMPORT
 #undef EXTERN

@@ -73,6 +73,7 @@ static const char* const k_game_keys[][2] = {
     { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
     { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
     { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
+    { "machine", "voodoo" },
     { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" },
     { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" }, { "sound", "mt32_model" },
     { "input", "mouse" }, { "input", "joystick" } };
@@ -113,7 +114,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
         emu_power_off();
 
     if (!disk.Open(found, get_save_directory().c_str(), get_save_directory().c_str(), config_game.write_back == 0,
-        emu_dos_get_msdos_path().c_str(), emu_dos_get_ultrasnd_path().c_str()))
+        emu_dos_get_msdos_path().c_str(), emu_dos_get_ultrasnd_path().c_str(), emu_dos_get_glide_path().c_str()))
     {
         error_text = disk.GetError();
         return false;
@@ -496,6 +497,9 @@ void emu_game_apply_machine(void)
 
     if (m.gus != b.gus)
         overrides.Set("sound", "gus", m.gus ? "on" : "off");
+
+    if (m.voodoo != b.voodoo)
+        overrides.Set("machine", "voodoo", m.voodoo ? "on" : "off");
 
     if (m.mouse != b.mouse)
         overrides.Set("input", "mouse", k_mice[m.mouse].id);
@@ -1148,6 +1152,7 @@ static void config_to_settings(const config_Machine& machine, GDOX_Machine_Setti
     settings->mpu = machine.mpu;
     settings->gus = machine.gus ? 1 : 0;
     settings->video_card = machine.video_card;
+    settings->voodoo = machine.voodoo ? 1 : 0;
     settings->mouse = machine.mouse;
     settings->cdrom = machine.cdrom;
     settings->cdrom_speed = machine.cdrom_speed;
@@ -1171,6 +1176,7 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
     machine->mpu = game.mpu >= 0 ? game.mpu : machine->mpu;
     machine->gus = game.gus >= 0 ? game.gus != 0 : machine->gus;
     machine->video_card = game.video_card >= 0 ? game.video_card : machine->video_card;
+    machine->voodoo = game.voodoo >= 0 ? game.voodoo != 0 : machine->voodoo;
     machine->mouse = game.mouse >= 0 ? game.mouse : machine->mouse;
     machine->cdrom = game.cdrom >= 0 ? game.cdrom : machine->cdrom;
     machine->cdrom_speed = game.cdrom_speed >= 0 ? game.cdrom_speed : machine->cdrom_speed;

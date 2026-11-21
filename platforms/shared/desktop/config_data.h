@@ -152,6 +152,8 @@ struct config_Machine
     int mpu;
     bool gus;
     int video_card;
+    bool voodoo;
+    bool voodoo_thread;
     int mouse;
     int cdrom;
     int cdrom_speed;
@@ -324,6 +326,7 @@ struct config_Debug
     bool trace_parallel;
     bool trace_system;
     bool trace_gus;
+    bool trace_voodoo;
     int trace_cpu_interrupt_events;
     int trace_io_events;
     int trace_pic_events;
@@ -343,6 +346,7 @@ struct config_Debug
     int trace_parallel_events;
     int trace_system_events;
     int trace_gus_events;
+    int trace_voodoo_events;
     int trace_vblank_watch_address;
     int trace_vblank_watch_operation;
     int trace_output;
@@ -382,6 +386,9 @@ struct config_Debug
     int vram_viewer_linear_pitch;
     int vram_viewer_linear_start;
     bool vram_viewer_linear_auto_start;
+    bool show_voodoo;
+    int voodoo_buffer;
+    int voodoo_zoom;
     bool show_opl;
     bool show_sound_blaster;
     bool show_ultrasound;

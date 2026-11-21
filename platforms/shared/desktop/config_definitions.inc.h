@@ -77,6 +77,9 @@ static inline void process(config_Operation operation)
     CONFIG_INT_RANGE("Debug", "VRAMViewerLinearPitch", config_debug.vram_viewer_linear_pitch, 0, 0, 8192);
     CONFIG_INT_RANGE("Debug", "VRAMViewerLinearStart", config_debug.vram_viewer_linear_start, 0, 0, 0xFFFFF);
     CONFIG_BOOL("Debug", "VRAMViewerLinearAutoStart", config_debug.vram_viewer_linear_auto_start, true);
+    CONFIG_BOOL("Debug", "Voodoo", config_debug.show_voodoo, false);
+    CONFIG_INT_RANGE("Debug", "VoodooBuffer", config_debug.voodoo_buffer, 0, 0, 2);
+    CONFIG_INT_RANGE("Debug", "VoodooZoom", config_debug.voodoo_zoom, 0, 0, 1);
     CONFIG_BOOL("Debug", "OPL", config_debug.show_opl, false);
     CONFIG_BOOL("Debug", "SoundBlaster", config_debug.show_sound_blaster, false);
     CONFIG_BOOL("Debug", "UltraSound", config_debug.show_ultrasound, false);
@@ -123,6 +126,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "TraceParallel", config_debug.trace_parallel, false);
     CONFIG_BOOL("Debug", "TraceSystem", config_debug.trace_system, false);
     CONFIG_BOOL("Debug", "TraceGUS", config_debug.trace_gus, false);
+    CONFIG_BOOL("Debug", "TraceVoodoo", config_debug.trace_voodoo, false);
     CONFIG_INT_RANGE("Debug", "TraceCpuInterruptEvents", config_debug.trace_cpu_interrupt_events,
         TRACE_CPU_INTERRUPT_EVENT_DEFAULT, 0, TRACE_CPU_INTERRUPT_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceIoEvents", config_debug.trace_io_events, TRACE_IO_EVENT_ALL, 0, TRACE_IO_EVENT_ALL);
@@ -160,6 +164,8 @@ static inline void process(config_Operation operation)
         TRACE_SYSTEM_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceGUSEvents", config_debug.trace_gus_events, TRACE_GUS_EVENT_ALL, 0,
         TRACE_GUS_EVENT_ALL);
+    CONFIG_INT_RANGE("Debug", "TraceVoodooEvents", config_debug.trace_voodoo_events, TRACE_VOODOO_EVENT_ALL, 0,
+        TRACE_VOODOO_EVENT_ALL);
     CONFIG_INT("Debug", "TraceVBlankWatchAddress", config_debug.trace_vblank_watch_address, 0);
     CONFIG_INT_RANGE("Debug", "TraceVBlankWatchOperation", config_debug.trace_vblank_watch_operation, 1, 0, 2);
     CONFIG_INT_RANGE("Debug", "TraceOutput", config_debug.trace_output, 0, 0, 1);
@@ -282,6 +288,8 @@ static inline void process(config_Operation operation)
         k_sound_card_dmas[1]);
     CONFIG_INT_RANGE("Machine", "MPU401", config_machine.mpu, GDOX_MPU_INTELLIGENT, 0, GDOX_MPU_MODE_COUNT - 1);
     CONFIG_BOOL("Machine", "GUS", config_machine.gus, false);
+    CONFIG_BOOL("Machine", "Voodoo", config_machine.voodoo, false);
+    CONFIG_BOOL("Machine", "VoodooThread", config_machine.voodoo_thread, true);
     CONFIG_INT_RANGE("Machine", "Video", config_machine.video_card, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
         GDOX_VIDEO_CARD_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "Mouse", config_machine.mouse, GDOX_MOUSE_PS2, 0, GDOX_MOUSE_TYPE_COUNT - 1);

@@ -27,6 +27,8 @@
 #include "system/memory.h"
 #include "system/scheduler.h"
 #include "video/video.h"
+#include "video/voodoo.h"
+#include "video/voodoo_trex.h"
 
 #define REWIND_IMPORT
 #include "rewind.h"
@@ -50,7 +52,7 @@ struct Rewind_Snapshot
 #endif
 };
 
-#define REWIND_DIRTY_REGIONS 2
+#define REWIND_DIRTY_REGIONS 4
 
 struct Rewind_Dirty_Region
 {
@@ -228,6 +230,29 @@ void rewind_push(bool frame_completed)
     }
     else
         audio->GetUltraSound()->SetDirtyTracking(false);
+
+    Video* video = emu_get_core()->GetVideo();
+    Voodoo* voodoo = video->GetVoodoo();
+    memset(&dirty_regions[2], 0, sizeof(dirty_regions[2]) * 2);
+
+    if (video->HasVoodoo())
+    {
+        voodoo->SetDirtyTracking(true);
+        dirty_regions[2].data = (const u8*)voodoo->GetFrameBuffer();
+        dirty_regions[2].size = VOODOO_FB_SIZE;
+        dirty_regions[2].pages = voodoo->GetDirtyPages();
+        dirty_regions[2].page_count = VOODOO_FB_PAGES;
+        dirty_regions[2].page_shift = 12;
+        dirty_regions[2].name = "Voodoo frame buffer";
+        dirty_regions[3].data = voodoo->GetTrex()->GetMemory();
+        dirty_regions[3].size = VOODOO_TREX_MEMORY_SIZE;
+        dirty_regions[3].pages = voodoo->GetTrex()->GetDirtyPages();
+        dirty_regions[3].page_count = VOODOO_TREX_PAGES;
+        dirty_regions[3].page_shift = 12;
+        dirty_regions[3].name = "Voodoo texture memory";
+    }
+    else
+        voodoo->SetDirtyTracking(false);
 
     GDOX_Runtime_Info runtime;
     emu_get_runtime(runtime);
@@ -1047,17 +1072,23 @@ static bool delta_write(const char* data, size_t size)
 static void set_dirty_tracking(bool enabled)
 {
     Audio* audio = emu_get_core()->GetAudio();
+    Video* video = emu_get_core()->GetVideo();
     emu_get_core()->GetMemory()->SetDirtyTracking(enabled);
     audio->GetUltraSound()->SetDirtyTracking(enabled && audio->HasGUS());
+    video->GetVoodoo()->SetDirtyTracking(enabled && video->HasVoodoo());
 }
 
 static void clear_dirty_pages(void)
 {
     Audio* audio = emu_get_core()->GetAudio();
+    Video* video = emu_get_core()->GetVideo();
     emu_get_core()->GetMemory()->ClearDirtyPages();
 
     if (audio->HasGUS())
         audio->GetUltraSound()->ClearDirtyPages();
+
+    if (video->HasVoodoo())
+        video->GetVoodoo()->ClearDirtyPages();
 }
 
 static bool delta_compare_dirty(const Rewind_Dirty_Region& region, const u8* source, size_t size)

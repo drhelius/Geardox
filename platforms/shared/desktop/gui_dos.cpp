@@ -92,6 +92,26 @@ void gui_dos_remove_ultrasnd(void)
             emu_dos_get_ultrasnd_path().c_str());
 }
 
+void gui_dos_dialog_import_glide(const char* path)
+{
+    std::string message;
+
+    if (emu_dos_import_glide(path, &message))
+        gui_notify(gui_NotificationSuccess, ICON_MD_VIDEOGAME_ASSET, message.c_str(),
+            "Games with the 3Dfx Voodoo on find it from the next game or reset.");
+    else
+        gui_notify(gui_NotificationError, NULL, "3Dfx Voodoo driver not imported", message.c_str());
+}
+
+void gui_dos_remove_glide(void)
+{
+    if (emu_dos_remove_glide())
+        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "3Dfx Voodoo driver removed",
+            "Games with the 3Dfx Voodoo have no driver from the next game or reset. Your files aren't touched.");
+    else
+        gui_notify(gui_NotificationError, NULL, "Unable to remove the 3Dfx Voodoo driver", emu_dos_get_glide_path().c_str());
+}
+
 static void menu_game(bool loading)
 {
     bool open = emu_game_is_open();

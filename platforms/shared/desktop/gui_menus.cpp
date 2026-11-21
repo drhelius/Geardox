@@ -48,6 +48,7 @@
 #include "utils.h"
 #include "geardox.h"
 #include "drive/hard_disk_image.h"
+#include "video/video.h"
 #include "rewind.h"
 #include "events.h"
 #include "game_focus.h"
@@ -141,6 +142,7 @@ static void menu_audio_synth_mt32_model(void);
 static void menu_audio_synth_gm(void);
 static void draw_synth_location_tooltip(int engine, int option, const char* custom, const char* about);
 static void menu_audio_ultrasnd(void);
+static void menu_video_glide(void);
 static const char* get_builtin_label(int engine);
 static int find_midi_port(const char* port);
 static void update_midi_ports(void);
@@ -1604,8 +1606,9 @@ static bool menu_machine_sound_resource(const char* name, const char* id, const 
 static bool menu_machine_video(void)
 {
     int source = emu_game_get_source("machine", "video");
+    int voodoo_source = emu_game_get_source("machine", "voodoo");
 
-    if (!begin_game_menu("Video Card", source))
+    if (!begin_game_menu("Video Card", MAX(source, voodoo_source)))
         return false;
 
     bool changed = false;
@@ -1669,6 +1672,29 @@ static bool menu_machine_video(void)
     }
 
     ImGui::PopItemWidth();
+    ImGui::Separator();
+
+    bool voodoo = menu_settings->voodoo;
+    bool voodoo_pushed = gui_push_game_source_color(voodoo_source);
+
+    if (ImGui::MenuItem("3Dfx Voodoo Graphics", "", &voodoo, pci))
+    {
+        menu_settings->voodoo = voodoo;
+        changed = true;
+    }
+
+    if (voodoo_pushed)
+        ImGui::PopStyleColor();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("A second PCI card with 4 MB for 3D games.");
+        ImGui::Text("Pentium machines only. Reset to apply.");
+        gui_draw_game_source_tooltip(voodoo_source);
+        ImGui::EndTooltip();
+    }
+
     ImGui::EndMenu();
     return changed;
 }
@@ -2378,6 +2404,7 @@ static void menu_video(void)
             ImGui::EndMenu();
         }
 
+        menu_video_glide();
         ImGui::Separator();
 
         if (ImGui::BeginMenu("Theme"))
@@ -3286,6 +3313,52 @@ static void menu_audio_ultrasnd(void)
     ImGui::EndMenu();
 }
 
+static void menu_video_glide(void)
+{
+    if (!ImGui::BeginMenu("3Dfx Voodoo Driver"))
+        return;
+
+    const char* name = emu_dos_get_glide_name();
+    bool imported = name[0] != 0;
+
+    if (ImGui::MenuItem("Import Driver..."))
+        gui_file_dialog_import_glide();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("A 3Dfx Voodoo Graphics DOS driver: its ZIP,");
+        ImGui::Text("or the GLIDE2X.OVL file in it.");
+        ImGui::Text("Games with the Voodoo on get it in C:\\.");
+        ImGui::EndTooltip();
+    }
+
+    if (ImGui::MenuItem("Remove Driver", NULL, false, imported))
+        gui_dos_remove_glide();
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Deletes the imported copy.");
+        ImGui::Text("Your files aren't touched.");
+        ImGui::EndTooltip();
+    }
+
+    ImGui::Separator();
+
+    if (imported)
+    {
+        ImGui::TextColored(ultrasnd_imported_color, "%s", name);
+
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", emu_dos_get_glide_path().c_str());
+    }
+    else
+        ImGui::TextColored(ultrasnd_missing_color, "No driver imported");
+
+    ImGui::EndMenu();
+}
+
 static void draw_synth_location_tooltip(int engine, int option, const char* custom, const char* about)
 {
     if (!ImGui::IsItemHovered())
@@ -3615,6 +3688,7 @@ static void menu_debug(void)
             ImGui::MenuItem("Show VGA Registers", "", &config_debug.show_vga_registers);
             ImGui::MenuItem("Show Palettes", "", &config_debug.show_palettes);
             ImGui::MenuItem("Show VRAM Viewer", "", &config_debug.show_vram_viewer);
+            ImGui::MenuItem("Show Voodoo", "", &config_debug.show_voodoo, emu_get_core()->GetVideo()->HasVoodoo());
             ImGui::EndMenu();
         }
 
