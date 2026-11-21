@@ -428,26 +428,31 @@ void SoundBlaster::RequestFrame()
         if (TakeAhead(units))
             return;
 
-        m_state.transfers_needed = (u8)units;
-
         if (!transfer.input)
-            ReadAhead(units);
+        {
+            ReadAhead();
+
+            if (TakeAhead(units))
+                return;
+        }
+
+        m_state.transfers_needed = (u8)units;
     }
 
     m_state.latch_count = 0;
     SetRequest(true);
 }
 
-// A millisecond of frames after the requested one comes from memory with it, within the block, so their requests
+// A millisecond of frames from the requested one on comes from memory at once, within the block, so their requests
 // are the controller counting them as they play
-void SoundBlaster::ReadAhead(u32 units)
+void SoundBlaster::ReadAhead()
 {
     const SoundBlaster_Transfer& transfer = m_state.transfer;
     bool bytes = (transfer.format == SOUND_BLASTER_FORMAT_PCM16) && !IsWordChannel();
     u32 frame = (IsStereo() ? 2 : 1) * (bytes ? 2 : 1);
     u64 rate = (u64)m_state.rate_numerator * GDOX_MACHINE_CLOCK_RATE;
     u32 frames = (u32)(rate / (GetPeriod() * k_sound_blaster_ahead_rate));
-    u32 wanted = MIN(frames > 1 ? (frames - 1) * frame : 0, (transfer.remaining - GetFrameUnits()) * (bytes ? 2 : 1));
+    u32 wanted = MIN(frames * frame, transfer.remaining * (bytes ? 2 : 1));
 
     wanted = MIN(wanted, ((SOUND_BLASTER_AHEAD_SIZE / GetUnitBytes()) / frame) * frame);
     DropAhead();
@@ -455,7 +460,8 @@ void SoundBlaster::ReadAhead(u32 units)
     if (wanted == 0)
         return;
 
-    u32 read = m_dma->ReadAhead(GetChannel(), units, wanted, frame, m_state.ahead);
+    u32 frame_clocks = (u32)(GetPeriod() / m_state.rate_numerator);
+    u32 read = m_dma->ReadAhead(GetChannel(), 0, wanted, frame, frame_clocks, m_state.ahead);
 
     if (read < wanted)
         read -= read % frame;

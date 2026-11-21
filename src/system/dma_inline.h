@@ -55,6 +55,42 @@ INLINE u64 DMA::GetReadStableUntil(u16 port) const
     return 0;
 }
 
+INLINE bool DMA::IsAheadPending() const
+{
+    return (m_state.ahead_owed != 0) || (m_state.ahead_next != GDOX_NO_EVENT);
+}
+
+INLINE bool DMA::IsAheadDue(u64 clocks) const
+{
+    return (m_state.ahead_owed != 0) || (clocks >= m_state.ahead_next);
+}
+
+INLINE u32 DMA::GetAheadClocks(u64 clocks) const
+{
+    if (clocks < m_state.ahead_next)
+        return m_state.ahead_owed;
+
+    u64 frames = ((clocks - m_state.ahead_next) / m_state.ahead_frame_clocks) + 1;
+    return m_state.ahead_owed + (u32)MIN(frames * m_state.ahead_frame_cost, (u64)m_state.ahead_clocks);
+}
+
+INLINE u32 DMA::TakeAheadClocks(u64 clocks, u64 limit)
+{
+    if (clocks >= m_state.ahead_next)
+    {
+        u64 frames = ((clocks - m_state.ahead_next) / m_state.ahead_frame_clocks) + 1;
+        u32 due = (u32)MIN(frames * m_state.ahead_frame_cost, (u64)m_state.ahead_clocks);
+        m_state.ahead_owed += due;
+        m_state.ahead_clocks -= due;
+        m_state.ahead_next = m_state.ahead_clocks == 0 ? GDOX_NO_EVENT :
+            m_state.ahead_next + (frames * m_state.ahead_frame_clocks);
+    }
+
+    u32 taken = (u32)MIN((u64)m_state.ahead_owed, limit);
+    m_state.ahead_owed -= taken;
+    return taken;
+}
+
 INLINE I8237* DMA::GetController(int index)
 {
     return &m_chips[index & 0x01];

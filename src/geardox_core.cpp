@@ -463,12 +463,14 @@ bool GeardoxCore::RunFrame(u64 frame_start)
     while (!IsFrameDone(frame_start))
     {
         u32 slice = m_scheduler->GetSliceClocks(GetFrameLimit(frame_start));
-        u32 cycles = m_scheduler->GetSliceCycles(slice);
+        u64 end = m_scheduler->GetClocks() + slice;
+        u32 dma = MIN(m_dma->GetAheadClocks(end), slice - 1);
+        u32 cycles = m_scheduler->GetSliceCycles(slice - dma);
         GDOX_Bus_Access_Context context = BeginSlice();
 
         I386_Run_Result result = m_i386->RunFor(cycles, context, false, m_pic->IsInterruptPending());
 
-        CompleteSlice(result, context, slice, debugger);
+        CompleteSlice(result, context, slice, debugger, result.cycles + context.wait_cycles >= cycles ? end : 0);
 
         if (debugger && unlikely(m_i386->IsDebuggerHitPending() || m_debug_recheck))
         {
@@ -754,30 +756,49 @@ void GeardoxCore::MemoryHoleCallback(void* core, bool hole)
 
 // A port access moves machine time up to the start of its instruction and then to the access, running the events
 // due on the way. Events due by the start stop the instruction, so the CPU samples INTR before it
-GDOX_Synchronize_Result GeardoxCore::SynchronizeIOCallback(void* core, GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles)
+template <bool bus_time>
+INLINE GDOX_Synchronize_Result GeardoxCore::SynchronizeIO(GDOX_Bus_Access_Context& context, u32 start_cycles,
+    u32 access_cycles)
 {
-    GeardoxCore* geardox = (GeardoxCore*)core;
-    Scheduler* scheduler = geardox->m_scheduler;
     GDOX_Synchronize_Result result = GDOX_SYNC_NO_EVENTS;
-    scheduler->AddCycles(start_cycles - context.synchronized_cycles);
+    m_scheduler->AddCycles(start_cycles - context.synchronized_cycles);
     context.synchronized_cycles = start_cycles;
 
-    if (scheduler->IsEventDue())
+    if (bus_time)
+        AddDMABusTime(m_scheduler->GetClocks());
+
+    if (m_scheduler->IsEventDue())
         result = GDOX_SYNC_EVENTS_AT_START;
     else
     {
-        scheduler->AddCycles(access_cycles - start_cycles);
+        m_scheduler->AddCycles(access_cycles - start_cycles);
         context.synchronized_cycles = access_cycles;
 
-        if (scheduler->IsEventDue())
+        if (m_scheduler->IsEventDue())
             result = GDOX_SYNC_EVENTS_AT_ACCESS;
     }
 
     if (result != GDOX_SYNC_NO_EVENTS)
-        geardox->DispatchEvents();
+        DispatchEvents();
 
-    context.clocks = scheduler->GetClocks();
+    context.clocks = m_scheduler->GetClocks();
     return result;
+}
+
+GDOX_Synchronize_Result GeardoxCore::SynchronizeIOCallback(void* core, GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles)
+{
+    GeardoxCore* geardox = (GeardoxCore*)core;
+
+    if (unlikely(geardox->m_dma->IsAheadPending()))
+        return geardox->SynchronizeIOBusTime(context, start_cycles, access_cycles);
+
+    return geardox->SynchronizeIO<false>(context, start_cycles, access_cycles);
+}
+
+NO_INLINE GDOX_Synchronize_Result GeardoxCore::SynchronizeIOBusTime(GDOX_Bus_Access_Context& context, u32 start_cycles,
+    u32 access_cycles)
+{
+    return SynchronizeIO<true>(context, start_cycles, access_cycles);
 }
 
 // A memory access that a device must see in time moves machine time up to the start of its instruction
@@ -809,8 +830,9 @@ u32 GeardoxCore::PollPortCallback(void* core, u16 port, int width)
     GeardoxCore* geardox = (GeardoxCore*)core;
     Scheduler* scheduler = geardox->m_scheduler;
     u64 stable = geardox->m_io->GetReadStableUntil(port, width, scheduler->GetClocks());
+    u64 limit = MIN(stable, scheduler->GetNextEventClocks());
 
-    return scheduler->GetCyclesBefore(MIN(stable, scheduler->GetNextEventClocks()));
+    return scheduler->GetCyclesBefore(limit - geardox->m_dma->GetAheadClocks(limit));
 }
 
 u64 GeardoxCore::TraceClocksCallback(void* core, u32 cycles)
@@ -823,14 +845,20 @@ u64 GeardoxCore::TraceClocksCallback(void* core, u32 cycles)
 // The debugger holds the IRQ back when the slice hit a breakpoint, so it stops right after the instruction
 // Returns whether an IRQ was entered
 INLINE bool GeardoxCore::CompleteSlice(const I386_Run_Result& result, GDOX_Bus_Access_Context& context, u32 slice,
-    bool hold_on_hit)
+    bool hold_on_hit, u64 dma_until)
 {
     bool idle = (result.steps == 0) && m_i386->Halted();
 
     if (idle)
+    {
         m_scheduler->AddClocks(slice);
+        m_dma->TakeAheadClocks(m_scheduler->GetClocks(), GDOX_NO_EVENT);
+    }
     else
+    {
         m_scheduler->AddCycles((u32)(result.cycles + context.wait_cycles - context.synchronized_cycles));
+        AddDMABusTime(MAX(m_scheduler->GetClocks(), dma_until));
+    }
 
     if (m_scheduler->IsEventDue())
         DispatchEvents();
@@ -849,6 +877,23 @@ INLINE bool GeardoxCore::CompleteSlice(const I386_Run_Result& result, GDOX_Bus_A
         return false;
 
     return EnterPendingInterrupt(context);
+}
+
+INLINE void GeardoxCore::AddDMABusTime(u64 until)
+{
+    if (!m_dma->IsAheadDue(until))
+        return;
+
+    u64 clocks = m_scheduler->GetClocks();
+    u64 next = m_scheduler->GetNextEventClocks();
+
+    if (next <= clocks)
+        return;
+
+    u32 dma = m_dma->TakeAheadClocks(until, next - clocks);
+
+    if (dma != 0)
+        m_scheduler->AddClocks(dma);
 }
 
 INLINE bool GeardoxCore::EnterPendingInterrupt(GDOX_Bus_Access_Context& context)

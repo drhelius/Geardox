@@ -59,6 +59,10 @@ public:
         s8 active_channel;
         u64 next_clocks;
         u32 ahead_clocks;
+        u32 ahead_owed;
+        u32 ahead_frame_clocks;
+        u32 ahead_frame_cost;
+        u64 ahead_next;
     };
 
 public:
@@ -76,8 +80,12 @@ public:
     void SetEndpoint(int channel, const GDOX_DMA_Endpoint& endpoint);
     void SetRequest(int channel, bool active);
     u32 HandleEvent(u64 clocks);
-    u32 ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u8* buffer);
+    u32 ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u32 frame_clocks, u8* buffer);
     void Advance(int channel, u32 units);
+    bool IsAheadPending() const;
+    bool IsAheadDue(u64 clocks) const;
+    u32 GetAheadClocks(u64 clocks) const;
+    u32 TakeAheadClocks(u64 clocks, u64 limit);
     I8237* GetController(int index);
     u32 GetPhysicalAddress(int channel) const;
     DMA_State* GetState();

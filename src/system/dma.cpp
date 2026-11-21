@@ -34,6 +34,7 @@ DMA::DMA()
     m_unsupported_logged = false;
     memset(&m_state, 0, sizeof(m_state));
     m_state.active_channel = -1;
+    m_state.ahead_next = GDOX_NO_EVENT;
 }
 
 DMA::~DMA()
@@ -51,6 +52,7 @@ void DMA::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
     m_state.active_channel = -1;
+    m_state.ahead_next = GDOX_NO_EVENT;
     m_chips[0].Reset();
     m_chips[1].Reset();
     UpdateNextEvent();
@@ -135,19 +137,16 @@ void DMA::SetRequest(int channel, bool active)
     UpdateNextEvent();
 }
 
-// Single mode gives the bus back after each unit, a block or demand run keeps it and skips S1 from its second unit.
-// The units a device read ahead since the last event take their bus time here
+// Single mode gives the bus back after each unit, a block or demand run keeps it and skips S1 from its second unit
 u32 DMA::HandleEvent(u64 clocks)
 {
     int channel = GetServiceChannel();
-    u32 ahead = m_state.ahead_clocks;
-    m_state.ahead_clocks = 0;
 
     if (channel < 0)
     {
         m_state.active_channel = -1;
         UpdateNextEvent();
-        return ahead;
+        return 0;
     }
 
     u32 unit = m_state.active_channel == channel ? k_dma_repeat_clocks : k_dma_unit_clocks;
@@ -159,7 +158,7 @@ u32 DMA::HandleEvent(u64 clocks)
         m_state.stalled |= (u8)(1 << channel);
         m_state.active_channel = -1;
         UpdateNextEvent();
-        return ahead;
+        return 0;
     }
 
     I8237& chip = GetChip(channel);
@@ -174,13 +173,13 @@ u32 DMA::HandleEvent(u64 clocks)
 
     m_state.next_clocks = clocks + unit + (hold ? 0 : k_dma_release_clocks);
     UpdateNextEvent();
-    return unit + ahead;
+    return unit;
 }
 
 // A device that buffers takes the units after the ones it requested from memory now, offset units past the current
 // one, and the channel counts them as they come due (Advance). It stops before the terminal count, so the unit that
 // ends the count always comes through a request. Each unit costs the bus what its own request would have
-u32 DMA::ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u8* buffer)
+u32 DMA::ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u32 frame_clocks, u8* buffer)
 {
     I8237& chip = GetChip(channel);
     int index = channel & 0x03;
@@ -220,8 +219,14 @@ u32 DMA::ReadAhead(int channel, u32 offset, u32 units, u32 frame_units, u8* buff
     }
 
     u32 frames = (units + frame_units - 1) / frame_units;
-    m_state.ahead_clocks += service == k_i8237_single ? units * k_dma_unit_clocks :
+    u32 cost = service == k_i8237_single ? units * k_dma_unit_clocks :
         (frames * k_dma_unit_clocks) + ((units - frames) * k_dma_repeat_clocks);
+
+    m_state.ahead_owed += m_state.ahead_clocks + (cost % frames);
+    m_state.ahead_frame_cost = cost / frames;
+    m_state.ahead_clocks = frames * m_state.ahead_frame_cost;
+    m_state.ahead_frame_clocks = MAX(frame_clocks, (u32)1);
+    m_state.ahead_next = context.clocks + ((u64)(offset / frame_units) * m_state.ahead_frame_clocks);
     return units;
 }
 
@@ -529,12 +534,21 @@ void DMA::Serialize(StateSerializer& serializer, int version)
     G_SERIALIZE(serializer, m_state.active_channel);
     G_SERIALIZE(serializer, m_state.next_clocks);
     G_SERIALIZE(serializer, m_state.ahead_clocks);
+    G_SERIALIZE(serializer, m_state.ahead_owed);
+    G_SERIALIZE(serializer, m_state.ahead_frame_clocks);
+    G_SERIALIZE(serializer, m_state.ahead_frame_cost);
+    G_SERIALIZE(serializer, m_state.ahead_next);
 }
 
 void DMA::SanitizeState()
 {
     if (m_state.active_channel < -1 || m_state.active_channel >= DMA_CHANNELS || m_state.active_channel == k_dma_cascade_channel)
         m_state.active_channel = -1;
+
+    m_state.ahead_frame_clocks = MAX(m_state.ahead_frame_clocks, (u32)1);
+
+    if (m_state.ahead_clocks == 0)
+        m_state.ahead_next = GDOX_NO_EVENT;
 
     UpdateNextEvent();
 }

@@ -177,7 +177,7 @@ private:
     void EndBlock();
     void StopTransfer();
     void RequestFrame();
-    void ReadAhead(u32 units);
+    void ReadAhead();
     bool TakeAhead(u32 units);
     void DropAhead();
     u32 GetFramesAhead() const;

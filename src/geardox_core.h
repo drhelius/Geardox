@@ -220,9 +220,14 @@ private:
     bool IsFrameDone(u64 frame_start) const;
     u64 GetFrameLimit(u64 frame_start) const;
     GDOX_Bus_Access_Context BeginSlice();
-    bool CompleteSlice(const I386_Run_Result& result, GDOX_Bus_Access_Context& context, u32 slice, bool hold_on_hit);
+    bool CompleteSlice(const I386_Run_Result& result, GDOX_Bus_Access_Context& context, u32 slice, bool hold_on_hit,
+        u64 dma_until = 0);
     bool EnterPendingInterrupt(GDOX_Bus_Access_Context& context);
+    void AddDMABusTime(u64 until);
     static GDOX_Synchronize_Result SynchronizeIOCallback(void* core, GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles);
+    GDOX_Synchronize_Result SynchronizeIOBusTime(GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles);
+    template <bool bus_time>
+    GDOX_Synchronize_Result SynchronizeIO(GDOX_Bus_Access_Context& context, u32 start_cycles, u32 access_cycles);
     static void SynchronizeMemoryCallback(void* core, GDOX_Bus_Access_Context& context);
     static u32 PollPortCallback(void* core, u16 port, int width);
     static u64 TraceClocksCallback(void* core, u32 cycles);
