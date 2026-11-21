@@ -95,9 +95,9 @@ Paths in `source` and the disk images in `[drives]` are relative to the descript
 full path. For example, a descriptor at `Games/Orion.gdox` with `source = Orion` uses the folder `Games/Orion`. Paths
 with spaces are written without surrounding quotes.
 
-Paths in `exe`, `setup` and `cwd` are relative to the game's DOS folder. For example, `exe = GAME\ORION.EXE`
-with `folder = C:\ORION` starts `C:\ORION\GAME\ORION.EXE`. A program on the CD takes its drive letter instead, such as
-`exe = D:\WC3.EXE`.
+Paths in `exe`, `voodoo_exe`, `setup_exe` and `cwd` are relative to the game's DOS folder. For example,
+`exe = GAME\ORION.EXE` with `folder = C:\ORION` starts `C:\ORION\GAME\ORION.EXE`. A program on the CD takes its drive
+letter instead, such as `exe = D:\WC3.EXE`.
 
 ## Use a ZIP or CD Image
 
@@ -163,7 +163,7 @@ cdrom = Discs/WAR2.cue
 
 [run]
 exe = WAR2.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 ```
 
 Here, `WAR2.zip` contains the installed game, with `WAR2.EXE` and `SETUP.EXE` at its top level. `Discs/WAR2.cue`
@@ -180,12 +180,13 @@ For multiple discs, list them separated by commas, or use one `.m3u` playlist.
 ## Run Setup or Use the DOS Prompt
 
 Many games have a separate setup program for choosing a sound card or controls. Add its filename to the existing
-`[run]` section:
+`[run]` section with `setup_exe`, and its options, if it needs any, with `setup_args`:
 
 ```ini
 [run]
 exe = ORION.EXE
-setup = INSTALL.EXE -S
+setup_exe = INSTALL.EXE
+setup_args = -S
 ```
 
 The setup command depends on the game; common programs include `SETUP.EXE`, `INSTALL.EXE` and `SETSOUND.EXE`.
@@ -433,9 +434,10 @@ Geardox can add a 3Dfx Voodoo Graphics with 4 MB, as a second PCI card next to t
 **Emulator > Machine > Video Card > 3Dfx Voodoo Graphics** for every game. The monitor shows the Voodoo while a game
 draws with it and the video card otherwise, as the card's pass-through cable did.
 
-Most games start their 3Dfx version from its own program. Name it with `voodoo_exe` under `[run]`: Geardox runs it
-instead of `exe` whenever the card is on, and `exe` when it's off. Geardox's game database fills it in for the games
-it knows.
+Most games start their 3Dfx version from its own program. Name it with `voodoo_exe` under `[run]`, and its options
+with `voodoo_args`: Geardox runs it instead of `exe` whenever the card is on, and `exe` when it's off. Geardox's game
+database fills it in for the games it knows, and turns the card on when it recognises the game's 3Dfx program in your
+copy, or when the game only runs on one. `voodoo = off` in the game's settings keeps it off.
 
 Games with 3Dfx's library built into their program run with nothing more. Most others load `GLIDE2X.OVL`, 3Dfx's
 DOS driver, which isn't included with Geardox. Import it once:
@@ -569,8 +571,10 @@ run from their CD.
 | `exe` | No | The program that starts the game | A `.EXE`, `.COM` or `.BAT` path, relative to `folder` or on another drive. Without `args`, options can follow it after a space | None: Geardox stops at the DOS prompt | `exe = ORION.EXE` |
 | `args` | No | Options passed to `exe` | Text | None | `args = -nosound` |
 | `cwd` | No | The folder the game starts in, for games that must run from a folder other than their program's. Not used for a program on another drive | A DOS path, relative to `folder` | The folder containing `exe` | `cwd = DATA` |
-| `voodoo_exe` | No | The game's 3Dfx program, run instead of `exe` when the 3Dfx Voodoo is on. See [Use a 3Dfx Voodoo](#use-a-3dfx-voodoo) | A program path as in `exe` | None: `exe` runs | `voodoo_exe = GTAFX.EXE` |
-| `setup` | No | The game's setup program, with any options. **Game > Boot To > Setup** runs it | A program path as in `exe`, optionally followed by options | None: **Boot To > Setup** is unavailable | `setup = INSTALL.EXE -S` |
+| `voodoo_exe` | No | The game's 3Dfx program, run instead of `exe` when the 3Dfx Voodoo is on. See [Use a 3Dfx Voodoo](#use-a-3dfx-voodoo) | A program path as in `exe`. Without `voodoo_args`, options can follow it after a space | None: `exe` runs | `voodoo_exe = GTAFX.EXE` |
+| `voodoo_args` | No | Options passed to `voodoo_exe` | Text | None | `voodoo_args = -3dfx` |
+| `setup_exe` | No | The game's setup program. **Game > Boot To > Setup** runs it | A program path as in `exe`. Without `setup_args`, options can follow it after a space | None: **Boot To > Setup** is unavailable | `setup_exe = INSTALL.EXE` |
+| `setup_args` | No | Options passed to `setup_exe` | Text | None | `setup_args = -S` |
 | `on_exit` | No | What happens when the game quits | `prompt`: return to the DOS prompt. `poweroff`: power off the emulated PC. With **Game > Quit When a Game Powers Off**, Geardox closes too | `prompt` | `on_exit = poweroff` |
 | `boot` | No | The drive the emulated PC starts from | `c`: the hard disk. `a`: the floppy in A:, for games that boot directly from a floppy | `c` | `boot = a` |
 

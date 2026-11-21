@@ -25,6 +25,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - Host folders and ZIP files as FAT16 hard disks.
 - IBM CGA (RGB and composite), IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA with 2 MB, VESA modes up to 1280x1024, BitBLT engine, hardware cursor and memory-mapped registers.
 - Windows 3.1, Windows for Workgroups 3.11 and Windows 95 with the Cirrus Logic accelerated display drivers, and DirectDraw games under DirectX.
+- 3Dfx Voodoo Graphics with 4 MB as a second PCI card for DOS games with 3Dfx support.
 - PC speaker, AdLib, Sound Blaster 1.5, 2.0, Pro, Pro 2 and 16 (OPL2, dual OPL2, OPL3), Gravis UltraSound, CD audio, and MPU-401 with built-in MT-32 and General MIDI (SoundFont) synths or MIDI out to host synths on Windows, macOS and Linux.
 - ATAPI CD-ROM drive (1x-8x) with `cue/bin`, `iso`, `chd`, GOG `ins/gog`, `zip` and `m3u` playlists, and physical discs on Windows, macOS and Linux.
 - Two floppy drives (360 KB-2.88 MB) with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
@@ -40,7 +41,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
   - Execute, data, I/O and interrupt breakpoints.
   - Memory editor, trace logger and profiler.
   - i386 registers, descriptor tables, paging and x87 FPU.
-  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, OPL, Sound Blaster, Gravis UltraSound voices and DRAM, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
+  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, 3Dfx Voodoo registers, pipeline and buffers, OPL, Sound Blaster, Gravis UltraSound voices and DRAM, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
 - [MS-DOS development](DEV_README.md): run programs built on the host through GDXDBG, read their output and exit code, debug them with gdb or VS Code, and test them headless.
 - MCP server for AI-assisted debugging with Claude Code, Codex and similar.
 - *Portable Mode*, [programmable shader chain](platforms/shared/desktop/shaders/README.md), command line and drag & drop loading, and modern game controllers through [gamecontrollerdb.txt](https://github.com/mdqinc/SDL_GameControllerDB) beside the binary.
@@ -49,7 +50,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 
 ### Basic Usage
 - **Getting Started**: [INSTRUCTIONS.md](INSTRUCTIONS.md) covers playing games, the built-in DOS disks, the DOS prompt, Windows 3.11 and Windows 95, disks and discs, machine settings, MIDI, keyboard, mouse, gamepads and where files are kept.
-- **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, and importing MS-DOS and the Gravis UltraSound software.
+- **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, and importing MS-DOS, the Gravis UltraSound software and the 3Dfx Voodoo driver.
 - **MIDI Music**: The built-in synths need your own MT-32 ROMs and a SoundFont sound bank, set in **Audio → Built-in Synths**. See [MIDI music](INSTRUCTIONS.md#midi-music).
 - **Portable Mode**: Run with `--portable`, or create an empty file named `portable.ini` in the same directory as the application binary. On macOS, place the file next to the `.app` bundle.
 
@@ -68,7 +69,7 @@ Outside a game, the mapper's changes go to a `.keys` file named after the conten
 
 ### Libretro
 - **Content**: A `.gdox`, a game folder or ZIP, a DOS program, a CD, floppy or hard disk image, or an `m3u` playlist mixing them. Disk control swaps floppies and CDs. Hard disks write to a working copy in the save directory.
-- **DOS**: `FreeDOS.hdd` and `MS-DOS.hdd` live in the save directory. For your MS-DOS, put its Setup disk images, or a ZIP of them, in `geardox/msdos` inside the system directory, and the Gravis UltraSound install disks in `geardox/ultrasnd`.
+- **DOS**: `FreeDOS.hdd` and `MS-DOS.hdd` live in the save directory. For your MS-DOS, put its Setup disk images, or a ZIP of them, in `geardox/msdos` inside the system directory, the Gravis UltraSound install disks in `geardox/ultrasnd`, and the 3Dfx Voodoo driver's ZIP, or `GLIDE2X.OVL`, in `geardox/3dfx`.
 - **Options**: The machine, drives, game and DOS settings are core options, most applied at restart.
 - **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files go to the save directory.
 - **MIDI**: The built-in synths take MT-32 ROMs from `geardox/mt32` (or the system directory itself) and a sound bank from `geardox/soundfonts`. For a synth outside RetroArch, set **MIDI Out** to **External Port** and turn on RetroArch's MIDI output in **Settings → Audio → MIDI**.
