@@ -628,6 +628,9 @@ bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
         m_release_settings = true;
     }
 
+    if (match.voodoo && !m_base.Has("machine", "voodoo"))
+        m_base.Set("machine", "voodoo", "on");
+
     std::vector<GameDatabase_Rule> rules;
     GameDatabase::GetLayout(match.release, &rules);
     m_layout.clear();

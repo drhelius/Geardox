@@ -283,11 +283,20 @@ static void match_release(int release, const GameDatabase_View& view, std::vecto
             preset = has_file(view, root + wanted.path, wanted);
         }
 
+        bool voodoo = false;
+
+        for (int i = 0; !voodoo && (i < info.voodoo_count); i++)
+        {
+            const GDOX_DB_File& wanted = k_game_database_files[info.first_file + info.file_count + info.when_count + i];
+            voodoo = has_file(view, root + wanted.path, wanted);
+        }
+
         GameDatabase_Match match;
         match.entry = info.entry;
         match.release = release;
         match.root = root;
         match.preset = preset;
+        match.voodoo = voodoo;
         matches->push_back(match);
     }
 }

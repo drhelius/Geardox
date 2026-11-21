@@ -38,6 +38,7 @@ struct GameDatabase_Match
     int release;
     std::string root;
     bool preset;
+    bool voodoo;
 };
 
 struct GameDatabase_Rule

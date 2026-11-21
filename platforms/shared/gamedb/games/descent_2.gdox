@@ -7,10 +7,12 @@ folder = C:\
 
 [run]
 exe = DESCENT2.EXE
+voodoo_exe = D2_3DFX.EXE
 setup_exe = SETUP.EXE
 
 [machine]
 model = pentium_75
+ram_mb = 32
 
 [sound]
 midi = gm

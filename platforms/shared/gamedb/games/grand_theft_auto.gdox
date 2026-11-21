@@ -13,4 +13,3 @@ setup_exe = gtados\UVCONFIG.EXE
 [machine]
 model = pentium_133
 ram_mb = 16
-voodoo = on

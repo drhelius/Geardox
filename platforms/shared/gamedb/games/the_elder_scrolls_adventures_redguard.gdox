@@ -9,6 +9,7 @@ free_mb = 512
 [machine]
 model = pentium_133
 ram_mb = 64
+voodoo = on
 
 [input]
 joystick = none

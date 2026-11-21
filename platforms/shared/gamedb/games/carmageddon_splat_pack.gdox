@@ -13,4 +13,5 @@ ram_mb = 64
 [run]
 exe = VOODO2C.EXE
 args = -novoodoo
+voodoo_exe = CARMAV.EXE
 setup_exe = SNDSETUP.EXE

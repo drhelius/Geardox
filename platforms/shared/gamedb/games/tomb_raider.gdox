@@ -12,4 +12,3 @@ setup_exe = TOMBRAID\SETUP.EXE
 
 [machine]
 model = pentium_75
-voodoo = on

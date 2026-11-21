@@ -19,6 +19,7 @@ CRC = re.compile(r"^[0-9A-F]{8}$")
 HEX = re.compile(r"^[0-9A-F]+$")
 BYTES = re.compile(r"^([0-9A-F]{2})+$")
 RELEASE_SECTIONS = ("sound", "drives")
+VOODOO_EXE = re.compile(r"^\s*voodoo_exe\s*=", re.M | re.I)
 SINGLE_MIN = 64 * 1024
 errors = []
 
@@ -107,9 +108,9 @@ for entry, keys in read_index(os.path.join(script_dir, "gamedb.ini")):
         label, rest = key.split(".", 1)
         if label not in labels:
             fail("[%s]: %s belongs to no release" % (entry, key))
-        elif rest not in ("layout", "when", "patch") and not (rest.count(".") == 1 and
-                                                             rest.split(".")[0] in RELEASE_SECTIONS):
-            fail("[%s]: %s isn't rN.layout, rN.when, rN.patch or rN.sound/drives.<key>" % (entry, key))
+        elif rest not in ("layout", "when", "patch", "voodoo") and not (rest.count(".") == 1 and
+                                                                       rest.split(".")[0] in RELEASE_SECTIONS):
+            fail("[%s]: %s isn't rN.layout, rN.when, rN.patch, rN.voodoo or rN.sound/drives.<key>" % (entry, key))
     for label in labels:
         where = "[%s] %s" % (entry, label)
         if not LABEL.match(label):
@@ -118,6 +119,9 @@ for entry, keys in read_index(os.path.join(script_dir, "gamedb.ini")):
         if len(sig) == 1 and sig[0][1] < SINGLE_MIN:
             fail("%s: a one-file release needs a program of at least %d KB" % (where, SINGLE_MIN // 1024))
         when = files_of(where + " when", values.get(label + ".when", ""), True) if label + ".when" in values else []
+        voodoo = files_of(where + " voodoo", values[label + ".voodoo"], True) if label + ".voodoo" in values else []
+        if voodoo and not VOODOO_EXE.search(text):
+            fail("%s: voodoo files but the descriptor has no [run] voodoo_exe" % where)
         rules = []
         for rule in values.get(label + ".layout", "").split(","):
             if not rule.strip():
@@ -149,11 +153,11 @@ for entry, keys in read_index(os.path.join(script_dir, "gamedb.ini")):
         if when and "sound" not in settings:
             fail("%s: a when condition with no sound settings" % where)
         fragment = "".join("[%s]\n%s\n" % (s, "\n".join(lines)) for s, lines in sorted(settings.items()))
-        releases.append((index, label, sig, when, ";".join(rules), ";".join(patches), fragment))
+        releases.append((index, label, sig, when, voodoo, ";".join(rules), ";".join(patches), fragment))
 
 sets = {}
 shared = []
-for index, label, sig, when, rules, patches, fragment in releases:
+for index, label, sig, when, voodoo, rules, patches, fragment in releases:
     key = frozenset(sig)
     for other in sets:
         if other == key or other <= key or key <= other:
@@ -181,13 +185,13 @@ def literal(text):
 files = []
 keys = []
 release_rows = []
-for number, (index, label, sig, when, rules, patches, fragment) in enumerate(releases):
+for number, (index, label, sig, when, voodoo, rules, patches, fragment) in enumerate(releases):
     first = len(files)
-    for path, size, crc in sig + when:
+    for path, size, crc in sig + when + voodoo:
         files.append((size, crc, path))
     for path, size, crc in sig:
         keys.append((size, int(crc, 16), number))
-    release_rows.append((index, first, len(sig), len(when), rules, patches, fragment))
+    release_rows.append((index, first, len(sig), len(when), len(voodoo), rules, patches, fragment))
 keys.sort()
 
 header = """/*
@@ -228,6 +232,7 @@ struct GDOX_DB_Release
     u16 first_file;
     u8 file_count;
     u8 when_count;
+    u8 voodoo_count;
     const char* layout;
     const char* patches;
     const char* settings;
@@ -255,11 +260,11 @@ with open(output, "w") as out:
         out.write("    { \"%s\", %s,\n        %s },\n" % (entry, literal(name), literal(text)))
     out.write("};\n\nconst int k_game_database_entry_count = %d;\n" % len(entries))
     out.write("\nconst GDOX_DB_Release k_game_database_releases[] =\n{\n")
-    for index, first, count, when, rules, patches, fragment in release_rows:
-        out.write("    { %d, %d, %d, %d, %s, %s, %s },\n" % (index, first, count, when,
-                                                           literal(rules) if rules else "NULL",
-                                                           literal(patches) if patches else "NULL",
-                                                           literal(fragment) if fragment else "NULL"))
+    for index, first, count, when, voodoo, rules, patches, fragment in release_rows:
+        out.write("    { %d, %d, %d, %d, %d, %s, %s, %s },\n" % (index, first, count, when, voodoo,
+                                                               literal(rules) if rules else "NULL",
+                                                               literal(patches) if patches else "NULL",
+                                                               literal(fragment) if fragment else "NULL"))
     out.write("};\n\nconst int k_game_database_release_count = %d;\n" % len(release_rows))
     out.write("\nconst GDOX_DB_File k_game_database_files[] =\n{\n")
     for size, crc, path in files:

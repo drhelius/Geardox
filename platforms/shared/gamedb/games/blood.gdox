@@ -7,11 +7,12 @@ folder = C:\BLOOD
 
 [run]
 exe = BLOOD.EXE
+voodoo_exe = 3DFX.EXE
 setup_exe = SETUP.EXE
 
 [machine]
 model = pentium_133
-ram_mb = 16
+ram_mb = 64
 
 [sound]
 midi = gm
