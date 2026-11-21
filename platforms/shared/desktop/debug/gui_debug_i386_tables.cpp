@@ -1158,7 +1158,7 @@ bool gui_debug_i386_parse_linear(const char* text, u32& linear)
     }
 
     for (char* c = start; *c != 0; c++)
-        *c = (char)toupper((unsigned char)*c);
+        *c = to_upper_ascii(*c);
 
     GDOX_Debug_Memory_Address address;
     GDOX_Debug_Memory_Translation translation;

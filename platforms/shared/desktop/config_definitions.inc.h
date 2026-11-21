@@ -544,8 +544,7 @@ static void process_gamepad_choice(config_Operation operation, const char* secti
     std::string text = ((*value >= 0) && (*value < count)) ? infos[*value].id : infos[default_value].id;
     process_string(operation, section, key, &text, infos[default_value].id, false);
 
-    for (size_t i = 0; i < text.size(); i++)
-        text[i] = ((text[i] >= 'A') && (text[i] <= 'Z')) ? (char)(text[i] + 32) : text[i];
+    text = to_lower_ascii(text);
 
     *value = default_value;
 
@@ -579,8 +578,7 @@ static void process_gamepad_target(config_Operation operation, const char* secti
     std::string text = GamepadKeys::GetTargetName(*target);
     process_string(operation, section, key.c_str(), &text, GamepadKeys::GetTargetName(defaults.targets[input]), false);
 
-    for (size_t i = 0; i < text.size(); i++)
-        text[i] = ((text[i] >= 'A') && (text[i] <= 'Z')) ? (char)(text[i] + 32) : text[i];
+    text = to_lower_ascii(text);
 
     int found = GamepadKeys::FindTarget(text.c_str());
     *target = found >= 0 ? found : defaults.targets[input];

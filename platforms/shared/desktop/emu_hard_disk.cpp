@@ -140,11 +140,7 @@ bool emu_hard_disk_is_source_attached(const char* path)
 // Touches nothing of the emulator's, so the loading thread can run it
 void emu_hard_disk_prepare_source(const char* path, bool rebuild)
 {
-    strncpy_fit(prepared_source.path, path, sizeof(prepared_source.path));
-    size_t size = strlen(prepared_source.path);
-
-    while ((size > 1) && ((prepared_source.path[size - 1] == '/') || (prepared_source.path[size - 1] == '\\')))
-        prepared_source.path[--size] = 0;
+    strncpy_fit(prepared_source.path, trim_trailing_separators(path).c_str(), sizeof(prepared_source.path));
 
     strncpy_fit(prepared_source.image, get_source_image_path(path).c_str(), sizeof(prepared_source.image));
     FatImage::Prepare(prepared_source.path, prepared_source.image, rebuild, &prepared_source.report);

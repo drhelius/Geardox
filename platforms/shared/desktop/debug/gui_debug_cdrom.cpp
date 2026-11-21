@@ -259,10 +259,8 @@ void gui_debug_window_cdrom_drive(void)
 
     ImGui::TextColored(white, "$%02X %s", state->packet[0], GetCdRomPacketName(state->packet[0]));
 
-    char bytes[IDE_CDROM_PACKET_SIZE * 3 + 1];
-
-    for (int i = 0; i < IDE_CDROM_PACKET_SIZE; i++)
-        snprintf(bytes + (i * 3), 4, "%02X ", state->packet[i]);
+    char bytes[IDE_CDROM_PACKET_SIZE * 3];
+    hex_encode(state->packet, IDE_CDROM_PACKET_SIZE, bytes, sizeof(bytes), true, ' ');
 
     ImGui::TextColored(gray, "%s", bytes);
 

@@ -72,7 +72,6 @@ static bool add_file_entries(const char* path, std::vector<Floppy_Entry>& entrie
 static int find_boot_entry(const std::vector<Floppy_Entry>& entries);
 static bool insert_entries(int drive, const std::vector<Floppy_Entry>& entries, int index, bool discard_changes);
 static std::string make_working_path(const char* source_path, u32 base_crc, int copy);
-static bool is_raw_name(const char* path);
 static bool can_write_image(const char* path, const std::vector<u8>& file);
 static bool write_disk(FloppyDisk* disk, const char* path, bool report_errors = true);
 static bool write_working_copy(int drive, bool report_errors = true);
@@ -236,7 +235,7 @@ bool emu_floppy_create_blank(int drive, const char* path, int type, bool formatt
     bool created = disk.Insert(image, size, false, 0);
     u32 base_crc = 0;
 
-    if (created && is_raw_name(path) && FloppyImage::GetRawSize(image, size) == 0)
+    if (created && FloppyImage::IsRawName(path) && FloppyImage::GetRawSize(image, size) == 0)
     {
         Error("An unformatted disk can only be saved as D77: %s", path);
         created = false;
@@ -753,19 +752,12 @@ static std::string make_working_path(const char* source_path, u32 base_crc, int 
     return path;
 }
 
-static bool is_raw_name(const char* path)
-{
-    return ends_with_no_case(path, ".hdm") || ends_with_no_case(path, ".xdf") || ends_with_no_case(path, ".img") ||
-        ends_with_no_case(path, ".ima") || ends_with_no_case(path, ".vfd") || ends_with_no_case(path, ".flp") ||
-        ends_with_no_case(path, ".dsk") || ends_with_no_case(path, ".bin");
-}
-
 static bool can_write_image(const char* path, const std::vector<u8>& file)
 {
     const u8* data = file.data();
     u32 size = (u32)file.size();
     bool d77 = FloppyImage::IsD77(data, size);
-    bool raw = is_raw_name(path) && !d77 && FloppyImage::IsRaw(data, size);
+    bool raw = FloppyImage::IsRawName(path) && !d77 && FloppyImage::IsRaw(data, size);
     bool single = (ends_with_no_case(path, ".d77") || ends_with_no_case(path, ".d88")) && d77 &&
         (FloppyImage::GetDiskCount(data, size) == 1);
 
@@ -786,7 +778,7 @@ static bool write_disk(FloppyDisk* disk, const char* path, bool report_errors)
     u32 size = disk->GetImageSize();
     std::vector<u8> raw;
 
-    if (is_raw_name(path))
+    if (FloppyImage::IsRawName(path))
     {
         u32 raw_size = FloppyImage::GetRawSize(data, size);
 

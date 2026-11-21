@@ -24,7 +24,6 @@
     #include <netinet/tcp.h>
 #endif
 
-static int hex_value(char c);
 
 GdbServer::GdbServer()
 {
@@ -143,7 +142,6 @@ bool GdbServer::Pop(std::string& packet, int timeout_ms)
 
 bool GdbServer::Send(const std::string& payload)
 {
-    static const char k_hex[] = "0123456789abcdef";
     std::string frame = "$";
     u8 checksum = 0;
 
@@ -163,8 +161,7 @@ bool GdbServer::Send(const std::string& payload)
     }
 
     frame += '#';
-    frame += k_hex[checksum >> 4];
-    frame += k_hex[checksum & 15];
+    hex_encode(&checksum, 1, &frame, false);
 
     {
         std::lock_guard<std::mutex> lock(m_send_mutex);
@@ -311,9 +308,9 @@ void GdbServer::Receive(const char* data, int size)
                 payload += m_input[j];
         }
 
-        int high = hex_value(m_input[hash + 1]);
-        int low = hex_value(m_input[hash + 2]);
-        bool valid = (high >= 0) && (low >= 0) && (((high << 4) | low) == checksum);
+        char high = m_input[hash + 1];
+        char low = m_input[hash + 2];
+        bool valid = is_hex_digit(high) && is_hex_digit(low) && (((as_hex(high) << 4) | as_hex(low)) == checksum);
         m_input.clear();
 
         if (!m_no_ack)
@@ -366,18 +363,4 @@ void GdbServer::CloseClient()
     SOCKET_SHUTDOWN(m_client);
     SOCKET_CLOSE(m_client);
     m_client = INVALID_SOCKET_VALUE;
-}
-
-static int hex_value(char c)
-{
-    if ((c >= '0') && (c <= '9'))
-        return c - '0';
-
-    if ((c >= 'a') && (c <= 'f'))
-        return c - 'a' + 10;
-
-    if ((c >= 'A') && (c <= 'F'))
-        return c - 'A' + 10;
-
-    return -1;
 }

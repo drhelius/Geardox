@@ -302,7 +302,7 @@ void gui_debug_window_disk_viewer(void)
                 {
                     u8 value = image[data_offset + offset];
                     ImGui::TextColored(value ? white : gray, "%02X", value);
-                    ascii[i] = (value >= 0x20 && value < 0x7F) ? (char)value : '.';
+                    ascii[i] = printable_char(value);
                 }
                 else
                 {
@@ -502,7 +502,7 @@ void gui_debug_floppy_disk_name(FloppyDisk* disk, char* name, size_t size)
     while (length < 17 && length + 1 < size && image[length] != 0)
     {
         u8 c = image[length];
-        name[length] = (c >= 0x20 && c < 0x7F) ? (char)c : '?';
+        name[length] = printable_char(c, '?');
         length++;
     }
 

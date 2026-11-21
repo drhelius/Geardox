@@ -49,7 +49,6 @@ static void refresh_console(void);
 static void draw_label(const char* label);
 static void draw_switch(const char* label, bool on, const char* on_text, const char* off_text, const char* tooltip);
 static void goto_linear(u32 address);
-static const char* file_name(const std::string& path);
 
 void gui_debug_window_program(void)
 {
@@ -201,7 +200,7 @@ static void draw_program(const Dev_Program_Info& program)
         ImGui::TextColored(gray, "NOT IN THE GAME'S FOLDER");
     else
     {
-        ImGui::TextColored(white, "%s", file_name(program.host_path));
+        ImGui::TextColored(white, "%s", get_filename(program.host_path.c_str()));
 
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", program.host_path.c_str());
@@ -280,7 +279,7 @@ static void draw_program(const Dev_Program_Info& program)
     {
         ImGui::TextColored(white, "%d", program.symbol_count);
         ImGui::SameLine();
-        ImGui::TextColored(gray, "%s", file_name(program.symbol_path));
+        ImGui::TextColored(gray, "%s", get_filename(program.symbol_path.c_str()));
 
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("%s", program.symbol_path.c_str());
@@ -436,10 +435,4 @@ static void goto_linear(u32 address)
     target.segment_register = -1;
     target.region = -1;
     gui_debug_memory_goto(target);
-}
-
-static const char* file_name(const std::string& path)
-{
-    size_t slash = path.find_last_of("/\\");
-    return slash == std::string::npos ? path.c_str() : path.c_str() + slash + 1;
 }

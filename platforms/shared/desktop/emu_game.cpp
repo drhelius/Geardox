@@ -902,12 +902,8 @@ void emu_game_list_programs(const char* folder, std::vector<std::string>* progra
 
 bool emu_game_new_descriptor(const char* folder, const char* program, std::string* path)
 {
-    std::string source(folder);
-
-    while ((source.size() > 1) && ((source[source.size() - 1] == '/') || (source[source.size() - 1] == '\\')))
-        source.resize(source.size() - 1);
-
-    std::string name = get_filename(source.c_str());
+    std::string source = trim_trailing_separators(folder);
+    std::string name = path_filename(source);
     std::string dos_folder;
 
     for (size_t i = 0; (i < name.size()) && (dos_folder.size() < 8); i++)

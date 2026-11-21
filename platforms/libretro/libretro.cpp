@@ -234,7 +234,6 @@ static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint
 static bool update_core_options_display(void);
 static void check_variables(void);
 static void update_floppy_drive(void);
-static bool path_is_cdrom_uri(const char* path);
 static bool path_is_cd_content(const char* path);
 static bool path_is_raw_floppy(const char* path);
 static bool path_is_folder(const char* path);
@@ -335,22 +334,8 @@ static bool IsGamepadKeysDevice(unsigned port)
 
 static std::string get_file_name(const char* path, bool strip_extension)
 {
-    std::string name(path);
-
-    while ((name.size() > 1) && ((name[name.size() - 1] == '/') || (name[name.size() - 1] == '\\')))
-        name.resize(name.size() - 1);
-
-    size_t separator = name.find_last_of("/\\");
-
-    if (separator != std::string::npos)
-        name = name.substr(separator + 1);
-
-    size_t dot = name.find_last_of('.');
-
-    if (strip_extension && dot != std::string::npos)
-        name = name.substr(0, dot);
-
-    return name;
+    std::string name = path_filename(trim_trailing_separators(path));
+    return strip_extension ? path_strip_extension(name) : name;
 }
 
 static std::string get_save_disk_name(const std::string& name)
@@ -2004,11 +1989,10 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        for (int i = 0; i < GDOX_CGA_OUTPUT_COUNT; i++)
-        {
-            if (strcmp(var.value, k_cga_outputs[i].id) == 0)
-                cga_output = i;
-        }
+        int found = find_cga_output(var.value);
+
+        if (found >= 0)
+            cga_output = found;
 
         if (!game_active || !game_disk.GetDescriptor().Has("machine", "cga_output"))
             core->GetVideo()->SetCGAOutput(cga_output);
@@ -2081,18 +2065,11 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        bool found = false;
+        int found = find_joystick_type(var.value);
 
-        for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
-        {
-            if (strcmp(var.value, k_joysticks[i].id) == 0)
-            {
-                joystick_type = (GDOX_Joystick_Type)i;
-                found = true;
-            }
-        }
-
-        if (!found)
+        if (found >= 0)
+            joystick_type = (GDOX_Joystick_Type)found;
+        else
             log_cb(RETRO_LOG_WARN, "Unknown joystick %s, keeping %s\n", var.value, k_joysticks[joystick_type].id);
 
         if (!game_active || !game_disk.GetDescriptor().Has("input", "joystick"))
@@ -2178,13 +2155,8 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        machine_settings.model = k_machine_default_model;
-
-        for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
-        {
-            if (strcmp(var.value, k_machine_profiles[k_machine_release_order[i]].key) == 0)
-                machine_settings.model = k_machine_release_order[i];
-        }
+        int found = find_machine_model(var.value);
+        machine_settings.model = found >= 0 ? found : (int)k_machine_default_model;
     }
 
     var.key = "geardox_cpu_clock";
@@ -2236,11 +2208,10 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
-        {
-            if (strcmp(var.value, k_sound_cards[i].id) == 0)
-                machine_settings.sound_card = i;
-        }
+        int found = find_sound_card(var.value);
+
+        if (found >= 0)
+            machine_settings.sound_card = found;
     }
 
     var.key = "geardox_video_card";
@@ -2248,13 +2219,8 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        machine_settings.video_card = GDOX_MACHINE_AUTO;
-
-        for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
-        {
-            if (strcmp(var.value, k_video_cards[i].id) == 0)
-                machine_settings.video_card = i;
-        }
+        int found = find_video_card(var.value);
+        machine_settings.video_card = found >= 0 ? found : GDOX_MACHINE_AUTO;
     }
 
     var.key = "geardox_mouse";
@@ -2262,11 +2228,10 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
-        {
-            if (strcmp(var.value, k_mice[i].id) == 0)
-                machine_settings.mouse = i;
-        }
+        int found = find_mouse_type(var.value);
+
+        if (found >= 0)
+            machine_settings.mouse = found;
     }
 
     var.key = "geardox_cdrom_drive";
@@ -2274,11 +2239,10 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
-        {
-            if (strcmp(var.value, k_cdrom_positions[i].id) == 0)
-                machine_settings.cdrom = i;
-        }
+        int found = find_cdrom_position(var.value);
+
+        if (found >= 0)
+            machine_settings.cdrom = found;
     }
 
     var.key = "geardox_cdrom_speed";
@@ -2286,11 +2250,10 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        for (int i = 0; i < GDOX_CDROM_SPEED_COUNT; i++)
-        {
-            if (strcmp(var.value, k_cdrom_speeds[i].id) == 0)
-                machine_settings.cdrom_speed = i;
-        }
+        int found = find_cdrom_speed(var.value);
+
+        if (found >= 0)
+            machine_settings.cdrom_speed = found;
     }
 
     var.key = "geardox_drive_timing";
@@ -2298,13 +2261,8 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
     {
-        machine_settings.drive_timing = GDOX_MACHINE_AUTO;
-
-        for (int i = 0; i < GDOX_DRIVE_TIMING_COUNT; i++)
-        {
-            if (strcmp(var.value, k_drive_timings[i].id) == 0)
-                machine_settings.drive_timing = i;
-        }
+        int found = find_drive_timing(var.value);
+        machine_settings.drive_timing = found >= 0 ? found : GDOX_MACHINE_AUTO;
     }
 
     var.key = "geardox_sound_irq";
@@ -2501,14 +2459,9 @@ static void update_floppy_drive(void)
     }
 }
 
-static bool path_is_cdrom_uri(const char* path)
-{
-    return path && (strncmp(path, "cdrom://", 8) == 0);
-}
-
 static bool path_is_cd_content(const char* path)
 {
-    return path_is_cdrom_uri(path) ||
+    return IsCdRomUri(path) ||
         ends_with_no_case(path, ".cue") ||
         ends_with_no_case(path, ".chd") ||
         ends_with_no_case(path, ".iso");
@@ -2620,7 +2573,7 @@ static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images)
         return false;
     }
 
-    if (!path_is_cdrom_uri(path))
+    if (!IsCdRomUri(path))
     {
         MediaFile* file = MediaFile::OpenFile(path);
 

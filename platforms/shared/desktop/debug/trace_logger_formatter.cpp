@@ -90,19 +90,14 @@ void trace_log_format_cpu_flags(const GDOX_Trace_Entry& entry, char* buffer, siz
 
 void trace_log_format_cpu_bytes(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size)
 {
-    static const char k_hex[] = "0123456789ABCDEF";
-    size_t pos = 0;
     u8 size = MIN(entry.cpu.size, (u8)GDOX_I386_MAX_INSTRUCTION_LENGTH);
+    size_t length = hex_encode(entry.cpu.opcodes, size, buffer, buffer_size, true, ' ');
 
-    for (u8 i = 0; i < size && pos + 3 < buffer_size; i++)
+    if ((length > 0) && (length + 1 < buffer_size))
     {
-        u8 value = entry.cpu.opcodes[i];
-        buffer[pos++] = k_hex[value >> 4];
-        buffer[pos++] = k_hex[value & 0x0F];
-        buffer[pos++] = ' ';
+        buffer[length] = ' ';
+        buffer[length + 1] = 0;
     }
-
-    buffer[pos] = 0;
 }
 
 void trace_log_format_cycle_prefix(const GDOX_Trace_Entry& entry, bool previous_cycle_valid,
@@ -2309,11 +2304,11 @@ static void format_serial(const GDOX_Trace_Entry& entry, char* buffer, size_t si
             break;
         case TRACE_SERIAL_READ:
             format_event(buffer, size, "SERIAL", "READ", "COM%d RBR -> $%02X '%c'  %s", port, value,
-                value >= 0x20 && value < 0x7F ? value : '.', lsr);
+                printable_char(value), lsr);
             break;
         case TRACE_SERIAL_TRANSMIT:
             format_event(buffer, size, "SERIAL", "TRANSMIT", "COM%d -> $%02X '%c'", port, value,
-                value >= 0x20 && value < 0x7F ? value : '.');
+                printable_char(value));
             break;
         case TRACE_SERIAL_MODEM:
             format_event(buffer, size, "SERIAL", "MODEM", "COM%d DTR:%u RTS:%u OUT1:%u OUT2:%u  MSR:$%02X", port,
@@ -2340,11 +2335,11 @@ static void format_parallel(const GDOX_Trace_Entry& entry, char* buffer, size_t 
     {
         case TRACE_PARALLEL_DATA:
             format_event(buffer, size, "LPT", "DATA", "$%03X <- $%02X '%c'", entry.parallel.port, value,
-                value >= 0x20 && value < 0x7F ? value : '.');
+                printable_char(value));
             break;
         case TRACE_PARALLEL_STROBE:
             format_event(buffer, size, "LPT", "STROBE", "$%03X  Byte:$%02X '%c'", entry.parallel.port, value,
-                value >= 0x20 && value < 0x7F ? value : '.');
+                printable_char(value));
             break;
         default:
             format_event(buffer, size, "LPT", "CONTROL", "$%03X <- $%02X  STROBE:%u AUTOFEED:%u INIT:%u SELECT:%u IRQ:%u",
@@ -2590,13 +2585,9 @@ static void format_buttons(u8 device, u16 buttons, char* buffer, size_t size)
 
 static void format_bytes(const u8* data, int count, char* buffer, size_t size)
 {
-    size_t length = 0;
-    buffer[0] = 0;
+    buffer[0] = ' ';
 
-    for (int i = 0; i < count && length + 4 < size; i++)
-        length += (size_t)snprintf(buffer + length, size - length, " %02X", data[i]);
-
-    if (length == 0)
+    if ((count <= 0) || (hex_encode(data, (size_t)count, buffer + 1, size - 1, true, ' ') == 0))
         snprintf(buffer, size, " -");
 }
 
@@ -2665,29 +2656,6 @@ static void format_voodoo(const GDOX_Trace_Entry& entry, char* buffer, size_t si
     }
 }
 
-static bool parse_hex_token(const char* text, size_t length, u32* value)
-{
-    if (length == 0 || length > 8)
-        return false;
-
-    u32 result = 0;
-
-    for (size_t i = 0; i < length; i++)
-    {
-        char c = text[i];
-        int digit = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ?
-            c - 'A' + 10 : -1;
-
-        if (digit < 0)
-            return false;
-
-        result = (result << 4) | (u32)digit;
-    }
-
-    *value = result;
-    return true;
-}
-
 static bool parse_range_token(const char* text, size_t length, bool ports, GDOX_Trace_Range& range, bool& exclude)
 {
     exclude = length > 0 && text[0] == '!';
@@ -2715,7 +2683,7 @@ static bool parse_range_token(const char* text, size_t length, bool ports, GDOX_
 
     if (dash == NULL)
     {
-        if (!parse_hex_token(text, length, &range.first))
+        if (!parse_hex_string(text, length, &range.first))
             return false;
 
         range.last = range.first;
@@ -2723,8 +2691,8 @@ static bool parse_range_token(const char* text, size_t length, bool ports, GDOX_
     }
 
     size_t first_length = (size_t)(dash - text);
-    return parse_hex_token(text, first_length, &range.first) &&
-        parse_hex_token(dash + 1, length - first_length - 1, &range.last) && range.first <= range.last;
+    return parse_hex_string(text, first_length, &range.first) &&
+        parse_hex_string(dash + 1, length - first_length - 1, &range.last) && range.first <= range.last;
 }
 
 static bool parse_ranges(const char* text, bool ports, GDOX_Trace_Range* include, u8* include_count,
@@ -2796,7 +2764,7 @@ bool trace_log_parse_filters(const char* code, const char* ports, const char* in
         size_t vector_length = colon != NULL ? (size_t)(colon - interrupts) : length;
         u32 vector = 0;
 
-        if (!parse_hex_token(interrupts, vector_length, &vector) || vector > 0xFF ||
+        if (!parse_hex_string(interrupts, vector_length, &vector) || vector > 0xFF ||
             filters.function_count >= GDOX_TRACE_FILTER_FUNCTIONS)
             return false;
 
@@ -2813,7 +2781,7 @@ bool trace_log_parse_filters(const char* code, const char* ports, const char* in
             u32 value = 0;
             size_t value_length = length - vector_length - 1;
 
-            if (!parse_hex_token(colon + 1, value_length, &value) || value > 0xFFFF)
+            if (!parse_hex_string(colon + 1, value_length, &value) || value > 0xFFFF)
                 return false;
 
             GDOX_Trace_Function& function = filters.functions[filters.function_count++];

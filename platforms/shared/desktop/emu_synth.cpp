@@ -46,7 +46,6 @@ static void add_folder(std::vector<std::string>& folders, const char* base, cons
 static void create_folder(int engine, const char* component);
 static void update_mt32_status(void);
 static void update_soundfont_status(void);
-static const char* file_name(const char* path);
 
 void emu_synth_init(void)
 {
@@ -222,7 +221,7 @@ const char* emu_synth_get_playing_name(int engine)
             synth->GetMT32Name());
     else if (engine == GDOX_MIDI_ENGINE_SOUNDFONT && IsValidPointer(synth))
         snprintf(name, sizeof(emu_synth_playing[engine]), "%s (%s)", k_emu_synth_labels[engine],
-            file_name(synth->GetSoundFontPath()));
+            get_filename(synth->GetSoundFontPath()));
     else
         strncpy_fit(name, k_emu_synth_labels[engine], sizeof(emu_synth_playing[engine]));
 
@@ -360,23 +359,10 @@ static void update_soundfont_status(void)
     else if (emu_synth_soundfont_path.empty())
         strncpy_fit(status, "No sound bank", size);
     else if (emu_synth_soundfont_failed)
-        snprintf(status, size, "Unable to load %s", file_name(emu_synth_soundfont_path.c_str()));
+        snprintf(status, size, "Unable to load %s", get_filename(emu_synth_soundfont_path.c_str()));
     else if (MediaFile::GetFileInfo(emu_synth_soundfont_path.c_str(), &bytes, &modified))
-        snprintf(status, size, "%s, %u MB", file_name(emu_synth_soundfont_path.c_str()),
+        snprintf(status, size, "%s, %u MB", get_filename(emu_synth_soundfont_path.c_str()),
             (unsigned)((bytes + 0x80000) >> 20));
     else
-        strncpy_fit(status, file_name(emu_synth_soundfont_path.c_str()), size);
-}
-
-static const char* file_name(const char* path)
-{
-    const char* name = path;
-
-    for (const char* p = path; *p != 0; p++)
-    {
-        if ((*p == '/') || (*p == '\\'))
-            name = p + 1;
-    }
-
-    return name;
+        strncpy_fit(status, get_filename(emu_synth_soundfont_path.c_str()), size);
 }

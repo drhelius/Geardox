@@ -52,14 +52,9 @@ static Machine_Override joystick_override = { false, GDOX_JOYSTICK_GAMEPAD, GDOX
 
 static bool option_has_value(const char* option);
 static const char* option_value(int argc, char* argv[], int* i);
-static bool parse_model(const char* text, int* model);
 static bool parse_fpu(const char* text, int* fpu);
-static bool parse_sound(const char* text, int* card);
 static bool parse_video(const char* text, int* card);
 static bool parse_gus(const char* text, int* gus);
-static bool parse_mouse(const char* text, int* mouse);
-static bool parse_cdrom(const char* text, int* cdrom);
-static bool parse_joystick(const char* text, int* joystick);
 static bool parse_number(const char* text, const int* values, int count, int* value, bool model_default);
 static void apply_override(Machine_Override& override, int* setting);
 static void restore_override(const Machine_Override& override, int* setting);
@@ -289,7 +284,8 @@ int main(int argc, char* argv[])
                 if (strcmp(option, "--model") == 0)
                 {
                     override = &model_override;
-                    valid = parse_model(value, &override->value);
+                    override->value = find_machine_model(value);
+                    valid = override->value >= 0;
                 }
                 else if (strcmp(option, "--cpu-mhz") == 0)
                 {
@@ -299,7 +295,8 @@ int main(int argc, char* argv[])
                 else if (strcmp(option, "--sound") == 0)
                 {
                     override = &sound_override;
-                    valid = parse_sound(value, &override->value);
+                    override->value = find_sound_card(value);
+                    valid = override->value >= 0;
                 }
                 else if (strcmp(option, "--gus") == 0)
                 {
@@ -314,17 +311,20 @@ int main(int argc, char* argv[])
                 else if (strcmp(option, "--mouse") == 0)
                 {
                     override = &mouse_override;
-                    valid = parse_mouse(value, &override->value);
+                    override->value = find_mouse_type(value);
+                    valid = override->value >= 0;
                 }
                 else if (strcmp(option, "--cdrom") == 0)
                 {
                     override = &cdrom_override;
-                    valid = parse_cdrom(value, &override->value);
+                    override->value = find_cdrom_position(value);
+                    valid = override->value >= 0;
                 }
                 else if (strcmp(option, "--joystick") == 0)
                 {
                     override = &joystick_override;
-                    valid = parse_joystick(value, &override->value);
+                    override->value = find_joystick_type(value);
+                    valid = override->value >= 0;
                 }
                 else if (strcmp(option, "--fpu") == 0)
                 {
@@ -525,22 +525,6 @@ static const char* option_value(int argc, char* argv[], int* i)
     return argv[++(*i)];
 }
 
-static bool parse_model(const char* text, int* model)
-{
-    for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
-    {
-        GDOX_Machine_Model candidate = k_machine_release_order[i];
-
-        if (k_machine_profiles[candidate].emulated && (strcmp(k_machine_profiles[candidate].key, text) == 0))
-        {
-            *model = candidate;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static bool parse_gus(const char* text, int* gus)
 {
     if (strcmp(text, "off") == 0)
@@ -553,62 +537,6 @@ static bool parse_gus(const char* text, int* gus)
     return true;
 }
 
-static bool parse_mouse(const char* text, int* mouse)
-{
-    for (int i = 0; i < GDOX_MOUSE_TYPE_COUNT; i++)
-    {
-        if (strcmp(text, k_mice[i].id) == 0)
-        {
-            *mouse = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool parse_cdrom(const char* text, int* cdrom)
-{
-    for (int i = 0; i < GDOX_CDROM_POSITION_COUNT; i++)
-    {
-        if (strcmp(text, k_cdrom_positions[i].id) == 0)
-        {
-            *cdrom = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool parse_joystick(const char* text, int* joystick)
-{
-    for (int i = 0; i < GDOX_JOYSTICK_TYPE_COUNT; i++)
-    {
-        if (strcmp(text, k_joysticks[i].id) == 0)
-        {
-            *joystick = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool parse_sound(const char* text, int* card)
-{
-    for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)
-    {
-        if (strcmp(text, k_sound_cards[i].id) == 0)
-        {
-            *card = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static bool parse_video(const char* text, int* card)
 {
     if (strcmp(text, "auto") == 0)
@@ -617,16 +545,8 @@ static bool parse_video(const char* text, int* card)
         return true;
     }
 
-    for (int i = 0; i < GDOX_VIDEO_CARD_COUNT; i++)
-    {
-        if (strcmp(text, k_video_cards[i].id) == 0)
-        {
-            *card = i;
-            return true;
-        }
-    }
-
-    return false;
+    *card = find_video_card(text);
+    return *card >= 0;
 }
 
 static bool parse_number(const char* text, const int* values, int count, int* value, bool model_default)
@@ -746,15 +666,10 @@ static void print_wrapped(const char* label, const std::string& text)
 
 static void print_usage(const char* program)
 {
-    const char* name = strrchr(program, '/');
-    const char* name_windows = strrchr(program, '\\');
     std::string models;
     std::string speeds("auto");
     std::string sizes;
     char number[16];
-
-    if (name_windows > name)
-        name = name_windows;
 
     for (int i = 0; i < GDOX_MACHINE_RELEASE_ORDER_COUNT; i++)
     {
@@ -774,7 +689,7 @@ static void print_usage(const char* program)
         sizes += number;
     }
 
-    printf("Usage: %s [options] [media_file] [symbol_file]\n", name ? name + 1 : program);
+    printf("Usage: %s [options] [media_file] [symbol_file]\n", get_filename(program));
     printf("\nArguments:\n");
     print_wrapped("  media_file", "Game descriptor (.gdox, or a folder or ZIP with one), CD-ROM (.cue .chd .iso), floppy (.img .ima .vfd .flp .dsk .d77 .d88 .hdm .xdf .mfm), .m3u playlist, "
         ".zip, or hard disk (.hdd .h0-.h3, .img and .hdm over 8 MB, fixed .vhd, hard disk .chd)");

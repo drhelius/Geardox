@@ -42,6 +42,7 @@
 #include "gui_game.h"
 #include "gui_dos.h"
 #include "utils.h"
+#include "drive/floppy_image.h"
 
 enum FileDialogID
 {
@@ -661,21 +662,12 @@ static void SDLCALL file_dialog_callback(void* userdata, const char* const* file
         append_extension_if_missing(pending_dialog_path, ".txt");
     else if (id == FileDialog_CreateHardDisk)
     {
-        size_t dot = pending_dialog_path.find_last_of('.');
-        size_t separator = pending_dialog_path.find_last_of("/\\");
-
-        if ((dot == std::string::npos) || ((separator != std::string::npos) && (dot < separator)))
+        if (!path_has_extension(pending_dialog_path))
             pending_dialog_path += ".hdd";
     }
     else if (id == FileDialog_SaveFloppy || id == FileDialog_NewFloppy)
     {
-        const char* path = pending_dialog_path.c_str();
-        bool named = ends_with_no_case(path, ".d77") || ends_with_no_case(path, ".d88") ||
-            ends_with_no_case(path, ".hdm") || ends_with_no_case(path, ".img") || ends_with_no_case(path, ".xdf") ||
-            ends_with_no_case(path, ".ima") || ends_with_no_case(path, ".vfd") || ends_with_no_case(path, ".flp") ||
-            ends_with_no_case(path, ".dsk");
-
-        if (!named)
+        if (!FloppyImage::IsSaveName(pending_dialog_path.c_str()))
             pending_dialog_path += filter == 1 ? ".img" : ".d77";
     }
 }

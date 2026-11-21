@@ -35,12 +35,10 @@ static const int k_gdb_segments[6] = { I386_SEGMENT_CS, I386_SEGMENT_SS, I386_SE
 static const char* const k_gdb_general_names[8] = { "EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI" };
 static const char* const k_gdb_segment_names[6] = { "CS", "SS", "DS", "ES", "FS", "GS" };
 
-static std::string hex_bytes(const u8* data, size_t size);
 static std::string hex_u32(u32 value);
 static std::string hex_text(const std::string& text);
 static std::string hex_number(u32 value);
 static bool parse_hex(const std::string& text, u32& value);
-static bool parse_hex_bytes(const std::string& text, std::vector<u8>& data);
 static u32 read_le(const std::vector<u8>& data, size_t offset, size_t size);
 
 GdbTarget::GdbTarget()
@@ -213,7 +211,7 @@ void GdbTarget::Handle(const std::string& packet)
         {
             std::vector<u8> data;
 
-            if (!parse_hex_bytes(args, data) || (data.size() < 64))
+            if (!parse_hex_bytes(args, &data) || (data.size() < 64))
             {
                 Reply("E01");
                 break;
@@ -272,7 +270,7 @@ void GdbTarget::Handle(const std::string& packet)
 
             if (packet[0] == 'X')
                 data.assign(args.begin() + (long)colon + 1, args.end());
-            else if (!parse_hex_bytes(args.substr(colon + 1), data))
+            else if (!parse_hex_bytes(args.substr(colon + 1), &data))
             {
                 Reply("E01");
                 break;
@@ -362,7 +360,7 @@ void GdbTarget::CheckStop()
         SendOutput();
         m_running = false;
         m_exited = false;
-        Reply("W" + hex_bytes(&code, 1));
+        Reply("W" + hex_string(&code, 1, false));
         return;
     }
 
@@ -512,7 +510,7 @@ std::string GdbTarget::ReadRegister(int index)
 
         bytes[8] = (u8)reg.sign_exponent;
         bytes[9] = (u8)(reg.sign_exponent >> 8);
-        return hex_bytes(bytes, 10);
+        return hex_string(bytes, 10, false);
     }
 
     switch (index)
@@ -532,7 +530,7 @@ bool GdbTarget::WriteRegister(int index, const std::string& hex)
 {
     std::vector<u8> data;
 
-    if (!parse_hex_bytes(hex, data) || (index < 0) || (index >= k_gdb_register_count))
+    if (!parse_hex_bytes(hex, &data) || (index < 0) || (index >= k_gdb_register_count))
         return false;
 
     if ((index >= 16) && (index < 24))
@@ -607,7 +605,7 @@ std::string GdbTarget::ReadMemory(u32 address, u32 length)
     while ((count < length) && ((status[count] == GDOX_DEBUG_MEMORY_VALID) || (status[count] == GDOX_DEBUG_MEMORY_READ_ONLY)))
         count++;
 
-    return count == 0 ? "E14" : hex_bytes(&data[0], count);
+    return count == 0 ? "E14" : hex_string(&data[0], count, false);
 }
 
 bool GdbTarget::WriteMemory(u32 address, const std::vector<u8>& data)
@@ -782,7 +780,7 @@ std::string GdbTarget::Monitor(const std::string& command)
 
         if (argument == "auto")
             m_base_override = false;
-        else if (parse_hex(argument.compare(0, 2, "0x") == 0 ? argument.substr(2) : argument, base))
+        else if (parse_hex_with_prefix(argument, &base))
         {
             m_base_override = true;
             m_base = base;
@@ -894,7 +892,7 @@ std::string GdbTarget::Query(const std::string& packet)
     {
         std::vector<u8> data;
 
-        if (!parse_hex_bytes(packet.substr(6), data))
+        if (!parse_hex_bytes(packet.substr(6), &data))
             return "E01";
 
         return Monitor(std::string(data.begin(), data.end()));
@@ -940,30 +938,16 @@ bool GdbTarget::IsCode32()
         ((cpu->segments[I386_SEGMENT_CS].attributes & I386_SEGMENT_DEFAULT_32) != 0);
 }
 
-static std::string hex_bytes(const u8* data, size_t size)
-{
-    static const char k_hex[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(size * 2);
-
-    for (size_t i = 0; i < size; i++)
-    {
-        out += k_hex[data[i] >> 4];
-        out += k_hex[data[i] & 15];
-    }
-
-    return out;
-}
-
 static std::string hex_u32(u32 value)
 {
-    u8 bytes[4] = { (u8)value, (u8)(value >> 8), (u8)(value >> 16), (u8)(value >> 24) };
-    return hex_bytes(bytes, 4);
+    u8 bytes[4];
+    write_u32_le(bytes, value);
+    return hex_string(bytes, 4, false);
 }
 
 static std::string hex_text(const std::string& text)
 {
-    return hex_bytes((const u8*)text.data(), text.size());
+    return hex_string((const u8*)text.data(), text.size(), false);
 }
 
 static std::string hex_number(u32 value)
@@ -975,37 +959,7 @@ static std::string hex_number(u32 value)
 
 static bool parse_hex(const std::string& text, u32& value)
 {
-    if (text.empty() || (text.size() > 8))
-        return false;
-
-    char* end = NULL;
-    unsigned long parsed = strtoul(text.c_str(), &end, 16);
-
-    if ((end == NULL) || (*end != 0))
-        return false;
-
-    value = (u32)parsed;
-    return true;
-}
-
-static bool parse_hex_bytes(const std::string& text, std::vector<u8>& data)
-{
-    if ((text.size() & 1) != 0)
-        return false;
-
-    data.clear();
-
-    for (size_t i = 0; i < text.size(); i += 2)
-    {
-        u32 value = 0;
-
-        if (!parse_hex(text.substr(i, 2), value))
-            return false;
-
-        data.push_back((u8)value);
-    }
-
-    return true;
+    return parse_hex_string(text.c_str(), text.size(), &value);
 }
 
 static u32 read_le(const std::vector<u8>& data, size_t offset, size_t size)
