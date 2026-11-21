@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = AFTERDOS.BAT
-setup = SETUPDOS.EXE
+setup_exe = SETUPDOS.EXE
 
 [machine]
 model = pentium_75

@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = GOLF.BAT
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE

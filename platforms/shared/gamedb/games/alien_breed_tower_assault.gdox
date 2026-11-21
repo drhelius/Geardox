@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = TA.EXE
-setup = SETSOUND.EXE
+setup_exe = SETSOUND.EXE
 
 [machine]
 model = 386sx_20

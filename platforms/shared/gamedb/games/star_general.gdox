@@ -10,4 +10,4 @@ ram_mb = 16
 
 [run]
 exe = SGDOS.EXE
-setup = SOUND.EXE
+setup_exe = SOUND.EXE

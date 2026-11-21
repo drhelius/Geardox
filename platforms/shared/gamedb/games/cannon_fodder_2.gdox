@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = CANNON.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE

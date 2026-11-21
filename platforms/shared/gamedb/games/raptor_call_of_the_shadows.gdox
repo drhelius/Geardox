@@ -7,7 +7,7 @@ folder = C:\RAPTOR
 
 [run]
 exe = RAP.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = gm

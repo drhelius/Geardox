@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = PINBALL.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE

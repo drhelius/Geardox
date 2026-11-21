@@ -7,7 +7,7 @@ folder = C:\SERPENT
 
 [run]
 exe = SERPENT.COM
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [machine]
 model = 486sx_33

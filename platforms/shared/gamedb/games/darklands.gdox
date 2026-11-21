@@ -7,7 +7,7 @@ folder = C:\DARKLAND
 
 [run]
 exe = DARKLAND.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [machine]
 model = 386dx_33

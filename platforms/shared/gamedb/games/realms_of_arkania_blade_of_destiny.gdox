@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = BLADEM.EXE
-setup = SOUNDSET.EXE
+setup_exe = SOUNDSET.EXE
 
 [machine]
 model = 486sx_33

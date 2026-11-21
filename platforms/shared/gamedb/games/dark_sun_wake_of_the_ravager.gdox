@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = DSUN.EXE
 args = -W0 -L
-setup = SOUND.BAT
+setup_exe = SOUND.BAT
 
 [machine]
 model = 486sx_33

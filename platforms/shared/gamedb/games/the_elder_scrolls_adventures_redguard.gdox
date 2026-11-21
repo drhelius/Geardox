@@ -15,4 +15,4 @@ joystick = none
 
 [run]
 exe = REDGUARD\RGFX.EXE
-setup = REDGUARD\SOUND\SETSOUND.EXE
+setup_exe = REDGUARD\SOUND\SETSOUND.EXE

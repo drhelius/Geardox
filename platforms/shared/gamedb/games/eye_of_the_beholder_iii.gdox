@@ -11,7 +11,7 @@ ram_mb = 64
 [run]
 exe = AESOP.EXE
 args = eye start
-setup = SOUND.EXE
+setup_exe = SOUND.EXE
 
 [sound]
 midi = mt32

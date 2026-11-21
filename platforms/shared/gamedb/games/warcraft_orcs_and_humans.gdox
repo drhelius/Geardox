@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = WAR.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = gm

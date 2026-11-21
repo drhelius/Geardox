@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = ULTIMA6.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [machine]
 model = 386sx_20

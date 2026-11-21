@@ -10,4 +10,4 @@ ram_mb = 16
 
 [run]
 exe = RIVA.EXE
-setup = DATA\SETUP.EXE
+setup_exe = DATA\SETUP.EXE

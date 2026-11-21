@@ -7,7 +7,7 @@ folder = C:\DOOM
 
 [run]
 exe = DOOM.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = gm

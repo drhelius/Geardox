@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = STARCON.EXE
-setup = KEYS.EXE
+setup_exe = KEYS.EXE
 
 [sound]
 midi = mt32

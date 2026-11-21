@@ -9,7 +9,7 @@ folder = C:\
 exe = SWARS\MAIN.EXE
 args = /w /g
 cwd = SWARS
-setup = SWARS\SETSOUND.EXE
+setup_exe = SWARS\SETSOUND.EXE
 
 [sound]
 midi = gm

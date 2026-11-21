@@ -9,7 +9,7 @@ folder = C:\
 exe = GAME\MAIN.EXE
 args = -cC:/game/ -dC:/THEME.CD/ -l3
 cwd = GAME
-setup = CONFIG\MAIN.EXE
+setup_exe = CONFIG\MAIN.EXE
 
 [machine]
 model = 386dx_33

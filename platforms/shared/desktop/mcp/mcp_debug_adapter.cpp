@@ -5829,13 +5829,15 @@ json DebugAdapter::GetGameInfo()
         { "game", "source" }, { "game", "folder" }, { "game", "free_mb" }, { "machine", "model" },
         { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" }, { "machine", "fpu" },
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
-        { "machine", "drive_timing" }, { "machine", "video" }, { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" },
-        { "sound", "mpu" }, { "sound", "gus" }, { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" },
+        { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "voodoo" }, { "sound", "card" },
+        { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" }, { "sound", "midi" },
+        { "sound", "midi_out" }, { "sound", "midi_port" },
         { "sound", "mt32_model" }, { "input", "mouse" }, { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
         { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
         { "drives", "hdd_primary_slave" }, { "drives", "hdd_secondary_slave" }, { "drives", "cdrom" }, { "run", "exe" },
-        { "run", "args" }, { "run", "cwd" }, { "run", "setup" }, { "run", "on_exit" }, { "run", "boot" } };
+        { "run", "args" }, { "run", "cwd" }, { "run", "voodoo_exe" }, { "run", "voodoo_args" }, { "run", "setup_exe" },
+        { "run", "setup_args" }, { "run", "on_exit" }, { "run", "boot" } };
     const GameDescriptor& descriptor = disk->GetDescriptor();
     const GameDescriptor& overrides = disk->GetOverrides();
     const GDOX_Machine_Config& config = m_core->GetMachineConfig();

@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = TNT\FINAL.EXE
 args = -config ..\default.cfg
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = gm

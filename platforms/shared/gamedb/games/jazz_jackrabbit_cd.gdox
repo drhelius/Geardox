@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = JAZZ.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE

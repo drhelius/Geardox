@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = SPELLJAM\SJ.EXE
 cwd = SPELLJAM
-setup = SPELLJAM\SOUND.EXE
+setup_exe = SPELLJAM\SOUND.EXE
 
 [machine]
 model = 386sx_20

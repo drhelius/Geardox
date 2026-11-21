@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = STUNT.EXE
-setup = INSTALL.EXE -S
+setup_exe = INSTALL.EXE -S
 
 [sound]
 midi = mt32

@@ -8,4 +8,4 @@ folder = C:\
 [run]
 exe = EXE\BARENA.EXE
 args = n
-setup = EXE\SETSOUND.EXE
+setup_exe = EXE\SETSOUND.EXE

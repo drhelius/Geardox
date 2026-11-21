@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = RLOFT\R.EXE
-setup = RLOFT\SINSTALL.EXE
+setup_exe = RLOFT\SINSTALL.EXE
 
 [sound]
 midi = gm

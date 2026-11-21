@@ -125,8 +125,10 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "run", "exe", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "voodoo_exe", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "args", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "run", "voodoo_args", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "cwd", DESCRIPTOR_PATH, NULL, 0, 0 },
-    { "run", "setup", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "run", "setup_exe", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "run", "setup_args", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "on_exit", DESCRIPTOR_CHOICE, "prompt,poweroff", 0, 0 },
     { "run", "boot", DESCRIPTOR_CHOICE, "c,a", 0, 0 }
 };
@@ -1090,8 +1092,10 @@ void GameDescriptor::Build()
     info.exe = Get("run", "exe");
     info.voodoo_exe = Get("run", "voodoo_exe");
     info.args = Get("run", "args");
+    info.voodoo_args = Get("run", "voodoo_args");
     info.cwd = Get("run", "cwd");
-    info.setup = Get("run", "setup");
+    info.setup_exe = Get("run", "setup_exe");
+    info.setup_args = Get("run", "setup_args");
     info.exit = Get("run", "on_exit") == "poweroff" ? GDOX_GAME_EXIT_POWEROFF : GDOX_GAME_EXIT_PROMPT;
     info.boot_floppy = Get("run", "boot") == "a";
     info.joystick = -1;

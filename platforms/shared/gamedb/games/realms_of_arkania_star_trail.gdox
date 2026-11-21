@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = STAR.EXE
-setup = SOUND.BAT
+setup_exe = SOUND.BAT
 
 [machine]
 model = 486sx_33

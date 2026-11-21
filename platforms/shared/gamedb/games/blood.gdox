@@ -7,7 +7,7 @@ folder = C:\BLOOD
 
 [run]
 exe = BLOOD.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = pentium_133

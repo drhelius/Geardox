@@ -7,4 +7,4 @@ folder = C:\RALLY
 
 [run]
 exe = RALLY.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE

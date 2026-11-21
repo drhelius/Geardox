@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = CKIT.EXE
 args = SB220 SI7 RB330
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [sound]
 midi = mt32

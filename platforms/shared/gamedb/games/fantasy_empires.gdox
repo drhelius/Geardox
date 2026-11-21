@@ -7,7 +7,7 @@ folder = C:\FANTASY
 
 [run]
 exe = FANTASY.EXE
-setup = SOUND.EXE
+setup_exe = SOUND.EXE
 
 [machine]
 model = 386dx_33

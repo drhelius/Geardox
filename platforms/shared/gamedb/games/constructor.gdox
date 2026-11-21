@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = GAME.EXE
-setup = SETSOUND.BAT
+setup_exe = SETSOUND.BAT
 
 [machine]
 model = pentium_75

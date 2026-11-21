@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = DRAGON\DRAGON.BAT
 cwd = DRAGON
-setup = DRAGON\INSTALL.EXE
+setup_exe = DRAGON\INSTALL.EXE
 
 [machine]
 model = 386dx_33

@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = BS_FIRE.EXE
-setup = SETBLAST.EXE
+setup_exe = SETBLAST.EXE

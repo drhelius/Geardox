@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = MELEE.COM
-setup = KEYS.EXE
+setup_exe = KEYS.EXE
 
 [machine]
 model = 386sx_20

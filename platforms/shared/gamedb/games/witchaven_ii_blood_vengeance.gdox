@@ -7,7 +7,7 @@ folder = C:\WHAVEN2
 
 [run]
 exe = WH2.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = gm

@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = M.EXE
-setup = SOUND_PM.EXE
+setup_exe = SOUND_PM.EXE
 
 [sound]
 midi = gm

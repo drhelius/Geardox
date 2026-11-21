@@ -7,7 +7,7 @@ folder = C:\DISCWLD
 
 [run]
 exe = DISC.BAT
-setup = CONFIG.BAT
+setup_exe = CONFIG.BAT
 
 [sound]
 midi = gm

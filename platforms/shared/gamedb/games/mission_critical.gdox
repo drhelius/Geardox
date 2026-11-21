@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = MISSION.EXE
-setup = SETSOUND.EXE
+setup_exe = SETSOUND.EXE
 
 [sound]
 midi = gm

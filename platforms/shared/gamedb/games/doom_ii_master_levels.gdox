@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = MASTER\DOOMIT.BAT
-setup = DOOM2\SETUP.EXE
+setup_exe = DOOM2\SETUP.EXE
 
 [sound]
 midi = gm

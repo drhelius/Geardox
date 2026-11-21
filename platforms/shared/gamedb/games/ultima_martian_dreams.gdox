@@ -7,7 +7,7 @@ folder = C:\MARTIAN
 
 [run]
 exe = MARTIAN.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [sound]
 midi = mt32

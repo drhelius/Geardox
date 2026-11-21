@@ -7,7 +7,7 @@ folder = C:\EGA
 
 [run]
 exe = SCIV.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [machine]
 model = 386dx_33

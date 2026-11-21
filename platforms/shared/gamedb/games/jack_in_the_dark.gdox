@@ -12,4 +12,4 @@ model = 386dx_33
 [run]
 exe = JACK\INDARK2.EXE
 args = 16 1
-setup = JACK\INSTALL.EXE
+setup_exe = JACK\INSTALL.EXE

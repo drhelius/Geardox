@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = SW.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = pentium_133

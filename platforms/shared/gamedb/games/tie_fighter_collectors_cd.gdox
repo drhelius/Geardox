@@ -13,4 +13,4 @@ joystick = standard
 
 [run]
 exe = TIE.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE

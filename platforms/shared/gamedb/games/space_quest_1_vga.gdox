@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = VGA\SCIDHUV.EXE
 cwd = VGA
-setup = VGA\INSTALL.EXE
+setup_exe = VGA\INSTALL.EXE
 
 [sound]
 midi = mt32

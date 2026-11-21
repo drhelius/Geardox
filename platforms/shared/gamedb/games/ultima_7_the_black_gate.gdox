@@ -7,7 +7,7 @@ folder = C:\ULTIMA7
 
 [run]
 exe = ULTIMA7.COM
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [machine]
 model = 486sx_33

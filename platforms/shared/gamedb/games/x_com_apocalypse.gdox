@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = XCOMAPOC.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = pentium_75

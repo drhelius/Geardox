@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = HEROES2.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [sound]
 midi = gm

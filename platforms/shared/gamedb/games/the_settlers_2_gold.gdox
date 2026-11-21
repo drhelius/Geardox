@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = S2.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 ram_mb = 16

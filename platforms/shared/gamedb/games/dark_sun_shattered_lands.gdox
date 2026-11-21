@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = DSUN.EXE
-setup = SOUND_DS.EXE
+setup_exe = SOUND_DS.EXE
 
 [machine]
 model = 386dx_33

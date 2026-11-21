@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = JA.EXE
-setup = SETSOUND.EXE
+setup_exe = SETSOUND.EXE

@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = PROPHET\SP.EXE
-setup = PROPHET\SOUND_PM.EXE
+setup_exe = PROPHET\SOUND_PM.EXE
 
 [sound]
 midi = gm

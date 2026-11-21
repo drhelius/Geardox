@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = WAR2.BAT
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [dos]
 ems_kb = 5120

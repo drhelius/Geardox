@@ -10,7 +10,7 @@ model = pentium_75
 
 [run]
 exe = WW.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = gm

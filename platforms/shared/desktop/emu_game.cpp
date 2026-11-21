@@ -850,7 +850,7 @@ const char* emu_game_get_saves_path(void)
 
 bool emu_game_has_setup(void)
 {
-    return emu_game_is_open() && !disk.GetDescriptor().GetInfo().setup.empty();
+    return emu_game_is_open() && !disk.GetDescriptor().GetInfo().setup_exe.empty();
 }
 
 GameDisk* emu_game_get_disk(void)

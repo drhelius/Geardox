@@ -14,4 +14,4 @@ ems_kb = 1024
 
 [run]
 exe = INDARK2\AITD2.EXE
-setup = INDARK2\INSTALL.EXE
+setup_exe = INDARK2\INSTALL.EXE

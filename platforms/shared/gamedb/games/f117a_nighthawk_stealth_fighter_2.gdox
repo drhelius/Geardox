@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = F117.COM
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = 386dx_33

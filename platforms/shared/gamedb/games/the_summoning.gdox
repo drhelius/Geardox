@@ -7,7 +7,7 @@ folder = C:\SUMMON
 
 [run]
 exe = SUMMON.COM
-setup = SETUP.COM
+setup_exe = SETUP.COM
 
 [machine]
 model = 386dx_33

@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = MM.EXE
-setup = GRAPHSET.EXE
+setup_exe = GRAPHSET.EXE
 
 [machine]
 model = 386sx_20

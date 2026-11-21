@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = DARK.EXE
-setup = SETSOUND.EXE
+setup_exe = SETSOUND.EXE
 
 [machine]
 model = pentium_90

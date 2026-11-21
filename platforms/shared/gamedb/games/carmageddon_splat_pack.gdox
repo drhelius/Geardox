@@ -13,4 +13,4 @@ ram_mb = 64
 [run]
 exe = VOODO2C.EXE
 args = -novoodoo
-setup = SNDSETUP.EXE
+setup_exe = SNDSETUP.EXE

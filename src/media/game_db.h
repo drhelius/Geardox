@@ -77,7 +77,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = AFTERDOS.BAT\n"
-        "setup = SETUPDOS.EXE\n"
+        "setup_exe = SETUPDOS.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -95,7 +95,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ALBION.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -109,7 +109,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ALIEN.EXE\n"
-        "setup = CONFIG.EXE\n"
+        "setup_exe = CONFIG.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -126,7 +126,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TA.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "alien_breed_tower_assault", "Alien Breed: Tower Assault",
         "[geardox]\n"
         "version = 1\n"
@@ -137,7 +137,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TA.EXE\n"
-        "setup = SETSOUND.EXE\n"
+        "setup_exe = SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -152,7 +152,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TA.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "alone_in_the_dark", "Alone in the Dark",
         "[geardox]\n"
         "version = 1\n"
@@ -167,7 +167,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = INDARK\\INDARK.EXE\n"
-        "setup = INDARK\\INSTALL.EXE\n" },
+        "setup_exe = INDARK\\INSTALL.EXE\n" },
     { "alone_in_the_dark_2", "Alone in the Dark 2",
         "[geardox]\n"
         "version = 1\n"
@@ -185,7 +185,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = INDARK2\\AITD2.EXE\n"
-        "setup = INDARK2\\INSTALL.EXE\n" },
+        "setup_exe = INDARK2\\INSTALL.EXE\n" },
     { "alone_in_the_dark_3", "Alone in the Dark 3",
         "[geardox]\n"
         "version = 1\n"
@@ -203,7 +203,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = INDARK3\\AITD3.EXE\n"
-        "setup = INDARK3\\INSTALL.EXE\n" },
+        "setup_exe = INDARK3\\INSTALL.EXE\n" },
     { "anvil_of_dawn", "Anvil of Dawn",
         "[geardox]\n"
         "version = 1\n"
@@ -214,7 +214,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ANVIL.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -245,7 +245,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = AD2.EXE\n"
-        "setup = SETSOUND.BAT\n" },
+        "setup_exe = SETSOUND.BAT\n" },
     { "arctic_adventure_1", "Arctic Adventure 1",
         "[geardox]\n"
         "version = 1\n"
@@ -312,7 +312,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SPIRE.BAT\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[env]\n"
         "CAUSEWAY = MAXMEM:70;PRE:40;NAME:spire.swp\n" },
@@ -366,7 +366,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BTHORNE.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n"
@@ -393,7 +393,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BS_FIRE.EXE\n"
-        "setup = SETBLAST.EXE\n" },
+        "setup_exe = SETBLAST.EXE\n" },
     { "blood", "Blood",
         "[geardox]\n"
         "version = 1\n"
@@ -404,7 +404,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BLOOD.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -422,7 +422,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BOPPIN.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -436,7 +436,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = CD\\ICE640.EXE\n"
-        "setup = CD\\ICE640.EXE -config\n"
+        "setup_exe = CD\\ICE640.EXE -config\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -473,7 +473,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = CANNON.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "carmageddon", "Carmageddon",
         "[geardox]\n"
         "version = 1\n"
@@ -490,7 +490,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = VOODO2C.EXE\n"
         "args = -novoodoo\n"
-        "setup = SNDSETUP.EXE\n" },
+        "setup_exe = SNDSETUP.EXE\n" },
     { "carmageddon_splat_pack", "Carmageddon Splat Pack",
         "[geardox]\n"
         "version = 1\n"
@@ -507,7 +507,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = VOODO2C.EXE\n"
         "args = -novoodoo\n"
-        "setup = SNDSETUP.EXE\n" },
+        "setup_exe = SNDSETUP.EXE\n" },
     { "castle_of_kroz", "Castle Of Kroz",
         "[geardox]\n"
         "version = 1\n"
@@ -580,7 +580,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = GAME.EXE\n"
-        "setup = SETSOUND.BAT\n"
+        "setup_exe = SETSOUND.BAT\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -628,7 +628,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = REGRET.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "crusader_no_remorse", "Crusader: No Remorse",
         "[geardox]\n"
         "version = 1\n"
@@ -642,7 +642,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = CRUSADER.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "crystal_caves_1", "Crystal Caves 1",
         "[geardox]\n"
         "version = 1\n"
@@ -693,7 +693,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = CURSE.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -759,7 +759,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DARK.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "dark_sun_shattered_lands", "Dark Sun: Shattered Lands",
         "[geardox]\n"
         "version = 1\n"
@@ -770,7 +770,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DSUN.EXE\n"
-        "setup = SOUND_DS.EXE\n"
+        "setup_exe = SOUND_DS.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -791,7 +791,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DSUN.EXE\n"
         "args = -W0 -L\n"
-        "setup = SOUND.BAT\n"
+        "setup_exe = SOUND.BAT\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -811,7 +811,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DARKLAND.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -851,7 +851,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RALLY.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "demons_winter", "Demon's Winter",
         "[geardox]\n"
         "version = 1\n"
@@ -875,7 +875,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DESCENT.BAT\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -889,7 +889,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DESCENT2.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -906,7 +906,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DISC.BAT\n"
-        "setup = CONFIG.BAT\n"
+        "setup_exe = CONFIG.BAT\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -920,7 +920,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -935,7 +935,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DOOM2\\DOOM2.EXE\n"
         "args = -config ..\\default.cfg\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -949,7 +949,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MASTER\\DOOMIT.BAT\n"
-        "setup = DOOM2\\SETUP.EXE\n"
+        "setup_exe = DOOM2\\SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -963,7 +963,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -977,7 +977,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1024,7 +1024,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DRAGON\\DRAGON.BAT\n"
         "cwd = DRAGON\n"
-        "setup = DRAGON\\INSTALL.EXE\n"
+        "setup_exe = DRAGON\\INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -1092,7 +1092,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DUKE3D.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -1109,7 +1109,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DUKE3D.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -1137,7 +1137,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DUNEPRG.EXE\n"
         "args = SPA VGA SDB2225 EMS 386\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n"
@@ -1154,7 +1154,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HACK.BAT\n"
-        "setup = SOUND.EXE\n"
+        "setup_exe = SOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -1174,7 +1174,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DEEPER.EXE\n"
-        "setup = SOUND\\SETSOUND.EXE\n"
+        "setup_exe = SOUND\\SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_90\n"
@@ -1195,7 +1195,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = KEEPER.EXE\n"
-        "setup = SOUND\\SETSOUND.EXE\n"
+        "setup_exe = SOUND\\SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_90\n"
@@ -1239,7 +1239,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = PINBALL.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "eye_of_the_beholder", "Eye of the Beholder",
         "[geardox]\n"
         "version = 1\n"
@@ -1260,7 +1260,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = START.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -1278,7 +1278,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = AESOP.EXE\n"
         "args = eye start\n"
-        "setup = SOUND.EXE\n"
+        "setup_exe = SOUND.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -1292,7 +1292,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = F117.COM\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -1319,7 +1319,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = FANTASY.EXE\n"
-        "setup = SOUND.EXE\n"
+        "setup_exe = SOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n" },
@@ -1334,7 +1334,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = EXE\\BARENA.EXE\n"
         "args = n\n"
-        "setup = EXE\\SETSOUND.EXE\n" },
+        "setup_exe = EXE\\SETSOUND.EXE\n" },
     { "final_doom_plutonia", "Final DOOM: The Plutonia Experiment",
         "[geardox]\n"
         "version = 1\n"
@@ -1346,7 +1346,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = PLUTONIA\\FINAL.EXE\n"
         "args = -config ..\\default.cfg\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1360,7 +1360,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1375,7 +1375,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = TNT\\FINAL.EXE\n"
         "args = -config ..\\default.cfg\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1389,7 +1389,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DOOM2.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1403,7 +1403,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = PLAY.BAT\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "forgotten_realms_unlimited_adventures", "Forgotten Realms: Unlimited Adventures",
         "[geardox]\n"
         "version = 1\n"
@@ -1415,7 +1415,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = CKIT.EXE\n"
         "args = SB220 SI7 RB330\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -1453,7 +1453,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = gtados\\GTA8.EXE\n"
         "voodoo_exe = gtados\\GTAFX.EXE\n"
-        "setup = gtados\\UVCONFIG.EXE\n"
+        "setup_exe = gtados\\UVCONFIG.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -1486,7 +1486,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MPS\\GS2000CD\\GS2000.COM\n"
-        "setup = MPS\\GS2000CD\\SETUP.EXE\n"
+        "setup_exe = MPS\\GS2000CD\\SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -1530,7 +1530,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HERETIC.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1544,7 +1544,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEROES.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1558,7 +1558,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEROES2.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1586,7 +1586,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEXEN.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1600,7 +1600,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HEXENDK.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -1627,7 +1627,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HOCUS.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -1654,7 +1654,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = IMPERIUM.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n" },
@@ -1702,7 +1702,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = GAME.EXE\n"
         "args = /vga\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "ishar_2_messengers_of_doom", "Ishar 2 - Messengers of Doom",
         "[geardox]\n"
         "version = 1\n"
@@ -1768,7 +1768,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = JACK\\INDARK2.EXE\n"
         "args = 16 1\n"
-        "setup = JACK\\INSTALL.EXE\n" },
+        "setup_exe = JACK\\INSTALL.EXE\n" },
     { "jagged_alliance", "Jagged Alliance",
         "[geardox]\n"
         "version = 1\n"
@@ -1779,7 +1779,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = JA.EXE\n"
-        "setup = SETSOUND.EXE\n" },
+        "setup_exe = SETSOUND.EXE\n" },
     { "jazz_jackrabbit_cd", "Jazz Jackrabbit CD-ROM Version",
         "[geardox]\n"
         "version = 1\n"
@@ -1790,7 +1790,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = JAZZ.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "jazz_jackrabbit_holiday_hare_95", "Jazz Jackrabbit Holiday Hare '95",
         "[geardox]\n"
         "version = 1\n"
@@ -1801,7 +1801,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = JAZZ.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "jumpman_lives", "Jumpman Lives",
         "[geardox]\n"
         "version = 1\n"
@@ -1910,7 +1910,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = LOLCD.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n"
@@ -1951,7 +1951,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = GOLF.BAT\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "links_the_challenge_of_golf", "Links: The Challenge of Golf",
         "[geardox]\n"
         "version = 1\n"
@@ -2005,7 +2005,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ORION.EXE\n"
-        "setup = INSTALL.EXE -S\n"
+        "setup_exe = INSTALL.EXE -S\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1040\n" },
@@ -2019,7 +2019,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ORION2.EXE\n"
-        "setup = SETSOUND.EXE\n"
+        "setup_exe = SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
         "ram_mb = 16\n" },
@@ -2063,7 +2063,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = M.EXE\n"
-        "setup = SOUND_PM.EXE\n"
+        "setup_exe = SOUND_PM.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2077,7 +2077,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MM.EXE\n"
-        "setup = GRAPHSET.EXE\n"
+        "setup_exe = GRAPHSET.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -2106,7 +2106,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MM3.COM\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -2123,7 +2123,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = XEEN.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -2140,7 +2140,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WORLD\\XEEN.EXE\n"
-        "setup = WORLD\\INSTALL.EXE\n"
+        "setup_exe = WORLD\\INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -2160,7 +2160,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MISSION.EXE\n"
-        "setup = SETSOUND.EXE\n"
+        "setup_exe = SETSOUND.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2491,7 +2491,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = PRINCE.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "privateer_2_the_darkening", "Privateer 2: The Darkening",
         "[geardox]\n"
         "version = 1\n"
@@ -2502,7 +2502,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DARK.EXE\n"
-        "setup = SETSOUND.EXE\n"
+        "setup_exe = SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_90\n"
@@ -2587,7 +2587,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SCIV.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -2605,7 +2605,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SCIDHUV.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -2622,7 +2622,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SCIV.EXE\n"
-        "setup = INST.EXE\n"
+        "setup_exe = INST.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -2640,7 +2640,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SIERRA.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n" },
@@ -2654,7 +2654,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SIERRA.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n" },
@@ -2683,7 +2683,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RAP.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2697,7 +2697,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = PROPHET\\SP.EXE\n"
-        "setup = PROPHET\\SOUND_PM.EXE\n"
+        "setup_exe = PROPHET\\SOUND_PM.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2711,7 +2711,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RLOFT\\R.EXE\n"
-        "setup = RLOFT\\SINSTALL.EXE\n"
+        "setup_exe = RLOFT\\SINSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2741,7 +2741,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RIVA.EXE\n"
-        "setup = DATA\\SETUP.EXE\n" },
+        "setup_exe = DATA\\SETUP.EXE\n" },
     { "realms_of_arkania_blade_of_destiny", "Realms of Arkania: Blade of Destiny",
         "[geardox]\n"
         "version = 1\n"
@@ -2752,7 +2752,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BLADEM.EXE\n"
-        "setup = SOUNDSET.EXE\n"
+        "setup_exe = SOUNDSET.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -2775,7 +2775,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STAR.EXE\n"
-        "setup = SOUND.BAT\n"
+        "setup_exe = SOUND.BAT\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -2792,7 +2792,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ROC.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2819,7 +2819,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ROTT.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -2833,7 +2833,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SAMNMAX.EXE\n"
-        "setup = SETMUSE.EXE\n" },
+        "setup_exe = SETMUSE.EXE\n" },
     { "savage_empire", "Worlds of Ultima: The Savage Empire",
         "[geardox]\n"
         "version = 1\n"
@@ -2844,7 +2844,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SAVAGE.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -2917,7 +2917,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SW.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -2936,7 +2936,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DRAGON\\SW.EXE\n"
         "cwd = DRAGON\n"
-        "setup = DRAGON\\SETUP.EXE\n"
+        "setup_exe = DRAGON\\SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -2954,7 +2954,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SW.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
@@ -3047,7 +3047,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SC2K.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n" },
@@ -3061,7 +3061,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SCURK.COM\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n" },
@@ -3089,7 +3089,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = VGA\\SCIDHUV.EXE\n"
         "cwd = VGA\n"
-        "setup = VGA\\INSTALL.EXE\n"
+        "setup_exe = VGA\\INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -3163,7 +3163,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = SPELLJAM\\SJ.EXE\n"
         "cwd = SPELLJAM\n"
-        "setup = SPELLJAM\\SOUND.EXE\n"
+        "setup_exe = SPELLJAM\\SOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -3183,7 +3183,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STARCON.EXE\n"
-        "setup = KEYS.EXE\n"
+        "setup_exe = KEYS.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -3197,7 +3197,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STARCON2.COM\n"
-        "setup = KEYS.EXE\n"
+        "setup_exe = KEYS.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -3214,7 +3214,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MELEE.COM\n"
-        "setup = KEYS.EXE\n"
+        "setup_exe = KEYS.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -3231,7 +3231,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SC3.EXE\n"
-        "setup = SETSOUND.EXE\n"
+        "setup_exe = SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -3252,7 +3252,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SGDOS.EXE\n"
-        "setup = SOUND.EXE\n" },
+        "setup_exe = SOUND.EXE\n" },
     { "star_trek_trivia_1", "Star Trek Trivia 1",
         "[geardox]\n"
         "version = 1\n"
@@ -3363,7 +3363,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TIE.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n"
@@ -3380,7 +3380,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BWING.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[dos]\n"
         "ems_kb = 1024\n" },
@@ -3394,7 +3394,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = BWING.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "starflight", "Starflight",
         "[geardox]\n"
         "version = 1\n"
@@ -3449,7 +3449,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STUNT.EXE\n"
-        "setup = INSTALL.EXE -S\n"
+        "setup_exe = INSTALL.EXE -S\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -3523,7 +3523,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = SWARS\\MAIN.EXE\n"
         "args = /w /g\n"
         "cwd = SWARS\n"
-        "setup = SWARS\\SETSOUND.EXE\n"
+        "setup_exe = SWARS\\SETSOUND.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -3537,7 +3537,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SSHOCK.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "ram_mb = 32\n"
@@ -3554,7 +3554,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SSHOCK\\CDSHOCK.EXE\n"
-        "setup = SSHOCK\\INSTALL.EXE\n"
+        "setup_exe = SSHOCK\\INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "ram_mb = 32\n"
@@ -3571,7 +3571,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TV.EXE\n"
-        "setup = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n" },
     { "the_dark_queen_of_krynn", "The Dark Queen of Krynn",
         "[geardox]\n"
         "version = 1\n"
@@ -3583,7 +3583,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = DQK.EXE\n"
         "args = SB220 SI7 RB330\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -3605,7 +3605,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = REDGUARD\\RGFX.EXE\n"
-        "setup = REDGUARD\\SOUND\\SETSOUND.EXE\n" },
+        "setup_exe = REDGUARD\\SOUND\\SETSOUND.EXE\n" },
     { "the_elder_scrolls_arena", "The Elder Scrolls: Arena",
         "[geardox]\n"
         "version = 1\n"
@@ -3641,7 +3641,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = FALL.EXE\n"
         "args = Z.CFG\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -3683,7 +3683,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = S2.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "ram_mb = 16\n"
@@ -3700,7 +3700,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SUMMON.COM\n"
-        "setup = SETUP.COM\n"
+        "setup_exe = SETUP.COM\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -3717,7 +3717,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = HOSPITAL.EXE\n"
-        "setup = SOUND\\SETSOUND.EXE\n"
+        "setup_exe = SOUND\\SETSOUND.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -3733,7 +3733,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = GAME\\MAIN.EXE\n"
         "args = -cC:/game/ -dC:/THEME.CD/ -l3\n"
         "cwd = GAME\n"
-        "setup = CONFIG\\MAIN.EXE\n"
+        "setup_exe = CONFIG\\MAIN.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -3761,7 +3761,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TIE.EXE\n"
-        "setup = INSTALL.EXE\n" },
+        "setup_exe = INSTALL.EXE\n" },
     { "time_commando", "Time Commando",
         "[geardox]\n"
         "version = 1\n"
@@ -3772,7 +3772,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TIMECO.EXE\n"
-        "setup = SETSOUND.BAT\n"
+        "setup_exe = SETSOUND.BAT\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -3791,7 +3791,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = TOMBRAID\\TOMB.EXE\n"
         "voodoo_exe = TOMBRAID\\TOMB3DFX.EXE\n"
-        "setup = TOMBRAID\\SETUP.EXE\n"
+        "setup_exe = TOMBRAID\\SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -3879,7 +3879,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TYRIAN.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "ram_mb = 32\n"
@@ -3896,7 +3896,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SERPENT.COM\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -3916,7 +3916,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ULTIMA7.COM\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -3996,7 +3996,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = MARTIAN.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n"
@@ -4038,7 +4038,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = D:\\UW2\\UW2.EXE\n"
-        "setup = D:\\INSTALL2.EXE\n"
+        "setup_exe = D:\\INSTALL2.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n"
@@ -4075,7 +4075,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = ULTIMA6.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386sx_20\n"
@@ -4092,7 +4092,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = U8.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4109,7 +4109,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WW.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4152,7 +4152,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WAR.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4166,7 +4166,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WAR2.BAT\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[dos]\n"
         "ems_kb = 5120\n" },
@@ -4217,7 +4217,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WC2.EXE\n"
-        "setup = INSTALL.EXE\n"
+        "setup_exe = INSTALL.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -4238,7 +4238,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SO1.EXE\n"
-        "setup = INSTALL1.EXE\n"
+        "setup_exe = INSTALL1.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -4259,7 +4259,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SO2.EXE\n"
-        "setup = INSTALL2.EXE\n"
+        "setup_exe = INSTALL2.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -4279,7 +4279,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SO1.EXE\n"
-        "setup = INSTALL1.EXE\n"
+        "setup_exe = INSTALL1.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -4299,7 +4299,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = SO2.EXE\n"
-        "setup = INSTALL2.EXE\n"
+        "setup_exe = INSTALL2.EXE\n"
         "\n"
         "[machine]\n"
         "model = 386dx_33\n"
@@ -4323,7 +4323,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = D:\\WC3.EXE\n"
-        "setup = D:\\WC3.EXE -install\n" },
+        "setup_exe = D:\\WC3.EXE -install\n" },
     { "wing_commander_privateer", "Wing Commander: Privateer",
         "[geardox]\n"
         "version = 1\n"
@@ -4389,7 +4389,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WH.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4403,7 +4403,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = EGWH1.EXE\n"
-        "setup = EGSETUP.EXE\n"
+        "setup_exe = EGSETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4417,7 +4417,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = WH2.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4431,7 +4431,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = EGWH2.EXE\n"
-        "setup = EGSETUP.EXE\n"
+        "setup_exe = EGSETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },
@@ -4579,7 +4579,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = XCOMAPOC.EXE\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_75\n"
@@ -4596,7 +4596,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = GO.BAT\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n"
@@ -4613,7 +4613,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = UFO.BAT\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
         "midi = mt32\n" },
@@ -4628,7 +4628,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TERROR.COM\n"
-        "setup = SETUP.EXE\n"
+        "setup_exe = SETUP.EXE\n"
         "\n"
         "[machine]\n"
         "model = 486sx_33\n" },
@@ -4642,7 +4642,7 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = XPR.BAT\n"
-        "setup = SETUP.BAT\n"
+        "setup_exe = SETUP.BAT\n"
         "\n"
         "[sound]\n"
         "midi = gm\n" },

@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = ALIEN.EXE
-setup = CONFIG.EXE
+setup_exe = CONFIG.EXE
 
 [machine]
 model = 386sx_20

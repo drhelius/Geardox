@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = SCIV.EXE
-setup = INST.EXE
+setup_exe = INST.EXE
 
 [machine]
 model = 386dx_33

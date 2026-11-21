@@ -7,4 +7,4 @@ folder = C:\PRINCE
 
 [run]
 exe = PRINCE.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE

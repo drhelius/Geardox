@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = START.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [dos]
 ems_kb = 1024

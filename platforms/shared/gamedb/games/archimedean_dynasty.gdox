@@ -10,4 +10,4 @@ ram_mb = 64
 
 [run]
 exe = AD2.EXE
-setup = SETSOUND.BAT
+setup_exe = SETSOUND.BAT

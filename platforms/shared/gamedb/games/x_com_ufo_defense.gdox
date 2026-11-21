@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = GO.BAT
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = 486sx_33

@@ -7,7 +7,7 @@ folder = C:\SSHOCK
 
 [run]
 exe = SSHOCK.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE
 
 [machine]
 ram_mb = 32

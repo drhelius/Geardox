@@ -7,7 +7,7 @@ folder = C:\CURSE
 
 [run]
 exe = CURSE.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [sound]
 midi = mt32

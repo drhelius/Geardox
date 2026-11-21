@@ -8,7 +8,7 @@ free_mb = 1024
 
 [run]
 exe = TERROR.COM
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = 486sx_33

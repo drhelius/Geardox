@@ -1444,11 +1444,12 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
 
     out += "GDXRUN\r\nIF ERRORLEVEL 3 GOTO DEBUG\r\nIF ERRORLEVEL 2 GOTO PROMPT\r\nIF ERRORLEVEL 1 GOTO SETUP\r\n";
 
-    const std::string& exe = machine.voodoo && m_voodoo_exe ? info.voodoo_exe : info.exe;
+    bool voodoo = machine.voodoo && m_voodoo_exe;
+    const std::string& exe = voodoo ? info.voodoo_exe : info.exe;
 
     if (!exe.empty())
     {
-        add_run(&out, info.folder, exe, info.cwd, info.args);
+        add_run(&out, info.folder, exe, info.cwd, voodoo ? info.voodoo_args : info.args);
 
         if (info.exit == GDOX_GAME_EXIT_POWEROFF)
             out += "POWEROFF\r\n";
@@ -1461,8 +1462,8 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
 
     out += "GOTO PROMPT\r\n:SETUP\r\n";
 
-    if (!info.setup.empty())
-        add_run(&out, info.folder, info.setup, "", "");
+    if (!info.setup_exe.empty())
+        add_run(&out, info.folder, info.setup_exe, "", info.setup_args);
     else
         out += "ECHO This game has no setup program.\r\n";
 

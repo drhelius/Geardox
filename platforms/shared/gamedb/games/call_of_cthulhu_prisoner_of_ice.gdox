@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = CD\ICE640.EXE
-setup = CD\ICE640.EXE -config
+setup_exe = CD\ICE640.EXE -config
 
 [machine]
 model = pentium_75

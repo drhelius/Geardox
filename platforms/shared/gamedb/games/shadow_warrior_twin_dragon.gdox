@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = DRAGON\SW.EXE
 cwd = DRAGON
-setup = DRAGON\SETUP.EXE
+setup_exe = DRAGON\SETUP.EXE
 
 [machine]
 model = pentium_133

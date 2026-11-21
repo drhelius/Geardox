@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = HOCUS.EXE
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = 386sx_20

@@ -7,7 +7,7 @@ folder = C:\WHAVEN2
 
 [run]
 exe = EGWH2.EXE
-setup = EGSETUP.EXE
+setup_exe = EGSETUP.EXE
 
 [sound]
 midi = gm

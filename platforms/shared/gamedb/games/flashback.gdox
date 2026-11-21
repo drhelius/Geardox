@@ -7,4 +7,4 @@ folder = C:\FLASHBAC
 
 [run]
 exe = PLAY.BAT
-setup = SETUP.EXE
+setup_exe = SETUP.EXE

@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = ORION2.EXE
-setup = SETSOUND.EXE
+setup_exe = SETSOUND.EXE
 
 [machine]
 ram_mb = 16

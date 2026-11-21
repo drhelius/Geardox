@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = SSHOCK\CDSHOCK.EXE
-setup = SSHOCK\INSTALL.EXE
+setup_exe = SSHOCK\INSTALL.EXE
 
 [machine]
 ram_mb = 32

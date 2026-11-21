@@ -7,7 +7,7 @@ folder = C:\STARCON3
 
 [run]
 exe = SC3.EXE
-setup = SETSOUND.EXE
+setup_exe = SETSOUND.EXE
 
 [machine]
 model = pentium_75

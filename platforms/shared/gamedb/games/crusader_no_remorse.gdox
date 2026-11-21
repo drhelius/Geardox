@@ -10,4 +10,4 @@ ram_mb = 32
 
 [run]
 exe = CRUSADER.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE

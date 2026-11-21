@@ -7,4 +7,4 @@ folder = C:\
 
 [run]
 exe = BWING.EXE
-setup = INSTALL.EXE
+setup_exe = INSTALL.EXE

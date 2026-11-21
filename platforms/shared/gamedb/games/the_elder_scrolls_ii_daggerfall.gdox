@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = FALL.EXE
 args = Z.CFG
-setup = SETUP.EXE
+setup_exe = SETUP.EXE
 
 [machine]
 model = pentium_75

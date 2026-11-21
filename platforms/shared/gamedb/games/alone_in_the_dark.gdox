@@ -11,4 +11,4 @@ model = 386dx_33
 
 [run]
 exe = INDARK\INDARK.EXE
-setup = INDARK\INSTALL.EXE
+setup_exe = INDARK\INSTALL.EXE

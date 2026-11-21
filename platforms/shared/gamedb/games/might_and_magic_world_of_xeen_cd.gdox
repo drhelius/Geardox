@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = WORLD\XEEN.EXE
-setup = WORLD\INSTALL.EXE
+setup_exe = WORLD\INSTALL.EXE
 
 [machine]
 model = 486sx_33

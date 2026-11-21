@@ -7,7 +7,7 @@ folder = C:\
 
 [run]
 exe = KEEPER.EXE
-setup = SOUND\SETSOUND.EXE
+setup_exe = SOUND\SETSOUND.EXE
 
 [machine]
 model = pentium_90

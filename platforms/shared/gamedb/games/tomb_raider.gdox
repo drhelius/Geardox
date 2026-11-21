@@ -8,7 +8,7 @@ folder = C:\
 [run]
 exe = TOMBRAID\TOMB.EXE
 voodoo_exe = TOMBRAID\TOMB3DFX.EXE
-setup = TOMBRAID\SETUP.EXE
+setup_exe = TOMBRAID\SETUP.EXE
 
 [machine]
 model = pentium_75

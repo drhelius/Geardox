@@ -8,4 +8,4 @@ folder = C:\OFFROAD
 [run]
 exe = GAME.EXE
 args = /vga
-setup = SETUP.EXE
+setup_exe = SETUP.EXE

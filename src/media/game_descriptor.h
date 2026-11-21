@@ -117,8 +117,10 @@ struct GDOX_Game_Info
     std::string exe;
     std::string voodoo_exe;
     std::string args;
+    std::string voodoo_args;
     std::string cwd;
-    std::string setup;
+    std::string setup_exe;
+    std::string setup_args;
     int exit;
     bool boot_floppy;
     int joystick;
