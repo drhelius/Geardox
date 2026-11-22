@@ -182,16 +182,19 @@ SOURCES_CXX := \
     $(SRC_DIR)/cdrom/cdrom_media.cpp \
     $(SRC_DIR)/dos/dos_tools.cpp \
     $(SRC_DIR)/drive/dos_disk.cpp \
+    $(SRC_DIR)/drive/dos_fs.cpp \
     $(SRC_DIR)/drive/dos_import.cpp \
     $(SRC_DIR)/drive/fdc.cpp \
     $(SRC_DIR)/drive/game_disk.cpp \
     $(SRC_DIR)/drive/gus_import.cpp \
     $(SRC_DIR)/drive/glide_import.cpp \
+    $(SRC_DIR)/drive/ms_compress.cpp \
     $(SRC_DIR)/drive/ide_controller.cpp \
     $(SRC_DIR)/drive/ide_cdrom.cpp \
     $(SRC_DIR)/drive/ide_disk.cpp \
     $(SRC_DIR)/drive/i82077.cpp \
     $(SRC_DIR)/drive/hard_disk_image.cpp \
+    $(SRC_DIR)/drive/import_common.cpp \
     $(SRC_DIR)/drive/fat_image.cpp \
     $(SRC_DIR)/drive/iso_image.cpp \
     $(SRC_DIR)/drive/floppy_disk.cpp \

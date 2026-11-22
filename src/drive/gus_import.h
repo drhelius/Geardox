@@ -90,7 +90,6 @@ private:
 };
 
 static const char k_gus_import_file[] = "ultrasnd.zip";
-static const char k_gus_import_version[] = "version.txt";
 static const char k_gus_import_midi[] = "MIDI/";
 
 #endif /* GUS_IMPORT_H */

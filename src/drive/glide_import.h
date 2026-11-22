@@ -48,7 +48,6 @@ private:
     bool SearchFolder(const std::string& path, int depth);
     bool SearchZip(const u8* data, size_t size, int depth);
     void Consider(const std::string& name, const std::string& data);
-    static bool ExpandSZDD(const std::string& data, std::string* out);
 
 private:
     std::string m_overlay;

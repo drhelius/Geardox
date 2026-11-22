@@ -175,7 +175,7 @@ private:
     bool AddFreeDOSFile(MediaZip* zip, const char* name, u32 directory, const char* target);
     bool AddDosTool(u32 directory, const char* name, const u8* data, u32 size);
     void PinEntries();
-    void ApplyDeleted(const std::string& list);
+    void ApplyDeleted(const std::vector<std::string>& lines);
     void ListDirectory(u32 directory, const std::string& dos_path, const std::string& host_path,
         std::vector<FatImage_Listed>* listed) const;
     bool ReadDirectory(u32 cluster, const std::string& path, int depth, std::vector<u8>* used);

@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <algorithm>
 #include "game_descriptor.h"
+#include "../drive/dos_fs.h"
 #include "media_file.h"
 #include "../input/gamepad_keys.h"
 #include "../input/key_map.h"
@@ -199,11 +200,6 @@ static void split_list(const std::string& text, std::vector<std::string>* items)
     }
 }
 
-static bool is_dos_character(char c)
-{
-    return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || ((c != 0) && (strchr("$%'-_@~`!(){}^#&", c) != NULL));
-}
-
 // C:\ for the root, or DOS names from it with \ or /: C:\GAMES\ORION. FREEDOS and TEMP are the system's
 static bool check_dos_dir(const std::string& value, std::string* normalized)
 {
@@ -220,21 +216,13 @@ static bool check_dos_dir(const std::string& value, std::string* normalized)
     for (size_t p = 0; p < parts.size(); p++)
     {
         const std::string& part = parts[p];
-        size_t dot = part.find('.');
-        std::string base = dot == std::string::npos ? part : part.substr(0, dot);
-        std::string extension = dot == std::string::npos ? std::string() : part.substr(dot + 1);
 
-        if (base.empty() || (base.size() > 8) || (extension.size() > 3) || (extension.find('.') != std::string::npos))
+        if (!dos_is_short_name(part, false))
             return false;
 
-        for (size_t i = 0; i < part.size(); i++)
-        {
-            if ((part[i] != '.') && !is_dos_character(part[i]))
-                return false;
-        }
-
         // The folders either DOS keeps in the root of a game's disk, so a descriptor works on both
-        if (result.empty() && ((part == "FREEDOS") || (part == "TEMP") || (part == "DOS") || (part == "GEARDOX")))
+        if (result.empty() && ((part == k_dos_root_freedos) || (part == k_dos_root_temp) || (part == k_dos_root_dos) ||
+            (part == k_dos_root_geardox)))
             return false;
 
         result += (result.empty() ? "" : "\\") + part;

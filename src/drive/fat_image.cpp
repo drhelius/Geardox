@@ -22,6 +22,8 @@
 #include <map>
 #include <set>
 #include "fat_image.h"
+#include "dos_fs.h"
+#include "import_common.h"
 #include "freedos.h"
 #include "../dos/dos_tools.h"
 #include "../media/media_file.h"
@@ -46,150 +48,18 @@ static const u8 k_fat_attribute_label = 0x08;
 static const u8 k_fat_attribute_directory = 0x10;
 static const u8 k_fat_attribute_archive = 0x20;
 static const u16 k_fat_end_of_chain = 0xFFFF;
-static const u16 k_fat_default_date = (45 << 9) | (4 << 5) | 5;
-static const u16 k_fat_default_time = 12 << 11;
 static const u32 k_fat_copy_size = 1024 * 1024;
 static const u32 k_fat_code_offset = 0x3E;
 static const u32 k_fat_entry_offset = 0x1BE;
 static const char k_fat_oem[] = "GEARDOX ";
 static const char k_fat_type[] = "FAT16   ";
 static const char k_fat_label[] = "GEARDOX";
-static const char k_fat_name_characters[] = "$%'-_@~`!(){}^#&";
 
 // SeaBIOS only names 1024 cylinders of its logical geometry, so a disk just above a head step leaves its end unreachable
 static const u32 k_fat_size_gaps[2][2] = { { 1024, 1088 }, { 2048, 2112 } };
 
 static const u32 k_fat_min_cluster_sectors = 4;
 static const u32 k_fat_max_cluster_sectors = 64;
-
-static const char* const k_fat_clutter[] =
-{
-    "thumbs.db", "desktop.ini", "__macosx", "$recycle.bin", "system volume information"
-};
-
-static const char* const k_fat_devices[] =
-{
-    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3", "CLOCK$"
-};
-
-static bool is_name_character(char c)
-{
-    return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || ((c != 0) && (strchr(k_fat_name_characters, c) != NULL));
-}
-
-static bool is_clutter(const std::string& name)
-{
-    if (name.empty() || (name[0] == '.'))
-        return true;
-
-    std::string lower = to_lower_ascii(name);
-
-    for (size_t i = 0; i < sizeof(k_fat_clutter) / sizeof(k_fat_clutter[0]); i++)
-    {
-        if (lower == k_fat_clutter[i])
-            return true;
-    }
-
-    return false;
-}
-
-static void split_name(const std::string& name, std::string* base, std::string* extension)
-{
-    size_t dot = name.find_last_of('.');
-
-    if ((dot == std::string::npos) || (dot == 0))
-    {
-        *base = name;
-        extension->clear();
-        return;
-    }
-
-    *base = name.substr(0, dot);
-    *extension = name.substr(dot + 1);
-}
-
-// One underscore a character, not a byte, for anything DOS can't hold
-static std::string clean_part(const std::string& text)
-{
-    std::string result;
-
-    for (size_t i = 0; i < text.size(); i++)
-    {
-        u8 byte = (u8)text[i];
-
-        if ((byte == ' ') || (byte == '.') || ((byte & 0xC0) == 0x80))
-            continue;
-
-        char c = to_upper_ascii(text[i]);
-        result += is_name_character(c) ? c : '_';
-    }
-
-    return result;
-}
-
-static bool is_clean_part(const std::string& text, size_t max_size)
-{
-    if (text.size() > max_size)
-        return false;
-
-    for (size_t i = 0; i < text.size(); i++)
-    {
-        if (!is_name_character(to_upper_ascii(text[i])))
-            return false;
-    }
-
-    return true;
-}
-
-static bool is_clean_name(const std::string& name)
-{
-    std::string base;
-    std::string extension;
-    split_name(name, &base, &extension);
-
-    if (base.empty() || !is_clean_part(base, 8) || !is_clean_part(extension, 3))
-        return false;
-
-    std::string device = to_upper_ascii(base);
-
-    for (size_t i = 0; i < sizeof(k_fat_devices) / sizeof(k_fat_devices[0]); i++)
-    {
-        if (device == k_fat_devices[i])
-            return false;
-    }
-
-    return true;
-}
-
-static std::string pad(const std::string& text, size_t size)
-{
-    std::string result = text.substr(0, size);
-    result.resize(size, ' ');
-    return result;
-}
-
-static std::string pretty_name(const u8* short_name)
-{
-    std::string base((const char*)short_name, 8);
-    std::string extension((const char*)short_name + 8, 3);
-    base.erase(base.find_last_not_of(' ') + 1);
-    extension.erase(extension.find_last_not_of(' ') + 1);
-    return extension.empty() ? base : base + "." + extension;
-}
-
-static void get_dos_time(s64 modified, u16* date, u16* time_value)
-{
-    struct tm local;
-    *date = k_fat_default_date;
-    *time_value = k_fat_default_time;
-
-    if ((modified == 0) || !get_host_time((time_t)modified, false, &local))
-        return;
-
-    int year = CLAMP(local.tm_year + 1900, 1980, 2107);
-    *date = (u16)(((year - 1980) << 9) | ((local.tm_mon + 1) << 5) | local.tm_mday);
-    *time_value = (u16)((local.tm_hour << 11) | (local.tm_min << 5) | (local.tm_sec / 2));
-}
 
 static std::string get_source_name(const char* source)
 {
@@ -317,10 +187,10 @@ void FatImage::SetLabel(const char* label)
         if ((c == ' ') && !result.empty())
             result += c;
         else if (c != ' ')
-            result += is_name_character(c) ? c : '_';
+            result += dos_is_name_character(c) ? c : '_';
     }
 
-    memcpy(m_label, pad(result, 11).c_str(), 11);
+    memcpy(m_label, dos_fs_pad(result, 11).c_str(), 11);
     m_label[11] = 0;
 }
 
@@ -444,7 +314,7 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
     u8 zero[k_fat_sector_size] = { };
     std::vector<u8> root;
     u8 label_entry[k_fat_entry_size] = { };
-    write_entry(label_entry, (const u8*)m_label, k_fat_attribute_label, k_fat_default_date, k_fat_default_time, 0, 0);
+    write_entry(label_entry, (const u8*)m_label, k_fat_attribute_label, k_dos_default_date, k_dos_default_time, 0, 0);
     u64 root_offset = (u64)(k_fat_sectors_per_track + 1 + (2 * m_layout.fat_sectors)) * k_fat_sector_size;
 
     bool ok = m_output->WriteAt((u64)(total - 1) * k_fat_sector_size, zero, k_fat_sector_size);
@@ -674,25 +544,13 @@ bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
 bool FatImage::AddOverlay(const char* path)
 {
     std::string root = trim_trailing_separators(path);
-    u64 size = 0;
-    s64 modified = 0;
+    std::vector<std::string> deleted;
 
-    if (!WalkOverlay(root, m_base, 0))
+    if (!WalkOverlay(root, m_base, 0) || !dos_fs_read_deleted(root, &deleted))
         return false;
 
-    std::string list = root;
-    append_path_component(list, ".deleted");
-
-    if (!MediaFile::GetFileInfo(list.c_str(), &size, &modified))
-        return true;
-
-    std::string text;
-    bool ok = MediaFile::ReadFile(list.c_str(), k_media_file_no_limit, &text, true);
-
-    if (ok)
-        ApplyDeleted(text);
-
-    return ok;
+    ApplyDeleted(deleted);
+    return true;
 }
 
 bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
@@ -710,7 +568,7 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
         u64 size = 0;
         s64 modified = 0;
 
-        if (is_clutter(files[i]) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified))
+        if (dos_fs_is_clutter(files[i]) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified))
             continue;
 
         int found = FindChild(directory, files[i]);
@@ -728,7 +586,7 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
         m_entries[entry].memory = -1;
         m_entries[entry].crc = 0;
         m_entries[entry].origin = FAT_IMAGE_ORIGIN_OVERLAY;
-        get_dos_time(modified, &m_entries[entry].date, &m_entries[entry].time);
+        host_time_to_dos(modified, &m_entries[entry].date, &m_entries[entry].time);
     }
 
     for (size_t i = 0; (depth < k_fat_max_depth) && (i < folders.size()); i++)
@@ -736,7 +594,7 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
         std::string item(path);
         append_path_component(item, folders[i].c_str());
 
-        if (is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
+        if (dos_fs_is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
             continue;
 
         int found = FindChild(directory, folders[i]);
@@ -756,19 +614,13 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
     return true;
 }
 
-void FatImage::ApplyDeleted(const std::string& list)
+void FatImage::ApplyDeleted(const std::vector<std::string>& lines)
 {
-    std::vector<std::string> lines;
     std::vector<std::string> names;
-    split_string(list, '\n', &lines);
 
     for (size_t l = 0; l < lines.size(); l++)
     {
-        std::string line = lines[l];
-
-        if (!line.empty() && (line[line.size() - 1] == '\r'))
-            line.resize(line.size() - 1);
-
+        const std::string& line = lines[l];
         u32 directory = m_base;
         int found = -1;
         split_string(line, '/', &names, false);
@@ -810,7 +662,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     if (!zip.Open(k_freedos_files, k_freedos_files_size))
         return false;
 
-    u32 freedos = AddEntry(0, "FREEDOS", true);
+    u32 freedos = AddEntry(0, k_dos_root_freedos, true);
     m_entries[freedos].attributes = k_fat_attribute_directory | hide;
     m_entries[freedos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     bool ok = true;
@@ -864,7 +716,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
         file.size = size;
         file.crc = stat.m_crc32;
         file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
-        get_dos_time((s64)stat.m_time, &file.date, &file.time);
+        host_time_to_dos((s64)stat.m_time, &file.date, &file.time);
 
         if (kernel && hidden)
             file.attributes = k_fat_attribute_read_only | k_fat_attribute_hidden | k_fat_attribute_system;
@@ -880,7 +732,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 
     if (ok)
     {
-        u32 temp = AddEntry(0, "TEMP", true);
+        u32 temp = AddEntry(0, k_dos_root_temp, true);
         m_entries[temp].origin = FAT_IMAGE_ORIGIN_SYSTEM;
         m_entries[temp].attributes = k_fat_attribute_directory | hide;
     }
@@ -900,7 +752,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     if (!m_system_zip.Open(zip, size))
         return false;
 
-    u32 dos = AddEntry(0, "DOS", true);
+    u32 dos = AddEntry(0, k_dos_root_dos, true);
     m_entries[dos].attributes = k_fat_attribute_directory | hide;
     m_entries[dos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
 
@@ -935,7 +787,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
         file.crc = stat.m_crc32;
         file.zip_index = i;
         file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
-        get_dos_time((s64)stat.m_time, &file.date, &file.time);
+        host_time_to_dos((s64)stat.m_time, &file.date, &file.time);
 
         if (boot)
             file.attributes = k_fat_attribute_read_only | k_fat_attribute_hidden | k_fat_attribute_system;
@@ -948,7 +800,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     if (!tools.Open(k_freedos_files, k_freedos_files_size))
         return false;
 
-    u32 geardox = AddEntry(0, "GEARDOX", true);
+    u32 geardox = AddEntry(0, k_dos_root_geardox, true);
     m_entries[geardox].attributes = k_fat_attribute_directory | hide;
     m_entries[geardox].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     bool ok = AddFreeDOSFile(&tools, "FREEDOS/COPYING.TXT", geardox, "COPYING.TXT") &&
@@ -970,7 +822,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     if (!ok)
         return false;
 
-    u32 temp = AddEntry(0, "TEMP", true);
+    u32 temp = AddEntry(0, k_dos_root_temp, true);
     m_entries[temp].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     m_entries[temp].attributes = k_fat_attribute_directory | hide;
     m_pinned = pinned;
@@ -997,7 +849,7 @@ bool FatImage::AddFreeDOSFile(MediaZip* zip, const char* name, u32 directory, co
     m_entries[entry].size = size;
     m_entries[entry].crc = stat.m_crc32;
     m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    get_dos_time((s64)stat.m_time, &m_entries[entry].date, &m_entries[entry].time);
+    host_time_to_dos((s64)stat.m_time, &m_entries[entry].date, &m_entries[entry].time);
     return true;
 }
 
@@ -1023,7 +875,7 @@ bool FatImage::AddUltraSound(const u8* zip, size_t size)
 
         std::string rest(stat.m_filename);
 
-        if (rest.empty() || (rest == "version.txt"))
+        if (rest.empty() || (rest == k_import_version))
             continue;
 
         u32 directory = root;
@@ -1053,7 +905,7 @@ bool FatImage::AddUltraSound(const u8* zip, size_t size)
         file.zip_index = i;
         file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
         file.ultrasound = true;
-        get_dos_time((s64)stat.m_time, &file.date, &file.time);
+        host_time_to_dos((s64)stat.m_time, &file.date, &file.time);
     }
 
     return true;
@@ -1246,7 +1098,8 @@ void FatImage::ListDirectory(u32 directory, const std::string& dos_path, const s
         u32 index = m_entries[directory].children[i];
         const FatImage_Entry& entry = m_entries[index];
         FatImage_Listed item;
-        item.dos_path = dos_path.empty() ? pretty_name(entry.short_name) : dos_path + "\\" + pretty_name(entry.short_name);
+        std::string name = dos_fs_entry_name(entry.short_name);
+        item.dos_path = dos_path.empty() ? name : dos_path + "\\" + name;
         item.host_path = !entry.host.empty() ? entry.host : (host_path.empty() ? entry.name : host_path + "/" +
             entry.name);
         item.index = index;
@@ -1540,7 +1393,7 @@ bool FatImage::ReadDirectory(u32 cluster, const std::string& path, int depth, st
             name[0] = 0xE5;
 
         FatImage_File file;
-        file.path = path.empty() ? pretty_name(name) : path + "\\" + pretty_name(name);
+        file.path = path.empty() ? dos_fs_entry_name(name) : path + "\\" + dos_fs_entry_name(name);
         file.attributes = attributes;
         file.directory = (attributes & k_fat_attribute_directory) != 0;
         file.size = file.directory ? 0 : read_u32_le(entry + 28);
@@ -1709,8 +1562,8 @@ void FatImage::Clear()
     m_entries.resize(1);
     m_entries[0].directory = true;
     m_entries[0].size = 0;
-    m_entries[0].date = k_fat_default_date;
-    m_entries[0].time = k_fat_default_time;
+    m_entries[0].date = k_dos_default_date;
+    m_entries[0].time = k_dos_default_time;
     m_entries[0].attributes = k_fat_attribute_directory;
     m_entries[0].origin = FAT_IMAGE_ORIGIN_SOURCE;
     m_entries[0].memory = -1;
@@ -1736,7 +1589,7 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         u64 size = 0;
         s64 modified = 0;
 
-        if (is_clutter(files[i]))
+        if (dos_fs_is_clutter(files[i]))
             continue;
 
         if ((m_entries.size() >= k_fat_max_entries) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified))
@@ -1749,7 +1602,7 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         m_entries[entry].source = item;
         m_entries[entry].size = size;
         m_entries[entry].modified = modified;
-        get_dos_time(modified, &m_entries[entry].date, &m_entries[entry].time);
+        host_time_to_dos(modified, &m_entries[entry].date, &m_entries[entry].time);
     }
 
     for (size_t i = 0; (depth < k_fat_max_depth) && (i < folders.size()); i++)
@@ -1759,7 +1612,7 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         u64 size = 0;
         s64 modified = 0;
 
-        if (is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
+        if (dos_fs_is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
             continue;
 
         if (m_entries.size() >= k_fat_max_entries)
@@ -1771,7 +1624,7 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         u32 entry = AddEntry(directory, folders[i], true);
 
         if (MediaFile::GetFileInfo(item.c_str(), &size, &modified))
-            get_dos_time(modified, &m_entries[entry].date, &m_entries[entry].time);
+            host_time_to_dos(modified, &m_entries[entry].date, &m_entries[entry].time);
 
         if (!WalkFolder(item, entry, depth + 1))
             m_left_out++;
@@ -1837,7 +1690,7 @@ bool FatImage::ScanZip()
                 return false;
             }
 
-            clutter = clutter || is_clutter(part);
+            clutter = clutter || dos_fs_is_clutter(part);
             parts.push_back(part);
         }
 
@@ -1858,7 +1711,7 @@ bool FatImage::ScanZip()
 
         u16 date = 0;
         u16 time_value = 0;
-        get_dos_time((s64)stat.m_time, &date, &time_value);
+        host_time_to_dos((s64)stat.m_time, &date, &time_value);
         size_t folders = stat.m_is_directory ? parts.size() : parts.size() - 1;
         std::string path;
         u32 directory = m_base;
@@ -1903,8 +1756,8 @@ u32 FatImage::AddEntry(u32 directory, const std::string& name, bool is_directory
     memset(entry.short_name, ' ', sizeof(entry.short_name));
     entry.directory = is_directory;
     entry.size = 0;
-    entry.date = k_fat_default_date;
-    entry.time = k_fat_default_time;
+    entry.date = k_dos_default_date;
+    entry.time = k_dos_default_time;
     entry.zip_index = 0;
     entry.first_cluster = 0;
     entry.attributes = is_directory ? k_fat_attribute_directory : k_fat_attribute_archive;
@@ -1930,57 +1783,27 @@ void FatImage::Finish()
 void FatImage::AssignNames(u32 directory)
 {
     std::vector<u32>& children = m_entries[directory].children;
-    std::vector<std::pair<std::pair<bool, std::string>, std::pair<std::string, u32> > > order;
+    std::vector<std::string> names;
+    std::vector<bool> folders;
+    std::vector<std::string> short_names;
 
     for (size_t i = 0; i < children.size(); i++)
     {
-        const FatImage_Entry& entry = m_entries[children[i]];
-        order.push_back(std::make_pair(std::make_pair(!is_clean_name(entry.name), to_upper_ascii(entry.name)),
-            std::make_pair(entry.name, children[i])));
+        names.push_back(m_entries[children[i]].name);
+        folders.push_back(m_entries[children[i]].directory);
     }
 
-    std::sort(order.begin(), order.end());
-    std::set<std::string> taken;
-    std::map<std::string, u32> tails;
-
-    for (size_t i = 0; i < order.size(); i++)
-    {
-        FatImage_Entry& entry = m_entries[order[i].second.second];
-        std::string base;
-        std::string extension;
-        split_name(entry.name, &base, &extension);
-        std::string short_base = clean_part(base);
-        std::string short_extension = clean_part(extension).substr(0, 3);
-        std::string candidate = pad(short_base, 8) + pad(short_extension, 3);
-
-        if (!is_clean_name(entry.name) || (taken.count(candidate) != 0))
-        {
-            std::string key = short_base + "." + short_extension;
-            u32& tail = tails[key];
-
-            do
-            {
-                char number[16];
-                snprintf(number, sizeof(number), "~%u", ++tail);
-                size_t room = 8 - strlen(number);
-                candidate = pad(short_base.substr(0, room) + number, 8) + pad(short_extension, 3);
-            }
-            while (taken.count(candidate) != 0);
-        }
-
-        taken.insert(candidate);
-        memcpy(entry.short_name, candidate.data(), sizeof(entry.short_name));
-
-        if (entry.directory)
-            AssignNames(order[i].second.second);
-    }
-
+    dos_fs_assign_names(names, folders, k_dos_fat_names, &short_names);
     std::vector<std::pair<std::string, u32> > sorted;
 
     for (size_t i = 0; i < children.size(); i++)
     {
-        const FatImage_Entry& entry = m_entries[children[i]];
-        sorted.push_back(std::make_pair(std::string((const char*)entry.short_name, 11), children[i]));
+        FatImage_Entry& entry = m_entries[children[i]];
+        memcpy(entry.short_name, short_names[i].data(), sizeof(entry.short_name));
+        sorted.push_back(std::make_pair(short_names[i], children[i]));
+
+        if (entry.directory)
+            AssignNames(children[i]);
     }
 
     std::sort(sorted.begin(), sorted.end());
@@ -1997,7 +1820,8 @@ void FatImage::LimitPaths(u32 directory, const std::string& path)
     {
         u32 index = m_entries[directory].children[i];
         const FatImage_Entry& entry = m_entries[index];
-        std::string item = path.empty() ? pretty_name(entry.short_name) : path + "\\" + pretty_name(entry.short_name);
+        std::string name = dos_fs_entry_name(entry.short_name);
+        std::string item = path.empty() ? name : path + "\\" + name;
 
         if (entry.directory && (item.size() > k_fat_max_path))
         {

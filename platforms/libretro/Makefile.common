@@ -44,16 +44,19 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/cdrom/cdrom_media.cpp \
                 $(SOURCE_DIR)/dos/dos_tools.cpp \
                 $(SOURCE_DIR)/drive/dos_disk.cpp \
+                $(SOURCE_DIR)/drive/dos_fs.cpp \
                 $(SOURCE_DIR)/drive/dos_import.cpp \
                 $(SOURCE_DIR)/drive/fdc.cpp \
                 $(SOURCE_DIR)/drive/game_disk.cpp \
                 $(SOURCE_DIR)/drive/gus_import.cpp \
                 $(SOURCE_DIR)/drive/glide_import.cpp \
+                $(SOURCE_DIR)/drive/ms_compress.cpp \
                 $(SOURCE_DIR)/drive/ide_controller.cpp \
                 $(SOURCE_DIR)/drive/ide_cdrom.cpp \
                 $(SOURCE_DIR)/drive/ide_disk.cpp \
                 $(SOURCE_DIR)/drive/i82077.cpp \
                 $(SOURCE_DIR)/drive/hard_disk_image.cpp \
+                $(SOURCE_DIR)/drive/import_common.cpp \
                 $(SOURCE_DIR)/drive/fat_image.cpp \
                 $(SOURCE_DIR)/drive/iso_image.cpp \
                 $(SOURCE_DIR)/drive/floppy_disk.cpp \

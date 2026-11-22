@@ -23,20 +23,17 @@
 #include <set>
 #include "dos_import.h"
 #include "floppy_image.h"
+#include "ms_compress.h"
+#include "dos_fs.h"
 #include "../media/media_file.h"
 #include "../media/media_zip.h"
+#include "import_common.h"
 #include "../media/crc.h"
 
-static const u32 k_dos_sector_size = 512;
 static const u32 k_dos_max_image_size = 16 * 1024 * 1024;
 static const u32 k_dos_max_zip_size = 64 * 1024 * 1024;
 static const size_t k_dos_max_images = 16;
-static const u32 k_dos_max_fat12_clusters = 4084;
-static const u8 k_dos_kwaj_signature[8] = { 'K', 'W', 'A', 'J', 0x88, 0xF0, 0x27, 0xD1 };
-static const u32 k_dos_kwaj_header_size = 14;
-static const u32 k_dos_kwaj_window = 4096;
 static const u32 k_dos_kwaj_max_size = 8 * 1024 * 1024;
-static const u16 k_dos_kwaj_method_lzh = 3;
 
 // MS-DOS 6's Setup disks, whatever the version or the language: PACKING.LST names every file Setup installs, the
 // compressed ones in KWAJ, and DOSSETUP.INI's [dif-path] puts these in the root. MS-DOS 5's compress in SZDD, list
@@ -45,8 +42,11 @@ static const char k_dos_names_list[] = "PACKING.LST";
 static const char* const k_dos_boot_files[] = { "IO.SYS", "MSDOS.SYS", NULL };
 static const char* const k_dos_root_files[] = { "WINA20.386", NULL };
 static const char* const k_dos_both_files[] = { "COMMAND.COM", NULL };
-static const char* const k_dos_left_out_6[] = { "PACKING.LST", "SETUP.MSG", "CONFIG.SYS", "AUTOEXEC.BAT", NULL };
-static const char* const k_dos_left_out_5[] = { "SETUP.EXE", "SETUP.INI", "CV.COM", "README.1ST", "CONFIG.SYS", "AUTOEXEC.BAT", NULL };
+static const char* const k_dos_left_out_6[] = { "PACKING.LST", "SETUP.MSG", k_dos_config_sys, k_dos_autoexec_bat, NULL };
+static const char* const k_dos_left_out_5[] =
+{
+    "SETUP.EXE", "SETUP.INI", "CV.COM", "README.1ST", k_dos_config_sys, k_dos_autoexec_bat, NULL
+};
 static const char* const k_dos_shell_copies[] = { "VGA.VID", "DOSSHELL.VID", "VGA.GRB", "DOSSHELL.GRB", "EGA.INI", "DOSSHELL.INI", NULL };
 static const char* const k_dos_shell_adapters[] =
 {
@@ -60,8 +60,6 @@ static const char k_dos_cache[] = "SMARTDRV.EXE";
 static const char k_dos_family_6[] = "msdos6";
 static const char k_dos_family_5[] = "msdos5";
 static const char k_dos_setup_ini_5[] = "SETUP.INI";
-static const u8 k_dos_szdd_signature[8] = { 'S', 'Z', 'D', 'D', 0x88, 0xF0, 0x27, 0x33 };
-static const u32 k_dos_szdd_header_size = 14;
 
 enum Dos_Place
 {
@@ -70,33 +68,6 @@ enum Dos_Place
     DOS_PLACE_BOTH,
     DOS_PLACE_DOS
 };
-
-struct Kwaj_Bits
-{
-    const u8* data;
-    size_t size;
-    size_t bit;
-};
-
-struct Kwaj_Huffman
-{
-    u16 count[16];
-    u16 symbol[256];
-};
-
-static s64 dos_to_host_time(u16 date, u16 time_value)
-{
-    struct tm local;
-    memset(&local, 0, sizeof(local));
-    local.tm_year = ((date >> 9) & 0x7F) + 80;
-    local.tm_mon = ((date >> 5) & 0x0F) - 1;
-    local.tm_mday = date & 0x1F;
-    local.tm_hour = (time_value >> 11) & 0x1F;
-    local.tm_min = (time_value >> 5) & 0x3F;
-    local.tm_sec = (time_value & 0x1F) * 2;
-    local.tm_isdst = -1;
-    return (s64)mktime(&local);
-}
 
 struct Dos_Listed
 {
@@ -127,26 +98,6 @@ static Dos_Place get_place(const std::string& name)
     return in_list(k_dos_both_files, name) ? DOS_PLACE_BOTH : DOS_PLACE_DOS;
 }
 
-// A DOS file name with an extension, as PACKING.LST's two columns have them
-static bool is_listed_name(const std::string& name)
-{
-    size_t dot = name.find('.');
-
-    if ((dot == std::string::npos) || (dot == 0) || (dot > 8) || (name.size() - dot - 1 == 0) || (name.size() - dot - 1 > 3))
-        return false;
-
-    for (size_t i = 0; i < name.size(); i++)
-    {
-        char c = name[i];
-        bool valid = ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (strchr("$%'-_@~`!(){}^#&", c) != NULL);
-
-        if (!valid && (i != dot))
-            return false;
-    }
-
-    return true;
-}
-
 // A disk's heading has its number after a # (6.x, "Setup Disk #1", "DISQUETE #1") or alone after a word (5.0,
 // "DISK 1"), whatever the language. MS-DOS 6 lists a file as its stored and its expanded name, MS-DOS 5 as one name
 static void parse_names(const std::string& text, std::vector<Dos_Listed>* pairs, std::vector<Dos_Listed>* singles)
@@ -167,7 +118,7 @@ static void parse_names(const std::string& text, std::vector<Dos_Listed>* pairs,
         if ((hash != std::string::npos) && (hash + 1 < line.size()) && (line[hash + 1] >= '1') && (line[hash + 1] <= '9'))
             disk = line[hash + 1] - '0';
         else if ((count == 2) && (strlen(second) == 1) && (second[0] >= '1') && (second[0] <= '9') &&
-            !is_listed_name(to_upper_ascii(first)))
+            !dos_is_short_name(to_upper_ascii(first), true))
             disk = second[0] - '0';
 
         Dos_Listed item;
@@ -175,9 +126,9 @@ static void parse_names(const std::string& text, std::vector<Dos_Listed>* pairs,
         item.name = count == 2 ? to_upper_ascii(second) : item.stored;
         item.disk = disk;
 
-        if ((count == 2) && is_listed_name(item.stored) && is_listed_name(item.name))
+        if ((count == 2) && dos_is_short_name(item.stored, true) && dos_is_short_name(item.name, true))
             pairs->push_back(item);
-        else if ((count == 1) && is_listed_name(item.stored))
+        else if ((count == 1) && dos_is_short_name(item.stored, true))
             singles->push_back(item);
     }
 }
@@ -190,8 +141,7 @@ static void add_names(const std::string& text, std::set<std::string>* names)
     for (size_t i = 0; i <= text.size(); i++)
     {
         char c = i < text.size() ? text[i] : ' ';
-        bool part = ((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) ||
-            ((c != 0) && (strchr("$%'-_@~`!(){}^#&.", c) != NULL));
+        bool part = (c == '.') || dos_is_name_character(to_upper_ascii(c));
 
         if (part)
         {
@@ -199,7 +149,7 @@ static void add_names(const std::string& text, std::set<std::string>* names)
             continue;
         }
 
-        if (is_listed_name(to_upper_ascii(token)))
+        if (dos_is_short_name(to_upper_ascii(token), true))
             names->insert(to_upper_ascii(token));
 
         token.clear();
@@ -265,119 +215,6 @@ static int get_version_number(const std::string& name)
         minor += '0';
 
     return (major * 100) + atoi(minor.c_str());
-}
-
-static u32 kwaj_bits(Kwaj_Bits* bits, int count)
-{
-    u32 value = 0;
-
-    for (int i = 0; i < count; i++)
-    {
-        size_t byte = bits->bit >> 3;
-        u32 bit = byte < bits->size ? (bits->data[byte] >> (7 - (bits->bit & 7))) & 1 : 0;
-        value = (value << 1) | bit;
-        bits->bit++;
-    }
-
-    return value;
-}
-
-// Canonical codes: shorter first, and in the order of the symbols within a length
-static bool kwaj_build(Kwaj_Huffman* huffman, const u8* lengths, int symbols)
-{
-    u16 offsets[16];
-    int left = 1;
-    memset(huffman->count, 0, sizeof(huffman->count));
-
-    for (int i = 0; i < symbols; i++)
-        huffman->count[lengths[i]]++;
-
-    for (int length = 1; length < 16; length++)
-    {
-        left = (left << 1) - huffman->count[length];
-
-        if (left < 0)
-            return false;
-    }
-
-    offsets[1] = 0;
-
-    for (int length = 1; length < 15; length++)
-        offsets[length + 1] = (u16)(offsets[length] + huffman->count[length]);
-
-    for (int i = 0; i < symbols; i++)
-    {
-        if (lengths[i] != 0)
-            huffman->symbol[offsets[lengths[i]]++] = (u16)i;
-    }
-
-    return true;
-}
-
-static int kwaj_decode(Kwaj_Bits* bits, const Kwaj_Huffman* huffman)
-{
-    int code = 0;
-    int first = 0;
-    int index = 0;
-
-    for (int length = 1; length < 16; length++)
-    {
-        code |= (int)kwaj_bits(bits, 1);
-        int count = huffman->count[length];
-
-        if (code - count < first)
-            return huffman->symbol[index + (code - first)];
-
-        index += count;
-        first = (first + count) << 1;
-        code <<= 1;
-    }
-
-    return -1;
-}
-
-// The four ways a tree's code lengths are stored, from libmspack's SZDD and KWAJ format page
-static bool kwaj_lengths(Kwaj_Bits* bits, u32 type, int symbols, Kwaj_Huffman* huffman)
-{
-    u8 lengths[256];
-    int value = 0;
-
-    for (int i = 0; i < symbols; i++)
-    {
-        switch (type)
-        {
-            case 0:
-                value = symbols == 16 ? 4 : symbols == 32 ? 5 : symbols == 64 ? 6 : 8;
-                break;
-            case 1:
-                if (i == 0)
-                    value = (int)kwaj_bits(bits, 4);
-                else if (kwaj_bits(bits, 1) != 0)
-                    value = kwaj_bits(bits, 1) == 0 ? value + 1 : (int)kwaj_bits(bits, 4);
-                break;
-            case 2:
-                if (i == 0)
-                    value = (int)kwaj_bits(bits, 4);
-                else
-                {
-                    u32 selector = kwaj_bits(bits, 2);
-                    value = selector == 3 ? (int)kwaj_bits(bits, 4) : value + (int)selector - 1;
-                }
-                break;
-            case 3:
-                value = (int)kwaj_bits(bits, 4);
-                break;
-            default:
-                return false;
-        }
-
-        if ((value < 0) || (value > 15))
-            return false;
-
-        lengths[i] = (u8)value;
-    }
-
-    return kwaj_build(huffman, lengths, symbols);
 }
 
 DosImport::DosImport()
@@ -488,17 +325,13 @@ bool DosImport::AddImageFile(const std::string& path)
 
 bool DosImport::AddImage(const u8* data, u32 size, const std::string& name)
 {
-    u32 image_size = 0;
-    u8* image = FloppyImage::Load(data, size, &image_size);
+    std::vector<u8> raw;
+    DosFs_Raw_Result loaded = dos_fs_load_raw(data, size, &raw);
 
-    if (!IsValidPointer(image))
+    if (loaded == DOS_FS_RAW_UNKNOWN)
         return Fail(DOS_IMPORT_ERROR, "Not a floppy image Geardox reads: %s", name.c_str());
 
-    std::vector<u8> raw(FloppyImage::GetRawSize(image, image_size));
-    bool exported = !raw.empty() && FloppyImage::ExportRaw(image, image_size, raw.data(), (u32)raw.size());
-    SafeDeleteArray(image);
-
-    if (!exported)
+    if (loaded == DOS_FS_RAW_NOT_512)
         return Fail(DOS_IMPORT_ERROR, "Not a disk of 512-byte sectors: %s", name.c_str());
 
     if (!ReadFloppy(raw.data(), (u32)raw.size(), (int)m_images.size()))
@@ -511,78 +344,27 @@ bool DosImport::AddImage(const u8* data, u32 size, const std::string& name)
 // Setup floppies are FAT12 with every file in the root, so the root is all this walks
 bool DosImport::ReadFloppy(const u8* raw, u32 size, int image)
 {
-    if ((size < k_dos_sector_size) || (read_u16_le(raw + 11) != k_dos_sector_size) || (read_u16_le(raw + 510) != 0xAA55))
+    DosFs_Fat12 fs;
+
+    if (!dos_fs_fat12_open(raw, size, &fs))
         return false;
 
-    u32 cluster_sectors = raw[13];
-    u32 reserved = read_u16_le(raw + 14);
-    u32 fats = raw[16];
-    u32 root_entries = read_u16_le(raw + 17);
-    u32 total = read_u16_le(raw + 19) != 0 ? read_u16_le(raw + 19) : read_u32_le(raw + 32);
-    u32 fat_sectors = read_u16_le(raw + 22);
-
-    if ((cluster_sectors == 0) || ((cluster_sectors & (cluster_sectors - 1)) != 0) || (reserved == 0) || (fats == 0) ||
-        (fats > 2) || (root_entries == 0) || (fat_sectors == 0))
-        return false;
-
-    u32 root = (reserved + (fats * fat_sectors)) * k_dos_sector_size;
-    u32 data = root + (((root_entries * 32) + k_dos_sector_size - 1) / k_dos_sector_size) * k_dos_sector_size;
-    total = MIN(total, size / k_dos_sector_size);
-
-    if ((data >= size) || (total * k_dos_sector_size <= data))
-        return false;
-
-    u32 cluster_size = cluster_sectors * k_dos_sector_size;
-    u32 clusters = (total * k_dos_sector_size - data) / cluster_size;
-
-    if ((clusters == 0) || (clusters > k_dos_max_fat12_clusters) || ((reserved + fat_sectors) * k_dos_sector_size > size))
-        return false;
-
-    const u8* fat = raw + (reserved * k_dos_sector_size);
     std::map<std::string, DosImport_File> found;
+    std::string name;
+    u32 index = 0;
+    const u8* entry = NULL;
 
-    for (u32 i = 0; i < root_entries; i++)
+    while (IsValidPointer(entry = dos_fs_fat12_next(fs, &index, &name)))
     {
-        const u8* entry = raw + root + (i * 32);
-
-        if (entry[0] == 0)
-            break;
-
-        if ((entry[0] == 0xE5) || ((entry[11] & 0x0F) == 0x0F) || ((entry[11] & 0x18) != 0))
-            continue;
-
-        std::string base((const char*)entry, 8);
-        std::string extension((const char*)entry + 8, 3);
-        base.erase(base.find_last_not_of(' ') + 1);
-        extension.erase(extension.find_last_not_of(' ') + 1);
-
-        if (!base.empty() && ((u8)base[0] == 0x05))
-            base[0] = (char)0xE5;
-
-        std::string name = to_upper_ascii(extension.empty() ? base : base + "." + extension);
-
         if ((m_files.count(name) != 0) || (found.count(name) != 0))
             continue;
 
         DosImport_File file;
-        u32 file_size = read_u32_le(entry + 28);
-        u32 cluster = read_u16_le(entry + 26);
-        u32 steps = 0;
         file.date = read_u16_le(entry + 24);
         file.time = read_u16_le(entry + 22);
         file.image = image;
 
-        while ((file.data.size() < file_size) && (cluster >= 2) && (cluster < clusters + 2) && (steps++ <= clusters))
-        {
-            u32 offset = data + ((cluster - 2) * cluster_size);
-            u32 chunk = MIN(cluster_size, file_size - (u32)file.data.size());
-            file.data.append((const char*)raw + offset, chunk);
-            u32 at = cluster + (cluster / 2);
-            u32 value = fat[at] | (fat[at + 1] << 8);
-            cluster = (cluster & 1) != 0 ? value >> 4 : value & 0xFFF;
-        }
-
-        if (file.data.size() != file_size)
+        if (!dos_fs_fat12_read(fs, entry, &file.data))
             return false;
 
         found[name] = file;
@@ -591,155 +373,6 @@ bool DosImport::ReadFloppy(const u8* raw, u32 size, int image)
     m_files.insert(found.begin(), found.end());
     m_boot.push_back(std::vector<u8>(raw, raw + k_dos_sector_size));
     return true;
-}
-
-// KWAJ method 3, written from libmspack's SZDD and KWAJ format page. It stops at the length in the header,
-// as the format has no end marker
-bool DosImport::ExpandKWAJ(const u8* data, size_t size, std::string* out)
-{
-    out->clear();
-
-    if ((size < k_dos_kwaj_header_size + 4) || (memcmp(data, k_dos_kwaj_signature, sizeof(k_dos_kwaj_signature)) != 0))
-        return false;
-
-    u16 method = read_u16_le(data + 8);
-    u16 offset = read_u16_le(data + 10);
-    u16 flags = read_u16_le(data + 12);
-    u32 length = read_u32_le(data + k_dos_kwaj_header_size);
-
-    if ((method != k_dos_kwaj_method_lzh) || ((flags & 0x01) == 0) || (offset > size) || (length > k_dos_kwaj_max_size))
-        return false;
-
-    static const int k_symbols[5] = { 16, 16, 32, 64, 256 };
-    Kwaj_Huffman trees[5];
-    Kwaj_Bits bits = { data + offset, size - offset, 0 };
-    u32 types[6];
-    u8 window[k_dos_kwaj_window];
-    u32 position = k_dos_kwaj_window - 17;
-    int table = 0;
-    memset(window, ' ', sizeof(window));
-
-    for (int i = 0; i < 6; i++)
-        types[i] = kwaj_bits(&bits, 4);
-
-    for (int i = 0; i < 5; i++)
-    {
-        if (!kwaj_lengths(&bits, types[i], k_symbols[i], &trees[i]))
-            return false;
-    }
-
-    out->reserve(length);
-
-    while (out->size() < length)
-    {
-        if (bits.bit > (bits.size * 8) + 32)
-            return false;
-
-        int code = kwaj_decode(&bits, &trees[table]);
-
-        if (code < 0)
-            return false;
-
-        if (code > 0)
-        {
-            int high = kwaj_decode(&bits, &trees[3]);
-
-            if (high < 0)
-                return false;
-
-            u32 distance = ((u32)high << 6) | kwaj_bits(&bits, 6);
-
-            for (int i = 0; (i < code + 2) && (out->size() < length); i++)
-            {
-                u8 value = window[(position - distance) & (k_dos_kwaj_window - 1)];
-                window[position] = value;
-                out->push_back((char)value);
-                position = (position + 1) & (k_dos_kwaj_window - 1);
-            }
-
-            table = 0;
-            continue;
-        }
-
-        int run = kwaj_decode(&bits, &trees[2]);
-
-        if (run < 0)
-            return false;
-
-        table = run != 31 ? 1 : 0;
-
-        for (int i = 0; (i <= run) && (out->size() < length); i++)
-        {
-            int value = kwaj_decode(&bits, &trees[4]);
-
-            if (value < 0)
-                return false;
-
-            window[position] = (u8)value;
-            out->push_back((char)value);
-            position = (position + 1) & (k_dos_kwaj_window - 1);
-        }
-    }
-
-    return bits.bit <= (bits.size * 8) + 32;
-}
-
-// SZDD, MS-DOS 5's COMPRESS, from the same format page: LZSS over a 4 KB window of spaces. A control byte's bits, low
-// first, choose a literal or a 12-bit position and 4-bit length, plus 3
-bool DosImport::ExpandSZDD(const u8* data, size_t size, std::string* out)
-{
-    out->clear();
-
-    if ((size < k_dos_szdd_header_size) || (memcmp(data, k_dos_szdd_signature, sizeof(k_dos_szdd_signature)) != 0) ||
-        (data[8] != 'A'))
-        return false;
-
-    u32 length = read_u32_le(data + 10);
-
-    if (length > k_dos_kwaj_max_size)
-        return false;
-
-    u8 window[k_dos_kwaj_window];
-    u32 position = k_dos_kwaj_window - 16;
-    size_t at = k_dos_szdd_header_size;
-    memset(window, ' ', sizeof(window));
-    out->reserve(length);
-
-    while ((out->size() < length) && (at < size))
-    {
-        u8 control = data[at++];
-
-        for (int bit = 0; (bit < 8) && (out->size() < length); bit++)
-        {
-            if ((control & (1 << bit)) != 0)
-            {
-                if (at >= size)
-                    return false;
-
-                window[position] = data[at++];
-                out->push_back((char)window[position]);
-                position = (position + 1) & (k_dos_kwaj_window - 1);
-                continue;
-            }
-
-            if (at + 1 >= size)
-                return false;
-
-            u32 from = data[at] | ((data[at + 1] & 0xF0) << 4);
-            u32 count = (data[at + 1] & 0x0F) + 3;
-            at += 2;
-
-            for (u32 i = 0; (i < count) && (out->size() < length); i++)
-            {
-                window[position] = window[from];
-                out->push_back((char)window[position]);
-                position = (position + 1) & (k_dos_kwaj_window - 1);
-                from = (from + 1) & (k_dos_kwaj_window - 1);
-            }
-        }
-    }
-
-    return out->size() == length;
 }
 
 // Any MS-DOS 6 or 5 Setup set, by the family's rules, named by its own COMMAND.COM
@@ -837,10 +470,11 @@ DosImport_Result DosImport::Import(const char* zip_path)
         DosImport_File file = found->second;
         const u8* data = (const u8*)found->second.data.data();
         size_t size = found->second.data.size();
-        bool kwaj = (size >= 4) && (memcmp(data, k_dos_kwaj_signature, 4) == 0);
-        bool szdd = (size >= 4) && (memcmp(data, k_dos_szdd_signature, 4) == 0);
+        bool kwaj = ms_is_kwaj(data, size);
+        bool szdd = ms_is_szdd(data, size);
 
-        if ((kwaj && !ExpandKWAJ(data, size, &file.data)) || (szdd && !ExpandSZDD(data, size, &file.data)))
+        if ((kwaj && !ms_expand_kwaj(data, size, k_dos_kwaj_max_size, &file.data)) ||
+            (szdd && !ms_expand_szdd(data, size, k_dos_kwaj_max_size, &file.data)))
         {
             Fail(DOS_IMPORT_INCOMPLETE, "%s doesn't expand: the image of Disk %d may be damaged", listed[i].stored.c_str(), file.image + 1);
             return m_result;
@@ -891,22 +525,23 @@ DosImport_Result DosImport::Import(const char* zip_path)
     char source[32];
     snprintf(source, sizeof(source), "source=%08X\r\n", GetSourceFingerprint());
     version_text += source;
-    bool ok = zip.AddEntry(k_dos_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL) &&
+    bool ok = zip.AddEntry(k_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL) &&
         zip.AddEntry(k_dos_import_boot, boot.data(), boot.size(), 0);
 
     for (std::map<std::string, DosImport_File>::const_iterator it = installed.begin(); ok && (it != installed.end()); ++it)
     {
         const std::string& data = it->second.data;
         Dos_Place place = get_place(it->first);
-        s64 modified = dos_to_host_time(it->second.date, it->second.time);
+        s64 modified = dos_time_to_host(it->second.date, it->second.time);
+        const s64* stamp = modified != 0 ? &modified : NULL;
         std::string root = std::string(k_dos_import_root) + it->first;
         std::string dos = std::string(k_dos_import_root) + "DOS/" + it->first;
 
         if (place != DOS_PLACE_DOS)
-            ok = zip.AddEntry(root.c_str(), data.data(), data.size(), MZ_DEFAULT_LEVEL, &modified);
+            ok = zip.AddEntry(root.c_str(), data.data(), data.size(), MZ_DEFAULT_LEVEL, stamp);
 
         if (ok && ((place == DOS_PLACE_DOS) || (place == DOS_PLACE_BOTH)))
-            ok = zip.AddEntry(dos.c_str(), data.data(), data.size(), MZ_DEFAULT_LEVEL, &modified);
+            ok = zip.AddEntry(dos.c_str(), data.data(), data.size(), MZ_DEFAULT_LEVEL, stamp);
     }
 
     if (!ok || !zip.FinishArchive())
@@ -960,23 +595,6 @@ const char* DosImport::GetError() const
     return m_error.c_str();
 }
 
-static std::string get_value(const std::string& text, const char* key)
-{
-    std::string prefix = std::string(key) + "=";
-    size_t at = text.find(prefix);
-
-    if ((at == std::string::npos) || ((at != 0) && (text[at - 1] != '\n')))
-        return "";
-
-    size_t end = text.find_first_of("\r\n", at);
-    return text.substr(at + prefix.size(), end == std::string::npos ? std::string::npos : end - at - prefix.size());
-}
-
-static bool read_version_text(MediaZip* zip, std::string* text)
-{
-    return zip->Extract(k_dos_import_version, text) && !get_value(*text, "id").empty();
-}
-
 static bool has_entry(MediaZip* zip, const std::string& name)
 {
     return mz_zip_reader_locate_file(zip->GetArchive(), name.c_str(), NULL, 0) >= 0;
@@ -993,23 +611,14 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
     system->zip.clear();
     system->crc = 0;
 
-    if (!MediaFile::ReadFile(zip_path, k_dos_max_zip_size, &data))
-    {
-        *error = std::string("Unable to read ") + zip_path;
-        return false;
-    }
-
     MediaZip zip;
     std::string text;
 
-    if (!zip.Open(data.data(), data.size()) || !read_version_text(&zip, &text))
-    {
-        *error = std::string("Not an MS-DOS import: ") + zip_path;
+    if (!import_open(zip_path, k_dos_max_zip_size, "MS-DOS", &data, &zip, &text, error))
         return false;
-    }
 
     std::string boot;
-    std::string id = get_value(text, "id");
+    std::string id = import_get_value(text, "id");
     bool ok = ((id == k_dos_family_6) || (id == k_dos_family_5)) && zip.Extract(k_dos_import_boot, &boot) &&
         (boot.size() == sizeof(system->boot)) && (read_u16_le((const u8*)boot.data() + 510) == 0xAA55);
 
@@ -1048,7 +657,7 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
     for (int i = 0; IsValidPointer(k_dos_boot_files[i]); i++)
         system->pinned.push_back(k_dos_boot_files[i]);
 
-    system->name = get_value(text, "name");
+    system->name = import_get_value(text, "name");
     system->name = system->name.empty() ? std::string("MS-DOS") : system->name;
     system->version = get_version_number(system->name);
     system->zip.assign((const char*)data.data(), data.size());
@@ -1059,21 +668,7 @@ bool DosImport::Load(const char* zip_path, DosImport_System* system, std::string
 
 bool DosImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
 {
-    std::vector<u8> data;
-    MediaZip zip;
-
-    if (!MediaFile::ReadFile(zip_path, k_dos_max_zip_size, &data) || !zip.Open(data.data(), data.size()))
-        return false;
-
-    std::string text;
-    bool ok = read_version_text(&zip, &text);
-    zip.Close();
-    std::string source = get_value(text, "source");
-
-    if (!parse_hex_string(source.c_str(), source.size(), fingerprint))
-        *fingerprint = 0;
-
-    return ok;
+    return import_read_fingerprint(zip_path, k_dos_max_zip_size, fingerprint);
 }
 
 bool DosImport::Fail(DosImport_Result result, const char* format, ...)

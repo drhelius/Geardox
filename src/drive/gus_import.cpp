@@ -22,17 +22,17 @@
 #include <algorithm>
 #include "gus_import.h"
 #include "floppy_image.h"
+#include "dos_fs.h"
 #include "../media/media_file.h"
 #include "../media/media_zip.h"
+#include "import_common.h"
 #include "../media/crc.h"
 
-static const u32 k_gus_sector_size = 512;
 static const u32 k_gus_max_image_size = 16 * 1024 * 1024;
 static const u32 k_gus_max_zip_size = 64 * 1024 * 1024;
 static const u32 k_gus_max_volume_size = 8 * 1024 * 1024;
 static const u32 k_gus_max_installed_size = 32 * 1024 * 1024;
 static const u32 k_gus_max_installed_total = 128 * 1024 * 1024;
-static const u32 k_gus_max_fat12_clusters = 4084;
 static const int k_gus_max_depth = 3;
 static const u32 k_gus_table_size = 18272;
 static const u32 k_gus_table_crc = 0xD65F520D;
@@ -111,24 +111,6 @@ struct Gus_Record
     u16 date;
     u16 time;
 };
-
-static s64 dos_to_host_time(u16 date, u16 time_value)
-{
-    struct tm local;
-    memset(&local, 0, sizeof(local));
-    local.tm_year = ((date >> 9) & 0x7F) + 80;
-    local.tm_mon = (int)((date >> 5) & 0x0F) - 1;
-    local.tm_mday = date & 0x1F;
-    local.tm_hour = (time_value >> 11) & 0x1F;
-    local.tm_min = (time_value >> 5) & 0x3F;
-    local.tm_sec = (time_value & 0x1F) * 2;
-    local.tm_isdst = -1;
-
-    if ((local.tm_mon < 0) || (local.tm_mon > 11) || (local.tm_mday == 0))
-        return 0;
-
-    return (s64)mktime(&local);
-}
 
 static bool is_volume_name(const std::string& name)
 {
@@ -460,17 +442,13 @@ bool GusImport::AddZipData(const u8* data, size_t size, int depth)
 
 bool GusImport::AddImage(const u8* data, u32 size, const std::string& name)
 {
-    u32 image_size = 0;
-    u8* image = FloppyImage::Load(data, size, &image_size);
+    std::vector<u8> raw;
+    DosFs_Raw_Result loaded = dos_fs_load_raw(data, size, &raw);
 
-    if (!IsValidPointer(image))
+    if (loaded == DOS_FS_RAW_UNKNOWN)
         return Fail(GUS_IMPORT_ERROR, "Not a floppy image Geardox reads: %s", name.c_str());
 
-    std::vector<u8> raw(FloppyImage::GetRawSize(image, image_size));
-    bool exported = !raw.empty() && FloppyImage::ExportRaw(image, image_size, raw.data(), (u32)raw.size());
-    SafeDeleteArray(image);
-
-    if (!exported)
+    if (loaded == DOS_FS_RAW_NOT_512)
         return Fail(GUS_IMPORT_ERROR, "Not a disk of 512-byte sectors: %s", name.c_str());
 
     if (!ReadFloppy(raw.data(), (u32)raw.size()))
@@ -481,51 +459,17 @@ bool GusImport::AddImage(const u8* data, u32 size, const std::string& name)
 
 bool GusImport::ReadFloppy(const u8* raw, u32 size)
 {
-    if ((size < k_gus_sector_size) || (read_u16_le(raw + 11) != k_gus_sector_size) || (read_u16_le(raw + 510) != 0xAA55))
+    DosFs_Fat12 fs;
+
+    if (!dos_fs_fat12_open(raw, size, &fs))
         return false;
 
-    u32 cluster_sectors = raw[13];
-    u32 reserved = read_u16_le(raw + 14);
-    u32 fats = raw[16];
-    u32 root_entries = read_u16_le(raw + 17);
-    u32 total = read_u16_le(raw + 19) != 0 ? read_u16_le(raw + 19) : read_u32_le(raw + 32);
-    u32 fat_sectors = read_u16_le(raw + 22);
+    std::string name;
+    u32 index = 0;
+    const u8* entry = NULL;
 
-    if ((cluster_sectors == 0) || ((cluster_sectors & (cluster_sectors - 1)) != 0) || (reserved == 0) || (fats == 0) ||
-        (fats > 2) || (root_entries == 0) || (fat_sectors == 0))
-        return false;
-
-    u32 root = (reserved + (fats * fat_sectors)) * k_gus_sector_size;
-    u32 data = root + (((root_entries * 32) + k_gus_sector_size - 1) / k_gus_sector_size) * k_gus_sector_size;
-    total = MIN(total, size / k_gus_sector_size);
-
-    if ((data >= size) || (total * k_gus_sector_size <= data))
-        return false;
-
-    u32 cluster_size = cluster_sectors * k_gus_sector_size;
-    u32 clusters = (total * k_gus_sector_size - data) / cluster_size;
-
-    if ((clusters == 0) || (clusters > k_gus_max_fat12_clusters) || ((reserved + fat_sectors) * k_gus_sector_size > size))
-        return false;
-
-    const u8* fat = raw + (reserved * k_gus_sector_size);
-
-    for (u32 i = 0; i < root_entries; i++)
+    while (IsValidPointer(entry = dos_fs_fat12_next(fs, &index, &name)))
     {
-        const u8* entry = raw + root + (i * 32);
-
-        if (entry[0] == 0)
-            break;
-
-        if ((entry[0] == 0xE5) || ((entry[11] & 0x0F) == 0x0F) || ((entry[11] & 0x18) != 0))
-            continue;
-
-        std::string base((const char*)entry, 8);
-        std::string extension((const char*)entry + 8, 3);
-        base.erase(base.find_last_not_of(' ') + 1);
-        extension.erase(extension.find_last_not_of(' ') + 1);
-        std::string name = to_upper_ascii(extension.empty() ? base : base + "." + extension);
-
         if (!is_wanted(name))
         {
             AddFile(name, NULL, 0);
@@ -533,21 +477,8 @@ bool GusImport::ReadFloppy(const u8* raw, u32 size)
         }
 
         std::string content;
-        u32 file_size = read_u32_le(entry + 28);
-        u32 cluster = read_u16_le(entry + 26);
-        u32 steps = 0;
 
-        while ((content.size() < file_size) && (cluster >= 2) && (cluster < clusters + 2) && (steps++ <= clusters))
-        {
-            u32 offset = data + ((cluster - 2) * cluster_size);
-            u32 chunk = MIN(cluster_size, file_size - (u32)content.size());
-            content.append((const char*)raw + offset, chunk);
-            u32 at = cluster + (cluster / 2);
-            u32 value = fat[at] | (fat[at + 1] << 8);
-            cluster = (cluster & 1) != 0 ? value >> 4 : value & 0xFFF;
-        }
-
-        if (content.size() != file_size)
+        if (!dos_fs_fat12_read(fs, entry, &content))
             return false;
 
         AddFile(name, (const u8*)content.data(), content.size());
@@ -866,7 +797,7 @@ GusImport_Result GusImport::ImportDisks(const char* zip_path)
         Gus_Output item;
         item.path = path;
         item.data = data;
-        item.modified = dos_to_host_time(record.date, record.time);
+        item.modified = dos_time_to_host(record.date, record.time);
         output.push_back(item);
 
         if (in_midi && ends_with_no_case(record.name.c_str(), ".pat"))
@@ -931,7 +862,7 @@ GusImport_Result GusImport::Finish(const char* zip_path, const char* family, con
         return m_result;
     }
 
-    bool ok = zip.AddEntry(k_gus_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL);
+    bool ok = zip.AddEntry(k_import_version, version_text.data(), version_text.size(), MZ_DEFAULT_LEVEL);
 
     for (size_t i = 0; ok && (i < output.size()); i++)
     {
@@ -1022,23 +953,6 @@ const char* GusImport::GetError() const
     return m_error.c_str();
 }
 
-static std::string get_value(const std::string& text, const char* key)
-{
-    std::string prefix = std::string(key) + "=";
-    size_t at = text.find(prefix);
-
-    if ((at == std::string::npos) || ((at != 0) && (text[at - 1] != '\n')))
-        return "";
-
-    size_t end = text.find_first_of("\r\n", at);
-    return text.substr(at + prefix.size(), end == std::string::npos ? std::string::npos : end - at - prefix.size());
-}
-
-static bool read_version_text(MediaZip* zip, std::string* text)
-{
-    return zip->Extract(k_gus_import_version, text) && !get_value(*text, "id").empty();
-}
-
 bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::string* error)
 {
     std::vector<u8> data;
@@ -1047,22 +961,13 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
     software->patches = 0;
     software->crc = 0;
 
-    if (!MediaFile::ReadFile(zip_path, k_gus_max_zip_size, &data))
-    {
-        *error = std::string("Unable to read ") + zip_path;
-        return false;
-    }
-
     MediaZip zip;
     std::string text;
 
-    if (!zip.Open(data.data(), data.size()) || !read_version_text(&zip, &text))
-    {
-        *error = std::string("Not an UltraSound import: ") + zip_path;
+    if (!import_open(zip_path, k_gus_max_zip_size, "UltraSound", &data, &zip, &text, error))
         return false;
-    }
 
-    std::string id = get_value(text, "id");
+    std::string id = import_get_value(text, "id");
     bool ok = ((id == k_gus_family_411) || (id == k_gus_family_installed)) &&
         (mz_zip_reader_locate_file(zip.GetArchive(), k_gus_ini, NULL, 0) >= 0);
     zip.Close();
@@ -1074,7 +979,7 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
     }
 
     software->name = (id == k_gus_family_411) ? k_gus_name_411 : k_gus_name_installed;
-    software->patches = atoi(get_value(text, "patches").c_str());
+    software->patches = atoi(import_get_value(text, "patches").c_str());
     software->zip.assign((const char*)data.data(), data.size());
     software->crc = CalculateCRC32(0, data.data(), data.size());
     error->clear();
@@ -1083,21 +988,7 @@ bool GusImport::Load(const char* zip_path, GusImport_Software* software, std::st
 
 bool GusImport::ReadSourceFingerprint(const char* zip_path, u32* fingerprint)
 {
-    std::vector<u8> data;
-    MediaZip zip;
-
-    if (!MediaFile::ReadFile(zip_path, k_gus_max_zip_size, &data) || !zip.Open(data.data(), data.size()))
-        return false;
-
-    std::string text;
-    bool ok = read_version_text(&zip, &text);
-    zip.Close();
-    std::string source = get_value(text, "source");
-
-    if (!parse_hex_string(source.c_str(), source.size(), fingerprint))
-        *fingerprint = 0;
-
-    return ok;
+    return import_read_fingerprint(zip_path, k_gus_max_zip_size, fingerprint);
 }
 
 bool GusImport::Fail(GusImport_Result result, const char* format, ...)

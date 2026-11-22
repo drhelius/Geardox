@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <vector>
 #include "glide_import.h"
+#include "ms_compress.h"
+#include "dos_fs.h"
 #include "../media/media_file.h"
 #include "../media/media_zip.h"
 #include "../media/crc.h"
@@ -32,12 +34,10 @@ struct GlideImport_Known
 
 static const u32 k_glide_max_file_size = 64 * 1024 * 1024;
 static const int k_glide_max_depth = 4;
-static const char k_glide_overlay[] = "GLIDE2X.OVL";
 static const char k_glide_compressed[] = "GLIDE2X.OV_";
 static const char k_glide_signature[] = "DOS/4G dynamic link library";
 static const char k_glide_module[] = "glide2x";
 static const char k_glide_stub[] = "Cannot determine glide port";
-static const u8 k_glide_szdd_magic[8] = { 'S', 'Z', 'D', 'D', 0x88, 0xF0, 0x27, 0x33 };
 
 static const GlideImport_Known k_glide_known[] =
 {
@@ -109,66 +109,13 @@ bool GlideImport::Load(const char* path, std::string* data, std::string* name)
     return true;
 }
 
-bool GlideImport::ExpandSZDD(const std::string& data, std::string* out)
-{
-    if ((data.size() < 14) || (memcmp(data.data(), k_glide_szdd_magic, sizeof(k_glide_szdd_magic)) != 0))
-        return false;
-
-    const u8* input = (const u8*)data.data();
-    u32 expected = read_u32_le(input + 10);
-    u8 window[4096];
-    u32 position = 4096 - 16;
-    size_t offset = 14;
-
-    if (expected > k_glide_max_file_size)
-        return false;
-
-    memset(window, ' ', sizeof(window));
-    out->clear();
-    out->reserve(expected);
-
-    while ((offset < data.size()) && (out->size() < expected))
-    {
-        u8 flags = input[offset++];
-
-        for (int bit = 0; (bit < 8) && (offset < data.size()) && (out->size() < expected); bit++)
-        {
-            if ((flags & (1 << bit)) != 0)
-            {
-                u8 value = input[offset++];
-                out->push_back((char)value);
-                window[position] = value;
-                position = (position + 1) & 4095;
-                continue;
-            }
-
-            if (offset + 1 >= data.size())
-                return false;
-
-            u32 match = input[offset] | ((u32)(input[offset + 1] & 0xF0) << 4);
-            u32 length = (u32)(input[offset + 1] & 0x0F) + 3;
-            offset += 2;
-
-            for (u32 i = 0; i < length; i++)
-            {
-                u8 value = window[(match + i) & 4095];
-                out->push_back((char)value);
-                window[position] = value;
-                position = (position + 1) & 4095;
-            }
-        }
-    }
-
-    return out->size() == expected;
-}
-
 void GlideImport::Consider(const std::string& name, const std::string& data)
 {
     std::string overlay;
 
     if (name == k_glide_compressed)
     {
-        if (!ExpandSZDD(data, &overlay))
+        if (!ms_expand_szdd((const u8*)data.data(), data.size(), k_glide_max_file_size, &overlay))
             return;
     }
     else
@@ -202,7 +149,7 @@ bool GlideImport::SearchZip(const u8* data, size_t size, int depth)
         std::string name = to_upper_ascii(path_filename(stat.m_filename));
         bool nested = ends_with_no_case(name, ".zip");
 
-        if (!nested && (name != k_glide_overlay) && (name != k_glide_compressed))
+        if (!nested && (name != k_dos_glide_overlay) && (name != k_glide_compressed))
             continue;
 
         std::string bytes;
@@ -239,7 +186,7 @@ bool GlideImport::SearchFolder(const std::string& path, int depth)
         std::string data;
 
         if ((files[i][0] == '.') ||
-            (!ends_with_no_case(name, ".zip") && (name != k_glide_overlay) && (name != k_glide_compressed)))
+            (!ends_with_no_case(name, ".zip") && (name != k_dos_glide_overlay) && (name != k_glide_compressed)))
             continue;
 
         if (!MediaFile::ReadFile(path_join(path, files[i]).c_str(), k_glide_max_file_size, &data))
@@ -284,7 +231,7 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
         if (ends_with_no_case(name, ".zip"))
             SearchZip((const u8*)data.data(), data.size(), 0);
         else
-            Consider(name == k_glide_compressed ? name : std::string(k_glide_overlay), data);
+            Consider(name == k_glide_compressed ? name : std::string(k_dos_glide_overlay), data);
     }
 
     if (m_overlay.empty())

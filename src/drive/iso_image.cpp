@@ -22,6 +22,7 @@
 #include <map>
 #include <set>
 #include "iso_image.h"
+#include "dos_fs.h"
 #include "../media/media_file.h"
 #include "../media/crc.h"
 
@@ -41,115 +42,6 @@ static const char k_iso_standard[] = "CD001";
 static const char k_iso_system[] = "GEARDOX";
 static const char k_iso_label[] = "CDROM";
 static const char k_iso_tag[] = "GDOX";
-
-static const char* const k_iso_clutter[] =
-{
-    "thumbs.db", "desktop.ini", "__macosx", "$recycle.bin", "system volume information"
-};
-
-static const char* const k_iso_devices[] =
-{
-    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "LPT1", "LPT2", "LPT3", "CLOCK$"
-};
-
-static bool is_name_character(char c)
-{
-    return ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '_');
-}
-
-static bool is_clutter(const std::string& name)
-{
-    if (name.empty() || (name[0] == '.'))
-        return true;
-
-    std::string lower = to_lower_ascii(name);
-
-    for (size_t i = 0; i < sizeof(k_iso_clutter) / sizeof(k_iso_clutter[0]); i++)
-    {
-        if (lower == k_iso_clutter[i])
-            return true;
-    }
-
-    return false;
-}
-
-static void split_name(const std::string& name, std::string* base, std::string* extension)
-{
-    size_t dot = name.find_last_of('.');
-
-    if ((dot == std::string::npos) || (dot == 0))
-    {
-        *base = name;
-        extension->clear();
-        return;
-    }
-
-    *base = name.substr(0, dot);
-    *extension = name.substr(dot + 1);
-}
-
-static std::string clean_part(const std::string& text)
-{
-    std::string result;
-
-    for (size_t i = 0; i < text.size(); i++)
-    {
-        u8 byte = (u8)text[i];
-
-        if ((byte == ' ') || (byte == '.') || ((byte & 0xC0) == 0x80))
-            continue;
-
-        char c = to_upper_ascii(text[i]);
-        result += is_name_character(c) ? c : '_';
-    }
-
-    return result;
-}
-
-static bool is_clean_part(const std::string& text, size_t max_size)
-{
-    if (text.size() > max_size)
-        return false;
-
-    for (size_t i = 0; i < text.size(); i++)
-    {
-        if (!is_name_character(to_upper_ascii(text[i])))
-            return false;
-    }
-
-    return true;
-}
-
-static bool is_clean_name(const std::string& name, bool directory)
-{
-    std::string base;
-    std::string extension;
-
-    if (directory)
-        base = name;
-    else
-        split_name(name, &base, &extension);
-
-    if (base.empty() || !is_clean_part(base, 8) || !is_clean_part(extension, 3))
-        return false;
-
-    std::string device = to_upper_ascii(base);
-
-    for (size_t i = 0; i < sizeof(k_iso_devices) / sizeof(k_iso_devices[0]); i++)
-    {
-        if (device == k_iso_devices[i])
-            return false;
-    }
-
-    return true;
-}
-
-static std::string pad(const std::string& text, size_t size)
-{
-    std::string result = text.substr(0, size);
-    result.resize(size, ' ');
-    return result;
-}
 
 static void write_both_16(u8* p, u16 value)
 {
@@ -314,7 +206,7 @@ void IsoImage::SetLabel(const char* label)
             continue;
 
         char c = to_upper_ascii(text[i]);
-        result += is_name_character(c) ? c : '_';
+        result += dos_fs_is_character(c, k_dos_iso_names.characters) ? c : '_';
     }
 
     memcpy(m_label, result.c_str(), result.size() + 1);
@@ -442,7 +334,7 @@ bool IsoImage::WalkFolder(const std::string& path, u32 directory, int level)
         u64 size = 0;
         s64 modified = 0;
 
-        if (is_clutter(files[i]))
+        if (dos_fs_is_clutter(files[i]))
             continue;
 
         if ((m_entries.size() >= k_iso_max_entries) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified) ||
@@ -465,7 +357,7 @@ bool IsoImage::WalkFolder(const std::string& path, u32 directory, int level)
         u64 size = 0;
         s64 modified = 0;
 
-        if (is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
+        if (dos_fs_is_clutter(folders[i]) || MediaFile::IsFolderLink(item.c_str()))
             continue;
 
         if ((level >= k_iso_max_level) || (m_entries.size() >= k_iso_max_entries))
@@ -506,66 +398,27 @@ u32 IsoImage::AddEntry(u32 directory, const std::string& name, bool is_directory
 void IsoImage::AssignNames(u32 directory)
 {
     std::vector<u32>& children = m_entries[directory].children;
-    std::vector<std::pair<std::pair<bool, std::string>, std::pair<std::string, u32> > > order;
+    std::vector<std::string> names;
+    std::vector<bool> folders;
+    std::vector<std::string> short_names;
 
     for (size_t i = 0; i < children.size(); i++)
     {
-        const IsoImage_Entry& entry = m_entries[children[i]];
-        order.push_back(std::make_pair(std::make_pair(!is_clean_name(entry.name, entry.directory), to_upper_ascii(entry.name)),
-            std::make_pair(entry.name, children[i])));
+        names.push_back(m_entries[children[i]].name);
+        folders.push_back(m_entries[children[i]].directory);
     }
 
-    std::sort(order.begin(), order.end());
-    std::set<std::string> taken;
-    std::map<std::string, u32> tails;
-
-    for (size_t i = 0; i < order.size(); i++)
-    {
-        IsoImage_Entry& entry = m_entries[order[i].second.second];
-        std::string base;
-        std::string extension;
-
-        if (entry.directory)
-            base = entry.name;
-        else
-            split_name(entry.name, &base, &extension);
-
-        std::string short_base = clean_part(base);
-        std::string short_extension = clean_part(extension).substr(0, 3);
-
-        if (short_base.empty())
-            short_base = "_";
-
-        std::string candidate = pad(short_base, 8) + pad(short_extension, 3);
-
-        if (!is_clean_name(entry.name, entry.directory) || (taken.count(candidate) != 0))
-        {
-            std::string key = short_base + "." + short_extension;
-            u32& tail = tails[key];
-
-            do
-            {
-                char number[16];
-                snprintf(number, sizeof(number), "_%u", ++tail);
-                size_t room = 8 - strlen(number);
-                candidate = pad(short_base.substr(0, room) + number, 8) + pad(short_extension, 3);
-            }
-            while (taken.count(candidate) != 0);
-        }
-
-        taken.insert(candidate);
-        memcpy(entry.short_name, candidate.data(), sizeof(entry.short_name));
-
-        if (entry.directory)
-            AssignNames(order[i].second.second);
-    }
-
+    dos_fs_assign_names(names, folders, k_dos_iso_names, &short_names);
     std::vector<std::pair<std::string, u32> > sorted;
 
     for (size_t i = 0; i < children.size(); i++)
     {
-        const IsoImage_Entry& entry = m_entries[children[i]];
-        sorted.push_back(std::make_pair(std::string(entry.short_name, 11), children[i]));
+        IsoImage_Entry& entry = m_entries[children[i]];
+        memcpy(entry.short_name, short_names[i].data(), sizeof(entry.short_name));
+        sorted.push_back(std::make_pair(short_names[i], children[i]));
+
+        if (entry.directory)
+            AssignNames(children[i]);
     }
 
     std::sort(sorted.begin(), sorted.end());

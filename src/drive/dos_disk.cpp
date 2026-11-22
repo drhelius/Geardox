@@ -21,6 +21,7 @@
 #include <vector>
 #include "dos_disk.h"
 #include "fat_image.h"
+#include "dos_fs.h"
 #include "freedos.h"
 #include "../media/game_descriptor.h"
 
@@ -53,8 +54,8 @@ bool DosDisk::Write(const char* path, int system, const DosImport_System* msdos,
     if (!ms && !image.AddFreeDOS(false, reserved))
         return false;
 
-    if (!image.AddMemoryFile("CONFIG.SYS", GetConfigSys(system, msdos), k_dos_disk_attributes) ||
-        !image.AddMemoryFile("AUTOEXEC.BAT", GetAutoexec(system, msdos, layout), k_dos_disk_attributes))
+    if (!image.AddMemoryFile(k_dos_config_sys, GetConfigSys(system, msdos), k_dos_disk_attributes) ||
+        !image.AddMemoryFile(k_dos_autoexec_bat, GetAutoexec(system, msdos, layout), k_dos_disk_attributes))
         return false;
 
     image.FinishGame(ms ? "MS-DOS" : "GEARDOX", 0, ms ? msdos->boot : k_freedos_boot);
@@ -64,31 +65,27 @@ bool DosDisk::Write(const char* path, int system, const DosImport_System* msdos,
 std::string DosDisk::GetConfigSys(int system, const DosImport_System* msdos)
 {
     if ((system != GDOX_GAME_SYSTEM_MSDOS) || !IsValidPointer(msdos))
-        return "SWITCHES=/F\r\nLASTDRIVE=Z\r\nBUFFERS=20\r\nFILES=40\r\nDOS=HIGH,UMB\r\nDOSDATA=UMB\r\n"
+        return dos_fs_config_header(false, 0) + "BUFFERS=20\r\nFILES=40\r\nDOS=HIGH,UMB\r\nDOSDATA=UMB\r\n"
             "DEVICE=C:\\FREEDOS\\BIN\\JEMMEX.EXE NOEMS\r\nIDLEHALT=1\r\n"
-            "DEVICEHIGH=C:\\FREEDOS\\BIN\\UDVD2.SYS /D:FDCD0001\r\n"
-            "SHELL=C:\\FREEDOS\\BIN\\COMMAND.COM C:\\FREEDOS\\BIN /E:1024 /P\r\n";
+            "DEVICEHIGH=C:\\FREEDOS\\BIN\\UDVD2.SYS /D:FDCD0001\r\n" + dos_fs_shell_line(false);
 
-    std::string out = msdos->version >= 600 ? "SWITCHES=/F\r\n" : "";
-    out += "LASTDRIVE=Z\r\nBUFFERS=20\r\nFILES=40\r\nDOS=HIGH,UMB\r\n";
-    out += msdos->version >= 620 ? "DEVICE=C:\\DOS\\HIMEM.SYS /TESTMEM:OFF\r\n" : "DEVICE=C:\\DOS\\HIMEM.SYS\r\n";
+    std::string out = dos_fs_config_header(true, msdos->version) + "BUFFERS=20\r\nFILES=40\r\nDOS=HIGH,UMB\r\n";
+    out += dos_fs_himem_line(msdos->version);
     out += "DEVICE=C:\\DOS\\EMM386.EXE NOEMS\r\nDEVICEHIGH=C:\\GEARDOX\\GDXIDLE.SYS\r\n"
-        "DEVICEHIGH=C:\\GEARDOX\\UDVD2.SYS /D:FDCD0001\r\nSHELL=C:\\COMMAND.COM C:\\ /E:1024 /P\r\n";
-    return out;
+        "DEVICEHIGH=C:\\GEARDOX\\UDVD2.SYS /D:FDCD0001\r\n";
+    return out + dos_fs_shell_line(true);
 }
 
 std::string DosDisk::GetAutoexec(int system, const DosImport_System* msdos, const char* layout)
 {
     bool ms = (system == GDOX_GAME_SYSTEM_MSDOS) && IsValidPointer(msdos);
-    std::string out = ms ? "@ECHO OFF\r\nC:\\GEARDOX\\GDXPAD.COM\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\n" :
-        "@ECHO OFF\r\nC:\\FREEDOS\\BIN\\GDXPAD.COM\r\nSET DOSDIR=C:\\FREEDOS\r\nSET PATH=C:\\FREEDOS\\BIN\r\n";
-    out += "SET TEMP=C:\\TEMP\r\nSET DIRCMD=/OGN\r\nSET BLASTER=A220 I5 D1 H5 P330\r\n";
+    std::string out = dos_fs_autoexec_header(ms);
+    out += "SET BLASTER=A220 I5 D1 H5 P330\r\n";
     out += "GDXGUS 240,3,3,7,7\r\nIF NOT ERRORLEVEL 1 SET ULTRASND=240,3,3,7,7\r\n";
     out += "IF NOT ERRORLEVEL 1 SET ULTRADIR=C:\\ULTRASND\r\nPROMPT $P$G\r\n";
 
     if (is_layout(layout))
-        out += "LH KEYB " + to_upper_ascii(layout) + (ms ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" :
-            ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
+        out += dos_fs_keyb_line(to_upper_ascii(layout), ms);
 
     out += "LH CTMOUSE\r\n";
     out += (ms && msdos->cd_extension) ? "LH MSCDEX /D:FDCD0001\r\n" : "LH SHSUCDX /QQ /D:FDCD0001\r\n";

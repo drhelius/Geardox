@@ -19,6 +19,7 @@
 
 #include <math.h>
 #include "ide_cdrom.h"
+#include "ide_common.h"
 #include "ide_disk.h"
 #include "../cdrom/cdrom_media.h"
 #include "../cdrom/cdrom_audio.h"
@@ -1767,14 +1768,10 @@ void IdeCdRom::BuildIdentify()
 
     words[0] = 0x85C0;
 
-    for (int i = 0; i < 10; i++)
-        words[10 + i] = (u16)((serial[i * 2] << 8) | serial[(i * 2) + 1]);
+    ide_pack_string(words + 10, serial, 10);
 
-    for (int i = 0; i < 4; i++)
-        words[23 + i] = (u16)((revision[i * 2] << 8) | revision[(i * 2) + 1]);
-
-    for (int i = 0; i < 20; i++)
-        words[27 + i] = (u16)((model[i * 2] << 8) | model[(i * 2) + 1]);
+    ide_pack_string(words + 23, revision, 4);
+    ide_pack_string(words + 27, model, 20);
 
     words[49] = 0x0200;
     words[51] = 0x0200;

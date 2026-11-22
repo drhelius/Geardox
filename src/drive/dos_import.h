@@ -68,8 +68,6 @@ public:
     const char* GetError() const;
     static bool Load(const char* zip_path, DosImport_System* system, std::string* error);
     static bool ReadSourceFingerprint(const char* zip_path, u32* fingerprint);
-    static bool ExpandKWAJ(const u8* data, size_t size, std::string* out);
-    static bool ExpandSZDD(const u8* data, size_t size, std::string* out);
 
 private:
     bool AddFolder(const std::string& path);
@@ -89,7 +87,6 @@ private:
 };
 
 static const char k_dos_import_file[] = "msdos.zip";
-static const char k_dos_import_version[] = "version.txt";
 static const char k_dos_import_boot[] = "boot.bin";
 static const char k_dos_import_root[] = "C/";
 

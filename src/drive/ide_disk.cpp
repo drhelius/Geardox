@@ -18,6 +18,7 @@
  */
 
 #include "ide_disk.h"
+#include "ide_common.h"
 #include "../common/trace_logger.h"
 #include "../common/state_serializer.h"
 
@@ -702,18 +703,14 @@ void IdeDisk::BuildIdentify()
     words[5] = k_hard_disk_block_size;
     words[6] = (u16)m_state.sectors;
 
-    for (int i = 0; i < 10; i++)
-        words[10 + i] = (u16)((serial[i * 2] << 8) | serial[(i * 2) + 1]);
+    ide_pack_string(words + 10, serial, 10);
 
     words[20] = 3;
     words[21] = 64;
     words[22] = 4;
 
-    for (int i = 0; i < 4; i++)
-        words[23 + i] = (u16)((revision[i * 2] << 8) | revision[(i * 2) + 1]);
-
-    for (int i = 0; i < 20; i++)
-        words[27 + i] = (u16)((model[i * 2] << 8) | model[(i * 2) + 1]);
+    ide_pack_string(words + 23, revision, 4);
+    ide_pack_string(words + 27, model, 20);
 
     words[47] = 0x8000 | IDE_DISK_MAX_BLOCK;
     words[49] = 0x0200;

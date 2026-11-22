@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <map>
 #include "game_disk.h"
+#include "dos_fs.h"
 #include "freedos.h"
 #include "glide_import.h"
 #include "iso_image.h"
@@ -42,25 +43,24 @@
 
 static const u8 k_game_disk_mode_folder = 0;
 static const u8 k_game_disk_mode_overlay = 1;
-static const char k_game_disk_deleted[] = ".deleted";
 static const char k_game_disk_database[] = "db:";
 static const char k_game_disk_program[] = "exe:";
 static bool game_disk_database = true;
 static const char k_game_disk_conflicts[] = ".conflicts";
-static const char k_game_disk_config_sys[] = "CONFIG.SYS";
-static const char k_game_disk_autoexec[] = "AUTOEXEC.BAT";
-static const char k_game_disk_glide[] = "GLIDE2X.OVL";
 static const char k_game_disk_line_blanks[] = " \t\r\x1A";
 static const u32 k_game_disk_startup_lines = 8;
 
 // The names of C:'s root the system owns: a game's entry with one is left out, and DOS's writes there never go back
 static const char* const k_game_disk_freedos_reserved[] =
 {
-    "KERNEL.SYS", "FDCONFIG.SYS", "FREEDOS", "TEMP", "CONFIG.SYS", "AUTOEXEC.BAT"
+    "KERNEL.SYS", "FDCONFIG.SYS", k_dos_root_freedos, k_dos_root_temp, k_dos_config_sys, k_dos_autoexec_bat
 };
 
 // MS-DOS's root files come from its version's table, these follow them
-static const char* const k_game_disk_msdos_reserved[] = { "DOS", "GEARDOX", "TEMP", "CONFIG.SYS", "AUTOEXEC.BAT" };
+static const char* const k_game_disk_msdos_reserved[] =
+{
+    k_dos_root_dos, k_dos_root_geardox, k_dos_root_temp, k_dos_config_sys, k_dos_autoexec_bat
+};
 
 static std::string slashes(const std::string& path)
 {
@@ -162,20 +162,6 @@ static bool make_directories(const std::string& path)
         return false;
 
     return MediaFile::MakeDirectory(path.c_str());
-}
-
-static s64 dos_to_host_time(u16 date, u16 time_value)
-{
-    struct tm local;
-    memset(&local, 0, sizeof(local));
-    local.tm_year = ((date >> 9) & 0x7F) + 80;
-    local.tm_mon = ((date >> 5) & 0x0F) - 1;
-    local.tm_mday = date & 0x1F;
-    local.tm_hour = (time_value >> 11) & 0x1F;
-    local.tm_min = (time_value >> 5) & 0x3F;
-    local.tm_sec = (time_value & 0x1F) * 2;
-    local.tm_isdst = -1;
-    return (s64)mktime(&local);
 }
 
 static bool is_scratch_path(const std::string& dos_path)
@@ -860,8 +846,8 @@ bool GameDisk::UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine)
     std::string folder = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
     std::string overlay;
 
-    if ((image->GetFile((folder + k_game_disk_glide).c_str(), &overlay) && GlideImport::IsOverlay(overlay)) ||
-        (image->GetFile(k_game_disk_glide, &overlay) && GlideImport::IsOverlay(overlay)))
+    if ((image->GetFile((folder + k_dos_glide_overlay).c_str(), &overlay) && GlideImport::IsOverlay(overlay)) ||
+        (image->GetFile(k_dos_glide_overlay, &overlay) && GlideImport::IsOverlay(overlay)))
         return true;
 
     Log("%s: %s needs GLIDE2X.OVL from the 3dfx DOS driver, import it in Video > 3dfx Voodoo Driver; %s runs instead",
@@ -1124,11 +1110,10 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
         frame = line;
     }
 
-    // SWITCHES=/F came with MS-DOS 6.0, and HIMEM's memory test, with /TESTMEM to skip it, with 6.2
-    if (msdos)
-        out += m_msdos.version >= 600 ? "SWITCHES=/F\r\nLASTDRIVE=Z\r\n" : "LASTDRIVE=Z\r\n";
-    else
-        out += "SWITCHES=/F\r\nLASTDRIVE=Z\r\nIDLEHALT=1\r\n";
+    out += dos_fs_config_header(msdos, m_msdos.version);
+
+    if (!msdos)
+        out += "IDLEHALT=1\r\n";
 
     snprintf(line, sizeof(line), "FILES=%d\r\nBUFFERS=%d\r\n", info.files, info.buffers);
     out += line;
@@ -1141,7 +1126,7 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
         if (info.memory != GDOX_GAME_MEMORY_NONE)
         {
             out += info.memory == GDOX_GAME_MEMORY_XMS ? "DOS=HIGH\r\n" : "DOS=HIGH,UMB\r\n";
-            out += m_msdos.version >= 620 ? "DEVICE=C:\\DOS\\HIMEM.SYS /TESTMEM:OFF\r\n" : "DEVICE=C:\\DOS\\HIMEM.SYS\r\n";
+            out += dos_fs_himem_line(m_msdos.version);
         }
 
         if (info.memory == GDOX_GAME_MEMORY_UMB)
@@ -1176,11 +1161,7 @@ std::string GameDisk::GetConfigSys(const GDOX_Machine_Config& machine) const
     for (size_t i = 0; i < info.config_sys.size(); i++)
         out += info.config_sys[i] + "\r\n";
 
-    if (msdos)
-        out += "SHELL=C:\\COMMAND.COM C:\\ /E:1024 /P\r\n";
-    else
-        out += "SHELL=C:\\FREEDOS\\BIN\\COMMAND.COM C:\\FREEDOS\\BIN /E:1024 /P\r\n";
-    return out;
+    return out + dos_fs_shell_line(msdos);
 }
 
 static std::string under(const std::string& base, const std::string& path)
@@ -1239,13 +1220,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     std::string out;
     char line[128];
 
-    if (msdos)
-        out += "@ECHO OFF\r\nC:\\GEARDOX\\GDXPAD.COM\r\nSET PATH=C:\\DOS;C:\\GEARDOX\r\nSET TEMP=C:\\TEMP\r\n";
-    else
-        out += "@ECHO OFF\r\nC:\\FREEDOS\\BIN\\GDXPAD.COM\r\nSET DOSDIR=C:\\FREEDOS\r\n"
-            "SET PATH=C:\\FREEDOS\\BIN\r\nSET TEMP=C:\\TEMP\r\n";
-
-    out += "SET DIRCMD=/OGN\r\n";
+    out += dos_fs_autoexec_header(msdos);
 
     if ((card.dsp_major != 0) && IsValidPointer(k_types[machine.sound_card]))
     {
@@ -1277,7 +1252,7 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
         if (!msdos && low)
             out += "MKEYB " + layout + "\r\n";
         else
-            out += "LH KEYB " + layout + (msdos ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" : ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
+            out += dos_fs_keyb_line(layout, msdos);
     }
 
     if (machine.mouse != GDOX_MOUSE_NONE)
@@ -1527,17 +1502,18 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
 
     if (machine.voodoo)
     {
-        image->LeaveOutMatching(k_game_disk_glide, GlideImport::IsStub);
+        image->LeaveOutMatching(k_dos_glide_overlay, GlideImport::IsStub);
 
-        if (LoadGlide() && !image->HasFile(k_game_disk_glide) && !image->AddMemoryFile(k_game_disk_glide, m_glide, attributes))
+        if (LoadGlide() && !image->HasFile(k_dos_glide_overlay) &&
+            !image->AddMemoryFile(k_dos_glide_overlay, m_glide, attributes))
             return Fail("Unable to add %s to the game's disk", m_glide_name.c_str());
     }
 
     m_voodoo_exe = UseVoodooExe(image, machine);
     system->autoexec = GetBatch(machine);
 
-    if (!image->AddMemoryFile(k_game_disk_config_sys, system->config_sys, attributes) ||
-        !image->AddMemoryFile(k_game_disk_autoexec, system->autoexec, attributes))
+    if (!image->AddMemoryFile(k_dos_config_sys, system->config_sys, attributes) ||
+        !image->AddMemoryFile(k_dos_autoexec_bat, system->autoexec, attributes))
         return Fail("Unable to add the game's configuration");
 
     std::string label = m_descriptor.GetInfo().name;
@@ -1831,25 +1807,12 @@ bool GameDisk::WriteConflict(FatImage* image, const FatImage_File& file, const s
 
 void GameDisk::LoadDeleted()
 {
-    m_deleted.clear();
-    std::vector<std::string> lines;
-    split_string(read_text(join(m_overlay, k_game_disk_deleted)), '\n', &lines);
-
-    for (size_t i = 0; i < lines.size(); i++)
-    {
-        std::string line = lines[i];
-
-        if (!line.empty() && (line[line.size() - 1] == '\r'))
-            line.resize(line.size() - 1);
-
-        if (!line.empty())
-            m_deleted.push_back(line);
-    }
+    dos_fs_read_deleted(m_overlay, &m_deleted);
 }
 
 bool GameDisk::SaveDeleted()
 {
-    std::string path = join(m_overlay, k_game_disk_deleted);
+    std::string path = join(m_overlay, k_dos_deleted_list);
 
     if (m_deleted.empty())
     {
@@ -2019,7 +1982,10 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
                 continue;
             }
 
-            MediaFile::SetModified(destination.c_str(), dos_to_host_time(file->date, file->time));
+            s64 modified = dos_time_to_host(file->date, file->time);
+
+            if (modified != 0)
+                MediaFile::SetModified(destination.c_str(), modified);
 
             if (to_overlay && IsDeleted(entry.host_path))
             {
@@ -2155,7 +2121,10 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
             continue;
         }
 
-        MediaFile::SetModified(destination.c_str(), dos_to_host_time(file.date, file.time));
+        s64 modified = dos_time_to_host(file.date, file.time);
+
+        if (modified != 0)
+            MediaFile::SetModified(destination.c_str(), modified);
 
         if (m_write_overlay && IsDeleted(host_path))
         {
@@ -2170,7 +2139,7 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
     if (deleted_changed && !SaveDeleted())
     {
         result->kept++;
-        result->notes.push_back("Unable to write " + join(m_overlay, k_game_disk_deleted));
+        result->notes.push_back("Unable to write " + join(m_overlay, k_dos_deleted_list));
     }
 
     for (size_t i = 0; i < files.size(); i++)
@@ -2252,9 +2221,9 @@ bool GameDisk::WriteBack(GameDisk_Result* result)
 void GameDisk::NoteStartupFile(FatImage* image, const FatImage_File* file, const GameDisk_Manifest_Entry& entry, GameDisk_Result* result)
 {
     std::string name = to_upper_ascii(entry.dos_path);
-    bool config = name == k_game_disk_config_sys;
+    bool config = name == k_dos_config_sys;
 
-    if (!config && (name != k_game_disk_autoexec))
+    if (!config && (name != k_dos_autoexec_bat))
         return;
 
     std::string path = std::string("C:\\") + name;
