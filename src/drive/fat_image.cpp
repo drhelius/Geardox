@@ -1030,10 +1030,7 @@ void FatImage::LeaveOutMatching(u32 directory, const std::string& name, bool (*m
         std::string data;
 
         if ((to_upper_ascii(entry.name) == name) && ReadEntry(entry, &data) && match(data))
-        {
-            m_left_out++;
             RemoveChild(directory, child);
-        }
     }
 }
 
