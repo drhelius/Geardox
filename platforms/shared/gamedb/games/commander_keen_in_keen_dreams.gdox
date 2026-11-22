@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Commander Keen in Keen Dreams
+folder = C:\KDREAMS
+
+[run]
+exe = KDREAMS.EXE
+
+[machine]
+model = 486sx_33
+video = ega

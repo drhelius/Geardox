@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = SimCity Classic
+folder = C:\SIMCITY
+
+[run]
+exe = SIMCITY.EXE
+setup_exe = SETTINGS.EXE
+
+[sound]
+midi = gm

@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork II: The Wizard of Frobozz
+folder = C:\ZORK2
+
+[run]
+exe = ZORK2.COM
+setup_exe = SETUP.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

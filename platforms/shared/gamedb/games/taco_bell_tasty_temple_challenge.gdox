@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Taco Bell: Tasty Temple Challenge
+folder = C:\TACOBELL
+
+[machine]
+model = pentium_133
+ram_mb = 16
+
+[run]
+exe = TEMPLE.BAT

@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Jill of the Jungle: Jill Saves the Prince
+folder = C:\JILL
+
+[run]
+exe = JJFILE3.EXE
+
+[machine]
+model = 486sx_33

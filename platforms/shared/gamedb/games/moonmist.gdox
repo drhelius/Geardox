@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Moonmist
+folder = C:\MOONMIST
+
+[run]
+exe = MOONMIST.COM
+setup_exe = SETUP.EXE

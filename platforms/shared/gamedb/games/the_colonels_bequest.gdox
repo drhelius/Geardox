@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = The Colonel's Bequest
+folder = C:\SIERRA\CB
+
+[run]
+exe = SCIV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+video = ega
+
+[sound]
+midi = mt32

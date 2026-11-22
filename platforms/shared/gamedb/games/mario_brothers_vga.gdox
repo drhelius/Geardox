@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Mario Brothers VGA
+folder = C:\MARIO
+
+[run]
+exe = MARIO.EXE
+
+[machine]
+model = 386sx_20

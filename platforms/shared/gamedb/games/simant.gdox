@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = SimAnt
+folder = C:\SIMANT
+
+[run]
+exe = SIMANT.EXE
+setup_exe = INSTALL.EXE

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Leisure Suit Larry in the Land of the Lounge Lizards
+folder = C:\LARRY1
+
+[run]
+exe = SIERRA.COM
+
+[machine]
+model = 386sx_20
+video = ega

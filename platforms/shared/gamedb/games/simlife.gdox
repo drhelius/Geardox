@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = SimLife
+folder = C:\SIMLIFE
+
+[run]
+exe = SIMLIFE.BAT
+setup_exe = INSTALL.EXE

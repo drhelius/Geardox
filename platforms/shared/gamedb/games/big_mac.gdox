@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Big Mac
+folder = C:\BIGMAC
+
+[run]
+exe = BIGMACPC.EXE

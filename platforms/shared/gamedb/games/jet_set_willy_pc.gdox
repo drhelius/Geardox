@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Jet Set Willy PC
+folder = C:\JSW
+
+[run]
+exe = JSW.EXE
+setup_exe = JSW.EXE
+setup_args = -fs

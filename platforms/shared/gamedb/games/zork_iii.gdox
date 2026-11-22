@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork III: The Dungeon Master
+folder = C:\ZORK3
+
+[run]
+exe = _ZORK3.COM

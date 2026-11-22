@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork III: The Dungeon Master
+folder = C:\ZORK3
+
+[run]
+exe = ZORK3.COM
+setup_exe = SETUP.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

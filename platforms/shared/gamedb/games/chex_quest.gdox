@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Chex Quest
+folder = C:\CHEX
+
+[run]
+exe = CHEX.EXE
+setup_exe = SETUP.EXE
+
+[sound]
+midi = gm

@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Day of the Tentacle
+folder = C:\DOTT
+
+[run]
+exe = TENTACLE.EXE
+
+[dos]
+ems_kb = 2048

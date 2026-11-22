@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Hoyle Official Book of Games: Volume 3
+folder = C:\HOYLE3
+
+[run]
+exe = SIERRA.BAT
+setup_exe = INSTALL.EXE
+
+[sound]
+midi = mt32

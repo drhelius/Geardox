@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = 2400 A.D.
+folder = C:\2400AD
+
+[machine]
+model = 386sx_20
+turbo = off
+video = ega
+
+[run]
+exe = 2400AD.EXE

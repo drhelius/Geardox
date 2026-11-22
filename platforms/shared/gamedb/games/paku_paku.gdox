@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Paku Paku
+folder = C:\PAKU
+
+[run]
+exe = PAKU.EXE

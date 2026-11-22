@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Beyond Zork: The Coconut of Quendor
+folder = C:\BEYONDZO
+
+[run]
+exe = BEYONDZO.EXE
+
+[machine]
+model = 386sx_20

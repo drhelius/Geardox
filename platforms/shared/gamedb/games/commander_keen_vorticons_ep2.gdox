@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Commander Keen 2: The Earth Explodes
+folder = C:\KEEN
+
+[run]
+exe = KEEN2.EXE
+
+[machine]
+model = 486sx_33
+video = ega

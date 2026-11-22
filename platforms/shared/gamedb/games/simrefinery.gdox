@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = SimRefinery
+folder = C:\SIMREF
+
+[run]
+exe = SIMREF.EXE

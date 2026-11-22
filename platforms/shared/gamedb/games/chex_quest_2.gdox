@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Chex Quest 2: Flemoids Take Chextropolis
+folder = C:\CHEX2
+
+[run]
+exe = CHEX2.BAT
+setup_exe = SETUP.EXE
+
+[sound]
+midi = gm

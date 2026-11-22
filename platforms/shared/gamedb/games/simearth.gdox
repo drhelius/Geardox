@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = SimEarth: The Living Planet
+folder = C:\SIMEARTH
+
+[run]
+exe = SIMEARTH.EXE

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Abuse
+folder = C:\ABUSE
+
+[run]
+exe = ABUSE.EXE
+setup_exe = SETUP.EXE
+
+[sound]
+midi = gm

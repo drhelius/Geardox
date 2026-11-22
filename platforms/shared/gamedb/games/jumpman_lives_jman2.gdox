@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Jumpman Lives
+folder = C:\JUMPMAN
+
+[run]
+exe = JMAN2.EXE
+
+[machine]
+model = 386dx_33

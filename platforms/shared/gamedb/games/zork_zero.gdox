@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork Zero: The Revenge of Megaboz
+folder = C:\ZORKZERO
+
+[run]
+exe = ZORKZERO.EXE
+
+[machine]
+model = 486sx_33

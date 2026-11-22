@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Police Quest 2: The Vengeance
+folder = C:\PQ2
+
+[run]
+exe = SCIV.EXE
+
+[machine]
+model = 386dx_33
+video = ega
+
+[sound]
+midi = mt32

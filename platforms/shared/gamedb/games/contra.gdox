@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Contra
+folder = C:\CONTRA
+
+[run]
+exe = GRYZOR.EXE
+
+[machine]
+model = 386sx_20
+turbo = off
+video = cga

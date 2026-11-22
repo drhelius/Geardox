@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Donkey Kong PC
+folder = C:\DKONG
+
+[run]
+exe = DKONG.EXE
+setup_exe = SETUP.EXE

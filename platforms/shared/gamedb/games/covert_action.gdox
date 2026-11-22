@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Sid Meier's Covert Action
+folder = C:\COVERT
+
+[run]
+exe = COVERT.EXE
+
+[machine]
+model = 386dx_33
+
+[sound]
+midi = mt32

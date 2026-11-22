@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Leisure Suit Larry 5: Passionate Patti Does a Little Undercover Work
+folder = C:\SIERRA\LSL5
+
+[run]
+exe = SCIDHUV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+
+[sound]
+midi = gm

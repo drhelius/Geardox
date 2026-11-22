@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Sid Meier's Railroad Tycoon Deluxe
+folder = C:\RRT
+
+[run]
+exe = RRT.EXE
+setup_exe = INSTALL.EXE

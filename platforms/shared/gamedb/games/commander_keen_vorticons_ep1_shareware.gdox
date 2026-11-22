@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Commander Keen in Invasion of the Vorticons
+folder = C:\KEEN1
+
+[run]
+exe = KEEN1.EXE
+
+[machine]
+model = 486sx_33
+video = ega

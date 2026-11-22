@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest I: The Sarien Encounter (VGA)
+folder = C:\SIERRA\SQ1VGA
+
+[run]
+exe = SCIDHUV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+
+[sound]
+midi = mt32

@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = The Fool's Errand (Finale)
+folder = C:\FOOL
+
+[run]
+exe = FINALE.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Transport Tycoon Deluxe
+folder = C:\TTD
+
+[run]
+exe = TTDPATCH.EXE
+setup_exe = INSTALL.EXE

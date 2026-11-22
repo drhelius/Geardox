@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Beyond Zork: The Coconut of Quendor
+folder = C:\BZORK
+
+[run]
+exe = BZORK.EXE

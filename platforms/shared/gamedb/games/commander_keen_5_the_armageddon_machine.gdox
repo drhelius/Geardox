@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Commander Keen 5: The Armageddon Machine
+folder = C:\KEEN5
+
+[run]
+exe = KEEN5E.EXE
+
+[machine]
+model = 486sx_33
+video = ega

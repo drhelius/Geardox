@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Strife
+folder = C:\STRIFE
+
+[run]
+exe = STRIFE1.EXE
+setup_exe = SETUP.EXE

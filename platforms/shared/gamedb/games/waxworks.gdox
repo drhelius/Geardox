@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Waxworks
+folder = C:\WAXWORKS
+
+[run]
+exe = RUNVGA.EXE
+args = GAMEPC
+setup_exe = SETUP.EXE
+
+[sound]
+midi = mt32

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Manic Miner PC
+folder = C:\MANIC
+
+[run]
+exe = MANIC.EXE

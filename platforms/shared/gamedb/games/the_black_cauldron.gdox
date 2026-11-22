@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = The Black Cauldron
+folder = C:\BLACK
+
+[run]
+exe = SIERRA.EXE
+
+[machine]
+model = 386sx_20
+video = ega

@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Shadow Warrior: Twin Dragon
+folder = C:\TDRAGON
+
+[run]
+exe = SW.EXE
+setup_exe = SETUP.EXE
+
+[machine]
+model = pentium_133
+ram_mb = 32
+
+[sound]
+midi = gm

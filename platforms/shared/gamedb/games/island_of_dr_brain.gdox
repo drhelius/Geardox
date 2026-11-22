@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = The Island of Dr. Brain
+folder = C:\SIERRA\BRAIN2
+
+[run]
+exe = SIERRA.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 486sx_33

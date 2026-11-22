@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima 0: Akalabeth
+folder = C:\AKALABET
+
+[run]
+exe = AK.EXE
+setup_exe = SETUP.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

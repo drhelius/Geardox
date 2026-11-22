@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Neuromancer
+folder = C:\NEURO
+
+[run]
+exe = NEURO.EXE
+
+[machine]
+model = 386dx_33

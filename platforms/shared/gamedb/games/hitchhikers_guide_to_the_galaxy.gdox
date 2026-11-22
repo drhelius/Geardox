@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = The Hitchhiker's Guide to the Galaxy
+folder = C:\HITCHHIK
+
+[run]
+exe = HITCHHIK.COM
+setup_exe = SETUP.EXE

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Commander Keen in Aliens Ate My Babysitter!
+folder = C:\KEEN6
+
+[run]
+exe = KEEN6.EXE
+
+[machine]
+model = 486sx_33
+video = ega

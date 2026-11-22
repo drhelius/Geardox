@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Hexen II Mission Pack: Portal of Praevus
+folder = C:\HEXEN2
+
+[run]
+exe = H2DOS.EXE
+args = -portals -mem 64
+
+[machine]
+model = pentium_133
+ram_mb = 64

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Descent: Levels of the World
+folder = C:\DESCENT
+
+[run]
+exe = DESCENTR.EXE
+setup_exe = SETUP.EXE

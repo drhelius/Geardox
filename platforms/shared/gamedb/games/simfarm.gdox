@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = SimFarm
+folder = C:\SIMFARM
+
+[run]
+exe = SIMFARM.EXE
+setup_exe = INSTALL.EXE

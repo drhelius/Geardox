@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Jill of the Jungle
+folder = C:\JILL
+
+[run]
+exe = JJFILE1.EXE
+
+[machine]
+model = 486sx_33

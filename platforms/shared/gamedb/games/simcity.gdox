@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = SimCity
+folder = C:\SIMCITY
+
+[run]
+exe = SIMCITY.EXE

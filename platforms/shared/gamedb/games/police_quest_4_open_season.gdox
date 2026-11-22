@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Police Quest 4: Open Season
+folder = C:\SIERRA\PQ4CD
+
+[run]
+exe = SIERRA.EXE
+setup_exe = INSTALL.EXE

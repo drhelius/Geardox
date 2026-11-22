@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Space Quest VI: Roger Wilco in The Spinal Frontier
+folder = C:\SIERRA\SQ6DOS
+
+[run]
+exe = SQ6.BAT
+setup_exe = INSTALL.EXE

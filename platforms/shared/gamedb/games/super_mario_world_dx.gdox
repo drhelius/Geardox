@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Super Mario World DX
+folder = C:\SMWDX
+
+[run]
+exe = SMWDX.EXE
+setup_exe = SETUP.EXE
+
+[machine]
+model = pentium_166

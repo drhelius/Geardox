@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Leisure Suit Larry 1: In the Land of the Lounge Lizards
+folder = C:\SIERRA\LSL1VGA
+
+[run]
+exe = SCIDHUV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+
+[sound]
+midi = gm

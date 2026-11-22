@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork II: The Wizard of Frobozz
+folder = C:\ZORK2
+
+[run]
+exe = _ZORK2.COM

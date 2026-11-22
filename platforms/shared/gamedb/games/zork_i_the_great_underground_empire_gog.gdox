@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork I: The Great Underground Empire
+folder = C:\ZORK1
+
+[run]
+exe = _ZORK1.COM

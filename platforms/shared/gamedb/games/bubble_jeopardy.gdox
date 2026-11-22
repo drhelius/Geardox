@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Bubble Jeopardy
+folder = C:\BUBBLE
+
+[run]
+exe = BUBBA.EXE

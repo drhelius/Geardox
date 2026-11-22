@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Solitile
+folder = C:\SOLITILE
+
+[run]
+exe = SOLITILE.EXE

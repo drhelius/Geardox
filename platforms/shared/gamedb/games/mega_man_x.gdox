@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Mega Man X
+folder = C:\MMX
+
+[run]
+exe = MMX.BAT
+setup_exe = DRV\SETSOUND.EXE

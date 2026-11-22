@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Uninvited
+folder = C:\UNINVITE
+
+[machine]
+video = cga
+
+[run]
+exe = UNINVITE.EXE

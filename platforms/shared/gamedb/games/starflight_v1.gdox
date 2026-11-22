@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Starflight
+folder = C:\STARFLT
+
+[run]
+exe = PLAY\STARFLT.COM
+
+[machine]
+model = 386sx_20
+video = cga
+cga_output = composite

@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Red Baron
+folder = C:\REDBARON
+
+[run]
+exe = RB.EXE
+setup_exe = INST.EXE

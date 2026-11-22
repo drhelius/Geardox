@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = The Adventure of Tipi: The Legend of Meda
+folder = C:\TIPI
+
+[run]
+exe = TIPI.EXE

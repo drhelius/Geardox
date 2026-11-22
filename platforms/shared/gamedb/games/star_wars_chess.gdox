@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = The Software Toolworks' Star Wars Chess
+folder = C:\SWCHESS
+
+[run]
+exe = SWC.EXE
+
+[sound]
+midi = mt32

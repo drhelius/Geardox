@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = SimHealth
+folder = C:\SIMHEALT
+
+[run]
+exe = HEALTH.EXE
+setup_exe = INSTALL.EXE
+
+[sound]
+midi = mt32

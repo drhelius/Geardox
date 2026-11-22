@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Sid Meier's Railroad Tycoon
+folder = C:\MPS\RAILS
+
+[run]
+exe = RAILS.BAT
+setup_exe = INSTALL.EXE
+
+[machine]
+video = ega
+
+[sound]
+midi = mt32

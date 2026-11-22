@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Leisure Suit Larry's Casino
+folder = C:\CASINO
+
+[run]
+exe = SCIDHUV.EXE
+
+[machine]
+model = 486sx_33

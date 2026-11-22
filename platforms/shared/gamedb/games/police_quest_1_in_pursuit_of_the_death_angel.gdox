@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Police Quest 1: In Pursuit of the Death Angel
+folder = C:\PQ1
+
+[run]
+exe = SCIDHUV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386dx_33

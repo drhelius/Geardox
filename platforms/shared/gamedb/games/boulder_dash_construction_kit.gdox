@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Boulder Dash Construction Kit
+folder = C:\BDCK
+
+[run]
+exe = BDCK_AM.EXE
+
+[machine]
+model = 386sx_20
+turbo = off
+video = cga

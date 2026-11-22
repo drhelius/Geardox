@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Super C
+folder = C:\SUPERC
+
+[run]
+exe = PLAY.BAT
+
+[machine]
+model = 386dx_33
+video = ega

@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Shadowgate
+folder = C:\SHADOWGT
+
+[run]
+exe = SGATE.EXE
+
+[machine]
+video = cga

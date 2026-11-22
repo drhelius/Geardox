@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima Underworld II: Labyrinth of Worlds
+folder = C:\UW2
+
+[run]
+exe = UW2.EXE
+setup_exe = UWSOUND.EXE
+
+[sound]
+midi = mt32
+
+[dos]
+ems_kb = 1024

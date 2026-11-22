@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Leisure Suit Larry 3: Passionate Patti in Pursuit of the Pulsating Pectorals
+folder = C:\LSL3
+
+[run]
+exe = SCIV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 386dx_33
+video = ega
+
+[sound]
+midi = mt32

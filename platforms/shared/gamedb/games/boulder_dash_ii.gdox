@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Boulder Dash II
+folder = C:\BD2
+
+[run]
+exe = BD2PC.COM
+
+[machine]
+model = 386sx_20
+turbo = off
+video = cga

@@ -1,0 +1,15 @@
+[geardox]
+version = 1
+
+[game]
+name = Monkey Island 2: LeChuck's Revenge
+folder = C:\MONKEY2
+
+[run]
+exe = MONKEY2.EXE
+
+[machine]
+model = 486sx_33
+
+[sound]
+midi = mt32

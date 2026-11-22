@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Castle of Dr. Brain
+folder = C:\SIERRA\BRAIN
+
+[run]
+exe = SCIDHUV.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+model = 486sx_33
+
+[sound]
+midi = gm

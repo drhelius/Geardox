@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = I Have No Mouth, and I Must Scream
+folder = C:\IHNMAIMS
+
+[run]
+exe = S.EXE
+args = VESA
+setup_exe = DRIVERS\SETSOUND.EXE
+
+[sound]
+midi = gm

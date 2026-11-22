@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Boulder Dash
+folder = C:\BOULDER
+
+[machine]
+video = cga
+
+[run]
+exe = BD1PC.COM

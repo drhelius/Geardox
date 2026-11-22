@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Zork I: The Great Underground Empire
+folder = C:\ZORK1
+
+[run]
+exe = ZORK1.COM
+setup_exe = SETUP.EXE
+
+[machine]
+model = 386sx_20
+turbo = off

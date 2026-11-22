@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Sonic Robo Blast 2
+folder = C:\SRB2
+
+[run]
+exe = SRB2DOS.EXE
+
+[machine]
+model = pentium_200
+ram_mb = 32

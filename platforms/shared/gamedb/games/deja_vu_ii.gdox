@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Deja Vu II: Lost in Las Vegas
+folder = C:\DEJAVU2
+
+[run]
+exe = DEJAVUII.EXE
+
+[machine]
+model = 386sx_20

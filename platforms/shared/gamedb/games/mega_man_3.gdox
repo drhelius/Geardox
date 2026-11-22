@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Mega Man 3
+folder = C:\MEGAMAN3
+
+[run]
+exe = MM.EXE
+
+[machine]
+model = 386sx_20
+turbo = off
+video = ega

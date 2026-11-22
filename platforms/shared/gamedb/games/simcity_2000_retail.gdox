@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = SimCity 2000
+folder = C:\
+
+[run]
+exe = SC2K.EXE
+setup_exe = INSTALL.EXE

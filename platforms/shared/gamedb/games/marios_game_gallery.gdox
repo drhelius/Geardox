@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Mario's Game Gallery
+folder = C:\MARIO
+
+[run]
+exe = MARIO.EXE
+setup_exe = SETUP.EXE
+
+[sound]
+midi = mt32

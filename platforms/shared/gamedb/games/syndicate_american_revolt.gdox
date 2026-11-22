@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Syndicate: American Revolt
+folder = C:\SYNDICAT
+
+[run]
+exe = MAIN.EXE
+
+[machine]
+model = 386dx_33

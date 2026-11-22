@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Buck Rogers: Countdown to Doomsday
+folder = C:\BUCK
+
+[run]
+exe = START.EXE
+
+[machine]
+model = 386sx_20

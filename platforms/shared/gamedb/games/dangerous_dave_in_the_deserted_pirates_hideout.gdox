@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Dangerous Dave in the Deserted Pirate's Hideout!
+folder = C:\DAVE
+
+[run]
+exe = DAVE.EXE
+
+[machine]
+model = 486sx_33

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Magiduck
+folder = C:\MAGIDUCK
+
+[run]
+exe = DUCK.EXE

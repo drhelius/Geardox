@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Leisure Suit Larry 6: Shape Up or Slip Out!
+folder = C:\SIERRA\LSL6CD
+
+[run]
+exe = SIERRA.EXE
+setup_exe = INSTALL.EXE
+
+[sound]
+midi = gm

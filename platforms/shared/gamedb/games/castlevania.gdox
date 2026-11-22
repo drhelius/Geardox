@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Castlevania
+folder = C:\CASTLEVA
+
+[run]
+exe = CEGA.EXE
+args = ADL
+
+[machine]
+model = 486sx_33
+video = ega

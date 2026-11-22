@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Liero
+folder = C:\LIERO
+
+[run]
+exe = LIERO.EXE

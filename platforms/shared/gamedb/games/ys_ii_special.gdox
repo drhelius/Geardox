@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Ys II Special
+folder = C:\YS2
+
+[run]
+exe = YS2.EXE
+setup_exe = INSTALL.EXE

@@ -1,0 +1,22 @@
+[geardox]
+version = 1
+
+[game]
+name = Ultima Underworld: The Stygian Abyss
+folder = C:\UW
+
+[run]
+exe = UW.EXE
+setup_exe = UWSOUND.EXE
+
+[machine]
+model = 486sx_33
+
+[sound]
+midi = mt32
+
+[dos]
+ems_kb = 1024
+
+[input]
+joystick = none

@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Police Quest: In Pursuit of the Death Angel
+folder = C:\SIERRA\PQ
+
+[run]
+exe = PQ.COM
+
+[machine]
+model = 386dx_33
+video = ega

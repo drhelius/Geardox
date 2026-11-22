@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Caesar
+folder = C:\CAESAR
+
+[run]
+exe = CAESAR.BAT
+setup_exe = SETUP.EXE

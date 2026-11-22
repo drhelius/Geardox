@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Rogue
+folder = C:\ROGUE
+
+[run]
+exe = ROGUE.EXE
+
+[machine]
+video = cga

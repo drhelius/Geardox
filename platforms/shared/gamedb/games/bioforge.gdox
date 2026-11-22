@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = BioForge
+folder = C:\BIOFORGE
+
+[run]
+exe = BIOFORGE.EXE
+setup_exe = INSTALL.EXE

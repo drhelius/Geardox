@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Police Quest: SWAT
+folder = C:\PQSWAT
+
+[run]
+exe = SIERRAH.EXE
+setup_exe = INSTALL.EXE
+
+[machine]
+ram_mb = 16

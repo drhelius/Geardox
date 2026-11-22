@@ -1,0 +1,17 @@
+[geardox]
+version = 1
+
+[game]
+name = Blood: Cryptic Passage
+folder = C:\BLOOD
+
+[run]
+exe = PLAY.BAT
+setup_exe = SETUP.EXE
+
+[machine]
+model = pentium_133
+ram_mb = 16
+
+[sound]
+midi = gm

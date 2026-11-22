@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Chip 'n Dale Rescue Rangers: The Adventures in Nimnul's Castle
+folder = C:\CHIPDALE
+
+[run]
+exe = RR.EXE
+
+[machine]
+model = 486sx_33
+video = ega

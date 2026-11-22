@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Deja Vu: A Nightmare Comes True
+folder = C:\DEJAVU
+
+[run]
+exe = DEJAVU.EXE
+
+[machine]
+video = cga

@@ -1,0 +1,16 @@
+[geardox]
+version = 1
+
+[game]
+name = Zelda Classic
+folder = C:\ZELDA
+
+[run]
+exe = ZELDA.EXE
+setup_exe = AGSETUP.EXE
+
+[machine]
+ram_mb = 64
+
+[sound]
+midi = gm

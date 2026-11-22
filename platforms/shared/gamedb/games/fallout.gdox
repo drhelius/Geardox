@@ -1,0 +1,14 @@
+[geardox]
+version = 1
+
+[game]
+name = Fallout
+folder = C:\FALLOUT
+
+[run]
+exe = FALLOUT.EXE
+setup_exe = SOUND.EXE
+
+[machine]
+model = pentium_90
+ram_mb = 32

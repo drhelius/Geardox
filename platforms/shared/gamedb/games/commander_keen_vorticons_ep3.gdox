@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Commander Keen 3: Keen Must Die!
+folder = C:\KEEN
+
+[run]
+exe = KEEN3.EXE
+
+[machine]
+model = 486sx_33
+video = ega

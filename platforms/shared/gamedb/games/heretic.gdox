@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Heretic
+folder = C:\HERETIC
+
+[run]
+exe = HERETIC.EXE
+setup_exe = SETUP.EXE
+
+[sound]
+midi = gm

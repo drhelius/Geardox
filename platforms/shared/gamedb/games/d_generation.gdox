@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = D-Generation
+folder = C:\DGEN
+
+[run]
+exe = DGEN.EXE
+
+[machine]
+model = 486sx_33

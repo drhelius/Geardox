@@ -1,0 +1,11 @@
+[geardox]
+version = 1
+
+[game]
+name = Toonstruck
+folder = C:\
+
+[run]
+exe = MAIN.EXE
+args = toon -u
+setup_exe = SETUP.EXE

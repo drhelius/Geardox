@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Jill of the Jungle: Jill Goes Underground
+folder = C:\JILL
+
+[run]
+exe = JJFILE2.EXE
+
+[machine]
+model = 486sx_33

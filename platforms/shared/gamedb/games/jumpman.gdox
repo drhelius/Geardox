@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = Jumpman
+folder = C:\JUMPMAN
+
+[run]
+exe = JUMPMAN.EXE
+
+[machine]
+video = cga

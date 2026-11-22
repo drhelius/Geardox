@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Sonic PC
+folder = C:\SONICPC
+
+[run]
+exe = SONICPC.EXE
+setup_exe = SETUP.EXE
