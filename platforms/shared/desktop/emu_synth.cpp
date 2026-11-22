@@ -25,17 +25,12 @@
 #include "emu.h"
 #include "emu_game.h"
 #include "media/media_file.h"
+#include "audio/midi_synth_host.h"
 
 static const char* const k_emu_synth_labels[GDOX_MIDI_ENGINE_COUNT] = { "None", "Built-in MT-32",
     "Built-in General MIDI" };
 
-static MidiSynth::MidiSynth_MT32_ROMs emu_synth_sets[MIDI_SYNTH_MT32_SETS];
-static int emu_synth_set_count = 0;
-static int emu_synth_mt32_index = -1;
-static bool emu_synth_mt32_failed = false;
-static std::string emu_synth_mt32_folder;
-static std::string emu_synth_soundfont_path;
-static bool emu_synth_soundfont_failed = false;
+static MidiSynthHost emu_synth_host;
 static char emu_synth_mt32_status[256] = "";
 static char emu_synth_soundfont_status[256] = "";
 static char emu_synth_playing[GDOX_MIDI_ENGINE_COUNT][MIDI_SYNTH_NAME_SIZE + 64];
@@ -59,10 +54,6 @@ void emu_synth_scan_mt32(void)
 {
     MidiSynth* synth = emu_synth_get_midi_synth();
     std::vector<std::string> folders;
-    emu_synth_set_count = 0;
-    emu_synth_mt32_index = -1;
-    emu_synth_mt32_failed = false;
-    emu_synth_mt32_folder.clear();
 
     if (config_audio.mt32_rom_dir_option == 1)
     {
@@ -72,17 +63,7 @@ void emu_synth_scan_mt32(void)
     else
         emu_synth_get_default_folders(GDOX_MIDI_ENGINE_MT32, folders);
 
-    for (size_t i = 0; MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_MT32) && (i < folders.size()); i++)
-    {
-        emu_synth_set_count = MidiSynth::ScanMT32ROMs(folders[i].c_str(), emu_synth_sets, MIDI_SYNTH_MT32_SETS);
-
-        if (emu_synth_set_count > 0)
-        {
-            emu_synth_mt32_folder = folders[i];
-            break;
-        }
-    }
-
+    emu_synth_host.ScanMT32(folders);
     update_mt32_status();
 
     if (IsValidPointer(synth) && synth->IsOpen(GDOX_MIDI_ENGINE_MT32))
@@ -93,45 +74,38 @@ void emu_synth_find_soundfont(void)
 {
     MidiSynth* synth = emu_synth_get_midi_synth();
     std::vector<std::string> folders;
-    emu_synth_soundfont_path.clear();
-    emu_synth_soundfont_failed = false;
 
-    if (!MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_SOUNDFONT))
-        emu_synth_soundfont_path.clear();
-    else if (config_audio.soundfont_option == 1)
+    if (config_audio.soundfont_option == 1)
     {
         u64 size = 0;
         s64 modified = 0;
-
-        if (MediaFile::GetFileInfo(config_audio.soundfont.c_str(), &size, &modified))
-            emu_synth_soundfont_path = config_audio.soundfont;
+        bool found = MediaFile::GetFileInfo(config_audio.soundfont.c_str(), &size, &modified);
+        emu_synth_host.SetSoundFont(found ? config_audio.soundfont : std::string());
     }
     else
+    {
         emu_synth_get_default_folders(GDOX_MIDI_ENGINE_SOUNDFONT, folders);
-
-    for (size_t i = 0; (i < folders.size()) && emu_synth_soundfont_path.empty(); i++)
-        MidiSynth::FindSoundFont(folders[i].c_str(), emu_synth_soundfont_path);
+        emu_synth_host.FindSoundFont(folders);
+    }
 
     update_soundfont_status();
 
     if (!IsValidPointer(synth) || !synth->IsOpen(GDOX_MIDI_ENGINE_SOUNDFONT) ||
-        (emu_synth_soundfont_path == synth->GetSoundFontPath()))
+        (emu_synth_host.GetSoundFont() == synth->GetSoundFontPath()))
         return;
 
-    if (emu_synth_soundfont_path.empty())
-        synth->CloseSoundFont();
-    else
-    {
-        synth->CloseSoundFont();
+    synth->CloseSoundFont();
+
+    if (!emu_synth_host.GetSoundFont().empty())
         emu_synth_activate(GDOX_MIDI_ENGINE_SOUNDFONT);
-    }
 }
 
 void emu_synth_update(void)
 {
     MidiSynth* synth = emu_synth_get_midi_synth();
 
-    if (IsValidPointer(synth) && synth->IsOpen(GDOX_MIDI_ENGINE_MT32) && (get_wanted_mt32() != emu_synth_mt32_index))
+    if (IsValidPointer(synth) && synth->IsOpen(GDOX_MIDI_ENGINE_MT32) &&
+        (get_wanted_mt32() != emu_synth_host.GetMT32Index()))
         open_mt32();
 }
 
@@ -164,15 +138,7 @@ bool emu_synth_is_compiled(int engine)
 
 bool emu_synth_is_available(int engine)
 {
-    switch (engine)
-    {
-        case GDOX_MIDI_ENGINE_MT32:
-            return (emu_synth_set_count > 0) && !emu_synth_mt32_failed;
-        case GDOX_MIDI_ENGINE_SOUNDFONT:
-            return !emu_synth_soundfont_path.empty() && !emu_synth_soundfont_failed;
-        default:
-            return false;
-    }
+    return emu_synth_host.IsAvailable(engine);
 }
 
 bool emu_synth_activate(int engine)
@@ -188,14 +154,15 @@ bool emu_synth_activate(int engine)
     if (engine == GDOX_MIDI_ENGINE_MT32)
         return open_mt32();
 
-    if (synth->OpenSoundFont(emu_synth_soundfont_path.c_str()))
+    const char* path = emu_synth_host.GetSoundFont().c_str();
+
+    if (emu_synth_host.OpenSoundFont(synth) == MidiSynthHost::MIDI_SYNTH_HOST_OPENED)
     {
-        Log("MIDI Out: built-in SoundFont %s", emu_synth_soundfont_path.c_str());
+        Log("MIDI Out: built-in SoundFont %s", path);
         return true;
     }
 
-    Log("MIDI Out: unable to load the SoundFont %s", emu_synth_soundfont_path.c_str());
-    emu_synth_soundfont_failed = true;
+    Log("MIDI Out: unable to load the SoundFont %s", path);
     update_soundfont_status();
     return false;
 }
@@ -230,7 +197,7 @@ const char* emu_synth_get_playing_name(int engine)
 
 const char* emu_synth_get_mt32_folder(void)
 {
-    return emu_synth_mt32_folder.c_str();
+    return emu_synth_host.GetMT32Folder().c_str();
 }
 
 const char* emu_synth_get_mt32_status(void)
@@ -240,7 +207,7 @@ const char* emu_synth_get_mt32_status(void)
 
 const char* emu_synth_get_soundfont(void)
 {
-    return emu_synth_soundfont_path.c_str();
+    return emu_synth_host.GetSoundFont().c_str();
 }
 
 const char* emu_synth_get_soundfont_status(void)
@@ -261,32 +228,33 @@ static int get_wanted_mt32(void)
     if (model < 0)
         model = CLAMP(config_audio.mt32_model, 0, GDOX_MT32_MODEL_COUNT - 1);
 
-    return MidiSynth::FindMT32ROMs(emu_synth_sets, emu_synth_set_count, model);
+    return emu_synth_host.FindMT32(model);
 }
 
 static bool open_mt32(void)
 {
     MidiSynth* synth = emu_synth_get_midi_synth();
     int index = get_wanted_mt32();
-    emu_synth_mt32_index = index;
 
     if (!IsValidPointer(synth))
         return false;
 
-    if (index < 0)
+    MidiSynthHost::MidiSynthHost_Open result = emu_synth_host.OpenMT32(synth, index);
+
+    if (result == MidiSynthHost::MIDI_SYNTH_HOST_OPENED)
+    {
+        Log("MIDI Out: built-in MT-32 is %s", emu_synth_host.GetMT32(index).name);
+        return true;
+    }
+
+    if (result == MidiSynthHost::MIDI_SYNTH_HOST_NONE)
     {
         synth->CloseMT32();
         return false;
     }
 
-    if (synth->OpenMT32(emu_synth_sets[index]))
-    {
-        Log("MIDI Out: built-in MT-32 is %s", emu_synth_sets[index].name);
-        return true;
-    }
-
-    Log("MIDI Out: unable to open the %s ROMs in %s", emu_synth_sets[index].name, emu_synth_mt32_folder.c_str());
-    emu_synth_mt32_failed = true;
+    Log("MIDI Out: unable to open the %s ROMs in %s", emu_synth_host.GetMT32(index).name,
+        emu_synth_host.GetMT32Folder().c_str());
     update_mt32_status();
     return false;
 }
@@ -322,13 +290,15 @@ static void update_mt32_status(void)
         return;
     }
 
-    if (emu_synth_set_count == 0)
+    int count = emu_synth_host.GetMT32Count();
+
+    if (count == 0)
     {
         strncpy_fit(status, "No MT-32 ROMs", size);
         return;
     }
 
-    if (emu_synth_mt32_failed)
+    if (emu_synth_host.HasMT32Failed())
     {
         strncpy_fit(status, "Unable to open the MT-32 ROMs", size);
         return;
@@ -336,12 +306,12 @@ static void update_mt32_status(void)
 
     status[0] = 0;
 
-    for (int i = 0; i < emu_synth_set_count; i++)
+    for (int i = 0; i < count; i++)
     {
         if (i > 0)
-            strncat_fit(status, i == emu_synth_set_count - 1 ? " and " : ", ", size);
+            strncat_fit(status, i == count - 1 ? " and " : ", ", size);
 
-        strncat_fit(status, emu_synth_sets[i].name, size);
+        strncat_fit(status, emu_synth_host.GetMT32(i).name, size);
     }
 
     strncat_fit(status, " found", size);
@@ -351,18 +321,18 @@ static void update_soundfont_status(void)
 {
     char* status = emu_synth_soundfont_status;
     size_t size = sizeof(emu_synth_soundfont_status);
+    const char* path = emu_synth_host.GetSoundFont().c_str();
     u64 bytes = 0;
     s64 modified = 0;
 
     if (!MidiSynth::IsAvailable(GDOX_MIDI_ENGINE_SOUNDFONT))
         strncpy_fit(status, "Not in this build", size);
-    else if (emu_synth_soundfont_path.empty())
+    else if (path[0] == 0)
         strncpy_fit(status, "No sound bank", size);
-    else if (emu_synth_soundfont_failed)
-        snprintf(status, size, "Unable to load %s", get_filename(emu_synth_soundfont_path.c_str()));
-    else if (MediaFile::GetFileInfo(emu_synth_soundfont_path.c_str(), &bytes, &modified))
-        snprintf(status, size, "%s, %u MB", get_filename(emu_synth_soundfont_path.c_str()),
-            (unsigned)((bytes + 0x80000) >> 20));
+    else if (emu_synth_host.HasSoundFontFailed())
+        snprintf(status, size, "Unable to load %s", get_filename(path));
+    else if (MediaFile::GetFileInfo(path, &bytes, &modified))
+        snprintf(status, size, "%s, %u MB", get_filename(path), (unsigned)((bytes + 0x80000) >> 20));
     else
-        strncpy_fit(status, get_filename(emu_synth_soundfont_path.c_str()), size);
+        strncpy_fit(status, get_filename(path), size);
 }

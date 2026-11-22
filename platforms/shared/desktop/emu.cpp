@@ -101,7 +101,6 @@ static bool loading_rebuild = false;
 static std::vector<std::string> cdrom_playlist;
 static int cdrom_playlist_index = -1;
 static int cmos_model = -1;
-static u8 cmos_saved[GDOX_CMOS_SIZE];
 static std::string key_map_path;
 
 static void load_media_thread_func(void);
@@ -2233,23 +2232,11 @@ static void update_key_map(void)
 
     save_key_map();
     key_map_path = path;
-    key_map->SetEnabled(true);
-    key_map->ClearLayer(GDOX_KEY_MAP_USER);
-    key_map->SetChanged(false);
 
     std::string error;
 
-    if (!key_map->SetLayer(GDOX_KEY_MAP_GAME, emu_game_get_keys(), &error))
-        key_map->ClearLayer(GDOX_KEY_MAP_GAME);
-
-    std::string text;
-
-    if (!MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
-        return;
-
-    if (!key_map->SetLayer(GDOX_KEY_MAP_USER, text.c_str(), &error))
+    if (!key_map->LoadFiles(path.c_str(), emu_game_get_keys(), &error))
     {
-        key_map->ClearLayer(GDOX_KEY_MAP_USER);
         Log("Ignoring the key map %s: %s", path.c_str(), error.c_str());
         gui_notify(gui_NotificationError, ICON_MD_KEYBOARD, "Key map ignored", error.c_str(), "key_map");
     }
@@ -2298,27 +2285,7 @@ static std::string get_key_map_path(std::string* title)
 
 static void save_key_map(void)
 {
-    KeyMap* key_map = geardox->GetKeyMap();
-
-    if (!key_map->IsChanged() || key_map_path.empty())
-        return;
-
-    key_map->SetChanged(false);
-
-    if (key_map->IsLayerEmpty(GDOX_KEY_MAP_USER))
-    {
-        remove_file_utf8(key_map_path.c_str());
-        return;
-    }
-
-    std::string text = "[keys]\n" + key_map->GetLayer(GDOX_KEY_MAP_USER);
-    std::ofstream file;
-    open_ofstream_utf8(file, key_map_path.c_str(), std::ios::out | std::ios::binary | std::ios::trunc);
-
-    if (file.is_open())
-        file.write(text.c_str(), (std::streamsize)text.size());
-
-    if (!file.is_open() || file.fail())
+    if (!geardox->GetKeyMap()->SaveUserFile(key_map_path.c_str()))
     {
         Log("Unable to save the key map %s", key_map_path.c_str());
         gui_notify(gui_NotificationError, ICON_MD_KEYBOARD, "Unable to save the key map", key_map_path.c_str(), "key_map");
@@ -2339,54 +2306,30 @@ static bool get_cmos_path(int model, char* path, size_t path_size)
 
 static void load_cmos(int model)
 {
-    MC146818* rtc = geardox->GetRTC();
     char path[GDOX_MAX_PATH];
-    std::ifstream file;
-
-    rtc->ResetCMOS();
     cmos_model = model;
+    bool has_path = get_cmos_path(model, path, sizeof(path));
+    GDOX_CMOS_File_Result result = geardox->LoadCMOSFile(has_path ? path : NULL);
 
-    if (get_cmos_path(model, path, sizeof(path)))
-        open_ifstream_utf8(file, path, std::ios::in | std::ios::binary);
-
-    if (file.is_open())
-    {
-        u8 data[GDOX_CMOS_FILE_SIZE + 1];
-        file.read(reinterpret_cast<char*>(data), sizeof(data));
-
-        if (!rtc->LoadCMOSFile(data, (size_t)file.gcount()))
-            Error("Invalid CMOS file: %s", path);
-        else
-            Log("CMOS loaded from %s", path);
-    }
-
-    memcpy(cmos_saved, rtc->GetCMOS(), GDOX_CMOS_SIZE);
+    if (result == GDOX_CMOS_FILE_INVALID)
+        Error("Invalid CMOS file: %s", path);
+    else if (result == GDOX_CMOS_FILE_LOADED)
+        Log("CMOS loaded from %s", path);
 }
 
 static void save_cmos(void)
 {
-    if (cmos_model < 0)
-        return;
-
-    const u8* cmos = geardox->GetRTC()->GetCMOS();
     char path[GDOX_MAX_PATH];
 
-    u32 size = GDOX_CMOS_SIZE - k_mc146818_ram_start;
-
-    if (memcmp(cmos + k_mc146818_ram_start, cmos_saved + k_mc146818_ram_start, size) == 0 ||
-        !get_cmos_path(cmos_model, path, sizeof(path)))
+    if ((cmos_model < 0) || !get_cmos_path(cmos_model, path, sizeof(path)))
         return;
 
-    u8 data[GDOX_CMOS_FILE_SIZE];
-    geardox->GetRTC()->SaveCMOSFile(data);
-    if (!MediaFile::WriteFileAtomic(path, data, GDOX_CMOS_FILE_SIZE))
-    {
+    GDOX_CMOS_File_Result result = geardox->SaveCMOSFileIfChanged(path);
+
+    if (result == GDOX_CMOS_FILE_FAILED)
         Error("Unable to save CMOS: %s", path);
-        return;
-    }
-
-    memcpy(cmos_saved, cmos, GDOX_CMOS_SIZE);
-    Log("CMOS saved to %s", path);
+    else if (result == GDOX_CMOS_FILE_SAVED)
+        Log("CMOS saved to %s", path);
 }
 
 static void notify_machine(void)
@@ -2400,13 +2343,7 @@ static void notify_machine(void)
     char message[256];
     std::string detail;
 
-    if (IsValidPointer(report.title))
-        snprintf(message, sizeof(message), "%s: %s, %u MB", report.title, k_machine_profiles[config.model].name,
-            config.ram_size / (1024 * 1024));
-    else
-        snprintf(message, sizeof(message), "%s, %u MB", k_machine_profiles[config.model].name,
-            config.ram_size / (1024 * 1024));
-
+    get_machine_headline(config, report, message, sizeof(message));
     Log("%s", message);
 
     for (int i = 0; i < report.warning_count; i++)

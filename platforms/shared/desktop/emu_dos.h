@@ -33,7 +33,6 @@
 
 EXTERN std::string emu_dos_get_msdos_path(void);
 EXTERN const char* emu_dos_get_msdos_name(void);
-EXTERN bool emu_dos_load_msdos(DosImport_System* system, std::string* error);
 EXTERN bool emu_dos_import_msdos(const char* path, std::string* message);
 EXTERN bool emu_dos_remove_msdos(void);
 EXTERN std::string emu_dos_get_ultrasnd_path(void);

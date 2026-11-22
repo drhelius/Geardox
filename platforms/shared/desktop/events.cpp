@@ -209,22 +209,9 @@ static GDOX_Joystick_State input_build_joystick(void)
     bool left = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
     bool right = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
 
-    if (emu_get_joystick_type() == GDOX_JOYSTICK_FLIGHTSTICK)
-    {
-        state.hat = (u8)((up ? GDOX_JOYSTICK_HAT_UP : 0) | (down ? GDOX_JOYSTICK_HAT_DOWN : 0) |
-            (left ? GDOX_JOYSTICK_HAT_LEFT : 0) | (right ? GDOX_JOYSTICK_HAT_RIGHT : 0));
-    }
-    else
-    {
-        if (left != right)
-            x = left ? -32768 : 32767;
-
-        if (up != down)
-            y = up ? -32768 : 32767;
-    }
-
     state.axes[GDOX_JOYSTICK_AXIS_AX] = (s16)CLAMP(x, -32768, 32767);
     state.axes[GDOX_JOYSTICK_AXIS_AY] = (s16)CLAMP(y, -32768, 32767);
+    Input::ApplyDPad(state, up, down, left, right, emu_get_joystick_type() == GDOX_JOYSTICK_FLIGHTSTICK);
     state.axes[GDOX_JOYSTICK_AXIS_BY] = SDL_GetGamepadAxis(gamepad, (SDL_GamepadAxis)mapping.gamepad_throttle_axis);
 
     for (int i = 0; i < 4; i++)

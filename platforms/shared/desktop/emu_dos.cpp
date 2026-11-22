@@ -66,11 +66,6 @@ const char* emu_dos_get_msdos_name(void)
     return msdos_name.c_str();
 }
 
-bool emu_dos_load_msdos(DosImport_System* system, std::string* error)
-{
-    return DosImport::Load(emu_dos_get_msdos_path().c_str(), system, error);
-}
-
 bool emu_dos_import_msdos(const char* path, std::string* message)
 {
     std::string previous = emu_hard_disk_get_default_path();

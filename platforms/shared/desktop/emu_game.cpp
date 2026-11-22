@@ -969,26 +969,18 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
 static void prepare_hard_disk(int id)
 {
     std::string source = disk.GetHardDisk(id);
-    std::vector<std::string> folders;
-    std::vector<std::string> files;
 
     if (source.empty())
         return;
 
-    if (!ends_with_no_case(source.c_str(), ".zip") && !MediaFile::ListDirectory(source.c_str(), folders, files))
+    if (!FatImage::IsSource(source.c_str()))
     {
         hard_disk_images[id] = source;
         return;
     }
 
-    std::string name;
-    FatImage::GetImageName(source.c_str(), &name);
-    char path[GDOX_MAX_PATH];
-    join_path(get_save_directory().c_str(), name.c_str(), path, sizeof(path));
-    hard_disk_images[id] = path;
-    FatImage::Prepare(source.c_str(), path, false, &hard_disk_reports[id]);
-
-    if ((hard_disk_reports[id].result == FAT_IMAGE_ERROR) || (hard_disk_reports[id].result == FAT_IMAGE_TOO_BIG))
+    if (!FatImage::PrepareSource(source.c_str(), get_save_directory().c_str(), false, &hard_disk_images[id],
+        &hard_disk_reports[id]))
         hard_disk_images[id].clear();
 }
 

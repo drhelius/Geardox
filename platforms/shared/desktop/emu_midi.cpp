@@ -97,20 +97,13 @@ void emu_midi_begin_frame(void)
     emu_midi_stopped = false;
     emu_midi_rewinding = false;
 
-    MidiOut::MidiOut_Capture capture = MidiOut::MIDI_OUT_CAPTURE_OFF;
-    MidiOut::MidiOut_Capture quiet = builtin ? MidiOut::MIDI_OUT_CAPTURE_OFF : MidiOut::MIDI_OUT_CAPTURE_SILENT;
+    bool quiet = config_emulator.ffwd || !config_audio.enable;
+    MidiOut::MidiOut_Capture_Change change = midi->UpdateCapture(open || builtin, quiet, builtin);
 
-    if (open || builtin)
-        capture = config_emulator.ffwd || !config_audio.enable ? quiet : MidiOut::MIDI_OUT_CAPTURE_ON;
-
-    MidiOut::MidiOut_Capture current = midi->GetCapture();
-
-    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == quiet))
+    if (change == MidiOut::MIDI_OUT_CAPTURE_SILENCE)
         silence(midi);
-    else if ((current == quiet) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
+    else if (change == MidiOut::MIDI_OUT_CAPTURE_SYNC)
         sync(midi);
-
-    midi->SetCapture(capture);
 }
 
 // Called after the frame's samples are queued, so its messages play with them

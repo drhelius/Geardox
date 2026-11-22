@@ -31,11 +31,9 @@
 #include "drive/hard_disk_image.h"
 #include "media/game_descriptor.h"
 #include "media/media_file.h"
+#include "common/idle_flush.h"
 
-static const int k_idle_flush_frames = 120;
-static u32 write_count = 0;
-static int idle_frames = 0;
-static bool flush_failed = false;
+static IdleFlush idle_flush;
 static bool flush_error = false;
 static u32 state_changes = 0;
 static bool rewind_changed = false;
@@ -52,6 +50,7 @@ static std::string get_builtin_path(int system);
 static int get_builtin_system(const char* path);
 static bool make_builtin(int system, bool replace);
 static bool attach_default(int id, int choice);
+static const char* get_save_folder(void);
 static std::string get_source_image_path(const char* path);
 static bool is_generated(int id, const char* path);
 
@@ -142,8 +141,9 @@ void emu_hard_disk_prepare_source(const char* path, bool rebuild)
 {
     strncpy_fit(prepared_source.path, trim_trailing_separators(path).c_str(), sizeof(prepared_source.path));
 
-    strncpy_fit(prepared_source.image, get_source_image_path(path).c_str(), sizeof(prepared_source.image));
-    FatImage::Prepare(prepared_source.path, prepared_source.image, rebuild, &prepared_source.report);
+    std::string image;
+    FatImage::PrepareSource(prepared_source.path, get_save_folder(), rebuild, &image, &prepared_source.report);
+    strncpy_fit(prepared_source.image, image.c_str(), sizeof(prepared_source.image));
 }
 
 const Emu_HardDiskSource* emu_hard_disk_get_prepared_source(void)
@@ -395,11 +395,9 @@ bool emu_hard_disk_flush(void)
 {
     bool flushed = emu_get_core()->FlushHardDisks();
 
-    if (!flushed && !flush_failed)
+    if (idle_flush.Done(flushed))
         flush_error = true;
 
-    flush_failed = !flushed;
-    idle_frames = 0;
     return flushed;
 }
 
@@ -416,14 +414,7 @@ void emu_hard_disk_update(void)
         unflushed += image->GetUnflushedBlocks();
     }
 
-    if (count != write_count)
-    {
-        write_count = count;
-        idle_frames = 0;
-        return;
-    }
-
-    if ((unflushed != 0) && (++idle_frames >= k_idle_flush_frames))
+    if (idle_flush.Tick(count, unflushed != 0, k_idle_flush_hard_disk_frames))
         emu_hard_disk_flush();
 }
 
@@ -539,31 +530,10 @@ static int get_builtin_system(const char* path)
 static bool make_builtin(int system, bool replace)
 {
     std::string path = get_builtin_path(system);
-    const char* layout = config_input.keyboard_layout.c_str();
+    std::string msdos_zip = system == GDOX_GAME_SYSTEM_MSDOS ? emu_dos_get_msdos_path() : "";
 
-    if (system != GDOX_GAME_SYSTEM_MSDOS)
-    {
-        if (DosDisk::Write(path.c_str(), system, NULL, layout, replace))
-            return true;
-
-        builtin_error = "Unable to make " + path;
-        return false;
-    }
-
-    DosImport_System msdos;
-    std::string error;
-
-    if (!emu_dos_load_msdos(&msdos, &error))
-    {
-        builtin_error = error.empty() ? std::string("MS-DOS isn't imported") : error;
-        return false;
-    }
-
-    if (DosDisk::Write(path.c_str(), system, &msdos, layout, replace))
-        return true;
-
-    builtin_error = "Unable to make " + path;
-    return false;
+    return DosDisk::WriteBuiltin(path.c_str(), system, msdos_zip.c_str(), config_input.keyboard_layout.c_str(), replace,
+        &builtin_error);
 }
 
 static bool attach_default(int id, int choice)
@@ -577,14 +547,15 @@ static bool attach_default(int id, int choice)
 }
 
 // "Same as ROM" means the config folder here: a folder is only read, so nothing goes next to it
-static std::string get_source_image_path(const char* path)
+static const char* get_save_folder(void)
 {
     bool custom = (Directory_Location)config_emulator.savefiles_dir_option == Directory_Location_Custom;
-    std::string name;
-    char image[GDOX_MAX_PATH];
-    FatImage::GetImageName(path, &name);
-    join_path(custom ? config_emulator.savefiles_path.c_str() : config_root_path, name.c_str(), image, sizeof(image));
-    return image;
+    return custom ? config_emulator.savefiles_path.c_str() : config_root_path;
+}
+
+static std::string get_source_image_path(const char* path)
+{
+    return FatImage::GetImagePath(path, get_save_folder());
 }
 
 static bool is_generated(int id, const char* path)

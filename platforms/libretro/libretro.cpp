@@ -30,9 +30,12 @@
 #include "geardox.h"
 #include "media/media_file.h"
 #include "media/crc.h"
+#include "audio/midi_synth_host.h"
+#include "common/idle_flush.h"
 #include "drive/fdc.h"
 #include "drive/floppy_disk.h"
 #include "drive/floppy_image.h"
+#include "drive/floppy_set.h"
 #include "drive/hard_disk_image.h"
 #include "drive/fat_image.h"
 #include "drive/dos_disk.h"
@@ -51,9 +54,6 @@
 #define DISK_DRIVE_FLOPPY_1 1
 #define DISK_DRIVE_FLOPPY_2 2
 #define DISK_DRIVE_COUNT (1 + FDC_DRIVES)
-#define FLOPPY_IDLE_FRAMES 180
-#define HARD_DISK_IDLE_FRAMES 120
-#define CMOS_SAVE_FRAMES 180
 #define RTC_FIXED_DATE 631152000
 #define PLAYLIST_MAX_SIZE (1024 * 1024)
 #define CONTENT_MAX_SIZE (k_floppy_max_image_size * 4)
@@ -80,12 +80,7 @@ static u64 midi_frame_base = 0;
 static u64 midi_last_sample = 0;
 static bool midi_builtin = true;
 static int midi_mt32_model = GDOX_MT32_MODEL_AUTO;
-static MidiSynth::MidiSynth_MT32_ROMs midi_mt32_sets[MIDI_SYNTH_MT32_SETS];
-static int midi_mt32_count = 0;
-static int midi_mt32_index = -1;
-static bool midi_mt32_failed = false;
-static std::string midi_soundfont;
-static bool midi_soundfont_failed = false;
+static MidiSynthHost midi_host;
 static bool frameskip_threshold_visible = true;
 
 static char retro_save_directory[4096];
@@ -99,9 +94,7 @@ static u8* frame_buffer;
 static s16 audio_buf[GDOX_AUDIO_BUFFER_SIZE];
 static int audio_sample_count = 0;
 static size_t savestate_size = 0;
-static GDOX_Machine_Settings machine_settings = { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MACHINE_AUTO, { GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO }, GDOX_SOUND_CARD_SB16, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
-    GDOX_MOUSE_PS2, GDOX_CDROM_SECONDARY_MASTER, GDOX_CDROM_SPEED_4X, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO };
+static GDOX_Machine_Settings machine_settings;
 #if !defined(GDOX_DISABLE_DYNAREC)
 static int dynarec_option = -1;
 #endif
@@ -135,6 +128,27 @@ static std::string key_map_path;
 static bool key_mapper_was_open = false;
 static bool key_mapping_was_enabled = true;
 
+enum Import_Step
+{
+    IMPORT_CURRENT = 0,
+    IMPORT_DONE,
+    IMPORT_FAILED,
+    IMPORT_SKIPPED
+};
+
+typedef Import_Step (*Import_Function)(const char* source, const char* path, std::string* text);
+
+struct Import_Source
+{
+    const char* folder;
+    const char* file;
+    bool folders;
+    const char* name;
+    const char* contents;
+    const char* gone;
+    Import_Function run;
+};
+
 struct DiskSetImage
 {
     std::string path;
@@ -157,12 +171,8 @@ static int open_entry = -1;
 static unsigned disk_initial_index = 0;
 static std::string disk_initial_path;
 static std::string floppy_working_path[FDC_DRIVES];
-static u32 floppy_write_count[FDC_DRIVES];
-static int floppy_idle_frames[FDC_DRIVES];
-static bool floppy_flush_failed[FDC_DRIVES];
-static u32 hard_disk_write_count = 0;
-static int hard_disk_idle_frames = 0;
-static bool hard_disk_flush_failed = false;
+static IdleFlush floppy_idle_flush[FDC_DRIVES];
+static IdleFlush hard_disk_idle_flush;
 static bool hard_disk_state_warned = false;
 static std::string hard_disk_working_path[GDOX_MAX_HARD_DISKS];
 static bool hard_disk_image_attached = false;
@@ -186,10 +196,7 @@ static bool game_options_hidden = false;
 static bool cmos_shared = true;
 static bool cmos_shared_active = false;
 static std::string cmos_path;
-static u8 cmos_saved[GDOX_CMOS_SIZE];
-static u8 cmos_file_data[GDOX_CMOS_FILE_SIZE];
-static int cmos_frames = 0;
-static bool cmos_save_failed = false;
+static IdleFlush cmos_idle_flush;
 
 static bool load_content(const char* path);
 static void unload_content(void);
@@ -264,7 +271,6 @@ static bool disk_add_image_index(void);
 static bool disk_set_initial_image(unsigned index, const char* path);
 static bool disk_get_image_path(unsigned index, char* path, size_t len);
 static bool disk_get_image_label(unsigned index, char* label, size_t len);
-static bool load_source(const char* path, int image, std::vector<u8>& data, char* name = NULL, size_t name_size = 0);
 static bool floppy_load_image(unsigned index, int floppy);
 static bool floppy_flush(int floppy);
 static void floppy_update(void);
@@ -274,13 +280,21 @@ static void hard_disk_attach_builtin(void);
 static bool hard_disk_make_builtin(const std::string& path, int system);
 static bool hard_disk_is_cdrom_slot(int id);
 static int hard_disk_get_builtin_slot(void);
-static std::string msdos_import(void);
-static std::string ultrasnd_import(void);
-static std::string glide_import(void);
+static Import_Step import_msdos(const char* source, const char* zip, std::string* text);
+static Import_Step import_ultrasnd(const char* source, const char* zip, std::string* text);
+static Import_Step import_glide(const char* source, const char* ovl, std::string* text);
+static std::string system_import(const Import_Source& import);
 static void hard_disk_update(void);
 static void cmos_load(void);
 static void cmos_save(void);
 static void cmos_update(void);
+
+static const Import_Source k_import_msdos = { "msdos", k_dos_import_file, false, "MS-DOS", "MS-DOS disks",
+    "games run on FreeDOS", import_msdos };
+static const Import_Source k_import_ultrasnd = { "ultrasnd", k_gus_import_file, true, "UltraSound software",
+    "UltraSound software", "the card has no patches", import_ultrasnd };
+static const Import_Source k_import_glide = { "3dfx", k_glide_import_file, true, "3dfx Voodoo driver",
+    "3dfx Voodoo driver", "its import was removed", import_glide };
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
@@ -461,24 +475,7 @@ void retro_deinit(void)
     libretro_supports_dupe = false;
     libretro_supports_keyboard = false;
     audio_sample_count = 0;
-    machine_settings.model = k_machine_default_model;
-    machine_settings.cpu_mhz = GDOX_MACHINE_AUTO;
-    machine_settings.ram_mb = k_machine_default_ram_mb;
-    machine_settings.fpu = 1;
-    machine_settings.speed_mode = GDOX_MACHINE_AUTO;
-    machine_settings.floppy_type[0] = GDOX_MACHINE_AUTO;
-    machine_settings.floppy_type[1] = GDOX_MACHINE_AUTO;
-    machine_settings.sound_card = GDOX_SOUND_CARD_SB16;
-    machine_settings.sound_irq = GDOX_MACHINE_AUTO;
-    machine_settings.sound_dma = GDOX_MACHINE_AUTO;
-    machine_settings.mpu = GDOX_MPU_INTELLIGENT;
-    machine_settings.gus = 0;
-    machine_settings.voodoo = 0;
-    machine_settings.mouse = GDOX_MOUSE_PS2;
-    machine_settings.cdrom = GDOX_CDROM_SECONDARY_MASTER;
-    machine_settings.cdrom_speed = GDOX_CDROM_SPEED_4X;
-    machine_settings.drive_timing = GDOX_MACHINE_AUTO;
-    machine_settings.video_card = GDOX_MACHINE_AUTO;
+    default_machine_settings(&machine_settings);
 #if !defined(GDOX_DISABLE_DYNAREC)
     dynarec_option = -1;
 #endif
@@ -835,9 +832,9 @@ static bool load_content(const char* path)
     set_machine_config();
     disk_clear();
     clear_input_state();
-    msdos_zip = msdos_import();
-    ultrasnd_zip = ultrasnd_import();
-    glide_ovl = glide_import();
+    msdos_zip = system_import(k_import_msdos);
+    ultrasnd_zip = system_import(k_import_ultrasnd);
+    glide_ovl = system_import(k_import_glide);
     midi_scan();
     bool game = false;
 
@@ -940,9 +937,7 @@ static void unload_content(void)
         hard_disk_working_path[i].clear();
     }
 
-    hard_disk_write_count = 0;
-    hard_disk_idle_frames = 0;
-    hard_disk_flush_failed = false;
+    hard_disk_idle_flush.Reset();
     hard_disk_state_warned = false;
     hard_disk_image_attached = false;
     game_end();
@@ -968,13 +963,12 @@ static void report_machine(void)
 {
     const GDOX_Machine_Config& config = core->GetMachineConfig();
     const GDOX_Machine_Report& report = core->GetMachineReport();
-    u32 ram_mb = config.ram_size / (1024 * 1024);
-    bool card = config.fpu && !k_machine_cpus[config.cpu].fpu;
+    char cpu[96];
+    get_machine_cpu_text(config, cpu, sizeof(cpu));
 
-    log_cb(RETRO_LOG_INFO, "Machine: %s, %s %u MHz%s%s, %u MB RAM, %d floppy drives%s%s\n",
-        k_machine_profiles[config.model].name, k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000,
-        card ? " + " : "", card ? get_machine_fpu_name(config.cpu) : "", ram_mb, config.floppy_drives,
-        IsValidPointer(report.title) ? ", game: " : "", IsValidPointer(report.title) ? report.title : "");
+    log_cb(RETRO_LOG_INFO, "Machine: %s, %s, %u MB RAM, %d floppy drives%s%s\n", k_machine_profiles[config.model].name,
+        cpu, config.ram_size / (1024 * 1024), config.floppy_drives, IsValidPointer(report.title) ? ", game: " : "",
+        IsValidPointer(report.title) ? report.title : "");
 
     for (int i = 0; i < report.warning_count; i++)
         log_cb(RETRO_LOG_WARN, "%s\n", report.warnings[i]);
@@ -983,11 +977,7 @@ static void report_machine(void)
         return;
 
     static char message[1024];
-
-    if (IsValidPointer(report.title))
-        snprintf(message, sizeof(message), "%s: %s, %u MB", report.title, k_machine_profiles[config.model].name, ram_mb);
-    else
-        snprintf(message, sizeof(message), "%s, %u MB", k_machine_profiles[config.model].name, ram_mb);
+    get_machine_headline(config, report, message, sizeof(message));
 
     for (int i = 0; i < report.warning_count; i++)
     {
@@ -1010,7 +1000,7 @@ static void midi_begin_frame(int av_enable)
     bool rewinding = midi_restores == 3;
     midi_restores = (u8)((midi_restores & 1) << 1);
 
-    if (synth->IsOpen(GDOX_MIDI_ENGINE_MT32) && (midi_get_mt32_index() != midi_mt32_index))
+    if (synth->IsOpen(GDOX_MIDI_ENGINE_MT32) && (midi_get_mt32_index() != midi_host.GetMT32Index()))
         midi_activate(GDOX_MIDI_ENGINE_MT32);
 
     int engine = wanted ? midi_get_engine() : GDOX_MIDI_ENGINE_NONE;
@@ -1041,20 +1031,13 @@ static void midi_begin_frame(int av_enable)
     if (!environ_cb(RETRO_ENVIRONMENT_GET_FASTFORWARDING, &fast))
         fast = false;
 
-    MidiOut::MidiOut_Capture capture = MidiOut::MIDI_OUT_CAPTURE_OFF;
-    MidiOut::MidiOut_Capture quiet = builtin ? MidiOut::MIDI_OUT_CAPTURE_OFF : MidiOut::MIDI_OUT_CAPTURE_SILENT;
+    bool enabled = (output || builtin) && ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0);
+    MidiOut::MidiOut_Capture_Change change = midi->UpdateCapture(enabled, fast || rewinding, builtin);
 
-    if ((output || builtin) && ((av_enable & RETRO_AV_ENABLE_AUDIO) != 0))
-        capture = fast || rewinding ? quiet : MidiOut::MIDI_OUT_CAPTURE_ON;
-
-    MidiOut::MidiOut_Capture current = midi->GetCapture();
-
-    if ((current == MidiOut::MIDI_OUT_CAPTURE_ON) && (capture == quiet))
+    if (change == MidiOut::MIDI_OUT_CAPTURE_SILENCE)
         midi->Silence();
-    else if ((current == quiet) && (capture == MidiOut::MIDI_OUT_CAPTURE_ON))
+    else if (change == MidiOut::MIDI_OUT_CAPTURE_SYNC)
         midi->Sync();
-
-    midi->SetCapture(capture);
 }
 
 static void midi_end_frame(int av_enable, int frame_samples)
@@ -1112,35 +1095,29 @@ static void midi_scan(void)
     append_path_component(mt32, "mt32");
     append_path_component(soundfonts, "geardox");
     append_path_component(soundfonts, "soundfonts");
-    std::string soundfont;
-    midi_mt32_count = 0;
-    midi_mt32_failed = false;
-    midi_soundfont_failed = false;
+    std::vector<std::string> mt32_folders;
+    std::vector<std::string> soundfont_folders;
+    std::string previous = midi_host.GetSoundFont();
 
     if (retro_system_directory[0] != 0)
     {
         midi_create_folders(mt32, soundfonts);
-        midi_mt32_count = MidiSynth::ScanMT32ROMs(mt32.c_str(), midi_mt32_sets, MIDI_SYNTH_MT32_SETS);
-
-        if (midi_mt32_count == 0)
-            midi_mt32_count = MidiSynth::ScanMT32ROMs(retro_system_directory, midi_mt32_sets, MIDI_SYNTH_MT32_SETS);
-
-        MidiSynth::FindSoundFont(soundfonts.c_str(), soundfont);
+        mt32_folders.push_back(mt32);
+        mt32_folders.push_back(retro_system_directory);
+        soundfont_folders.push_back(soundfonts);
     }
 
-    for (int i = 0; i < midi_mt32_count; i++)
-        log_cb(RETRO_LOG_INFO, "MT-32 ROMs: %s\n", midi_mt32_sets[i].name);
+    midi_host.ScanMT32(mt32_folders);
+    midi_host.FindSoundFont(soundfont_folders);
+
+    for (int i = 0; i < midi_host.GetMT32Count(); i++)
+        log_cb(RETRO_LOG_INFO, "MT-32 ROMs: %s\n", midi_host.GetMT32(i).name);
 
     if (synth->IsOpen(GDOX_MIDI_ENGINE_MT32))
-    {
-        midi_mt32_index = -1;
         synth->CloseMT32();
-    }
 
-    if (soundfont != midi_soundfont)
+    if (midi_host.GetSoundFont() != previous)
         synth->CloseSoundFont();
-
-    midi_soundfont = soundfont;
 }
 
 static int midi_get_kind(void)
@@ -1166,8 +1143,8 @@ static bool midi_is_builtin(void)
 static int midi_get_engine(void)
 {
     int engine = midi_get_kind() == GDOX_MIDI_SYNTH_MT32 ? GDOX_MIDI_ENGINE_MT32 : GDOX_MIDI_ENGINE_SOUNDFONT;
-    bool mt32 = (midi_mt32_count > 0) && !midi_mt32_failed;
-    bool soundfont = !midi_soundfont.empty() && !midi_soundfont_failed;
+    bool mt32 = midi_host.IsAvailable(GDOX_MIDI_ENGINE_MT32);
+    bool soundfont = midi_host.IsAvailable(GDOX_MIDI_ENGINE_SOUNDFONT);
 
     if ((engine == GDOX_MIDI_ENGINE_MT32) && !mt32)
         engine = soundfont ? GDOX_MIDI_ENGINE_SOUNDFONT : GDOX_MIDI_ENGINE_NONE;
@@ -1184,7 +1161,7 @@ static int midi_get_mt32_index(void)
     if (model < 0)
         model = midi_mt32_model;
 
-    return MidiSynth::FindMT32ROMs(midi_mt32_sets, midi_mt32_count, model);
+    return midi_host.FindMT32(model);
 }
 
 static bool midi_activate(int engine)
@@ -1195,23 +1172,17 @@ static bool midi_activate(int engine)
     {
         int index = midi_get_mt32_index();
 
-        if (synth->IsOpen(engine) && (index == midi_mt32_index))
+        if (synth->IsOpen(engine) && (index == midi_host.GetMT32Index()))
             return true;
 
-        midi_mt32_index = index;
+        MidiSynthHost::MidiSynthHost_Open result = midi_host.OpenMT32(synth, index);
 
-        if ((index < 0) || midi_mt32_failed)
-            return false;
+        if (result == MidiSynthHost::MIDI_SYNTH_HOST_OPENED)
+            log_cb(RETRO_LOG_INFO, "Built-in MT-32: %s\n", midi_host.GetMT32(index).name);
+        else if (result == MidiSynthHost::MIDI_SYNTH_HOST_FAILED)
+            log_cb(RETRO_LOG_ERROR, "Unable to open the %s ROMs\n", midi_host.GetMT32(index).name);
 
-        if (synth->OpenMT32(midi_mt32_sets[index]))
-        {
-            log_cb(RETRO_LOG_INFO, "Built-in MT-32: %s\n", midi_mt32_sets[index].name);
-            return true;
-        }
-
-        log_cb(RETRO_LOG_ERROR, "Unable to open the %s ROMs\n", midi_mt32_sets[index].name);
-        midi_mt32_failed = true;
-        return false;
+        return result == MidiSynthHost::MIDI_SYNTH_HOST_OPENED;
     }
 
     if (engine == GDOX_MIDI_ENGINE_SOUNDFONT)
@@ -1219,18 +1190,15 @@ static bool midi_activate(int engine)
         if (synth->IsOpen(engine))
             return true;
 
-        if (midi_soundfont.empty() || midi_soundfont_failed)
-            return false;
+        MidiSynthHost::MidiSynthHost_Open result = midi_host.OpenSoundFont(synth);
+        const char* path = midi_host.GetSoundFont().c_str();
 
-        if (synth->OpenSoundFont(midi_soundfont.c_str()))
-        {
-            log_cb(RETRO_LOG_INFO, "Built-in SoundFont: %s\n", midi_soundfont.c_str());
-            return true;
-        }
+        if (result == MidiSynthHost::MIDI_SYNTH_HOST_OPENED)
+            log_cb(RETRO_LOG_INFO, "Built-in SoundFont: %s\n", path);
+        else if (result == MidiSynthHost::MIDI_SYNTH_HOST_FAILED)
+            log_cb(RETRO_LOG_ERROR, "Unable to load the SoundFont %s\n", path);
 
-        log_cb(RETRO_LOG_ERROR, "Unable to load the SoundFont %s\n", midi_soundfont.c_str());
-        midi_soundfont_failed = true;
-        return false;
+        return result == MidiSynthHost::MIDI_SYNTH_HOST_OPENED;
     }
 
     return false;
@@ -1515,24 +1483,16 @@ static void apply_joystick(void)
         bool down = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_DOWN)) != 0;
         bool left = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_LEFT)) != 0;
         bool right = (bits & (1 << RETRO_DEVICE_ID_JOYPAD_RIGHT)) != 0;
+        bool flightstick = core->GetInput()->GetJoystickType() == GDOX_JOYSTICK_FLIGHTSTICK;
 
-        if (core->GetInput()->GetJoystickType() == GDOX_JOYSTICK_FLIGHTSTICK)
+        if (flightstick)
         {
             int throttle_y = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y);
             s16 unused;
             apply_dead_zone(0, throttle_y, unused, state.axes[GDOX_JOYSTICK_AXIS_BY]);
-
-            state.hat = (u8)((up ? GDOX_JOYSTICK_HAT_UP : 0) | (down ? GDOX_JOYSTICK_HAT_DOWN : 0) |
-                (left ? GDOX_JOYSTICK_HAT_LEFT : 0) | (right ? GDOX_JOYSTICK_HAT_RIGHT : 0));
         }
-        else
-        {
-            if (left != right)
-                state.axes[GDOX_JOYSTICK_AXIS_AX] = right ? 32767 : -32768;
 
-            if (up != down)
-                state.axes[GDOX_JOYSTICK_AXIS_AY] = down ? 32767 : -32768;
-        }
+        Input::ApplyDPad(state, up, down, left, right, flightstick);
 
         if (bits & (1 << RETRO_DEVICE_ID_JOYPAD_B))
             state.buttons |= GDOX_JOYSTICK_BUTTON_1;
@@ -1681,31 +1641,18 @@ static void apply_key_mapper_pointer(void)
 
 static void key_map_load(void)
 {
-    KeyMap* key_map = core->GetKeyMap();
     std::string error;
-    std::vector<u8> data;
 
     key_map_path = retro_save_directory;
     append_path_component(key_map_path, (get_save_disk_name(get_file_name(retro_game_path, true)) + ".keys").c_str());
-    key_map->SetEnabled(true);
-    key_map->ClearLayer(GDOX_KEY_MAP_GAME);
-    key_map->ClearLayer(GDOX_KEY_MAP_USER);
-    key_map->SetChanged(false);
     key_mapper_was_open = false;
     key_mapping_was_enabled = true;
     core->GetKeyMapper()->SetTitle(game_active ? game_disk.GetName() : get_file_name(retro_game_path, false).c_str());
 
-    if (game_active && !key_map->SetLayer(GDOX_KEY_MAP_GAME, game_disk.GetDescriptor().GetInfo().keys.c_str(), &error))
-        key_map->ClearLayer(GDOX_KEY_MAP_GAME);
+    const char* game_keys = game_active ? game_disk.GetDescriptor().GetInfo().keys.c_str() : NULL;
 
-    if (!MediaFile::ReadFile(key_map_path.c_str(), CONTENT_MAX_SIZE, &data))
-        return;
-
-    std::string text(data.begin(), data.end());
-
-    if (!key_map->SetLayer(GDOX_KEY_MAP_USER, text.c_str(), &error))
+    if (!core->GetKeyMap()->LoadFiles(key_map_path.c_str(), game_keys, &error))
     {
-        key_map->ClearLayer(GDOX_KEY_MAP_USER);
         log_cb(RETRO_LOG_ERROR, "Ignoring the key map %s: %s\n", key_map_path.c_str(), error.c_str());
         show_message(("Key map ignored: " + error).c_str(), 4, RETRO_LOG_ERROR);
     }
@@ -1713,22 +1660,7 @@ static void key_map_load(void)
 
 static void key_map_save(void)
 {
-    KeyMap* key_map = core->GetKeyMap();
-
-    if (!key_map->IsChanged() || key_map_path.empty())
-        return;
-
-    key_map->SetChanged(false);
-
-    if (key_map->IsLayerEmpty(GDOX_KEY_MAP_USER))
-    {
-        MediaFile::RemoveFile(key_map_path.c_str());
-        return;
-    }
-
-    std::string text = "[keys]\n" + key_map->GetLayer(GDOX_KEY_MAP_USER);
-
-    if (!MediaFile::WriteFileAtomic(key_map_path.c_str(), text.data(), text.size()))
+    if (!core->GetKeyMap()->SaveUserFile(key_map_path.c_str()))
     {
         log_cb(RETRO_LOG_ERROR, "Unable to save the key map %s\n", key_map_path.c_str());
         show_message("Unable to save the key map", 3, RETRO_LOG_ERROR);
@@ -2618,61 +2550,31 @@ static bool disk_add_playlist(const char* path, std::vector<DiskSetImage>& image
 
 static bool disk_add_floppy_images(const char* path, std::vector<DiskSetImage>& images)
 {
-    size_t first = images.size();
-    int members = 1;
+    std::vector<FloppySet_Disk> disks;
 
-    if (ends_with_no_case(path, ".zip"))
+    if (!FloppySet::ListDisks(path, disks))
+        return false;
+
+    for (size_t i = 0; i < disks.size(); i++)
     {
-        std::vector<u8> archive;
-        members = MediaFile::ReadFile(path, CONTENT_MAX_SIZE, &archive) ?
-            FloppyImage::GetZipImageCount(archive.data(), archive.size()) : 0;
+        const FloppySet_Disk& disk = disks[i];
+        std::string file_name = get_file_name(disk.images > 1 ? disk.member.c_str() : path, false);
+        std::string label = FloppySet::GetDiskLabel(disk);
+
+        DiskSetImage image;
+        image.path = path;
+        image.label = file_name + label;
+        image.label_suffix = (disk.images > 1 ? ": " + file_name : "") + label;
+        image.image = disk.image;
+        image.disk = disk.disk;
+        image.crc = disk.crc;
+        image.crc_known = true;
+        image.cdrom = false;
+        image.save_disk = false;
+        images.push_back(image);
     }
 
-    for (int member = 0; member < members; member++)
-    {
-        std::vector<u8> data;
-        char member_name[1024];
-
-        if (!load_source(path, member, data, member_name, sizeof(member_name)))
-            return false;
-
-        int count = FloppyImage::GetDiskCount(data.data(), (u32)data.size());
-        std::string file_name = get_file_name(members > 1 ? member_name : path, false);
-
-        for (int i = 0; i < count; i++)
-        {
-            u32 offset = 0;
-            u32 size = 0;
-
-            if (!FloppyImage::GetDisk(data.data(), (u32)data.size(), i, &offset, &size))
-                return false;
-
-            DiskSetImage image;
-            image.path = path;
-            image.label = file_name;
-            image.label_suffix = members > 1 ? ": " + file_name : "";
-            image.image = member;
-            image.disk = i;
-            image.crc = CalculateCRC32(0, data.data() + offset, size);
-            image.crc_known = true;
-            image.cdrom = false;
-            image.save_disk = false;
-
-            if (count > 1)
-            {
-                char name[32];
-                char suffix[64];
-                FloppyImage::GetDiskName(data.data() + offset, size, name, sizeof(name));
-                snprintf(suffix, sizeof(suffix), name[0] ? " (Disk %d: %s)" : " (Disk %d)", i + 1, name);
-                image.label += suffix;
-                image.label_suffix += suffix;
-            }
-
-            images.push_back(image);
-        }
-    }
-
-    return images.size() > first;
+    return true;
 }
 
 static bool disk_add_save_disk(const std::string& name, const char* label, const char* volume, std::vector<DiskSetImage>& images)
@@ -2718,10 +2620,8 @@ static unsigned disk_find_boot_floppy(void)
     for (size_t i = 0; i < disk_images.size(); i++)
     {
         const DiskSetImage& image = disk_images[i];
-        std::vector<u8> data;
 
-        if (!image.cdrom && !image.save_disk && load_source(image.path.c_str(), image.image, data) &&
-            FloppyImage::IsBootDisk(data.data(), (u32)data.size(), image.disk))
+        if (!image.cdrom && !image.save_disk && FloppySet::IsBootDisk(image.path.c_str(), image.image, image.disk))
             return (unsigned)i;
     }
 
@@ -2852,8 +2752,7 @@ static void disk_clear(void)
     for (int i = 0; i < FDC_DRIVES; i++)
     {
         floppy_working_path[i].clear();
-        floppy_idle_frames[i] = 0;
-        floppy_flush_failed[i] = false;
+        floppy_idle_flush[i].Reset();
     }
 }
 
@@ -3170,25 +3069,6 @@ static bool disk_get_image_label(unsigned index, char* label, size_t len)
     return true;
 }
 
-static bool load_source(const char* path, int image, std::vector<u8>& data, char* name, size_t name_size)
-{
-    if (!MediaFile::ReadFile(path, CONTENT_MAX_SIZE, &data))
-        return false;
-
-    if (!ends_with_no_case(path, ".zip"))
-        return true;
-
-    u8* extracted = NULL;
-    u32 size = 0;
-
-    if (!FloppyImage::ExtractFromZip(data.data(), data.size(), image, &extracted, &size, name, name_size))
-        return false;
-
-    data.assign(extracted, extracted + size);
-    SafeDeleteArray(extracted);
-    return true;
-}
-
 static bool floppy_load_image(unsigned index, int floppy)
 {
     const DiskSetImage& image = disk_images[index];
@@ -3213,8 +3093,7 @@ static bool floppy_load_image(unsigned index, int floppy)
     {
         u32 offset = 0;
 
-        if (!load_source(image.path.c_str(), image.image, file) ||
-            !FloppyImage::GetDisk(file.data(), (u32)file.size(), image.disk, &offset, &size))
+        if (!FloppySet::ReadDisk(image.path.c_str(), image.image, image.disk, file, &offset, &size))
             return false;
 
         char suffix[64];
@@ -3240,8 +3119,7 @@ static bool floppy_load_image(unsigned index, int floppy)
         source = data;
         source_size = size;
 
-        if (MediaFile::ReadFile(working.c_str(), CONTENT_MAX_SIZE, &copy) &&
-            FloppyImage::IsD77(copy.data(), (u32)copy.size()))
+        if (FloppySet::ReadWorkingCopy(working.c_str(), copy))
         {
             log_cb(RETRO_LOG_INFO, "Loading floppy working copy: %s\n", working.c_str());
             data_crc = FloppyImage::CalculateDataCRC(data, size);
@@ -3254,8 +3132,7 @@ static bool floppy_load_image(unsigned index, int floppy)
         return false;
 
     floppy_working_path[floppy] = working;
-    floppy_idle_frames[floppy] = 0;
-    floppy_flush_failed[floppy] = false;
+    floppy_idle_flush[floppy].Reset();
     drive_entry[DISK_DRIVE_FLOPPY_1 + floppy] = (int)index;
     log_cb(RETRO_LOG_INFO, "Floppy %d: %s\n", floppy + 1, image.path.c_str());
     return true;
@@ -3283,31 +3160,15 @@ static void floppy_update(void)
     {
         FloppyDisk* disk = core->GetFloppy(i);
 
-        if (!disk->IsInserted() || !disk->IsDirty())
+        if (!disk->IsInserted() ||
+            !floppy_idle_flush[i].Tick(disk->GetWriteCount(), disk->IsDirty(), k_idle_flush_floppy_frames))
             continue;
 
-        if (disk->GetWriteCount() != floppy_write_count[i])
-        {
-            floppy_write_count[i] = disk->GetWriteCount();
-            floppy_idle_frames[i] = 0;
-            continue;
-        }
-
-        if (++floppy_idle_frames[i] != FLOPPY_IDLE_FRAMES)
-            continue;
-
-        bool saved = floppy_flush(i);
-
-        if (!saved && !floppy_flush_failed[i])
+        if (floppy_idle_flush[i].Done(floppy_flush(i)))
         {
             log_cb(RETRO_LOG_ERROR, "Unable to save the floppy %d changes\n", i + 1);
             show_message("Unable to save the floppy disk changes", 3, RETRO_LOG_ERROR);
         }
-
-        if (!saved)
-            floppy_idle_frames[i] = 0;
-
-        floppy_flush_failed[i] = !saved;
     }
 }
 
@@ -3379,17 +3240,14 @@ static bool hard_disk_attach_source(const char* path)
         return false;
     }
 
-    std::string name;
-    std::string image(retro_save_directory);
+    std::string image;
     FatImage_Report report;
-    FatImage::GetImageName(path, &name);
-    append_path_component(image, name.c_str());
-    FatImage::Prepare(path, image.c_str(), false, &report);
+    bool prepared = FatImage::PrepareSource(path, retro_save_directory, false, &image, &report);
 
     if (report.result == FAT_IMAGE_TOO_BIG)
         show_message("These files don't fit in a FAT16 disk of 2015 MB", 3, RETRO_LOG_ERROR);
 
-    if ((report.result == FAT_IMAGE_TOO_BIG) || (report.result == FAT_IMAGE_ERROR))
+    if (!prepared)
     {
         log_cb(RETRO_LOG_ERROR, "Unable to make a hard disk from %s\n", path);
         return false;
@@ -3427,133 +3285,125 @@ static bool hard_disk_attach_source(const char* path)
 
 // The user's own Setup disks in <system>/geardox/msdos are imported into the save directory, and again when they
 // change. With none there, msdos.zip goes and games and the built-in disk run on FreeDOS
-static std::string msdos_import(void)
+static Import_Step import_msdos(const char* source, const char* zip, std::string* text)
 {
-    std::string zip(retro_save_directory);
-    std::string source(retro_system_directory);
-    std::vector<std::string> folders;
-    std::vector<std::string> files;
-    append_path_component(zip, k_dos_import_file);
-    append_path_component(source, "geardox");
-    append_path_component(source, "msdos");
-
-    if ((retro_system_directory[0] == 0) || !MediaFile::ListDirectory(source.c_str(), folders, files) || files.empty())
-    {
-        if (MediaFile::Exists(zip.c_str()) && MediaFile::RemoveFile(zip.c_str()))
-            log_cb(RETRO_LOG_INFO, "No MS-DOS disks in %s any more, games run on FreeDOS\n", source.c_str());
-
-        return "";
-    }
-
     DosImport import;
     DosImport_System system;
     std::string error;
     u32 imported = 0;
 
-    if (!import.AddSource(source.c_str()))
+    if (!import.AddSource(source))
     {
-        log_cb(RETRO_LOG_WARN, "MS-DOS in %s not imported: %s\n", source.c_str(), import.GetError());
-        return "";
+        *text = import.GetError();
+        return IMPORT_SKIPPED;
     }
 
-    if (DosImport::ReadSourceFingerprint(zip.c_str(), &imported) && (imported == import.GetSourceFingerprint()) &&
-        DosImport::Load(zip.c_str(), &system, &error))
-        return zip;
+    if (DosImport::ReadSourceFingerprint(zip, &imported) && (imported == import.GetSourceFingerprint()) &&
+        DosImport::Load(zip, &system, &error))
+        return IMPORT_CURRENT;
 
-    static char message[512];
-
-    if (import.Import(zip.c_str()) != DOS_IMPORT_DONE)
+    if (import.Import(zip) != DOS_IMPORT_DONE)
     {
-        snprintf(message, sizeof(message), "MS-DOS not imported: %s", import.GetError());
-        show_message(message, 3, RETRO_LOG_WARN);
-        return "";
+        *text = import.GetError();
+        return IMPORT_FAILED;
     }
 
-    snprintf(message, sizeof(message), "%s imported from %s", import.GetName(), source.c_str());
-    show_message(message, 2, RETRO_LOG_INFO);
-    return zip;
+    *text = std::string(import.GetName()) + " imported";
+    return IMPORT_DONE;
 }
 
-static std::string ultrasnd_import(void)
+static Import_Step import_ultrasnd(const char* source, const char* zip, std::string* text)
 {
-    std::string zip(retro_save_directory);
-    std::string source(retro_system_directory);
-    std::vector<std::string> folders;
-    std::vector<std::string> files;
-    append_path_component(zip, k_gus_import_file);
-    append_path_component(source, "geardox");
-    append_path_component(source, "ultrasnd");
-
-    if ((retro_system_directory[0] == 0) || !MediaFile::ListDirectory(source.c_str(), folders, files) ||
-        (files.empty() && folders.empty()))
-    {
-        if (MediaFile::Exists(zip.c_str()) && MediaFile::RemoveFile(zip.c_str()))
-            log_cb(RETRO_LOG_INFO, "No UltraSound software in %s any more, the card has no patches\n", source.c_str());
-
-        return "";
-    }
-
     GusImport import;
     GusImport_Software software;
     std::string error;
     u32 imported = 0;
 
-    if (!import.AddSource(source.c_str()))
+    if (!import.AddSource(source))
     {
-        log_cb(RETRO_LOG_WARN, "UltraSound software in %s not imported: %s\n", source.c_str(), import.GetError());
-        return "";
+        *text = import.GetError();
+        return IMPORT_SKIPPED;
     }
 
-    if (GusImport::ReadSourceFingerprint(zip.c_str(), &imported) && (imported == import.GetSourceFingerprint()) &&
-        GusImport::Load(zip.c_str(), &software, &error))
-        return zip;
+    if (GusImport::ReadSourceFingerprint(zip, &imported) && (imported == import.GetSourceFingerprint()) &&
+        GusImport::Load(zip, &software, &error))
+        return IMPORT_CURRENT;
 
-    static char message[512];
-
-    if (import.Import(zip.c_str()) != GUS_IMPORT_DONE)
+    if (import.Import(zip) != GUS_IMPORT_DONE)
     {
-        snprintf(message, sizeof(message), "UltraSound software not imported: %s", import.GetError());
-        show_message(message, 3, RETRO_LOG_WARN);
-        return "";
+        *text = import.GetError();
+        return IMPORT_FAILED;
     }
 
-    snprintf(message, sizeof(message), "%s from %s", import.GetMessage(), source.c_str());
-    show_message(message, 2, RETRO_LOG_INFO);
-    return zip;
+    *text = import.GetMessage();
+    return IMPORT_DONE;
 }
 
-static std::string glide_import(void)
+static Import_Step import_glide(const char* source, const char* ovl, std::string* text)
 {
-    std::string ovl(retro_save_directory);
+    GlideImport import;
+
+    if (import.Find(source) != GLIDE_IMPORT_DONE)
+    {
+        *text = import.GetError();
+        return IMPORT_FAILED;
+    }
+
+    if (import.IsImported(ovl))
+        return IMPORT_CURRENT;
+
+    if (import.Write(ovl) != GLIDE_IMPORT_DONE)
+    {
+        *text = import.GetError();
+        return IMPORT_FAILED;
+    }
+
+    *text = import.GetMessage();
+    return IMPORT_DONE;
+}
+
+static std::string system_import(const Import_Source& import)
+{
+    std::string path(retro_save_directory);
     std::string source(retro_system_directory);
     std::vector<std::string> folders;
     std::vector<std::string> files;
-    append_path_component(ovl, k_glide_import_file);
+    append_path_component(path, import.file);
     append_path_component(source, "geardox");
-    append_path_component(source, "3dfx");
+    append_path_component(source, import.folder);
 
     if ((retro_system_directory[0] == 0) || !MediaFile::ListDirectory(source.c_str(), folders, files) ||
-        (files.empty() && folders.empty()))
+        (files.empty() && (!import.folders || folders.empty())))
+    {
+        if (MediaFile::Exists(path.c_str()) && MediaFile::RemoveFile(path.c_str()))
+            log_cb(RETRO_LOG_INFO, "No %s in %s any more, %s\n", import.contents, source.c_str(), import.gone);
+
         return "";
+    }
 
-    std::string data;
-
-    if (GlideImport::Load(ovl.c_str(), &data, NULL))
-        return ovl;
-
-    GlideImport import;
+    std::string text;
+    Import_Step step = import.run(source.c_str(), path.c_str(), &text);
     static char message[512];
 
-    if (import.Import(source.c_str(), ovl.c_str()) != GLIDE_IMPORT_DONE)
+    if (step == IMPORT_CURRENT)
+        return path;
+
+    if (step == IMPORT_SKIPPED)
     {
-        snprintf(message, sizeof(message), "3dfx Voodoo driver not imported: %s", import.GetError());
+        log_cb(RETRO_LOG_WARN, "%s in %s not imported: %s\n", import.name, source.c_str(), text.c_str());
+        return "";
+    }
+
+    if (step == IMPORT_FAILED)
+    {
+        snprintf(message, sizeof(message), "%s not imported: %s", import.name, text.c_str());
         show_message(message, 3, RETRO_LOG_WARN);
         return "";
     }
 
-    snprintf(message, sizeof(message), "%s from %s", import.GetMessage(), source.c_str());
+    snprintf(message, sizeof(message), "%s from %s", text.c_str(), source.c_str());
     show_message(message, 2, RETRO_LOG_INFO);
-    return ovl;
+    return path;
 }
 
 // A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop. Images, manifests and
@@ -3641,19 +3491,11 @@ static bool game_open(const char* path, bool* game)
         if (disk.empty())
             continue;
 
-        std::vector<std::string> folders;
-        std::vector<std::string> files;
-        bool source = ends_with_no_case(disk.c_str(), ".zip") || MediaFile::ListDirectory(disk.c_str(), folders, files);
-
-        if (source)
+        if (FatImage::IsSource(disk.c_str()))
         {
-            std::string name;
-            std::string image(retro_save_directory);
+            std::string image;
             FatImage_Report report;
-            FatImage::GetImageName(disk.c_str(), &name);
-            append_path_component(image, name.c_str());
-            FatImage::Prepare(disk.c_str(), image.c_str(), false, &report);
-            disk = (report.result == FAT_IMAGE_ERROR) || (report.result == FAT_IMAGE_TOO_BIG) ? std::string() : image;
+            disk = FatImage::PrepareSource(disk.c_str(), retro_save_directory, false, &image, &report) ? image : "";
         }
 
         if (disk.empty() || !core->AttachHardDisk(id, disk.c_str(), false, ""))
@@ -3770,19 +3612,13 @@ static void hard_disk_attach_builtin(void)
 
 static bool hard_disk_make_builtin(const std::string& path, int system)
 {
-    if (system != GDOX_GAME_SYSTEM_MSDOS)
-        return DosDisk::Write(path.c_str(), system, NULL, game_keyboard_layout, false);
-
-    DosImport_System msdos;
     std::string error;
 
-    if (!DosImport::Load(msdos_zip.c_str(), &msdos, &error))
-    {
-        log_cb(RETRO_LOG_ERROR, "%s\n", error.c_str());
-        return false;
-    }
+    if (DosDisk::WriteBuiltin(path.c_str(), system, msdos_zip.c_str(), game_keyboard_layout, false, &error))
+        return true;
 
-    return DosDisk::Write(path.c_str(), system, &msdos, game_keyboard_layout, false);
+    log_cb(RETRO_LOG_ERROR, "%s\n", error.c_str());
+    return false;
 }
 
 static bool hard_disk_is_cdrom_slot(int id)
@@ -3807,88 +3643,58 @@ static void hard_disk_update(void)
         unflushed += image->GetUnflushedBlocks();
     }
 
-    if (count != hard_disk_write_count)
-    {
-        hard_disk_write_count = count;
-        hard_disk_idle_frames = 0;
-        return;
-    }
-
-    if ((unflushed == 0) || (++hard_disk_idle_frames < HARD_DISK_IDLE_FRAMES))
+    if (!hard_disk_idle_flush.Tick(count, unflushed != 0, k_idle_flush_hard_disk_frames))
         return;
 
-    hard_disk_idle_frames = 0;
-    bool saved = core->FlushHardDisks();
-
-    if (!saved && !hard_disk_flush_failed)
+    if (hard_disk_idle_flush.Done(core->FlushHardDisks()))
     {
         log_cb(RETRO_LOG_ERROR, "Unable to save the hard disk changes\n");
         show_message("Unable to save the hard disk changes", 3, RETRO_LOG_ERROR);
     }
-
-    hard_disk_flush_failed = !saved;
 }
 
 static void cmos_load(void)
 {
-    MC146818* rtc = core->GetRTC();
-    std::vector<u8> data;
     const GDOX_Machine_Profile& profile = k_machine_profiles[core->GetPendingMachineConfig().model];
     std::string name(profile.key);
 
-    rtc->ResetCMOS();
     cmos_shared_active = cmos_shared;
-    cmos_frames = 0;
-    cmos_save_failed = false;
+    cmos_idle_flush.Reset();
     cmos_path = retro_save_directory;
     append_path_component(cmos_path, (name + ".geardox.cmos").c_str());
 
-    if (cmos_shared_active && MediaFile::ReadFile(cmos_path.c_str(), CONTENT_MAX_SIZE, &data))
-    {
-        if (rtc->LoadCMOSFile(data.data(), data.size()))
-        {
-            log_cb(RETRO_LOG_INFO, "CMOS loaded from %s\n", cmos_path.c_str());
-        }
-        else
-        {
-            log_cb(RETRO_LOG_ERROR, "Invalid CMOS file: %s\n", cmos_path.c_str());
-        }
-    }
+    GDOX_CMOS_File_Result result = core->LoadCMOSFile(cmos_shared_active ? cmos_path.c_str() : NULL);
 
-    memcpy(cmos_saved, rtc->GetCMOS(), GDOX_CMOS_SIZE);
+    if (result == GDOX_CMOS_FILE_LOADED)
+        log_cb(RETRO_LOG_INFO, "CMOS loaded from %s\n", cmos_path.c_str());
+    else if (result == GDOX_CMOS_FILE_INVALID)
+        log_cb(RETRO_LOG_ERROR, "Invalid CMOS file: %s\n", cmos_path.c_str());
 }
 
 static void cmos_save(void)
 {
-    const u8* cmos = core->GetRTC()->GetCMOS();
-
-    u32 size = GDOX_CMOS_SIZE - k_mc146818_ram_start;
-
-    if (!cmos_shared_active || memcmp(cmos + k_mc146818_ram_start, cmos_saved + k_mc146818_ram_start, size) == 0)
+    if (!cmos_shared_active)
         return;
 
-    core->GetRTC()->SaveCMOSFile(cmos_file_data);
-    bool saved = MediaFile::WriteFileAtomic(cmos_path.c_str(), cmos_file_data, GDOX_CMOS_FILE_SIZE);
+    GDOX_CMOS_File_Result result = core->SaveCMOSFileIfChanged(cmos_path.c_str());
+
+    if (result == GDOX_CMOS_FILE_UNCHANGED)
+        return;
+
+    bool saved = result == GDOX_CMOS_FILE_SAVED;
 
     if (saved)
-    {
-        memcpy(cmos_saved, cmos, GDOX_CMOS_SIZE);
         log_cb(RETRO_LOG_INFO, "CMOS saved to %s\n", cmos_path.c_str());
-    }
-    else if (!cmos_save_failed)
+
+    if (cmos_idle_flush.Done(saved))
     {
         log_cb(RETRO_LOG_ERROR, "Unable to save the CMOS to %s\n", cmos_path.c_str());
         show_message("Unable to save the CMOS", 3, RETRO_LOG_ERROR);
     }
-
-    cmos_save_failed = !saved;
 }
 
 static void cmos_update(void)
 {
-    if (++cmos_frames < CMOS_SAVE_FRAMES)
-        return;
-
-    cmos_frames = 0;
-    cmos_save();
+    if (cmos_idle_flush.Tick(0, true, k_idle_flush_cmos_frames))
+        cmos_save();
 }
