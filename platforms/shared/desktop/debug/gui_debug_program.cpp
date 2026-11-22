@@ -34,6 +34,7 @@
 #include "../utils.h"
 #include "gui_debug_disassembler.h"
 #include "gui_debug_memory.h"
+#include "gui_debug_widgets.h"
 
 static std::string console_text;
 static std::vector<std::string> console_lines;
@@ -46,9 +47,7 @@ static void draw_program(const Dev_Program_Info& program);
 static void draw_development(void);
 static void draw_console(void);
 static void refresh_console(void);
-static void draw_label(const char* label);
 static void draw_switch(const char* label, bool on, const char* on_text, const char* off_text, const char* tooltip);
-static void goto_linear(u32 address);
 
 void gui_debug_window_program(void)
 {
@@ -109,8 +108,7 @@ static void draw_menu(const Dev_Program_Info& program)
         if (ImGui::MenuItem("Run Again", NULL, false, open))
             emu_dev_relaunch();
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Rebuilds the game's disk from its folder and runs its program through GDXDBG.");
+        gui_debug_tooltip("Rebuilds the game's disk from its folder and runs its program through GDXDBG.");
 
         if (ImGui::MenuItem("Run Again, Stop at Entry", NULL, false, open))
             emu_dev_run_program(NULL, true);
@@ -120,8 +118,7 @@ static void draw_menu(const Dev_Program_Info& program)
         if (ImGui::MenuItem("Load Program Symbols...", NULL, false, program.state == DEV_PORT_PROGRAM_RUNNING))
             gui_file_dialog_load_program_symbols();
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("A map or symbol file of the running program, moved to where DOS loaded it.");
+        gui_debug_tooltip("A map or symbol file of the running program, moved to where DOS loaded it.");
 
         if (ImGui::MenuItem("Go to Entry", NULL, false, program.runs > 0))
             gui_debug_goto_address(((u32)program.entry_cs << 4) + program.entry_ip);
@@ -143,13 +140,11 @@ static void draw_menu(const Dev_Program_Info& program)
         ImGui::Separator();
         ImGui::MenuItem("E9h Console", NULL, &config_debug.dev_e9_console);
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Port E9h, where a program writes characters to the program console.");
+        gui_debug_tooltip("Port E9h, where a program writes characters to the program console.");
 
         ImGui::MenuItem("Magic Breakpoint", NULL, &config_debug.dev_magic_breakpoint);
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("XCHG BX,BX stops in the debugger.");
+        gui_debug_tooltip("XCHG BX,BX stops in the debugger.");
 
         ImGui::EndMenu();
     }
@@ -179,7 +174,7 @@ static void draw_program(const Dev_Program_Info& program)
     ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 10);
     ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 34);
 
-    draw_label("STATE");
+    gui_debug_row_label("STATE");
 
     if (program.state == DEV_PORT_PROGRAM_RUNNING)
         ImGui::TextColored(green, "RUNNING");
@@ -191,10 +186,10 @@ static void draw_program(const Dev_Program_Info& program)
     ImGui::SameLine();
     ImGui::TextColored(gray, "RUN %u", program.runs);
 
-    draw_label("PATH");
+    gui_debug_row_label("PATH");
     ImGui::TextColored(white, "%s", program.dos_path.c_str());
 
-    draw_label("HOST");
+    gui_debug_row_label("HOST");
 
     if (program.host_path.empty())
         ImGui::TextColored(gray, "NOT IN THE GAME'S FOLDER");
@@ -202,11 +197,10 @@ static void draw_program(const Dev_Program_Info& program)
     {
         ImGui::TextColored(white, "%s", get_filename(program.host_path.c_str()));
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", program.host_path.c_str());
+        gui_debug_tooltip(program.host_path.c_str());
     }
 
-    draw_label("FORMAT");
+    gui_debug_row_label("FORMAT");
 
     if (program.load_flags & DEV_PORT_LOAD_COFF)
         ImGui::TextColored(orange, "DJGPP COFF");
@@ -215,11 +209,11 @@ static void draw_program(const Dev_Program_Info& program)
     else
         ImGui::TextColored(orange, "MZ EXE");
 
-    draw_label("PSP");
+    gui_debug_row_label("PSP");
     ImGui::TextColored(white, "$%04X", program.psp);
 
     if (ImGui::IsItemClicked())
-        goto_linear((u32)program.psp << 4);
+        gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, (u32)program.psp << 4);
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Program Segment Prefix at linear $%08X\nClick to open it in the memory editor",
@@ -229,33 +223,31 @@ static void draw_program(const Dev_Program_Info& program)
     ImGui::TextColored(violet, " LOAD"); ImGui::SameLine();
     ImGui::TextColored(white, "$%04X", program.load_segment);
 
-    draw_label("ENTRY");
+    gui_debug_row_label("ENTRY");
     u32 entry = ((u32)program.entry_cs << 4) + program.entry_ip;
     ImGui::TextColored(white, "%04X:%04X", program.entry_cs, program.entry_ip);
 
     if (ImGui::IsItemClicked())
         gui_debug_goto_address(entry);
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Click to show it in the disassembler");
+    gui_debug_tooltip("Click to show it in the disassembler");
 
     ImGui::SameLine();
     ImGui::TextColored(gray, "$%08X", entry);
 
-    draw_label("STACK");
+    gui_debug_row_label("STACK");
     ImGui::TextColored(white, "%04X:%04X", program.stack_ss, program.stack_sp);
 
     if (ImGui::IsItemClicked())
-        goto_linear(((u32)program.stack_ss << 4) + program.stack_sp);
+        gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, ((u32)program.stack_ss << 4) + program.stack_sp);
 
-    draw_label("BASE");
+    gui_debug_row_label("BASE");
     ImGui::TextColored(white, "$%08X", program.base);
 
     if (ImGui::IsItemClicked())
-        goto_linear(program.base);
+        gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, program.base);
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Program symbols with plain addresses and gdb's program mode count from here");
+    gui_debug_tooltip("Program symbols with plain addresses and gdb's program mode count from here");
 
     ImGui::SameLine();
     ImGui::TextColored(program.based ? green : gray, "%s", program.based ? "REPORTED" : "LOAD SEGMENT");
@@ -264,14 +256,14 @@ static void draw_program(const Dev_Program_Info& program)
 
     if (program.based)
     {
-        draw_label("SELECTORS");
+        gui_debug_row_label("SELECTORS");
         ImGui::TextColored(violet, "CS"); ImGui::SameLine();
         ImGui::TextColored(white, "$%04X", program.code_selector); ImGui::SameLine();
         ImGui::TextColored(violet, " DS"); ImGui::SameLine();
         ImGui::TextColored(white, "$%04X", program.data_selector);
     }
 
-    draw_label("SYMBOLS");
+    gui_debug_row_label("SYMBOLS");
 
     if (program.symbol_path.empty())
         ImGui::TextColored(gray, "NONE");
@@ -281,13 +273,12 @@ static void draw_program(const Dev_Program_Info& program)
         ImGui::SameLine();
         ImGui::TextColored(gray, "%s", get_filename(program.symbol_path.c_str()));
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", program.symbol_path.c_str());
+        gui_debug_tooltip(program.symbol_path.c_str());
     }
 
     if (program.state == DEV_PORT_PROGRAM_EXITED)
     {
-        draw_label("EXIT CODE");
+        gui_debug_row_label("EXIT CODE");
         ImGui::TextColored(white, "%d", program.exit_code);
         ImGui::SameLine();
 
@@ -320,7 +311,7 @@ static void draw_development(void)
     draw_switch("MAGIC BRK", emu_get_core()->GetI386()->IsMagicBreakpoint(), "XCHG BX,BX", "OFF",
         "Settings > Magic Breakpoint or --magic-break");
 
-    draw_label("GDB");
+    gui_debug_row_label("GDB");
 
     if (!emu_gdb_is_running())
         ImGui::TextColored(gray, "OFF");
@@ -410,29 +401,11 @@ static void refresh_console(void)
         console_lines.push_back(line);
 }
 
-static void draw_label(const char* label)
-{
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextColored(violet, "%s", label);
-    ImGui::TableNextColumn();
-}
-
 static void draw_switch(const char* label, bool on, const char* on_text, const char* off_text, const char* tooltip)
 {
-    draw_label(label);
+    gui_debug_row_label(label);
     ImGui::TextColored(on ? green : gray, "%s", on ? on_text : off_text);
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", tooltip);
+    gui_debug_tooltip(tooltip);
 }
 
-static void goto_linear(u32 address)
-{
-    GDOX_Debug_Memory_Address target = { };
-    target.space = GDOX_DEBUG_MEMORY_LINEAR;
-    target.address = address;
-    target.segment_register = -1;
-    target.region = -1;
-    gui_debug_memory_goto(target);
-}

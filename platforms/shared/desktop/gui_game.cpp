@@ -451,8 +451,7 @@ static void popup_choice(void)
         if (ImGui::Selectable(name.c_str()))
         {
             GameDisk_Found chosen = found;
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
+            gui_close_popup();
             start(chosen);
         }
 
@@ -463,8 +462,7 @@ static void popup_choice(void)
 
     if (ImGui::Button("Cancel", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::EndPopup();
@@ -488,8 +486,7 @@ static void popup_programs(void)
         if (ImGui::Selectable(programs[i].c_str()))
         {
             std::string path;
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
+            gui_close_popup();
 
             if (emu_game_new_descriptor(program_folder.c_str(), programs[i].c_str(), &path))
             {
@@ -507,8 +504,7 @@ static void popup_programs(void)
 
     if (ImGui::Button("Cancel", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::EndPopup();
@@ -543,8 +539,7 @@ static void popup_write_back(void)
 
     if (ImGui::Button("OK", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::EndPopup();

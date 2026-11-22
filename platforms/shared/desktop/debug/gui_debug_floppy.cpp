@@ -33,6 +33,7 @@
 #include "../utils.h"
 #include "gui_debug_constants.h"
 #include "gui_debug_memory.h"
+#include "gui_debug_widgets.h"
 
 static int selected_sector = -1;
 
@@ -403,8 +404,7 @@ static void draw_drive_column(int drive, int row)
                 name = (IsValidPointer(windows_name) && windows_name > name) ? windows_name : name;
                 ImGui::TextColored(white, "%.20s", IsValidPointer(name) ? name + 1 : info.path);
 
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", info.path);
+                gui_debug_tooltip(info.path);
             }
             else
                 ImGui::TextColored(gray, "--");
@@ -571,10 +571,7 @@ static ImVec4 get_track_color(FloppyDisk* disk, int track)
 
 static void goto_floppy_image(int drive, u32 offset)
 {
-    GDOX_Debug_Memory_Address target = { };
-    target.space = GDOX_DEBUG_MEMORY_REGION;
+    GDOX_Debug_Memory_Address target = debug_memory_address(GDOX_DEBUG_MEMORY_REGION, offset);
     target.region = GDOX_DEBUG_REGION_FLOPPY_IMAGE + drive;
-    target.address = offset;
-    target.segment_register = -1;
     gui_debug_memory_goto(target);
 }

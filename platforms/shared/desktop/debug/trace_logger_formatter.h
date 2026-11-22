@@ -24,6 +24,11 @@
 
 #define GDOX_TRACE_FORMAT_BUFFER_SIZE 512
 #define GDOX_TRACE_INSTRUCTION_WIDTH 40
+#define GDOX_TRACE_LINEAR_WIDTH 9
+#define GDOX_TRACE_ADDRESS_WIDTH 13
+#define GDOX_TRACE_REGISTERS_WIDTH 105
+#define GDOX_TRACE_SEGMENTS_WIDTH 41
+#define GDOX_TRACE_FLAGS_WIDTH 15
 
 struct GDOX_Trace_Format_Options
 {
@@ -37,7 +42,7 @@ struct GDOX_Trace_Format_Options
     u64 previous_cycle;
 };
 
-void trace_log_format_cpu_address(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size);
+void trace_log_format_far_address(u16 cs, u32 eip, u8 mode, bool padded, char* buffer, size_t buffer_size);
 void trace_log_format_cpu_instruction(const GDOX_Trace_Entry& entry, char* buffer, size_t buffer_size);
 void trace_log_reset_file_names(void);
 bool trace_log_parse_filters(const char* code, const char* ports, const char* interrupts, GDOX_Trace_Filters& filters);

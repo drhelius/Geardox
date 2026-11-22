@@ -660,6 +660,24 @@ static inline const char* gui_debug_ide_command_name(u8 command)
         default: return "UNKNOWN";
     }
 }
+static const char* const k_debug_interrupt_sources[I386_INTERRUPT_SOURCE_COUNT] = { "ANY", "EXCEPTION", "HARDWARE", "SOFTWARE" };
+static const char* const k_debug_cdda_play_states[3] = { "IDLE", "PLAYING", "PAUSED" };
+static const char* const k_debug_ide_status_bits[8] = { "ERR", NULL, NULL, "DRQ", "DSC", NULL, "DRDY", "BSY" };
+static const char* const k_debug_ide_control_bits[8] = { NULL, "nIEN", "SRST", NULL, NULL, NULL, NULL, NULL };
+static const char* const k_debug_mpu_records[3] = { "OFF", "STANDBY", "ON" };
+static const char* const k_debug_opl_envelope_names[4] = { "ATTACK", "DECAY", "SUSTAIN", "RELEASE" };
+
+static inline const char* gui_debug_execution_mode_name(int mode)
+{
+    if (mode == I386_MODE_PROTECTED)
+        return "PROTECTED";
+
+    if (mode == I386_MODE_VM86)
+        return "VM86";
+
+    return "REAL";
+}
+
 static const char* const k_debug_fdc_rate_names[4] = { "500 KBPS", "300 KBPS", "250 KBPS", "1 MBPS" };
 
 static inline const char* gui_debug_floppy_status_name(u8 status)

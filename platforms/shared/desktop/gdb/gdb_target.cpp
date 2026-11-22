@@ -592,12 +592,7 @@ std::string GdbTarget::ReadMemory(u32 address, u32 length)
 
     std::vector<u8> data(length);
     std::vector<GDOX_Debug_Memory_Status> status(length);
-    GDOX_Debug_Memory_Address source;
-    source.space = GDOX_DEBUG_MEMORY_LINEAR;
-    source.address = GetBase() + address;
-    source.segment = 0;
-    source.segment_register = -1;
-    source.region = 0;
+    GDOX_Debug_Memory_Address source = debug_memory_address(GDOX_DEBUG_MEMORY_LINEAR, GetBase() + address);
     gui_debug_memory_read(source, &data[0], &status[0], length);
 
     u32 count = 0;
@@ -610,12 +605,7 @@ std::string GdbTarget::ReadMemory(u32 address, u32 length)
 
 bool GdbTarget::WriteMemory(u32 address, const std::vector<u8>& data)
 {
-    GDOX_Debug_Memory_Address target;
-    target.space = GDOX_DEBUG_MEMORY_LINEAR;
-    target.address = GetBase() + address;
-    target.segment = 0;
-    target.segment_register = -1;
-    target.region = 0;
+    GDOX_Debug_Memory_Address target = debug_memory_address(GDOX_DEBUG_MEMORY_LINEAR, GetBase() + address);
     return gui_debug_memory_write(target, &data[0], (u32)data.size());
 }
 

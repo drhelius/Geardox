@@ -486,8 +486,7 @@ static void draw_dirty_popup(void)
 
     if (ImGui::Button("Save and Continue", ImVec2(150, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         perform(false);
     }
 
@@ -495,8 +494,7 @@ static void draw_dirty_popup(void)
 
     if (ImGui::Button("Discard", ImVec2(100, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         perform(true);
     }
 
@@ -504,8 +502,7 @@ static void draw_dirty_popup(void)
 
     if (ImGui::Button("Cancel", ImVec2(100, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         pending_action = Floppy_Action_None;
         pending_open = false;
         pending_symbols = false;
@@ -527,8 +524,7 @@ static void draw_discard_popup(void)
 
     if (ImGui::Button("Discard", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
 
         if (!emu_floppy_discard(dialog_drive))
             gui_notify(gui_NotificationError, NULL, "Unable to reload the floppy image");
@@ -538,8 +534,7 @@ static void draw_discard_popup(void)
 
     if (ImGui::Button("Cancel", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::SetItemDefaultFocus();
@@ -575,8 +570,7 @@ static void draw_blank_popup(void)
 
     if (ImGui::Button("Create...", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         gui_file_dialog_new_floppy(dialog_drive);
     }
 
@@ -585,8 +579,7 @@ static void draw_blank_popup(void)
 
     if (ImGui::Button("Cancel", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::EndPopup();
@@ -605,8 +598,7 @@ static void draw_second_popup(void)
 
     if (ImGui::Button("Yes", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         request(1, Floppy_Action_Insert, second_path.c_str(), 0);
     }
 
@@ -615,8 +607,7 @@ static void draw_second_popup(void)
 
     if (ImGui::Button("No", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::EndPopup();
@@ -653,34 +644,7 @@ static void draw_quit_popup(void)
 
     ImGui::Separator();
 
-    if (ImGui::Button("Retry", ImVec2(100, 0)))
-    {
-        if (emu_floppy_flush())
-        {
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
-            application_confirm_quit();
-        }
-        else
-            gui_set_error_message("Unable to save the floppy changes.");
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Quit Without Saving", ImVec2(160, 0)))
-    {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
-        application_confirm_quit();
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Cancel", ImVec2(100, 0)))
-    {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
-    }
+    gui_draw_unsaved_quit_buttons(emu_floppy_flush, "Unable to save the floppy changes.");
 
     ImGui::EndPopup();
 }

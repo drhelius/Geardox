@@ -396,8 +396,7 @@ void gui_popup_modal_about(void)
 
         if (ImGui::Button("OK", ImVec2(120, 0)))
         {
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
+            gui_close_popup();
         }
 
         ImGui::SetItemDefaultFocus();
@@ -421,8 +420,7 @@ void gui_popup_modal_load_defaults(void)
 
         if (ImGui::Button("Yes", ImVec2(120, 0)))
         {
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
+            gui_close_popup();
             gui_action_load_defaults();
         }
 
@@ -432,8 +430,7 @@ void gui_popup_modal_load_defaults(void)
 
         if (ImGui::Button("No", ImVec2(120, 0)))
         {
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
+            gui_close_popup();
         }
 
         ImGui::SetItemDefaultFocus();

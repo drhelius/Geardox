@@ -29,16 +29,14 @@
 #include "../gui.h"
 #include "../gui_colors.h"
 #include "gui_debug_constants.h"
+#include "gui_debug_widgets.h"
 
-static const char* const k_status_bits[8] = { "ERR", NULL, NULL, "DRQ", "DSC", NULL, "DRDY", "BSY" };
 static const char* const k_error_bits[8] = { NULL, NULL, "ABRT", NULL, "IDNF", NULL, "UNC", NULL };
-static const char* const k_control_bits[8] = { NULL, "nIEN", "SRST", NULL, NULL, NULL, NULL, NULL };
 static const char* const k_atapi_error_bits[8] = { "ILI", "EOM", "ABRT", "MCR", NULL, NULL, NULL, NULL };
 static const char* const k_atapi_reason_bits[8] = { "COD", "IO", NULL, NULL, NULL, NULL, NULL, NULL };
 
 static void setup_ide_columns(void);
 static void draw_ide_channel(int channel);
-static void draw_ide_label(const char* label);
 static void draw_ide_register(const char* label, u8 value, bool present);
 static void draw_ide_port(const char* port);
 static void draw_ide_detail(void);
@@ -105,11 +103,8 @@ void gui_debug_window_ide_disks(void)
 
 static void setup_ide_columns(void)
 {
-    float character = ImGui::CalcTextSize("0").x;
-
-    ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 7);
-    ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 24);
-    ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 6);
+    static const int k_widths[3] = { 7, 24, 6 };
+    gui_debug_fixed_columns(k_widths, 3);
 }
 
 static void draw_ide_channel(int channel)
@@ -136,7 +131,7 @@ static void draw_ide_channel(int channel)
     {
         setup_ide_columns();
 
-        draw_ide_label("DISK");
+        gui_debug_row_label("DISK");
 
         if (attached)
             ImGui::TextColored(orange, "ID %d  %s%s", selected, k_debug_ide_slot_names[selected], is_cdrom ? " (CD-ROM)" : "");
@@ -151,7 +146,7 @@ static void draw_ide_channel(int channel)
             snprintf(port, sizeof(port), "%04X", base + 7);
             draw_ide_port(port);
             draw_ide_detail();
-            draw_ide_bits(registers->status, k_status_bits, attached);
+            draw_ide_bits(registers->status, k_debug_ide_status_bits, attached);
 
             draw_ide_register("ERROR", registers->error, attached);
             snprintf(port, sizeof(port), "%04X", base + 1);
@@ -163,7 +158,7 @@ static void draw_ide_channel(int channel)
             snprintf(port, sizeof(port), "%04X", base + 0x206);
             draw_ide_port(port);
             draw_ide_detail();
-            draw_ide_bits(state->control[channel], k_control_bits, present);
+            draw_ide_bits(state->control[channel], k_debug_ide_control_bits, present);
 
             draw_ide_register("COUNT", registers->sector_count, attached);
             snprintf(port, sizeof(port), "%04X", base + 2);
@@ -173,7 +168,7 @@ static void draw_ide_channel(int channel)
             snprintf(port, sizeof(port), "%04X", base + 3);
             draw_ide_port(port);
 
-            draw_ide_label("CYL");
+            gui_debug_row_label("CYL");
 
             if (attached)
                 ImGui::TextColored(white, "$%02X%02X", registers->cylinder_high, registers->cylinder_low);
@@ -187,28 +182,28 @@ static void draw_ide_channel(int channel)
             snprintf(port, sizeof(port), "%04X", base + 6);
             draw_ide_port(port);
 
-            draw_ide_label("COMMAND");
+            gui_debug_row_label("COMMAND");
 
             if (attached)
                 ImGui::TextColored(white, "$%02X %s", registers->command, gui_debug_ide_command_name(registers->command));
             else
                 ImGui::TextColored(gray, "--");
 
-            draw_ide_label("PHASE");
+            gui_debug_row_label("PHASE");
 
             if (attached)
                 ImGui::TextColored(blue, "%s", k_debug_ide_phase_names[registers->phase % IDE_PHASE_COUNT]);
             else
                 ImGui::TextColored(gray, "--");
 
-            draw_ide_label("DATA");
+            gui_debug_row_label("DATA");
 
             if (attached)
                 ImGui::TextColored(white, "%u / %u BYTES", registers->position, registers->length);
             else
                 ImGui::TextColored(gray, "--");
 
-            draw_ide_label("LEFT");
+            gui_debug_row_label("LEFT");
 
             if (attached)
                 ImGui::TextColored(white, "%u SECTORS", registers->remaining);
@@ -236,7 +231,7 @@ static void draw_ide_cdrom_registers(IdeCdRom* cdrom, u16 base, u8 control, bool
     snprintf(port, sizeof(port), "%04X", base + 7);
     draw_ide_port(port);
     draw_ide_detail();
-    draw_ide_bits(registers->status, k_status_bits, attached);
+    draw_ide_bits(registers->status, k_debug_ide_status_bits, attached);
 
     draw_ide_register("ERROR", registers->error, attached);
     snprintf(port, sizeof(port), "%04X", base + 1);
@@ -250,7 +245,7 @@ static void draw_ide_cdrom_registers(IdeCdRom* cdrom, u16 base, u8 control, bool
     snprintf(port, sizeof(port), "%04X", base + 0x206);
     draw_ide_port(port);
     draw_ide_detail();
-    draw_ide_bits(control, k_control_bits, present);
+    draw_ide_bits(control, k_debug_ide_control_bits, present);
 
     draw_ide_register("REASON", registers->reason, attached);
     snprintf(port, sizeof(port), "%04X", base + 2);
@@ -262,7 +257,7 @@ static void draw_ide_cdrom_registers(IdeCdRom* cdrom, u16 base, u8 control, bool
     snprintf(port, sizeof(port), "%04X", base + 3);
     draw_ide_port(port);
 
-    draw_ide_label("BYTES");
+    gui_debug_row_label("BYTES");
     ImGui::TextColored(white, "$%02X%02X", registers->byte_count_high, registers->byte_count_low);
     snprintf(port, sizeof(port), "%04X", base + 4);
     draw_ide_port(port);
@@ -271,33 +266,25 @@ static void draw_ide_cdrom_registers(IdeCdRom* cdrom, u16 base, u8 control, bool
     snprintf(port, sizeof(port), "%04X", base + 6);
     draw_ide_port(port);
 
-    draw_ide_label("COMMAND");
+    gui_debug_row_label("COMMAND");
     ImGui::TextColored(white, "$%02X %s", registers->command, GetCdRomAtaName(registers->command));
 
-    draw_ide_label("PACKET");
+    gui_debug_row_label("PACKET");
     ImGui::TextColored(white, "$%02X %s", registers->packet[0], GetCdRomPacketName(registers->packet[0]));
 
-    draw_ide_label("PHASE");
+    gui_debug_row_label("PHASE");
     ImGui::TextColored(blue, "%s", k_debug_cdrom_phase_names[registers->phase % IDE_CDROM_PHASE_COUNT]);
 
-    draw_ide_label("DATA");
+    gui_debug_row_label("DATA");
     ImGui::TextColored(white, "%u / %u BYTES", registers->position, registers->length);
 
-    draw_ide_label("LEFT");
+    gui_debug_row_label("LEFT");
     ImGui::TextColored(white, "%u SECTORS", registers->remaining);
-}
-
-static void draw_ide_label(const char* label)
-{
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::TextColored(violet, "%s", label);
-    ImGui::TableNextColumn();
 }
 
 static void draw_ide_register(const char* label, u8 value, bool present)
 {
-    draw_ide_label(label);
+    gui_debug_row_label(label);
 
     if (present)
         ImGui::TextColored(white, "$%02X", value);
@@ -353,8 +340,7 @@ static void draw_ide_disk_row(int id)
     {
         ImGui::TextColored(white, "%.16s", image->GetFileName());
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", image->GetPath());
+        gui_debug_tooltip(image->GetPath());
     }
     else
         ImGui::TextColored(gray, "--");

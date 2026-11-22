@@ -33,12 +33,9 @@
 #include "../emu.h"
 #include "../gui.h"
 #include "../gui_colors.h"
+#include "gui_debug_widgets.h"
 
-static void draw_drive_label(const char* label);
 static void draw_drive_flag(const char* label, bool value, const char* on, const char* off, const ImVec4& color);
-static void draw_drive_position(u32 lba, bool valid);
-static const char* get_sense_key_name(u8 key);
-static const char* get_audio_status_name(u8 status);
 
 void gui_debug_window_cdrom_toc(void)
 {
@@ -186,16 +183,16 @@ void gui_debug_window_cdrom_drive(void)
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 11);
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 20);
 
-        draw_drive_label("POSITION");
+        gui_debug_grid_label("POSITION");
         ImGui::TextColored(orange, "%s", k_cdrom_positions[CLAMP(position, 0, GDOX_CDROM_POSITION_COUNT - 1)].name);
 
-        draw_drive_label("SPEED");
+        gui_debug_grid_label("SPEED");
         ImGui::TextColored(white, "%dx", drive->GetSpeed());
 
         draw_drive_flag("TRAY", state->tray_open, "OPEN", "CLOSED", orange);
         draw_drive_flag("DISC", has_disc, "PRESENT", "NONE", green);
 
-        draw_drive_label("STATE");
+        gui_debug_grid_label("STATE");
 
         if (state->tray_open || !has_disc)
             ImGui::TextColored(gray, "NOT READY");
@@ -206,7 +203,7 @@ void gui_debug_window_cdrom_drive(void)
 
         draw_drive_flag("MOTOR", state->motor_on, "ON", "OFF", green);
 
-        draw_drive_label("ATTENTION");
+        gui_debug_grid_label("ATTENTION");
 
         if (state->unit_attention != 0)
             ImGui::TextColored(yellow, "PENDING 06/%02X/00", state->unit_attention);
@@ -215,7 +212,7 @@ void gui_debug_window_cdrom_drive(void)
 
         draw_drive_flag("PREVENT", state->prevent, "LOCKED", "ALLOWED", orange);
 
-        draw_drive_label("BUSY");
+        gui_debug_grid_label("BUSY");
         ImGui::TextColored(drive->IsBusy() ? blue : gray, "%s", drive->IsBusy() ?
             k_debug_cdrom_phase_names[state->phase % IDE_CDROM_PHASE_COUNT] : "IDLE");
 
@@ -232,16 +229,16 @@ void gui_debug_window_cdrom_drive(void)
         ImGui::TableHeadersRow();
 
         ImGui::TableNextRow();
-        draw_drive_label("HEAD");
-        draw_drive_position(state->head_lba, has_disc);
+        gui_debug_grid_label("HEAD");
+        gui_debug_draw_cd_position(state->head_lba, k_cdrom_lead_in, has_disc);
 
         ImGui::TableNextRow();
-        draw_drive_label("AHEAD FROM");
-        draw_drive_position(state->ahead_lba, has_disc && (state->ahead_end > state->ahead_lba));
+        gui_debug_grid_label("AHEAD FROM");
+        gui_debug_draw_cd_position(state->ahead_lba, k_cdrom_lead_in, has_disc && (state->ahead_end > state->ahead_lba));
 
         ImGui::TableNextRow();
-        draw_drive_label("AHEAD TO");
-        draw_drive_position(state->ahead_end, has_disc && (state->ahead_end > state->ahead_lba));
+        gui_debug_grid_label("AHEAD TO");
+        gui_debug_draw_cd_position(state->ahead_end, k_cdrom_lead_in, has_disc && (state->ahead_end > state->ahead_lba));
 
         ImGui::EndTable();
     }
@@ -271,11 +268,11 @@ void gui_debug_window_cdrom_drive(void)
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 11);
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 20);
 
-        draw_drive_label("KEY");
+        gui_debug_grid_label("KEY");
         ImGui::TextColored(state->sense_key != 0 ? orange : gray, "$%X %s", state->sense_key,
-            get_sense_key_name(state->sense_key));
+            GetCdRomSenseKeyName(state->sense_key));
 
-        draw_drive_label("ASC/ASCQ");
+        gui_debug_grid_label("ASC/ASCQ");
         ImGui::TextColored(state->sense_asc != 0 ? white : gray, "$%02X/$%02X", state->sense_asc, state->sense_ascq);
 
         ImGui::EndTable();
@@ -291,7 +288,7 @@ void gui_debug_window_cdrom_drive(void)
         ImGui::TableHeadersRow();
 
         ImGui::TableNextRow();
-        draw_drive_label("SOTC");
+        gui_debug_grid_label("SOTC");
         ImGui::TextColored(state->sotc ? orange : gray, "%s", state->sotc ? "ON" : "OFF");
 
         for (int i = 0; i < 2; i++)
@@ -312,7 +309,6 @@ void gui_debug_window_cdrom_drive(void)
 
     if (ImGui::BeginTable("##cdrom_audio", 2, flags))
     {
-        static const char* const play_states[3] = { "IDLE", "PLAYING", "PAUSED" };
         bool active = audio_state->play_state != CdRomAudio::CDROM_AUDIO_IDLE;
         GDOX_CdRomMSF msf;
         LbaToMsf(audio_state->current_lba + 150, &msf);
@@ -320,20 +316,20 @@ void gui_debug_window_cdrom_drive(void)
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 11);
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 20);
 
-        draw_drive_label("STATUS");
-        ImGui::TextColored(white, "$%02X %s", drive->PeekAudioStatus(), get_audio_status_name(drive->PeekAudioStatus()));
+        gui_debug_grid_label("STATUS");
+        ImGui::TextColored(white, "$%02X %s", drive->PeekAudioStatus(), GetCdRomAudioStatusName(drive->PeekAudioStatus()));
 
-        draw_drive_label("PLAY");
-        ImGui::TextColored(active ? blue : gray, "%s", play_states[audio_state->play_state % 3]);
+        gui_debug_grid_label("PLAY");
+        ImGui::TextColored(active ? blue : gray, "%s", k_debug_cdda_play_states[audio_state->play_state % 3]);
 
-        draw_drive_label("RANGE");
+        gui_debug_grid_label("RANGE");
 
         if (active)
             ImGui::TextColored(white, "%u - %u", audio_state->start_lba, audio_state->end_lba);
         else
             ImGui::TextColored(gray, "--");
 
-        draw_drive_label("POSITION");
+        gui_debug_grid_label("POSITION");
 
         if (active)
         {
@@ -368,62 +364,9 @@ u32 gui_debug_cdrom_head(void)
     return core->GetCDROMMedia()->GetCurrentSector();
 }
 
-static void draw_drive_label(const char* label)
-{
-    ImGui::TableNextColumn();
-    ImGui::TextColored(violet, "%s", label);
-    ImGui::TableNextColumn();
-}
-
 static void draw_drive_flag(const char* label, bool value, const char* on, const char* off, const ImVec4& color)
 {
-    draw_drive_label(label);
+    gui_debug_grid_label(label);
     ImGui::TextColored(value ? color : gray, "%s", value ? on : off);
 }
 
-static void draw_drive_position(u32 lba, bool valid)
-{
-    ImGui::TableNextColumn();
-
-    if (!valid)
-    {
-        ImGui::TextColored(gray, "--");
-        ImGui::TableNextColumn();
-        ImGui::TextColored(gray, "--");
-        return;
-    }
-
-    GDOX_CdRomMSF msf;
-    LbaToMsf(lba + 150, &msf);
-    ImGui::TextColored(white, "%u", lba);
-    ImGui::TableNextColumn();
-    ImGui::TextColored(orange, "%02u:%02u:%02u", msf.minutes, msf.seconds, msf.frames);
-}
-
-static const char* get_sense_key_name(u8 key)
-{
-    switch (key)
-    {
-        case 0x00: return "NO SENSE";
-        case 0x02: return "NOT READY";
-        case 0x03: return "MEDIUM ERROR";
-        case 0x04: return "HARDWARE ERROR";
-        case 0x05: return "ILLEGAL REQUEST";
-        case 0x06: return "UNIT ATTENTION";
-        case 0x0B: return "ABORTED COMMAND";
-        default: return "OTHER";
-    }
-}
-
-static const char* get_audio_status_name(u8 status)
-{
-    switch (status)
-    {
-        case IDE_CDROM_AUDIO_PLAYING: return "PLAYING";
-        case IDE_CDROM_AUDIO_PAUSED: return "PAUSED";
-        case IDE_CDROM_AUDIO_COMPLETED: return "COMPLETED";
-        case IDE_CDROM_AUDIO_ERROR: return "ERROR";
-        case IDE_CDROM_AUDIO_NONE: return "NONE";
-        default: return "INVALID";
-    }
-}

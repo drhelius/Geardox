@@ -32,6 +32,7 @@
 #include "gui_debug_disassembler.h"
 #include "gui_debug_memory.h"
 #include "system/pic.h"
+#include "gui_debug_widgets.h"
 
 static int selected_directory_entry = -1;
 
@@ -41,9 +42,6 @@ static void draw_descriptor_table(GuiDebugDescriptorTable table);
 static void draw_interrupt_table(void);
 static void draw_table_header(GuiDebugDescriptorTable table);
 static int get_selector_references(u16 selector, bool local, char* text, size_t text_size);
-static bool parse_translator_address(const char* text, GDOX_Debug_Memory_Address& address);
-static void goto_linear(u32 address);
-static void goto_physical(u32 address);
 
 u32 gui_debug_i386_table_entry_count(GuiDebugDescriptorTable table)
 {
@@ -413,6 +411,97 @@ bool gui_debug_i386_load_system_segment(const I386_State& state, bool task, u32 
 }
 
 // The descriptor access byte, P DPL S TYPE, as the 386 manuals show it
+bool gui_debug_i386_write_register(u16 reg_id, u32 value, char* error, size_t error_size)
+{
+    I386* cpu = emu_get_core()->GetI386();
+    I386_State state;
+    bool pc_changed = false;
+    bool loaded = true;
+    char reason[GDOX_DEBUG_MEMORY_REASON_SIZE];
+    reason[0] = 0;
+    cpu->CopyState(state);
+
+    if (reg_id >= I386RegId_SegmentSelectorBase && reg_id < I386RegId_SegmentSelectorBase + I386_SEGMENT_COUNT)
+    {
+        int segment = reg_id - I386RegId_SegmentSelectorBase;
+        loaded = gui_debug_i386_load_segment(state, segment, value, state.segments[segment], reason, sizeof(reason));
+        pc_changed = segment == I386_SEGMENT_CS;
+    }
+    else if ((reg_id >= I386RegId_EAX) && (reg_id <= I386RegId_EDI))
+        state.registers[reg_id - I386RegId_EAX].value = value;
+    else
+    {
+        switch (reg_id)
+        {
+            case I386RegId_EIP:
+                state.eip = value;
+                state.halted = false;
+                pc_changed = true;
+                break;
+            case I386RegId_EFLAGS:
+                state.eflags = (value & (0x00037FD5U | (cpu->IsI486() ? I386_FLAG_AC : 0))) | I386_FLAG_FIXED;
+                pc_changed = true;
+                break;
+            case I386RegId_CR0:
+                state.cr0 = value;
+                pc_changed = true;
+                break;
+            case I386RegId_CR2: state.cr2 = value; break;
+            case I386RegId_CR3:
+                state.cr3 = value;
+                pc_changed = true;
+                break;
+            case I386RegId_CR4: state.cr4 = value & k_i386_cr4_writable; break;
+            case I386RegId_DR0: state.debug_registers[0] = value; break;
+            case I386RegId_DR1: state.debug_registers[1] = value; break;
+            case I386RegId_DR2: state.debug_registers[2] = value; break;
+            case I386RegId_DR3: state.debug_registers[3] = value; break;
+            case I386RegId_DR4: state.debug_registers[4] = value; break;
+            case I386RegId_DR5: state.debug_registers[5] = value; break;
+            case I386RegId_DR6: state.debug_registers[6] = value; break;
+            case I386RegId_DR7: state.debug_registers[7] = value; break;
+            case I386RegId_TR3:
+            case I386RegId_TR4:
+            case I386RegId_TR5:
+                cpu->SetCacheTestRegister(reg_id - I386RegId_TR3, value);
+                return true;
+            case I386RegId_TR6: state.test_registers[0] = value; break;
+            case I386RegId_TR7: state.test_registers[1] = value; break;
+            case I386RegId_GDTRBase: state.gdtr.base = value; break;
+            case I386RegId_GDTRLimit: state.gdtr.limit = (u16)value; break;
+            case I386RegId_IDTRBase: state.idtr.base = value; break;
+            case I386RegId_IDTRLimit: state.idtr.limit = (u16)value; break;
+            case I386RegId_LDTRBase: state.ldtr.base = value; break;
+            case I386RegId_LDTRLimit: state.ldtr.limit = value; break;
+            case I386RegId_TRBase: state.task_register.base = value; break;
+            case I386RegId_TRLimit: state.task_register.limit = value; break;
+            case I386RegId_LDTRSelector:
+                loaded = gui_debug_i386_load_system_segment(state, false, value, state.ldtr, reason, sizeof(reason));
+                break;
+            case I386RegId_TRSelector:
+                loaded = gui_debug_i386_load_system_segment(state, true, value, state.task_register, reason, sizeof(reason));
+                break;
+            default:
+                loaded = false;
+                break;
+        }
+    }
+
+    if (IsValidPointer(error) && (error_size > 0))
+        strncpy_fit(error, reason, error_size);
+
+    if (!loaded)
+        return false;
+
+    state.repeat.active = false;
+    cpu->SetState(state);
+
+    if (pc_changed)
+        emu_debug_pc_changed = true;
+
+    return true;
+}
+
 u8 gui_debug_i386_access_byte(const I386_Segment& segment)
 {
     u16 attributes = segment.attributes;
@@ -513,10 +602,7 @@ static void decode_descriptor(u32 address, u32 low, u32 high, GuiDebugDescriptor
 
 bool gui_debug_i386_read_page_entry(u32 table, u32 index, u32& entry)
 {
-    GDOX_Debug_Memory_Address address = { };
-    address.space = GDOX_DEBUG_MEMORY_PHYSICAL;
-    address.address = (table & 0xFFFFF000U) + (index & 0x3FF) * 4;
-    address.segment_register = -1;
+    GDOX_Debug_Memory_Address address = debug_memory_address(GDOX_DEBUG_MEMORY_PHYSICAL, (table & 0xFFFFF000U) + (index & 0x3FF) * 4);
 
     u8 data[4];
     GDOX_Debug_Memory_Status status[4];
@@ -605,7 +691,7 @@ void gui_debug_window_paging(void)
     GDOX_Debug_Memory_Address address;
     GDOX_Debug_Memory_Translation translation;
     memset(&translation, 0, sizeof(translation));
-    bool parsed = input[0] != 0 && parse_translator_address(input, address);
+    bool parsed = gui_debug_parse_address(input, false, address) == GuiDebugAddressError_None;
     bool translated = parsed && gui_debug_memory_translate(address, translation) && translation.linear_valid;
 
     ImGui::TextColored(violet, "LINEAR  "); ImGui::SameLine();
@@ -615,7 +701,7 @@ void gui_debug_window_paging(void)
         ImGui::TextColored(cyan, "%08X", translation.linear);
 
         if (ImGui::IsItemClicked())
-            goto_linear(translation.linear);
+            gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, translation.linear);
     }
     else
         ImGui::TextColored(gray, "--      ");
@@ -643,7 +729,7 @@ void gui_debug_window_paging(void)
         ImGui::TextColored(cyan, "%08X", translation.physical);
 
         if (ImGui::IsItemClicked())
-            goto_physical(translation.physical);
+            gui_debug_memory_goto(GDOX_DEBUG_MEMORY_PHYSICAL, translation.physical);
 
         ImGui::SameLine();
         ImGui::TextColored(green, "%s", translation.region_valid ? translation.region_name : "");
@@ -664,8 +750,7 @@ void gui_debug_window_paging(void)
         gui_debug_i386_page_flags(effective, flags, sizeof(flags));
         ImGui::TextColored(orange, "%s", flags);
 
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Effective flags: U/S and R/W combine the PDE and the PTE");
+        gui_debug_tooltip("Effective flags: U/S and R/W combine the PDE and the PTE");
     }
     else
         ImGui::TextColored(gray, "--");
@@ -766,7 +851,7 @@ void gui_debug_window_paging(void)
                 ImGui::TextColored(present ? cyan : gray, "%08X", linear);
 
                 if (present && ImGui::IsItemClicked())
-                    goto_linear(linear);
+                    gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, linear);
 
                 ImGui::TableNextColumn();
 
@@ -775,7 +860,7 @@ void gui_debug_window_paging(void)
                     ImGui::TextColored(cyan, "%08X", entry & 0xFFFFF000U);
 
                     if (ImGui::IsItemClicked())
-                        goto_physical(entry & 0xFFFFF000U);
+                        gui_debug_memory_goto(GDOX_DEBUG_MEMORY_PHYSICAL, entry & 0xFFFFF000U);
                 }
                 else
                     ImGui::TextColored(gray, "--      ");
@@ -810,7 +895,7 @@ static void draw_table_header(GuiDebugDescriptorTable table)
         ImGui::TextColored(cyan, "%08X", base);
 
         if (ImGui::IsItemClicked())
-            goto_linear(base);
+            gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, base);
     }
     else
         ImGui::TextColored(gray, "--      ");
@@ -901,7 +986,7 @@ static void draw_descriptor_table(GuiDebugDescriptorTable table)
                     ImGui::TextColored(used ? cyan : gray, "%08X", descriptor.base);
 
                     if (used && ImGui::IsItemClicked())
-                        goto_linear(descriptor.base);
+                        gui_debug_memory_goto(GDOX_DEBUG_MEMORY_LINEAR, descriptor.base);
                 }
 
                 ImGui::TableNextColumn();
@@ -977,8 +1062,7 @@ static void draw_interrupt_table(void)
                 ImGui::TableNextColumn();
                 ImGui::TextColored(i < 32 ? red : (name[0] == 'I' && name[1] == 'R') ? yellow : white, "%-5s", name);
 
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", description);
+                gui_debug_tooltip(description);
 
                 ImGui::TableNextColumn();
 
@@ -1073,95 +1157,100 @@ static int get_selector_references(u16 selector, bool local, char* text, size_t 
     return count;
 }
 
-static bool parse_translator_address(const char* text, GDOX_Debug_Memory_Address& address)
+bool gui_debug_parse_hex(const char* text, u32& value)
 {
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%s", text);
-    char* colon = strchr(buffer, ':');
-    char* end = NULL;
-
-    memset(&address, 0, sizeof(address));
-    address.segment_register = -1;
-
-    if (!IsValidPointer(colon))
-    {
-        unsigned long value = strtoul(buffer, &end, 16);
-
-        if (end == buffer || *end != 0)
-            return false;
-
-        address.space = GDOX_DEBUG_MEMORY_LINEAR;
-        address.address = (u32)value;
-        return true;
-    }
-
-    *colon = 0;
-    unsigned long offset = strtoul(colon + 1, &end, 16);
-
-    if (end == colon + 1 || *end != 0)
+    if (!IsValidPointer(text))
         return false;
 
-    address.space = GDOX_DEBUG_MEMORY_LOGICAL;
-    address.address = (u32)offset;
+    std::string input = trim_chars(text, " \t");
+    const char* start = input.c_str();
+    size_t length = input.length();
+
+    if ((length > 0) && (start[0] == '$'))
+    {
+        start++;
+        length--;
+    }
+    else if ((length > 1) && (start[0] == '0') && ((start[1] == 'x') || (start[1] == 'X')))
+    {
+        start += 2;
+        length -= 2;
+    }
+    else if ((length > 1) && ((start[length - 1] == 'h') || (start[length - 1] == 'H')))
+        length--;
+
+    return parse_hex_string(start, length, &value);
+}
+
+bool gui_debug_parse_address_prefix(const char* prefix, bool spaces, GDOX_Debug_Memory_Address& address)
+{
+    std::string word = to_upper_ascii(trim_chars(IsValidPointer(prefix) ? prefix : "", " \t"));
 
     for (int i = 0; i < I386_SEGMENT_COUNT; i++)
     {
-        if (strcmp(buffer, k_i386_sreg_names[i]) == 0)
+        if (word == k_i386_sreg_names[i])
         {
+            address.space = GDOX_DEBUG_MEMORY_LOGICAL;
             address.segment_register = (s8)i;
             address.segment = emu_get_core()->GetI386()->GetState()->segments[i].selector;
             return true;
         }
     }
 
-    unsigned long selector = strtoul(buffer, &end, 16);
+    if (spaces)
+    {
+        static const char* const k_names[7] = { "L", "LINE", "P", "PHYS", "B", "BUS", "IO" };
+        static const GDOX_Debug_Memory_Space k_spaces[7] = { GDOX_DEBUG_MEMORY_LINEAR, GDOX_DEBUG_MEMORY_LINEAR,
+            GDOX_DEBUG_MEMORY_PHYSICAL, GDOX_DEBUG_MEMORY_PHYSICAL, GDOX_DEBUG_MEMORY_BUS, GDOX_DEBUG_MEMORY_BUS,
+            GDOX_DEBUG_MEMORY_IO };
 
-    if (end == buffer || *end != 0 || selector > 0xFFFF)
+        for (int i = 0; i < 7; i++)
+        {
+            if (word == k_names[i])
+            {
+                address.space = k_spaces[i];
+                return true;
+            }
+        }
+    }
+
+    u32 selector = 0;
+
+    if (!gui_debug_parse_hex(word.c_str(), selector) || (selector > 0xFFFF))
         return false;
 
+    address.space = GDOX_DEBUG_MEMORY_LOGICAL;
     address.segment = (u16)selector;
+    address.segment_register = -1;
     return true;
 }
 
-// Linear hex with an optional $, 0x or h, or a logical SR:offset or SEL:offset through the current tables
+GuiDebugAddressError gui_debug_parse_address(const char* text, bool spaces, GDOX_Debug_Memory_Address& address)
+{
+    address = debug_memory_address(GDOX_DEBUG_MEMORY_LINEAR, 0);
+
+    if (!IsValidPointer(text))
+        return GuiDebugAddressError_Value;
+
+    const char* colon = strchr(text, ':');
+
+    if (!IsValidPointer(colon))
+        return gui_debug_parse_hex(text, address.address) ? GuiDebugAddressError_None : GuiDebugAddressError_Value;
+
+    if (!gui_debug_parse_hex(colon + 1, address.address))
+        return GuiDebugAddressError_Offset;
+
+    std::string prefix(text, (size_t)(colon - text));
+    return gui_debug_parse_address_prefix(prefix.c_str(), spaces, address) ? GuiDebugAddressError_None :
+        GuiDebugAddressError_Prefix;
+}
+
 bool gui_debug_i386_parse_linear(const char* text, u32& linear)
 {
-    if (!IsValidPointer(text))
-        return false;
-
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%s", text);
-
-    char* start = buffer;
-
-    while (*start == ' ')
-        start++;
-
-    size_t length = strlen(start);
-
-    while (length > 0 && start[length - 1] == ' ')
-        start[--length] = 0;
-
-    if (strchr(start, ':') == NULL)
-    {
-        if (start[0] == '$')
-            start++;
-        else if (start[0] == '0' && (start[1] == 'x' || start[1] == 'X'))
-            start += 2;
-        else if (length > 1 && (start[length - 1] == 'h' || start[length - 1] == 'H'))
-            start[length - 1] = 0;
-
-        if (strlen(start) > 8)
-            return false;
-    }
-
-    for (char* c = start; *c != 0; c++)
-        *c = to_upper_ascii(*c);
-
     GDOX_Debug_Memory_Address address;
     GDOX_Debug_Memory_Translation translation;
 
-    if (start[0] == 0 || !parse_translator_address(start, address))
+    if (gui_debug_parse_address(text, false, address) != GuiDebugAddressError_None)
         return false;
 
     if (address.space == GDOX_DEBUG_MEMORY_LINEAR)
@@ -1177,20 +1266,3 @@ bool gui_debug_i386_parse_linear(const char* text, u32& linear)
     return true;
 }
 
-static void goto_linear(u32 address)
-{
-    GDOX_Debug_Memory_Address target = { };
-    target.space = GDOX_DEBUG_MEMORY_LINEAR;
-    target.address = address;
-    target.segment_register = -1;
-    gui_debug_memory_goto(target);
-}
-
-static void goto_physical(u32 address)
-{
-    GDOX_Debug_Memory_Address target = { };
-    target.space = GDOX_DEBUG_MEMORY_PHYSICAL;
-    target.address = address;
-    target.segment_register = -1;
-    gui_debug_memory_goto(target);
-}

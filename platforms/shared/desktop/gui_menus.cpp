@@ -124,6 +124,8 @@ static bool begin_game_combo(const char* id, const char* preview, int source);
 static void get_game_default_label(const char* value, char* label, size_t label_size);
 static bool game_default_item(const char* label, int source);
 static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media);
+static bool draw_directory_menu(const char* id, const char* locations, int* option, std::string* path, char* buffer,
+    int buffer_size, bool* choose, const char* about, bool media);
 static void menu_video(void);
 static void menu_input(void);
 static void menu_audio(void);
@@ -678,6 +680,37 @@ static void draw_directory_tooltip(int option, const char* custom, const char* a
     ImGui::EndTooltip();
 }
 
+static bool draw_directory_menu(const char* id, const char* locations, int* option, std::string* path, char* buffer,
+    int buffer_size, bool* choose, const char* about, bool media)
+{
+    char combo_id[64];
+    char path_id[64];
+    snprintf(combo_id, sizeof(combo_id), "##%s_option", id);
+    snprintf(path_id, sizeof(path_id), "##%s_path", id);
+
+    ImGui::PushItemWidth(get_combo_items_width(locations));
+    bool changed = ImGui::Combo(combo_id, option, locations);
+    draw_directory_tooltip(*option, path->c_str(), about, media);
+    ImGui::PopItemWidth();
+
+    if ((Directory_Location)*option != Directory_Location_Custom)
+        return changed;
+
+    if (ImGui::MenuItem("Choose..."))
+        *choose = true;
+
+    ImGui::PushItemWidth(450);
+
+    if (ImGui::InputText(path_id, buffer, buffer_size, ImGuiInputTextFlags_AutoSelectAll))
+    {
+        path->assign(buffer);
+        changed = true;
+    }
+
+    ImGui::PopItemWidth();
+    return changed;
+}
+
 static bool media_menu_actions_enabled(void)
 {
     if (emu_is_empty())
@@ -705,152 +738,39 @@ static void menu_emulator(void)
         {
             if (ImGui::BeginMenu("Save States"))
             {
-                const char* locations = "Default Location\0Same as ROM\0Custom Location\0\0";
-                ImGui::PushItemWidth(get_combo_items_width(locations));
-
-                if (ImGui::Combo("##savestate_option", &config_emulator.savestates_dir_option, locations))
-                {
+                if (draw_directory_menu("savestate", "Default Location\0Same as ROM\0Custom Location\0\0",
+                    &config_emulator.savestates_dir_option, &config_emulator.savestates_path, gui_savestates_path,
+                    IM_ARRAYSIZE(gui_savestates_path), &choose_savestates_path, NULL, true))
                     update_savestates_data();
-                }
-
-                draw_directory_tooltip(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str(), NULL, true);
-                ImGui::PopItemWidth();
-
-                switch ((Directory_Location)config_emulator.savestates_dir_option)
-                {
-                    case Directory_Location_Default:
-                    case Directory_Location_ROM:
-                        break;
-
-                    case Directory_Location_Custom:
-                    {
-                        if (ImGui::MenuItem("Choose..."))
-                            choose_savestates_path = true;
-
-                        ImGui::PushItemWidth(450);
-
-                        if (ImGui::InputText("##savestate_path", gui_savestates_path, IM_ARRAYSIZE(gui_savestates_path),
-                            ImGuiInputTextFlags_AutoSelectAll))
-                        {
-                            config_emulator.savestates_path.assign(gui_savestates_path);
-                            update_savestates_data();
-                        }
-
-                        ImGui::PopItemWidth();
-                        break;
-                    }
-                }
 
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Save Files"))
             {
-                const char* locations = "Default Location\0Same as Disk\0Custom Location\0\0";
-                ImGui::PushItemWidth(get_combo_items_width(locations));
-                ImGui::Combo("##savefiles_option", &config_emulator.savefiles_dir_option, locations);
-                draw_directory_tooltip(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str(),
+                draw_directory_menu("savefiles", "Default Location\0Same as Disk\0Custom Location\0\0",
+                    &config_emulator.savefiles_dir_option, &config_emulator.savefiles_path, gui_savefiles_path,
+                    IM_ARRAYSIZE(gui_savefiles_path), &choose_savefiles_path,
                     "Working copies of floppies and CHD disks,\neach machine's CMOS,\n"
                     "and each game's disk, settings and key map.\n"
                     "With Same as Disk, CMOS and game files use the default.", false);
-                ImGui::PopItemWidth();
-
-                switch ((Directory_Location)config_emulator.savefiles_dir_option)
-                {
-                    case Directory_Location_Default:
-                    case Directory_Location_ROM:
-                        break;
-
-                    case Directory_Location_Custom:
-                    {
-                        if (ImGui::MenuItem("Choose..."))
-                            choose_savefiles_path = true;
-
-                        ImGui::PushItemWidth(450);
-
-                        if (ImGui::InputText("##savefiles_path", gui_savefiles_path, IM_ARRAYSIZE(gui_savefiles_path),
-                            ImGuiInputTextFlags_AutoSelectAll))
-                        {
-                            config_emulator.savefiles_path.assign(gui_savefiles_path);
-                        }
-
-                        ImGui::PopItemWidth();
-                        break;
-                    }
-                }
-
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Screenshots"))
             {
-                const char* locations = "Default Location\0Same as ROM\0Custom Location\0\0";
-                ImGui::PushItemWidth(get_combo_items_width(locations));
-                ImGui::Combo("##screenshots_option", &config_emulator.screenshots_dir_option, locations);
-                draw_directory_tooltip(config_emulator.screenshots_dir_option, config_emulator.screenshots_path.c_str(), NULL, true);
-                ImGui::PopItemWidth();
-
-                switch ((Directory_Location)config_emulator.screenshots_dir_option)
-                {
-                    case Directory_Location_Default:
-                    case Directory_Location_ROM:
-                        break;
-
-                    case Directory_Location_Custom:
-                    {
-                        if (ImGui::MenuItem("Choose..."))
-                        {
-                            choose_screenshots_path = true;
-                        }
-
-                        ImGui::PushItemWidth(450);
-
-                        if (ImGui::InputText("##screenshots_path", gui_screenshots_path, IM_ARRAYSIZE(gui_screenshots_path), ImGuiInputTextFlags_AutoSelectAll))
-                        {
-                            config_emulator.screenshots_path.assign(gui_screenshots_path);
-                        }
-
-                        ImGui::PopItemWidth();
-                        break;
-                    }
-                }
-
+                draw_directory_menu("screenshots", "Default Location\0Same as ROM\0Custom Location\0\0",
+                    &config_emulator.screenshots_dir_option, &config_emulator.screenshots_path, gui_screenshots_path,
+                    IM_ARRAYSIZE(gui_screenshots_path), &choose_screenshots_path, NULL, true);
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Video Recordings"))
             {
-                const char* locations = "Default Location\0Same as ROM\0Custom Location\0\0";
-                ImGui::PushItemWidth(get_combo_items_width(locations));
-                ImGui::Combo("##video_recordings_option", &config_emulator.video_recordings_dir_option, locations);
-                draw_directory_tooltip(config_emulator.video_recordings_dir_option, config_emulator.video_recordings_path.c_str(), NULL, true);
-                ImGui::PopItemWidth();
-
-                switch ((Directory_Location)config_emulator.video_recordings_dir_option)
-                {
-                    case Directory_Location_Default:
-                    case Directory_Location_ROM:
-                        break;
-
-                    case Directory_Location_Custom:
-                    {
-                        if (ImGui::MenuItem("Choose..."))
-                        {
-                            choose_video_recordings_path = true;
-                        }
-
-                        ImGui::PushItemWidth(450);
-
-                        if (ImGui::InputText("##video_recordings_path", gui_video_recordings_path, IM_ARRAYSIZE(gui_video_recordings_path), ImGuiInputTextFlags_AutoSelectAll))
-                        {
-                            config_emulator.video_recordings_path.assign(gui_video_recordings_path);
-                        }
-
-                        ImGui::PopItemWidth();
-                        break;
-                    }
-                }
-
+                draw_directory_menu("video_recordings", "Default Location\0Same as ROM\0Custom Location\0\0",
+                    &config_emulator.video_recordings_dir_option, &config_emulator.video_recordings_path,
+                    gui_video_recordings_path, IM_ARRAYSIZE(gui_video_recordings_path), &choose_video_recordings_path,
+                    NULL, true);
                 ImGui::EndMenu();
             }
 

@@ -30,6 +30,7 @@
 #include "../ogl_renderer.h"
 #include "gui_debug_constants.h"
 #include "gui_debug_memory.h"
+#include "gui_debug_widgets.h"
 
 static const float k_vram_viewer_zoom[3] = { 1.0f, 2.0f, 3.0f };
 static const char k_vram_viewer_zoom_items[] = "1x\0" "2x\0" "3x\0";
@@ -125,8 +126,7 @@ static void draw_controls(void)
         emu_debug_update();
     }
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("CRTC addresses per row, 0 follows the offset register");
+    gui_debug_tooltip("CRTC addresses per row, 0 follows the offset register");
 
     ImGui::SameLine();
     ImGui::Checkbox("Show Visible Area", &config_debug.vram_viewer_show_window);
@@ -155,8 +155,7 @@ static void draw_linear_controls(void)
         emu_debug_update();
     }
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Bytes per row, 0 follows the offset register");
+    gui_debug_tooltip("Bytes per row, 0 follows the offset register");
 
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Start"); ImGui::SameLine();
@@ -178,8 +177,7 @@ static void draw_linear_controls(void)
     if (ImGui::Checkbox("Auto", &config_debug.vram_viewer_linear_auto_start))
         emu_debug_update();
 
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Follow the display start address");
+    gui_debug_tooltip("Follow the display start address");
 
     ImGui::SameLine();
     ImGui::Checkbox("Show Visible Area", &config_debug.vram_viewer_show_window);
@@ -293,10 +291,7 @@ static void draw_visible_area(const Emu_Debug_Buffer_Info& info, ImVec2 position
 
 static void goto_plane(int plane, u32 offset)
 {
-    GDOX_Debug_Memory_Address target = { };
-    target.space = GDOX_DEBUG_MEMORY_REGION;
+    GDOX_Debug_Memory_Address target = debug_memory_address(GDOX_DEBUG_MEMORY_REGION, offset);
     target.region = GDOX_DEBUG_REGION_VGA_PLANE_0 + plane;
-    target.address = offset;
-    target.segment_register = -1;
     gui_debug_memory_goto(target);
 }

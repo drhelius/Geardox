@@ -72,6 +72,8 @@ EXTERN void gui_load_state_after_media(int slot, const char* path);
 EXTERN void gui_set_style(void);
 EXTERN void gui_set_error_message(const char* message);
 EXTERN void gui_center_next_window(void);
+EXTERN void gui_close_popup(void);
+EXTERN void gui_draw_unsaved_quit_buttons(bool (*retry)(void), const char* error);
 EXTERN ImVec2 gui_snap_to_physical_pixel(const ImVec2& pos);
 EXTERN float gui_get_combo_width(float text_width);
 EXTERN bool gui_has_open_window(void);

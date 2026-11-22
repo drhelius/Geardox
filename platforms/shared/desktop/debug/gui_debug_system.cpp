@@ -46,12 +46,9 @@ static const char* const k_pit_mode_short_names[6] =
     "0 INT ON TC", "1 ONE-SHOT", "2 RATE GEN", "3 SQUARE", "4 SW STROBE", "5 HW STROBE"
 };
 
-static void setup_fixed_columns(const int* widths, int count);
-static void draw_grid_label(const char* label);
 static void draw_flag(const char* label, bool on);
 static void draw_bits4(u8 value);
 static void draw_dma_chip(const I8237::I8237_State* chip, const char* title, const char* id);
-static void goto_physical(u32 address);
 static void draw_vector_tooltip(u8 vector);
 static void draw_pic_column(const I8259::I8259_State* chip, bool master, int row);
 static void draw_alarm_byte(u8 value);
@@ -132,7 +129,7 @@ void gui_debug_window_pic(void)
         for (int row = 0; row < (int)(sizeof(rows) / sizeof(rows[0])); row++)
         {
             ImGui::TableNextRow();
-            draw_grid_label(rows[row]);
+            gui_debug_grid_label(rows[row]);
             draw_pic_column(master, true, row);
             ImGui::TableNextColumn();
             draw_pic_column(slave, false, row);
@@ -169,18 +166,18 @@ void gui_debug_window_pit(void)
     {
         static const int widths[6] = { 8, 4, 8, 4, 8, 4 };
 
-        setup_fixed_columns(widths, 6);
+        gui_debug_fixed_columns(widths, 6);
 
         ImGui::TableNextRow();
         draw_flag("GATE 2", state->speaker_gate);
         draw_flag("DATA", state->speaker_data);
-        draw_grid_label("SPEAKER");
+        gui_debug_grid_label("SPEAKER");
         ImGui::TextColored(state->speaker_data && out2 ? yellow : gray, "%s", state->speaker_data && out2 ? "HIGH" : "LOW");
 
         ImGui::TableNextRow();
-        draw_grid_label("OUT2");
+        gui_debug_grid_label("OUT2");
         ImGui::TextColored(out2 ? green : gray, "%d", out2 ? 1 : 0);
-        draw_grid_label("REFRESH");
+        gui_debug_grid_label("REFRESH");
         ImGui::TextColored(white, "%d", pit->GetRefreshToggle(clocks) ? 1 : 0);
 
         ImGui::EndTable();
@@ -226,8 +223,7 @@ void gui_debug_window_pit(void)
             {
                 ImGui::TextColored(blue, "%s", k_pit_mode_short_names[counter.mode % 6]);
 
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("%s", k_debug_pit_mode_names[counter.mode % 6]);
+                gui_debug_tooltip(k_debug_pit_mode_names[counter.mode % 6]);
             }
             else
                 ImGui::TextColored(gray, "--");
@@ -353,7 +349,7 @@ void gui_debug_window_dma(void)
                     dma->GetState()->pages[k_dma_channel_pages[channel]], item.current_address, item.base_address);
 
             if (ImGui::IsItemClicked())
-                goto_physical(address);
+                gui_debug_memory_goto(GDOX_DEBUG_MEMORY_PHYSICAL, address);
 
             ImGui::TableNextColumn();
             ImGui::TextColored(white, "$%04X/$%04X", item.current_count, item.base_count);
@@ -393,32 +389,32 @@ void gui_debug_window_system_control(void)
 
     if (ImGui::BeginTable("##system_machine", 2, flags))
     {
-        setup_fixed_columns(widths, 2);
+        gui_debug_fixed_columns(widths, 2);
 
         ImGui::TableNextRow();
-        draw_grid_label("MODEL");
+        gui_debug_grid_label("MODEL");
         ImGui::TextColored(white, "%s", k_machine_profiles[machine.model].name);
 
         ImGui::TableNextRow();
-        draw_grid_label("CPU");
+        gui_debug_grid_label("CPU");
         ImGui::TextColored(white, "%s", k_machine_cpus[machine.cpu].name); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(orange, "%.0f MHz", machine.cpu_clock_rate / 1000000.0);
 
         ImGui::TableNextRow();
-        draw_grid_label("TURBO");
+        gui_debug_grid_label("TURBO");
         ImGui::TextColored(core->IsTurbo() ? green : gray, "%s", core->IsTurbo() ? "ON" : "OFF"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(gray, "(%.1f MHz)", core->GetEffectiveCPUClockRate() / 1000000.0);
 
         ImGui::TableNextRow();
-        draw_grid_label("CACHE");
+        gui_debug_grid_label("CACHE");
         ImGui::TextColored(core->GetI386()->IsBusCached() ? green : gray, "%s", core->GetI386()->IsBusCached() ? "ON" : "OFF");
 
         ImGui::TableNextRow();
-        draw_grid_label("RAM");
+        gui_debug_grid_label("RAM");
         ImGui::TextColored(white, "%u KB", machine.ram_size / 1024);
 
         ImGui::TableNextRow();
-        draw_grid_label("FLOPPIES");
+        gui_debug_grid_label("FLOPPIES");
         ImGui::TextColored(white, "%d", machine.floppy_drives);
 
         ImGui::EndTable();
@@ -432,32 +428,32 @@ void gui_debug_window_system_control(void)
 
     if (ImGui::BeginTable("##system_board", 2, flags))
     {
-        setup_fixed_columns(widths, 2);
+        gui_debug_fixed_columns(widths, 2);
 
         ImGui::TableNextRow();
-        draw_grid_label("A20");
+        gui_debug_grid_label("A20");
         ImGui::TextColored(system_control->IsA20Enabled() ? green : gray, "%s",
             system_control->IsA20Enabled() ? "ON" : "OFF"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(gray, "(92h:$%02X)", state->port_92);
 
         ImGui::TableNextRow();
-        draw_grid_label("NMI");
+        gui_debug_grid_label("NMI");
         ImGui::TextColored(state->nmi_mask ? gray : green, "%s", state->nmi_mask ? "MASKED" : "ENABLED");
 
         ImGui::TableNextRow();
-        draw_grid_label("PORT 61h");
+        gui_debug_grid_label("PORT 61h");
         ImGui::TextColored(white, "$%02X", system_control->Peek(0x0061, clocks));
 
         ImGui::TableNextRow();
-        draw_grid_label("POST CODE");
+        gui_debug_grid_label("POST CODE");
         ImGui::TextColored(orange, "$%02X", state->post_code);
 
         ImGui::TableNextRow();
-        draw_grid_label("FPU ERROR");
+        gui_debug_grid_label("FPU ERROR");
         ImGui::TextColored(state->fpu_error ? yellow : gray, "%s", state->fpu_error ? "IRQ13" : "OFF");
 
         ImGui::TableNextRow();
-        draw_grid_label("CPU RESETS");
+        gui_debug_grid_label("CPU RESETS");
         ImGui::TextColored(white, "%u", state->reset_count);
 
         if (state->reset_count != 0)
@@ -505,16 +501,16 @@ void gui_debug_window_rtc(void)
 
     if (ImGui::BeginTable("##rtc_date", 2, flags))
     {
-        setup_fixed_columns(widths, 2);
+        gui_debug_fixed_columns(widths, 2);
 
         ImGui::TableNextRow();
-        draw_grid_label("DATE");
+        gui_debug_grid_label("DATE");
         ImGui::TextColored(white, "%02d%02d-%02d-%02d", state->century, state->year, state->month, state->day);
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored(blue, "%s", k_debug_weekday_names[(state->weekday + 6) % 7]);
 
         ImGui::TableNextRow();
-        draw_grid_label("TIME");
+        gui_debug_grid_label("TIME");
         ImGui::TextColored(white, "%02d:%02d:%02d", state->hours, state->minutes, state->seconds);
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored(blue, "%s", (status_b & k_mc146818_b_24_hour) != 0 ? "24H" : "12H");
@@ -522,7 +518,7 @@ void gui_debug_window_rtc(void)
         ImGui::TextColored(blue, "%s", (status_b & k_mc146818_b_binary) != 0 ? "BINARY" : "BCD");
 
         ImGui::TableNextRow();
-        draw_grid_label("ALARM");
+        gui_debug_grid_label("ALARM");
         draw_alarm_byte(ram[k_mc146818_hours_alarm]);
         ImGui::SameLine(0.0f, 0.0f);
         ImGui::TextColored(gray, ":");
@@ -540,10 +536,10 @@ void gui_debug_window_rtc(void)
 
     if (ImGui::BeginTable("##rtc_status", 2, flags))
     {
-        setup_fixed_columns(widths, 2);
+        gui_debug_fixed_columns(widths, 2);
 
         ImGui::TableNextRow();
-        draw_grid_label("DIVIDER");
+        gui_debug_grid_label("DIVIDER");
         bool running = rtc.IsDividerRunning();
         ImGui::TextColored(running ? green : gray, "%s", running ? "RUNNING" : "STOPPED");
         ImGui::SameLine(0.0f, space);
@@ -552,7 +548,7 @@ void gui_debug_window_rtc(void)
         ImGui::TextColored((status_b & k_mc146818_b_set) != 0 ? yellow : gray, "SET");
 
         ImGui::TableNextRow();
-        draw_grid_label("PERIODIC");
+        gui_debug_grid_label("PERIODIC");
 
         if (period != 0)
             ImGui::TextColored(orange, "%.2f Hz", (double)k_mc146818_chain_rate / period);
@@ -560,7 +556,7 @@ void gui_debug_window_rtc(void)
             ImGui::TextColored(gray, "OFF");
 
         ImGui::TableNextRow();
-        draw_grid_label("ENABLED");
+        gui_debug_grid_label("ENABLED");
         ImGui::TextColored((status_b & k_mc146818_b_periodic) != 0 ? green : gray, "PIE");
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored((status_b & k_mc146818_b_alarm) != 0 ? green : gray, "AIE");
@@ -568,7 +564,7 @@ void gui_debug_window_rtc(void)
         ImGui::TextColored((status_b & k_mc146818_b_update) != 0 ? green : gray, "UIE");
 
         ImGui::TableNextRow();
-        draw_grid_label("FLAGS");
+        gui_debug_grid_label("FLAGS");
         ImGui::TextColored((status_c & k_mc146818_c_periodic) != 0 ? yellow : gray, "PF ");
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored((status_c & k_mc146818_c_alarm) != 0 ? yellow : gray, "AF ");
@@ -578,7 +574,7 @@ void gui_debug_window_rtc(void)
         ImGui::TextColored((status_c & k_mc146818_c_irq) != 0 ? yellow : gray, "IRQ8");
 
         ImGui::TableNextRow();
-        draw_grid_label("INDEX");
+        gui_debug_grid_label("INDEX");
         ImGui::TextColored(white, "$%02X", state->index);
 
         ImGui::EndTable();
@@ -724,24 +720,9 @@ static void rtc_write_callback(u16 address, u8 value, void* user_data)
     rtc->Write(0x0070, saved, clocks);
 }
 
-static void setup_fixed_columns(const int* widths, int count)
-{
-    float character = ImGui::CalcTextSize("0").x;
-
-    for (int i = 0; i < count; i++)
-        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * widths[i]);
-}
-
-static void draw_grid_label(const char* label)
-{
-    ImGui::TableNextColumn();
-    ImGui::TextColored(violet, "%s", label);
-    ImGui::TableNextColumn();
-}
-
 static void draw_flag(const char* label, bool on)
 {
-    draw_grid_label(label);
+    gui_debug_grid_label(label);
     ImGui::TextColored(on ? green : gray, "%s", on ? "ON" : "OFF");
 }
 
@@ -763,28 +744,28 @@ static void draw_dma_chip(const I8237::I8237_State* chip, const char* title, con
     {
         static const int widths[4] = { 14, 14, 12, 12 };
 
-        setup_fixed_columns(widths, 4);
+        gui_debug_fixed_columns(widths, 4);
 
         ImGui::TableNextRow();
-        draw_grid_label("COMMAND");
+        gui_debug_grid_label("COMMAND");
         ImGui::TextColored(white, "$%02X", chip->command);
-        draw_grid_label("STATE");
+        gui_debug_grid_label("STATE");
         ImGui::TextColored(disabled ? red : green, "%s", disabled ? "DISABLED" : "ENABLED");
 
         ImGui::TableNextRow();
-        draw_grid_label("MASK");
+        gui_debug_grid_label("MASK");
         draw_bits4(chip->mask);
-        draw_grid_label("SOFTWARE REQ");
+        gui_debug_grid_label("SOFTWARE REQ");
         draw_bits4(chip->software_requests);
 
         ImGui::TableNextRow();
-        draw_grid_label("REQUEST LEVELS");
+        gui_debug_grid_label("REQUEST LEVELS");
         draw_bits4(chip->request_levels);
-        draw_grid_label("TERMINAL CNT");
+        gui_debug_grid_label("TERMINAL CNT");
         draw_bits4(chip->status_tc);
 
         ImGui::TableNextRow();
-        draw_grid_label("FLIP-FLOP");
+        gui_debug_grid_label("FLIP-FLOP");
         ImGui::TextColored(chip->flip_flop ? yellow : gray, "%s", chip->flip_flop ? "HIGH" : "LOW");
 
         ImGui::EndTable();
@@ -800,16 +781,6 @@ static void draw_dma_chip(const I8237::I8237_State* chip, const char* title, con
 
         ImGui::TextColored(i == 2 ? red : yellow, "%s", k_debug_dma_command_names[i]);
     }
-}
-
-static void goto_physical(u32 address)
-{
-    GDOX_Debug_Memory_Address target = { };
-    target.space = GDOX_DEBUG_MEMORY_PHYSICAL;
-    target.address = address;
-    target.segment_register = -1;
-    target.region = -1;
-    gui_debug_memory_goto(target);
 }
 
 static void draw_vector_tooltip(u8 vector)

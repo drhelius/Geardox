@@ -38,7 +38,6 @@
 #include "gui_debug_widgets.h"
 
 static void setup_grid_columns(void);
-static void draw_grid_label(const char* label);
 static void draw_flag(bool on);
 static void sequencer_write_callback(u16 address, u8 value, void* user_data);
 static void graphics_write_callback(u16 address, u8 value, void* user_data);
@@ -120,32 +119,32 @@ void gui_debug_window_vga(void)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("RUNNING");
+        gui_debug_grid_label("RUNNING");
         ImGui::TextColored(running ? green : gray, "%s", running ? "ON" : "OFF");
-        draw_grid_label("BLANK");
+        gui_debug_grid_label("BLANK");
         ImGui::TextColored(video->IsScreenBlank() ? yellow : gray, "%s", video->IsScreenBlank() ? "YES" : "NO");
 
         ImGui::TableNextRow();
-        draw_grid_label("MODE");
+        gui_debug_grid_label("MODE");
         ImGui::TextColored(blue, "%s", mode_name(video));
-        draw_grid_label("BLOCK");
+        gui_debug_grid_label("BLOCK");
         ImGui::TextColored(white, "%s", (state->misc & 0x01) != 0 ? "3Dx COLOR" : "3Bx MONO");
 
         ImGui::TableNextRow();
-        draw_grid_label("FRAME");
+        gui_debug_grid_label("FRAME");
         ImGui::TextColored(white, "%dx%d", video->GetFrameWidth(), video->GetFrameHeight());
-        draw_grid_label("DISPLAY");
+        gui_debug_grid_label("DISPLAY");
         ImGui::TextColored(white, "%dx%d", video->GetDisplayWidth(), video->GetDisplayHeight());
 
         ImGui::TableNextRow();
-        draw_grid_label("DOT CLOCK");
+        gui_debug_grid_label("DOT CLOCK");
 
         if (running)
             ImGui::TextColored(orange, "%.3f MHz", dot_clock);
         else
             ImGui::TextColored(gray, "--");
 
-        draw_grid_label("LINE RATE");
+        gui_debug_grid_label("LINE RATE");
 
         if (running)
             ImGui::TextColored(orange, "%.2f kHz", dot_clock * 1000.0 / state->frame_line_dots);
@@ -153,9 +152,9 @@ void gui_debug_window_vga(void)
             ImGui::TextColored(gray, "--");
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE");
+        gui_debug_grid_label("LINE");
         ImGui::TextColored(white, "%u DOTS", state->frame_line_dots);
-        draw_grid_label("REFRESH");
+        gui_debug_grid_label("REFRESH");
 
         if (running)
             ImGui::TextColored(orange, "%.2f Hz", 1000.0 / video->GetFrameTime());
@@ -163,15 +162,15 @@ void gui_debug_window_vga(void)
             ImGui::TextColored(gray, "--");
 
         ImGui::TableNextRow();
-        draw_grid_label("LINES");
+        gui_debug_grid_label("LINES");
         ImGui::TextColored(white, "%u", state->frame_lines);
-        draw_grid_label("ACTIVE");
+        gui_debug_grid_label("ACTIVE");
         ImGui::TextColored(white, "%u", state->display_lines);
 
         ImGui::TableNextRow();
-        draw_grid_label("RETRACE");
+        gui_debug_grid_label("RETRACE");
         ImGui::TextColored(white, "%u-%u", state->retrace_start, state->retrace_end);
-        draw_grid_label("OVERSCAN");
+        gui_debug_grid_label("OVERSCAN");
         ImGui::ColorButton("##overscan", to_imgui_color(video->GetOverscanColor()), ImGuiColorEditFlags_NoTooltip |
             ImGuiColorEditFlags_NoDragDrop, ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
 
@@ -186,21 +185,21 @@ void gui_debug_window_vga(void)
         u8 status = video->GetSyncStatus(clocks);
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE");
+        gui_debug_grid_label("LINE");
         ImGui::TextColored(white, "%u", video->GetBeamLine(clocks));
-        draw_grid_label("DOT");
+        gui_debug_grid_label("DOT");
         ImGui::TextColored(white, "%u", video->GetBeamDot(clocks));
 
         ImGui::TableNextRow();
-        draw_grid_label("DISPLAY EN");
+        gui_debug_grid_label("DISPLAY EN");
         draw_flag((status & 0x01) == 0);
-        draw_grid_label("RETRACE");
+        gui_debug_grid_label("RETRACE");
         draw_flag((status & 0x08) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("VERT IRQ");
+        gui_debug_grid_label("VERT IRQ");
         ImGui::TextColored(state->vertical_interrupt ? yellow : gray, "%s", state->vertical_interrupt ? "PENDING" : "CLEAR");
-        draw_grid_label("IRQ OUT");
+        gui_debug_grid_label("IRQ OUT");
         draw_flag((crtc[k_video_cr_retrace_end] & 0x20) == 0);
 
         ImGui::EndTable();
@@ -213,33 +212,33 @@ void gui_debug_window_vga(void)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("START");
+        gui_debug_grid_label("START");
         ImGui::TextColored(white, "$%04X", video->GetStartAddress());
-        draw_grid_label("LATCHED");
+        gui_debug_grid_label("LATCHED");
         ImGui::TextColored(white, "$%04X", state->start_address);
 
         ImGui::TableNextRow();
-        draw_grid_label("ADDRESS");
+        gui_debug_grid_label("ADDRESS");
         ImGui::TextColored(white, "$%04X", state->row_address & 0xFFFF);
-        draw_grid_label("ROW SCAN");
+        gui_debug_grid_label("ROW SCAN");
         ImGui::TextColored(white, "%u", state->row_scan);
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE CMP");
+        gui_debug_grid_label("LINE CMP");
         ImGui::TextColored(white, "%u", video->GetLineCompare());
-        draw_grid_label("OFFSET");
+        gui_debug_grid_label("OFFSET");
         ImGui::TextColored(white, "%u", crtc[k_video_cr_offset]);
 
         ImGui::TableNextRow();
-        draw_grid_label("PIXEL PAN");
+        gui_debug_grid_label("PIXEL PAN");
         ImGui::TextColored(white, "%u", state->attribute[k_video_ar_panning]);
-        draw_grid_label("BYTE PAN");
+        gui_debug_grid_label("BYTE PAN");
         ImGui::TextColored(white, "%u", (crtc[k_video_cr_preset_row] >> 5) & 0x03);
 
         ImGui::TableNextRow();
-        draw_grid_label("CURSOR");
+        gui_debug_grid_label("CURSOR");
         ImGui::TextColored(white, "$%04X", video->GetCursorAddress());
-        draw_grid_label("SCANS");
+        gui_debug_grid_label("SCANS");
         ImGui::TextColored(white, "%u-%u", crtc[k_video_cr_cursor_start] & 0x1F, crtc[k_video_cr_cursor_end] & 0x1F);
 
         ImGui::EndTable();
@@ -255,28 +254,28 @@ void gui_debug_window_vga(void)
         u8 memory_mode = state->sequencer[k_video_sr_memory_mode];
 
         ImGui::TableNextRow();
-        draw_grid_label("WINDOW");
+        gui_debug_grid_label("WINDOW");
         ImGui::TextColored((state->misc & 0x02) != 0 ? white : gray, "%s",
             k_windows[(state->graphics[k_video_gr_misc] >> 2) & 0x03]);
-        draw_grid_label("LATCH");
+        gui_debug_grid_label("LATCH");
         ImGui::TextColored(white, "$%08X", state->latch);
 
         ImGui::TableNextRow();
-        draw_grid_label("CHAIN-4");
+        gui_debug_grid_label("CHAIN-4");
         draw_flag((memory_mode & 0x08) != 0);
-        draw_grid_label("ODD/EVEN");
+        gui_debug_grid_label("ODD/EVEN");
         draw_flag((memory_mode & 0x04) == 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("WRITE MODE");
+        gui_debug_grid_label("WRITE MODE");
         ImGui::TextColored(white, "%u", state->graphics[k_video_gr_mode] & 0x03);
-        draw_grid_label("READ MODE");
+        gui_debug_grid_label("READ MODE");
         ImGui::TextColored(white, "%u", (state->graphics[k_video_gr_mode] >> 3) & 0x01);
 
         ImGui::TableNextRow();
-        draw_grid_label("MAP MASK");
+        gui_debug_grid_label("MAP MASK");
         ImGui::TextColored(white, "$%X", state->sequencer[k_video_sr_map_mask]);
-        draw_grid_label("DIRECT");
+        gui_debug_grid_label("DIRECT");
         draw_flag(video->IsDirectMapped());
 
         ImGui::EndTable();
@@ -547,19 +546,8 @@ void gui_debug_window_palettes(void)
 
 static void setup_grid_columns(void)
 {
-    float character = ImGui::CalcTextSize("0").x;
-
-    ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 11);
-    ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 16);
-    ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 10);
-    ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 14);
-}
-
-static void draw_grid_label(const char* label)
-{
-    ImGui::TableNextColumn();
-    ImGui::TextColored(violet, "%s", label);
-    ImGui::TableNextColumn();
+    static const int k_widths[4] = { 11, 16, 10, 14 };
+    gui_debug_fixed_columns(k_widths, 4);
 }
 
 static void draw_flag(bool on)
@@ -674,26 +662,26 @@ static void draw_cirrus(Video* video)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("EXTENSIONS");
+        gui_debug_grid_label("EXTENSIONS");
         ImGui::TextColored(video->IsUnlocked() ? green : gray, "%s", video->IsUnlocked() ? "UNLOCKED" : "LOCKED");
-        draw_grid_label("EXT MODE");
+        gui_debug_grid_label("EXT MODE");
         draw_flag(video->IsExtendedMode());
 
         ImGui::TableNextRow();
-        draw_grid_label("SR07");
+        gui_debug_grid_label("SR07");
         ImGui::TextColored(white, "$%02X", extended);
-        draw_grid_label("PIXEL PATH");
+        gui_debug_grid_label("PIXEL PATH");
         ImGui::TextColored(white, "%u", (extended >> 1) & 0x07);
 
         ImGui::TableNextRow();
-        draw_grid_label("APERTURE");
+        gui_debug_grid_label("APERTURE");
 
         if (aperture != 0)
             ImGui::TextColored(white, "$%08X", aperture);
         else
             ImGui::TextColored(gray, "OFF");
 
-        draw_grid_label("APERT MB");
+        gui_debug_grid_label("APERT MB");
         ImGui::TextColored(white, "%u", extended >> 4);
 
         for (int i = 0; i < 4; i += 2)
@@ -702,35 +690,35 @@ static void draw_cirrus(Video* video)
 
             ImGui::TableNextRow();
             snprintf(name, sizeof(name), "VCLK%d", i);
-            draw_grid_label(name);
+            gui_debug_grid_label(name);
             ImGui::TextColored(selected == i ? orange : white, "%.3f MHz", video->GetVideoClock(i) / 1000000.0);
             snprintf(name, sizeof(name), "VCLK%d", i + 1);
-            draw_grid_label(name);
+            gui_debug_grid_label(name);
             ImGui::TextColored(selected == i + 1 ? orange : white, "%.3f MHz", video->GetVideoClock(i + 1) / 1000000.0);
         }
 
         ImGui::TableNextRow();
-        draw_grid_label("BANK 0");
+        gui_debug_grid_label("BANK 0");
         ImGui::TextColored(white, "$%05X", video->GetBankOffset(0));
-        draw_grid_label("BANK 1");
+        gui_debug_grid_label("BANK 1");
         ImGui::TextColored(video->IsDualPage() ? white : gray, "$%05X", video->GetBankOffset(1));
 
         ImGui::TableNextRow();
-        draw_grid_label("DUAL PAGE");
+        gui_debug_grid_label("DUAL PAGE");
         draw_flag(video->IsDualPage());
-        draw_grid_label("WIDE COUNT");
+        gui_debug_grid_label("WIDE COUNT");
         draw_flag(video->GetCounterMask() != 0xFFFF);
 
         ImGui::TableNextRow();
-        draw_grid_label("HIDDEN DAC");
+        gui_debug_grid_label("HIDDEN DAC");
         ImGui::TextColored(white, "$%02X", state->hidden_dac);
-        draw_grid_label("FORMAT");
+        gui_debug_grid_label("FORMAT");
         ImGui::TextColored(blue, "%s", k_debug_extended_format_names[video->GetExtendedFormat()]);
 
         ImGui::TableNextRow();
-        draw_grid_label("EXT START");
+        gui_debug_grid_label("EXT START");
         ImGui::TextColored(white, "$%05X", video->GetStartAddress());
-        draw_grid_label("EXT OFFSET");
+        gui_debug_grid_label("EXT OFFSET");
         ImGui::TextColored(white, "%u (%u B)", video->GetOffsetRegister(), pitch);
 
         ImGui::EndTable();
@@ -766,7 +754,7 @@ static void draw_cirrus_blt(Video* video)
     setup_grid_columns();
 
     ImGui::TableNextRow();
-    draw_grid_label("STATE");
+    gui_debug_grid_label("STATE");
 
     if (video->IsBltWaiting())
         ImGui::TextColored(yellow, "WAITING CPU");
@@ -775,59 +763,59 @@ static void draw_cirrus_blt(Video* video)
     else
         ImGui::TextColored(gray, "IDLE");
 
-    draw_grid_label("GR31");
+    gui_debug_grid_label("GR31");
     ImGui::TextColored(white, "$%02X", status);
 
     ImGui::TableNextRow();
-    draw_grid_label("MODE");
+    gui_debug_grid_label("MODE");
     ImGui::TextColored(white, "$%02X", graphics[k_video_gr_blt_mode]);
-    draw_grid_label("ROP");
+    gui_debug_grid_label("ROP");
     ImGui::TextColored(white, "$%02X", graphics[k_video_gr_blt_rop]);
 
     ImGui::TableNextRow();
-    draw_grid_label("SIZE");
+    gui_debug_grid_label("SIZE");
     ImGui::TextColored(white, "%ux%u", video->GetBltWidth(), video->GetBltHeight());
-    draw_grid_label("PIXEL");
+    gui_debug_grid_label("PIXEL");
     ImGui::TextColored(white, "%u BYTES", video->GetBltPixelBytes());
 
     ImGui::TableNextRow();
-    draw_grid_label("SOURCE");
+    gui_debug_grid_label("SOURCE");
     ImGui::TextColored(white, "$%06X", video->GetBltAddress(k_video_gr_blt_src));
-    draw_grid_label("DEST");
+    gui_debug_grid_label("DEST");
     ImGui::TextColored(white, "$%06X", video->GetBltAddress(k_video_gr_blt_dst));
 
     ImGui::TableNextRow();
-    draw_grid_label("SRC PITCH");
+    gui_debug_grid_label("SRC PITCH");
     ImGui::TextColored(white, "%u", video->GetBltPitch(k_video_gr_blt_src_pitch));
-    draw_grid_label("DST PITCH");
+    gui_debug_grid_label("DST PITCH");
     ImGui::TextColored(white, "%u", video->GetBltPitch(k_video_gr_blt_dst_pitch));
 
     ImGui::TableNextRow();
-    draw_grid_label("LINE");
+    gui_debug_grid_label("LINE");
     ImGui::TextColored(video->IsBltWaiting() ? white : gray, "%u", state->blt_line);
-    draw_grid_label("BYTES FED");
+    gui_debug_grid_label("BYTES FED");
     ImGui::TextColored(video->IsBltWaiting() ? white : gray, "%u/%u", state->blt_fed, state->blt_count);
 
     ImGui::TableNextRow();
-    draw_grid_label("STARTED");
+    gui_debug_grid_label("STARTED");
     ImGui::TextColored(white, "%u", video->GetBltCount());
-    draw_grid_label("HANDLERS");
+    gui_debug_grid_label("HANDLERS");
     draw_flag(video->IsBltMapped());
 
     ImGui::TableNextRow();
-    draw_grid_label("FRAME COPY");
+    gui_debug_grid_label("FRAME COPY");
     ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_SCREEN));
-    draw_grid_label("FRAME PAT");
+    gui_debug_grid_label("FRAME PAT");
     ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_PATTERN));
 
     ImGui::TableNextRow();
-    draw_grid_label("FRAME EXP");
+    gui_debug_grid_label("FRAME EXP");
     ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_EXPAND));
-    draw_grid_label("FRAME CPU");
+    gui_debug_grid_label("FRAME CPU");
     ImGui::TextColored(white, "%u", video->GetBltFrameCount(Video::VIDEO_BLT_SYSTEM));
 
     ImGui::TableNextRow();
-    draw_grid_label("REMAPS");
+    gui_debug_grid_label("REMAPS");
     ImGui::TextColored(white, "%u", video->GetBltFrameRemaps());
 
     ImGui::EndTable();
@@ -849,21 +837,21 @@ static void draw_cirrus_cursor(Video* video)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("ENABLED");
+        gui_debug_grid_label("ENABLED");
         draw_flag((attributes & 0x01) != 0);
-        draw_grid_label("SIZE");
+        gui_debug_grid_label("SIZE");
         ImGui::TextColored(white, "%ux%u", size, size);
 
         ImGui::TableNextRow();
-        draw_grid_label("X");
+        gui_debug_grid_label("X");
         ImGui::TextColored(white, "%u", state->cursor_x);
-        draw_grid_label("Y");
+        gui_debug_grid_label("Y");
         ImGui::TextColored(white, "%u", state->cursor_y);
 
         ImGui::TableNextRow();
-        draw_grid_label("PATTERN");
+        gui_debug_grid_label("PATTERN");
         ImGui::TextColored(white, "$%06X", base);
-        draw_grid_label("COLORS");
+        gui_debug_grid_label("COLORS");
 
         for (int i = 0; i < 2; i++)
         {
@@ -923,22 +911,22 @@ static void draw_ega(Video* video)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("MONITOR");
+        gui_debug_grid_label("MONITOR");
         ImGui::TextColored(white, "%s", video->IsEGA350Lines() ? "350 LINES" : "200 LINES");
-        draw_grid_label("SWITCHES");
+        gui_debug_grid_label("SWITCHES");
         ImGui::TextColored(white, "%X (%d%d%d%d)", switches, (switches >> 3) & 1, (switches >> 2) & 1, (switches >> 1) & 1,
             switches & 1);
 
         ImGui::TableNextRow();
-        draw_grid_label("SENSE");
+        gui_debug_grid_label("SENSE");
         ImGui::TextColored(white, "SWITCH %d", 4 - ((state->misc >> 2) & 0x03));
-        draw_grid_label("STATUS MUX");
+        gui_debug_grid_label("STATUS MUX");
         ImGui::TextColored(white, "%s", k_mux[(state->attribute[k_video_ar_plane_enable] >> 4) & 0x03]);
 
         ImGui::TableNextRow();
-        draw_grid_label("GR POS 1");
+        gui_debug_grid_label("GR POS 1");
         ImGui::TextColored(white, "%u", state->ega_position[0]);
-        draw_grid_label("GR POS 2");
+        gui_debug_grid_label("GR POS 2");
         ImGui::TextColored(white, "%u", state->ega_position[1]);
 
         ImGui::EndTable();
@@ -969,32 +957,32 @@ static void draw_cga(Video* video)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("RUNNING");
+        gui_debug_grid_label("RUNNING");
         ImGui::TextColored(running ? green : gray, "%s", running ? "ON" : "OFF");
-        draw_grid_label("VIDEO");
+        gui_debug_grid_label("VIDEO");
         draw_flag((mode & 0x08) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("MODE");
+        gui_debug_grid_label("MODE");
         ImGui::TextColored(blue, "%s", name);
-        draw_grid_label("OUTPUT");
+        gui_debug_grid_label("OUTPUT");
         ImGui::TextColored(white, "%s", video->IsCGAComposite() ? "COMPOSITE" : "RGB");
 
         ImGui::TableNextRow();
-        draw_grid_label("FRAME");
+        gui_debug_grid_label("FRAME");
         ImGui::TextColored(white, "%dx%d", video->GetFrameWidth(), video->GetFrameHeight());
-        draw_grid_label("DISPLAY");
+        gui_debug_grid_label("DISPLAY");
         ImGui::TextColored(white, "%dx%d", video->GetDisplayWidth(), video->GetDisplayHeight());
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE RATE");
+        gui_debug_grid_label("LINE RATE");
 
         if (running)
             ImGui::TextColored(orange, "%.2f kHz", dot_clock * 1000.0 / state->frame_line_dots);
         else
             ImGui::TextColored(gray, "--");
 
-        draw_grid_label("REFRESH");
+        gui_debug_grid_label("REFRESH");
 
         if (running)
             ImGui::TextColored(orange, "%.2f Hz", 1000.0 / video->GetFrameTime());
@@ -1002,15 +990,15 @@ static void draw_cga(Video* video)
             ImGui::TextColored(gray, "--");
 
         ImGui::TableNextRow();
-        draw_grid_label("LINES");
+        gui_debug_grid_label("LINES");
         ImGui::TextColored(white, "%u", state->frame_lines);
-        draw_grid_label("ACTIVE");
+        gui_debug_grid_label("ACTIVE");
         ImGui::TextColored(white, "%u", state->display_lines);
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE");
+        gui_debug_grid_label("LINE");
         ImGui::TextColored(white, "%u DOTS", state->frame_line_dots);
-        draw_grid_label("RETRACE");
+        gui_debug_grid_label("RETRACE");
         ImGui::TextColored(white, "%u-%u", state->retrace_start, state->retrace_end);
 
         ImGui::EndTable();
@@ -1024,21 +1012,21 @@ static void draw_cga(Video* video)
         u8 status = video->GetSyncStatus(clocks);
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE");
+        gui_debug_grid_label("LINE");
         ImGui::TextColored(white, "%u", video->GetBeamLine(clocks));
-        draw_grid_label("DOT");
+        gui_debug_grid_label("DOT");
         ImGui::TextColored(white, "%u", video->GetBeamDot(clocks));
 
         ImGui::TableNextRow();
-        draw_grid_label("DISPLAY EN");
+        gui_debug_grid_label("DISPLAY EN");
         draw_flag((status & 0x01) == 0);
-        draw_grid_label("RETRACE");
+        gui_debug_grid_label("RETRACE");
         draw_flag((status & 0x08) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("ADDRESS");
+        gui_debug_grid_label("ADDRESS");
         ImGui::TextColored(white, "$%04X", state->row_address & 0x3FFF);
-        draw_grid_label("ROW SCAN");
+        gui_debug_grid_label("ROW SCAN");
         ImGui::TextColored(white, "%u", state->row_scan);
 
         ImGui::EndTable();
@@ -1051,33 +1039,33 @@ static void draw_cga(Video* video)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("H TOTAL");
+        gui_debug_grid_label("H TOTAL");
         ImGui::TextColored(white, "%u CHARS", r[k_mc6845_horizontal_total] + 1);
-        draw_grid_label("H DISPLAY");
+        gui_debug_grid_label("H DISPLAY");
         ImGui::TextColored(white, "%u CHARS", r[k_mc6845_horizontal_displayed]);
 
         ImGui::TableNextRow();
-        draw_grid_label("H SYNC");
+        gui_debug_grid_label("H SYNC");
         ImGui::TextColored(white, "%u, %u WIDE", r[k_mc6845_horizontal_sync], r[k_mc6845_sync_width]);
-        draw_grid_label("ROW");
+        gui_debug_grid_label("ROW");
         ImGui::TextColored(white, "%u LINES", r[k_mc6845_max_scan] + 1);
 
         ImGui::TableNextRow();
-        draw_grid_label("V TOTAL");
+        gui_debug_grid_label("V TOTAL");
         ImGui::TextColored(white, "%u ROWS + %u", r[k_mc6845_vertical_total] + 1, r[k_mc6845_vertical_adjust]);
-        draw_grid_label("V DISPLAY");
+        gui_debug_grid_label("V DISPLAY");
         ImGui::TextColored(white, "%u ROWS", r[k_mc6845_vertical_displayed]);
 
         ImGui::TableNextRow();
-        draw_grid_label("V SYNC");
+        gui_debug_grid_label("V SYNC");
         ImGui::TextColored(white, "ROW %u", r[k_mc6845_vertical_sync]);
-        draw_grid_label("START");
+        gui_debug_grid_label("START");
         ImGui::TextColored(white, "$%04X", mc6845->GetStartAddress());
 
         ImGui::TableNextRow();
-        draw_grid_label("CURSOR");
+        gui_debug_grid_label("CURSOR");
         ImGui::TextColored(white, "$%04X", mc6845->GetCursorAddress());
-        draw_grid_label("SCANS");
+        gui_debug_grid_label("SCANS");
         ImGui::TextColored(white, "%u-%u %s", r[k_mc6845_cursor_start] & 0x1F, r[k_mc6845_cursor_end],
             k_cursor_modes[(r[k_mc6845_cursor_start] >> 5) & 0x03]);
 
@@ -1091,28 +1079,28 @@ static void draw_cga(Video* video)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("80 COLUMNS");
+        gui_debug_grid_label("80 COLUMNS");
         draw_flag((mode & 0x01) != 0);
-        draw_grid_label("GRAPHICS");
+        gui_debug_grid_label("GRAPHICS");
         draw_flag((mode & 0x02) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("B&W");
+        gui_debug_grid_label("B&W");
         draw_flag((mode & 0x04) != 0);
-        draw_grid_label("640X200");
+        gui_debug_grid_label("640X200");
         draw_flag((mode & 0x10) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("BLINK");
+        gui_debug_grid_label("BLINK");
         draw_flag((mode & 0x20) != 0);
-        draw_grid_label("COLOR");
+        gui_debug_grid_label("COLOR");
         ImGui::ColorButton("##cga_color", to_imgui_color(video->GetCGAColor(color & 0x0F)), ImGuiColorEditFlags_NoTooltip |
             ImGuiColorEditFlags_NoDragDrop, ImVec2(ImGui::GetTextLineHeight(), ImGui::GetTextLineHeight()));
 
         ImGui::TableNextRow();
-        draw_grid_label("INTENSE");
+        gui_debug_grid_label("INTENSE");
         draw_flag((color & 0x10) != 0);
-        draw_grid_label("PALETTE");
+        gui_debug_grid_label("PALETTE");
         ImGui::TextColored(white, "%u", (color >> 5) & 0x01);
 
         ImGui::EndTable();
@@ -1212,7 +1200,7 @@ void gui_debug_window_voodoo(void)
 
 static void draw_voodoo_hex(const char* label, u32 value)
 {
-    draw_grid_label(label);
+    gui_debug_grid_label(label);
     ImGui::TextColored(white, "$%08X", value);
 }
 
@@ -1234,50 +1222,50 @@ static void draw_voodoo_status(Voodoo* voodoo)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("WINDOW");
+        gui_debug_grid_label("WINDOW");
         ImGui::TextColored(white, "$%08X", state->pci_base);
-        draw_grid_label("PCI CMD");
+        gui_debug_grid_label("PCI CMD");
         ImGui::TextColored(white, "$%02X", state->pci_command); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((state->pci_command & 0x02) != 0 ? green : gray, "MEM");
 
         ImGui::TableNextRow();
-        draw_grid_label("INITENABLE");
+        gui_debug_grid_label("INITENABLE");
         ImGui::TextColored(white, "$%02X", state->init_enable); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((state->init_enable & k_voodoo_enable_init_writes) != 0 ? green : gray, "INIT");
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored((state->init_enable & k_voodoo_enable_fifo_writes) != 0 ? green : gray, "FIFO");
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored((state->init_enable & k_voodoo_enable_dac_read) != 0 ? yellow : gray, "DAC");
-        draw_grid_label("OUTPUT");
+        gui_debug_grid_label("OUTPUT");
         ImGui::TextColored(voodoo->IsDisplayed() ? green : gray, "%s", voodoo->IsDisplayed() ? "VOODOO" : "VGA");
 
         ImGui::TableNextRow();
-        draw_grid_label("STATUS");
+        gui_debug_grid_label("STATUS");
         ImGui::TextColored(white, "$%08X", status);
-        draw_grid_label("FLAGS");
+        gui_debug_grid_label("FLAGS");
         ImGui::TextColored((status & k_voodoo_status_vretrace) == 0 ? yellow : gray, "VRT"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((status & k_voodoo_status_fbi_busy) != 0 ? orange : gray, "FBI"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((status & k_voodoo_status_trex_busy) != 0 ? orange : gray, "TREX"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((status & k_voodoo_status_busy) != 0 ? orange : gray, "BUSY");
 
         ImGui::TableNextRow();
-        draw_grid_label("FIFO");
+        gui_debug_grid_label("FIFO");
         ImGui::TextColored(white, "%u", voodoo->GetQueueCount()); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((regs[k_voodoo_fbi_init0] & k_voodoo_init0_mem_fifo) != 0 ? green : gray, "MEMORY");
-        draw_grid_label("BUSY");
+        gui_debug_grid_label("BUSY");
         ImGui::TextColored(busy > clocks ? orange : gray, "%llu clk", (unsigned long long)(busy > clocks ? busy - clocks : 0));
 
         ImGui::TableNextRow();
-        draw_grid_label("SWAPS");
+        gui_debug_grid_label("SWAPS");
         ImGui::TextColored(white, "%u", state->swaps_pending); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(state->swap_waiting ? yellow : gray, "WAITING");
-        draw_grid_label("BUFFERS");
+        gui_debug_grid_label("BUFFERS");
         ImGui::TextColored(white, "FRONT %u BACK %u", state->front_buffer, state->back_buffer);
 
         ImGui::TableNextRow();
-        draw_grid_label("THREAD");
+        gui_debug_grid_label("THREAD");
         ImGui::TextColored(voodoo->IsThreaded() ? green : gray, "%s", voodoo->IsThreaded() ? "ON" : "OFF");
-        draw_grid_label("FRAMES");
+        gui_debug_grid_label("FRAMES");
         ImGui::TextColored(white, "%u", state->frame_count);
 
         ImGui::EndTable();
@@ -1291,15 +1279,15 @@ static void draw_voodoo_status(Voodoo* voodoo)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("RUNNING");
+        gui_debug_grid_label("RUNNING");
         ImGui::TextColored(timing->running ? green : gray, "%s", timing->running ? "ON" : "OFF");
-        draw_grid_label("SIZE");
+        gui_debug_grid_label("SIZE");
         ImGui::TextColored(white, "%ux%u", timing->width, timing->height);
 
         ImGui::TableNextRow();
-        draw_grid_label("TOTAL");
+        gui_debug_grid_label("TOTAL");
         ImGui::TextColored(white, "%ux%u", timing->h_total, timing->v_total);
-        draw_grid_label("REFRESH");
+        gui_debug_grid_label("REFRESH");
 
         if (timing->running)
             ImGui::TextColored(orange, "%.2f Hz", 1000.0f / voodoo->GetFrameTime());
@@ -1307,15 +1295,15 @@ static void draw_voodoo_status(Voodoo* voodoo)
             ImGui::TextColored(gray, "--");
 
         ImGui::TableNextRow();
-        draw_grid_label("PIXEL CLK");
+        gui_debug_grid_label("PIXEL CLK");
         ImGui::TextColored(orange, "%.3f MHz", timing->clock / 1000000.0);
-        draw_grid_label("GRAPH CLK");
+        gui_debug_grid_label("GRAPH CLK");
         ImGui::TextColored(orange, "%.3f MHz", voodoo->GetFbiClock() / 1000000.0);
 
         ImGui::TableNextRow();
-        draw_grid_label("ROW PIXELS");
+        gui_debug_grid_label("ROW PIXELS");
         ImGui::TextColored(white, "%u", voodoo->GetRowPixels());
-        draw_grid_label("ROWS");
+        gui_debug_grid_label("ROWS");
         ImGui::TextColored(white, "%u", voodoo->GetBufferRows());
 
         ImGui::TableNextRow();
@@ -1332,7 +1320,7 @@ static void draw_voodoo_status(Voodoo* voodoo)
         draw_voodoo_hex("vSync", regs[k_voodoo_v_sync]);
         ImGui::TableNextRow();
         draw_voodoo_hex("videoDim", regs[k_voodoo_video_dimensions]);
-        draw_grid_label("DAC CLK");
+        gui_debug_grid_label("DAC CLK");
         ImGui::TextColored(orange, "%.3f MHz", voodoo->GetDac()->GetVideoClock() / 1000000.0);
 
         ImGui::EndTable();
@@ -1346,21 +1334,21 @@ static void draw_voodoo_status(Voodoo* voodoo)
         setup_grid_columns();
 
         ImGui::TableNextRow();
-        draw_grid_label("PIXELS IN");
+        gui_debug_grid_label("PIXELS IN");
         ImGui::TextColored(white, "%u", state->counters[0] & 0xFFFFFF);
-        draw_grid_label("PIXELS OUT");
+        gui_debug_grid_label("PIXELS OUT");
         ImGui::TextColored(white, "%u", state->counters[4] & 0xFFFFFF);
 
         ImGui::TableNextRow();
-        draw_grid_label("CHROMA FAIL");
+        gui_debug_grid_label("CHROMA FAIL");
         ImGui::TextColored(white, "%u", state->counters[1] & 0xFFFFFF);
-        draw_grid_label("Z FAIL");
+        gui_debug_grid_label("Z FAIL");
         ImGui::TextColored(white, "%u", state->counters[2] & 0xFFFFFF);
 
         ImGui::TableNextRow();
-        draw_grid_label("A FAIL");
+        gui_debug_grid_label("A FAIL");
         ImGui::TextColored(white, "%u", state->counters[3] & 0xFFFFFF);
-        draw_grid_label("W START");
+        gui_debug_grid_label("W START");
         ImGui::TextColored(white, "%.6f", (double)state->params.start_w / 4294967296.0);
 
         const s32* v = state->params.vertex;
@@ -1371,11 +1359,11 @@ static void draw_voodoo_status(Voodoo* voodoo)
             if ((i & 1) == 0)
                 ImGui::TableNextRow();
 
-            draw_grid_label(names[i]);
+            gui_debug_grid_label(names[i]);
             ImGui::TextColored(white, "%.4f, %.4f", v[i * 2] / 16.0, v[i * 2 + 1] / 16.0);
         }
 
-        draw_grid_label("RGBA START");
+        gui_debug_grid_label("RGBA START");
         ImGui::TextColored(white, "%.1f %.1f %.1f %.1f", (s32)state->params.start[0] / 4096.0,
             (s32)state->params.start[1] / 4096.0, (s32)state->params.start[2] / 4096.0, (s32)state->params.start[3] / 4096.0);
 
@@ -1405,7 +1393,7 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 52);
 
         ImGui::TableNextRow();
-        draw_grid_label("fbzColorPath");
+        gui_debug_grid_label("fbzColorPath");
         ImGui::TextColored(white, "$%07X", path); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(blue, "RGB %s A %s", k_voodoo_rgb_select[path & 0x03], k_voodoo_rgb_select[(path >> 2) & 0x03]);
         ImGui::SameLine(0.0f, space);
@@ -1413,7 +1401,7 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TextColored((path & k_voodoo_fbz_cp_param_adjust) != 0 ? green : gray, "SUBPIX");
 
         ImGui::TableNextRow();
-        draw_grid_label("fbzMode");
+        gui_debug_grid_label("fbzMode");
         ImGui::TextColored(white, "$%06X", fbz); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((fbz & k_voodoo_fbz_clip) != 0 ? green : gray, "CLIP"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((fbz & k_voodoo_fbz_chroma) != 0 ? green : gray, "CHROMA"); ImGui::SameLine(0.0f, space);
@@ -1424,7 +1412,7 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TextColored((fbz & k_voodoo_fbz_aux_write) != 0 ? green : gray, "AUX");
 
         ImGui::TableNextRow();
-        draw_grid_label("depth");
+        gui_debug_grid_label("depth");
         ImGui::TextColored((fbz & k_voodoo_fbz_depth) != 0 ? green : gray, "%s %s",
             (fbz & k_voodoo_fbz_wbuffer) != 0 ? "W" : "Z", k_voodoo_functions[(fbz >> 5) & 0x07]);
         ImGui::SameLine(0.0f, space);
@@ -1434,25 +1422,25 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TextColored(white, "DRAW %s", ((fbz >> 14) & 0x03) == 0 ? "FRONT" : ((fbz >> 14) & 0x03) == 1 ? "BACK" : "NONE");
 
         ImGui::TableNextRow();
-        draw_grid_label("alphaMode");
+        gui_debug_grid_label("alphaMode");
         ImGui::TextColored(white, "$%08X", alpha); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((alpha & k_voodoo_alpha_test) != 0 ? green : gray, "TEST %s $%02X",
             k_voodoo_functions[(alpha >> 1) & 0x07], alpha >> 24);
 
         ImGui::TableNextRow();
-        draw_grid_label("blend");
+        gui_debug_grid_label("blend");
         ImGui::TextColored((alpha & k_voodoo_alpha_blend) != 0 ? green : gray, "RGB %s %s  A %s %s",
             k_voodoo_blend[(alpha >> 8) & 0x0F], k_voodoo_blend[(alpha >> 12) & 0x0F], k_voodoo_blend[(alpha >> 16) & 0x0F],
             k_voodoo_blend[(alpha >> 20) & 0x0F]);
 
         ImGui::TableNextRow();
-        draw_grid_label("fogMode");
+        gui_debug_grid_label("fogMode");
         ImGui::TextColored(white, "$%02X", fog); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((fog & 0x01) != 0 ? green : gray, "FOG"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(white, "%s", (fog & 0x10) != 0 ? "Z" : (fog & 0x08) != 0 ? "ALPHA" : "TABLE");
 
         ImGui::TableNextRow();
-        draw_grid_label("lfbMode");
+        gui_debug_grid_label("lfbMode");
         ImGui::TextColored(white, "$%05X", lfb); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(white, "FORMAT %u WRITE %s READ %s", lfb & 0x0F, ((lfb >> 4) & 0x03) == 0 ? "FRONT" : "BACK",
             ((lfb >> 6) & 0x03) == 0 ? "FRONT" : ((lfb >> 6) & 0x03) == 1 ? "BACK" : "AUX");
@@ -1460,18 +1448,18 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TextColored((lfb & k_voodoo_lfb_pipeline) != 0 ? green : gray, "PIPELINE");
 
         ImGui::TableNextRow();
-        draw_grid_label("clip");
+        gui_debug_grid_label("clip");
         ImGui::TextColored(white, "X %u-%u Y %u-%u", (regs[k_voodoo_clip_left_right] >> 16) & 0x3FF,
             regs[k_voodoo_clip_left_right] & 0x3FF, (regs[k_voodoo_clip_low_y_high_y] >> 16) & 0x3FF,
             regs[k_voodoo_clip_low_y_high_y] & 0x3FF);
 
         ImGui::TableNextRow();
-        draw_grid_label("colors");
+        gui_debug_grid_label("colors");
         ImGui::TextColored(white, "C0 $%08X C1 $%08X ZA $%08X", regs[k_voodoo_color0], regs[k_voodoo_color1],
             regs[k_voodoo_za_color]);
 
         ImGui::TableNextRow();
-        draw_grid_label("keys");
+        gui_debug_grid_label("keys");
         ImGui::TextColored(white, "CHROMA $%06X FOG $%06X STIPPLE $%08X", regs[k_voodoo_chroma_key] & 0xFFFFFF,
             regs[k_voodoo_fog_color] & 0xFFFFFF, regs[k_voodoo_stipple]);
 
@@ -1488,7 +1476,7 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TableSetupColumn(" ", ImGuiTableColumnFlags_WidthFixed, character * 52);
 
         ImGui::TableNextRow();
-        draw_grid_label("textureMode");
+        gui_debug_grid_label("textureMode");
         ImGui::TextColored(white, "$%08X", mode); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(blue, "%s", k_voodoo_formats[(mode >> 8) & 0x0F]); ImGui::SameLine(0.0f, space);
         ImGui::TextColored((mode & 0x01) != 0 ? green : gray, "PERSP"); ImGui::SameLine(0.0f, space);
@@ -1498,22 +1486,22 @@ static void draw_voodoo_pipeline(Voodoo* voodoo)
         ImGui::TextColored((mode & 0x80) != 0 ? green : gray, "CLAMPT");
 
         ImGui::TableNextRow();
-        draw_grid_label("tLOD");
+        gui_debug_grid_label("tLOD");
         ImGui::TextColored(white, "$%08X", trex->tlod); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(white, "MIN %.2f MAX %.2f BIAS %.2f", (trex->tlod & 0x3F) / 4.0, ((trex->tlod >> 6) & 0x3F) / 4.0,
             (s8)(((trex->tlod >> 12) & 0x3F) << 2) / 16.0);
 
         ImGui::TableNextRow();
-        draw_grid_label("tDetail");
+        gui_debug_grid_label("tDetail");
         ImGui::TextColored(white, "$%05X", trex->tdetail);
 
         ImGui::TableNextRow();
-        draw_grid_label("texBaseAddr");
+        gui_debug_grid_label("texBaseAddr");
         ImGui::TextColored(white, "$%05X $%05X $%05X $%05X", trex->tex_base[0], trex->tex_base[1], trex->tex_base[2],
             trex->tex_base[3]);
 
         ImGui::TableNextRow();
-        draw_grid_label("trexInit");
+        gui_debug_grid_label("trexInit");
         ImGui::TextColored(white, "$%08X $%08X", trex->trex_init[0], trex->trex_init[1]);
 
         ImGui::EndTable();

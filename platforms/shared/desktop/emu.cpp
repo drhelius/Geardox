@@ -115,6 +115,7 @@ static double get_rewind_pop_seconds(void);
 static bool unload_media(void);
 static bool get_floppy_state_path(int index, char* path, size_t path_size);
 static void restore_state_frame(const char* path, int index);
+static void after_state_loaded(const char* path, int index);
 static bool get_cmos_path(int model, char* path, size_t path_size);
 static void load_cmos(int model);
 static void save_cmos(void);
@@ -1090,16 +1091,7 @@ bool emu_load_state_slot(int index)
     if (!geardox->LoadState(dir, index))
         return false;
 
-    if (!emu_game_is_open())
-        config_machine.turbo = geardox->IsTurbo();
-
-    restore_state_frame(dir, index);
-    emu_floppy_reconcile();
-    emu_hard_disk_state_loaded(false);
-    emu_debug_state_restored();
-    events_sync_input();
-    rewind_reset();
-    emu_midi_state_loaded();
+    after_state_loaded(dir, index);
     return true;
 }
 
@@ -1116,16 +1108,7 @@ bool emu_load_state_file(const char* file_path)
     if (emu_is_empty() || !geardox->LoadState(file_path))
         return false;
 
-    if (!emu_game_is_open())
-        config_machine.turbo = geardox->IsTurbo();
-
-    restore_state_frame(file_path, -1);
-    emu_floppy_reconcile();
-    emu_hard_disk_state_loaded(false);
-    emu_debug_state_restored();
-    events_sync_input();
-    rewind_reset();
-    emu_midi_state_loaded();
+    after_state_loaded(file_path, -1);
     return true;
 }
 
@@ -2162,6 +2145,20 @@ static bool unload_media(void)
     rewind_reset();
     update_savestates_data();
     return true;
+}
+
+static void after_state_loaded(const char* path, int index)
+{
+    if (!emu_game_is_open())
+        config_machine.turbo = geardox->IsTurbo();
+
+    restore_state_frame(path, index);
+    emu_floppy_reconcile();
+    emu_hard_disk_state_loaded(false);
+    emu_debug_state_restored();
+    events_sync_input();
+    rewind_reset();
+    emu_midi_state_loaded();
 }
 
 static void restore_state_frame(const char* path, int index)

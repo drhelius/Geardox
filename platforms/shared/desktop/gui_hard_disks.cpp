@@ -68,6 +68,7 @@ static void attach(int id, const char* path);
 static void draw_create_popup(void);
 static void draw_confirm_popup(void);
 static void draw_quit_popup(void);
+static bool flush_disks(void);
 static void notify_attached(int id, const char* path, const char* message);
 static void attach_error(const char* path);
 
@@ -636,8 +637,7 @@ static void draw_create_popup(void)
     if (ImGui::Button("Create...", ImVec2(120, 0)))
     {
         create_size_mb = create_choice < 5 ? k_create_sizes_mb[create_choice] : create_custom_mb;
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         gui_file_dialog_create_hard_disk(dialog_id);
     }
 
@@ -646,8 +646,7 @@ static void draw_create_popup(void)
 
     if (ImGui::Button("Cancel", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::EndPopup();
@@ -674,8 +673,7 @@ static void draw_confirm_popup(void)
 
     if (ImGui::Button("Erase", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
         confirm_erase();
     }
 
@@ -683,12 +681,16 @@ static void draw_confirm_popup(void)
 
     if (ImGui::Button("Cancel", ImVec2(120, 0)))
     {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
+        gui_close_popup();
     }
 
     ImGui::SetItemDefaultFocus();
     ImGui::EndPopup();
+}
+
+static bool flush_disks(void)
+{
+    return emu_hard_disk_flush() && emu_floppy_flush();
 }
 
 static void draw_quit_popup(void)
@@ -713,34 +715,7 @@ static void draw_quit_popup(void)
 
     ImGui::Separator();
 
-    if (ImGui::Button("Retry", ImVec2(100, 0)))
-    {
-        if (emu_hard_disk_flush() && emu_floppy_flush())
-        {
-            ImGui::CloseCurrentPopup();
-            gui_dialog_in_use = false;
-            application_confirm_quit();
-        }
-        else
-            gui_set_error_message("Unable to save the hard disk changes.");
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Quit Without Saving", ImVec2(160, 0)))
-    {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
-        application_confirm_quit();
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Cancel", ImVec2(100, 0)))
-    {
-        ImGui::CloseCurrentPopup();
-        gui_dialog_in_use = false;
-    }
+    gui_draw_unsaved_quit_buttons(flush_disks, "Unable to save the hard disk changes.");
 
     ImGui::EndPopup();
 }

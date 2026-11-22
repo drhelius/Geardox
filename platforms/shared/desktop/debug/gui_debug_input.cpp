@@ -38,8 +38,8 @@
 #include "../gui.h"
 #include "../gui_colors.h"
 #include "gui_debug_constants.h"
+#include "gui_debug_widgets.h"
 
-static void draw_grid_label(const char* label);
 static void draw_mouse(GeardoxCore* core);
 static void draw_joystick(GeardoxCore* core);
 static void draw_uart(SerialPorts* ports, int index);
@@ -114,16 +114,16 @@ void gui_debug_window_parallel_port(void)
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 26);
 
         ImGui::TableNextRow();
-        draw_grid_label("DATA");
+        gui_debug_grid_label("DATA");
         ImGui::TextColored(white, "$%02X", port->GetState()->data);
 
         ImGui::TableNextRow();
-        draw_grid_label("STATUS");
+        gui_debug_grid_label("STATUS");
         ImGui::TextColored(white, "$%02X", status); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(gray, "NOTHING ATTACHED");
 
         ImGui::TableNextRow();
-        draw_grid_label("CONTROL");
+        gui_debug_grid_label("CONTROL");
         ImGui::TextColored(white, "$%02X", control); ImGui::SameLine(0.0f, space);
         draw_flag("STB", (control & 0x01) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("AFD", (control & 0x02) != 0); ImGui::SameLine(0.0f, space);
@@ -168,7 +168,7 @@ void gui_debug_window_keyboard(void)
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 28);
 
         ImGui::TableNextRow();
-        draw_grid_label("STATUS");
+        gui_debug_grid_label("STATUS");
         ImGui::TextColored(white, "$%02X", status); ImGui::SameLine(0.0f, space);
         draw_flag("OBF", (status & 0x01) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("IBF", (status & 0x02) != 0); ImGui::SameLine(0.0f, space);
@@ -177,25 +177,25 @@ void gui_debug_window_keyboard(void)
         draw_flag("TO", (status & 0x40) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("COMMAND");
+        gui_debug_grid_label("COMMAND");
         ImGui::TextColored(white, "$%02X", command); ImGui::SameLine(0.0f, space);
         draw_flag("IRQ1", (command & k_i8042_keyboard_interrupt) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("IRQ12", (command & k_i8042_aux_interrupt) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("XLAT", (command & k_i8042_translate_enabled) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("PORTS");
+        gui_debug_grid_label("PORTS");
         draw_flag("KBD", (command & k_i8042_keyboard_disabled) == 0); ImGui::SameLine(0.0f, space);
         draw_flag("AUX", (command & k_i8042_aux_disabled) == 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("OUTPUT");
+        gui_debug_grid_label("OUTPUT");
         ImGui::TextColored(state->output_full ? white : gray, "$%02X", state->output_buffer);
         ImGui::SameLine(0.0f, space);
         ImGui::TextColored(gray, "%s", state->output_aux ? "AUX" : "KBD");
 
         ImGui::TableNextRow();
-        draw_grid_label("PENDING");
+        gui_debug_grid_label("PENDING");
 
         if (state->pending_command != 0)
             ImGui::TextColored(orange, "$%02X", state->pending_command);
@@ -203,15 +203,15 @@ void gui_debug_window_keyboard(void)
             ImGui::TextColored(gray, "--");
 
         ImGui::TableNextRow();
-        draw_grid_label("OUT PORT");
+        gui_debug_grid_label("OUT PORT");
         ImGui::TextColored(white, "$%02X", controller->GetOutputPort());
 
         ImGui::TableNextRow();
-        draw_grid_label("IN PORT");
+        gui_debug_grid_label("IN PORT");
         ImGui::TextColored(white, "$%02X", k_i8042_input_port);
 
         ImGui::TableNextRow();
-        draw_grid_label("A20");
+        gui_debug_grid_label("A20");
         draw_flag("GATE", system_control->IsA20Enabled()); ImGui::SameLine(0.0f, space);
         draw_flag("8042", system_control->IsKeyboardA20Enabled()); ImGui::SameLine(0.0f, space);
         draw_flag("92h", (system_control->GetState()->port_92 & 0x02) != 0);
@@ -228,31 +228,31 @@ void gui_debug_window_keyboard(void)
         ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 28);
 
         ImGui::TableNextRow();
-        draw_grid_label("SCANNING");
+        gui_debug_grid_label("SCANNING");
         draw_flag(keys->self_test_clocks != GDOX_NO_EVENT ? "SELF TEST" : "ON", keys->scanning);
 
         ImGui::TableNextRow();
-        draw_grid_label("SCAN SET");
+        gui_debug_grid_label("SCAN SET");
         ImGui::TextColored(white, "%u", keys->scan_set);
 
         ImGui::TableNextRow();
-        draw_grid_label("LEDS");
+        gui_debug_grid_label("LEDS");
         draw_flag("NUM", (keys->leds & 0x02) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("CAPS", (keys->leds & 0x04) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("SCROLL", (keys->leds & 0x01) != 0);
 
         ImGui::TableNextRow();
-        draw_grid_label("TYPEMATIC");
+        gui_debug_grid_label("TYPEMATIC");
         ImGui::TextColored(white, "%u ms, %.1f/s", keyboard->GetTypematicDelay(),
             1000000.0f / (float)keyboard->GetTypematicPeriod());
 
         ImGui::TableNextRow();
-        draw_grid_label("REPEAT");
+        gui_debug_grid_label("REPEAT");
         const char* repeat = keys->repeat_key != GDOX_KEY_NONE ? gui_debug_key_name(keys->repeat_key) : NULL;
         ImGui::TextColored(IsValidPointer(repeat) ? orange : gray, "%s", IsValidPointer(repeat) ? repeat : "--");
 
         ImGui::TableNextRow();
-        draw_grid_label("BUFFER");
+        gui_debug_grid_label("BUFFER");
         ImGui::TextColored(keys->overrun ? yellow : white, "%u/%u%s", keys->buffer_count, KEYBOARD_BUFFER_SIZE,
             keys->overrun ? " OVERRUN" : "");
 
@@ -271,7 +271,7 @@ void gui_debug_window_keyboard(void)
         }
 
         ImGui::TableNextRow();
-        draw_grid_label("HELD");
+        gui_debug_grid_label("HELD");
         bool held = false;
 
         for (int i = GDOX_KEY_NONE + 1; i < GDOX_KEY_COUNT; i++)
@@ -317,18 +317,18 @@ static void draw_mouse(GeardoxCore* core)
     ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 24);
 
     ImGui::TableNextRow();
-    draw_grid_label("TYPE");
+    gui_debug_grid_label("TYPE");
     ImGui::TextColored(type == GDOX_MOUSE_NONE ? gray : orange, "%s", k_mice[type % GDOX_MOUSE_TYPE_COUNT].name);
 
     ImGui::TableNextRow();
-    draw_grid_label("HOST");
+    gui_debug_grid_label("HOST");
     ImGui::TextColored(violet, "X"); ImGui::SameLine(0.0f, space);
     ImGui::TextColored(white, "%+5d", input->mouse_x); ImGui::SameLine(0.0f, space);
     ImGui::TextColored(violet, "Y"); ImGui::SameLine(0.0f, space);
     ImGui::TextColored(white, "%+5d", input->mouse_y);
 
     ImGui::TableNextRow();
-    draw_grid_label("BUTTONS");
+    gui_debug_grid_label("BUTTONS");
     draw_flag("L", (input->mouse_buttons & GDOX_MOUSE_LEFT) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("M", (input->mouse_buttons & GDOX_MOUSE_MIDDLE) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("R", (input->mouse_buttons & GDOX_MOUSE_RIGHT) != 0);
@@ -339,7 +339,7 @@ static void draw_mouse(GeardoxCore* core)
         PS2Mouse::PS2Mouse_State* state = core->GetPS2Mouse()->GetState();
 
         ImGui::TableNextRow();
-        draw_grid_label("MODE");
+        gui_debug_grid_label("MODE");
         ImGui::TextColored(white, "%s", state->wrap ? "WRAP" : (state->remote ? "REMOTE" : "STREAM"));
         ImGui::SameLine(0.0f, space);
         draw_flag("ON", state->enabled); ImGui::SameLine(0.0f, space);
@@ -347,19 +347,19 @@ static void draw_mouse(GeardoxCore* core)
         draw_flag("CLK", state->clock_enabled);
 
         ImGui::TableNextRow();
-        draw_grid_label("RATE");
+        gui_debug_grid_label("RATE");
         ImGui::TextColored(white, "%d/s", state->rate); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(white, "%d/mm", k_resolutions[state->resolution & 3]);
 
         ImGui::TableNextRow();
-        draw_grid_label("COUNTS");
+        gui_debug_grid_label("COUNTS");
         ImGui::TextColored(violet, "X"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(white, "%+5d", state->x); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(violet, "Y"); ImGui::SameLine(0.0f, space);
         ImGui::TextColored(white, "%+5d", state->y);
 
         ImGui::TableNextRow();
-        draw_grid_label("QUEUED");
+        gui_debug_grid_label("QUEUED");
 
         if (state->reply_count == 0)
             ImGui::TextColored(gray, "--");
@@ -377,12 +377,12 @@ static void draw_mouse(GeardoxCore* core)
         SerialMouse::SerialMouse_State* state = core->GetSerialPorts()->GetMouse()->GetState();
 
         ImGui::TableNextRow();
-        draw_grid_label("LINE");
+        gui_debug_grid_label("LINE");
         draw_flag("RTS", state->rts); ImGui::SameLine(0.0f, space);
         draw_flag("READY", state->ready);
 
         ImGui::TableNextRow();
-        draw_grid_label("QUEUED");
+        gui_debug_grid_label("QUEUED");
 
         if (state->queue_count == 0)
             ImGui::TextColored(gray, "--");
@@ -422,11 +422,11 @@ static void draw_joystick(GeardoxCore* core)
     ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 24);
 
     ImGui::TableNextRow();
-    draw_grid_label("TYPE");
+    gui_debug_grid_label("TYPE");
     ImGui::TextColored(type == GDOX_JOYSTICK_NONE ? gray : orange, "%s", k_joysticks[type % GDOX_JOYSTICK_TYPE_COUNT].name);
 
     ImGui::TableNextRow();
-    draw_grid_label("PORT");
+    gui_debug_grid_label("PORT");
     ImGui::TextColored(white, "$%02X", value);
 
     for (int i = 0; i < GDOX_JOYSTICK_AXIS_COUNT; i++)
@@ -434,7 +434,7 @@ static void draw_joystick(GeardoxCore* core)
         u64 end = state->pulse_end[i];
 
         ImGui::TableNextRow();
-        draw_grid_label(k_axes[i]);
+        gui_debug_grid_label(k_axes[i]);
         ImGui::TextColored(white, "%+6d", joystick.axes[i]); ImGui::SameLine(0.0f, space);
 
         if (end == GDOX_NO_EVENT)
@@ -446,14 +446,14 @@ static void draw_joystick(GeardoxCore* core)
     }
 
     ImGui::TableNextRow();
-    draw_grid_label("BUTTONS");
+    gui_debug_grid_label("BUTTONS");
     draw_flag("1", (joystick.buttons & GDOX_JOYSTICK_BUTTON_1) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("2", (joystick.buttons & GDOX_JOYSTICK_BUTTON_2) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("3", (joystick.buttons & GDOX_JOYSTICK_BUTTON_3) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("4", (joystick.buttons & GDOX_JOYSTICK_BUTTON_4) != 0);
 
     ImGui::TableNextRow();
-    draw_grid_label("HAT");
+    gui_debug_grid_label("HAT");
     draw_flag("UP", (joystick.hat & GDOX_JOYSTICK_HAT_UP) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("DOWN", (joystick.hat & GDOX_JOYSTICK_HAT_DOWN) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("LEFT", (joystick.hat & GDOX_JOYSTICK_HAT_LEFT) != 0); ImGui::SameLine(0.0f, space);
@@ -486,17 +486,17 @@ static void draw_uart(SerialPorts* ports, int index)
     ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 28);
 
     ImGui::TableNextRow();
-    draw_grid_label("DEVICE");
+    gui_debug_grid_label("DEVICE");
     ImGui::TextColored(mouse ? orange : gray, "%s", mouse ? "SERIAL MOUSE" : "NOTHING ATTACHED");
 
     ImGui::TableNextRow();
-    draw_grid_label("LINE");
+    gui_debug_grid_label("LINE");
     ImGui::TextColored(white, "%u bps", k_uart_clock / (16 * divisor)); ImGui::SameLine(0.0f, space);
     ImGui::TextColored(white, "%d%c%s", 5 + (state->lcr & 0x03), (state->lcr & 0x08) == 0 ? 'N' :
         ((state->lcr & 0x10) != 0 ? 'E' : 'O'), (state->lcr & 0x04) != 0 ? "2" : "1");
 
     ImGui::TableNextRow();
-    draw_grid_label("IER");
+    gui_debug_grid_label("IER");
     ImGui::TextColored(white, "$%02X", state->ier); ImGui::SameLine(0.0f, space);
     draw_flag("RDA", (state->ier & 0x01) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("THRE", (state->ier & 0x02) != 0); ImGui::SameLine(0.0f, space);
@@ -504,22 +504,22 @@ static void draw_uart(SerialPorts* ports, int index)
     draw_flag("MS", (state->ier & 0x08) != 0);
 
     ImGui::TableNextRow();
-    draw_grid_label("IIR");
+    gui_debug_grid_label("IIR");
     ImGui::TextColored(white, "$%02X", iir); ImGui::SameLine(0.0f, space);
     draw_flag("IRQ", ports->GetIRQ(index));
 
     ImGui::TableNextRow();
-    draw_grid_label("FCR");
+    gui_debug_grid_label("FCR");
     ImGui::TextColored(white, "$%02X", state->fcr); ImGui::SameLine(0.0f, space);
     ImGui::TextColored(gray, "RX %2d TX %2d", state->rx_count, state->tx_count);
 
     ImGui::TableNextRow();
-    draw_grid_label("LCR");
+    gui_debug_grid_label("LCR");
     ImGui::TextColored(white, "$%02X", state->lcr); ImGui::SameLine(0.0f, space);
     draw_flag("DLAB", (state->lcr & 0x80) != 0);
 
     ImGui::TableNextRow();
-    draw_grid_label("MCR");
+    gui_debug_grid_label("MCR");
     ImGui::TextColored(white, "$%02X", state->mcr); ImGui::SameLine(0.0f, space);
     draw_flag("DTR", (state->mcr & k_uart_dtr) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("RTS", (state->mcr & k_uart_rts) != 0); ImGui::SameLine(0.0f, space);
@@ -527,7 +527,7 @@ static void draw_uart(SerialPorts* ports, int index)
     draw_flag("LOOP", (state->mcr & k_uart_loopback) != 0);
 
     ImGui::TableNextRow();
-    draw_grid_label("LSR");
+    gui_debug_grid_label("LSR");
     ImGui::TextColored(white, "$%02X", lsr); ImGui::SameLine(0.0f, space);
     draw_flag("DR", (lsr & 0x01) != 0); ImGui::SameLine(0.0f, space);
     draw_flag("OE", (lsr & 0x02) != 0); ImGui::SameLine(0.0f, space);
@@ -536,11 +536,11 @@ static void draw_uart(SerialPorts* ports, int index)
     draw_flag("TEMT", (lsr & 0x40) != 0);
 
     ImGui::TableNextRow();
-    draw_grid_label("MSR");
+    gui_debug_grid_label("MSR");
     ImGui::TextColored(white, "$%02X", state->msr);
 
     ImGui::TableNextRow();
-    draw_grid_label("SCR");
+    gui_debug_grid_label("SCR");
     ImGui::TextColored(white, "$%02X", state->scr);
 
     ImGui::EndTable();
@@ -551,9 +551,3 @@ static void draw_flag(const char* name, bool on)
     ImGui::TextColored(on ? green : gray, "%s", name);
 }
 
-static void draw_grid_label(const char* label)
-{
-    ImGui::TableNextColumn();
-    ImGui::TextColored(violet, "%s", label);
-    ImGui::TableNextColumn();
-}
