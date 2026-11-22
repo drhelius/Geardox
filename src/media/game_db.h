@@ -2036,11 +2036,20 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[run]\n"
         "exe = gtados\\GTA8.EXE\n"
         "voodoo_exe = gtados\\GTAFX.EXE\n"
-        "setup_exe = gtados\\UVCONFIG.EXE\n"
+        "setup_exe = gtados\\K.EXE\n"
         "\n"
         "[machine]\n"
         "model = pentium_133\n"
-        "ram_mb = 16\n" },
+        "ram_mb = 16\n"
+        "\n"
+        "[autoexec]\n"
+        "IF NOT EXIST GTADOS\\DIG.INI ECHO DEVICE      Creative Labs Sound Blaster 16 or AWE32>GTADOS\\DIG.TMP\n"
+        "IF NOT EXIST GTADOS\\DIG.INI ECHO DRIVER      SB16.DIG>>GTADOS\\DIG.TMP\n"
+        "IF NOT EXIST GTADOS\\DIG.INI ECHO IO_ADDR     220h>>GTADOS\\DIG.TMP\n"
+        "IF NOT EXIST GTADOS\\DIG.INI ECHO IRQ         -1>>GTADOS\\DIG.TMP\n"
+        "IF NOT EXIST GTADOS\\DIG.INI ECHO DMA_8_BIT   -1>>GTADOS\\DIG.TMP\n"
+        "IF NOT EXIST GTADOS\\DIG.INI ECHO DMA_16_BIT  -1>>GTADOS\\DIG.TMP\n"
+        "IF EXIST GTADOS\\DIG.TMP REN GTADOS\\DIG.TMP DIG.INI\n" },
     { "gunship", "Gunship",
         "[geardox]\n"
         "version = 1\n"
