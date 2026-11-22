@@ -498,7 +498,7 @@ static void display_check_swap_divider(void)
     double expected = (frames * last_vsync_state) / monitor_refresh_rate;
     swap_divider_frames = 0;
 
-    if ((elapsed < expected * 0.75) || ((sync_waits - swap_divider_sync_waits) > (frames / 2)))
+    if ((elapsed < expected * 0.75) || (elapsed > expected * 1.05) || ((sync_waits - swap_divider_sync_waits) > (frames / 2)))
         display_disable_swap_divider(last_vsync_state);
 }
 
