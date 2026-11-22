@@ -5757,6 +5757,29 @@ json DebugAdapter::FinishLoadMedia(const std::string& file_path)
         return {{"error", "Failed to attach the hard disk image"}};
     }
 
+    if (emu_hard_disk_is_source(file_path.c_str()))
+    {
+        const Emu_HardDiskSource* source = emu_hard_disk_get_prepared_source();
+
+        for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        {
+            Emu_HardDiskInfo info;
+            emu_hard_disk_get_info(i, &info);
+
+            if (strcmp(info.pending ? info.pending_path : info.path, source->image) != 0)
+                continue;
+
+            json result = hard_disk_json(i);
+            result["success"] = true;
+            return result;
+        }
+
+        if (source->report.result == FAT_IMAGE_TOO_BIG)
+            return {{"error", "These files don't fit in a FAT16 disk of 2015 MB"}};
+
+        return {{"error", "Unable to make a hard disk from " + file_path}};
+    }
+
     if (emu_floppy_is_image(file_path.c_str()))
     {
         if (gui_floppy_is_pending())
