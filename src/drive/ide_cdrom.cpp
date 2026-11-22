@@ -37,7 +37,6 @@ static const u32 k_cdrom_ahead_sectors = 128;
 static const u32 k_cdrom_buffer_kb = 256;
 static const u32 k_cdrom_sector_size = 2048;
 static const u32 k_cdrom_raw_size = 2352;
-static const u32 k_cdrom_lead_in = 150;
 static const u32 k_cdrom_seek_points = 16;
 
 // Toshiba prints 40 ms of rotational delay where waiting for the sector averages 26 ms, the rest is taken as settling
@@ -691,8 +690,10 @@ void IdeCdRom::ExecutePacket(u64 clocks)
         {
             const u8* p = m_state.packet;
             bool current = (p[3] == 0xFF) && (p[4] == 0xFF) && (p[5] == 0xFF);
-            s64 start = ((((s64)p[3] * 60) + p[4]) * 75) + p[5] - k_cdrom_lead_in;
-            s64 end = ((((s64)p[6] * 60) + p[7]) * 75) + p[8] - k_cdrom_lead_in;
+            GDOX_CdRomMSF from = { p[3], p[4], p[5] };
+            GDOX_CdRomMSF to = { p[6], p[7], p[8] };
+            s64 start = (s64)MsfToLba(&from) - k_cdrom_lead_in;
+            s64 end = (s64)MsfToLba(&to) - k_cdrom_lead_in;
             CommandPlay(current, start, MAX(end, (s64)0), false, clocks);
             break;
         }
@@ -728,8 +729,10 @@ void IdeCdRom::ExecutePacket(u64 clocks)
         case 0xB9:
         {
             const u8* p = m_state.packet;
-            u32 start = (((u32)p[3] * 60 + p[4]) * 75) + p[5];
-            u32 end = (((u32)p[6] * 60 + p[7]) * 75) + p[8];
+            GDOX_CdRomMSF from = { p[3], p[4], p[5] };
+            GDOX_CdRomMSF to = { p[6], p[7], p[8] };
+            u32 start = MsfToLba(&from);
+            u32 end = MsfToLba(&to);
             start = start >= k_cdrom_lead_in ? start - k_cdrom_lead_in : 0;
             end = end >= k_cdrom_lead_in ? end - k_cdrom_lead_in : 0;
 

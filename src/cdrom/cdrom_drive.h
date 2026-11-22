@@ -49,6 +49,7 @@ public:
 
     static bool ListDrives(std::vector<CdRomDriveInfo>& drives);
     static bool Eject(const char* device_id);
+    static void Probe(const char* device_id, const char* name, std::vector<CdRomDriveInfo>& drives);
 
     bool Open(const char* device_id);
     void Close();
@@ -60,6 +61,10 @@ public:
     bool SetSpeed(u16 speed);
 
 private:
+    static bool CheckDeviceId(const char* device_id, bool eject);
+    bool ValidateToc(std::vector<CdRomDriveTrackInfo>& tracks, u32* lead_out_lba);
+
+private:
 #if defined(_WIN32)
     HANDLE m_file;
 #else
@@ -67,6 +72,10 @@ private:
 #endif
     char m_device_id[256];
 };
+
+#if !defined(_WIN32)
+bool cdrom_errno_is_media_unavailable(int error);
+#endif
 
 #endif /* GDOX_ENABLE_PHYSICAL_CDROM */
 #endif /* CDROM_DRIVE_H */

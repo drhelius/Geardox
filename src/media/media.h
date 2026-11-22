@@ -55,6 +55,7 @@ public:
     ~Media();
     void Init();
     void Reset();
+    static bool IsCdRomName(const char* path);
     static bool ParsePlaylist(const char* playlist_path, const char* text, size_t size, std::vector<PlaylistEntry>& entries);
     bool LoadMedia(const char* file_path);
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)

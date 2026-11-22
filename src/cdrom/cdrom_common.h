@@ -26,6 +26,7 @@ static const u32 k_cdrom_track_type_size[5] = { 2352, 2048, 2352, 2352, 2336 };
 static const u32 k_cdrom_track_type_data_offset[5] = { 16, 0, 16, 24, 8 };
 static const char* const k_cdrom_track_type_name[5] = { "AUDIO", "MODE1/2048", "MODE1/2352", "MODE2/2352", "MODE2/2336" };
 
+static const u32 k_cdrom_lead_in = 150;
 static const u8 k_cdrom_control_pre_emphasis = 0x01;
 static const u8 k_cdrom_control_copy_permitted = 0x02;
 static const u8 k_cdrom_control_data = 0x04;
@@ -74,7 +75,7 @@ INLINE void LbaToMsf(u32 lba, GDOX_CdRomMSF* msf)
     msf->frames = (u8)(lba % 75);
 }
 
-INLINE u32 MsfToLba(GDOX_CdRomMSF* msf)
+INLINE u32 MsfToLba(const GDOX_CdRomMSF* msf)
 {
     return (msf->minutes * 60 + msf->seconds) * 75 + msf->frames;
 }
@@ -82,6 +83,15 @@ INLINE u32 MsfToLba(GDOX_CdRomMSF* msf)
 INLINE u8 DecToBcd(u8 val)
 {
     return ((val / 10) << 4) | (val % 10);
+}
+
+INLINE void SwapSamples16(s16* buffer, u32 count)
+{
+    for (u32 i = 0; i < count; i++)
+    {
+        u16 u = (u16)buffer[i];
+        buffer[i] = (s16)((u >> 8) | (u << 8));
+    }
 }
 
 inline bool IsCdRomUri(const char* path)

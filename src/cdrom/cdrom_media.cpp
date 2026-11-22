@@ -72,6 +72,20 @@ void CdRomMedia::Reset()
 #endif
 }
 
+bool CdRomMedia::LoadFromFile(const char* path, bool preload)
+{
+    if (ends_with_no_case(path, ".chd"))
+        return LoadChdFromFile(path, preload);
+
+    if (ends_with_no_case(path, ".iso"))
+        return LoadIsoFromFile(path, preload);
+
+    if (ends_with_no_case(path, ".cue"))
+        return LoadCueFromFile(path, preload);
+
+    return LoadProbedFromFile(path, ProbeFile(path), preload);
+}
+
 bool CdRomMedia::LoadCueFromFile(const char* path, bool preload)
 {
     bool cdrom_uri_path = IsCdRomUri(path);
