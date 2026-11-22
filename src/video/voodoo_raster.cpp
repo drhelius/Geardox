@@ -138,6 +138,13 @@ VoodooRaster::VoodooRaster()
     m_workers_sleeping = 0;
     m_producer_waiting = false;
     m_stop = false;
+    m_lfb_count = 0;
+    m_lfb_buffer = 0;
+    m_lfb_x = 0;
+    m_lfb_y = 0;
+    m_lfb_present = 0;
+    memset(m_lfb_colors, 0, sizeof(m_lfb_colors));
+    memset(m_lfb_depths, 0, sizeof(m_lfb_depths));
     InitPointer(m_helper);
     InitPointer(m_helper_texture);
     InitPointer(m_helper_frame_pages);
@@ -251,6 +258,8 @@ void VoodooRaster::SetThreaded(bool threaded)
     if (threaded == m_threaded)
         return;
 
+    FlushLfb();
+
     if (threaded)
         StartWorker();
     else
@@ -270,6 +279,7 @@ void VoodooRaster::Sync()
 #if defined(GDOX_ENABLE_VOODOO_THREAD)
     if (m_threaded)
     {
+        FlushLfb();
         WaitSpace(VOODOO_RASTER_RING_WORDS);
 
         if (IsValidPointer(m_helper))
@@ -383,14 +393,21 @@ void VoodooRaster::WriteLfbPixel(u32 buffer, s32 x, s32 y, u32 color, u32 depth,
 #if defined(GDOX_ENABLE_VOODOO_THREAD)
     if (m_threaded)
     {
-        u32* job = BeginJob(VOODOO_JOB_LFB, 7);
-        job[0] = buffer;
-        job[1] = (u32)x;
-        job[2] = (u32)y;
-        job[3] = color;
-        job[4] = depth;
-        job[5] = present;
-        EndJob(7);
+        if ((m_lfb_count > 0) && ((buffer != m_lfb_buffer) || (y != m_lfb_y) || (x != m_lfb_x + (s32)m_lfb_count) ||
+            (present != m_lfb_present) || (m_lfb_count == VOODOO_RASTER_LFB_PIXELS)))
+            FlushLfb();
+
+        if (m_lfb_count == 0)
+        {
+            m_lfb_buffer = buffer;
+            m_lfb_x = x;
+            m_lfb_y = y;
+            m_lfb_present = present;
+        }
+
+        m_lfb_colors[m_lfb_count] = color;
+        m_lfb_depths[m_lfb_count] = depth;
+        m_lfb_count++;
         return;
     }
 #endif
@@ -493,7 +510,9 @@ void VoodooRaster::RunJob(u32 type, const u32* payload)
             RunFastFill(m_job_pipeline);
             break;
         case VOODOO_JOB_LFB:
-            RunLfbPixel(m_job_pipeline, payload[0], (s32)payload[1], (s32)payload[2], payload[3], payload[4], payload[5]);
+            for (u32 i = 0; i < payload[4]; i++)
+                RunLfbPixel(m_job_pipeline, payload[0], (s32)payload[1] + (s32)i, (s32)payload[2], payload[5 + i],
+                    payload[5 + payload[4] + i], payload[3]);
             break;
         case VOODOO_JOB_LFB_PIPELINE:
             RunPipelineLfbPixel(m_job_pipeline, payload[0], (s32)payload[1], (s32)payload[2], payload[3], payload[4],
@@ -515,6 +534,9 @@ static const int k_voodoo_raster_spins = 2000;
 
 u32* VoodooRaster::BeginJob(u32 type, u32 words)
 {
+    if ((type != VOODOO_JOB_LFB) && (m_lfb_count > 0))
+        FlushLfb();
+
     u32 offset = (u32)(m_write & (VOODOO_RASTER_RING_WORDS - 1));
     u32 tail = VOODOO_RASTER_RING_WORDS - offset;
 
@@ -530,6 +552,27 @@ u32* VoodooRaster::BeginJob(u32 type, u32 words)
 
     m_ring[offset] = (words << 8) | type;
     return &m_ring[offset + 1];
+}
+
+void VoodooRaster::FlushLfb()
+{
+    u32 count = m_lfb_count;
+
+    if (count == 0)
+        return;
+
+    m_lfb_count = 0;
+
+    u32 words = 6 + 2 * count;
+    u32* job = BeginJob(VOODOO_JOB_LFB, words);
+    job[0] = m_lfb_buffer;
+    job[1] = (u32)m_lfb_x;
+    job[2] = (u32)m_lfb_y;
+    job[3] = m_lfb_present;
+    job[4] = count;
+    memcpy(job + 5, m_lfb_colors, count * sizeof(u32));
+    memcpy(job + 5 + count, m_lfb_depths, count * sizeof(u32));
+    EndJob(words);
 }
 
 void VoodooRaster::EndJob(u32 words)

@@ -38,6 +38,7 @@
 #define VOODOO_RASTER_CHECK_PIXELS 0x100000
 #define VOODOO_RASTER_RING_WORDS 0x100000
 #define VOODOO_RASTER_SPAN_KEYS (3 * 3 * 8)
+#define VOODOO_RASTER_LFB_PIXELS 64
 
 class VoodooRaster
 {
@@ -177,6 +178,7 @@ private:
     u32* BeginJob(u32 type, u32 words);
     void EndJob(u32 words);
     void WaitSpace(u32 words);
+    void FlushLfb();
     u64 GetReadPosition() const;
     void StartWorker();
     void StopWorker();
@@ -235,6 +237,13 @@ private:
     std::atomic<int> m_workers_sleeping;
     std::atomic<bool> m_producer_waiting;
     std::atomic<bool> m_stop;
+    u32 m_lfb_count;
+    u32 m_lfb_buffer;
+    s32 m_lfb_x;
+    s32 m_lfb_y;
+    u32 m_lfb_present;
+    u32 m_lfb_colors[VOODOO_RASTER_LFB_PIXELS];
+    u32 m_lfb_depths[VOODOO_RASTER_LFB_PIXELS];
     std::mutex m_mutex;
     std::condition_variable m_work_condition;
     std::condition_variable m_done_condition;
