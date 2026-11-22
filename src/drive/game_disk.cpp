@@ -1369,6 +1369,11 @@ bool GameDisk::HasWithheldSettings() const
     return m_withheld_settings;
 }
 
+bool GameDisk::UsesVoodooExe() const
+{
+    return m_voodoo_exe;
+}
+
 bool GameDisk::IsFolderReadOnly() const
 {
     return m_folder_read_only;

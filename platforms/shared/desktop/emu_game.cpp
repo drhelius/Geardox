@@ -215,7 +215,12 @@ bool emu_game_start(void)
     core->SetGameTarget(target);
 
     if (target == GDOX_GAME_TARGET_DEBUG)
-        emu_dev_prepare_run(disk.GetDescriptor().GetInfo().exe.c_str(), disk.GetDescriptor().GetInfo().args.c_str());
+    {
+        const GDOX_Game_Info& info = disk.GetDescriptor().GetInfo();
+        bool voodoo = disk.UsesVoodooExe();
+        emu_dev_prepare_run(voodoo ? info.voodoo_exe.c_str() : info.exe.c_str(),
+            voodoo ? info.voodoo_args.c_str() : info.args.c_str());
+    }
 
     core->SetBootDevice(disk.GetDescriptor().GetInfo().boot_floppy ? GDOX_BOOT_DEVICE_FLOPPY_0 : GDOX_BOOT_DEVICE_HARD_DISK);
     emu_update_joystick_type();

@@ -128,6 +128,7 @@ public:
     bool IsFromDatabase() const;
     bool HasReleaseSettings() const;
     bool HasWithheldSettings() const;
+    bool UsesVoodooExe() const;
 
 private:
     bool OpenFromDatabase(const GameDisk_Found& found);
