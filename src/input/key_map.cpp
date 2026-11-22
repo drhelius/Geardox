@@ -20,6 +20,7 @@
 #include "key_map.h"
 #include "host_keys.h"
 #include "keyboard_keys.h"
+#include "../media/media_file.h"
 
 static const GDOX_Key_Map_Entry k_key_map_empty = { false, 0, { 0, 0, 0, 0 } };
 
@@ -390,6 +391,47 @@ bool KeyMap::IsChanged() const
 void KeyMap::SetChanged(bool changed)
 {
     m_changed = changed;
+}
+
+bool KeyMap::LoadFiles(const char* user_path, const char* game_text, std::string* error)
+{
+    std::string game_error;
+    std::string text;
+
+    SetEnabled(true);
+    ClearLayer(GDOX_KEY_MAP_GAME);
+    ClearLayer(GDOX_KEY_MAP_USER);
+    SetChanged(false);
+
+    if (!SetLayer(GDOX_KEY_MAP_GAME, game_text, &game_error))
+        ClearLayer(GDOX_KEY_MAP_GAME);
+
+    if (!IsValidPointer(user_path) || (user_path[0] == 0) ||
+        !MediaFile::ReadFile(user_path, k_media_file_no_limit, &text, true))
+        return true;
+
+    if (SetLayer(GDOX_KEY_MAP_USER, text.c_str(), error))
+        return true;
+
+    ClearLayer(GDOX_KEY_MAP_USER);
+    return false;
+}
+
+bool KeyMap::SaveUserFile(const char* path)
+{
+    if (!IsChanged() || !IsValidPointer(path) || (path[0] == 0))
+        return true;
+
+    SetChanged(false);
+
+    if (IsLayerEmpty(GDOX_KEY_MAP_USER))
+    {
+        MediaFile::RemoveFile(path);
+        return true;
+    }
+
+    std::string text = "[keys]\n" + GetLayer(GDOX_KEY_MAP_USER);
+    return MediaFile::WriteFileAtomic(path, text.data(), text.size());
 }
 
 bool KeyMap::IsHostKey(u16 usage)

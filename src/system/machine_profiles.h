@@ -378,6 +378,21 @@ static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
     settings->voodoo = GDOX_MACHINE_AUTO;
 }
 
+static inline void default_machine_settings(GDOX_Machine_Settings* settings)
+{
+    clear_machine_settings(settings);
+    settings->model = k_machine_default_model;
+    settings->ram_mb = k_machine_default_ram_mb;
+    settings->fpu = 1;
+    settings->sound_card = GDOX_SOUND_CARD_SB16;
+    settings->mpu = GDOX_MPU_INTELLIGENT;
+    settings->gus = 0;
+    settings->mouse = GDOX_MOUSE_PS2;
+    settings->cdrom = GDOX_CDROM_SECONDARY_MASTER;
+    settings->cdrom_speed = GDOX_CDROM_SPEED_4X;
+    settings->voodoo = 0;
+}
+
 static inline bool has_sound_blaster_dsp(const GDOX_Machine_Config& config)
 {
     return k_sound_cards[config.sound_card].dsp_major != 0;
@@ -399,6 +414,25 @@ static inline const char* get_machine_fpu_name(GDOX_Machine_CPU cpu)
         return "Integrated";
 
     return k_machine_cpus[cpu].family >= 4 ? "487SX" : "80387";
+}
+
+static inline void get_machine_cpu_text(const GDOX_Machine_Config& config, char* text, size_t text_size)
+{
+    bool card = config.fpu && !k_machine_cpus[config.cpu].fpu;
+    snprintf(text, text_size, "%s %u MHz%s%s", k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000,
+        card ? " + " : "", card ? get_machine_fpu_name(config.cpu) : "");
+}
+
+static inline void get_machine_headline(const GDOX_Machine_Config& config, const GDOX_Machine_Report& report,
+    char* text, size_t text_size)
+{
+    const char* name = k_machine_profiles[config.model].name;
+    u32 ram_mb = config.ram_size / (1024 * 1024);
+
+    if (IsValidPointer(report.title))
+        snprintf(text, text_size, "%s: %s, %u MB", report.title, name, ram_mb);
+    else
+        snprintf(text, text_size, "%s, %u MB", name, ram_mb);
 }
 
 #endif /* MACHINE_PROFILES_H */

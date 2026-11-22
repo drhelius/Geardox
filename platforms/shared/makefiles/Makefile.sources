@@ -168,6 +168,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/audio/audio.cpp \
     $(SRC_DIR)/audio/midi_out.cpp \
     $(SRC_DIR)/audio/midi_synth.cpp \
+    $(SRC_DIR)/audio/midi_synth_host.cpp \
     $(SRC_DIR)/audio/mpu401.cpp \
     $(SRC_DIR)/audio/mt32_engine.cpp \
     $(SRC_DIR)/audio/opl.cpp \
@@ -199,6 +200,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/drive/iso_image.cpp \
     $(SRC_DIR)/drive/floppy_disk.cpp \
     $(SRC_DIR)/drive/floppy_image.cpp \
+    $(SRC_DIR)/drive/floppy_set.cpp \
     $(SRC_DIR)/i386/i386.cpp \
     $(SRC_DIR)/i386/i386_486.cpp \
     $(SRC_DIR)/i386/i386_586.cpp \

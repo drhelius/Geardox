@@ -153,6 +153,22 @@ void MidiOut::Write(u8 value, u8 source)
 
 // The pedal goes first, as All Notes Off waits for its release (SPEC p68), and the Note Offs cover a receiver that
 // ignores 123 (SPEC p25)
+MidiOut::MidiOut_Capture_Change MidiOut::UpdateCapture(bool enabled, bool quiet, bool builtin)
+{
+    MidiOut_Capture silent = builtin ? MIDI_OUT_CAPTURE_OFF : MIDI_OUT_CAPTURE_SILENT;
+    MidiOut_Capture capture = enabled ? (quiet ? silent : MIDI_OUT_CAPTURE_ON) : MIDI_OUT_CAPTURE_OFF;
+    MidiOut_Capture current = m_capture;
+    m_capture = capture;
+
+    if ((current == MIDI_OUT_CAPTURE_ON) && (capture == silent))
+        return MIDI_OUT_CAPTURE_SILENCE;
+
+    if ((current == silent) && (capture == MIDI_OUT_CAPTURE_ON))
+        return MIDI_OUT_CAPTURE_SYNC;
+
+    return MIDI_OUT_CAPTURE_KEEP;
+}
+
 void MidiOut::Silence()
 {
     for (int i = 0; i < MIDI_OUT_CHANNELS; i++)

@@ -136,6 +136,10 @@ public:
     static bool ReadFingerprint(const char* path, u32* fingerprint);
     static void GetImageName(const char* source, std::string* name);
     static void Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report);
+    static bool IsSource(const char* path);
+    static std::string GetImagePath(const char* source, const char* save_folder);
+    static bool PrepareSource(const char* source, const char* save_folder, bool rebuild, std::string* image,
+        FatImage_Report* report);
     bool AddGame(const char* source, const char* dir = NULL, const char* prefix = NULL);
     bool ApplyLayout(const std::vector<FatImage_Rule>& rules);
     bool AddOverlay(const char* path);

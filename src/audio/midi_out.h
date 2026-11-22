@@ -43,6 +43,13 @@ public:
         MIDI_OUT_CAPTURE_SILENT
     };
 
+    enum MidiOut_Capture_Change
+    {
+        MIDI_OUT_CAPTURE_KEEP = 0,
+        MIDI_OUT_CAPTURE_SILENCE,
+        MIDI_OUT_CAPTURE_SYNC
+    };
+
     struct MidiOut_Message
     {
         u32 data;
@@ -95,6 +102,7 @@ public:
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetCapture(MidiOut_Capture capture);
     MidiOut_Capture GetCapture() const;
+    MidiOut_Capture_Change UpdateCapture(bool enabled, bool quiet, bool builtin);
     void Silence();
     void Sync();
     void ForgetSynth();

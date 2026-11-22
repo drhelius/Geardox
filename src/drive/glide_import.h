@@ -36,6 +36,9 @@ public:
     GlideImport();
     ~GlideImport();
     GlideImport_Result Import(const char* source, const char* destination);
+    GlideImport_Result Find(const char* source);
+    GlideImport_Result Write(const char* destination);
+    bool IsImported(const char* path) const;
     const char* GetError() const;
     const char* GetMessage() const;
     static bool IsOverlay(const std::string& data);

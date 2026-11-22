@@ -64,6 +64,7 @@ public:
     void SetJoystickType(GDOX_Joystick_Type type);
     GDOX_Joystick_Type GetJoystickType() const;
     Input_State* GetState();
+    static void ApplyDPad(GDOX_Joystick_State& state, bool up, bool down, bool left, bool right, bool flightstick);
     void SaveState(std::ostream& stream);
     void LoadState(std::istream& stream);
 

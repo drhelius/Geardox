@@ -217,6 +217,9 @@
     <ClCompile Include="..\..\src\audio\midi_synth.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\audio\midi_synth_host.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\audio\mpu401.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -449,6 +452,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\drive\floppy_image.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\drive\floppy_set.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\system\i8254.cpp">
@@ -898,6 +904,7 @@
     <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\floppy_set.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\i8254.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\i8254_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video.h"><Filter>src</Filter></ClInclude>
@@ -916,6 +923,7 @@
     <ClInclude Include="..\..\src\system\memory_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\audio\vgm_recorder.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\debug_memory.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\idle_flush.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\firmware_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\geardox.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\geardox_core.h"><Filter>src</Filter></ClInclude>

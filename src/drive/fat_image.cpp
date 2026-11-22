@@ -363,6 +363,28 @@ void FatImage::GetImageName(const char* source, std::string* name)
     *name = get_source_name(source) + "." + crc_key(trim_trailing_separators(source)) + ".geardox.hdd";
 }
 
+bool FatImage::IsSource(const char* path)
+{
+    return IsValidPointer(path) && (ends_with_no_case(path, ".zip") || MediaFile::IsDirectory(path));
+}
+
+std::string FatImage::GetImagePath(const char* source, const char* save_folder)
+{
+    std::string name;
+    std::string path(save_folder);
+    GetImageName(source, &name);
+    append_path_component(path, name.c_str());
+    return path;
+}
+
+bool FatImage::PrepareSource(const char* source, const char* save_folder, bool rebuild, std::string* image,
+    FatImage_Report* report)
+{
+    *image = GetImagePath(source, save_folder);
+    Prepare(source, image->c_str(), rebuild, report);
+    return (report->result != FAT_IMAGE_ERROR) && (report->result != FAT_IMAGE_TOO_BIG);
+}
+
 void FatImage::Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report)
 {
     report->result = FAT_IMAGE_ERROR;

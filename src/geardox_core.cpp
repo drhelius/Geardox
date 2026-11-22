@@ -137,6 +137,7 @@ GeardoxCore::GeardoxCore()
     ResolveMachineConfig();
     m_machine_config = m_pending_machine_config;
     m_machine_report = m_pending_machine_report;
+    memset(m_cmos_saved, 0, sizeof(m_cmos_saved));
     m_powered = false;
     m_paused = false;
     m_host_hotkeys = false;
@@ -1058,6 +1059,37 @@ IdeCdRom* GeardoxCore::GetCDROM()
 }
 
 // A disc going in or out is the drive's tray, never a reset
+GDOX_CMOS_File_Result GeardoxCore::LoadCMOSFile(const char* path)
+{
+    std::vector<u8> data;
+    GDOX_CMOS_File_Result result = GDOX_CMOS_FILE_NONE;
+    m_rtc->ResetCMOS();
+
+    if (IsValidPointer(path) && (path[0] != 0) && MediaFile::ReadFile(path, 0x10000, &data))
+        result = m_rtc->LoadCMOSFile(data.data(), data.size()) ? GDOX_CMOS_FILE_LOADED : GDOX_CMOS_FILE_INVALID;
+
+    memcpy(m_cmos_saved, m_rtc->GetCMOS(), GDOX_CMOS_SIZE);
+    return result;
+}
+
+GDOX_CMOS_File_Result GeardoxCore::SaveCMOSFileIfChanged(const char* path)
+{
+    const u8* cmos = m_rtc->GetCMOS();
+    u32 size = GDOX_CMOS_SIZE - k_mc146818_ram_start;
+
+    if (memcmp(cmos + k_mc146818_ram_start, m_cmos_saved + k_mc146818_ram_start, size) == 0)
+        return GDOX_CMOS_FILE_UNCHANGED;
+
+    u8 data[GDOX_CMOS_FILE_SIZE];
+    m_rtc->SaveCMOSFile(data);
+
+    if (!MediaFile::WriteFileAtomic(path, data, GDOX_CMOS_FILE_SIZE))
+        return GDOX_CMOS_FILE_FAILED;
+
+    memcpy(m_cmos_saved, cmos, GDOX_CMOS_SIZE);
+    return GDOX_CMOS_FILE_SAVED;
+}
+
 bool GeardoxCore::LoadMedia(const char* file_path)
 {
     if (!IsValidPointer(m_media))

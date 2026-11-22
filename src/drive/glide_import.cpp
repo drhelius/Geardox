@@ -95,6 +95,12 @@ const char* GlideImport::GetName(const std::string& data)
     return "3dfx Voodoo driver";
 }
 
+bool GlideImport::IsImported(const char* path) const
+{
+    std::string data;
+    return !m_overlay.empty() && Load(path, &data, NULL) && (data == m_overlay);
+}
+
 bool GlideImport::Load(const char* path, std::string* data, std::string* name)
 {
     if (!MediaFile::ReadFile(path, k_glide_max_file_size, data) || !IsOverlay(*data))
@@ -209,6 +215,12 @@ bool GlideImport::SearchFolder(const std::string& path, int depth)
 
 GlideImport_Result GlideImport::Import(const char* source, const char* destination)
 {
+    GlideImport_Result result = Find(source);
+    return result == GLIDE_IMPORT_DONE ? Write(destination) : result;
+}
+
+GlideImport_Result GlideImport::Find(const char* source)
+{
     std::vector<std::string> folders;
     std::vector<std::string> files;
     std::string path(source);
@@ -241,6 +253,11 @@ GlideImport_Result GlideImport::Import(const char* source, const char* destinati
         return GLIDE_IMPORT_NOT_FOUND;
     }
 
+    return GLIDE_IMPORT_DONE;
+}
+
+GlideImport_Result GlideImport::Write(const char* destination)
+{
     if (!MediaFile::WriteFileAtomic(destination, m_overlay.data(), m_overlay.size()))
     {
         m_error = std::string("Unable to write ") + destination;

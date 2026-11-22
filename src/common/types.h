@@ -95,6 +95,16 @@ struct GDOX_Runtime_Info
     bool composite;
 };
 
+enum GDOX_CMOS_File_Result
+{
+    GDOX_CMOS_FILE_NONE = 0,
+    GDOX_CMOS_FILE_LOADED,
+    GDOX_CMOS_FILE_INVALID,
+    GDOX_CMOS_FILE_UNCHANGED,
+    GDOX_CMOS_FILE_SAVED,
+    GDOX_CMOS_FILE_FAILED
+};
+
 enum GDOX_Run_Result
 {
     GDOX_RUN_FRAME_READY = 0,

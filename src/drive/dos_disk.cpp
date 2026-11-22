@@ -62,6 +62,30 @@ bool DosDisk::Write(const char* path, int system, const DosImport_System* msdos,
     return image.Write(path, k_fat_freedos_size, replace);
 }
 
+bool DosDisk::WriteBuiltin(const char* path, int system, const char* msdos_zip, const char* layout, bool replace,
+    std::string* error)
+{
+    DosImport_System msdos;
+    error->clear();
+
+    if (system == GDOX_GAME_SYSTEM_MSDOS)
+    {
+        if (!DosImport::Load(msdos_zip, &msdos, error))
+        {
+            if (error->empty())
+                *error = "MS-DOS isn't imported";
+
+            return false;
+        }
+    }
+
+    if (Write(path, system, system == GDOX_GAME_SYSTEM_MSDOS ? &msdos : NULL, layout, replace))
+        return true;
+
+    *error = std::string("Unable to make ") + path;
+    return false;
+}
+
 std::string DosDisk::GetConfigSys(int system, const DosImport_System* msdos)
 {
     if ((system != GDOX_GAME_SYSTEM_MSDOS) || !IsValidPointer(msdos))

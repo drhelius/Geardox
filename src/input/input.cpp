@@ -72,6 +72,22 @@ void Input::BeginMouseFrame(u64 clocks)
     m_state.mouse_added_y = 0;
 }
 
+void Input::ApplyDPad(GDOX_Joystick_State& state, bool up, bool down, bool left, bool right, bool flightstick)
+{
+    if (flightstick)
+    {
+        state.hat = (u8)((up ? GDOX_JOYSTICK_HAT_UP : 0) | (down ? GDOX_JOYSTICK_HAT_DOWN : 0) |
+            (left ? GDOX_JOYSTICK_HAT_LEFT : 0) | (right ? GDOX_JOYSTICK_HAT_RIGHT : 0));
+        return;
+    }
+
+    if (left != right)
+        state.axes[GDOX_JOYSTICK_AXIS_AX] = right ? 32767 : -32768;
+
+    if (up != down)
+        state.axes[GDOX_JOYSTICK_AXIS_AY] = down ? 32767 : -32768;
+}
+
 void Input::SaveState(std::ostream& stream)
 {
     StateSerializer serializer(stream);

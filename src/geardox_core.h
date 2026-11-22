@@ -186,6 +186,8 @@ public:
     ParallelPort* GetParallelPort();
     GamePort* GetGamePort();
     MC146818* GetRTC();
+    GDOX_CMOS_File_Result LoadCMOSFile(const char* path);
+    GDOX_CMOS_File_Result SaveCMOSFileIfChanged(const char* path);
     FirmwareConfig* GetFirmwareConfig();
     DebugConsole* GetDebugConsole();
     DevPort* GetDevPort();
@@ -264,6 +266,7 @@ private:
     bool ReadSaveStateHeader(std::istream& stream, size_t size, GDOX_SaveState_Header* header);
 
 private:
+    u8 m_cmos_saved[GDOX_CMOS_SIZE];
     Audio* m_audio;
     Firmware* m_firmware;
     Input* m_input;

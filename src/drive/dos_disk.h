@@ -28,6 +28,8 @@ class DosDisk
 {
 public:
     static bool Write(const char* path, int system, const DosImport_System* msdos, const char* layout, bool replace);
+    static bool WriteBuiltin(const char* path, int system, const char* msdos_zip, const char* layout, bool replace,
+        std::string* error);
     static std::string GetConfigSys(int system, const DosImport_System* msdos);
     static std::string GetAutoexec(int system, const DosImport_System* msdos, const char* layout);
 };

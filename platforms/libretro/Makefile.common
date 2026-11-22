@@ -30,6 +30,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/audio/audio.cpp \
                 $(SOURCE_DIR)/audio/midi_out.cpp \
                 $(SOURCE_DIR)/audio/midi_synth.cpp \
+                $(SOURCE_DIR)/audio/midi_synth_host.cpp \
                 $(SOURCE_DIR)/audio/mpu401.cpp \
                 $(SOURCE_DIR)/audio/mt32_engine.cpp \
                 $(SOURCE_DIR)/audio/opl.cpp \
@@ -61,6 +62,7 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/drive/iso_image.cpp \
                 $(SOURCE_DIR)/drive/floppy_disk.cpp \
                 $(SOURCE_DIR)/drive/floppy_image.cpp \
+                $(SOURCE_DIR)/drive/floppy_set.cpp \
                 $(SOURCE_DIR)/i386/i386.cpp \
                 $(SOURCE_DIR)/i386/i386_486.cpp \
                 $(SOURCE_DIR)/i386/i386_586.cpp \
