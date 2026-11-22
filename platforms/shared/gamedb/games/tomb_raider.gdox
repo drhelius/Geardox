@@ -12,3 +12,4 @@ setup_exe = TOMBRAID\SETUP.EXE
 
 [machine]
 model = pentium_75
+ram_mb = 16
