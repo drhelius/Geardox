@@ -41,6 +41,7 @@ Memory::Memory()
     InitPointer(m_dirty_pages);
     m_dirty_page_count = 0;
     m_dirty_tracking = false;
+    m_host_video_pages = true;
     m_dirty_valid = false;
     m_main_ram_size = GDOX_MAIN_RAM_SIZE;
     InitPointer(m_state.main_ram);
@@ -1172,6 +1173,15 @@ void Memory::SetDirtyTracking(bool enabled)
     m_map_generation++;
 }
 
+void Memory::SetHostVideoPages(bool host)
+{
+    if (m_host_video_pages == host)
+        return;
+
+    m_host_video_pages = host;
+    m_map_generation++;
+}
+
 bool Memory::IsDirtyMapValid() const
 {
     return m_dirty_tracking && m_dirty_valid && IsValidPointer(m_dirty_pages);
@@ -1498,6 +1508,9 @@ void Memory::UpdateCPUPage(u32 page, const DebugRegion* region)
     InitPointer(m_cpu_write_pages[page]);
 
     if (!IsValidPointer(region) || (region->info.flags & (GDOX_DEBUG_REGION_MMIO | GDOX_DEBUG_REGION_AUDIO)) != 0)
+        return;
+
+    if (!m_host_video_pages && m_cpu_page_bus[page] == GDOX_BUS_VRAM)
         return;
 
     u32 offset = NormalizePhysicalAddress(physical) - region->info.physical_base;

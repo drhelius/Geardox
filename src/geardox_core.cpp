@@ -2737,6 +2737,7 @@ void GeardoxCore::ApplyBusTiming()
     // The board caches DRAM and its shadow copies; the VGA window, ROMs and the ISA bus stay on the bus
     m_i386->SetBoardCache(true, 1U << GDOX_BUS_DRAM);
     m_i386->SetBusTiming(timing, waits, cpu.bus_width, cpu_clock_rate, bus_clock_rate);
+    m_memory->SetHostVideoPages(!m_i386->IsI586());
 }
 
 // The board's DRAM covers the hole below 1 MB too: the BIOS runs from its copy at E0000h or F0000h, with the
