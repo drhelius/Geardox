@@ -40,5 +40,5 @@ No line of Bochs's code is changed. The script only:
 ## Updating
 
 Check out Bochs at the new commit and run `python3 amalgamate.py <path to the checkout>`. It rewrites the two files
-and the license copies in this directory, with the commit in the first line of each file. Add sources to `SOURCES`
+and the license copies in this directory, with the commit in the header of each file. Add sources to `SOURCES`
 if Bochs's x87 code calls new SoftFloat functions.
