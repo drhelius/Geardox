@@ -90,6 +90,7 @@ static void apply_game_settings(void);
 static std::string write_list(const std::vector<std::string>& paths, const char* name);
 static void notify_write_back(void);
 static void prepare_hard_disk(int id);
+static void notify_message(const GameDisk_Message& message);
 
 bool emu_game_is_content(const char* path)
 {
@@ -233,40 +234,11 @@ bool emu_game_start(void)
         last_result_name = disk.GetName();
     }
 
-    if (disk.WasRecovered())
-    {
-        const GameDisk_Result& r = disk.GetLastWriteBack();
-        char detail[128];
-        snprintf(detail, sizeof(detail), "%u files written back, %u conflicts", r.written, r.conflicts);
-        gui_notify(gui_NotificationWarning, ICON_MD_RESTORE, "The last session didn't end, its changes were saved", detail);
-    }
+    std::vector<GameDisk_Message> messages;
+    disk.GetMessages(&messages);
 
-    if (disk.GetRefusedPath()[0] != 0)
-        gui_notify(gui_NotificationError, ICON_MD_SAVE, "The last session's disk didn't add up, its changes weren't saved",
-            disk.GetRefusedPath());
-
-    if (disk.IsFolderReadOnly())
-        gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, "The game's folder is read-only: saves go to the save folder",
-            disk.GetOverlayPath(), NULL, gui_NotificationDurationLong);
-
-    if (disk.IsFromDatabase())
-    {
-        std::string detail = disk.GetName();
-
-        if (disk.HasReleaseSettings())
-            detail += ", with this copy's sound settings";
-        else if (disk.HasWithheldSettings())
-            detail += ", with the default sound settings";
-
-        gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, "Recognised from the game database", detail.c_str());
-    }
-
-    if (disk.GetLeftOut() != 0)
-    {
-        char detail[64];
-        snprintf(detail, sizeof(detail), "%u items left out", disk.GetLeftOut());
-        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Part of the game's folder didn't fit DOS", detail);
-    }
+    for (size_t i = 0; i < messages.size(); i++)
+        notify_message(messages[i]);
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
@@ -973,20 +945,30 @@ bool emu_game_new_descriptor(const char* folder, const char* program, std::strin
 
 static void prepare_hard_disk(int id)
 {
-    std::string source = disk.GetHardDisk(id);
+    disk.GetHardDiskImage(id, get_save_directory().c_str(), &hard_disk_images[id], &hard_disk_reports[id]);
+}
 
-    if (source.empty())
-        return;
-
-    if (!FatImage::IsSource(source.c_str()))
+static void notify_message(const GameDisk_Message& message)
+{
+    switch (message.kind)
     {
-        hard_disk_images[id] = source;
-        return;
+        case GAME_DISK_MESSAGE_RECOVERED:
+            gui_notify(gui_NotificationWarning, ICON_MD_RESTORE, message.title.c_str(), message.detail.c_str());
+            break;
+        case GAME_DISK_MESSAGE_READ_ONLY:
+            gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, message.title.c_str(), message.detail.c_str(), NULL,
+                gui_NotificationDurationLong);
+            break;
+        case GAME_DISK_MESSAGE_RECOGNISED:
+            gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, message.title.c_str(), message.detail.c_str());
+            break;
+        case GAME_DISK_MESSAGE_REFUSED:
+            gui_notify(gui_NotificationError, ICON_MD_SAVE, message.title.c_str(), message.detail.c_str());
+            break;
+        default:
+            gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, message.title.c_str(), message.detail.c_str());
+            break;
     }
-
-    if (!FatImage::PrepareSource(source.c_str(), get_save_directory().c_str(), false, &hard_disk_images[id],
-        &hard_disk_reports[id]))
-        hard_disk_images[id].clear();
 }
 
 static std::string get_save_directory(void)

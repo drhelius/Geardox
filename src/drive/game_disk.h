@@ -48,6 +48,22 @@ struct GameDisk_Result
     std::vector<std::string> notes;
 };
 
+enum GameDisk_Message_Kind
+{
+    GAME_DISK_MESSAGE_RECOVERED = 0,
+    GAME_DISK_MESSAGE_READ_ONLY,
+    GAME_DISK_MESSAGE_RECOGNISED,
+    GAME_DISK_MESSAGE_LEFT_OUT,
+    GAME_DISK_MESSAGE_REFUSED
+};
+
+struct GameDisk_Message
+{
+    GameDisk_Message_Kind kind;
+    std::string title;
+    std::string detail;
+};
+
 struct GameDisk_Manifest_System
 {
     u8 system;
@@ -123,6 +139,8 @@ public:
     const std::vector<std::string>& GetFloppies(int drive) const;
     const std::vector<std::string>& GetCdRoms() const;
     const char* GetHardDisk(int id) const;
+    bool GetHardDiskImage(int id, const char* save_folder, std::string* image, FatImage_Report* report) const;
+    void GetMessages(std::vector<GameDisk_Message>* messages) const;
     const GameDisk_Result& GetLastWriteBack() const;
     const char* GetError() const;
     bool IsFromDatabase() const;

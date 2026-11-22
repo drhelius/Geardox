@@ -1399,6 +1399,83 @@ const char* GameDisk::GetHardDisk(int id) const
     return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? m_hard_disks[id].c_str() : "";
 }
 
+bool GameDisk::GetHardDiskImage(int id, const char* save_folder, std::string* image, FatImage_Report* report) const
+{
+    const char* source = GetHardDisk(id);
+    image->clear();
+
+    if (source[0] == 0)
+        return true;
+
+    if (!FatImage::IsSource(source))
+    {
+        *image = source;
+        return true;
+    }
+
+    if (FatImage::PrepareSource(source, save_folder, false, image, report))
+        return true;
+
+    image->clear();
+    return false;
+}
+
+void GameDisk::GetMessages(std::vector<GameDisk_Message>* messages) const
+{
+    GameDisk_Message message;
+    messages->clear();
+
+    if (WasRecovered())
+    {
+        char detail[128];
+        snprintf(detail, sizeof(detail), "%u files written back, %u conflicts", m_last.written, m_last.conflicts);
+        message.kind = GAME_DISK_MESSAGE_RECOVERED;
+        message.title = "The last session didn't end, its changes were saved";
+        message.detail = detail;
+        messages->push_back(message);
+    }
+
+    if (IsFolderReadOnly())
+    {
+        message.kind = GAME_DISK_MESSAGE_READ_ONLY;
+        message.title = "The game's folder is read-only: saves go to the save folder";
+        message.detail = GetOverlayPath();
+        messages->push_back(message);
+    }
+
+    if (IsFromDatabase())
+    {
+        message.kind = GAME_DISK_MESSAGE_RECOGNISED;
+        message.title = "Recognised from the game database";
+        message.detail = GetName();
+
+        if (HasReleaseSettings())
+            message.detail += ", with this copy's sound settings";
+        else if (HasWithheldSettings())
+            message.detail += ", with the default sound settings";
+
+        messages->push_back(message);
+    }
+
+    if (GetLeftOut() != 0)
+    {
+        char detail[64];
+        snprintf(detail, sizeof(detail), "%u items left out", GetLeftOut());
+        message.kind = GAME_DISK_MESSAGE_LEFT_OUT;
+        message.title = "Part of the game's folder didn't fit DOS";
+        message.detail = detail;
+        messages->push_back(message);
+    }
+
+    if (GetRefusedPath()[0] != 0)
+    {
+        message.kind = GAME_DISK_MESSAGE_REFUSED;
+        message.title = "The last session's disk didn't add up, its changes weren't saved";
+        message.detail = GetRefusedPath();
+        messages->push_back(message);
+    }
+}
+
 const GameDisk_Result& GameDisk::GetLastWriteBack() const
 {
     return m_last;

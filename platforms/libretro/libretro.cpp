@@ -240,6 +240,7 @@ static bool update_core_options_display(void);
 static void check_variables(void);
 static void update_floppy_drive(void);
 static bool disk_load(const char* path);
+static void game_message(const GameDisk_Message& message);
 static bool game_open(const char* path, bool* game);
 static void game_end(void);
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images);
@@ -3388,6 +3389,29 @@ static std::string system_import(const Import_Source& import)
 
 // A .gdox, or a folder or ZIP with one: the game on C:, Primary Master, as on the desktop. Images, manifests and
 // overlays live in the save directory
+static void game_message(const GameDisk_Message& message)
+{
+    static char text[1024];
+
+    switch (message.kind)
+    {
+        case GAME_DISK_MESSAGE_RECOVERED:
+            show_message(message.title.c_str(), 2, RETRO_LOG_WARN);
+            break;
+        case GAME_DISK_MESSAGE_RECOGNISED:
+            snprintf(text, sizeof(text), "%s: %s", message.title.c_str(), message.detail.c_str());
+            show_message(text, 1, RETRO_LOG_INFO);
+            break;
+        case GAME_DISK_MESSAGE_REFUSED:
+            log_cb(RETRO_LOG_ERROR, "The last session's disk didn't add up, kept as %s\n", message.detail.c_str());
+            show_message(message.title.c_str(), 3, RETRO_LOG_ERROR);
+            break;
+        default:
+            log_cb(RETRO_LOG_INFO, "%s: %s\n", message.title.c_str(), message.detail.c_str());
+            break;
+    }
+}
+
 static bool game_open(const char* path, bool* game)
 {
     std::vector<GameDisk_Found> found;
@@ -3435,22 +3459,11 @@ static bool game_open(const char* path, bool* game)
         return false;
     }
 
-    if (game_disk.WasRecovered())
-        show_message("The last session didn't end, its changes were saved", 2, RETRO_LOG_WARN);
+    std::vector<GameDisk_Message> messages;
+    game_disk.GetMessages(&messages);
 
-    if (game_disk.IsFromDatabase())
-    {
-        snprintf(message, sizeof(message), "Recognised from the game database: %s%s", game_disk.GetName(),
-            game_disk.HasReleaseSettings() ? ", with this copy's sound settings" : game_disk.HasWithheldSettings() ?
-            ", with the default sound settings" : "");
-        show_message(message, 1, RETRO_LOG_INFO);
-    }
-
-    if (game_disk.GetRefusedPath()[0] != 0)
-    {
-        log_cb(RETRO_LOG_ERROR, "The last session's disk didn't add up, kept as %s\n", game_disk.GetRefusedPath());
-        show_message("The last session's disk didn't add up, its changes weren't saved", 3, RETRO_LOG_ERROR);
-    }
+    for (size_t i = 0; i < messages.size(); i++)
+        game_message(messages[i]);
 
     if (!core->AttachHardDisk(0, game_disk.GetImagePath(), false, ""))
     {
@@ -3466,19 +3479,14 @@ static bool game_open(const char* path, bool* game)
         game_disk.WasBuilt() ? "built" : "reused", game_disk.GetImagePath());
     for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
     {
-        std::string disk = game_disk.GetHardDisk(id);
+        std::string image;
+        FatImage_Report report;
 
-        if (disk.empty())
+        if (game_disk.GetHardDisk(id)[0] == 0)
             continue;
 
-        if (FatImage::IsSource(disk.c_str()))
-        {
-            std::string image;
-            FatImage_Report report;
-            disk = FatImage::PrepareSource(disk.c_str(), retro_save_directory, false, &image, &report) ? image : "";
-        }
-
-        if (disk.empty() || !core->AttachHardDisk(id, disk.c_str(), false, ""))
+        if (!game_disk.GetHardDiskImage(id, retro_save_directory, &image, &report) ||
+            !core->AttachHardDisk(id, image.c_str(), false, ""))
             log_cb(RETRO_LOG_ERROR, "Unable to attach the game's hard disk %s\n", game_disk.GetHardDisk(id));
     }
 
