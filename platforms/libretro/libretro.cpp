@@ -36,6 +36,7 @@
 #include "drive/floppy_disk.h"
 #include "drive/floppy_image.h"
 #include "drive/floppy_set.h"
+#include "drive/content.h"
 #include "drive/hard_disk_image.h"
 #include "drive/fat_image.h"
 #include "drive/dos_disk.h"
@@ -238,8 +239,6 @@ static void keyboard_event(bool down, unsigned keycode, uint32_t character, uint
 static bool update_core_options_display(void);
 static void check_variables(void);
 static void update_floppy_drive(void);
-static bool path_is_cd_content(const char* path);
-static bool path_is_raw_floppy(const char* path);
 static bool disk_load(const char* path);
 static bool game_open(const char* path, bool* game);
 static void game_end(void);
@@ -2376,18 +2375,6 @@ static void update_floppy_drive(void)
     }
 }
 
-static bool path_is_cd_content(const char* path)
-{
-    return IsCdRomUri(path) || Media::IsCdRomName(path);
-}
-
-static bool path_is_raw_floppy(const char* path)
-{
-    std::vector<u8> data;
-    return ends_with_no_case(path, ".bin") && MediaFile::ReadFile(path, k_floppy_max_image_size, &data) &&
-        FloppyImage::IsRaw(data.data(), (u32)data.size());
-}
-
 static bool disk_load(const char* path)
 {
     if (path[0] != 0 && !disk_add_images(path, disk_images))
@@ -2453,30 +2440,23 @@ static bool disk_load(const char* path)
 
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images)
 {
-    if (ends_with_no_case(path, ".m3u"))
+    GDOX_Content content = IsCdRomUri(path) ? GDOX_CONTENT_MEDIA : Content::Classify(path);
+
+    if (content == GDOX_CONTENT_PLAYLIST)
         return disk_add_playlist(path, images);
 
-    if (MediaFile::IsDirectory(path))
+    if (content == GDOX_CONTENT_HARD_DISK_SOURCE)
         return hard_disk_attach_source(path);
 
-    if (HardDiskImage::IsImage(path))
+    if (content == GDOX_CONTENT_HARD_DISK)
         return hard_disk_attach(path);
 
-    if (FloppyImage::IsImageName(path) || ends_with_no_case(path, ".zip") || path_is_raw_floppy(path))
+    if (content == GDOX_CONTENT_FLOPPY)
     {
         if (disk_add_floppy_images(path, images))
             return true;
 
-        if (ends_with_no_case(path, ".zip"))
-            return hard_disk_attach_source(path);
-
         log_cb(RETRO_LOG_ERROR, "Unable to read the floppy disk image %s\n", path);
-        return false;
-    }
-
-    if (!path_is_cd_content(path))
-    {
-        log_cb(RETRO_LOG_ERROR, "Not a CD-ROM (CUE, CHD, ISO), floppy or hard disk image: %s\n", path);
         return false;
     }
 

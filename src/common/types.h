@@ -95,6 +95,15 @@ struct GDOX_Runtime_Info
     bool composite;
 };
 
+enum GDOX_Content
+{
+    GDOX_CONTENT_MEDIA = 0,
+    GDOX_CONTENT_HARD_DISK_SOURCE,
+    GDOX_CONTENT_HARD_DISK,
+    GDOX_CONTENT_FLOPPY,
+    GDOX_CONTENT_PLAYLIST
+};
+
 enum GDOX_CMOS_File_Result
 {
     GDOX_CMOS_FILE_NONE = 0,

@@ -457,6 +457,9 @@
     <ClCompile Include="..\..\src\drive\floppy_set.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\content.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\system\i8254.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -905,6 +908,7 @@
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_set.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\content.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\i8254.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\i8254_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\video\video.h"><Filter>src</Filter></ClInclude>

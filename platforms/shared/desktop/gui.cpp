@@ -38,7 +38,7 @@
 #include "gui_shader.h"
 #include "gui_game.h"
 #include "emu_game.h"
-#include "media/game_descriptor.h"
+#include "drive/content.h"
 #include "gui_popups.h"
 #include "gui_floppy.h"
 #include "gui_hard_disks.h"
@@ -399,21 +399,22 @@ bool gui_load_rom(const char* path, const char* symbol_path)
     GeardoxCore* core = emu_get_core();
     int drives = emu_is_empty() ? core->GetPendingMachineConfig().floppy_drives : core->GetMachineConfig().floppy_drives;
 
-    if (GameDescriptor::IsDescriptor(path) || (emu_hard_disk_is_source(path) && emu_game_is_content(path)))
+    if (emu_game_is_content(path))
         return gui_game_open(path);
 
-    bool hard_disk = emu_hard_disk_is_source(path) || emu_hard_disk_is_image(path);
+    GDOX_Content content = Content::Classify(path);
+    bool hard_disk = (content == GDOX_CONTENT_HARD_DISK_SOURCE) || (content == GDOX_CONTENT_HARD_DISK);
 
     if (hard_disk && emu_game_is_open() && !emu_game_close())
         return false;
 
-    if (emu_hard_disk_is_source(path))
+    if (content == GDOX_CONTENT_HARD_DISK_SOURCE)
         return gui_hard_disks_load_source(path);
 
-    if (emu_hard_disk_is_image(path))
+    if (content == GDOX_CONTENT_HARD_DISK)
         return gui_hard_disks_load(path);
 
-    if (emu_floppy_is_image(path))
+    if ((content == GDOX_CONTENT_FLOPPY) || ((content == GDOX_CONTENT_PLAYLIST) && emu_floppy_is_image(path)))
     {
         if (drives == 0)
         {
@@ -426,7 +427,7 @@ bool gui_load_rom(const char* path, const char* symbol_path)
 
     const char* media_path = path;
 
-    if (ends_with_no_case(path, ".m3u"))
+    if (content == GDOX_CONTENT_PLAYLIST)
     {
         bool floppies = false;
 

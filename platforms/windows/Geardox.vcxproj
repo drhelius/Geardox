@@ -117,6 +117,7 @@
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_set.cpp" />
+    <ClCompile Include="..\..\src\drive\content.cpp" />
     <ClCompile Include="..\..\src\system\i8254.cpp" />
     <ClCompile Include="..\..\src\video\video.cpp" />
     <ClCompile Include="..\..\src\video\video_memory.cpp" />
@@ -684,6 +685,7 @@
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
     <ClInclude Include="..\..\src\drive\floppy_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_set.h" />
+    <ClInclude Include="..\..\src\drive\content.h" />
     <ClInclude Include="..\..\src\system\i8254.h" />
     <ClInclude Include="..\..\src\system\i8254_inline.h" />
     <ClInclude Include="..\..\src\video\video.h" />
