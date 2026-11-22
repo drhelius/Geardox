@@ -261,6 +261,28 @@ struct Manifest_Reader
     }
 };
 
+static std::string release_fragment(const char* settings, bool sound)
+{
+    std::string fragment = "[geardox]\nversion = 1\n";
+    bool skip = false;
+
+    while (*settings != 0)
+    {
+        const char* end = strchr(settings, '\n');
+        size_t length = IsValidPointer(end) ? (size_t)(end - settings) + 1 : strlen(settings);
+
+        if (settings[0] == '[')
+            skip = !sound && strncmp(settings, "[sound]", 7) == 0;
+
+        if (!skip)
+            fragment.append(settings, length);
+
+        settings += length;
+    }
+
+    return fragment;
+}
+
 static bool sort_found(const std::pair<std::string, GameDisk_Found>& a, const std::pair<std::string, GameDisk_Found>& b)
 {
     return a.first < b.first;
@@ -464,19 +486,18 @@ bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
         return Fail("%s: %s", name.c_str(), m_base.GetError());
 
     const char* settings = GameDatabase::GetSettings(match.release);
-    m_release_settings = false;
+    m_release_settings = IsValidPointer(settings) && match.preset;
     m_withheld_settings = IsValidPointer(settings) && !match.preset;
 
-    if (IsValidPointer(settings) && match.preset)
+    if (IsValidPointer(settings))
     {
         GameDescriptor release;
-        std::string fragment = std::string("[geardox]\nversion = 1\n") + settings;
+        std::string fragment = release_fragment(settings, match.preset);
 
         if (!release.Parse(name.c_str(), fragment.data(), fragment.size()))
             return Fail("%s: %s", name.c_str(), release.GetError());
 
         m_base.Merge(release);
-        m_release_settings = true;
     }
 
     if (match.voodoo && !m_base.Has("machine", "voodoo"))
