@@ -95,6 +95,17 @@ struct GDOX_Debug_Memory_Address
     int region;
 };
 
+inline GDOX_Debug_Memory_Address debug_memory_address(GDOX_Debug_Memory_Space space, u32 address)
+{
+    GDOX_Debug_Memory_Address result;
+    result.space = space;
+    result.address = address;
+    result.segment = 0;
+    result.segment_register = -1;
+    result.region = -1;
+    return result;
+}
+
 struct GDOX_Debug_Memory_Region
 {
     int id;

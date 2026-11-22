@@ -276,6 +276,34 @@ INLINE const char* GetCdRomPacketName(u8 opcode)
     }
 }
 
+INLINE const char* GetCdRomSenseKeyName(u8 key)
+{
+    switch (key)
+    {
+        case 0x00: return "NO SENSE";
+        case 0x02: return "NOT READY";
+        case 0x03: return "MEDIUM ERROR";
+        case 0x04: return "HARDWARE ERROR";
+        case 0x05: return "ILLEGAL REQUEST";
+        case 0x06: return "UNIT ATTENTION";
+        case 0x0B: return "ABORTED COMMAND";
+        default: return "OTHER";
+    }
+}
+
+INLINE const char* GetCdRomAudioStatusName(u8 status)
+{
+    switch (status)
+    {
+        case IDE_CDROM_AUDIO_PLAYING: return "PLAYING";
+        case IDE_CDROM_AUDIO_PAUSED: return "PAUSED";
+        case IDE_CDROM_AUDIO_COMPLETED: return "COMPLETED";
+        case IDE_CDROM_AUDIO_ERROR: return "ERROR";
+        case IDE_CDROM_AUDIO_NONE: return "NONE";
+        default: return "INVALID";
+    }
+}
+
 INLINE const char* GetCdRomAtaName(u8 command)
 {
     switch (command)
@@ -284,8 +312,8 @@ INLINE const char* GetCdRomAtaName(u8 command)
         case 0x90: return "DIAGNOSTIC";
         case 0xA0: return "PACKET";
         case 0xA1: return "IDENTIFY PACKET";
-        case 0xE0: return "STANDBY";
-        case 0xE1: return "IDLE";
+        case 0xE0: return "STANDBY IMMEDIATE";
+        case 0xE1: return "IDLE IMMEDIATE";
         case 0xE5: return "CHECK POWER";
         case 0xE6: return "SLEEP";
         case 0xEC: return "IDENTIFY";
