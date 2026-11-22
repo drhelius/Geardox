@@ -504,7 +504,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 64\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[env]\n"
+        "BUILD_GAMMA = 1.0\n" },
     { "blood_cryptic_passage", "Blood: Cryptic Passage",
         "[geardox]\n"
         "version = 1\n"

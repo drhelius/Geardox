@@ -16,3 +16,6 @@ ram_mb = 64
 
 [sound]
 midi = gm
+
+[env]
+BUILD_GAMMA = 1.0
