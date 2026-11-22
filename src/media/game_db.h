@@ -6803,7 +6803,7 @@ const GDOX_DB_Release k_game_database_releases[] =
     { 95, 227, 2, 0, 0, NULL, NULL, NULL },
     { 96, 229, 2, 0, 0, NULL, NULL, NULL },
     { 97, 231, 2, 1, 1, NULL, NULL, "[drives]\n"
-        "cdrom = DESCENT_II.inst\n"
+        "cdrom = DESCENT_II.ins\n"
         "[sound]\n"
         "irq = 7\n" },
     { 98, 235, 2, 0, 0, NULL, NULL, NULL },
