@@ -46,7 +46,7 @@ void PS2Mouse::Init(Input* input)
 
 void PS2Mouse::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 // The self-test at power on ends with the same AAh and ID as a reset command. The BIOS talks to the mouse long after,

@@ -56,7 +56,7 @@ void SystemControl::Init(Memory* memory, PIC* pic, PIT* pit)
 
 void SystemControl::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void SystemControl::SetFPU(X87* fpu)

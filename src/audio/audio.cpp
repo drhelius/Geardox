@@ -19,6 +19,7 @@
 
 #include <math.h>
 #include "audio.h"
+#include "audio_common.h"
 #include "../cdrom/cdrom_audio.h"
 #include "../system/dma.h"
 #include "../system/machine_profiles.h"
@@ -153,7 +154,7 @@ void Audio::Init(Scheduler* scheduler, CdRomAudio* cdrom_audio, PIC* pic, PIT* p
 
 void Audio::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
     m_sound_blaster->SetTraceLogger(trace_logger);
     m_mpu401->SetTraceLogger(trace_logger);
     m_midi_out->SetTraceLogger(trace_logger);
@@ -646,8 +647,8 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
                 m_gus_buffer[i + 1] + m_midi_buffer[i + 1];
             left = HighPass(dc_left, left);
             right = HighPass(dc_right, right);
-            sample_buffer[i] = (s16)CLAMP(left, -32768, 32767);
-            sample_buffer[i + 1] = (s16)CLAMP(right, -32768, 32767);
+            sample_buffer[i] = clamp_s16(left);
+            sample_buffer[i + 1] = clamp_s16(right);
         }
     }
     else
@@ -662,8 +663,8 @@ void Audio::EndFrame(s16* sample_buffer, int* sample_count)
                 (float)m_gus_buffer[i + 1] * gus_volume + (float)m_midi_buffer[i + 1] * midi_volume;
             s32 out_left = (s32)((float)HighPass(dc_left, (s32)left) * m_master_volume);
             s32 out_right = (s32)((float)HighPass(dc_right, (s32)right) * m_master_volume);
-            sample_buffer[i] = (s16)CLAMP(out_left, -32768, 32767);
-            sample_buffer[i + 1] = (s16)CLAMP(out_right, -32768, 32767);
+            sample_buffer[i] = clamp_s16(out_left);
+            sample_buffer[i + 1] = clamp_s16(out_right);
         }
     }
 
@@ -775,8 +776,8 @@ void Audio::Serialize(StateSerializer& serializer, int version)
 void Audio::SanitizeState()
 {
     m_state.sample_clock_counter %= GDOX_MACHINE_CLOCK_RATE;
-    m_state.pcm_lowpass_left = CLAMP(m_state.pcm_lowpass_left, -32768, 32767);
-    m_state.pcm_lowpass_right = CLAMP(m_state.pcm_lowpass_right, -32768, 32767);
+    m_state.pcm_lowpass_left = clamp_s16(m_state.pcm_lowpass_left);
+    m_state.pcm_lowpass_right = clamp_s16(m_state.pcm_lowpass_right);
     m_state.output_dc_left = CLAMP(m_state.output_dc_left, -k_audio_dc_limit, k_audio_dc_limit);
     m_state.output_dc_right = CLAMP(m_state.output_dc_right, -k_audio_dc_limit, k_audio_dc_limit);
 

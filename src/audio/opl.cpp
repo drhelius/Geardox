@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include "opl.h"
+#include "audio_common.h"
 #include "../common/state_serializer.h"
 
 // Die ROM contents: round(-log2(sin((i + 0.5) * pi / 512)) * 256)
@@ -234,8 +235,8 @@ void OPL::GenerateOPL3()
     m_state.mix = MixOPL3(false);
     RunOperators(33, OPL_OPERATOR_COUNT);
 
-    m_state.left_sample = (s16)CLAMP(left, -32768, 32767);
-    m_state.right_sample = (s16)CLAMP(right, -32768, 32767);
+    m_state.left_sample = clamp_s16(left);
+    m_state.right_sample = clamp_s16(right);
 }
 
 // A channel that has settled can only start again through a key on, which resets its phases
@@ -570,7 +571,7 @@ s32 OPL::MixOPL3(bool left) const
 // YM3014: a 10-bit mantissa and a 3-bit exponent, so the bits under the mantissa are lost
 s16 OPL::ConvertDAC(s32 sample) const
 {
-    sample = CLAMP(sample, -32768, 32767);
+    sample = clamp_s16(sample);
 
     int magnitude = (sample >> 9) & 0x3F;
 

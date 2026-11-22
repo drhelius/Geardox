@@ -42,7 +42,7 @@ void SerialMouse::Init(Input* input)
 
 void SerialMouse::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void SerialMouse::Reset()

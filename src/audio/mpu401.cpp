@@ -18,6 +18,7 @@
  */
 
 #include "mpu401.h"
+#include "audio_common.h"
 #include "midi_out.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
@@ -40,7 +41,6 @@ static const u8 k_mpu401_send_voice = 1;
 static const u8 k_mpu401_send_system = 2;
 static const u8 k_mpu401_tempo_min[7] = { 32, 16, 16, 8, 8, 8, 8 };
 static const u8 k_mpu401_tempo_max[7] = { 240, 240, 240, 240, 208, 179, 179 };
-static const u8 k_mpu401_voice_lengths[8] = { 3, 3, 3, 3, 2, 2, 3, 0 };
 
 MPU401::MPU401()
 {
@@ -63,7 +63,7 @@ void MPU401::Init(MidiOut* midi_out)
 
 void MPU401::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void MPU401::SetIntelligent(bool intelligent)
@@ -441,7 +441,7 @@ void MPU401::WriteSend(u8 value)
             }
 
             m_state.send_message[0] = status;
-            m_state.send_length = k_mpu401_voice_lengths[(status >> 4) & 0x07];
+            m_state.send_length = k_midi_voice_lengths[(status >> 4) & 0x07];
             m_state.send_count = 1;
 
             if (value >= 0x80)
@@ -540,7 +540,7 @@ void MPU401::WriteTrack(u8 value)
         {
             track.kind = MPU401_KIND_MIDI;
             track.message[0] = value;
-            track.length = k_mpu401_voice_lengths[(value >> 4) & 0x07];
+            track.length = k_midi_voice_lengths[(value >> 4) & 0x07];
             track.status = value;
             m_state.transfer_stage = 2;
         }
@@ -554,7 +554,7 @@ void MPU401::WriteTrack(u8 value)
             track.kind = MPU401_KIND_MIDI;
             track.message[0] = track.status;
             track.message[1] = value;
-            track.length = k_mpu401_voice_lengths[(track.status >> 4) & 0x07];
+            track.length = k_midi_voice_lengths[(track.status >> 4) & 0x07];
             m_state.transfer_stage = 3;
             done = track.length <= 2;
         }
@@ -1095,7 +1095,7 @@ u64 MPU401::GetClocksToEvent() const
 
     u64 target = (u64)ticks * GetPeriod();
     u64 phase = MIN(m_state.phase, target);
-    return (target - phase + m_rate - 1) / m_rate;
+    return div_ceil_u64(target - phase, m_rate);
 }
 
 void MPU401::TraceByte(u8 event, u8 value, u8 kind)

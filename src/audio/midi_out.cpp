@@ -18,12 +18,11 @@
  */
 
 #include "midi_out.h"
+#include "audio_common.h"
 #include "../common/state_serializer.h"
 #include "../common/trace_logger.h"
 
-static const u8 k_midi_out_lengths[8] = { 3, 3, 3, 3, 2, 2, 3, 0 };
 static const u8 k_midi_out_gm_on[6] = { 0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7 };
-static const u8 k_midi_out_mt32_reset[11] = { 0xF0, 0x41, 0x10, 0x16, 0x12, 0x7F, 0x00, 0x00, 0x00, 0x01, 0xF7 };
 static const u8 k_midi_out_xg_on[4] = { 0x00, 0x00, 0x7E, 0x00 };
 static const char* const k_midi_out_gm_displays[2] = { "SCSCSCFY!           ", "Bye.                " };
 
@@ -129,7 +128,7 @@ void MidiOut::Write(u8 value, u8 source)
         m_state.status = value;
         m_state.message[0] = value;
         m_state.count = 1;
-        m_state.expected = k_midi_out_lengths[(value >> 4) & 0x07];
+        m_state.expected = k_midi_voice_lengths[(value >> 4) & 0x07];
         return;
     }
 
@@ -140,7 +139,7 @@ void MidiOut::Write(u8 value, u8 source)
 
         m_state.message[0] = m_state.status;
         m_state.count = 1;
-        m_state.expected = k_midi_out_lengths[(m_state.status >> 4) & 0x07];
+        m_state.expected = k_midi_voice_lengths[(m_state.status >> 4) & 0x07];
     }
 
     m_state.message[m_state.count++] = value;
@@ -264,7 +263,7 @@ void MidiOut::Detect(const u8* data, int size)
 
 void MidiOut::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void MidiOut::TraceMessage(const u8* data, int size)
@@ -387,7 +386,7 @@ void MidiOut::SendChannel(const MidiOut_Synth& machine, int channel, bool all)
 void MidiOut::SendResets()
 {
     Send(k_midi_out_gm_on, sizeof(k_midi_out_gm_on), k_midi_out_immediate);
-    Send(k_midi_out_mt32_reset, sizeof(k_midi_out_mt32_reset), k_midi_out_immediate);
+    Send(k_midi_mt32_reset, sizeof(k_midi_mt32_reset), k_midi_out_immediate);
 }
 
 void MidiOut::SendLog(const MidiOut_Synth& synth)

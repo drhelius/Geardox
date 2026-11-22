@@ -18,23 +18,9 @@
  */
 
 #include "voodoo_trex.h"
+#include "video_color.h"
 #include "voodoo_regs.h"
 #include "../common/state_serializer.h"
-
-static INLINE u32 expand_argb(u32 a, u32 r, u32 g, u32 b)
-{
-    return (a << 24) | (r << 16) | (g << 8) | b;
-}
-
-static INLINE u32 expand_3(u32 value)
-{
-    return (value << 5) | (value << 2) | (value >> 1);
-}
-
-static INLINE u32 expand_5(u32 value)
-{
-    return (value << 3) | (value >> 2);
-}
 
 VoodooTrex::VoodooTrex()
 {
@@ -80,20 +66,19 @@ void VoodooTrex::BuildLookups()
         u32 a = (i >> 4) * 0x11;
         u32 n = (i & 0x0F) * 0x11;
 
-        m_lookup_332[i] = expand_argb(0xFF, r, g, b);
-        m_lookup_a8[i] = expand_argb(i, i, i, i);
-        m_lookup_i8[i] = expand_argb(0xFF, i, i, i);
-        m_lookup_ai44[i] = expand_argb(a, n, n, n);
+        m_lookup_332[i] = pack_argb(0xFF, r, g, b);
+        m_lookup_a8[i] = pack_argb(i, i, i, i);
+        m_lookup_i8[i] = pack_argb(0xFF, i, i, i);
+        m_lookup_ai44[i] = pack_argb(a, n, n, n);
         m_lookup_zero[i] = 0;
     }
 
     for (u32 i = 0; i < 65536; i++)
     {
-        m_lookup_565[i] = expand_argb(0xFF, expand_5((i >> 11) & 0x1F), (((i >> 5) & 0x3F) << 2) | (((i >> 5) & 0x3F) >> 4),
-            expand_5(i & 0x1F));
-        m_lookup_1555[i] = expand_argb((i & 0x8000) != 0 ? 0xFF : 0x00, expand_5((i >> 10) & 0x1F),
+        m_lookup_565[i] = pack_argb(0xFF, expand_5((i >> 11) & 0x1F), expand_6((i >> 5) & 0x3F), expand_5(i & 0x1F));
+        m_lookup_1555[i] = pack_argb((i & 0x8000) != 0 ? 0xFF : 0x00, expand_5((i >> 10) & 0x1F),
             expand_5((i >> 5) & 0x1F), expand_5(i & 0x1F));
-        m_lookup_4444[i] = expand_argb(((i >> 12) & 0x0F) * 0x11, ((i >> 8) & 0x0F) * 0x11, ((i >> 4) & 0x0F) * 0x11,
+        m_lookup_4444[i] = pack_argb(((i >> 12) & 0x0F) * 0x11, ((i >> 8) & 0x0F) * 0x11, ((i >> 4) & 0x0F) * 0x11,
             (i & 0x0F) * 0x11);
     }
 }
@@ -220,7 +205,7 @@ void VoodooTrex::UpdateNCC(int table)
         s32 g = CLAMP(y + ig + qg, 0, 255);
         s32 b = CLAMP(y + ib + qb, 0, 255);
 
-        m_lookup_ncc[table][index] = expand_argb(0xFF, (u32)r, (u32)g, (u32)b);
+        m_lookup_ncc[table][index] = pack_argb(0xFF, (u32)r, (u32)g, (u32)b);
     }
 }
 

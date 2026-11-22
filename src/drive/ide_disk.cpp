@@ -62,7 +62,7 @@ void IdeDisk::Init(int id)
 
 void IdeDisk::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 // The image only changes at a reset, so the geometry stays put between them

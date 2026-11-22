@@ -33,7 +33,7 @@ ParallelPort::~ParallelPort()
 
 void ParallelPort::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void ParallelPort::Reset()

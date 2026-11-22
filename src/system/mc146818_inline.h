@@ -105,7 +105,7 @@ INLINE u64 MC146818::GetTickClocks(u64 ticks) const
     u64 seconds = ticks / k_mc146818_chain_rate;
     u64 rest = ticks % k_mc146818_chain_rate;
     return m_state.divider_clocks + seconds * GDOX_MACHINE_CLOCK_RATE +
-        (rest * GDOX_MACHINE_CLOCK_RATE + k_mc146818_chain_rate - 1) / k_mc146818_chain_rate;
+        div_ceil_u64(rest * GDOX_MACHINE_CLOCK_RATE, k_mc146818_chain_rate);
 }
 
 INLINE u8 MC146818::Encode(u8 value) const
@@ -113,7 +113,7 @@ INLINE u8 MC146818::Encode(u8 value) const
     if ((m_state.ram[k_mc146818_status_b] & k_mc146818_b_binary) != 0)
         return value;
 
-    return (u8)(((value / 10) << 4) | (value % 10));
+    return dec_to_bcd(value);
 }
 
 INLINE u8 MC146818::Decode(u8 value) const
@@ -121,7 +121,7 @@ INLINE u8 MC146818::Decode(u8 value) const
     if ((m_state.ram[k_mc146818_status_b] & k_mc146818_b_binary) != 0)
         return value;
 
-    return (u8)(((value >> 4) & 0x0F) * 10 + (value & 0x0F));
+    return bcd_to_dec(value);
 }
 
 #endif /* MC146818_INLINE_H */

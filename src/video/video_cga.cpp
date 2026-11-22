@@ -277,7 +277,7 @@ void Video::UpdateCGAGeometry()
     u32 width = (m_mc6845->GetHorizontalDisplayed() * dots) / pixel_dots;
     u64 display_clocks = (u64)m_state.frame_display_dots * GDOX_MACHINE_CLOCK_RATE;
 
-    m_display_clocks = (u32)((display_clocks + m_state.frame_dot_clock - 1) / m_state.frame_dot_clock);
+    m_display_clocks = (u32)div_ceil_u64(display_clocks, m_state.frame_dot_clock);
     width = MAX(width, 1U);
 
     if (!m_native_resolution && width * pixel_dots <= (u32)GDOX_MAX_FRAME_BUFFER_WIDTH)

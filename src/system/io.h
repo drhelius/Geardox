@@ -66,6 +66,7 @@ public:
 
 private:
     u8 ReadPort(u16 port, GDOX_Bus_Access_Context& context);
+    bool EventsChanged(u64 next_event, bool interrupt) const;
     u16 ReadIDEData(u16 port, GDOX_Bus_Access_Context& context);
     void WriteIDEData(u16 port, u16 value, GDOX_Bus_Access_Context& context);
 

@@ -18,6 +18,7 @@
  */
 
 #include "voodoo_raster.h"
+#include "video_color.h"
 #include "voodoo_regs.h"
 #if defined(GDOX_ENABLE_VOODOO_THREAD) && defined(__SWITCH__)
 #include <switch.h>
@@ -40,30 +41,9 @@ static const u32 k_voodoo_texture_words = (sizeof(VoodooTrex::VoodooTrex_Texture
 static const u32 k_voodoo_triangle_words = (sizeof(VoodooRaster::VoodooRaster_Triangle) + 3) / 4;
 static const u32 k_voodoo_state_lookup = 0x02;
 
-static INLINE u32 color_a(u32 color)
-{
-    return color >> 24;
-}
-
-static INLINE u32 color_r(u32 color)
-{
-    return (color >> 16) & 0xFF;
-}
-
-static INLINE u32 color_g(u32 color)
-{
-    return (color >> 8) & 0xFF;
-}
-
-static INLINE u32 color_b(u32 color)
-{
-    return color & 0xFF;
-}
-
 static INLINE u32 make_color(s32 a, s32 r, s32 g, s32 b)
 {
-    return ((u32)CLAMP(a, 0, 255) << 24) | ((u32)CLAMP(r, 0, 255) << 16) | ((u32)CLAMP(g, 0, 255) << 8) |
-        (u32)CLAMP(b, 0, 255);
+    return pack_argb((u32)CLAMP(a, 0, 255), (u32)CLAMP(r, 0, 255), (u32)CLAMP(g, 0, 255), (u32)CLAMP(b, 0, 255));
 }
 
 static INLINE u8 dither_rb(u32 value, u32 dither)
@@ -223,10 +203,7 @@ VoodooRaster::VoodooRaster()
 
     for (u32 i = 0; i < 65536; i++)
     {
-        u32 r = (i >> 11) & 0x1F;
-        u32 g = (i >> 5) & 0x3F;
-        u32 b = i & 0x1F;
-        m_rgb565[i] = 0xFF000000 | (((r << 3) | (r >> 2)) << 16) | (((g << 2) | (g >> 4)) << 8) | ((b << 3) | (b >> 2));
+        m_rgb565[i] = pack_xrgb(expand_5((i >> 11) & 0x1F), expand_6((i >> 5) & 0x3F), expand_5(i & 0x1F));
     }
 }
 
@@ -1257,17 +1234,17 @@ void VoodooRaster::AddSpan()
 u32 VoodooRaster::BlendAlpha(u32 color, u16 destination, u32 dest_alpha, s32 x, s32 y) const
 {
     const VoodooRaster_Decoded& d = m_decoded;
-    s32 dr = (destination >> 11) & 0x1F;
-    s32 dg = (destination >> 5) & 0x3F;
-    s32 db = destination & 0x1F;
+    s32 dr = (s32)expand_5((destination >> 11) & 0x1F);
+    s32 dg = (s32)expand_6((destination >> 5) & 0x3F);
+    s32 db = (s32)expand_5(destination & 0x1F);
     s32 sa = (s32)color_a(color);
     s32 da = d.alpha_planes ? (s32)(dest_alpha & 0xFF) : 0xFF;
     s32 dither = d.dither_subtract ? (15 - d.dither_matrix[(y & 3) * 4 + (x & 3)]) >> 1 : 0;
     s32 source = sa + 1;
     s32 dest = 0x100 - sa;
-    s32 r = ((s32)color_r(color) * source + (((dr << 3) | (dr >> 2)) + dither) * dest) >> 8;
-    s32 g = ((s32)color_g(color) * source + (((dg << 2) | (dg >> 4)) + (dither >> 1)) * dest) >> 8;
-    s32 b = ((s32)color_b(color) * source + (((db << 3) | (db >> 2)) + dither) * dest) >> 8;
+    s32 r = ((s32)color_r(color) * source + (dr + dither) * dest) >> 8;
+    s32 g = ((s32)color_g(color) * source + (dg + (dither >> 1)) * dest) >> 8;
+    s32 b = ((s32)color_b(color) * source + (db + dither) * dest) >> 8;
     s32 alpha = (sa * d.blend_alpha_source + da * d.blend_alpha_dest) >> 8;
 
     return make_color(alpha, r, g, b);

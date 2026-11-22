@@ -21,6 +21,7 @@
 #define ULTRASOUND_INLINE_H
 
 #include "ultrasound.h"
+#include "audio_common.h"
 
 INLINE void UltraSound::Clock(u32 clocks)
 {
@@ -60,10 +61,8 @@ INLINE void UltraSound::Sample(s16& left, s16& right) const
 
     s64 phase = (s64)m_state.phase;
     s64 period = (s64)GetFramePeriod();
-    s64 left_delta = m_state.left_sample - m_state.previous_left_sample;
-    s64 right_delta = m_state.right_sample - m_state.previous_right_sample;
-    left = (s16)(m_state.previous_left_sample + (left_delta * phase) / period);
-    right = (s16)(m_state.previous_right_sample + (right_delta * phase) / period);
+    left = lerp_sample(m_state.previous_left_sample, m_state.left_sample, phase, period);
+    right = lerp_sample(m_state.previous_right_sample, m_state.right_sample, phase, period);
 }
 
 INLINE bool UltraSound::Decodes(u16 port) const
@@ -131,6 +130,12 @@ INLINE int UltraSound::GetActiveVoices() const
 INLINE u64 UltraSound::GetFramePeriod() const
 {
     return (u64)k_ultrasound_voice_clocks * (u64)GetActiveVoices() * GDOX_MACHINE_CLOCK_RATE;
+}
+
+INLINE u64 UltraSound::GetSamplePeriod() const
+{
+    u64 period = (u64)k_ultrasound_voice_clocks * (m_state.sample_rate + 2) * GDOX_MACHINE_CLOCK_RATE;
+    return (m_state.sample_control & 0x04) != 0 ? period * 2 : period;
 }
 
 INLINE u32 UltraSound::GetFrameRate() const

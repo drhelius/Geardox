@@ -21,6 +21,7 @@
 #define AUDIO_INLINE_H
 
 #include "audio.h"
+#include "audio_common.h"
 #include "opl.h"
 #include "sound_blaster.h"
 #include "mpu401.h"
@@ -383,12 +384,12 @@ INLINE void Audio::SampleSources()
     if (m_channel_scopes)
         CaptureChannels(m_buffer_index >> 1);
 
-    m_fm_buffer[m_buffer_index + 0] = (s16)CLAMP((fm_left * m_fm_gain_left) >> 15, -32768, 32767);
-    m_fm_buffer[m_buffer_index + 1] = (s16)CLAMP((fm_right * m_fm_gain_right) >> 15, -32768, 32767);
+    m_fm_buffer[m_buffer_index + 0] = clamp_s16((fm_left * m_fm_gain_left) >> 15);
+    m_fm_buffer[m_buffer_index + 1] = clamp_s16((fm_right * m_fm_gain_right) >> 15);
     m_pcm_buffer[m_buffer_index + 0] = (s16)((m_state.pcm_lowpass_left * m_pcm_gain_left) >> 15);
     m_pcm_buffer[m_buffer_index + 1] = (s16)((m_state.pcm_lowpass_right * m_pcm_gain_right) >> 15);
-    m_cdda_buffer[m_buffer_index + 0] = (s16)CLAMP(cd_left, -32768, 32767);
-    m_cdda_buffer[m_buffer_index + 1] = (s16)CLAMP(cd_right, -32768, 32767);
+    m_cdda_buffer[m_buffer_index + 0] = clamp_s16(cd_left);
+    m_cdda_buffer[m_buffer_index + 1] = clamp_s16(cd_right);
     m_buzzer_buffer[m_buffer_index + 0] = buzzer;
     m_buzzer_buffer[m_buffer_index + 1] = buzzer;
     m_gus_buffer[m_buffer_index + 0] = gus_left;

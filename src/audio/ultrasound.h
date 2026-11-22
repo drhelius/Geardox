@@ -189,6 +189,7 @@ private:
     u8 InvertDMA(u8 value, u32 pointer) const;
     void MarkDirty(u32 address);
     u64 GetFramePeriod() const;
+    u64 GetSamplePeriod() const;
     u64 GetVoiceFrames(const UltraSound_Voice& voice) const;
     u64 GetRampFrames(const UltraSound_Voice& voice) const;
     u64 GetTimerClocks(int timer) const;

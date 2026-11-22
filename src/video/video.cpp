@@ -18,6 +18,7 @@
  */
 
 #include "video.h"
+#include "video_color.h"
 #include "mc6845.h"
 #include "voodoo.h"
 #include "../common/state_serializer.h"
@@ -135,9 +136,9 @@ Video::Video()
     // 5:5:5 and 5:6:5 pixels expanded to 8 bits a channel, each byte's share of the color: their bits don't overlap
     for (u32 i = 0; i < 256; i++)
     {
-        u32 blue = ((i & 0x1F) << 3) | ((i & 0x1F) >> 2);
-        u32 red = (((i >> 2) & 0x1F) << 3) | (((i >> 2) & 0x1F) >> 2);
-        u32 red565 = ((i >> 3) << 3) | ((i >> 3) >> 2);
+        u32 blue = expand_5(i & 0x1F);
+        u32 red = expand_5((i >> 2) & 0x1F);
+        u32 red565 = expand_5(i >> 3);
 
         m_direct_low[0][i] = blue | ((((i >> 5) << 3) | (i >> 7)) << 8);
         m_direct_high[0][i] = 0xFF000000U | (red << 16) | ((((i & 0x03) << 6) | ((i & 0x03) << 1)) << 8);
@@ -166,7 +167,7 @@ Video::~Video()
 
 void Video::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 
     if (IsValidPointer(m_voodoo))
         m_voodoo->SetTraceLogger(trace_logger);
@@ -1444,7 +1445,7 @@ void Video::UpdateGeometry()
     }
 
     u64 display_clocks = (u64)m_state.frame_display_dots * GDOX_MACHINE_CLOCK_RATE;
-    m_display_clocks = (u32)((display_clocks + m_state.frame_dot_clock - 1) / m_state.frame_dot_clock);
+    m_display_clocks = (u32)div_ceil_u64(display_clocks, m_state.frame_dot_clock);
 
     u8 clocking = m_state.sequencer[k_video_sr_clocking];
     u8 max_scan = m_state.crtc[k_video_cr_max_scan];
@@ -1502,9 +1503,9 @@ void Video::UpdateIRQ()
 void Video::UpdateDACColor(int index)
 {
     const u8* color = m_state.dac[index];
-    u8 red = (u8)((color[0] << 2) | (color[0] >> 4));
-    u8 green = (u8)((color[1] << 2) | (color[1] >> 4));
-    u8 blue = (u8)((color[2] << 2) | (color[2] >> 4));
+    u8 red = (u8)expand_6(color[0]);
+    u8 green = (u8)expand_6(color[1]);
+    u8 blue = (u8)expand_6(color[2]);
 
     m_dac_rgb[index] = ToXRGB(red, green, blue);
 
@@ -1567,8 +1568,7 @@ void Video::UpdateColorCaches()
     for (int i = 0; i < VIDEO_DAC_COUNT; i++)
     {
         const u8* color = m_state.dac[i];
-        m_dac_rgb[i] = ToXRGB((u8)((color[0] << 2) | (color[0] >> 4)), (u8)((color[1] << 2) | (color[1] >> 4)),
-            (u8)((color[2] << 2) | (color[2] >> 4)));
+        m_dac_rgb[i] = ToXRGB((u8)expand_6(color[0]), (u8)expand_6(color[1]), (u8)expand_6(color[2]));
     }
 
     for (int i = 0; i < VIDEO_DAC_COUNT; i++)

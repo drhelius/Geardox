@@ -125,7 +125,7 @@ void DebugConsole::Rewind(u64 written)
 
 void DebugConsole::SetTraceLogger(TraceLogger* trace_logger, u16 port)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
     m_trace_port = port;
 }
 

@@ -50,7 +50,7 @@ void I82077::Init(FDC* fdc)
 
 void I82077::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 // The pin reset clears everything but what Specify programmed, and holds the chip until the DOR lets it go

@@ -48,7 +48,7 @@ void PIT::Init(PIC* pic, Scheduler* scheduler, Audio* audio)
 
 void PIT::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 // Gates 0 and 1 are tied high, gate 2 is port 61h bit 0

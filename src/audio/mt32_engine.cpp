@@ -18,6 +18,7 @@
  */
 
 #include "mt32_engine.h"
+#include "audio_common.h"
 
 #if !defined(GDOX_DISABLE_MT32)
 
@@ -70,7 +71,6 @@ static const int k_mt32_engine_max_frames = GDOX_AUDIO_BUFFER_SIZE / 2;
 static const int k_mt32_engine_native_frames = k_mt32_engine_max_frames + (k_mt32_engine_max_frames / 4);
 static const u32 k_mt32_engine_rate = 48000;
 static const u32 k_mt32_engine_max_rom_size = 0x100000;
-static const u8 k_mt32_engine_reset[11] = { 0xF0, 0x41, 0x10, 0x16, 0x12, 0x7F, 0x00, 0x00, 0x00, 0x01, 0xF7 };
 
 static bool is_rom_size(u64 size)
 {
@@ -308,7 +308,7 @@ void MT32Engine::Reset()
         return;
 
     m_synth->flushMIDIQueue();
-    m_synth->playSysexNow(k_mt32_engine_reset, sizeof(k_mt32_engine_reset));
+    m_synth->playSysexNow(k_midi_mt32_reset, sizeof(k_midi_mt32_reset));
 }
 
 bool MT32Engine::IsOpen() const

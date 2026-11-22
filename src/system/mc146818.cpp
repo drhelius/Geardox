@@ -51,7 +51,7 @@ void MC146818::Init(PIC* pic, Scheduler* scheduler)
 
 void MC146818::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void MC146818::SetStartTime(s64 start_time)
@@ -402,7 +402,7 @@ void MC146818::UpdateClockRegisters()
     m_state.ram[k_mc146818_day] = Encode(m_state.day);
     m_state.ram[k_mc146818_month] = Encode(m_state.month);
     m_state.ram[k_mc146818_year] = Encode(m_state.year);
-    m_state.ram[k_mc146818_century] = (u8)(((m_state.century / 10) << 4) | (m_state.century % 10));
+    m_state.ram[k_mc146818_century] = dec_to_bcd(m_state.century);
 }
 
 // In 12 hour mode bit 7 marks PM and hours run 12, 1 to 11
@@ -450,7 +450,7 @@ void MC146818::WriteRegister(u8 index, u8 value, u64 clocks)
             m_state.year = (u8)(Decode(value) % 100);
             break;
         case k_mc146818_century:
-            m_state.century = (u8)(((value >> 4) & 0x0F) * 10 + (value & 0x0F));
+            m_state.century = bcd_to_dec(value);
             break;
         case k_mc146818_status_a:
         {

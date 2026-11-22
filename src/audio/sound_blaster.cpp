@@ -116,7 +116,7 @@ void SoundBlaster::Init(PIC* pic, DMA* dma, MidiOut* midi_out)
 
 void SoundBlaster::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void SoundBlaster::SetTraceClocks(const u64* clocks)
@@ -1527,7 +1527,7 @@ u64 SoundBlaster::GetClocksToEvent() const
 
     u64 numerator = m_state.rate_numerator;
     u64 frames = 1 + GetFramesAhead();
-    return ((frames * GetPeriod()) - m_state.phase + numerator - 1) / numerator;
+    return div_ceil_u64((frames * GetPeriod()) - m_state.phase, numerator);
 }
 
 void SoundBlaster::TraceCommand()

@@ -187,7 +187,7 @@ void DevPort::Hypercall(u8 command)
 
 void DevPort::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
     m_console.SetTraceLogger(trace_logger, 0x00E9);
 }
 

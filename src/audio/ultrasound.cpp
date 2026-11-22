@@ -18,6 +18,7 @@
  */
 
 #include "ultrasound.h"
+#include "audio_common.h"
 #include "midi_out.h"
 #include "../system/dma.h"
 #include "../system/pic.h"
@@ -70,7 +71,7 @@ void UltraSound::Init(PIC* pic, DMA* dma, MidiOut* midi_out)
 
 void UltraSound::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void UltraSound::SetEnabled(bool enabled)
@@ -210,8 +211,8 @@ void UltraSound::Frame()
         return;
     }
 
-    m_state.left_sample = (s16)CLAMP(left, -32768, 32767);
-    m_state.right_sample = (s16)CLAMP(right, -32768, 32767);
+    m_state.left_sample = clamp_s16(left);
+    m_state.right_sample = clamp_s16(right);
 }
 
 void UltraSound::RunVoice(UltraSound_Voice& voice, int index, s32& left, s32& right)
@@ -236,7 +237,7 @@ void UltraSound::RunVoice(UltraSound_Voice& voice, int index, s32& left, s32& ri
         s32 out_right = (s32)(((s64)sample * right_gain) / 65536);
         left += out_left;
         right += out_right;
-        m_voice_output[index] = (s16)CLAMP(out_left + out_right, -32768, 32767);
+        m_voice_output[index] = clamp_s16(out_left + out_right);
     }
     else
         m_voice_output[index] = 0;
@@ -472,11 +473,7 @@ void UltraSound::ClockSampling(u32 clocks)
     if ((m_state.sample_control & 0x01) == 0)
         return;
 
-    u64 period = (u64)k_ultrasound_voice_clocks * (m_state.sample_rate + 2) * GDOX_MACHINE_CLOCK_RATE;
-
-    if ((m_state.sample_control & 0x04) != 0)
-        period *= 2;
-
+    u64 period = GetSamplePeriod();
     m_state.sample_phase += (u64)clocks * k_ultrasound_clock_rate;
 
     if (m_state.sample_phase < period)
@@ -1442,7 +1439,7 @@ u64 UltraSound::FramesToClocks(u64 frames) const
     if (target <= m_state.phase)
         return 1;
 
-    return (target - m_state.phase + k_ultrasound_clock_rate - 1) / k_ultrasound_clock_rate;
+    return div_ceil_u64(target - m_state.phase, k_ultrasound_clock_rate);
 }
 
 u64 UltraSound::GetTimerClocks(int timer) const
@@ -1454,7 +1451,7 @@ u64 UltraSound::GetTimerClocks(int timer) const
     if (target <= m_state.timer_phase[timer])
         return 1;
 
-    return (target - m_state.timer_phase[timer] + k_ultrasound_clock_rate - 1) / k_ultrasound_clock_rate;
+    return div_ceil_u64(target - m_state.timer_phase[timer], k_ultrasound_clock_rate);
 }
 
 u64 UltraSound::GetClocksToEvent() const
@@ -1506,13 +1503,9 @@ u64 UltraSound::GetClocksToEvent() const
 
     if (((m_state.sample_control & 0x01) != 0) && (m_state.sample_units == 0))
     {
-        u64 period = (u64)k_ultrasound_voice_clocks * (m_state.sample_rate + 2) * GDOX_MACHINE_CLOCK_RATE;
-
-        if ((m_state.sample_control & 0x04) != 0)
-            period *= 2;
-
+        u64 period = GetSamplePeriod();
         u64 remaining = period > m_state.sample_phase ? period - m_state.sample_phase : 1;
-        clocks = MIN(clocks, (remaining + k_ultrasound_clock_rate - 1) / k_ultrasound_clock_rate);
+        clocks = MIN(clocks, div_ceil_u64(remaining, k_ultrasound_clock_rate));
     }
 
     return clocks;

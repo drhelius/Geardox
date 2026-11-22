@@ -45,7 +45,7 @@ void GamePort::Init(Input* input)
 
 void GamePort::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 // The one-shots are idle, so their bits read 0 until the first fire

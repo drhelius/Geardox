@@ -59,7 +59,7 @@ void SerialPorts::Init(PIC* pic, Scheduler* scheduler, Input* input)
 
 void SerialPorts::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
     m_mouse->SetTraceLogger(trace_logger);
 }
 

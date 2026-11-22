@@ -80,6 +80,19 @@ void I386::DecodeDescriptor(u16 selector, u32 address, u32 low, u32 high, Descri
     }
 }
 
+INLINE bool I386::ReadDescriptorWords(u32 address, GDOX_Bus_Access_Context& context, u32& low, u32& high)
+{
+    return ReadLinear(address, 32, context, low, true) && ReadLinear(address + 4, 32, context, high, true);
+}
+
+INLINE bool I386::IsLDTUsable() const
+{
+    u8 type = (m_state.ldtr.attributes & I386_SEGMENT_TYPE_MASK) >> I386_SEGMENT_TYPE_SHIFT;
+
+    return ((m_state.ldtr.selector & 0xFFFC) != 0) && ((m_state.ldtr.attributes & I386_SEGMENT_PRESENT) != 0) &&
+        ((m_state.ldtr.attributes & I386_SEGMENT_SYSTEM) != 0) && (type == 2);
+}
+
 bool I386::ReadGDTDescriptor(u16 selector, Descriptor& descriptor, GDOX_Bus_Access_Context& context, u8 fault_vector)
 {
     u32 offset = (u32)(selector & 0xFFF8);
@@ -91,10 +104,7 @@ bool I386::ReadGDTDescriptor(u16 selector, Descriptor& descriptor, GDOX_Bus_Acce
     u32 low = 0;
     u32 high = 0;
 
-    if (!ReadLinear(m_state.gdtr.base + offset, 32, context, low, true))
-        return false;
-
-    if (!ReadLinear(m_state.gdtr.base + offset + 4, 32, context, high, true))
+    if (!ReadDescriptorWords(m_state.gdtr.base + offset, context, low, high))
         return false;
 
     DecodeDescriptor(selector, m_state.gdtr.base + offset, low, high, descriptor);
@@ -105,14 +115,8 @@ bool I386::ReadDescriptor(u16 selector, Descriptor& descriptor, GDOX_Bus_Access_
 {
     const I386_Descriptor_Table* table = &m_state.gdtr;
 
-    if ((selector & 4) != 0)
-    {
-        u8 type = (m_state.ldtr.attributes & I386_SEGMENT_TYPE_MASK) >> I386_SEGMENT_TYPE_SHIFT;
-
-        if ((m_state.ldtr.selector & 0xFFFC) == 0 || (m_state.ldtr.attributes & I386_SEGMENT_PRESENT) == 0 ||
-            (m_state.ldtr.attributes & I386_SEGMENT_SYSTEM) == 0 || type != 2)
-            return RaiseException(fault_vector, I386_EXCEPTION_FAULT, true, selector & 0xFFFC);
-    }
+    if (((selector & 4) != 0) && !IsLDTUsable())
+        return RaiseException(fault_vector, I386_EXCEPTION_FAULT, true, selector & 0xFFFC);
 
     u32 table_base = (selector & 4) != 0 ? m_state.ldtr.base : table->base;
     u32 table_limit = (selector & 4) != 0 ? m_state.ldtr.limit : table->limit;
@@ -125,10 +129,7 @@ bool I386::ReadDescriptor(u16 selector, Descriptor& descriptor, GDOX_Bus_Access_
     u32 low = 0;
     u32 high = 0;
 
-    if (!ReadLinear(table_base + offset, 32, context, low, true))
-        return false;
-
-    if (!ReadLinear(table_base + offset + 4, 32, context, high, true))
+    if (!ReadDescriptorWords(table_base + offset, context, low, high))
         return false;
 
     DecodeDescriptor(selector, table_base + offset, low, high, descriptor);
@@ -147,10 +148,7 @@ bool I386::ReadDescriptorNoFault(u16 selector, Descriptor& descriptor, GDOX_Bus_
 
     if ((selector & 4) != 0)
     {
-        u8 type = (m_state.ldtr.attributes & I386_SEGMENT_TYPE_MASK) >> I386_SEGMENT_TYPE_SHIFT;
-
-        if ((m_state.ldtr.selector & 0xFFFC) == 0 || (m_state.ldtr.attributes & I386_SEGMENT_PRESENT) == 0 ||
-            (m_state.ldtr.attributes & I386_SEGMENT_SYSTEM) == 0 || type != 2)
+        if (!IsLDTUsable())
             return true;
 
         table_base = m_state.ldtr.base;
@@ -165,10 +163,7 @@ bool I386::ReadDescriptorNoFault(u16 selector, Descriptor& descriptor, GDOX_Bus_
     u32 low = 0;
     u32 high = 0;
 
-    if (!ReadLinear(table_base + offset, 32, context, low, true))
-        return false;
-
-    if (!ReadLinear(table_base + offset + 4, 32, context, high, true))
+    if (!ReadDescriptorWords(table_base + offset, context, low, high))
         return false;
 
     DecodeDescriptor(selector, table_base + offset, low, high, descriptor);
@@ -337,10 +332,7 @@ bool I386::ReadInterruptDescriptor(u8 vector, Descriptor& descriptor, GDOX_Bus_A
     u32 low = 0;
     u32 high = 0;
 
-    if (!ReadLinear(m_state.idtr.base + offset, 32, context, low, true))
-        return false;
-
-    if (!ReadLinear(m_state.idtr.base + offset + 4, 32, context, high, true))
+    if (!ReadDescriptorWords(m_state.idtr.base + offset, context, low, high))
         return false;
 
     DecodeDescriptor((u16)error_code, m_state.idtr.base + offset, low, high, descriptor);

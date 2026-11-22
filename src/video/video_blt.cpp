@@ -18,6 +18,7 @@
  */
 
 #include "video.h"
+#include "video_color.h"
 #include "../common/trace_logger.h"
 #include "../system/scheduler.h"
 
@@ -591,7 +592,7 @@ u32 Video::GetCursorPatternAddress() const
 u32 Video::GetCursorColor(int index) const
 {
     const u8* c = m_state.dac_extended[index == 0 ? 0 : 15];
-    return ToXRGB((u8)((c[0] << 2) | (c[0] >> 4)), (u8)((c[1] << 2) | (c[1] >> 4)), (u8)((c[2] << 2) | (c[2] >> 4)));
+    return ToXRGB((u8)expand_6(c[0]), (u8)expand_6(c[1]), (u8)expand_6(c[2]));
 }
 
 void Video::RenderCursor(u32* destination, int x, int end)

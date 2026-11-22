@@ -100,7 +100,7 @@ void IdeCdRom::Init(int id, CdRomMedia* cdrom_media, CdRomAudio* cdrom_audio, Au
 
 void IdeCdRom::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void IdeCdRom::SetFitted(bool fitted, int id, int speed)
@@ -1805,7 +1805,7 @@ void IdeCdRom::BuildQ(u32 lba, u8* q, bool bcd)
     q[0] = (u8)((GetControl(track) << 4) | 0x01);
 
     for (int i = 0; i < 9; i++)
-        q[1 + i] = bcd ? DecToBcd(values[i]) : values[i];
+        q[1 + i] = bcd ? dec_to_bcd(values[i]) : values[i];
 }
 
 u32 IdeCdRom::GetLeadOut()

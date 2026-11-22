@@ -60,7 +60,7 @@ void DMA::Reset()
 
 void DMA::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void DMA::SetDebugCallback(GDOX_DMA_Debug_Fn callback, void* debugger)

@@ -21,6 +21,7 @@
 #define VIDEO_INLINE_H
 
 #include "video.h"
+#include "video_color.h"
 #include "mc6845.h"
 #include "voodoo.h"
 #include "../system/scheduler.h"
@@ -421,7 +422,7 @@ INLINE u64 Video::GetLineClocks(u32 line) const
 {
     u64 dots = (u64)line * m_state.frame_line_dots;
     u64 rate = m_state.frame_dot_clock;
-    return m_state.frame_start_clocks + (dots * GDOX_MACHINE_CLOCK_RATE + rate - 1) / rate;
+    return m_state.frame_start_clocks + div_ceil_u64(dots * GDOX_MACHINE_CLOCK_RATE, rate);
 }
 
 INLINE u32 Video::GetBeamLine(u64 clocks) const
@@ -622,7 +623,7 @@ INLINE bool Video::GetCursorPhase() const
 
 INLINE u32 Video::ToXRGB(u8 red, u8 green, u8 blue) const
 {
-    return 0xFF000000U | ((u32)red << 16) | ((u32)green << 8) | blue;
+    return pack_xrgb(red, green, blue);
 }
 
 #endif /* VIDEO_INLINE_H */

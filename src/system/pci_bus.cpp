@@ -103,7 +103,7 @@ int PciBus::Select(u16 port, u8& function, u8& offset) const
 
 void PciBus::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 u8 PciBus::ReadData(u16 port) const

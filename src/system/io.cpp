@@ -99,13 +99,18 @@ void IO::Reset()
 {
 }
 
+INLINE bool IO::EventsChanged(u64 next_event, bool interrupt) const
+{
+    return (m_scheduler->GetNextEventClocks() != next_event) || (m_pic->IsInterruptPending() != interrupt);
+}
+
 u8 IO::Read8(u16 port, GDOX_Bus_Access_Context& context)
 {
     u64 next_event = m_scheduler->GetNextEventClocks();
     bool interrupt = m_pic->IsInterruptPending();
     u8 value = ReadPort(port, context);
 
-    if (m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+    if (EventsChanged(next_event, interrupt))
         context.end_batch = true;
 
     return value;
@@ -117,7 +122,7 @@ u16 IO::ReadIDEData(u16 port, GDOX_Bus_Access_Context& context)
     bool interrupt = m_pic->IsInterruptPending();
     u16 value = m_ide->ReadData(port, context.clocks);
 
-    if (m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+    if (EventsChanged(next_event, interrupt))
         context.end_batch = true;
 
     return value;
@@ -129,7 +134,7 @@ void IO::WriteIDEData(u16 port, u16 value, GDOX_Bus_Access_Context& context)
     bool interrupt = m_pic->IsInterruptPending();
     m_ide->WriteData(port, value, context.clocks);
 
-    if (m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+    if (EventsChanged(next_event, interrupt))
         context.end_batch = true;
 }
 
@@ -590,6 +595,6 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
     }
 
     if ((m_memory->GetMapGeneration() != generation) || m_system_control->IsCPUResetPending() ||
-        m_scheduler->GetNextEventClocks() != next_event || m_pic->IsInterruptPending() != interrupt)
+        EventsChanged(next_event, interrupt))
         context.end_batch = true;
 }

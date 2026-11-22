@@ -62,7 +62,7 @@ void FDC::Init(PIC* pic, Scheduler* scheduler, DMA* dma)
 
 void FDC::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
     m_chip.SetTraceLogger(trace_logger);
 }
 

@@ -21,6 +21,7 @@
 #define SOUND_BLASTER_INLINE_H
 
 #include "sound_blaster.h"
+#include "audio_common.h"
 
 INLINE void SoundBlaster::Clock(u32 clocks)
 {
@@ -51,10 +52,8 @@ INLINE void SoundBlaster::Sample(s16& left, s16& right) const
 
     s64 phase = (s64)m_state.phase;
     s64 period = (s64)GetPeriod();
-    s64 left_delta = m_state.left_sample - m_state.previous_left_sample;
-    s64 right_delta = m_state.right_sample - m_state.previous_right_sample;
-    left = (s16)(m_state.previous_left_sample + (left_delta * phase) / period);
-    right = (s16)(m_state.previous_right_sample + (right_delta * phase) / period);
+    left = lerp_sample(m_state.previous_left_sample, m_state.left_sample, phase, period);
+    right = lerp_sample(m_state.previous_right_sample, m_state.right_sample, phase, period);
 }
 
 INLINE bool SoundBlaster::HasDSP() const

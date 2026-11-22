@@ -80,11 +80,6 @@ INLINE u32 MsfToLba(const GDOX_CdRomMSF* msf)
     return (msf->minutes * 60 + msf->seconds) * 75 + msf->frames;
 }
 
-INLINE u8 DecToBcd(u8 val)
-{
-    return ((val / 10) << 4) | (val % 10);
-}
-
 INLINE void SwapSamples16(s16* buffer, u32 count)
 {
     for (u32 i = 0; i < count; i++)

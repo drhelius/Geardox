@@ -18,6 +18,7 @@
  */
 
 #include "voodoo.h"
+#include "video_color.h"
 #include "voodoo_dac.h"
 #include "voodoo_trex.h"
 #include "video.h"
@@ -31,16 +32,6 @@ static const int k_voodoo_param_index[5] = { 0, 1, 2, 4, 3 };
 static INLINE u32 swap_bytes(u32 value)
 {
     return ((value >> 24) & 0xFF) | ((value >> 8) & 0xFF00) | ((value << 8) & 0xFF0000) | (value << 24);
-}
-
-static INLINE u32 expand_5(u32 value)
-{
-    return (value << 3) | (value >> 2);
-}
-
-static INLINE u32 expand_6(u32 value)
-{
-    return (value << 2) | (value >> 4);
 }
 
 Voodoo::Voodoo()
@@ -112,7 +103,7 @@ void Voodoo::Init(Video* video, Scheduler* scheduler, Memory* memory)
 
 void Voodoo::SetTraceLogger(TraceLogger* trace_logger)
 {
-    m_trace_logger = IsValidPointer(trace_logger) ? trace_logger : TraceLogger::GetDisabled();
+    m_trace_logger = TraceLogger::Resolve(trace_logger);
 }
 
 void Voodoo::SetEnabled(bool enabled)
@@ -169,7 +160,7 @@ void Voodoo::Reset()
     m_state.regs[k_voodoo_fbi_init4] = 0x00000001;
 
     for (int i = 0; i < 32; i++)
-        m_state.clut[i] = (u32)(((i << 3) | (i >> 2)) * 0x010101);
+        m_state.clut[i] = expand_5((u32)i) * 0x010101;
 
     m_state.clut[32] = 0x00FFFFFF;
     m_dac->Reset();
@@ -868,18 +859,17 @@ void Voodoo::UpdateClutColors()
 
         if (i < 32)
         {
-            red[i] = (u8)(((((m_state.clut[index] >> 16) & 0xFF) * (8 - fraction)) +
-                (((m_state.clut[index + 1] >> 16) & 0xFF) * fraction)) >> 3);
-            blue[i] = (u8)((((m_state.clut[index] & 0xFF) * (8 - fraction)) + ((m_state.clut[index + 1] & 0xFF) * fraction)) >> 3);
+            red[i] = (u8)(((color_r(m_state.clut[index]) * (8 - fraction)) +
+                (color_r(m_state.clut[index + 1]) * fraction)) >> 3);
+            blue[i] = (u8)(((color_b(m_state.clut[index]) * (8 - fraction)) + (color_b(m_state.clut[index + 1]) * fraction)) >> 3);
         }
 
-        green[i] = (u8)(((((m_state.clut[g_index] >> 8) & 0xFF) * (8 - g_fraction)) +
-            (((m_state.clut[g_index + 1] >> 8) & 0xFF) * g_fraction)) >> 3);
+        green[i] = (u8)(((color_g(m_state.clut[g_index]) * (8 - g_fraction)) +
+            (color_g(m_state.clut[g_index + 1]) * g_fraction)) >> 3);
     }
 
     for (u32 pixel = 0; pixel < 65536; pixel++)
-        m_clut_colors[pixel] = 0xFF000000 | ((u32)red[pixel >> 11] << 16) | ((u32)green[(pixel >> 5) & 0x3F] << 8) |
-            blue[pixel & 0x1F];
+        m_clut_colors[pixel] = pack_xrgb(red[pixel >> 11], green[(pixel >> 5) & 0x3F], blue[pixel & 0x1F]);
 }
 
 void Voodoo::WriteClut(u32 value)
@@ -1182,9 +1172,9 @@ void Voodoo::WriteLFB(u32 offset, u32 value, u32 mask)
             case 4:
                 if (lanes < 2)
                 {
-                    r = (data >> 16) & 0xFF;
-                    g = (data >> 8) & 0xFF;
-                    b = data & 0xFF;
+                    r = color_r(data);
+                    g = color_g(data);
+                    b = color_b(data);
                 }
                 else
                 {
@@ -1197,10 +1187,10 @@ void Voodoo::WriteLFB(u32 offset, u32 value, u32 mask)
             case 5:
                 if (lanes < 2)
                 {
-                    a = data >> 24;
-                    r = (data >> 16) & 0xFF;
-                    g = (data >> 8) & 0xFF;
-                    b = data & 0xFF;
+                    a = color_a(data);
+                    r = color_r(data);
+                    g = color_g(data);
+                    b = color_b(data);
                 }
                 else
                 {
@@ -1238,12 +1228,12 @@ void Voodoo::WriteLFB(u32 offset, u32 value, u32 mask)
         if (format == 15)
         {
             u32 color1 = m_state.regs[k_voodoo_color1];
-            r = (color1 >> 16) & 0xFF;
-            g = (color1 >> 8) & 0xFF;
-            b = color1 & 0xFF;
+            r = color_r(color1);
+            g = color_g(color1);
+            b = color_b(color1);
         }
 
-        colors[i] = (a << 24) | (r << 16) | (g << 8) | b;
+        colors[i] = pack_argb(a, r, g, b);
         present[i] = flags;
     }
 

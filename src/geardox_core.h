@@ -261,6 +261,7 @@ private:
     void SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version);
     void SanitizeMachineConfig(GDOX_Machine_Config& config);
     std::string GetSaveStatePath(const char* path, int index);
+    bool ReadSaveStateHeader(std::istream& stream, size_t size, GDOX_SaveState_Header* header);
 
 private:
     Audio* m_audio;
