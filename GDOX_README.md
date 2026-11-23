@@ -878,7 +878,11 @@ In `Saves`, a `.deleted` file lists the files the game removed, so they stay rem
 take their DOS names; changed files keep their names on your computer.
 
 Change the game's folder on your computer only while the game is closed. Geardox doesn't look at it again until the
-next launch, and a file changed under a running game can read wrong to it.
+next launch, and a file changed under a running game can read wrong to it. One that can't be read any more gives the
+game a disk error.
+
+If one of the changed files can't be read or written, Geardox writes none of them, says so and tries again the next
+time the game opens.
 
 `Conflicts` holds the changes Geardox can't write back: once a save state the drive couldn't go back to is loaded, the
 rest of that session goes there, under its DOS paths, and the game's folder stays as it was.

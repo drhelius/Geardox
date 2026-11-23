@@ -149,6 +149,13 @@ Where the changes go:
 A folder becomes a FAT16 disk, which holds up to 2015 MB. Files buried too deep for DOS to reach are left out, and
 Geardox tells you.
 
+**Save Image As...** in a position of **Drives > Hard Disks** copies the disk there, as it is now, to a new `.hdd` or
+`.img` file. It works for any disk, a folder, a ZIP and a game's C: included, and the disk in use stays the same. For
+the open game's C:, **Game > Game Files > Save Hard Disk Image...** does the same: the image holds DOS, the game and
+everything it has saved so far, and it boots and starts the game on its own. Geardox has to be able to read all of the
+disk's files, and the image can't go inside a folder that is a disk. Its size is fixed: for more free space in it, set
+`free_mb` in the game's `.gdox` before you save it.
+
 ## Installing a Game from Floppies or a CD
 
 You can install a game onto the built-in disk, as on a real PC:
