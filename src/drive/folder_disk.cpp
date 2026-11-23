@@ -40,6 +40,13 @@ static const char k_folder_disk_saves[] = "Saves";
 static const char k_folder_disk_conflicts[] = "Conflicts";
 static const char k_folder_disk_base[] = ".base";
 
+struct FolderDisk_Write
+{
+    size_t file;
+    FolderDisk_Item item;
+    std::string target;
+};
+
 class FolderDiskView : public MediaFile
 {
 public:
@@ -141,12 +148,17 @@ s64 FolderDiskView::Read(void* buffer, u64 size)
         if ((skip == 0) && ((size - done) >= k_folder_disk_sector))
         {
             u32 count = (u32)MIN((size - done) / k_folder_disk_sector, (u64)256);
-            m_disk->ReadVolume(*m_volume, lba, out + done, count, m_changes);
+
+            if (!m_disk->ReadVolume(*m_volume, lba, out + done, count, m_changes))
+                return -1;
+
             done += (u64)count * k_folder_disk_sector;
             continue;
         }
 
-        m_disk->ReadVolume(*m_volume, lba, sector, 1, m_changes);
+        if (!m_disk->ReadVolume(*m_volume, lba, sector, 1, m_changes))
+            return -1;
+
         u32 chunk = (u32)MIN((u64)(k_folder_disk_sector - skip), size - done);
         memcpy(out + done, sector + skip, chunk);
         done += chunk;
@@ -531,8 +543,7 @@ bool FolderDisk::Read(u32 lba, u8* buffer, u32 count)
     if (!IsValidPointer(m_tree) || ((u64)lba + count > m_volume.blocks))
         return false;
 
-    ReadVolume(m_volume, lba, buffer, count, true);
-    return true;
+    return ReadVolume(m_volume, lba, buffer, count, true);
 }
 
 bool FolderDisk::Store(u32 lba, const u8* buffer)
@@ -567,8 +578,9 @@ bool FolderDisk::Sync()
     return !IsValidPointer(m_changes) || m_changes->Flush();
 }
 
-void FolderDisk::ReadVolume(const FatImage_Volume& volume, u32 lba, u8* buffer, u32 count, bool changes)
+bool FolderDisk::ReadVolume(const FatImage_Volume& volume, u32 lba, u8* buffer, u32 count, bool changes)
 {
+    bool ok = true;
     memset(buffer, 0, (size_t)count * k_folder_disk_sector);
     const std::vector<FatImage_Run>& runs = volume.runs;
     u32 end = lba + count;
@@ -600,18 +612,28 @@ void FolderDisk::ReadVolume(const FatImage_Volume& volume, u32 lba, u8* buffer, 
 
         if (run.entry < 0)
             memcpy(out, volume.metadata.data() + offset, size);
-        else if (IsValidPointer(m_tree))
-            m_tree->ReadEntryAt((u32)run.entry, offset, out, size);
+        else if (IsValidPointer(m_tree) && !m_tree->ReadEntryAt((u32)run.entry, offset, out, size))
+        {
+            for (u32 j = first; j < last; j++)
+            {
+                u32 skip = (j - first) * k_folder_disk_sector;
+
+                if (!changes || (m_slots.find(j) == m_slots.end()))
+                    ok = m_tree->ReadEntryAt((u32)run.entry, offset + skip, out + skip, k_folder_disk_sector) && ok;
+            }
+        }
     }
 
     if (!changes || !IsValidPointer(m_changes))
-        return;
+        return ok;
 
     for (std::map<u32, u32>::const_iterator it = m_slots.lower_bound(lba); (it != m_slots.end()) && (it->first < end); ++it)
     {
-        m_changes->ReadAt(((u64)it->second * k_folder_disk_slot) + 4,
-            buffer + ((size_t)(it->first - lba) * k_folder_disk_sector), k_folder_disk_sector);
+        ok = m_changes->ReadAt(((u64)it->second * k_folder_disk_slot) + 4,
+            buffer + ((size_t)(it->first - lba) * k_folder_disk_sector), k_folder_disk_sector) && ok;
     }
+
+    return ok;
 }
 
 bool FolderDisk::Fail(const char* format, ...)
@@ -842,7 +864,9 @@ bool FolderDisk::SaveLayout(const std::vector<FatImage_Extent>& extents, u64 ses
         raw.resize(offset + 8 + ((size_t)count * k_folder_disk_sector));
         write_u32_le(raw.data() + offset, extents[i].first);
         write_u32_le(raw.data() + offset + 4, count);
-        ReadVolume(m_volume, extents[i].first, raw.data() + offset + 8, count, true);
+
+        if (!ReadVolume(m_volume, extents[i].first, raw.data() + offset + 8, count, true))
+            return false;
     }
 
     mz_ulong packed_size = mz_compressBound((mz_ulong)raw.size());
@@ -908,6 +932,7 @@ bool FolderDisk::WriteBack(u64 session, u64 write, FolderDisk_Result* result)
     std::vector<std::vector<std::string> > deleted(m_layers.size());
     std::vector<bool> lists(m_layers.size(), false);
     std::set<std::string> present;
+    std::vector<FolderDisk_Write> writes;
     size_t next = 0;
 
     for (size_t l = 0; l < m_layers.size(); l++)
@@ -965,12 +990,39 @@ bool FolderDisk::WriteBack(u64 session, u64 write, FolderDisk_Result* result)
             continue;
         }
 
-        std::string target = m_quarantine ? path_join(GetConflictsFolder(), path_forward_slashes(file.path)) :
+        FolderDisk_Write copy;
+        copy.file = i;
+        copy.item = item;
+        copy.target = m_quarantine ? path_join(GetConflictsFolder(), path_forward_slashes(file.path)) :
             path_join(m_layers[item.layer].folder, item.host);
+        writes.push_back(copy);
+
+        if (!MediaFile::MakeDirectories(path_directory(copy.target).c_str()) ||
+            !parser.CopyOut(file, (copy.target + ".tmp").c_str()))
+        {
+            result->failed++;
+            result->notes.push_back("Unable to write " + copy.target);
+        }
+    }
+
+    m_tree->CloseSources();
+
+    if (result->failed != 0)
+    {
+        for (size_t i = 0; i < writes.size(); i++)
+            MediaFile::RemoveFile((writes[i].target + ".tmp").c_str());
+
+        return false;
+    }
+
+    for (size_t i = 0; i < writes.size(); i++)
+    {
+        const FatImage_File& file = files[writes[i].file];
+        const FolderDisk_Item& item = writes[i].item;
+        const std::string& target = writes[i].target;
         std::string temporary = target + ".tmp";
 
-        if (!MediaFile::MakeDirectories(path_directory(target).c_str()) || !parser.CopyOut(file, temporary.c_str()) ||
-            !MediaFile::MoveIntoPlace(temporary.c_str(), target.c_str()))
+        if (!MediaFile::MoveIntoPlace(temporary.c_str(), target.c_str()))
         {
             MediaFile::RemoveFile(temporary.c_str());
             result->failed++;
@@ -1002,6 +1054,9 @@ bool FolderDisk::WriteBack(u64 session, u64 write, FolderDisk_Result* result)
             }
         }
     }
+
+    if (result->failed != 0)
+        return false;
 
     for (std::map<std::string, FolderDisk_Item>::reverse_iterator it = m_items.rbegin(); !m_quarantine &&
         (it != m_items.rend()); ++it)

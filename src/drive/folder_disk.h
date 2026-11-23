@@ -91,7 +91,7 @@ public:
     bool Read(u32 lba, u8* buffer, u32 count);
     bool Store(u32 lba, const u8* buffer);
     bool Sync();
-    void ReadVolume(const FatImage_Volume& volume, u32 lba, u8* buffer, u32 count, bool changes);
+    bool ReadVolume(const FatImage_Volume& volume, u32 lba, u8* buffer, u32 count, bool changes);
 
 private:
     bool Fail(const char* format, ...);

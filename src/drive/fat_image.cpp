@@ -311,7 +311,7 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
         while (ok && (left != 0))
         {
             u32 chunk = (u32)MIN(left, (u64)buffer.size());
-            ok = (ReadEntryAt((u32)run.entry, position, buffer.data(), chunk) == chunk) &&
+            ok = ReadEntryAt((u32)run.entry, position, buffer.data(), chunk) &&
                 output->WriteAt(offset + position, buffer.data(), chunk);
             position += chunk;
             left -= chunk;
@@ -1051,23 +1051,23 @@ bool FatImage::ReadEntry(const FatImage_Entry& entry, std::string* data)
     return ok;
 }
 
-u32 FatImage::ReadEntryAt(u32 index, u64 offset, u8* buffer, u32 size)
+bool FatImage::ReadEntryAt(u32 index, u64 offset, u8* buffer, u32 size)
 {
     const FatImage_Entry& entry = m_entries[index];
 
     if (offset >= entry.size)
-        return 0;
+        return true;
 
     u32 count = (u32)MIN((u64)size, entry.size - offset);
 
     if (entry.memory >= 0)
     {
         memcpy(buffer, m_memory[entry.memory].data() + offset, count);
-        return count;
+        return true;
     }
 
     MediaFile* file = OpenSource(index);
-    return (IsValidPointer(file) && file->ReadAt(offset, buffer, count)) ? count : 0;
+    return IsValidPointer(file) && file->ReadAt(offset, buffer, count);
 }
 
 MediaFile* FatImage::OpenSource(u32 index)

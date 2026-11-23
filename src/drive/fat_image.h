@@ -137,8 +137,9 @@ public:
     u32 GetBaseIndex() const;
     const std::string& GetBase(u32 index) const;
     void ListEntries(std::vector<FatImage_Listed>* listed) const;
-    u32 ReadEntryAt(u32 index, u64 offset, u8* buffer, u32 size);
+    bool ReadEntryAt(u32 index, u64 offset, u8* buffer, u32 size);
     bool Read(MediaFile* file);
+    void CloseSources();
     static void SortRuns(std::vector<FatImage_Run>* runs);
     void CloseRead();
     const std::vector<FatImage_File>& GetFiles() const;
@@ -148,7 +149,6 @@ public:
 
 private:
     void Clear();
-    void CloseSources();
     MediaFile* OpenSource(u32 index);
     bool WalkFolder(const std::string& path, u32 directory, int depth);
     u32 AddEntry(u32 directory, const std::string& name, bool is_directory);
