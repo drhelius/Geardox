@@ -244,6 +244,7 @@ static bool disk_load(const char* path);
 static void game_message(const GameDisk_Message& message);
 static bool game_open(const char* path, bool* game);
 static void game_end(void);
+static bool game_rebuild(void);
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_playlist(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_floppy_images(const char* path, std::vector<DiskSetImage>& images);
@@ -525,7 +526,11 @@ void retro_reset(void)
     else
         core->SetBootDevice(boot_device);
 
-    core->ResetMedia();
+    if (game_active && game_rebuild())
+        core->PowerOn();
+    else
+        core->ResetMedia();
+
     report_machine();
     clear_input_state();
 }
@@ -3544,6 +3549,43 @@ static bool game_open(const char* path, bool* game)
     core->SetGameTarget(game_target);
     core->SetBootDevice(info.boot_floppy ? GDOX_BOOT_DEVICE_FLOPPY_0 : GDOX_BOOT_DEVICE_HARD_DISK);
     update_core_options_display();
+    return true;
+}
+
+static bool game_rebuild(void)
+{
+    GDOX_Machine_Settings settings;
+    game_disk.SetProgram(game_program);
+    game_disk.GetGameSettings(machine_settings, &settings);
+    core->SetGameSettings(settings, game_disk.GetName());
+
+    if (!game_disk.NeedsRebuild(core->GetPendingMachineConfig()))
+        return false;
+
+    core->PowerOff();
+    core->DetachHardDisk(0);
+
+    if (!game_disk.Finish())
+        log_cb(RETRO_LOG_ERROR, "The game's changes weren't written back, the next load tries again\n");
+
+    if (!game_disk.Prepare(core->GetPendingMachineConfig()) ||
+        !core->AttachHardDisk(0, game_disk.GetImagePath(), false, ""))
+    {
+        static char message[1024];
+        snprintf(message, sizeof(message), "Unable to build the game's disk again: %s", game_disk.GetError());
+        show_message(message, 3, RETRO_LOG_ERROR);
+        game_end();
+        return true;
+    }
+
+    std::vector<GameDisk_Message> messages;
+    game_disk.GetMessages(&messages);
+
+    for (size_t i = 0; i < messages.size(); i++)
+        game_message(messages[i]);
+
+    log_cb(RETRO_LOG_INFO, "Game %s: disk %s again for the reset\n", game_disk.GetName(),
+        game_disk.WasBuilt() ? "built" : "reused");
     return true;
 }
 

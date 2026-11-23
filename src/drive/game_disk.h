@@ -224,6 +224,7 @@ private:
     bool m_glide_loaded;
     bool m_voodoo_release;
     int m_program;
+    int m_built_program;
     bool m_voodoo_program;
     bool m_voodoo_driver;
     bool m_voodoo_exe;

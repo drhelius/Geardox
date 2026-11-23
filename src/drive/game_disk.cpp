@@ -343,6 +343,7 @@ GameDisk::GameDisk()
     m_glide_loaded = false;
     m_voodoo_release = false;
     m_program = -1;
+    m_built_program = GDOX_GAME_PROGRAM_GAME;
     m_voodoo_program = false;
     m_voodoo_driver = false;
     m_voodoo_exe = false;
@@ -749,6 +750,7 @@ void GameDisk::Close()
     m_glide_loaded = false;
     m_voodoo_release = false;
     m_program = -1;
+    m_built_program = GDOX_GAME_PROGRAM_GAME;
     m_voodoo_program = false;
     m_voodoo_driver = false;
     m_voodoo_exe = false;
@@ -911,10 +913,6 @@ bool GameDisk::UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine)
         m_voodoo_note.kind = GAME_DISK_MESSAGE_VOODOO_DRIVER;
         m_voodoo_note.title = program_name(info.exe) + " needs the 3dfx Voodoo driver";
     }
-
-    if (!m_voodoo_note.title.empty())
-        Log("%s: %s%s%s", info.name.c_str(), m_voodoo_note.title.c_str(), m_voodoo_note.detail.empty() ? "" : ", ",
-            m_voodoo_note.detail.c_str());
 
     return voodoo;
 }
@@ -1098,6 +1096,10 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
 
     if (!Assemble(&image, machine, &m_system))
         return false;
+
+    if (!m_voodoo_note.title.empty())
+        Log("%s: %s%s%s", GetName(), m_voodoo_note.title.c_str(), m_voodoo_note.detail.empty() ? "" : ", ",
+            m_voodoo_note.detail.c_str());
 
     m_left_out = image.GetLeftOut();
     u8 wanted = m_write_overlay ? k_game_disk_mode_overlay : k_game_disk_mode_folder;
@@ -1470,7 +1472,9 @@ bool GameDisk::UsesVoodooExe() const
 
 bool GameDisk::NeedsRebuild(const GDOX_Machine_Config& machine) const
 {
-    return m_has_machine && ((machine.voodoo != 0) != (m_machine.voodoo != 0));
+    return m_has_machine && ((GetProgram() != m_built_program) || ((machine.gus != 0) != (m_machine.gus != 0)) ||
+        ((machine.voodoo != 0) != (m_machine.voodoo != 0)) || (GetConfigSys(machine) != m_system.config_sys) ||
+        (GetBatch(machine) != m_system.autoexec));
 }
 
 bool GameDisk::IsFolderReadOnly() const
@@ -1684,6 +1688,7 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
     if (machine.gus && LoadUltraSound() && !image->AddUltraSound((const u8*)m_ultrasnd.zip.data(), m_ultrasnd.zip.size()))
         return Fail("Unable to add %s to the game's disk", m_ultrasnd.name.c_str());
 
+    m_built_program = GetProgram();
     m_voodoo_exe = UseVoodooExe(image, machine);
 
     if (machine.voodoo)
