@@ -52,6 +52,7 @@ void DMA::Reset()
 {
     memset(&m_state, 0, sizeof(m_state));
     m_state.active_channel = -1;
+    m_state.ahead_frame_clocks = 1;
     m_state.ahead_next = GDOX_NO_EVENT;
     m_chips[0].Reset();
     m_chips[1].Reset();
