@@ -246,6 +246,7 @@ static void game_message(const GameDisk_Message& message);
 static bool game_open(const char* path, bool* game);
 static void game_end(void);
 static bool game_rebuild(void);
+static void game_attach_hard_disks(bool folders_only);
 static std::string get_temp_path(void);
 static void log_write_back(void);
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images);
@@ -3497,15 +3498,7 @@ static bool game_open(const char* path, bool* game)
     game_active = true;
     log_cb(RETRO_LOG_INFO, "Game %s on %s: %s\n", game_disk.GetName(), game_disk.GetSystemName(), game_disk.GetFolder());
 
-    for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
-    {
-        FolderDisk* folder = game_disk.TakeHardDisk(id);
-        bool attached = IsValidPointer(folder) ? core->AttachHardDisk(id, folder) :
-            ((game_disk.GetHardDisk(id)[0] == 0) || core->AttachHardDisk(id, game_disk.GetHardDisk(id), false, ""));
-
-        if (!attached)
-            log_cb(RETRO_LOG_ERROR, "Unable to attach the game's hard disk %s\n", game_disk.GetHardDisk(id));
-    }
+    game_attach_hard_disks(false);
 
     for (int drive = 0; drive < 2; drive++)
     {
@@ -3552,6 +3545,19 @@ static bool game_open(const char* path, bool* game)
     return true;
 }
 
+static void game_attach_hard_disks(bool folders_only)
+{
+    for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
+    {
+        FolderDisk* folder = game_disk.TakeHardDisk(id);
+        bool attached = IsValidPointer(folder) ? core->AttachHardDisk(id, folder) : (folders_only ||
+            (game_disk.GetHardDisk(id)[0] == 0) || core->AttachHardDisk(id, game_disk.GetHardDisk(id), false, ""));
+
+        if (!attached)
+            log_cb(RETRO_LOG_ERROR, "Unable to attach the game's hard disk %s\n", game_disk.GetHardDisk(id));
+    }
+}
+
 static bool game_rebuild(void)
 {
     GDOX_Machine_Settings settings;
@@ -3563,7 +3569,13 @@ static bool game_rebuild(void)
         return false;
 
     core->PowerOff();
-    core->DetachHardDisk(0);
+
+    for (int id = 0; id < GDOX_MAX_HARD_DISKS; id++)
+    {
+        if (IsValidPointer(core->GetFolderDisk(id)))
+            core->DetachHardDisk(id);
+    }
+
     log_write_back();
 
     if (!game_disk.Prepare(core->GetPendingMachineConfig()) || !core->AttachHardDisk(0, game_disk.TakeDisk()))
@@ -3575,6 +3587,7 @@ static bool game_rebuild(void)
         return true;
     }
 
+    game_attach_hard_disks(true);
     std::vector<GameDisk_Message> messages;
     game_disk.GetMessages(&messages);
 
