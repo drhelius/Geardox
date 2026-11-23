@@ -1260,12 +1260,13 @@ static void notify_write_back(void)
 
     if (!r.done)
     {
-        if (r.refused)
+        if (r.refused || (r.failed > 0))
         {
             for (size_t i = 0; i < r.notes.size(); i++)
                 detail += (i > 0 ? "\n" : "") + r.notes[i];
 
-            gui_notify(gui_NotificationError, ICON_MD_SAVE, "The game's changes weren't written back", detail.c_str());
+            gui_notify(gui_NotificationError, ICON_MD_SAVE, r.refused ? "The game's changes weren't written back" :
+                "The game's changes are kept for the next time it opens", detail.c_str());
         }
 
         return;

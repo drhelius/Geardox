@@ -101,8 +101,9 @@ void gui_game_menu(void)
     menu_files(open);
     ImGui::Separator();
 
-    if (ImGui::MenuItem("Last Save Report...", NULL, false, emu_game_get_last_write_back().done ||
-        emu_game_get_last_write_back().refused))
+    const FolderDisk_Result& last = emu_game_get_last_write_back();
+
+    if (ImGui::MenuItem("Last Save Report...", NULL, false, last.done || last.refused || (last.failed != 0)))
         open_write_back = true;
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
