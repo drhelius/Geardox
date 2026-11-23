@@ -143,7 +143,7 @@ public:
     static void SortRuns(std::vector<FatImage_Run>* runs);
     void CloseRead();
     const std::vector<FatImage_File>& GetFiles() const;
-    void GetSectorMap(std::vector<FatImage_Extent>* extents) const;
+    void GetSectorMap(std::vector<FatImage_Extent>* extents, bool content_only = false) const;
     const char* GetReadError() const;
     bool CopyOut(const FatImage_File& file, const char* path);
 
@@ -167,7 +167,7 @@ private:
     void ListDirectory(u32 directory, const std::string& dos_path, const std::string& host_path,
         std::vector<FatImage_Listed>* listed) const;
     bool ReadDirectory(u32 cluster, const std::string& path, int depth, std::vector<u8>* used);
-    bool ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* used);
+    bool ReadChain(u32 first, u32 count, std::vector<u32>* chain, std::vector<u8>* used);
     void Finish();
     void AssignNames(u32 directory);
     void LimitPaths(u32 directory, const std::string& path);

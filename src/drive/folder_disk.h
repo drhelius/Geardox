@@ -61,6 +61,12 @@ struct FolderDisk_Item
     std::string children;
 };
 
+struct FolderDisk_Rest
+{
+    u64 offset;
+    u32 skip;
+};
+
 class FolderDisk : public HardDiskSource
 {
 public:
@@ -75,7 +81,7 @@ public:
     bool Open(FatImage* tree, const std::vector<FolderDisk_Layer>& layers, const std::string& data_folder,
         u64 free_size, const std::string& path);
     void SetTemporary(const std::string& folder);
-    bool Close(u64 session, u64 write, FolderDisk_Result* result);
+    bool Close(u64 session, u64 write, bool resumed, FolderDisk_Result* result);
     void Discard();
     void SetQuarantine();
     bool IsQuarantined() const;
@@ -100,7 +106,8 @@ private:
     void Clear();
     void AddItems();
     bool LoadLayout(bool strict);
-    bool SaveLayout(const std::vector<FatImage_Extent>& extents, u64 session, u64 write);
+    bool SaveLayout(const FatImage& disk, u64 session, u64 write);
+    void GetRest(const FatImage& disk, const std::vector<FatImage_Extent>& extents, bool old, std::vector<FatImage_Extent>* rest);
     bool LoadChanges();
     bool WriteBack(u64 session, u64 write, FolderDisk_Result* result);
     bool Route(const std::string& path, std::map<std::string, FolderDisk_Item>* items, FolderDisk_Item* item) const;
@@ -119,10 +126,12 @@ private:
     std::map<std::string, FolderDisk_Item> m_items;
     MediaFile* m_changes;
     std::map<u32, u32> m_slots;
+    std::map<u32, FolderDisk_Rest> m_rest;
     u64 m_end_session;
     u64 m_end_write;
     bool m_locked;
     bool m_quarantine;
+    bool m_resumed;
     FolderDisk_Result m_recovery;
     std::string m_error;
 };

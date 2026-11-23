@@ -124,6 +124,7 @@ HardDiskImage::HardDiskImage()
     m_last_write = 0;
     m_previous_session = 0;
     m_previous_write = 0;
+    m_resumed = false;
     m_journal_base = 0;
     m_journal_start = 0;
     m_journal_count = 0;
@@ -261,6 +262,7 @@ void HardDiskImage::Close()
     m_last_write = 0;
     m_previous_session = 0;
     m_previous_write = 0;
+    m_resumed = false;
     m_journal_base = 0;
     ClearJournal();
     std::vector<HardDiskJournalEntry>().swap(m_redo);
@@ -419,7 +421,9 @@ bool HardDiskImage::Restore(u64 session, u64 write)
     if (!IsOpen())
         return false;
 
-    if ((m_previous_session != 0) && (session == m_previous_session) && (write == m_previous_write))
+    bool previous = (m_previous_session != 0) && (session == m_previous_session) && (write == m_previous_write);
+
+    if (previous)
     {
         session = m_session;
         write = 0;
@@ -428,10 +432,14 @@ bool HardDiskImage::Restore(u64 session, u64 write)
     if (session != m_session)
         return false;
 
-    if (write == m_last_write)
-        return true;
+    bool restored = (write == m_last_write) || ((write < m_last_write) ? Undo(write) : Redo(write));
+    m_resumed = m_resumed || (restored && previous);
+    return restored;
+}
 
-    return (write < m_last_write) ? Undo(write) : Redo(write);
+bool HardDiskImage::IsResumed() const
+{
+    return m_resumed;
 }
 
 void HardDiskImage::SetPrevious(u64 session, u64 write)

@@ -1186,7 +1186,7 @@ const std::vector<FatImage_File>& FatImage::GetFiles() const
     return m_files;
 }
 
-void FatImage::GetSectorMap(std::vector<FatImage_Extent>* extents) const
+void FatImage::GetSectorMap(std::vector<FatImage_Extent>* extents, bool content_only) const
 {
     extents->clear();
 
@@ -1211,11 +1211,14 @@ void FatImage::GetSectorMap(std::vector<FatImage_Extent>* extents) const
     for (size_t i = 0; i < m_files.size(); i++)
     {
         u32 cluster = m_files[i].first_cluster;
+        u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
+        u32 limit = content_only && !m_files[i].directory ?
+            (u32)(((u64)m_files[i].size + cluster_size - 1) / cluster_size) : m_layout.clusters + 1;
         u32 guard = 0;
         FatImage_Extent extent = { 0, 0, (int)i };
         bool open = false;
 
-        while (cluster >= 2 && cluster < m_fat.size() && guard++ <= m_layout.clusters)
+        while (cluster >= 2 && cluster < m_fat.size() && guard++ < limit)
         {
             u32 first = partition + m_layout.first_data + (cluster - 2) * m_layout.cluster_sectors;
 
@@ -1270,7 +1273,7 @@ bool FatImage::ReadDirectory(u32 cluster, const std::string& path, int depth, st
     {
         std::vector<u32> chain;
 
-        if (!ReadChain(cluster, &chain, used))
+        if (!ReadChain(cluster, m_layout.clusters, &chain, used))
         {
             m_read_error += " in directory " + path;
             return false;
@@ -1335,14 +1338,15 @@ bool FatImage::ReadDirectory(u32 cluster, const std::string& path, int depth, st
         }
 
         std::vector<u32> chain;
+        u32 count = (u32)(((u64)file.size + cluster_size - 1) / cluster_size);
 
-        if ((file.first_cluster != 0) && !ReadChain(file.first_cluster, &chain, used))
+        if ((count != 0) && !ReadChain(file.first_cluster, count, &chain, used))
         {
             m_read_error += " in " + file.path;
             return false;
         }
 
-        if ((u64)chain.size() * cluster_size < file.size)
+        if (chain.size() < count)
         {
             m_read_error = "The size of " + file.path + " is past its clusters";
             return false;
@@ -1354,11 +1358,11 @@ bool FatImage::ReadDirectory(u32 cluster, const std::string& path, int depth, st
     return true;
 }
 
-bool FatImage::ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* used)
+bool FatImage::ReadChain(u32 first, u32 count, std::vector<u32>* chain, std::vector<u8>* used)
 {
     u32 cluster = first;
 
-    while (true)
+    while (chain->size() < count)
     {
         if ((cluster < 2) || (cluster >= m_layout.clusters + 2))
         {
@@ -1376,16 +1380,11 @@ bool FatImage::ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* us
 
             (*used)[cluster] = 1;
         }
-        else if (chain->size() > m_layout.clusters)
-        {
-            m_read_error = "A cluster chain loops";
-            return false;
-        }
 
         chain->push_back(cluster);
         u16 next = m_fat[cluster];
 
-        if (next >= 0xFFF8)
+        if ((next >= 0xFFF8) || (chain->size() == count))
             return true;
 
         if ((next == 0) || (next == 0xFFF7))
@@ -1396,13 +1395,17 @@ bool FatImage::ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* us
 
         cluster = next;
     }
+
+    return true;
 }
 
 bool FatImage::CopyOut(const FatImage_File& file, const char* path)
 {
     std::vector<u32> chain;
+    u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
+    u32 count = cluster_size != 0 ? (u32)(((u64)file.size + cluster_size - 1) / cluster_size) : 0;
 
-    if (!IsValidPointer(m_read) || file.directory || ((file.size != 0) && !ReadChain(file.first_cluster, &chain, NULL)))
+    if (!IsValidPointer(m_read) || file.directory || ((count != 0) && !ReadChain(file.first_cluster, count, &chain, NULL)))
         return false;
 
     MediaFile* output = MediaFile::OpenNewFile(path);
@@ -1410,7 +1413,6 @@ bool FatImage::CopyOut(const FatImage_File& file, const char* path)
     if (!IsValidPointer(output))
         return false;
 
-    u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
     std::vector<u8> buffer(cluster_size);
     u32 left = file.size;
     bool ok = true;

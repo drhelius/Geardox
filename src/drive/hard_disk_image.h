@@ -69,6 +69,7 @@ public:
     u64 GetLastWrite() const;
     bool Restore(u64 session, u64 write);
     void SetPrevious(u64 session, u64 write);
+    bool IsResumed() const;
     static bool Create(const char* path, u64 size, bool formatted);
     static bool IsImage(const char* path);
     static int GetImageId(const char* path);
@@ -113,6 +114,7 @@ private:
     u64 m_last_write;
     u64 m_previous_session;
     u64 m_previous_write;
+    bool m_resumed;
     u64 m_journal_base;
     std::vector<HardDiskJournalEntry> m_journal;
     u32 m_journal_start;

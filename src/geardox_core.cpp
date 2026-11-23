@@ -1348,7 +1348,7 @@ void GeardoxCore::CloseHardDisk(int id)
     if (IsValidPointer(m_folder_disks[id]))
     {
         image->Flush();
-        m_folder_disks[id]->Close(image->GetSession(), image->GetLastWrite(), m_hard_disk_results[id]);
+        m_folder_disks[id]->Close(image->GetSession(), image->GetLastWrite(), image->IsResumed(), m_hard_disk_results[id]);
     }
 
     m_ide->GetDisk(id)->Detach();
