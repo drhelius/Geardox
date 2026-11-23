@@ -89,6 +89,7 @@ static void update_machines(void);
 static void apply_game_settings(void);
 static std::string write_list(const std::vector<std::string>& paths, const char* name);
 static std::string relative_path(const std::string& path, const std::string& folder);
+static void merge_write_backs(void);
 static void notify_write_back(void);
 static void notify_message(const GameDisk_Message& message);
 
@@ -316,7 +317,7 @@ bool emu_game_close(void)
 
     game_cdrom = false;
 
-    last_result = disk.IsImage() ? FolderDisk_Result() : core->GetHardDiskResult(0);
+    merge_write_backs();
     last_result_name = disk.GetName();
     notify_write_back();
     disk.Close();
@@ -1341,6 +1342,31 @@ static std::string write_list(const std::vector<std::string>& paths, const char*
     return list;
 }
 
+static void merge_write_backs(void)
+{
+    std::vector<FolderDisk_Result> results;
+    emu_hard_disk_take_write_backs(&results);
+    last_result = FolderDisk_Result();
+    last_result.done = !results.empty();
+
+    for (size_t i = 0; i < results.size(); i++)
+    {
+        const FolderDisk_Result& r = results[i];
+        std::string name = r.path == disk.GetSourcePath() ? std::string() : path_filename(r.path) + ": ";
+        last_result.done = last_result.done && r.done;
+        last_result.refused = last_result.refused || r.refused;
+        last_result.kept = last_result.kept || r.kept;
+        last_result.written += r.written;
+        last_result.deleted += r.deleted;
+        last_result.directories += r.directories;
+        last_result.conflicts += r.conflicts;
+        last_result.failed += r.failed;
+
+        for (size_t n = 0; n < r.notes.size(); n++)
+            last_result.notes.push_back(name + r.notes[n]);
+    }
+}
+
 static void notify_write_back(void)
 {
     const FolderDisk_Result& r = last_result;
@@ -1353,8 +1379,8 @@ static void notify_write_back(void)
             for (size_t i = 0; i < r.notes.size(); i++)
                 detail += (i > 0 ? "\n" : "") + r.notes[i];
 
-            gui_notify(gui_NotificationError, ICON_MD_SAVE, r.refused ? "The game's changes weren't written back" :
-                "The game's changes are kept for the next time it opens", detail.c_str());
+            gui_notify(gui_NotificationError, ICON_MD_SAVE, r.kept ? "The game's changes are kept for the next time it opens" :
+                "The game's changes weren't written back", detail.c_str());
         }
 
         return;

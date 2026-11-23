@@ -5719,6 +5719,10 @@ json DebugAdapter::GetGameInfo()
 
     const FolderDisk_Result& last = emu_game_get_last_write_back();
     json notes = json::array();
+    bool mismatch = false;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        mismatch = mismatch || (IsValidPointer(m_core->GetFolderDisk(i)) && m_core->GetFolderDisk(i)->IsQuarantined());
 
     for (size_t i = 0; i < last.notes.size(); i++)
         notes.push_back(last.notes[i]);
@@ -5756,12 +5760,13 @@ json DebugAdapter::GetGameInfo()
         {"save_folder", disk->GetFolder()},
         {"recovered", disk->GetRecovery().done},
         {"refused", disk->GetRecovery().refused},
+        {"kept", disk->GetRecovery().kept},
         {"left_out", disk->GetLeftOut()},
         {"saves_to", disk->IsImage() ? (disk->GetWorkingPath().empty() ? "image" : "save_folder") :
             (disk->IsWritingToSaves() ? "save_folder" : "game_folder")},
         {"saves", disk->GetSavesPath()},
-        {"state_mismatch", IsValidPointer(m_core->GetFolderDisk(0)) && m_core->GetFolderDisk(0)->IsQuarantined()},
-        {"last_write_back", {{"done", last.done}, {"refused", last.refused}, {"written", last.written},
+        {"state_mismatch", mismatch},
+        {"last_write_back", {{"done", last.done}, {"refused", last.refused}, {"kept", last.kept}, {"written", last.written},
             {"deleted", last.deleted}, {"folders", last.directories}, {"conflicts", last.conflicts},
             {"failed", last.failed}, {"notes", notes}}}
     };

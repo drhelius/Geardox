@@ -622,10 +622,11 @@ static void popup_write_back(void)
     ImGui::TextColored(cyan, "%s", emu_game_get_last_write_back_name());
 
     if (r.refused)
-        ImGui::TextColored(red, "Nothing was saved: the game's disk didn't add up. Its changes are kept aside.");
-    else
-        ImGui::Text("%u files saved, %u deleted, %u folders, %u conflicts, %u not saved", r.written, r.deleted,
-            r.directories, r.conflicts, r.failed);
+        ImGui::TextColored(red, "%s", r.kept ? "A disk didn't add up. Its changes are kept for the next time the game opens." :
+            "A disk didn't add up. Its changes are kept aside.");
+
+    ImGui::Text("%u files saved, %u deleted, %u folders, %u conflicts, %u not saved", r.written, r.deleted,
+        r.directories, r.conflicts, r.failed);
 
     if (!r.notes.empty())
     {

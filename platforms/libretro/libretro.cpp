@@ -738,7 +738,10 @@ bool retro_unserialize(const void *data, size_t size)
         load_input_state(buffer + savestate_size);
         core->GetKeyMap()->Resync();
         bool changed = core->GetHardDiskStateChanges() != 0;
-        bool mismatch = IsValidPointer(core->GetFolderDisk(0)) && core->GetFolderDisk(0)->IsQuarantined();
+        bool mismatch = false;
+
+        for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+            mismatch = mismatch || (IS_SET_BIT(core->GetHardDiskStateChanges(), i) && IsValidPointer(core->GetFolderDisk(i)));
 
         if (changed && !hard_disk_state_warned)
         {
@@ -940,6 +943,7 @@ static void unload_content(void)
         hard_disk_working_path[i].clear();
     }
 
+    log_write_back();
     hard_disk_idle_flush.Reset();
     hard_disk_state_warned = false;
     hard_disk_image_attached = false;
@@ -3609,22 +3613,28 @@ static void game_end(void)
 
 static void log_write_back(void)
 {
-    const FolderDisk_Result& r = core->GetHardDiskResult(0);
+    u32 closed = core->TakeClosedHardDisks();
 
-    if (game_disk.IsImage())
-        return;
+    for (int id = 0; id < GDOX_MAX_HARD_DISKS; id++)
+    {
+        const FolderDisk_Result& r = core->GetHardDiskResult(id);
 
-    if (!r.done && !r.refused && (r.failed == 0))
-        return;
+        if (IS_NOT_SET_BIT(closed, id) || (!r.done && !r.refused && (r.failed == 0)))
+            continue;
 
-    log_cb(r.done ? RETRO_LOG_INFO : RETRO_LOG_ERROR, "Write-back of %s: %u written, %u deleted, %u folders, %u conflicts, "
-        "%u failed\n", game_disk.GetName(), r.written, r.deleted, r.directories, r.conflicts, r.failed);
+        bool game = game_disk.IsOpen() && (r.path == game_disk.GetSourcePath());
+        std::string name = game ? std::string(game_disk.GetName()) : path_filename(r.path);
 
-    for (size_t i = 0; i < r.notes.size(); i++)
-        log_cb(RETRO_LOG_WARN, "%s\n", r.notes[i].c_str());
+        log_cb(r.done ? RETRO_LOG_INFO : RETRO_LOG_ERROR, "Write-back of %s: %u written, %u deleted, %u folders, "
+            "%u conflicts, %u failed\n", name.c_str(), r.written, r.deleted, r.directories, r.conflicts, r.failed);
 
-    if (!r.done)
-        log_cb(RETRO_LOG_ERROR, "The game's changes weren't written back, the next load tries again\n");
+        for (size_t i = 0; i < r.notes.size(); i++)
+            log_cb(RETRO_LOG_WARN, "%s\n", r.notes[i].c_str());
+
+        if (!r.done)
+            log_cb(RETRO_LOG_ERROR, "The changes of %s weren't written back, %s\n", name.c_str(),
+                r.kept ? "the next load tries again" : "they're kept as Disk/Changes.refused");
+    }
 }
 
 static std::string get_temp_path(void)

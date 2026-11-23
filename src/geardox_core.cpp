@@ -125,6 +125,7 @@ GeardoxCore::GeardoxCore()
     }
 
     m_hard_disk_state_changes = 0;
+    m_closed_hard_disks = 0;
     m_boot_device = GDOX_BOOT_DEVICE_AUTO;
     m_ram_size_locked = false;
     m_boot_menu = false;
@@ -1323,6 +1324,13 @@ const FolderDisk_Result& GeardoxCore::GetHardDiskResult(int id) const
     return *m_hard_disk_results[(id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? id : 0];
 }
 
+u32 GeardoxCore::TakeClosedHardDisks()
+{
+    u32 closed = m_closed_hard_disks;
+    m_closed_hard_disks = 0;
+    return closed;
+}
+
 bool GeardoxCore::AttachFolderDisk(int id, FolderDisk* disk)
 {
     if (!m_ide->GetDisk(id)->Attach(disk, disk->GetPath()))
@@ -1349,6 +1357,7 @@ void GeardoxCore::CloseHardDisk(int id)
     {
         image->Flush();
         m_folder_disks[id]->Close(image->GetSession(), image->GetLastWrite(), image->IsResumed(), m_hard_disk_results[id]);
+        m_closed_hard_disks = SET_BIT(m_closed_hard_disks, id);
     }
 
     m_ide->GetDisk(id)->Detach();

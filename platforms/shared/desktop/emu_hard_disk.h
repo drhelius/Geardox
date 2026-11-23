@@ -21,6 +21,7 @@
 #define EMU_HARD_DISK_H
 
 #include <string>
+#include <vector>
 #include "geardox.h"
 
 #ifdef EMU_HARD_DISK_IMPORT
@@ -51,11 +52,14 @@ struct Emu_HardDiskSource
 {
     char path[GDOX_MAX_PATH];
     char error[GDOX_MAX_PATH];
+    const char* recovery;
+    bool recovery_refused;
     u32 left_out;
     bool ready;
 };
 
 class FolderDisk;
+struct FolderDisk_Result;
 
 EXTERN bool emu_hard_disk_is_image(const char* path);
 EXTERN int emu_hard_disk_get_image_id(const char* path);
@@ -92,6 +96,7 @@ EXTERN const char* emu_hard_disk_get_content_path(void);
 EXTERN const char* emu_hard_disk_get_content_name(void);
 EXTERN void emu_hard_disk_state_loaded(bool rewind);
 EXTERN u32 emu_hard_disk_take_state_changes(void);
+EXTERN void emu_hard_disk_take_write_backs(std::vector<FolderDisk_Result>* results);
 
 #undef EMU_HARD_DISK_IMPORT
 #undef EXTERN

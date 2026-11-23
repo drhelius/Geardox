@@ -147,6 +147,8 @@ void emu_hard_disk_prepare_source(const char* path)
     prepared_disk = FolderDisk::OpenSource(prepared_source.path, emu_get_save_folder(NULL).c_str(), config_temp_path,
         &error);
     strncpy_fit(prepared_source.error, error.c_str(), sizeof(prepared_source.error));
+    prepared_source.recovery = IsValidPointer(prepared_disk) ? FolderDisk::DescribeRecovery(prepared_disk->GetRecovery()) : NULL;
+    prepared_source.recovery_refused = IsValidPointer(prepared_disk) && prepared_disk->GetRecovery().refused;
     prepared_source.left_out = IsValidPointer(prepared_disk) ? prepared_disk->GetLeftOut() : 0;
     prepared_source.ready = IsValidPointer(prepared_disk);
 }
@@ -584,6 +586,18 @@ u32 emu_hard_disk_take_state_changes(void)
     u32 changes = state_changes;
     state_changes = 0;
     return changes;
+}
+
+void emu_hard_disk_take_write_backs(std::vector<FolderDisk_Result>* results)
+{
+    u32 closed = emu_get_core()->TakeClosedHardDisks();
+    results->clear();
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        if (IS_SET_BIT(closed, i))
+            results->push_back(emu_get_core()->GetHardDiskResult(i));
+    }
 }
 
 static bool valid_id(int id)

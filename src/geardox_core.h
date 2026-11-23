@@ -127,6 +127,7 @@ public:
     bool AttachHardDisk(int id, HardDiskImage* image, bool write_protected, const char* working_path);
     FolderDisk* GetFolderDisk(int id);
     const FolderDisk_Result& GetHardDiskResult(int id) const;
+    u32 TakeClosedHardDisks();
     void DetachHardDisk(int id);
     bool FlushHardDisks();
     bool IsHardDiskPending(int id) const;
@@ -331,6 +332,7 @@ private:
     HardDiskImage* m_pending_images[GDOX_MAX_HARD_DISKS];
     FolderDisk_Result* m_hard_disk_results[GDOX_MAX_HARD_DISKS];
     u32 m_hard_disk_state_changes;
+    u32 m_closed_hard_disks;
     GDOX_Boot_Device m_boot_device;
     bool m_ram_size_locked;
     bool m_boot_menu;

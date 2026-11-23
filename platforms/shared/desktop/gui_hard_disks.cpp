@@ -85,6 +85,7 @@ static void draw_confirm_popup(void);
 static void draw_quit_popup(void);
 static bool flush_disks(void);
 static void notify_attached(int id, const char* path, const char* message);
+static void notify_write_back(const FolderDisk_Result& result);
 static void attach_error(const char* path);
 
 void gui_hard_disks_menu(void)
@@ -141,6 +142,12 @@ void gui_hard_disks_update(void)
 
     if (emu_hard_disk_take_fallback_error(&builtin_error))
         gui_notify(gui_NotificationError, NULL, "FreeDOS booted instead of the default disk", builtin_error.c_str());
+
+    std::vector<FolderDisk_Result> results;
+    emu_hard_disk_take_write_backs(&results);
+
+    for (size_t i = 0; i < results.size(); i++)
+        notify_write_back(results[i]);
 
     u32 changes = emu_hard_disk_take_state_changes();
 
@@ -215,6 +222,10 @@ static void source_done(void)
     }
 
     notify_attached(source_id, source->path, "Hard disk attached");
+
+    if (IsValidPointer(source->recovery))
+        gui_notify(source->recovery_refused ? gui_NotificationError : gui_NotificationInfo, ICON_MD_STORAGE, source->recovery,
+            path_filename(source->path).c_str());
 
     if (source->left_out != 0)
     {
@@ -775,4 +786,24 @@ static void notify_attached(int id, const char* path, const char* message)
     char text[64];
     snprintf(text, sizeof(text), "%s as %s", message, k_slot_names[id]);
     gui_notify(gui_NotificationSuccess, ICON_MD_STORAGE, text, info.pending ? "At the next reset" : get_filename(path));
+}
+
+static void notify_write_back(const FolderDisk_Result& result)
+{
+    std::string name = path_filename(result.path);
+    std::string detail;
+
+    for (size_t i = 0; i < result.notes.size() && i < 4; i++)
+        detail += (i > 0 ? "\n" : "") + result.notes[i];
+
+    std::string message = format_string("%s: %u written, %u deleted", name.c_str(), result.written,
+        result.deleted + result.directories);
+
+    if (!result.done && (result.refused || (result.failed > 0)))
+        gui_notify(gui_NotificationError, ICON_MD_STORAGE, (name + (result.kept ? "'s changes are kept for the next time it opens" :
+            "'s changes weren't written back")).c_str(), detail.c_str());
+    else if (result.conflicts > 0)
+        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, message.c_str(), detail.c_str());
+    else if ((result.written > 0) || (result.deleted > 0))
+        gui_notify(gui_NotificationInfo, ICON_MD_STORAGE, message.c_str());
 }
