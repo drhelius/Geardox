@@ -1,8 +1,8 @@
 # Running DOS Games with GDOX Files
 
 A **game descriptor** (`.gdox`) is a text file that records a game's location, startup command and settings.
-Opening it in Geardox prepares an emulated hard disk with the game and DOS, then launches the game. The DOS is the
-included FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
+Opening it in Geardox makes a C: drive from DOS and the game's folder, then starts the game. The DOS is the included
+FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 
 - [Start with a game folder](#start-with-a-game-folder)
 - [Create a GDOX file by hand](#create-a-gdox-file-by-hand)
@@ -27,16 +27,18 @@ which recognises a game by its files wherever they sit: the folder you open, a f
 recognised game starts as if it had its descriptor, and Geardox says **Recognised from the game database**. A
 descriptor in the folder always wins, and **Game > Use Game Database** turns recognition off.
 
-To create a descriptor for an installed DOS game:
+A folder or ZIP the database doesn't recognise opens at the DOS prompt in its folder on C:. To give it a descriptor:
 
-1. Choose **Game > New Game Descriptor...** in Geardox.
-2. Select the game's folder.
-3. Select the program that starts the game, such as `ORION.EXE` or `PLAY.BAT`.
+1. Open the game's folder in Geardox.
+2. Choose **Game > Game Files > Save Descriptor...**.
+3. Select the program that starts the game, such as `ORION.EXE` or `PLAY.BAT`, and save where Geardox suggests.
 
-Geardox saves the descriptor in the game's folder and starts the game, so opening or dropping the folder finds it
-next time, and so does **Game > Recent Games**. With **Game > Save Games To > Geardox's Save Folder**, or when the
-folder is read-only, it goes to Geardox's save folder instead, and Recent Games brings it back. To save a copy of the
-descriptor in a location of your choice, use **Game > Game Files > Save Descriptor As...**.
+Geardox suggests the game's folder, so opening or dropping the folder finds the descriptor next time, and so does
+**Game > Recent Games**. When the game is in a ZIP or a read-only folder, or **Game > Save Games To** is
+**The Save Files Folder**, it suggests the game's own folder in the Save Files folder instead, and Recent Games brings
+it back. Either way, the game opens again from the new descriptor with everything it had saved. **Save Descriptor...**
+works for any open game, recognised or with a descriptor already, and the descriptor it writes includes your changes
+for the game and its key map.
 
 If the game asks you to run setup first, see [Run setup or use the DOS prompt](#run-setup-or-use-the-dos-prompt).
 
@@ -128,15 +130,15 @@ This example uses a ZIP with `ORION.EXE` at its top level. Geardox preserves the
 program is stored as `ORION/ORION.EXE` in the archive, set `exe = ORION\ORION.EXE`.
 
 You can also put the descriptor at the top level of the ZIP, alongside the game files. In that case, leave out
-`source` and open the ZIP itself. Saves go into Geardox's save folder; the ZIP is not modified.
+`source` and open the ZIP itself. Geardox unpacks the ZIP to a temporary folder while the game runs and keeps the
+game's changes in the Save Files folder, so the ZIP is never modified.
 
 ### A Game That Needs a CD
 
 Add `cdrom` under `[drives]` to attach a disc image. Supported formats are `.cue`, `.iso` and `.chd`, and Geardox
 also recognises a CUE sheet or a disc image by its content under any other name, such as the `.ins` and `.gog` files
-of some digital releases. A folder can be the CD too: write it with a trailing slash, `cdrom = DATA/`, and give the
-disc's name with `cdrom_label` if the game checks it. Geardox builds the disc from the folder each time it changes.
-For example, with this layout:
+of some digital releases. A folder can be the CD too, such as `cdrom = DATA/`: Geardox reads the disc's files from it in
+place, and `cdrom_label` gives the disc's name if the game checks it. For example, with this layout:
 
 ```text
 Games/
@@ -204,27 +206,46 @@ By default, quitting a game returns to DOS. To turn off the emulated PC when the
 
 ## Find Your Saves
 
-During play, saved games and setup changes are written to the emulated hard disk. Geardox copies those changes
-to the location below when you power off the emulated PC, open another game, or quit Geardox.
+The game's C: drive is made from DOS and the game's folder, which Geardox reads in place. Saved games and setup changes
+are written to that drive while the game runs, and Geardox writes them out when the game closes: when you close it,
+open another game or quit Geardox, or when the game turns the PC off, as `on_exit = poweroff` does. Turning the PC off
+from the menu doesn't close the game. If Geardox stops without closing it, the game's changes are written out first
+the next time it opens.
 
-| How you play | Default location for changed files |
+The files of the game's folder go back where they came from, or to a place of their own:
+
+| How you play | Where the game's changed files go |
 | --- | --- |
-| Desktop, from a writable game folder | Back in that game folder |
-| Desktop, from a ZIP or read-only folder | Geardox's save folder |
-| RetroArch | RetroArch's save directory |
+| Desktop, from a writable game folder | Back into that folder |
+| Desktop, from a ZIP or a read-only folder | `Saves`, in the game's own folder in the Save Files folder |
+| RetroArch | `Saves`, in the game's own folder in RetroArch's save directory |
 
-On desktop, choose **Game > Game Files > Show Saves Folder** to find the location used by the current game.
-**Game > Last Save Report...** shows what was saved. If saving failed, use **Game > Retry Saving**.
+**Game > Save Games To > The Save Files Folder** keeps any game folder unchanged: the game's changed files go to
+`Saves` and are laid over the folder each time it runs. It applies from the next game you open. In RetroArch,
+**Game Saves (restart)** chooses between the save directory, the default, and the game's folder; a ZIP always uses the
+save directory.
 
-To keep the original game folder unchanged, select **Game > Save Games To > Geardox's Save Folder** before opening
-the game. Geardox stores the changed files there and uses them the next time you play. ZIPs and read-only folders
-always use this separate save location.
+The Save Files folder is Geardox's own folder unless **Emulator > Directories > Save Files** moves it. In it, each game
+has a folder of its own, `<name>.<id>`, with the rest of its C: drive and its settings:
 
-To change the desktop save location, use **Emulator > Directories > Save Files**. The default is the folder where
-Geardox stores its settings. In RetroArch, **Game Saves (restart)** selects the save directory or game folder;
-ZIPs and read-only folders always use the save directory.
+| In `<name>.<id>` | What it holds |
+| --- | --- |
+| `Saves` | The game's changed files, when they don't go back into its folder |
+| `C` | Files the game wrote elsewhere on C: |
+| `FreeDOS`, `MS-DOS` | Changes to each DOS's own files, `AUTOEXEC.BAT` and `CONFIG.SYS` among them; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) |
+| `Conflicts` | Changes that couldn't go back; see [Save recovery and file conflicts](#save-recovery-and-file-conflicts) |
+| `Disk` | Geardox's record of the drive, and what DOS has written so far while the game runs |
+| `Settings.ini`, `Keys.ini` | Your settings and key map for the game |
 
-These locations apply to the game's files. Geardox save states are stored separately.
+On desktop, **Game > Game Files > Show Saves Folder** opens the place the current game's changed files go, and
+**Game > Last Save Report...** shows what the last game wrote when it closed. Changes that couldn't be written are
+kept and written the next time the game opens.
+
+Save states are kept apart from these files: in Geardox's own folder by default, or in the game's `<name>.<id>` folder
+with **Emulator > Directories > Save States > With the Game or Disk**. The record in `Disk` lets a save state taken at
+the end of a session load at the next launch as if the game had never closed. A save state the drive can't go back to,
+such as one taken before later saves, still loads, but for the rest of that session the game's folder stays as it was
+and its changes go to `Conflicts`.
 
 ## Adjust a Game's Settings
 
@@ -251,14 +272,14 @@ Geardox uses settings in this order:
 While a game is open, the menus colour the settings that are the game's: orange for a change you made for it, violet
 for a setting from its descriptor, blue for one from the game database. Each setting's tooltip says which. The first
 choice in each list, **Game Default**, shows what the game gets without your change and goes back to it.
-**Game > Game Files > Forget This Game's Changes** forgets them all at once. Your key map for the game is kept apart
-and stays.
+**Game > Game Files > Forget This Game's Changes** forgets them all at once, and your kept `CONFIG.SYS` and
+`AUTOEXEC.BAT` edits from the next time the game opens. Your key map for the game is kept apart and stays.
 
 When you edit a descriptor after changing the same setting in the menus, your change still wins. Geardox says so the
 next time the game opens, once, with the settings involved.
 
-To export the descriptor with your changes included, use **Game > Game Files > Save Descriptor As...**. The changes
-themselves are kept in Geardox's save folder, as `<name>.<id>.gdox.ini` beside the game's disk.
+To write a descriptor with your changes included, use **Game > Game Files > Save Descriptor...**. The changes
+themselves are kept in the game's `<name>.<id>` folder, as `Settings.ini`.
 
 With default settings, Geardox uses a 486DX2 at 66 MHz, 8 MB of RAM, Cirrus VL-Bus video, a Sound Blaster 16
 (IRQ 5, DMA 1), a PS/2 mouse and 4x CD-ROM speed.
@@ -323,8 +344,8 @@ joined with `+`, such as `f13 = left_ctrl + left_alt + delete`, or nothing at al
 
 The same can be done while the game runs: **Ctrl+F1** (**Cmd+F1** on macOS) opens the keyboard mapper, a picture of
 the PC keyboard where you click a PC key and press the key of yours that should drive it. Those changes are kept for
-that game in a `.keys` file in Geardox's save folder (RetroArch: its save directory), and win over the descriptor's
-lines for the same key. **Save Descriptor As...** writes both into its `[keys]`.
+that game in `Keys.ini`, in its `<name>.<id>` folder, and win over the descriptor's lines for the same key.
+**Save Descriptor...** writes both into its `[keys]`.
 
 Keys bound like WASD above no longer type their letters. **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key
 changes off and on, to name a character or a saved game.
@@ -350,8 +371,8 @@ Buttons without a line keep your own settings, so the left stick still moves the
 `use = joystick` in `[pad1]` makes the first gamepad the PC's joystick instead.
 
 On desktop, **Input > Host Gamepad 1 > Key Mapping** does the same while the game runs: click a button's row, then
-press the PC key or choose a mouse button. Changes made during a game are kept with its settings, and **Save
-Descriptor As...** writes them into its `[pad1]` and `[pad2]`.
+press the PC key or choose a mouse button. Changes made during a game are kept with its settings, and
+**Save Descriptor...** writes them into its `[pad1]` and `[pad2]`.
 
 RetroArch ignores `[pad1]` and `[pad2]`. Set the port's device type to **Keyboard and Mouse** in **Quick Menu >
 Controls > Port 1 Controls**, give each button a key there, and save a game remap file; those keys also go through the
@@ -373,10 +394,10 @@ The **DOS > MS-DOS** menu shows the imported MS-DOS in green, or in red when not
 
 From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. With nothing attached,
 the PC boots the built-in MS-DOS disk, `MS-DOS.hdd`, made from your import the first time; see
-[Starting with nothing attached](INSTRUCTIONS.md#starting-with-nothing-attached). The game's C: drive
-then has MS-DOS's files instead of FreeDOS's, and the same `CONFIG.SYS` and `AUTOEXEC.BAT`, generated from the
-descriptor (see [Files on the DOS C: drive](#files-on-the-dos-c-drive)). Saves are unaffected: they stay in the game's
-folder or save location whichever DOS runs.
+[Starting with nothing attached](INSTRUCTIONS.md#starting-with-nothing-attached). A game's C: drive then has MS-DOS's
+files instead of FreeDOS's, and the same `CONFIG.SYS` and `AUTOEXEC.BAT`, generated from the descriptor (see
+[Files on the DOS C: drive](#files-on-the-dos-c-drive)). Saves go to the same place whichever DOS runs; only the
+changes to DOS's own files are kept apart, in `FreeDOS` and `MS-DOS`.
 
 - **One game on FreeDOS:** while the game is open, choose **DOS > Game > FreeDOS**. Geardox closes the game, saving
   its changes, and opens it again on FreeDOS. The choice is kept for that game, and **Game Default** in the same list
@@ -402,7 +423,7 @@ Geardox imports them the next time content loads, and again whenever they change
 The **Game DOS (restart)** core option set to **FreeDOS** runs games on FreeDOS without removing anything, and
 RetroArch's per-game options make that choice for one game. **Built-in DOS Disk (restart)** chooses the disk that
 boots with no hard disk in the content: your MS-DOS when found, FreeDOS, or none. `MS-DOS.hdd` and `FreeDOS.hdd` live
-in the save folder.
+in RetroArch's save directory.
 
 ## Use a Gravis UltraSound
 
@@ -469,7 +490,7 @@ inside RetroArch's system folder.
 | Problem | What to check |
 | --- | --- |
 | The descriptor will not open | The error message identifies invalid or missing settings. Every descriptor requires `version = 1` in `[geardox]` and `folder` in `[game]`, written as a DOS path such as `C:\ORION`. |
-| The game database recognises a game but its settings don't suit your copy | Create a descriptor for it with **Game > New Game Descriptor...**: a descriptor in the folder always wins. **Game > Use Game Database** turns recognition off. |
+| The game database recognises a game but its settings don't suit your copy | Change them in the menus, or write a descriptor for it with **Game > Game Files > Save Descriptor...**: a descriptor in the folder always wins. **Game > Use Game Database** turns recognition off. |
 | Geardox cannot find the game folder or ZIP | Check `source` under `[game]`. Relative paths start from the descriptor's folder, and paths should not have surrounding quotes. |
 | "Bad command or filename" | Check `exe` under `[run]`. It starts from the game's folder inside DOS; include any subfolder inside your folder or ZIP. |
 | "Please run SETUP" or a missing configuration file | Run the game's setup using **Game > Boot To > Setup**, or start it from **Game > Boot To > DOS Prompt**. |
@@ -479,15 +500,14 @@ inside RetroArch's system folder.
 | No sound, or the game hangs when playing sound | Run the game's sound setup and match its card, IRQ and DMA to Geardox. |
 | "Please insert the CD" | Check `cdrom` under `[drives]` and the CD drive letter expected by the game's setup. |
 | Descriptor changes seem to be ignored | A change made in the menus for this game wins. Its menu shows it in orange: choose **Game Default** there, or **Game > Game Files > Forget This Game's Changes**, then restart the game. |
-| Saves are not in the game's folder | Check **Game > Game Files > Show Saves Folder**. ZIPs, read-only folders and RetroArch use a separate save location by default. |
+| Saves are not in the game's folder | Check **Game > Game Files > Show Saves Folder**. Games in ZIPs or read-only folders, and RetroArch by default, keep them in `Saves` in the game's `<name>.<id>` folder. |
 | "This game needs MS-DOS, and none has been imported" | The descriptor has `system = msdos` under `[dos]`. Import your MS-DOS, see [Use your own MS-DOS](#use-your-own-ms-dos), or remove the line to use FreeDOS. |
 | A game works on FreeDOS but not on MS-DOS, or the other way round | Choose the other one with **DOS > Game** while the game is open. The two DOSes leave different amounts of memory, see [Memory modes](#memory-modes). |
-| After closing, a message says the game changed `AUTOEXEC.BAT` or `CONFIG.SYS` | The game's installer edited them. Geardox writes both again at every launch, so the message lists the lines it added. Copy the ones the game needs into `[autoexec]` or `[config_sys]`. |
+| The game's setup changed `AUTOEXEC.BAT` or `CONFIG.SYS`, and now the game misbehaves | Its edits are kept for the game. Edit them at the DOS prompt with `EDIT C:\AUTOEXEC.BAT`, or choose **Game > Game Files > Forget This Game's Changes**, which goes back to the descriptor's from the next time the game opens, along with your other changes for the game. |
 
 ## Other Ways to Open a Game
 
-On the command line, pass a descriptor, a folder or ZIP holding one or a game the database recognises, or a game's
-program:
+On the command line, pass a descriptor, a game's folder or ZIP, or one of its programs:
 
 ```sh
 geardox "Master of Orion.gdox"
@@ -498,7 +518,7 @@ geardox --target prompt "Master of Orion.gdox"
 `--target` chooses what runs, as **Game > Boot To** does: `game`, the default, `setup` or `prompt`. `--target debug`
 runs the game's program through GDXDBG, for programs you are developing; see [DEV_README.md](DEV_README.md).
 
-In RetroArch, load the `.gdox` file or a ZIP containing one at its top level. Use **Game Runs (restart)** to choose
+In RetroArch, load the `.gdox` file or the game's ZIP. Use **Game Runs (restart)** to choose
 the game, setup or DOS prompt, then restart the content. Machine options controlled by the descriptor are hidden
 while the game runs. **Game Descriptors (restart): Disabled** turns descriptor handling off. **Game DOS (restart)**
 chooses between your own MS-DOS, when imported, and FreeDOS. **Built-in DOS Disk (restart)** does the same for
@@ -507,8 +527,10 @@ the disk that boots with no hard disk in the content.
 A folder or ZIP can contain several descriptors at its top level, for example for different episodes of a game, or
 several games the database recognises, for example a collection. The desktop asks which one to use; RetroArch opens
 the first in name order, or the one **Game In Folder (restart)** picks. In RetroArch, **Game Database (restart):
-Disabled** turns recognition off. A folder or ZIP without a descriptor that the database doesn't recognise is opened as
-a plain hard disk source, without the automatic game setup described here.
+Disabled** turns recognition off. A folder or ZIP without a descriptor that the database doesn't recognise opens as a
+game too, at the DOS prompt in its folder on C:, named after the folder. With **Game Descriptors (restart): Disabled**,
+RetroArch attaches it as a second hard disk next to the built-in one instead, and DOS's changes go back into the folder,
+or for a ZIP to the save directory, when the content closes.
 
 Opening a game's program, its `.EXE`, `.COM` or `.BAT`, opens the game in that program's folder: its descriptor, or the
 game the database recognises there. Otherwise Geardox runs that program from the folder, with the default settings.
@@ -563,7 +585,7 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
-| `name` | No | The game's title, shown in the window title and used for save state names and the C: volume label | Text | The descriptor's file name | `name = Master of Orion` |
+| `name` | No | The game's title, shown in the window title and used for the C: volume label, save state names and the game's own folder in the Save Files folder. A new name starts a new, empty folder for the game | Text | The descriptor's file name | `name = Master of Orion` |
 | `folder` | Yes | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it of up to 48 characters after `C:\`. Each folder name has up to 8 characters, plus an optional 3-character extension, made of letters, digits and ``$ % ' - _ @ ~ ` ! ( ) { } ^ # &``, without spaces. The first folder cannot be `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) | — | `folder = C:\ORION` |
 | `source` | No | The game's files on your computer | A folder, a `.zip` file, or a folder inside a ZIP | The folder or ZIP containing the descriptor | `source = Orion.zip` or `source = Collection.zip/ORION` |
 | `free_mb` | No | Free space on C: for saves and other files the game creates, in MB | `16` to `1024` | `64` | `free_mb = 256` |
@@ -595,11 +617,11 @@ game's hard disks use, Geardox moves it to the Secondary Master for that game.
 
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
-| `floppy_a`, `floppy_b` | No | Floppy disk images for drives A: and B:. The first disk is inserted; the others can be swapped in. Images inside the game's ZIP are extracted automatically | `.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.xdf`, `.mfm`, `.d77`, `.d88` or `.hdm` paths, comma separated, or one `.m3u` playlist | None | `floppy_a = Disk1.img, Disk2.img` |
-| `hdd_primary_slave` | No | An extra hard disk on the Primary Slave, D:. Its changes stay in its own disk image instead of being copied back to the folder or ZIP | A folder, ZIP or hard disk image | None | `hdd_primary_slave = Extras.zip` |
-| `hdd_secondary_slave` | No | An extra hard disk on the Secondary Slave: E:, or D: without `hdd_primary_slave`. Its changes stay in its own disk image, as with `hdd_primary_slave` | A folder, ZIP or hard disk image | None | `hdd_secondary_slave = Data` |
-| `cdrom` | No | CD images for a CD-ROM drive on the Secondary Master. Images inside the game's ZIP are extracted automatically | `.cue`, `.iso` or `.chd` paths, comma separated, one `.m3u` playlist, a CUE sheet or disc image under another name, or a folder ending in `/` | None | `cdrom = Discs/WAR2.cue` |
-| `cdrom_label` | No | The volume name of a CD built from a folder | Up to 32 letters, digits and `_`. Letters become capitals, any other character `_`, and a longer name is cut | The folder's name | `cdrom_label = WAR2` |
+| `floppy_a`, `floppy_b` | No | Floppy disk images for drives A: and B:. The first disk is inserted; the others can be swapped in. Images inside the game's ZIP work too, by their path in it | `.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.xdf`, `.mfm`, `.d77`, `.d88` or `.hdm` paths, comma separated, or one `.m3u` playlist | None | `floppy_a = Disk1.img, Disk2.img` |
+| `hdd_primary_slave` | No | An extra hard disk on the Primary Slave, D:. A folder's changes go back into it when the game closes, a ZIP's or a read-only folder's to its own folder in the Save Files folder, and an image keeps them | A folder, ZIP or hard disk image | None | `hdd_primary_slave = Extras.zip` |
+| `hdd_secondary_slave` | No | An extra hard disk on the Secondary Slave: E:, or D: without `hdd_primary_slave`. Its changes are kept as with `hdd_primary_slave` | A folder, ZIP or hard disk image | None | `hdd_secondary_slave = Data` |
+| `cdrom` | No | CD images for a CD-ROM drive on the Secondary Master. Images inside the game's ZIP work too, by their path in it | `.cue`, `.iso` or `.chd` paths, comma separated, one `.m3u` playlist, a CUE sheet or disc image under another name, or a folder, read in place | None | `cdrom = Discs/WAR2.cue` |
+| `cdrom_label` | No | The volume name of a CD made from a folder | Up to 32 letters, digits and `_`. Letters become capitals, any other character `_`, and a longer name is cut | The folder's name | `cdrom_label = WAR2` |
 
 ### `[machine]`
 
@@ -827,10 +849,13 @@ With the Gravis UltraSound on and its software imported, `C:\ULTRASND` holds it 
 `system_files = hidden` under `[dos]` hides these files and folders from a normal `DIR` listing. They remain
 available and can be seen with `DIR /A`.
 
-Geardox writes `CONFIG.SYS` and `AUTOEXEC.BAT` again whenever it prepares the disk. If a game or its installer changes
-them, the change takes effect when the PC restarts during that session, and is gone the next time the game opens.
-Geardox then lists the lines the game added, so you can copy the ones it needs into `[config_sys]` and `[autoexec]`,
-which is how lasting startup changes are made.
+Geardox writes `CONFIG.SYS` and `AUTOEXEC.BAT` from the descriptor and the game's settings. When you, the game or its
+installer change them, the changed files are kept for that game and its DOS, in `FreeDOS` or `MS-DOS` in the game's
+`<name>.<id>` folder, with the version they were changed from in `.base`, and the game opens with them from then on.
+If the descriptor's `[config_sys]` or `[autoexec]`, or a setting such as the sound card's IRQ, later changes the same
+file, Geardox joins the two and says so: lines you added or removed stay that way, a line you edited wins over a new
+version of it, and a line both have appears once. **Game > Game Files > Forget This Game's Changes** goes back to the
+descriptor's from the next time the game opens.
 
 With `folder = C:\`, game files share the root of C: with DOS. Game entries named like DOS's own files or folders
 are left out, including a game's own `CONFIG.SYS` and `AUTOEXEC.BAT`. Using a named game folder avoids that overlap.
@@ -842,18 +867,22 @@ For a game designed to boot directly from a floppy, set `floppy_a = disk.img` un
 
 ### Save Recovery and File Conflicts
 
-The prepared hard disk is a working copy. Geardox copies changes from the game's DOS folder back to the game
-folder or separate save location when the session ends. Files written outside `folder` are not kept, and Geardox
-reports them. Hard disks added with `hdd_primary_slave` or `hdd_secondary_slave` keep their changes in their own
-disk images.
+Geardox reads the game's files from its folder while the game runs and keeps what DOS writes until the game closes.
+Then it writes each change where it belongs, all within the game's `<name>.<id>` folder except the first: files inside
+`folder` back into the game's folder, or into `Saves` when they don't go back; the rest of C: into `C`; and DOS's own
+files into `FreeDOS` or `MS-DOS`. Extra hard disks made from folders with `hdd_primary_slave` or `hdd_secondary_slave`
+are written back into those folders the same way, and a ZIP's or a read-only folder's changes go to its own folder in
+the Save Files folder. Disk images keep their changes in the images.
 
-Separate saves are stored in a folder named `<game>.<id>.gdox`. A `.deleted` file records files the game removed,
-so those deletions are also applied the next time it runs. New files use their DOS names; changed files retain
-their original names on your computer.
+In `Saves`, a `.deleted` file lists the files the game removed, so they stay removed the next time it runs. New files
+take their DOS names; changed files keep their names on your computer.
 
-If you change a file on your computer while the game is running, Geardox avoids overwriting it with the game's
-copy. It keeps the conflicting copy in `.conflicts/` in the save folder and reports the conflict.
+Change the game's folder on your computer only while the game is closed. Geardox doesn't look at it again until the
+next launch, and a file changed under a running game can read wrong to it.
 
-After an unexpected shutdown, Geardox attempts to recover the previous session's changes the next time you open
-that game. If the disk is damaged, it keeps the disk image with a `.refused` suffix, reports the problem, and starts
-again from the game source instead of copying potentially damaged files back.
+`Conflicts` holds the changes Geardox can't write back: once a save state the drive couldn't go back to is loaded, the
+rest of that session goes there, under its DOS paths, and the game's folder stays as it was.
+
+While the game runs, `Disk` holds what DOS has written so far. If Geardox stops without closing the game, it writes
+those changes out the next time the game opens, and says so. If they don't add up, it keeps them as
+`Disk/Changes.refused`, reports the problem and starts from the game's folder as it is.

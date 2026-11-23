@@ -22,7 +22,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - 386SX-20 and 386DX-33 (ISA), 486SX-33, 486DX2-66 and 486DX4-100 (VL-Bus), and Pentium 75 to 200 (Intel 430FX PCI) machines, with selectable CPU speed, RAM (1-128 MB), FPU and Turbo.
 - Built-in SeaBIOS, SeaVGABIOS and FreeDOS: no BIOS or DOS files needed, and a ready-to-play DOS hard disk boots when nothing is attached. Optional import of MS-DOS 5.0-6.22 in any language.
 - [Game descriptors](GDOX_README.md) (`gdox`) and a built-in database of over 300 games: open a game folder or ZIP and it runs on the right machine and DOS, with its saves kept.
-- Host folders and ZIP files as FAT16 hard disks.
+- Host folders and ZIP files as FAT16 hard disks, read in place and written back.
 - IBM CGA (RGB and composite), IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA with 2 MB, VESA modes up to 1280x1024, BitBLT engine, hardware cursor and memory-mapped registers.
 - Windows 3.1, Windows for Workgroups 3.11 and Windows 95 with the Cirrus Logic accelerated display drivers, and DirectDraw games under DirectX.
 - 3dfx Voodoo Graphics with 4 MB as a second PCI card for DOS games with 3dfx support.
@@ -68,10 +68,10 @@ Outside a game, the mapper's changes go to a `.keys` file named after the conten
 - **Floppy Drives**: **Emulator → Machine → Floppy A** and **Floppy B** on **Auto** fit the smallest drive for the disk at power on, and a 1.44 MB drive for an empty B:.
 
 ### Libretro
-- **Content**: A `.gdox`, a game folder or ZIP, a DOS program, a CD, floppy or hard disk image, or an `m3u` playlist mixing them. Disk control swaps floppies and CDs. Hard disks write to a working copy in the save directory.
+- **Content**: A `.gdox`, a game folder or ZIP, a DOS program, a CD, floppy or hard disk image, or an `m3u` playlist mixing them. Disk control swaps floppies and CDs. Hard disk images write to a working copy in the save directory. A game's folder is read in place and its changes go back into it when the content closes, a ZIP's to the game's own folder in the save directory.
 - **DOS**: `FreeDOS.hdd` and `MS-DOS.hdd` live in the save directory. For your MS-DOS, put its Setup disk images, or a ZIP of them, in `geardox/msdos` inside the system directory, the Gravis UltraSound install disks in `geardox/ultrasnd`, and the 3dfx Voodoo driver's ZIP, or `GLIDE2X.OVL`, in `geardox/3dfx`.
 - **Options**: The machine, drives, game and DOS settings are core options, most applied at restart.
-- **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files go to the save directory.
+- **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files, and each game's `Keys.ini`, go to the save directory.
 - **MIDI**: The built-in synths take MT-32 ROMs from `geardox/mt32` (or the system directory itself) and a sound bank from `geardox/soundfonts`. For a synth outside RetroArch, set **MIDI Out** to **External Port** and turn on RetroArch's MIDI output in **Settings → Audio → MIDI**.
 
 ### Debugging Features

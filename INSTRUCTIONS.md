@@ -25,25 +25,31 @@ The easiest way to play is with a **`.gdox` file**: a small text file that says 
 the PC needs. Drag it onto Geardox, or choose **Game > Open Game...**. If the `.gdox` sits inside the game's folder or
 ZIP, you can drop the folder or ZIP instead, or use **Game > Open Game Folder...**.
 
-Geardox builds a fresh C: drive with the game and DOS on it, turns the PC on and starts the game. When you quit the
-game, you're at the DOS prompt. Your saves go back into the game's folder, so they're there next time. A game in a ZIP
-saves to Geardox's save folder instead, and the ZIP is never changed.
+Geardox makes a C: drive from DOS and the game's folder, reading the game's files where they are, turns the PC on and
+starts the game. Quitting the game leaves you at the DOS prompt. When the game closes, because you close it, open
+another game or quit Geardox, what DOS changed is written back: the game's saves go into its folder, so they're there
+next time, and everything else on C:, `AUTOEXEC.BAT` and `CONFIG.SYS` included, is kept for that game in the
+[Save Files folder](#where-geardox-keeps-its-files). A game in a ZIP is unpacked to a temporary folder while it runs,
+and its saves are kept in the Save Files folder too, so the ZIP is never changed.
 
 Many games need no `.gdox` at all. When a folder or ZIP has none, Geardox looks the game up in its built-in game
 database and, when it recognises it, starts it with the right settings and says **Recognised from the game database**.
-A `.gdox` in the folder always wins, and **Game > Use Game Database** turns recognition off. You can also open a game's
-program, its `.EXE`, `.COM` or `.BAT`: Geardox opens the game in its folder, or runs that program if it doesn't know
-the game. When a folder holds more than one game, such as a collection, Geardox asks which one to play.
+A `.gdox` in the folder always wins, and **Game > Use Game Database** turns recognition off. When a folder holds more
+than one game, such as a collection, Geardox asks which one to play. A folder or ZIP Geardox doesn't recognise opens the
+same way, at the DOS prompt in its folder on C:, so you can run the game yourself. You can also open a game's program,
+its `.EXE`, `.COM` or `.BAT`: Geardox opens the game in its folder, or runs that program if it doesn't know the game.
 
-If Geardox doesn't recognise the game and it has no `.gdox` yet:
+To make a game Geardox doesn't recognise start by itself:
 
-1. Choose **Game > New Game Descriptor...**.
-2. Pick the game's folder.
-3. Pick the program that starts it, such as `GAME.EXE` or `PLAY.BAT`.
+1. Open its folder. The game starts at the DOS prompt.
+2. Choose **Game > Game Files > Save Descriptor...**.
+3. Pick the program that starts it, such as `GAME.EXE` or `PLAY.BAT`, and save the `.gdox` where Geardox suggests.
 
-Geardox writes the `.gdox` into the game's folder and starts the game. Next time, open the folder again or pick it in
-**Game > Recent Games**. If the folder is read-only, or **Game > Save Games To** is **Geardox's Save Folder**, the
-`.gdox` goes to the save folder and Recent Games brings it back.
+Geardox opens the game again from its new `.gdox`, with everything it had saved. From then on, opening the folder or
+picking it in **Game > Recent Games** starts the game. Geardox suggests the game's folder, or the game's own folder in
+the Save Files folder when the game is in a ZIP or a read-only folder, or when **Game > Save Games To** is
+**The Save Files Folder**; Recent Games brings that one back. **Save Descriptor...** works for any open game, and the
+`.gdox` it writes holds your changes for the game and its key map.
 
 Many games need their setup program run once, to choose a sound card. **Game > Boot To** restarts the PC into one of
 these:
@@ -111,31 +117,34 @@ DOS works by typing commands and pressing Enter. These are enough to get around:
 | `EDIT FILE.TXT` | Opens a text editor. |
 | `MEM` | Shows how much memory programs can use. |
 
-DOS names are short: up to eight characters, a dot and three more, with no spaces. Geardox shortens longer names when
-it copies a folder from your computer.
+DOS names are short: up to eight characters, a dot and three more, with no spaces. Geardox shortens longer names on
+the drives it makes from your folders.
 
 ## Attaching Disks and Discs
 
-Drag a file onto the window, or use the **Drives** menu. What happens depends on what you drop:
+Drag a file onto the window, or use the **Drives** menu. A disc or floppy can go in while another one is in the drive:
+Geardox takes the old one out first. What happens depends on what you drop:
 
 | You drop | What happens |
 | --- | --- |
-| A folder or ZIP with a `.gdox` | The game opens, as in [Play a game](#play-a-game). |
-| A folder or ZIP with no `.gdox` | It becomes a second hard disk, **D:**, next to the built-in disk on C:. Type `D:` and run the game. DOS can write to D:, but those changes stay in Geardox's copy and your folder is never touched. |
+| A folder or ZIP | It opens as a game, as in [Play a game](#play-a-game): started for you when it has a `.gdox` or the game database knows it, at the DOS prompt in its folder on C: otherwise. |
 | A hard disk image (`.hdd`, an `.img` larger than a floppy, fixed-size `.vhd`, `.chd`) | It **replaces the built-in disk as C:** and the PC boots from it. This is for a DOS PC you've already set up. If C: is already one of your own disks, the image takes the next free position. |
 | A floppy image (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.xdf`, `.mfm`, `.d77`, `.d88`, `.hdm`) | It goes into drive A: right away, with no restart. |
 | A ZIP of floppy images | One disk goes into A: and the next into B:. **Drives > Floppies > Drive 1 > Disk in Image** swaps in any other. |
 | A CD image (`.cue`, `.iso`, `.chd`) or an `.m3u` list | It goes into the CD drive right away. On a built-in disk it gets the next free letter, D: or E:. |
+
+To use a folder or ZIP as a hard disk rather than a game, choose **Attach Folder...** in one of the positions of
+**Drives > Hard Disks**, such as **Primary Slave**.
 
 Where the changes go:
 
 | Disk | What DOS writes |
 | --- | --- |
 | `FreeDOS.hdd`, `MS-DOS.hdd` and your `.hdd`, `.img` and `.vhd` images | Written into the image itself. |
-| `.chd` hard disks | Kept in a working copy in the save folder. The original file stays as it was. |
-| Floppy images | Kept in a working copy in the save folder. **Drives > Floppies > Drive 1 > Remember Changes** can write them into the image instead, or insert disks write protected. Use **Save As...** in the drive's menu to write a floppy out. |
-| A folder or ZIP attached as a disk | Kept in Geardox's copy of the folder. If the folder changes on your computer, **Rebuild From Folder...** in the disk's menu picks that up and drops what DOS wrote. |
-| A game opened with a `.gdox` | Copied back to the game's folder, or to the save folder, when the game ends. |
+| `.chd` hard disks | Kept in a working copy in the Save Files folder. The original file stays as it was. |
+| Floppy images | Kept in a working copy in the Save Files folder. **Drives > Floppies > Drive 1 > Remember Changes** can write them into the image instead, or insert disks write protected. Use **Save As...** in the drive's menu to write a floppy out. |
+| A folder or ZIP attached as a hard disk | Written into the folder when the disk is removed or Geardox quits. A ZIP, or a folder Geardox can't write to, keeps its changes in its own folder in the Save Files folder. |
+| A game | Written back when the game closes, as in [Play a game](#play-a-game). |
 
 A folder becomes a FAT16 disk, which holds up to 2015 MB. Files buried too deep for DOS to reach are left out, and
 Geardox tells you.
@@ -192,24 +201,24 @@ into the image, and everything you install stays there.
 
 ## While a Game Is Open
 
-The game takes over the PC. It has its own C: with its own copy of DOS, FreeDOS or your imported MS-DOS, so the
-built-in disks aren't used, and anything you installed there isn't available. Your other hard disks are removed, and
-they don't come back on their own when the game ends. Once no disk is attached, the next power on brings the built-in
-disk back.
+The game takes over the PC. It has its own C: with its own DOS, FreeDOS or your imported MS-DOS, so the built-in disks
+aren't used, and anything you installed there isn't available. Your other hard disks are removed, and they don't come
+back on their own when the game ends. Once no disk is attached, the next power on brings the built-in disk back.
 
 The game's `.gdox` can bring its own floppies, extra hard disks and CD. If your CD-ROM drive is set to a position the
 game's hard disks use, it moves to the Secondary Master while the game is open.
 
-**Game > Close** followed by the game's name turns the PC off and saves what the game changed. Opening another game,
-or quitting Geardox, does the same. **Game > Last Save Report...** shows what was saved.
+The game closes, and what it changed is written back, when you choose **Game > Close** followed by its name, open
+another game or quit Geardox, or when the game turns the PC off itself. **Geardox > Power Off** only turns the PC off:
+the game stays open, and its changes wait until it closes. **Game > Last Save Report...** shows what was written.
 
-**Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So are
-**Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices,
+**Emulator > Machine** changes made while a game is open are remembered for that game only, and Geardox says so. So
+are **Video > CGA Output**, **Input > Emulated Joystick**, the **Input > Host Gamepad** choices,
 **Audio > MIDI Out > Game Music**, **Audio > Built-in Synths > MT-32 > Model**, the volumes and mutes in **Audio** and
-the DOS chosen in **DOS > Game**.
-While the game is open, the menus show its settings in colour: orange for your changes, violet for what its `.gdox`
-sets, blue for what the game database sets. **Game Default**, first in each list, undoes one change, and
-**Game > Game Files > Forget This Game's Changes** undoes them all. **DOS > MS-DOS** imports or removes your MS-DOS and
+the DOS chosen in **DOS > Game**. While the game is open, the menus show its settings in colour: orange for your
+changes, violet for what its `.gdox` sets, blue for what the game database sets. **Game Default**, first in each list,
+undoes one change. **Game > Game Files > Forget This Game's Changes** undoes them all, and drops your edits to the
+game's `AUTOEXEC.BAT` and `CONFIG.SYS` from the next time it opens. **DOS > MS-DOS** imports or removes your MS-DOS and
 shows the one imported.
 
 ## Machine Settings
@@ -238,8 +247,8 @@ otherwise, and Composite Monitor suits games drawn for a television. It applies 
 
 If you change the sound card's IRQ or DMA, the built-in disks don't follow. Edit the `SET BLASTER` line with
 `EDIT C:\AUTOEXEC.BAT`. The built-in disks also set up a Gravis UltraSound at IRQ 7 and DMA 3 when it's on, which
-suits the Sound Blaster's defaults; the `GDXGUS` and `SET ULTRASND` lines are the ones to edit. Games opened with a
-`.gdox` get the right `BLASTER` and `ULTRASND` automatically.
+suits the Sound Blaster's defaults; the `GDXGUS` and `SET ULTRASND` lines are the ones to edit. Games get the right
+`BLASTER` and `ULTRASND` automatically.
 
 ## MIDI Music
 
@@ -346,7 +355,7 @@ All hotkeys can be changed in **Emulator > Hotkeys**, and its **Reset to Default
 
 ## Where Geardox Keeps Its Files
 
-Settings, the built-in disks and save files all live in one folder:
+Settings, the built-in disks and everything Geardox saves live in one folder:
 
 | System | Folder |
 | --- | --- |
@@ -359,19 +368,37 @@ next to it. On macOS, it goes next to the `.app`.
 
 In this folder:
 
-- `FreeDOS.hdd` is the built-in FreeDOS disk.
-- `MS-DOS.hdd` is the built-in MS-DOS disk, made from your import the first time it's needed.
-- `msdos.zip` is your imported MS-DOS, when you've imported it, `ultrasnd.zip` your imported Gravis UltraSound
-  software and `glide2x.ovl` your imported 3dfx Voodoo driver.
-- `mt32` and `soundfonts` are the folders where the built-in synths look for MT-32 ROMs and sound banks.
-- `<name>.<id>.geardox.hdd` files are the disks made from folders and ZIPs.
-- `<name>.<id>.gdox.hdd` files are the C: drives games build, and `<name>.<id>.gdox.ini` and `<name>.<id>.keys` keep
-  each game's own settings and key map. `<name>.<id>.gdox` folders hold the saves of games that don't save into their
-  own folder.
 - `config.ini` holds your settings.
+- `FreeDOS.hdd` is the built-in FreeDOS disk, and `MS-DOS.hdd` the built-in MS-DOS disk, made from your import the
+  first time it's needed.
+- `msdos.zip` is your imported MS-DOS, `ultrasnd.zip` your imported Gravis UltraSound software and `glide2x.ovl` your
+  imported 3dfx Voodoo driver, once you've imported them.
+- `mt32` and `soundfonts` are the folders where the built-in synths look for MT-32 ROMs and sound banks.
+- `tmp` holds the games Geardox unpacks from ZIPs while they run.
 
-**Emulator > Directories** moves save files, save states, screenshots and recordings somewhere else. Save Files takes
-the games' disks, saves, settings and key maps with it; the built-in disks and imports stay here.
+The rest is the **Save Files folder**, this same folder unless **Emulator > Directories > Save Files** moves it:
+
+- `<name>.<id>` folders, one for each game and for each folder or ZIP attached as a hard disk, keep what DOS changed:
+  - `Saves` holds a game's saves when they can't go into its folder: a game in a ZIP or a read-only folder, or any
+    game when **Game > Save Games To** is **The Save Files Folder**.
+  - `C` holds what the game wrote elsewhere on C:.
+  - `FreeDOS` and `MS-DOS` hold the changes to each DOS's own files, `AUTOEXEC.BAT` and `CONFIG.SYS` among them, with
+    the version they were edited from in `.base`. Your edits win at the next launch; when the `.gdox` or a setting such
+    as the sound card's IRQ later changes the same file, Geardox joins both and tells you.
+  - `Conflicts` holds changes that couldn't go back, such as those of a session left behind by loading an older save
+    state.
+  - `Disk` is Geardox's record of the drive, so a save state still loads at the next launch. While the game runs, it
+    also holds what DOS has written so far, so if Geardox stops without closing the game, the next launch writes it
+    back.
+  - `Settings.ini` and `Keys.ini` keep the game's own settings and key map, and `<name>.gdox` is the `.gdox` that
+    **Save Descriptor...** suggests when it can't go in the game's folder.
+- Working copies of floppy and CHD images, and a `.geardox.cmos` file for each PC model, with its BIOS settings.
+- `.keys` files keep the key maps made with no game open, named after the disc, floppy or hard disk image.
+
+Save states, screenshots and recordings go to this folder too, and **Emulator > Directories** moves each kind. There,
+**With the Game or Disk** keeps them in the game's `<name>.<id>` folder, or next to the CD, floppy or hard disk image in
+use, and **Next to Each Image**, for Save Files, puts only the working copies next to their image. A game's save states
+are named after its folder, `<name>.<id>.state1` to `.state5`, and with nothing open they're `PC.state1` to `.state5`.
 
 ## Quick Fixes
 
@@ -379,11 +406,11 @@ the games' disks, saves, settings and key maps with it; the built-in disks and i
 | --- | --- |
 | A hard disk I attached isn't there | Reset. Hard disks only attach at a reset. |
 | The PC boots from a floppy I forgot | Eject it from **Drives > Floppies**, or use **Geardox > Reset and Boot From > Hard Disk**. |
-| The games I installed are missing | A game opened with a `.gdox` has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **Drives > Hard Disks > Default Disk** switches back, or attach both to copy them. |
+| The games I installed are missing | A game has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **Drives > Hard Disks > Default Disk** switches back, or attach both to copy them. |
 | Hotkeys don't work | Game Focus is on, as the window title says. Press Ctrl+F10. |
 | The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
 | The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine > Model**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
 | No music with General MIDI or MT-32 | Add the MT-32 ROMs or a sound bank in **Audio > Built-in Synths**, or start an outside synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |
-| The game asks for expanded memory (EMS) | Open it with a `.gdox` and set `ems_kb`. See [Memory](GDOX_README.md#memory). |
+| The game asks for expanded memory (EMS) | Save a `.gdox` for it with **Game > Game Files > Save Descriptor...** and set `ems_kb` in it. See [Memory](GDOX_README.md#memory). |
 | A built-in disk is broken | **DOS > Recreate Built-in MS-DOS Disk...** or **Recreate Built-in FreeDOS Disk...**. It erases what was on it. |
