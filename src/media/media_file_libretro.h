@@ -37,7 +37,9 @@ public:
     static bool ListDirectory(const char* path, std::vector<std::string>& folders, std::vector<std::string>& files);
     static bool Exists(const char* path);
     static bool IsDirectory(const char* path);
+    static bool GetFileInfo(const char* path, bool* found, u64* size, s64* modified);
     static bool RenameFile(const char* from, const char* to);
+    static bool SetModified(const char* path, s64 modified);
     static bool RemoveFile(const char* path);
     static bool MakeDirectory(const char* path);
 

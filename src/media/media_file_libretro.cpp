@@ -83,23 +83,18 @@ bool MediaFileLibretro::ListDirectory(const char* path, std::vector<std::string>
 
 bool MediaFileLibretro::Exists(const char* path)
 {
-    if (IsValidPointer(s_vfs_interface->stat))
+    if ((s_vfs_version >= 3) && IsValidPointer(s_vfs_interface->stat))
         return (s_vfs_interface->stat(path, NULL) & RETRO_VFS_STAT_IS_VALID) != 0;
 
     MediaFile* file = MediaFile::OpenFile(path);
-
-    if (IsValidPointer(file))
-    {
-        SafeDelete(file);
-        return true;
-    }
-
-    return MediaFileNative::Exists(path);
+    bool found = IsValidPointer(file);
+    SafeDelete(file);
+    return found;
 }
 
 bool MediaFileLibretro::IsDirectory(const char* path)
 {
-    if (IsValidPointer(s_vfs_interface->stat))
+    if ((s_vfs_version >= 3) && IsValidPointer(s_vfs_interface->stat))
     {
         int flags = s_vfs_interface->stat(path, NULL);
         return ((flags & RETRO_VFS_STAT_IS_VALID) != 0) && ((flags & RETRO_VFS_STAT_IS_DIRECTORY) != 0);
@@ -114,31 +109,63 @@ bool MediaFileLibretro::IsDirectory(const char* path)
     return true;
 }
 
+bool MediaFileLibretro::GetFileInfo(const char* path, bool* found, u64* size, s64* modified)
+{
+    int flags = 0;
+    int64_t bytes = -1;
+
+    if ((s_vfs_version >= 4) && IsValidPointer(s_vfs_interface->stat_64))
+        flags = s_vfs_interface->stat_64(path, &bytes);
+    else if ((s_vfs_version >= 3) && IsValidPointer(s_vfs_interface->stat))
+    {
+        int32_t bytes_32 = -1;
+        flags = s_vfs_interface->stat(path, &bytes_32);
+        bytes = bytes_32;
+    }
+    else
+        return false;
+
+    *found = ((flags & RETRO_VFS_STAT_IS_VALID) != 0) && ((flags & RETRO_VFS_STAT_IS_DIRECTORY) == 0);
+
+    if (!*found)
+        return true;
+
+    if (bytes < 0)
+        return false;
+
+    int64_t mtime = 0;
+
+    if ((s_vfs_version >= 5) && IsValidPointer(s_vfs_interface->get_mtime) && (s_vfs_interface->get_mtime(path, &mtime) != 0))
+        mtime = 0;
+
+    *size = (u64)bytes;
+    *modified = (s64)mtime;
+    return true;
+}
+
+bool MediaFileLibretro::SetModified(const char* path, s64 modified)
+{
+    return (s_vfs_version >= 5) && IsValidPointer(s_vfs_interface->set_mtime) &&
+        (s_vfs_interface->set_mtime(path, (int64_t)modified) == 0);
+}
+
 bool MediaFileLibretro::RenameFile(const char* from, const char* to)
 {
-    if (IsValidPointer(s_vfs_interface->rename))
-        return s_vfs_interface->rename(from, to) == 0;
-
-    return rename_file_utf8(from, to);
+    return IsValidPointer(s_vfs_interface->rename) && (s_vfs_interface->rename(from, to) == 0);
 }
 
 bool MediaFileLibretro::MakeDirectory(const char* path)
 {
-    if (IsValidPointer(s_vfs_interface->mkdir))
-    {
-        int result = s_vfs_interface->mkdir(path);
-        return (result == 0) || (result == -2);
-    }
+    if ((s_vfs_version < 3) || !IsValidPointer(s_vfs_interface->mkdir))
+        return false;
 
-    return create_directory_if_not_exists(path);
+    int result = s_vfs_interface->mkdir(path);
+    return (result == 0) || (result == -2);
 }
 
 bool MediaFileLibretro::RemoveFile(const char* path)
 {
-    if (IsValidPointer(s_vfs_interface->remove))
-        return s_vfs_interface->remove(path) == 0;
-
-    return remove_file_utf8(path);
+    return IsValidPointer(s_vfs_interface->remove) && (s_vfs_interface->remove(path) == 0);
 }
 
 unsigned MediaFileLibretro::GetOpenHints(const char* path)

@@ -89,11 +89,61 @@ bool MediaFile::ListDirectory(const char* path, std::vector<std::string>& folder
         return false;
 
 #if defined(__LIBRETRO__)
-    if (MediaFileLibretro::HasVfsDirectories())
-        return MediaFileLibretro::ListDirectory(path, folders, files);
+    if (MediaFileLibretro::HasVfsInterface())
+        return MediaFileLibretro::HasVfsDirectories() && MediaFileLibretro::ListDirectory(path, folders, files);
 #endif
 
     return MediaFileNative::ListDirectory(path, folders, files);
+}
+
+bool MediaFile::FindPathIgnoringCase(const std::string& directory, const std::string& relative, std::string* found)
+{
+    *found = directory;
+    size_t start = 0;
+
+    while (start < relative.size())
+    {
+        size_t end = relative.find('/', start);
+
+        if (end == std::string::npos)
+            end = relative.size();
+
+        std::string part = relative.substr(start, end - start);
+        bool last = end == relative.size();
+        start = end + 1;
+
+        if (part.empty() || (part == "."))
+            continue;
+
+        if (part == "..")
+        {
+            *found += "/..";
+            continue;
+        }
+
+        std::vector<std::string> folders;
+        std::vector<std::string> files;
+
+        if (!ListDirectory(found->c_str(), folders, files))
+            return false;
+
+        int i = last ? find_no_case(files, part) : -1;
+
+        if (i >= 0)
+        {
+            *found += "/" + files[i];
+            continue;
+        }
+
+        i = find_no_case(folders, part);
+
+        if (i < 0)
+            return false;
+
+        *found += "/" + folders[i];
+    }
+
+    return true;
 }
 
 bool MediaFile::GetFileInfo(const char* path, u64* size, s64* modified)
@@ -104,6 +154,11 @@ bool MediaFile::GetFileInfo(const char* path, u64* size, s64* modified)
 #if defined(__LIBRETRO__)
     if (MediaFileLibretro::HasVfsInterface())
     {
+        bool found = false;
+
+        if (MediaFileLibretro::GetFileInfo(path, &found, size, modified))
+            return found;
+
         MediaFile* file = OpenFile(path);
 
         if (!IsValidPointer(file))
@@ -138,7 +193,7 @@ bool MediaFile::IsDirectory(const char* path)
         return false;
 
 #if defined(__LIBRETRO__)
-    if (MediaFileLibretro::HasVfsDirectories())
+    if (MediaFileLibretro::HasVfsInterface())
         return MediaFileLibretro::IsDirectory(path);
 #endif
 
@@ -147,6 +202,11 @@ bool MediaFile::IsDirectory(const char* path)
 
 bool MediaFile::IsFolderLink(const char* path)
 {
+#if defined(__LIBRETRO__)
+    if (MediaFileLibretro::HasVfsInterface())
+        return false;
+#endif
+
     return IsValidPointer(path) && MediaFileNative::IsFolderLink(path);
 }
 
@@ -266,11 +326,51 @@ bool MediaFile::RemoveFile(const char* path)
 bool MediaFile::MakeDirectory(const char* path)
 {
 #if defined(__LIBRETRO__)
-    if (MediaFileLibretro::HasVfsDirectories())
+    if (MediaFileLibretro::HasVfsInterface())
         return MediaFileLibretro::MakeDirectory(path);
 #endif
 
     return MediaFileNative::MakeDirectory(path);
+}
+
+bool MediaFile::MakeDirectories(const char* path)
+{
+    if (!IsValidPointer(path) || (path[0] == '\0'))
+        return false;
+
+    if (IsDirectory(path))
+        return true;
+
+    std::string parent = path_directory(trim_trailing_separators(path));
+
+    if ((parent != path) && (parent != ".") && !parent.empty() && !MakeDirectories(parent.c_str()))
+        return false;
+
+    return MakeDirectory(path);
+}
+
+void MediaFile::RemoveTree(const char* path)
+{
+    std::vector<std::string> folders;
+    std::vector<std::string> files;
+
+    if (!IsValidPointer(path) || (path[0] == '\0') || !ListDirectory(path, folders, files))
+        return;
+
+    for (size_t i = 0; i < files.size(); i++)
+        RemoveFile(path_join(path, files[i]).c_str());
+
+    for (size_t i = 0; i < folders.size(); i++)
+    {
+        std::string folder = path_join(path, folders[i]);
+
+        if (IsFolderLink(folder.c_str()))
+            RemoveFile(folder.c_str());
+        else
+            RemoveTree(folder.c_str());
+    }
+
+    DeleteDirectory(path);
 }
 
 bool MediaFile::DeleteDirectory(const char* path)
@@ -283,12 +383,11 @@ bool MediaFile::DeleteDirectory(const char* path)
     return MediaFileNative::DeleteDirectory(path);
 }
 
-// libretro's VFS can't set a time, so there a file keeps the time it was written
 bool MediaFile::SetModified(const char* path, s64 modified)
 {
 #if defined(__LIBRETRO__)
     if (MediaFileLibretro::HasVfsInterface())
-        return false;
+        return MediaFileLibretro::SetModified(path, modified);
 #endif
 
     return MediaFileNative::SetModified(path, modified);
