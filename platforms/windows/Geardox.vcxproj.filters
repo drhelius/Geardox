@@ -445,6 +445,9 @@
     <ClCompile Include="..\..\src\drive\fat_image.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\drive\folder_disk.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\drive\iso_image.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -817,6 +820,7 @@
     <ClInclude Include="..\..\src\common\common.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\byte_order.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\file_utils.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\process_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\path_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\string_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\crc.h"><Filter>src</Filter></ClInclude>
@@ -903,6 +907,7 @@
     <ClInclude Include="..\..\src\drive\hard_disk_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\import_common.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\fat_image.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\drive\folder_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\iso_image.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h"><Filter>src</Filter></ClInclude>

@@ -115,7 +115,7 @@ bool Media::ParsePlaylist(const char* playlist_path, const char* text, size_t si
     return !entries.empty();
 }
 
-bool Media::LoadMedia(const char* file_path)
+bool Media::LoadMedia(const char* file_path, const char* label)
 {
     if (!IsValidPointer(file_path) || file_path[0] == '\0')
     {
@@ -129,14 +129,18 @@ bool Media::LoadMedia(const char* file_path)
     const char* extension = m_media_info.extension;
     bool ok = false;
 
-    if (extension[0] == '\0')
+    if (MediaFile::IsDirectory(file_path))
+    {
+        m_media_info.cdrom = true;
+        ok = m_cdrom_media->LoadFromFolder(file_path, label, m_preload_cdrom);
+    }
+    else if (extension[0] == '\0')
     {
         Error("Media file has no extension: %s", file_path);
         Reset();
         return false;
     }
-
-    if (IsCdRomName(file_path))
+    else if (IsCdRomName(file_path))
     {
         m_media_info.cdrom = true;
         ok = m_cdrom_media->LoadFromFile(file_path, m_preload_cdrom);
@@ -325,45 +329,29 @@ bool Media::LoadCdRomFromZipFile(const char* file_path)
         }
     }
 
-    zip.Close();
-
     if (cue_name.empty())
         return false;
 
     m_media_info.cdrom = true;
 
-#if defined(__LIBRETRO__)
-    Error("CD-ROM images in ZIP files are not supported: %s", file_path);
-    return false;
-#else
     if (m_temp_path[0] == '\0')
     {
         Error("No temp path to extract ZIP file %s", file_path);
         return false;
     }
 
-    string temp_path(m_temp_path);
-    temp_path += "/";
-    temp_path += m_media_info.name;
-    temp_path += "_tmp";
-
+    string temp_path = path_join(m_temp_path, std::string(m_media_info.name) + "_tmp");
     Debug("Extracting %s to %s", file_path, temp_path.c_str());
+    MediaFile::RemoveTree(temp_path.c_str());
 
-    if (!remove_directory_and_contents(temp_path.c_str()))
-    {
-        Error("Unable to clear the extraction folder %s", temp_path.c_str());
-        return false;
-    }
-
-    if (!extract_zip_to_folder(file_path, temp_path.c_str()))
+    if (!zip.ExtractAll(temp_path.c_str()))
     {
         Error("Failed to extract ZIP file %s to %s", file_path, temp_path.c_str());
         return false;
     }
 
-    string cue_path = temp_path + "/" + cue_name;
-    return m_cdrom_media->LoadCueFromFile(cue_path.c_str(), m_preload_cdrom);
-#endif
+    zip.Close();
+    return m_cdrom_media->LoadCueFromFile(path_join(temp_path, cue_name).c_str(), m_preload_cdrom);
 }
 
 void Media::ResetMediaInfo()

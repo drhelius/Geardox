@@ -57,7 +57,26 @@ struct Floppy_Host
     IdleFlush idle_flush;
 };
 
+struct Floppy_Data
+{
+    std::string path;
+    int image;
+    int disk;
+    std::vector<u8> file;
+    u32 offset;
+    u32 size;
+};
+
+struct Floppy_Prepared
+{
+    std::string path;
+    bool ok;
+    std::vector<Floppy_Entry> entries;
+    std::vector<Floppy_Data> disks;
+};
+
 static Floppy_Host hosts[config_floppy_drives];
+static Floppy_Prepared prepared[config_floppy_drives];
 
 static bool valid_drive(int drive);
 static void clear_host(int drive);
@@ -67,6 +86,11 @@ static bool read_playlist(const char* path, std::vector<std::string>& entries);
 static bool build_entries(const char* path, std::vector<Floppy_Entry>& entries);
 static bool add_file_entries(const char* path, std::vector<Floppy_Entry>& entries);
 static int find_boot_entry(const std::vector<Floppy_Entry>& entries);
+static bool insert_path(int drive, const char* path, bool discard_changes, bool keep_image);
+static bool open_path(const char* path, bool discard_changes, bool* second);
+static bool get_entries(int drive, const char* path, std::vector<Floppy_Entry>& entries);
+static void add_data(Floppy_Prepared& set, const Floppy_Entry& entry);
+static bool read_disk(const Floppy_Entry& entry, std::vector<u8>& file, u32* offset, u32* size);
 static bool insert_entries(int drive, const std::vector<Floppy_Entry>& entries, int index, bool discard_changes);
 static std::string make_working_path(const char* source_path, u32 base_crc, int copy);
 static bool can_write_image(const char* path, const std::vector<u8>& file);
@@ -104,14 +128,62 @@ bool emu_floppy_is_image(const char* path)
     return FloppySet::IsFloppyFile(path);
 }
 
+void emu_floppy_prepare(int drive, const char* path)
+{
+    if ((drive < 0) || (drive >= config_floppy_drives) || !IsValidPointer(path))
+        return;
+
+    Floppy_Prepared& set = prepared[drive];
+    set = Floppy_Prepared();
+    set.path = path;
+    set.ok = build_entries(path, set.entries);
+
+    for (size_t i = 0; set.ok && (i < set.entries.size()); i++)
+        add_data(set, set.entries[i]);
+}
+
+void emu_floppy_prepare_disk(int drive, int index)
+{
+    if ((drive < 0) || (drive >= config_floppy_drives))
+        return;
+
+    prepared[drive] = Floppy_Prepared();
+
+    if ((index >= 0) && (index < (int)hosts[drive].entries.size()))
+        add_data(prepared[drive], hosts[drive].entries[index]);
+}
+
+void emu_floppy_clear_prepared(void)
+{
+    for (int i = 0; i < config_floppy_drives; i++)
+        prepared[i] = Floppy_Prepared();
+}
+
 bool emu_floppy_insert(int drive, const char* path, bool discard_changes, bool keep_image)
+{
+    bool inserted = insert_path(drive, path, discard_changes, keep_image);
+
+    if ((drive >= 0) && (drive < config_floppy_drives))
+        prepared[drive] = Floppy_Prepared();
+
+    return inserted;
+}
+
+bool emu_floppy_open(const char* path, bool discard_changes, bool* second)
+{
+    bool opened = open_path(path, discard_changes, second);
+    prepared[0] = Floppy_Prepared();
+    return opened;
+}
+
+static bool insert_path(int drive, const char* path, bool discard_changes, bool keep_image)
 {
     if (!valid_drive(drive) || !IsValidPointer(path))
         return false;
 
     std::vector<Floppy_Entry> entries;
 
-    if (!build_entries(path, entries))
+    if (!get_entries(drive, path, entries))
     {
         Error("Not a floppy disk image: %s", path);
         return false;
@@ -134,7 +206,7 @@ bool emu_floppy_insert(int drive, const char* path, bool discard_changes, bool k
     return true;
 }
 
-bool emu_floppy_open(const char* path, bool discard_changes, bool* second)
+static bool open_path(const char* path, bool discard_changes, bool* second)
 {
     if (IsValidPointer(second))
         *second = false;
@@ -144,7 +216,7 @@ bool emu_floppy_open(const char* path, bool discard_changes, bool* second)
 
     std::vector<Floppy_Entry> entries;
 
-    if (!build_entries(path, entries))
+    if (!get_entries(0, path, entries))
     {
         Error("Not a floppy disk image: %s", path);
         return false;
@@ -192,7 +264,9 @@ bool emu_floppy_select_disk(int drive, int index, bool discard_changes)
     if (!valid_drive(drive) || index < 0 || index >= (int)hosts[drive].entries.size())
         return false;
 
-    return index == hosts[drive].entry || mount(drive, index, discard_changes);
+    bool selected = (index == hosts[drive].entry) || mount(drive, index, discard_changes);
+    prepared[drive] = Floppy_Prepared();
+    return selected;
 }
 
 // A stale working copy of an earlier blank with the same name would come back, so it goes first
@@ -592,11 +666,59 @@ static int find_boot_entry(const std::vector<Floppy_Entry>& entries)
 {
     for (size_t i = 0; i < entries.size(); i++)
     {
-        if (FloppySet::IsBootDisk(entries[i].path.c_str(), entries[i].image, entries[i].disk))
+        std::vector<u8> file;
+        u32 offset = 0;
+        u32 size = 0;
+
+        if (read_disk(entries[i], file, &offset, &size) &&
+            FloppyImage::IsBootDisk(file.data(), (u32)file.size(), entries[i].disk))
             return (int)i;
     }
 
     return 0;
+}
+
+static bool get_entries(int drive, const char* path, std::vector<Floppy_Entry>& entries)
+{
+    if (prepared[drive].path != path)
+        return build_entries(path, entries);
+
+    entries = prepared[drive].entries;
+    return prepared[drive].ok;
+}
+
+static void add_data(Floppy_Prepared& set, const Floppy_Entry& entry)
+{
+    Floppy_Data data;
+    data.path = entry.path;
+    data.image = entry.image;
+    data.disk = entry.disk;
+    data.offset = 0;
+    data.size = 0;
+
+    if (FloppySet::ReadDisk(entry.path.c_str(), entry.image, entry.disk, data.file, &data.offset, &data.size))
+        set.disks.push_back(data);
+}
+
+static bool read_disk(const Floppy_Entry& entry, std::vector<u8>& file, u32* offset, u32* size)
+{
+    for (int i = 0; i < config_floppy_drives; i++)
+    {
+        for (size_t j = 0; j < prepared[i].disks.size(); j++)
+        {
+            const Floppy_Data& data = prepared[i].disks[j];
+
+            if ((data.path == entry.path) && (data.image == entry.image) && (data.disk == entry.disk))
+            {
+                file = data.file;
+                *offset = data.offset;
+                *size = data.size;
+                return true;
+            }
+        }
+    }
+
+    return FloppySet::ReadDisk(entry.path.c_str(), entry.image, entry.disk, file, offset, size);
 }
 
 static bool insert_entries(int drive, const std::vector<Floppy_Entry>& entries, int index, bool discard_changes)
@@ -617,21 +739,7 @@ static bool insert_entries(int drive, const std::vector<Floppy_Entry>& entries, 
 
 static std::string make_working_path(const char* source_path, u32 base_crc, int copy)
 {
-    char directory[GDOX_MAX_PATH];
-
-    switch ((Directory_Location)config_emulator.savefiles_dir_option)
-    {
-        case Directory_Location_ROM:
-            get_directory(source_path, directory, sizeof(directory));
-            break;
-        case Directory_Location_Custom:
-            strncpy_fit(directory, config_emulator.savefiles_path.c_str(), sizeof(directory));
-            break;
-        default:
-            strncpy_fit(directory, config_root_path, sizeof(directory));
-            break;
-    }
-
+    std::string directory = emu_get_save_folder(source_path);
     char name[GDOX_MAX_PATH];
     char file_name[GDOX_MAX_PATH];
     char path[GDOX_MAX_PATH];
@@ -642,7 +750,7 @@ static std::string make_working_path(const char* source_path, u32 base_crc, int 
     else
         snprintf(file_name, sizeof(file_name), "%s.%08X.geardox.d77", name, base_crc);
 
-    join_path(directory, file_name, path, sizeof(path));
+    join_path(directory.c_str(), file_name, path, sizeof(path));
     return path;
 }
 
@@ -738,7 +846,7 @@ static bool mount(int drive, int index, bool discard_changes)
     u32 offset = 0;
     u32 size = 0;
 
-    if (!FloppySet::ReadDisk(entry.path.c_str(), entry.image, entry.disk, file, &offset, &size))
+    if (!read_disk(entry, file, &offset, &size))
     {
         Error("Not a floppy disk image: %s", entry.path.c_str());
         return false;

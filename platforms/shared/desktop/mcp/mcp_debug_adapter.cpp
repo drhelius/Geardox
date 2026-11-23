@@ -25,6 +25,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include "mcp_debug_adapter.h"
+#include "drive/folder_disk.h"
 #include "common/log.h"
 #include "drive/floppy_disk.h"
 #include "drive/hard_disk_image.h"
@@ -4684,14 +4685,11 @@ json DebugAdapter::AttachHardDisk(int id, const std::string& file_path, const js
         if (emu_hard_disk_is_source_attached(path))
             return {{"error", "This folder is attached already"}};
 
-        emu_hard_disk_prepare_source(path, false);
-        const FatImage_Report& report = emu_hard_disk_get_prepared_source()->report;
+        emu_hard_disk_prepare_source(path);
+        const Emu_HardDiskSource* source = emu_hard_disk_get_prepared_source();
 
-        if (report.result == FAT_IMAGE_TOO_BIG)
-            return {{"error", "This doesn't fit in a FAT16 disk of 2015 MB"}};
-
-        if ((report.result == FAT_IMAGE_ERROR) || !emu_hard_disk_attach_prepared_source(id, protect))
-            return {{"error", "Failed to make a hard disk from this folder or ZIP"}};
+        if (!source->ready || !emu_hard_disk_attach_prepared_source(id, protect))
+            return {{"error", std::string("Failed to make a hard disk from this folder or ZIP: ") + source->error}};
     }
     else if (!emu_hard_disk_attach(id, path, protect))
         return {{"error", "Failed to attach the hard disk image"}};
@@ -4700,11 +4698,7 @@ json DebugAdapter::AttachHardDisk(int id, const std::string& file_path, const js
     result["success"] = true;
 
     if (emu_hard_disk_is_source(path))
-    {
-        const FatImage_Report& report = emu_hard_disk_get_prepared_source()->report;
-        result["left_out"] = report.left_out;
-        result["changed_on_host"] = report.result == FAT_IMAGE_CHANGED;
-    }
+        result["left_out"] = emu_hard_disk_get_prepared_source()->left_out;
 
     return result;
 }
@@ -5683,7 +5677,7 @@ json DebugAdapter::GetGameInfo()
             {"layer", overrides.Has(k_keys[i][0], k_keys[i][1]) ? "override" : "descriptor"}};
     }
 
-    const GameDisk_Result& last = emu_game_get_last_write_back();
+    const FolderDisk_Result& last = emu_game_get_last_write_back();
     json notes = json::array();
 
     for (size_t i = 0; i < last.notes.size(); i++)
@@ -5694,7 +5688,7 @@ json DebugAdapter::GetGameInfo()
         {"name", disk->GetName()},
         {"descriptor_path", disk->GetDescriptorPath()},
         {"descriptor", descriptor.Write()},
-        {"overrides_path", disk->GetOverridesPath()},
+        {"settings_path", disk->GetSettingsPath()},
         {"keys", keys},
         {"machine", {{"model", k_machine_profiles[config.model].key}, {"model_source", k_mcp_machine_sources[report.model]},
             {"cpu_mhz", config.cpu_clock_rate / 1000000}, {"cpu_source", k_mcp_machine_sources[report.cpu_clock]},
@@ -5719,18 +5713,16 @@ json DebugAdapter::GetGameInfo()
             {"layer", overrides.Has("dos", "system") ? "override" : descriptor.Has("dos", "system") ? "descriptor" :
                 disk->HasMSDOS() ? "imported" : "default"}, {"msdos_imported", disk->HasMSDOS()}}},
         {"source", disk->GetSourcePath()},
-        {"image", disk->GetImagePath()},
-        {"built", disk->WasBuilt()},
-        {"recovered", disk->WasRecovered()},
-        {"refused_image", disk->GetRefusedPath()},
+        {"save_folder", disk->GetFolder()},
+        {"recovered", disk->GetRecovery().done},
+        {"refused", disk->GetRecovery().refused},
         {"left_out", disk->GetLeftOut()},
-        {"saves_to", disk->IsWritingToOverlay() ? "save_folder" : "game_folder"},
-        {"overlay", disk->GetOverlayPath()},
-        {"session_open", disk->IsSessionOpen()},
-        {"write_back_pending", emu_game_is_write_back_pending()},
+        {"saves_to", disk->IsWritingToSaves() ? "save_folder" : "game_folder"},
+        {"saves", disk->GetSavesPath()},
+        {"state_mismatch", IsValidPointer(m_core->GetFolderDisk(0)) && m_core->GetFolderDisk(0)->IsQuarantined()},
         {"last_write_back", {{"done", last.done}, {"refused", last.refused}, {"written", last.written},
-            {"deleted", last.deleted}, {"folders", last.directories}, {"conflicts", last.conflicts}, {"kept", last.kept},
-            {"startup", last.startup}, {"notes", notes}}}
+            {"deleted", last.deleted}, {"folders", last.directories}, {"conflicts", last.conflicts},
+            {"failed", last.failed}, {"notes", notes}}}
     };
 }
 
@@ -5771,7 +5763,7 @@ json DebugAdapter::FinishLoadMedia(const std::string& file_path)
             Emu_HardDiskInfo info;
             emu_hard_disk_get_info(i, &info);
 
-            if (strcmp(info.pending ? info.pending_path : info.path, source->image) != 0)
+            if (strcmp(info.pending ? info.pending_path : info.path, source->path) != 0)
                 continue;
 
             json result = hard_disk_json(i);
@@ -5779,16 +5771,19 @@ json DebugAdapter::FinishLoadMedia(const std::string& file_path)
             return result;
         }
 
-        if (source->report.result == FAT_IMAGE_TOO_BIG)
-            return {{"error", "These files don't fit in a FAT16 disk of 2015 MB"}};
-
-        return {{"error", "Unable to make a hard disk from " + file_path}};
+        return {{"error", "Unable to make a hard disk from " + file_path + (source->error[0] != 0 ? std::string(": ") +
+            source->error : std::string())}};
     }
 
     if (emu_floppy_is_image(file_path.c_str()))
     {
         if (gui_floppy_is_pending())
             return {{"error", "The disk in drive 0 has unsaved changes, confirm the insert in the GUI or use insert_floppy"}};
+
+        Emu_FloppyInfo info;
+
+        if (!emu_floppy_get_info(0, &info) || !info.inserted || (strcmp(info.path, file_path.c_str()) != 0))
+            return {{"error", "Unable to insert the floppy image"}};
 
         return {{"success", true}, {"file_path", file_path}, {"drive", 0}};
     }

@@ -23,8 +23,7 @@
 #include <string>
 #include <vector>
 #include "../common/common.h"
-
-class MediaFile;
+#include "../media/media_file.h"
 
 struct IsoImage_Entry
 {
@@ -40,6 +39,16 @@ struct IsoImage_Entry
     std::vector<u32> children;
 };
 
+struct IsoImage_Run
+{
+    u32 first;
+    u32 count;
+    int entry;
+    u64 offset;
+};
+
+static const u32 k_iso_open_sources = 4;
+
 class IsoImage
 {
 public:
@@ -49,8 +58,9 @@ public:
     void SetLabel(const char* label);
     u32 GetFingerprint() const;
     u32 GetLeftOut() const;
-    bool Write(const char* path);
-    static bool ReadFingerprint(const char* path, u32* fingerprint);
+    bool Build();
+    u32 GetSectors() const;
+    void ReadSector(u32 lba, u8* buffer);
 
 private:
     void Clear();
@@ -62,20 +72,48 @@ private:
     void BuildDirectory(u32 directory, std::vector<u8>* content) const;
     void BuildPathTable(bool big_endian, std::vector<u8>* content) const;
     void WriteDescriptor(u8* sector) const;
-    bool WriteDirectories();
-    bool CopyFiles();
+    void AddMetadata(u32 first, const u8* data, size_t size);
+    MediaFile* OpenSource(u32 index);
+    void CloseSources();
 
 private:
     std::vector<IsoImage_Entry> m_entries;
     std::vector<u32> m_order;
-    std::vector<u8> m_buffer;
-    MediaFile* m_output;
+    std::vector<u8> m_metadata;
+    std::vector<IsoImage_Run> m_runs;
+    MediaFile* m_sources[k_iso_open_sources];
+    u32 m_source_index[k_iso_open_sources];
+    u32 m_next_source;
     char m_label[33];
     u32 m_left_out;
     u32 m_path_size;
     u32 m_path_sectors;
     u32 m_total;
     s64 m_volume_time;
+};
+
+class IsoImageFile : public MediaFile
+{
+public:
+    IsoImageFile();
+    bool Load(const char* folder, const char* label);
+    bool Open(const char* path, bool writable);
+    bool Create(const char* path);
+    void Close();
+    bool IsOpen() const;
+    bool IsValid() const;
+    bool CanSeek() const;
+    s64 GetSize();
+    s64 Tell();
+    bool Seek(s64 offset);
+    s64 Read(void* buffer, u64 size);
+    s64 Write(const void* buffer, u64 size);
+    bool Flush();
+
+private:
+    IsoImage m_image;
+    bool m_loaded;
+    s64 m_position;
 };
 
 #endif /* ISO_IMAGE_H */

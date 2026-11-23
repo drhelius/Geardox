@@ -37,7 +37,6 @@ static const int k_iso_max_level = 8;
 static const size_t k_iso_max_entries = 131072;
 static const size_t k_iso_max_directories = 65535;
 static const u64 k_iso_max_file_size = 0xFFFFFFFFULL;
-static const u32 k_iso_copy_size = 1024 * 1024;
 static const char k_iso_standard[] = "CD001";
 static const char k_iso_system[] = "GEARDOX";
 static const char k_iso_label[] = "CDROM";
@@ -153,20 +152,27 @@ static void add_record(std::vector<u8>* content, const u8* identifier, u32 ident
 
 IsoImage::IsoImage()
 {
-    InitPointer(m_output);
     m_label[0] = 0;
     m_left_out = 0;
     m_path_size = 0;
     m_path_sectors = 0;
     m_total = 0;
     m_volume_time = 0;
+    m_next_source = 0;
+
+    for (u32 i = 0; i < k_iso_open_sources; i++)
+    {
+        InitPointer(m_sources[i]);
+        m_source_index[i] = 0;
+    }
+
     Clear();
     SetLabel(k_iso_label);
 }
 
 IsoImage::~IsoImage()
 {
-    SafeDelete(m_output);
+    CloseSources();
     Clear();
 }
 
@@ -224,83 +230,236 @@ u32 IsoImage::GetLeftOut() const
     return m_left_out;
 }
 
-bool IsoImage::Write(const char* path)
+static bool sort_runs(const IsoImage_Run& a, const IsoImage_Run& b)
+{
+    return a.first < b.first;
+}
+
+bool IsoImage::Build()
 {
     if (!Layout())
     {
-        Error("The files don't fit in an ISO 9660 image: %s", path);
+        Error("The files don't fit in an ISO 9660 image");
         return false;
     }
 
-    std::string temporary = std::string(path) + ".tmp";
-    m_output = MediaFile::OpenNewFile(temporary.c_str());
-
-    if (!IsValidPointer(m_output))
-    {
-        Error("Unable to create the CD image %s", temporary.c_str());
-        return false;
-    }
-
-    m_buffer.resize(k_iso_copy_size);
-
+    CloseSources();
+    m_metadata.clear();
+    m_runs.clear();
     u8 sector[k_iso_sector_size] = { };
-    std::vector<u8> table;
-
-    bool ok = m_output->WriteAt((u64)(m_total - 1) * k_iso_sector_size, sector, k_iso_sector_size);
-
     WriteDescriptor(sector);
-
-    ok = ok && m_output->WriteAt((u64)k_iso_descriptor_sector * k_iso_sector_size, sector, k_iso_sector_size);
-
+    AddMetadata(k_iso_descriptor_sector, sector, sizeof(sector));
     memset(sector, 0, sizeof(sector));
     sector[0] = 255;
     memcpy(sector + 1, k_iso_standard, 5);
     sector[6] = 1;
+    AddMetadata(k_iso_descriptor_sector + 1, sector, sizeof(sector));
+    std::vector<u8> content;
+    BuildPathTable(false, &content);
+    content.resize((size_t)m_path_sectors * k_iso_sector_size, 0);
+    AddMetadata(k_iso_path_table_sector, content.data(), content.size());
+    BuildPathTable(true, &content);
+    content.resize((size_t)m_path_sectors * k_iso_sector_size, 0);
+    AddMetadata(k_iso_path_table_sector + m_path_sectors, content.data(), content.size());
 
-    ok = ok && m_output->WriteAt((u64)(k_iso_descriptor_sector + 1) * k_iso_sector_size, sector, k_iso_sector_size);
-
-    BuildPathTable(false, &table);
-
-    ok = ok && m_output->WriteAt((u64)k_iso_path_table_sector * k_iso_sector_size, table.data(), table.size());
-
-    BuildPathTable(true, &table);
-
-    ok = ok && m_output->WriteAt((u64)(k_iso_path_table_sector + m_path_sectors) * k_iso_sector_size, table.data(),
-        table.size());
-
-    ok = ok && WriteDirectories() && CopyFiles() && m_output->Flush();
-
-    SafeDelete(m_output);
-    std::vector<u8>().swap(m_buffer);
-
-    ok = ok && MediaFile::MoveIntoPlace(temporary.c_str(), path);
-
-    if (!ok)
+    for (size_t i = 0; i < m_order.size(); i++)
     {
-        MediaFile::RemoveFile(temporary.c_str());
-        Error("Unable to write the CD image %s", path);
+        BuildDirectory(m_order[i], &content);
+        AddMetadata(m_entries[m_order[i]].extent, content.data(), content.size());
+        const std::vector<u32>& children = m_entries[m_order[i]].children;
+
+        for (size_t j = 0; j < children.size(); j++)
+        {
+            const IsoImage_Entry& entry = m_entries[children[j]];
+
+            if (entry.directory || (entry.size == 0))
+                continue;
+
+            IsoImage_Run run = { entry.extent, (u32)((entry.size + k_iso_sector_size - 1) / k_iso_sector_size),
+                (int)children[j], 0 };
+            m_runs.push_back(run);
+        }
     }
 
-    return ok;
+    std::sort(m_runs.begin(), m_runs.end(), sort_runs);
+    return true;
 }
 
-bool IsoImage::ReadFingerprint(const char* path, u32* fingerprint)
+u32 IsoImage::GetSectors() const
 {
-    MediaFile* file = MediaFile::OpenFile(path);
+    return m_total;
+}
+
+void IsoImage::ReadSector(u32 lba, u8* buffer)
+{
+    memset(buffer, 0, k_iso_sector_size);
+    size_t low = 0;
+    size_t high = m_runs.size();
+
+    while (low < high)
+    {
+        size_t middle = (low + high) / 2;
+
+        if (m_runs[middle].first + m_runs[middle].count <= lba)
+            low = middle + 1;
+        else
+            high = middle;
+    }
+
+    if ((low >= m_runs.size()) || (m_runs[low].first > lba))
+        return;
+
+    const IsoImage_Run& run = m_runs[low];
+    u64 offset = run.offset + ((u64)(lba - run.first) * k_iso_sector_size);
+
+    if (run.entry < 0)
+    {
+        memcpy(buffer, m_metadata.data() + offset, k_iso_sector_size);
+        return;
+    }
+
+    const IsoImage_Entry& entry = m_entries[run.entry];
+    MediaFile* file = offset < entry.size ? OpenSource((u32)run.entry) : NULL;
+
+    if (IsValidPointer(file))
+        file->ReadAt(offset, buffer, MIN((u64)k_iso_sector_size, entry.size - offset));
+}
+
+void IsoImage::AddMetadata(u32 first, const u8* data, size_t size)
+{
+    IsoImage_Run run = { first, (u32)(size / k_iso_sector_size), -1, (u64)m_metadata.size() };
+    m_metadata.insert(m_metadata.end(), data, data + size);
+    m_runs.push_back(run);
+}
+
+MediaFile* IsoImage::OpenSource(u32 index)
+{
+    for (u32 i = 0; i < k_iso_open_sources; i++)
+    {
+        if (IsValidPointer(m_sources[i]) && (m_source_index[i] == index))
+            return m_sources[i];
+    }
+
+    u32 slot = m_next_source;
+    m_next_source = (m_next_source + 1) % k_iso_open_sources;
+    SafeDelete(m_sources[slot]);
+    m_sources[slot] = MediaFile::OpenFile(m_entries[index].source.c_str());
+    m_source_index[slot] = index;
+    return m_sources[slot];
+}
+
+void IsoImage::CloseSources()
+{
+    for (u32 i = 0; i < k_iso_open_sources; i++)
+        SafeDelete(m_sources[i]);
+}
+
+IsoImageFile::IsoImageFile()
+{
+    m_loaded = false;
+    m_position = 0;
+}
+
+bool IsoImageFile::Load(const char* folder, const char* label)
+{
+    std::string name = path_filename(trim_trailing_separators(folder));
+    m_image.SetLabel((IsValidPointer(label) && (label[0] != 0)) ? label : name.c_str());
+    m_loaded = m_image.AddFolder(folder) && m_image.Build();
+    m_position = 0;
+    return m_loaded;
+}
+
+bool IsoImageFile::Open(const char* path, bool writable)
+{
+    UNUSED(path);
+    UNUSED(writable);
+    return false;
+}
+
+bool IsoImageFile::Create(const char* path)
+{
+    UNUSED(path);
+    return false;
+}
+
+void IsoImageFile::Close()
+{
+}
+
+bool IsoImageFile::IsOpen() const
+{
+    return m_loaded;
+}
+
+bool IsoImageFile::IsValid() const
+{
+    return m_loaded;
+}
+
+bool IsoImageFile::CanSeek() const
+{
+    return m_loaded;
+}
+
+s64 IsoImageFile::GetSize()
+{
+    return m_loaded ? (s64)m_image.GetSectors() * k_iso_sector_size : 0;
+}
+
+s64 IsoImageFile::Tell()
+{
+    return m_position;
+}
+
+bool IsoImageFile::Seek(s64 offset)
+{
+    m_position = offset;
+    return offset >= 0;
+}
+
+s64 IsoImageFile::Read(void* buffer, u64 size)
+{
+    u64 end = (u64)GetSize();
+
+    if ((m_position < 0) || ((u64)m_position >= end))
+        return 0;
+
+    size = MIN(size, end - (u64)m_position);
+    u8* out = (u8*)buffer;
     u8 sector[k_iso_sector_size];
+    u64 done = 0;
 
-    if (!IsValidPointer(file))
-        return false;
+    while (done < size)
+    {
+        u64 offset = (u64)m_position + done;
+        u32 skip = (u32)(offset % k_iso_sector_size);
+        u32 chunk = (u32)MIN((u64)(k_iso_sector_size - skip), size - done);
 
-    bool ok = file->ReadAt((u64)k_iso_descriptor_sector * k_iso_sector_size, sector, k_iso_sector_size);
-    SafeDelete(file);
-    ok = ok && (sector[0] == 1) && (memcmp(sector + 1, k_iso_standard, 5) == 0) &&
-        (memcmp(sector + k_iso_fingerprint_offset, k_iso_tag, 4) == 0);
+        if ((skip == 0) && (chunk == k_iso_sector_size))
+            m_image.ReadSector((u32)(offset / k_iso_sector_size), out + done);
+        else
+        {
+            m_image.ReadSector((u32)(offset / k_iso_sector_size), sector);
+            memcpy(out + done, sector + skip, chunk);
+        }
 
-    if (ok)
-        *fingerprint = read_u32_le(sector + k_iso_fingerprint_offset + 4);
+        done += chunk;
+    }
 
-    return ok;
+    m_position += (s64)size;
+    return (s64)size;
+}
+
+s64 IsoImageFile::Write(const void* buffer, u64 size)
+{
+    UNUSED(buffer);
+    UNUSED(size);
+    return -1;
+}
+
+bool IsoImageFile::Flush()
+{
+    return true;
 }
 
 void IsoImage::Clear()
@@ -597,63 +756,3 @@ void IsoImage::WriteDescriptor(u8* sector) const
     write_u32_le(sector + k_iso_fingerprint_offset + 4, GetFingerprint());
 }
 
-bool IsoImage::WriteDirectories()
-{
-    std::vector<u8> content;
-
-    for (size_t i = 0; i < m_order.size(); i++)
-    {
-        BuildDirectory(m_order[i], &content);
-
-        if (!m_output->WriteAt((u64)m_entries[m_order[i]].extent * k_iso_sector_size, content.data(), content.size()))
-            return false;
-    }
-
-    return true;
-}
-
-bool IsoImage::CopyFiles()
-{
-    for (size_t i = 0; i < m_order.size(); i++)
-    {
-        const std::vector<u32>& children = m_entries[m_order[i]].children;
-
-        for (size_t j = 0; j < children.size(); j++)
-        {
-            const IsoImage_Entry& entry = m_entries[children[j]];
-
-            if (entry.directory || (entry.size == 0))
-                continue;
-
-            MediaFile* file = MediaFile::OpenFile(entry.source.c_str());
-
-            if (!IsValidPointer(file))
-            {
-                Error("Unable to read %s", entry.source.c_str());
-                return false;
-            }
-
-            u64 offset = (u64)entry.extent * k_iso_sector_size;
-            u64 left = entry.size;
-            bool ok = true;
-
-            while (ok && (left != 0))
-            {
-                u32 chunk = (u32)MIN(left, (u64)m_buffer.size());
-                ok = file->ReadExact(m_buffer.data(), chunk) && m_output->WriteAt(offset, m_buffer.data(), chunk);
-                offset += chunk;
-                left -= chunk;
-            }
-
-            SafeDelete(file);
-
-            if (!ok)
-            {
-                Error("Unable to copy %s", entry.source.c_str());
-                return false;
-            }
-        }
-    }
-
-    return true;
-}

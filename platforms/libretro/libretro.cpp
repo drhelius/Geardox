@@ -41,6 +41,7 @@
 #include "drive/fat_image.h"
 #include "drive/dos_disk.h"
 #include "drive/game_disk.h"
+#include "drive/folder_disk.h"
 #include "drive/glide_import.h"
 #include "video/video.h"
 #include "video/voodoo.h"
@@ -245,7 +246,10 @@ static void game_message(const GameDisk_Message& message);
 static bool game_open(const char* path, bool* game);
 static void game_end(void);
 static bool game_rebuild(void);
+static std::string get_temp_path(void);
+static void log_write_back(void);
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images);
+static bool disk_add_cdrom(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_playlist(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_floppy_images(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_save_disk(const std::string& name, const char* label, const char* volume, std::vector<DiskSetImage>& images);
@@ -343,19 +347,6 @@ static std::string get_file_name(const char* path, bool strip_extension)
 {
     std::string name = path_filename(trim_trailing_separators(path));
     return strip_extension ? path_strip_extension(name) : name;
-}
-
-static std::string get_save_disk_name(const std::string& name)
-{
-    std::string sanitized(name.empty() ? "geardox" : name);
-
-    for (size_t i = 0; i < sanitized.size(); i++)
-    {
-        if ((unsigned char)sanitized[i] < 0x20 || strchr("<>:\"/\\|?*", sanitized[i]) != NULL)
-            sanitized[i] = '_';
-    }
-
-    return sanitized;
 }
 
 unsigned retro_api_version(void)
@@ -747,11 +738,14 @@ bool retro_unserialize(const void *data, size_t size)
         load_input_state(buffer + savestate_size);
         core->GetKeyMap()->Resync();
         bool changed = core->GetHardDiskStateChanges() != 0;
+        bool mismatch = IsValidPointer(core->GetFolderDisk(0)) && core->GetFolderDisk(0)->IsQuarantined();
 
         if (changed && !hard_disk_state_warned)
         {
-            log_cb(RETRO_LOG_WARN, "The hard disk changed since this state was saved\n");
-            show_message("The hard disk changed since this state was saved", 3, RETRO_LOG_WARN);
+            const char* message = mismatch ? "The hard disk changed since this state was saved, its changes go to its "
+                "Conflicts folder until it closes" : "The hard disk changed since this state was saved";
+            log_cb(RETRO_LOG_WARN, "%s\n", message);
+            show_message(message, 3, RETRO_LOG_WARN);
         }
 
         hard_disk_state_warned = changed;
@@ -834,6 +828,9 @@ static bool load_content(const char* path)
 
     snprintf(retro_game_path, sizeof(retro_game_path), "%s", path);
     log_cb(RETRO_LOG_INFO, "Loading %s\n", path[0] != 0 ? path : "no content");
+    MediaFile::RemoveTree(get_temp_path().c_str());
+    MediaFile::MakeDirectories(get_temp_path().c_str());
+    core->GetMedia()->SetTempPath(get_temp_path().c_str());
 
     set_machine_config();
     disk_clear();
@@ -949,6 +946,7 @@ static void unload_content(void)
     game_end();
     disk_clear();
     clear_input_state();
+    MediaFile::RemoveTree(get_temp_path().c_str());
 
     content_loaded = false;
     retro_game_path[0] = 0;
@@ -1650,7 +1648,7 @@ static void key_map_load(void)
     std::string error;
 
     key_map_path = retro_save_directory;
-    append_path_component(key_map_path, (get_save_disk_name(get_file_name(retro_game_path, true)) + ".keys").c_str());
+    append_path_component(key_map_path, (safe_file_name(get_file_name(retro_game_path, true), "geardox") + ".keys").c_str());
     key_mapper_was_open = false;
     key_mapping_was_enabled = true;
     core->GetKeyMapper()->SetTitle(game_active ? game_disk.GetName() : get_file_name(retro_game_path, false).c_str());
@@ -2392,7 +2390,7 @@ static bool disk_load(const char* path)
 
     if (save_disk)
     {
-        std::string name = get_save_disk_name(get_file_name(retro_game_path, true)) + ".save.d77";
+        std::string name = safe_file_name(get_file_name(retro_game_path, true), "geardox") + ".save.d77";
 
         if (!disk_add_save_disk(name, "Save Disk", NULL, disk_images))
             return false;
@@ -2470,7 +2468,12 @@ static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images)
         return false;
     }
 
-    if (!IsCdRomUri(path))
+    return disk_add_cdrom(path, images);
+}
+
+static bool disk_add_cdrom(const char* path, std::vector<DiskSetImage>& images)
+{
+    if (!IsCdRomUri(path) && !MediaFile::IsDirectory(path))
     {
         MediaFile* file = MediaFile::OpenFile(path);
 
@@ -2502,7 +2505,7 @@ static bool disk_add_playlist(const char* path, std::vector<DiskSetImage>& image
         !Media::ParsePlaylist(path, reinterpret_cast<const char*>(data.data()), data.size(), entries))
         return false;
 
-    std::string save_name = get_save_disk_name(get_file_name(path, true));
+    std::string save_name = safe_file_name(get_file_name(path, true), "geardox");
     int save_disks = 0;
 
     for (size_t i = 0; i < entries.size(); i++)
@@ -3194,7 +3197,7 @@ static bool hard_disk_attach(const char* path)
     size_t dot = name.find_last_of('.');
     std::string working = retro_save_directory;
     std::string extension = ends_with_no_case(path, ".chd") ? ".hdd" : name.substr(dot);
-    append_path_component(working, (get_save_disk_name(name.substr(0, dot)) + ".save" + extension).c_str());
+    append_path_component(working, (safe_file_name(name.substr(0, dot), "geardox") + ".save" + extension).c_str());
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
@@ -3230,27 +3233,18 @@ static bool hard_disk_attach_source(const char* path)
         return false;
     }
 
-    std::string image;
-    FatImage_Report report;
-    bool prepared = FatImage::PrepareSource(path, retro_save_directory, false, &image, &report);
+    std::string error;
+    FolderDisk* disk = FolderDisk::OpenSource(path, retro_save_directory, get_temp_path().c_str(), &error);
 
-    if (report.result == FAT_IMAGE_TOO_BIG)
-        show_message("These files don't fit in a FAT16 disk of 2015 MB", 3, RETRO_LOG_ERROR);
-
-    if (!prepared)
+    if (!IsValidPointer(disk))
     {
-        log_cb(RETRO_LOG_ERROR, "Unable to make a hard disk from %s\n", path);
+        log_cb(RETRO_LOG_ERROR, "Unable to make a hard disk from %s: %s\n", path, error.c_str());
+        show_message(error.c_str(), 3, RETRO_LOG_ERROR);
         return false;
     }
 
-    if (report.result == FAT_IMAGE_CHANGED)
-    {
-        log_cb(RETRO_LOG_WARN, "%s changed since %s was made, delete that file to pick it up\n", path, image.c_str());
-        show_message("This ZIP changed since its disk was made", 3, RETRO_LOG_WARN);
-    }
-
-    if (report.left_out != 0)
-        log_cb(RETRO_LOG_WARN, "%u items of %s are too deep for DOS to reach\n", report.left_out, path);
+    if (disk->GetLeftOut() != 0)
+        log_cb(RETRO_LOG_WARN, "%u items of %s are too deep for DOS to reach\n", disk->GetLeftOut(), path);
 
     int id = -1;
 
@@ -3263,13 +3257,13 @@ static bool hard_disk_attach_source(const char* path)
             id = i;
     }
 
-    if ((id < 0) || !core->AttachHardDisk(id, image.c_str(), false, ""))
+    if ((id < 0) || !core->AttachHardDisk(id, disk))
     {
         log_cb(RETRO_LOG_ERROR, "Unable to attach the hard disk made from %s\n", path);
         return false;
     }
 
-    log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", id, image.c_str());
+    log_cb(RETRO_LOG_INFO, "Hard disk in slot %d: %s\n", id, path);
     return true;
 }
 
@@ -3448,8 +3442,8 @@ static bool game_open(const char* path, bool* game)
 
     static char message[1024];
 
-    if (!game_disk.Open(found[pick], retro_save_directory, NULL, game_write_folder, game_freedos_only ? "" : msdos_zip.c_str(),
-        ultrasnd_zip.c_str(), glide_ovl.c_str()))
+    if (!game_disk.Open(found[pick], retro_save_directory, get_temp_path().c_str(), false, game_write_folder,
+        game_freedos_only ? "" : msdos_zip.c_str(), ultrasnd_zip.c_str(), glide_ovl.c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);
@@ -3484,9 +3478,9 @@ static bool game_open(const char* path, bool* game)
     for (size_t i = 0; i < messages.size(); i++)
         game_message(messages[i]);
 
-    if (!core->AttachHardDisk(0, game_disk.GetImagePath(), false, ""))
+    if (!core->AttachHardDisk(0, game_disk.TakeDisk()))
     {
-        log_cb(RETRO_LOG_ERROR, "Unable to attach the game's disk %s\n", game_disk.GetImagePath());
+        log_cb(RETRO_LOG_ERROR, "Unable to attach the game's disk %s\n", game_disk.GetSourcePath());
         game_disk.Close();
         core->ClearGameSettings();
         return false;
@@ -3494,18 +3488,15 @@ static bool game_open(const char* path, bool* game)
 
     hard_disk_image_attached = true;
     game_active = true;
-    log_cb(RETRO_LOG_INFO, "Game %s on %s: %s %s\n", game_disk.GetName(), game_disk.GetSystemName(),
-        game_disk.WasBuilt() ? "built" : "reused", game_disk.GetImagePath());
+    log_cb(RETRO_LOG_INFO, "Game %s on %s: %s\n", game_disk.GetName(), game_disk.GetSystemName(), game_disk.GetFolder());
+
     for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
     {
-        std::string image;
-        FatImage_Report report;
+        FolderDisk* folder = game_disk.TakeHardDisk(id);
+        bool attached = IsValidPointer(folder) ? core->AttachHardDisk(id, folder) :
+            ((game_disk.GetHardDisk(id)[0] == 0) || core->AttachHardDisk(id, game_disk.GetHardDisk(id), false, ""));
 
-        if (game_disk.GetHardDisk(id)[0] == 0)
-            continue;
-
-        if (!game_disk.GetHardDiskImage(id, retro_save_directory, &image, &report) ||
-            !core->AttachHardDisk(id, image.c_str(), false, ""))
+        if (!attached)
             log_cb(RETRO_LOG_ERROR, "Unable to attach the game's hard disk %s\n", game_disk.GetHardDisk(id));
     }
 
@@ -3530,8 +3521,10 @@ static bool game_open(const char* path, bool* game)
     for (size_t i = 0; i < cds.size(); i++)
     {
         size_t index = disk_images.size();
+        bool added = MediaFile::IsDirectory(cds[i].c_str()) ? disk_add_cdrom(cds[i].c_str(), disk_images) :
+            disk_add_images(cds[i].c_str(), disk_images);
 
-        if (!disk_add_images(cds[i].c_str(), disk_images))
+        if (!added)
             return false;
 
         if ((i == 0) && (index < disk_images.size()))
@@ -3559,17 +3552,14 @@ static bool game_rebuild(void)
     game_disk.GetGameSettings(machine_settings, &settings);
     core->SetGameSettings(settings, game_disk.GetName());
 
-    if (!game_disk.NeedsRebuild(core->GetPendingMachineConfig()))
+    if (!game_disk.NeedsRestart(core->GetPendingMachineConfig()))
         return false;
 
     core->PowerOff();
     core->DetachHardDisk(0);
+    log_write_back();
 
-    if (!game_disk.Finish())
-        log_cb(RETRO_LOG_ERROR, "The game's changes weren't written back, the next load tries again\n");
-
-    if (!game_disk.Prepare(core->GetPendingMachineConfig()) ||
-        !core->AttachHardDisk(0, game_disk.GetImagePath(), false, ""))
+    if (!game_disk.Prepare(core->GetPendingMachineConfig()) || !core->AttachHardDisk(0, game_disk.TakeDisk()))
     {
         static char message[1024];
         snprintf(message, sizeof(message), "Unable to build the game's disk again: %s", game_disk.GetError());
@@ -3584,13 +3574,10 @@ static bool game_rebuild(void)
     for (size_t i = 0; i < messages.size(); i++)
         game_message(messages[i]);
 
-    log_cb(RETRO_LOG_INFO, "Game %s: disk %s again for the reset\n", game_disk.GetName(),
-        game_disk.WasBuilt() ? "built" : "reused");
+    log_cb(RETRO_LOG_INFO, "Game %s: its disk again for the reset\n", game_disk.GetName());
     return true;
 }
 
-// The machine lets go of the game's disks, then what DOS changed goes back. A frontend killed before this leaves the
-// manifest open, and the next load writes it back
 static void game_end(void)
 {
     if (!game_active)
@@ -3601,7 +3588,6 @@ static void game_end(void)
     if (core->IsPoweredOn())
         core->PowerOff();
 
-    core->FlushHardDisks();
     core->DetachHardDisk(0);
 
     for (int id = 1; id < GDOX_MAX_HARD_DISKS; id++)
@@ -3610,21 +3596,34 @@ static void game_end(void)
             core->DetachHardDisk(id);
     }
 
-    if (!game_disk.Finish())
-        log_cb(RETRO_LOG_ERROR, "The game's changes weren't written back, the next load tries again\n");
-
-    const GameDisk_Result& r = game_disk.GetLastWriteBack();
-    log_cb(RETRO_LOG_INFO, "Write-back: %u written, %u deleted, %u folders, %u conflicts, %u kept\n", r.written,
-        r.deleted, r.directories, r.conflicts, r.kept);
-
-    for (size_t i = 0; i < r.notes.size(); i++)
-        log_cb(RETRO_LOG_WARN, "%s\n", r.notes[i].c_str());
-
+    log_write_back();
     game_disk.Close();
     core->ClearGameSettings();
     core->SetGameTarget(-1);
     core->GetVideo()->SetCGAOutput(cga_output);
     update_core_options_display();
+}
+
+static void log_write_back(void)
+{
+    const FolderDisk_Result& r = core->GetHardDiskResult(0);
+
+    if (!r.done && !r.refused && (r.failed == 0))
+        return;
+
+    log_cb(r.done ? RETRO_LOG_INFO : RETRO_LOG_ERROR, "Write-back of %s: %u written, %u deleted, %u folders, %u conflicts, "
+        "%u failed\n", game_disk.GetName(), r.written, r.deleted, r.directories, r.conflicts, r.failed);
+
+    for (size_t i = 0; i < r.notes.size(); i++)
+        log_cb(RETRO_LOG_WARN, "%s\n", r.notes[i].c_str());
+
+    if (!r.done)
+        log_cb(RETRO_LOG_ERROR, "The game's changes weren't written back, the next load tries again\n");
+}
+
+static std::string get_temp_path(void)
+{
+    return path_join(retro_save_directory, "Geardox Temp");
 }
 
 static void hard_disk_attach_builtin(void)

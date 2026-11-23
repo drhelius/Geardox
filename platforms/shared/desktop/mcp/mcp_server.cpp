@@ -1569,8 +1569,9 @@ json McpServer::BuildToolList()
     tools.push_back(make_tool("load_media", "Load Media",
         "Load media from a local file; a hard disk image (.hdd, .h0-.h3, .img or .hdm over 8 MB, fixed .vhd, hard disk .chd) "
         "attaches to its slot or the first free one, powering on an empty machine. A game descriptor (.gdox), or a folder "
-        "or ZIP with one in its root, opens its game: its disk on C:, built or reused, and the machine powered on; "
-        "the answer is get_game_info's.", k_mcp_tool_destructive_world,
+        "or ZIP with one in its root, opens its game: C: made from DOS and the game's folder, read in place, and the "
+        "machine powered on; any other folder or ZIP opens at the DOS prompt in its folder. "
+        "The answer is get_game_info's.", k_mcp_tool_destructive_world,
         {
             {"type", "object"},
             {"properties", {
@@ -1671,8 +1672,9 @@ json McpServer::BuildToolList()
         "The game open from a .gdox descriptor: the descriptor with its overrides, each key set and its layer "
         "(descriptor or override), the machine in use and where each value came from, the target (game, setup or prompt), "
         "the program (which runs, which is chosen, whether the game has a 3dfx program and whether that needs the imported 3dfx driver), "
-        "the DOS it boots (FreeDOS or the user's imported MS-DOS) and its layer, the disk image, whether it was built or reused, where saves go, whether the session is open, and the last "
-        "write-back with its conflicts. open is false with no game.", k_mcp_tool_read, empty_schema()));
+        "the DOS it boots (FreeDOS or the user's imported MS-DOS) and its layer, the game's save folder, where saves go, "
+        "whether the last session was recovered, whether a loaded state didn't match its disk, and the last write-back "
+        "with its conflicts. open is false with no game.", k_mcp_tool_read, empty_schema()));
 
     tools.push_back(make_tool("list_hard_disks", "List Hard Disks",
         "List hard disk slots 0-3: position on the IDE channels, image, size, geometry, BIOS translation, "
@@ -1681,7 +1683,8 @@ json McpServer::BuildToolList()
 
     tools.push_back(make_tool("attach_hard_disk", "Attach Hard Disk",
         "Attach a raw image of 512-byte sectors, a folder or a ZIP to a slot; a running machine "
-        "takes it at the next reset. A folder or ZIP becomes a FAT16 disk, only read from. create_size_mb first "
+        "takes it at the next reset. A folder or ZIP becomes a FAT16 disk read in place, its changes written back into the "
+        "folder when it's detached, a ZIP's into its save folder. create_size_mb first "
         "creates a blank image, never replacing a file.", k_mcp_tool_write_world,
         {
             {"type", "object"},

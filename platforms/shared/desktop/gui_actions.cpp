@@ -396,25 +396,25 @@ static std::string get_auto_file_path(int dir_option, const std::string& custom_
     char date_time[32];
     get_file_date_time_string(time(NULL), date_time, sizeof(date_time));
 
-    const char* base_path = config_root_path;
-    const char* media_name = "Geardox";
+    std::string base_path = config_root_path;
+    std::string media_name = "Geardox";
 
     if (!emu_is_empty())
     {
-        media_name = emu_get_core()->GetMedia()->GetFileName();
+        std::string folder = emu_get_content_folder();
+        std::string name = emu_get_content_name(false);
 
-        if (dir_option == Directory_Location_ROM && emu_get_core()->GetMedia()->GetFileDirectory()[0] != '\0')
-        {
-            base_path = emu_get_core()->GetMedia()->GetFileDirectory();
-        }
+        if (!name.empty())
+            media_name = name;
+
+        if ((dir_option == Directory_Location_ROM) && !folder.empty())
+            base_path = folder;
         else if (dir_option == Directory_Location_Custom)
-        {
-            base_path = custom_path.c_str();
-        }
+            base_path = custom_path;
     }
 
     std::string file_path = base_path;
-    append_path_component(file_path, media_name);
+    append_path_component(file_path, media_name.c_str());
     file_path += " - ";
     file_path += date_time;
     file_path += extension;

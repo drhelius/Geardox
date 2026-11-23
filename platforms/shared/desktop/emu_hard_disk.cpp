@@ -28,6 +28,7 @@
 #include "emu_dos.h"
 #include "emu_floppy.h"
 #include "drive/dos_disk.h"
+#include "drive/folder_disk.h"
 #include "drive/hard_disk_image.h"
 #include "media/game_descriptor.h"
 #include "media/media_file.h"
@@ -37,10 +38,12 @@ static IdleFlush idle_flush;
 static bool flush_error = false;
 static u32 state_changes = 0;
 static bool rewind_changed = false;
-static std::string source_paths[GDOX_MAX_HARD_DISKS];
-static std::string source_images[GDOX_MAX_HARD_DISKS];
 static bool game_disks[GDOX_MAX_HARD_DISKS];
 static Emu_HardDiskSource prepared_source;
+static FolderDisk* prepared_disk = NULL;
+static HardDiskImage* prepared_images[GDOX_MAX_HARD_DISKS];
+static std::string prepared_working_paths[GDOX_MAX_HARD_DISKS];
+static bool prepared_write_protected[GDOX_MAX_HARD_DISKS];
 static std::string builtin_error;
 static std::string fallback_error;
 
@@ -50,8 +53,6 @@ static std::string get_builtin_path(int system);
 static int get_builtin_system(const char* path);
 static bool make_builtin(int system, bool replace);
 static bool attach_default(int id, int choice);
-static const char* get_save_folder(void);
-static std::string get_source_image_path(const char* path);
 static bool is_generated(int id, const char* path);
 
 bool emu_hard_disk_is_image(const char* path)
@@ -122,28 +123,30 @@ bool emu_hard_disk_is_source(const char* path)
 
 bool emu_hard_disk_is_source_attached(const char* path)
 {
-    std::string image = get_source_image_path(path);
+    std::string source = trim_trailing_separators(path);
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
         Emu_HardDiskInfo info;
         emu_hard_disk_get_info(i, &info);
 
-        if (image == (info.pending ? info.pending_path : info.path))
+        if (source == (info.pending ? info.pending_path : info.path))
             return true;
     }
 
     return false;
 }
 
-// Touches nothing of the emulator's, so the loading thread can run it
-void emu_hard_disk_prepare_source(const char* path, bool rebuild)
+void emu_hard_disk_prepare_source(const char* path)
 {
+    std::string error;
+    SafeDelete(prepared_disk);
     strncpy_fit(prepared_source.path, trim_trailing_separators(path).c_str(), sizeof(prepared_source.path));
-
-    std::string image;
-    FatImage::PrepareSource(prepared_source.path, get_save_folder(), rebuild, &image, &prepared_source.report);
-    strncpy_fit(prepared_source.image, image.c_str(), sizeof(prepared_source.image));
+    prepared_disk = FolderDisk::OpenSource(prepared_source.path, emu_get_save_folder(NULL).c_str(), config_temp_path,
+        &error);
+    strncpy_fit(prepared_source.error, error.c_str(), sizeof(prepared_source.error));
+    prepared_source.left_out = IsValidPointer(prepared_disk) ? prepared_disk->GetLeftOut() : 0;
+    prepared_source.ready = IsValidPointer(prepared_disk);
 }
 
 const Emu_HardDiskSource* emu_hard_disk_get_prepared_source(void)
@@ -153,20 +156,57 @@ const Emu_HardDiskSource* emu_hard_disk_get_prepared_source(void)
 
 bool emu_hard_disk_attach_prepared_source(int id, bool write_protected)
 {
-    if (!valid_id(id))
+    UNUSED(write_protected);
+    FolderDisk* disk = prepared_disk;
+    prepared_disk = NULL;
+    prepared_source.ready = false;
+
+    if (!valid_id(id) || !emu_get_core()->AttachHardDisk(id, disk))
         return false;
 
-    source_paths[id] = prepared_source.path;
-    source_images[id] = prepared_source.image;
-
-    if (!emu_hard_disk_attach(id, prepared_source.image, write_protected))
-    {
-        source_paths[id].clear();
-        source_images[id].clear();
-        return false;
-    }
-
+    game_disks[id] = false;
     config_push_recent_hard_disk(prepared_source.path);
+    return true;
+}
+
+void emu_hard_disk_prepare_image(int id, const char* path, bool write_protected)
+{
+    if (!valid_id(id) || !IsValidPointer(path))
+        return;
+
+    SafeDelete(prepared_images[id]);
+    prepared_working_paths[id] = get_working_path(path);
+    prepared_write_protected[id] = write_protected;
+    HardDiskImage* image = new HardDiskImage();
+
+    if (image->Open(path, write_protected, prepared_working_paths[id].c_str()))
+        prepared_images[id] = image;
+    else
+        SafeDelete(image);
+}
+
+bool emu_hard_disk_attach_prepared_image(int id, bool game)
+{
+    if (!valid_id(id) || !IsValidPointer(prepared_images[id]))
+        return false;
+
+    HardDiskImage* image = prepared_images[id];
+    InitPointer(prepared_images[id]);
+    std::string path = image->GetPath();
+
+    if (!emu_get_core()->AttachHardDisk(id, image, prepared_write_protected[id], prepared_working_paths[id].c_str()))
+        return false;
+
+    game_disks[id] = game;
+
+    if (game)
+        return true;
+
+    config_emulator.hard_disk_write_protected[id] = prepared_write_protected[id] ? 1 : 0;
+
+    if (!is_generated(id, path.c_str()))
+        config_push_recent_hard_disk(path.c_str());
+
     return true;
 }
 
@@ -335,6 +375,7 @@ bool emu_hard_disk_attach(int id, const char* path, bool write_protected)
         return false;
 
     config_emulator.hard_disk_write_protected[id] = write_protected ? 1 : 0;
+    game_disks[id] = false;
 
     if (!is_generated(id, path))
         config_push_recent_hard_disk(path);
@@ -342,14 +383,11 @@ bool emu_hard_disk_attach(int id, const char* path, bool write_protected)
     return true;
 }
 
-// A game's disks are its own: never in the recent list, and they go when the game ends
-bool emu_hard_disk_attach_game(int id, const char* image, const char* source)
+bool emu_hard_disk_attach_game(int id, FolderDisk* disk)
 {
-    if (!valid_id(id) || !IsValidPointer(image) || !emu_get_core()->AttachHardDisk(id, image, false, NULL))
+    if (!valid_id(id) || !emu_get_core()->AttachHardDisk(id, disk))
         return false;
 
-    source_paths[id] = IsValidPointer(source) ? source : "";
-    source_images[id] = image;
     game_disks[id] = true;
     return true;
 }
@@ -449,11 +487,12 @@ bool emu_hard_disk_get_info(int id, Emu_HardDiskInfo* info)
     const char* path = info->pending ? info->pending_path : info->path;
     info->builtin_system = get_builtin_system(path);
     info->builtin = info->builtin_system >= 0;
+    info->folder = !info->pending && IsValidPointer(core->GetFolderDisk(id));
 
-    if ((path[0] != 0) && (source_images[id] == path))
-        strncpy_fit(info->source, source_paths[id].c_str(), sizeof(info->source));
+    if (info->folder)
+        strncpy_fit(info->source, info->path, sizeof(info->source));
 
-    info->game = game_disks[id] && (path[0] != 0) && (source_images[id] == path);
+    info->game = game_disks[id] && (path[0] != 0);
     return true;
 }
 
@@ -475,15 +514,7 @@ const char* emu_hard_disk_get_content_path(void)
 
 const char* emu_hard_disk_get_content_name(void)
 {
-    const char* path = emu_hard_disk_get_content_path();
-
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
-    {
-        if ((path[0] != 0) && (source_images[i] == path))
-            return source_paths[i].c_str();
-    }
-
-    return path;
+    return emu_hard_disk_get_content_path();
 }
 
 void emu_hard_disk_state_loaded(bool rewind)
@@ -546,21 +577,9 @@ static bool attach_default(int id, int choice)
         (int)GDOX_GAME_SYSTEM_FREEDOS);
 }
 
-// "Same as ROM" means the config folder here: a folder is only read, so nothing goes next to it
-static const char* get_save_folder(void)
-{
-    bool custom = (Directory_Location)config_emulator.savefiles_dir_option == Directory_Location_Custom;
-    return custom ? config_emulator.savefiles_path.c_str() : config_root_path;
-}
-
-static std::string get_source_image_path(const char* path)
-{
-    return FatImage::GetImagePath(path, get_save_folder());
-}
-
 static bool is_generated(int id, const char* path)
 {
-    return (source_images[id] == path) || (get_builtin_system(path) >= 0);
+    return game_disks[id] || (get_builtin_system(path) >= 0);
 }
 
 static std::string get_working_path(const char* path)
@@ -570,27 +589,13 @@ static std::string get_working_path(const char* path)
     if (!ends_with_no_case(path, ".chd") || !HardDiskImage::GetChdHash(path, &hash))
         return "";
 
-    char directory[GDOX_MAX_PATH];
-
-    switch ((Directory_Location)config_emulator.savefiles_dir_option)
-    {
-        case Directory_Location_ROM:
-            get_directory(path, directory, sizeof(directory));
-            break;
-        case Directory_Location_Custom:
-            strncpy_fit(directory, config_emulator.savefiles_path.c_str(), sizeof(directory));
-            break;
-        default:
-            strncpy_fit(directory, config_root_path, sizeof(directory));
-            break;
-    }
-
+    std::string directory = emu_get_save_folder(path);
     char name[GDOX_MAX_PATH];
     char file_name[GDOX_MAX_PATH];
     char working[GDOX_MAX_PATH];
     get_filename_without_extension(path, name, sizeof(name));
     snprintf(file_name, sizeof(file_name), "%s.%08X.geardox.hdd", name, hash);
-    join_path(directory, file_name, working, sizeof(working));
+    join_path(directory.c_str(), file_name, working, sizeof(working));
     return working;
 }
 

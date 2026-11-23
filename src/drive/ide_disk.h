@@ -91,6 +91,8 @@ public:
     void SetDelayDivider(u32 divider);
     void Reset();
     bool Attach(const char* path, bool write_protected, const char* working_path = NULL);
+    bool Attach(HardDiskSource* source, const char* path);
+    bool Attach(HardDiskImage* image);
     void Detach();
     bool IsAttached() const;
     HardDiskImage* GetImage();
@@ -139,7 +141,7 @@ private:
     void SanitizeState();
 
 private:
-    HardDiskImage m_image;
+    HardDiskImage* m_image;
     TraceLogger* m_trace_logger;
     u8 m_trace_features;
     IdeDisk_State m_state;

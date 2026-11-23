@@ -27,29 +27,6 @@
 
 class MediaFile;
 
-enum FatImage_Result
-{
-    FAT_IMAGE_ERROR = 0,
-    FAT_IMAGE_TOO_BIG,
-    FAT_IMAGE_BUILT,
-    FAT_IMAGE_SAME,
-    FAT_IMAGE_CHANGED
-};
-
-struct FatImage_Report
-{
-    FatImage_Result result;
-    u32 left_out;
-    u64 content_size;
-};
-
-enum FatImage_Origin
-{
-    FAT_IMAGE_ORIGIN_SOURCE = 0,
-    FAT_IMAGE_ORIGIN_OVERLAY,
-    FAT_IMAGE_ORIGIN_SYSTEM
-};
-
 struct FatImage_Entry
 {
     std::string name;
@@ -60,18 +37,14 @@ struct FatImage_Entry
     u64 size;
     u16 date;
     u16 time;
-    u32 zip_index;
     u32 first_cluster;
     u8 attributes;
-    u8 origin;
-    bool ultrasound;
+    u8 layer;
     int memory;
-    u32 crc;
-    s64 modified;
+    int base;
     std::vector<u32> children;
 };
 
-// An entry as written: its DOS path and its path on the host, both from the root, backslashes and slashes
 struct FatImage_Listed
 {
     std::string dos_path;
@@ -79,7 +52,6 @@ struct FatImage_Listed
     u32 index;
 };
 
-// A file or directory found by Read, with its DOS path from the root
 struct FatImage_File
 {
     std::string path;
@@ -118,56 +90,67 @@ struct FatImage_Layout
     u32 clusters;
 };
 
+struct FatImage_Run
+{
+    u32 first;
+    u32 count;
+    int entry;
+    u64 offset;
+};
+
+struct FatImage_Volume
+{
+    u32 blocks;
+    std::vector<u8> metadata;
+    std::vector<FatImage_Run> runs;
+};
+
+static const u32 k_fat_open_sources = 8;
+
 class FatImage
 {
 public:
     FatImage();
     ~FatImage();
-    bool AddFolder(const char* path);
-    bool AddZip(const u8* archive, size_t size);
-    bool AddZipFile(const char* path);
+    bool AddFolder(const char* path, u8 layer);
+    bool AddGame(const char* source, const char* dir, u8 layer, u8 root_layer);
+    bool AddOverlay(const char* path, bool game, u8 layer);
+    void SetLayer(u8 layer);
     void SetLabel(const char* label);
     void SetBootSector(const u8* sector);
-    u32 GetFingerprint() const;
     u32 GetLeftOut() const;
-    u64 GetContentSize() const;
     u64 GetRequiredSize(u64 free_size) const;
+    bool Build(u64 size, FatImage_Volume* volume);
     bool Write(const char* path, u64 size, bool replace = false);
-    static bool ReadFingerprint(const char* path, u32* fingerprint);
-    static void GetImageName(const char* source, std::string* name);
-    static void Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report);
-    static bool IsSource(const char* path);
-    static std::string GetImagePath(const char* source, const char* save_folder);
-    static bool PrepareSource(const char* source, const char* save_folder, bool rebuild, std::string* image,
-        FatImage_Report* report);
-    bool AddGame(const char* source, const char* dir = NULL, const char* prefix = NULL);
     bool ApplyLayout(const std::vector<FatImage_Rule>& rules);
-    bool AddOverlay(const char* path);
     bool AddFreeDOS(bool hidden, const std::vector<std::string>& reserved);
     bool AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
         const std::vector<std::string>& pinned, bool shsucdx);
     bool AddUltraSound(const u8* zip, size_t size);
-    bool AddMemoryFile(const char* path, const std::string& data, u8 attributes);
+    bool AddMemoryFile(const char* path, const std::string& data, u8 attributes, const std::string* base = NULL);
     bool HasFile(const char* path) const;
     bool GetFile(const char* path, std::string* data);
     void LeaveOutMatching(const char* name, bool (*match)(const std::string& data));
     bool PatchFile(const char* path, u64 offset, const std::string& before, const std::string& after);
-    void FinishGame(const char* label, u64 free_size, const u8* boot_sector);
+    void FinishGame(const char* label, const u8* boot_sector);
     const FatImage_Entry& GetEntry(u32 index) const;
+    u32 GetBaseIndex() const;
+    const std::string& GetBase(u32 index) const;
     void ListEntries(std::vector<FatImage_Listed>* listed) const;
-    bool Read(const char* path);
+    u32 ReadEntryAt(u32 index, u64 offset, u8* buffer, u32 size);
+    bool Read(MediaFile* file);
+    static void SortRuns(std::vector<FatImage_Run>* runs);
     void CloseRead();
     const std::vector<FatImage_File>& GetFiles() const;
     void GetSectorMap(std::vector<FatImage_Extent>* extents) const;
     const char* GetReadError() const;
-    bool GetFileCRC(const FatImage_File& file, u32* crc);
-    bool GetFileData(const FatImage_File& file, std::string* data, u32* crc);
-    bool CopyOut(const FatImage_File& file, const char* path, u32* crc = NULL);
+    bool CopyOut(const FatImage_File& file, const char* path);
 
 private:
     void Clear();
+    void CloseSources();
+    MediaFile* OpenSource(u32 index);
     bool WalkFolder(const std::string& path, u32 directory, int depth);
-    bool ScanZip();
     u32 AddEntry(u32 directory, const std::string& name, bool is_directory);
     int FindChild(u32 directory, const std::string& name) const;
     bool FindParent(const char* path, u32* directory, std::string* name) const;
@@ -178,47 +161,43 @@ private:
     void LeaveOutMatching(u32 directory, const std::string& name, bool (*match)(const std::string& data));
     bool AddFreeDOSFile(MediaZip* zip, const char* name, u32 directory, const char* target);
     bool AddDosTool(u32 directory, const char* name, const u8* data, u32 size);
+    u32 AddDirectories(u32 directory, std::string* rest);
     void PinEntries();
-    void ApplyDeleted(const std::vector<std::string>& lines);
+    void ApplyDeleted(u32 directory, const std::vector<std::string>& lines);
     void ListDirectory(u32 directory, const std::string& dos_path, const std::string& host_path,
         std::vector<FatImage_Listed>* listed) const;
     bool ReadDirectory(u32 cluster, const std::string& path, int depth, std::vector<u8>* used);
     bool ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* used);
-    bool ReadFileData(const FatImage_File& file, MediaFile* output, std::string* data, u32* crc);
     void Finish();
     void AssignNames(u32 directory);
     void LimitPaths(u32 directory, const std::string& path);
     u32 CountEntries(u32 directory) const;
-    void HashEntries(u32 directory, u32* crc) const;
     u64 CountClusters(u32 directory, u32 cluster_size) const;
     bool GetLayout(u32 total, FatImage_Layout* layout) const;
     u32 Allocate(u32 clusters);
-    bool PlaceDirectory(u32 directory, u32 cluster, u32 parent, std::vector<u8>* content);
-    bool CopyFile(FatImage_Entry& entry, u64 offset);
-    bool WriteFat();
-    bool WriteBootSector();
-    bool WriteMasterBootRecord();
-    u64 GetClusterOffset(u32 cluster) const;
+    void PlaceDirectory(u32 directory, u32 cluster, u32 parent, FatImage_Volume* volume);
+    u32 GetClusterSector(u32 cluster) const;
+    void AddMetadata(FatImage_Volume* volume, u32 first, const u8* data, size_t size);
+    void WriteFat(FatImage_Volume* volume);
+    void WriteBootSector(FatImage_Volume* volume);
+    void WriteMasterBootRecord(FatImage_Volume* volume);
 
 private:
     std::vector<FatImage_Entry> m_entries;
     std::vector<u16> m_fat;
-    std::vector<u8> m_buffer;
     FatImage_Layout m_layout;
-    MediaZip m_zip;
-    MediaZip m_system_zip;
-    MediaZip m_ultrasound_zip;
     std::vector<std::string> m_pinned;
     u32 m_pinned_count;
-    MediaFile* m_output;
     char m_label[12];
     const u8* m_boot_sector;
-    u32 m_fingerprint;
     u32 m_left_out;
     u32 m_next_cluster;
     u32 m_base;
-    std::string m_zip_prefix;
+    u8 m_layer;
     std::vector<std::string> m_memory;
+    u32 m_source_index[k_fat_open_sources];
+    MediaFile* m_sources[k_fat_open_sources];
+    u32 m_next_source;
     MediaFile* m_read;
     u64 m_read_offset;
     std::vector<FatImage_File> m_files;

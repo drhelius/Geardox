@@ -17,6 +17,7 @@
  *
  */
 
+#include <algorithm>
 #include "media_zip.h"
 #include "media_file.h"
 
@@ -169,6 +170,45 @@ bool MediaZip::ExtractToFile(mz_uint index, const char* path)
         MediaFile::RemoveFile(temporary.c_str());
 
     return ok;
+}
+
+bool MediaZip::ExtractAll(const char* folder)
+{
+    if (!m_reading || !MediaFile::MakeDirectories(folder))
+        return false;
+
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&m_zip); i++)
+    {
+        mz_zip_archive_file_stat stat;
+
+        if (!mz_zip_reader_file_stat(&m_zip, i, &stat))
+            return false;
+
+        std::string name = path_forward_slashes(stat.m_filename);
+
+        if (!is_safe_zip_entry_name(name.c_str()))
+        {
+            Log("Skipping an unsafe ZIP entry: %s", stat.m_filename);
+            continue;
+        }
+
+        std::string path = path_join(folder, name);
+
+        if (stat.m_is_directory)
+        {
+            if (!MediaFile::MakeDirectories(trim_trailing_separators(path).c_str()))
+                return false;
+
+            continue;
+        }
+
+        if (!MediaFile::MakeDirectories(path_directory(path).c_str()) || !ExtractToFile(i, path.c_str()))
+            return false;
+
+        MediaFile::SetModified(path.c_str(), (s64)stat.m_time);
+    }
+
+    return true;
 }
 
 bool MediaZip::BeginArchive()

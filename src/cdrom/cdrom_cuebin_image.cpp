@@ -225,49 +225,6 @@ bool CdRomCueBinImage::LoadFromCueData(const char* source_path, const u8* cue_da
     return m_ready;
 }
 
-static bool FindPathIgnoringCase(const std::string& directory, const std::string& relative, std::string& found)
-{
-    found = directory;
-    size_t start = 0;
-
-    while (start < relative.size())
-    {
-        size_t end = relative.find('/', start);
-
-        if (end == std::string::npos)
-            end = relative.size();
-
-        std::string part = relative.substr(start, end - start);
-        bool last = (end == relative.size());
-        start = end + 1;
-
-        if (part.empty() || (part == "."))
-            continue;
-
-        if (part == "..")
-        {
-            found += "/..";
-            continue;
-        }
-
-        std::vector<std::string> folders;
-        std::vector<std::string> files;
-
-        if (!MediaFile::ListDirectory(found.c_str(), folders, files))
-            return false;
-
-        const std::vector<std::string>& names = last ? files : folders;
-        int i = find_no_case(names, part);
-
-        if (i < 0)
-            return false;
-
-        found += "/" + names[i];
-    }
-
-    return true;
-}
-
 MediaFile* CdRomCueBinImage::ResolveNormalFile(const char* reference, char* resolved_path,
     size_t resolved_path_size, void* user_data)
 {
@@ -281,7 +238,7 @@ MediaFile* CdRomCueBinImage::ResolveNormalFile(const char* reference, char* reso
     bool uri = image->IsUriPath(path.c_str());
 
     if (!uri)
-        std::replace(path.begin(), path.end(), '\\', '/');
+        path = path_forward_slashes(path);
 
     bool relative = !path.empty() && !uri && !is_absolute_path(path) && (strpbrk(image->m_file_path, "/\\") != NULL);
     std::string full = relative ? std::string(image->m_file_directory) + "/" + path : path;
@@ -289,7 +246,7 @@ MediaFile* CdRomCueBinImage::ResolveNormalFile(const char* reference, char* reso
     strncpy_fit(resolved_path, full.c_str(), resolved_path_size);
     MediaFile* file = MediaFile::OpenFile(resolved_path);
 
-    if (!IsValidPointer(file) && relative && FindPathIgnoringCase(image->m_file_directory, path, full))
+    if (!IsValidPointer(file) && relative && MediaFile::FindPathIgnoringCase(image->m_file_directory, path, &full))
     {
         strncpy_fit(resolved_path, full.c_str(), resolved_path_size);
         file = MediaFile::OpenFile(resolved_path);

@@ -41,6 +41,7 @@ public:
     bool Extract(const char* name, std::string* data);
     bool ExtractTo(mz_uint index, MediaFile* file, u64 offset);
     bool ExtractToFile(mz_uint index, const char* path);
+    bool ExtractAll(const char* folder);
     bool BeginArchive();
     bool AddEntry(const char* name, const void* data, size_t size, int level, const s64* modified = NULL);
     bool FinishArchive();

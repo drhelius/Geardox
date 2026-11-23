@@ -74,6 +74,7 @@ static void handle_window_resizable(void);
 static void handle_title(void);
 static void handle_single_instance(void);
 static void run_emulator(void);
+static void load_step(int step);
 static void apply_window_settings(void);
 static void save_window_size(void);
 
@@ -216,6 +217,7 @@ void application_mainloop(void)
         handle_window_resizable();
         handle_title();
         handle_single_instance();
+        application_continue_loading();
         run_emulator();
         display_render();
         display_frame_throttle();
@@ -321,67 +323,84 @@ void application_update_title_with_rom(const char* rom)
     SDL_SetWindowTitle(application_sdl_window, final_title);
 }
 
+static ApplicationParams startup_params;
+static int startup_step = -1;
+
 void application_load_media(const ApplicationParams& params)
 {
-    for (int i = 0; i < 2; i++)
-    {
-        if (!IsValidPointer(params.floppy_files[i]))
-            continue;
+    startup_params = params;
+    startup_step = 0;
+    application_continue_loading();
+}
 
-        Log("Floppy drive %d argument: %s", i + 1, params.floppy_files[i]);
-        gui_floppy_insert(i, params.floppy_files[i]);
-    }
+void application_continue_loading(void)
+{
+    while ((startup_step >= 0) && !gui_is_rom_loading() && !emu_is_media_loading())
+        load_step(startup_step++);
+}
 
+static void load_step(int step)
+{
+    const ApplicationParams& params = startup_params;
     bool rom_file_argument = IsValidPointer(params.rom_file) && (strlen(params.rom_file) > 0);
     bool symbol_file_argument = IsValidPointer(params.symbol_file) && (strlen(params.symbol_file) > 0);
 
-    if (rom_file_argument)
+    if (step < 2)
     {
-        Log("Media file argument: %s", params.rom_file);
+        if (IsValidPointer(params.floppy_files[step]))
+        {
+            Log("Floppy drive %d argument: %s", step + 1, params.floppy_files[step]);
+            gui_floppy_insert(step, params.floppy_files[step]);
+        }
+    }
+    else if (step == 2)
+    {
+        if (rom_file_argument)
+        {
+            Log("Media file argument: %s", params.rom_file);
 
-        if (symbol_file_argument)
+            if (symbol_file_argument)
+                Log("Symbol file argument: %s", params.symbol_file);
+
+            gui_game_set_next_target(params.game_target);
+            gui_game_set_next_program(params.game_program);
+            bool powered = emu_is_powered_on();
+            gui_load_rom(params.rom_file, params.symbol_file);
+
+            if (powered)
+                gui_reset_when_loaded();
+        }
+        else if (symbol_file_argument)
+        {
             Log("Symbol file argument: %s", params.symbol_file);
-
-        gui_game_set_next_target(params.game_target);
-        gui_game_set_next_program(params.game_program);
-        bool powered = emu_is_powered_on();
-        gui_load_rom(params.rom_file, params.symbol_file);
-
-        if (powered)
-            gui_reset_when_loaded();
+            gui_debug_reset_symbols();
+            gui_debug_load_symbols_file(params.symbol_file);
+        }
     }
-
-    if (!rom_file_argument && symbol_file_argument)
+    else if (step == 3)
     {
-        Log("Symbol file argument: %s", params.symbol_file);
-        gui_debug_reset_symbols();
-        gui_debug_load_symbols_file(params.symbol_file);
+        if (IsValidPointer(params.cd_file))
+        {
+            Log("CD-ROM argument: %s", params.cd_file);
+            bool powered = emu_is_powered_on();
+            gui_load_rom(params.cd_file);
+
+            if (powered)
+                gui_reset_when_loaded();
+        }
     }
-
-    if (IsValidPointer(params.cd_file))
+    else
     {
-        Log("CD-ROM argument: %s", params.cd_file);
-        bool powered = emu_is_powered_on();
-        gui_load_rom(params.cd_file);
+        startup_step = -1;
 
-        if (powered)
-            gui_reset_when_loaded();
-    }
-
-    if (!emu_is_powered_on())
-    {
-        if (config_emulator.power_on_startup && gui_is_rom_loading())
-            gui_power_on_when_loaded();
-        else if (config_emulator.power_on_startup)
+        if (!emu_is_powered_on() && config_emulator.power_on_startup)
             emu_power_on();
-    }
-    else if (gui_hard_disks_is_loading_source())
-        gui_hard_disks_reset_when_loaded();
-    else if (gui_hard_disks_is_pending() && !gui_is_rom_loading())
-        gui_action_reset();
+        else if (emu_is_powered_on() && gui_hard_disks_is_pending())
+            gui_action_reset();
 
-    if ((params.state_slot > 0) || IsValidPointer(params.state_file))
-        gui_load_state_after_media(params.state_slot, params.state_file);
+        if ((params.state_slot > 0) || IsValidPointer(params.state_file))
+            gui_load_state_after_media(params.state_slot, params.state_file);
+    }
 }
 
 bool application_check_single_instance(const char* rom_file, const char* symbol_file)

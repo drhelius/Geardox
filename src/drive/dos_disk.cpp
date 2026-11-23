@@ -58,7 +58,7 @@ bool DosDisk::Write(const char* path, int system, const DosImport_System* msdos,
         !image.AddMemoryFile(k_dos_autoexec_bat, GetAutoexec(system, msdos, layout), k_dos_disk_attributes))
         return false;
 
-    image.FinishGame(ms ? "MS-DOS" : "GEARDOX", 0, ms ? msdos->boot : k_freedos_boot);
+    image.FinishGame(ms ? "MS-DOS" : "GEARDOX", ms ? msdos->boot : k_freedos_boot);
     return image.Write(path, k_fat_freedos_size, replace);
 }
 

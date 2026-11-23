@@ -19,6 +19,7 @@
 
 #include <ctype.h>
 #include "cdrom_media.h"
+#include "../drive/iso_image.h"
 #include "cdrom_cuebin_image.h"
 #include "cdrom_chd_image.h"
 #include "../media/media_file.h"
@@ -74,6 +75,9 @@ void CdRomMedia::Reset()
 
 bool CdRomMedia::LoadFromFile(const char* path, bool preload)
 {
+    if (MediaFile::IsDirectory(path))
+        return LoadFromFolder(path, NULL, preload);
+
     if (ends_with_no_case(path, ".chd"))
         return LoadChdFromFile(path, preload);
 
@@ -84,6 +88,34 @@ bool CdRomMedia::LoadFromFile(const char* path, bool preload)
         return LoadCueFromFile(path, preload);
 
     return LoadProbedFromFile(path, ProbeFile(path), preload);
+}
+
+bool CdRomMedia::LoadFromFolder(const char* path, const char* label, bool preload)
+{
+    m_folder = trim_trailing_separators(path);
+    m_folder_label = IsValidPointer(label) ? label : "";
+    std::string cue = "FILE \"" + path_filename(m_folder) + ".iso\" BINARY\nTRACK 01 MODE1/2048\nINDEX 01 00:00:00\n";
+    Log("Loading a CD from the folder %s...", m_folder.c_str());
+
+    if (!m_cue_bin_image->LoadFromCueData(m_folder.c_str(), (const u8*)cue.c_str(), cue.size(), preload, ResolveFolder,
+        this))
+        return false;
+
+    m_current_image = m_cue_bin_image;
+    return true;
+}
+
+MediaFile* CdRomMedia::ResolveFolder(const char* reference, char* resolved_path, size_t resolved_size, void* user_data)
+{
+    UNUSED(reference);
+    CdRomMedia* media = (CdRomMedia*)user_data;
+    strncpy_fit(resolved_path, media->m_folder.c_str(), resolved_size);
+    IsoImageFile* file = new IsoImageFile();
+
+    if (!file->Load(media->m_folder.c_str(), media->m_folder_label.c_str()))
+        SafeDelete(file);
+
+    return file;
 }
 
 bool CdRomMedia::LoadCueFromFile(const char* path, bool preload)

@@ -76,7 +76,7 @@ enum Loading_Request_Type
 {
     Loading_Request_File = 0,
     Loading_Request_PhysicalCdRom,
-    Loading_Request_HardDiskSource,
+    Loading_Request_Task,
     Loading_Request_Game
 };
 
@@ -97,7 +97,7 @@ static bool loading_thread_active = false;
 static bool loading_result = false;
 static char loading_file_path[GDOX_MAX_PATH] = { };
 static Loading_Request_Type loading_request_type = Loading_Request_File;
-static bool loading_rebuild = false;
+static void (*loading_task)(void) = NULL;
 static std::vector<std::string> cdrom_playlist;
 static int cdrom_playlist_index = -1;
 static int cmos_model = -1;
@@ -112,7 +112,9 @@ static void get_video_recording_size(const GDOX_Runtime_Info& runtime, int* widt
 static void reset_rewind_timing(void);
 static double get_rewind_pop_seconds(void);
 static bool unload_media(void);
-static bool get_floppy_state_path(int index, char* path, size_t path_size);
+static bool get_state_path(int index, char* path, size_t path_size);
+static bool is_physical_cdrom(void);
+static std::string get_content_path(void);
 static void restore_state_frame(const char* path, int index);
 static void after_state_loaded(const char* path, int index);
 static bool get_cmos_path(int model, char* path, size_t path_size);
@@ -488,9 +490,22 @@ void emu_load_media_async(const char* file_path)
     loading_thread_active = true;
 }
 
-void emu_load_hard_disk_source_async(const char* path, bool rebuild)
+std::string emu_get_save_folder(const char* content)
 {
-    if (!IsValidPointer(path) || path[0] == '\0' || loading_state.load() != Loading_State_None)
+    switch ((Directory_Location)config_emulator.savefiles_dir_option)
+    {
+        case Directory_Location_ROM:
+            return IsValidPointer(content) ? path_directory(content) : std::string(config_root_path);
+        case Directory_Location_Custom:
+            return config_emulator.savefiles_path;
+        default:
+            return config_root_path;
+    }
+}
+
+void emu_load_task_async(void (*task)(void))
+{
+    if (!IsValidPointer(task) || (loading_state.load() != Loading_State_None))
         return;
 
     if (loading_thread_active)
@@ -499,9 +514,8 @@ void emu_load_hard_disk_source_async(const char* path, bool rebuild)
         loading_thread_active = false;
     }
 
-    strncpy_fit(loading_file_path, path, sizeof(loading_file_path));
-    loading_request_type = Loading_Request_HardDiskSource;
-    loading_rebuild = rebuild;
+    loading_task = task;
+    loading_request_type = Loading_Request_Task;
     loading_result = false;
     loading_state.store(Loading_State_Loading);
     loading_thread = std::thread(load_media_thread_func);
@@ -573,7 +587,7 @@ bool emu_finish_media_loading(void)
 
     loading_state.store(Loading_State_None);
 
-    if ((loading_request_type == Loading_Request_HardDiskSource) || (loading_request_type == Loading_Request_Game))
+    if ((loading_request_type == Loading_Request_Task) || (loading_request_type == Loading_Request_Game))
         return loading_result;
 
     if (!loading_result)
@@ -1066,7 +1080,7 @@ bool emu_save_state_slot(int index)
 
     const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
     char path[GDOX_MAX_PATH];
-    bool saved = get_floppy_state_path(index, path, sizeof(path)) ? geardox->SaveState(path, -1, true) :
+    bool saved = get_state_path(index, path, sizeof(path)) ? geardox->SaveState(path, -1, true) :
         geardox->SaveState(dir, index, true);
 
     update_savestates_data();
@@ -1081,7 +1095,7 @@ bool emu_load_state_slot(int index)
     const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
     char path[GDOX_MAX_PATH];
 
-    if (get_floppy_state_path(index, path, sizeof(path)))
+    if (get_state_path(index, path, sizeof(path)))
     {
         dir = path;
         index = -1;
@@ -1144,7 +1158,7 @@ void update_savestates_data(void)
         char path[GDOX_MAX_PATH];
         int index = i + 1;
 
-        if (get_floppy_state_path(index, path, sizeof(path)))
+        if (get_state_path(index, path, sizeof(path)))
         {
             dir = path;
             index = -1;
@@ -2048,10 +2062,10 @@ static void load_media_thread_func(void)
         return;
     }
 
-    if (loading_request_type == Loading_Request_HardDiskSource)
+    if (loading_request_type == Loading_Request_Task)
     {
-        emu_hard_disk_prepare_source(loading_file_path, loading_rebuild);
-        loading_result = emu_hard_disk_get_prepared_source()->report.result != FAT_IMAGE_ERROR;
+        loading_task();
+        loading_result = true;
         loading_state.store(Loading_State_Finished);
         return;
     }
@@ -2179,43 +2193,61 @@ static void restore_state_frame(const char* path, int index)
     SafeDeleteArray(screenshot.data);
 }
 
-static bool get_floppy_state_path(int index, char* path, size_t path_size)
+static bool get_state_path(int index, char* path, size_t path_size)
 {
-    if (geardox->GetMedia()->IsReady())
+    if (!emu_game_is_open() && is_physical_cdrom())
         return false;
 
-    const char* content = emu_floppy_get_content_path();
-    char directory[GDOX_MAX_PATH];
+    std::string folder = emu_get_content_folder();
+    std::string name = emu_get_content_name(true);
+    const char* directory = config_root_path;
 
-    if (content[0] == '\0')
-        content = emu_hard_disk_get_content_path();
+    if ((Directory_Location)config_emulator.savestates_dir_option == Directory_Location_ROM)
+        directory = folder.empty() ? config_root_path : folder.c_str();
+    else if ((Directory_Location)config_emulator.savestates_dir_option == Directory_Location_Custom)
+        directory = config_emulator.savestates_path.c_str();
 
-    char name[GDOX_MAX_PATH];
     char file_name[GDOX_MAX_PATH];
-
-    switch ((Directory_Location)config_emulator.savestates_dir_option)
-    {
-        case Directory_Location_ROM:
-            if (content[0] != '\0')
-                get_directory(content, directory, sizeof(directory));
-            else
-                strncpy_fit(directory, config_root_path, sizeof(directory));
-            break;
-        case Directory_Location_Custom:
-            strncpy_fit(directory, config_emulator.savestates_path.c_str(), sizeof(directory));
-            break;
-        default:
-            strncpy_fit(directory, config_root_path, sizeof(directory));
-            break;
-    }
-
-    if (content[0] != '\0')
-        get_filename_without_extension(content, name, sizeof(name));
-    else
-        strncpy_fit(name, "PC", sizeof(name));
-
-    snprintf(file_name, sizeof(file_name), "%s.state%d", name, index);
+    snprintf(file_name, sizeof(file_name), "%s.state%d", name.empty() ? "PC" : name.c_str(), index);
     return join_path(directory, file_name, path, path_size);
+}
+
+static bool is_physical_cdrom(void)
+{
+#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
+    return geardox->GetMedia()->IsPhysicalCdRom();
+#else
+    return false;
+#endif
+}
+
+static std::string get_content_path(void)
+{
+    if (geardox->GetMedia()->IsReady())
+        return is_physical_cdrom() ? std::string() : std::string(geardox->GetMedia()->GetFilePath());
+
+    if (emu_floppy_get_content_path()[0] != 0)
+        return emu_floppy_get_content_path();
+
+    return emu_hard_disk_get_content_path();
+}
+
+std::string emu_get_content_folder(void)
+{
+    if (emu_game_is_open())
+        return emu_game_get_disk()->GetFolder();
+
+    std::string content = get_content_path();
+    return content.empty() ? std::string() : path_directory(trim_trailing_separators(content));
+}
+
+std::string emu_get_content_name(bool unique)
+{
+    if (emu_game_is_open())
+        return unique ? path_filename(emu_game_get_disk()->GetFolder()) : safe_file_name(emu_game_get_name(), "Geardox");
+
+    std::string content = get_content_path();
+    return content.empty() ? std::string() : path_strip_extension(path_filename(trim_trailing_separators(content)));
 }
 
 static void update_key_map(void)

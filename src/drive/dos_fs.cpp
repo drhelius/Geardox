@@ -362,6 +362,26 @@ bool dos_fs_read_deleted(const std::string& folder, std::vector<std::string>* pa
     return true;
 }
 
+bool dos_fs_write_deleted(const std::string& folder, const std::vector<std::string>& paths)
+{
+    std::string list = path_join(folder, k_dos_deleted_list);
+
+    if (paths.empty())
+        return !MediaFile::Exists(list.c_str()) || MediaFile::RemoveFile(list.c_str());
+
+    std::string text;
+
+    for (size_t i = 0; i < paths.size(); i++)
+        text += paths[i] + "\n";
+
+    return MediaFile::MakeDirectories(folder.c_str()) && MediaFile::WriteFileAtomic(list.c_str(), text.data(), text.size());
+}
+
+std::string dos_fs_join(const std::string& base, const std::string& name)
+{
+    return base.empty() ? name : name.empty() ? base : base + "\\" + name;
+}
+
 // SWITCHES=/F came with MS-DOS 6.0, and HIMEM's memory test, with /TESTMEM to skip it, with 6.2
 std::string dos_fs_config_header(bool msdos, int version)
 {

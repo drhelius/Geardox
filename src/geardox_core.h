@@ -31,6 +31,8 @@ class IdeCdRom;
 class IdeController;
 class FloppyDisk;
 class HardDiskImage;
+class FolderDisk;
+struct FolderDisk_Result;
 class Firmware;
 class I386;
 class X87;
@@ -111,7 +113,7 @@ public:
     void SetTurbo(bool turbo);
     bool IsTurbo() const;
     u32 GetEffectiveCPUClockRate() const;
-    bool LoadMedia(const char* file_path);
+    bool LoadMedia(const char* file_path, const char* label = NULL);
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     bool LoadPhysicalCdRom(const char* device_id);
 #endif
@@ -121,6 +123,10 @@ public:
     void EjectFloppy(int drive);
     void SwapFloppies();
     bool AttachHardDisk(int id, const char* path, bool write_protected = false, const char* working_path = NULL);
+    bool AttachHardDisk(int id, FolderDisk* disk);
+    bool AttachHardDisk(int id, HardDiskImage* image, bool write_protected, const char* working_path);
+    FolderDisk* GetFolderDisk(int id);
+    const FolderDisk_Result& GetHardDiskResult(int id) const;
     void DetachHardDisk(int id);
     bool FlushHardDisks();
     bool IsHardDiskPending(int id) const;
@@ -246,6 +252,8 @@ private:
     u8 GetAutoFloppyType(int drive);
     void ResolveMachineConfig();
     void ApplyHardDisks();
+    bool AttachFolderDisk(int id, FolderDisk* disk);
+    void CloseHardDisk(int id);
     bool HasMemoryHole() const;
     u32 GetMemoryHoleStart() const;
     bool HasPCIBus() const;
@@ -318,6 +326,10 @@ private:
     std::string m_hard_disk_working_paths[GDOX_MAX_HARD_DISKS];
     bool m_hard_disk_write_protected[GDOX_MAX_HARD_DISKS];
     bool m_hard_disk_pending[GDOX_MAX_HARD_DISKS];
+    FolderDisk* m_folder_disks[GDOX_MAX_HARD_DISKS];
+    FolderDisk* m_pending_folder_disks[GDOX_MAX_HARD_DISKS];
+    HardDiskImage* m_pending_images[GDOX_MAX_HARD_DISKS];
+    FolderDisk_Result* m_hard_disk_results[GDOX_MAX_HARD_DISKS];
     u32 m_hard_disk_state_changes;
     GDOX_Boot_Device m_boot_device;
     bool m_ram_size_locked;

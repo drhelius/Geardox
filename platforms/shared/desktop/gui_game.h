@@ -20,20 +20,23 @@
 #ifndef GUI_GAME_H
 #define GUI_GAME_H
 
+#include <vector>
+
 #ifdef GUI_GAME_IMPORT
     #define EXTERN
 #else
     #define EXTERN extern
 #endif
 
+struct GameDisk_Found;
+
 EXTERN void gui_game_menu(void);
 EXTERN void gui_game_popups(void);
-EXTERN bool gui_game_open(const char* path);
+EXTERN bool gui_game_open(const std::vector<GameDisk_Found>& found);
 EXTERN void gui_game_set_next_target(int target);
 EXTERN void gui_game_set_next_program(int program);
 EXTERN bool gui_game_restart_if_needed(void);
 EXTERN void gui_game_loaded(void);
-EXTERN void gui_game_dialog_new_descriptor(const char* folder);
 EXTERN void gui_game_dialog_save_descriptor(const char* path);
 EXTERN void gui_game_set_system(int system);
 

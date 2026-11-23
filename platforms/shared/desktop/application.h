@@ -59,6 +59,7 @@ EXTERN bool application_show_menu;
 
 EXTERN int application_init(const ApplicationParams& params);
 EXTERN void application_load_media(const ApplicationParams& params);
+EXTERN void application_continue_loading(void);
 EXTERN void application_apply_settings(void);
 EXTERN void application_destroy(void);
 EXTERN void application_mainloop(void);

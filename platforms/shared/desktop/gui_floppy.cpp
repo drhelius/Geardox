@@ -52,6 +52,8 @@ static std::string pending_path;
 static bool pending_open = false;
 static bool pending_symbols = false;
 static std::string pending_symbol_path;
+static bool pending_read = false;
+static bool pending_discard = false;
 static int dialog_drive = 0;
 static int blank_type = FLOPPY_BLANK_1440K;
 static bool blank_formatted = true;
@@ -66,6 +68,9 @@ static int second_count = 0;
 
 static bool request(int drive, Floppy_Action action, const char* path, int index);
 static bool perform(bool discard_changes);
+static void read_task(void);
+static void read_done(void);
+static void clear_pending(void);
 static void draw_dirty_popup(void);
 static void draw_discard_popup(void);
 static void draw_blank_popup(void);
@@ -111,7 +116,7 @@ static void drive_menu(int drive)
     Emu_FloppyInfo info;
     emu_floppy_get_info(drive, &info);
     bool loading = gui_is_rom_loading() || emu_is_media_loading();
-    bool can_insert = !loading && !info.inserted;
+    bool can_insert = !loading;
 
     if (ImGui::MenuItem("Insert...", NULL, false, can_insert))
         gui_file_dialog_open_floppy(drive);
@@ -314,12 +319,14 @@ void gui_floppy_popups(void)
 void gui_floppy_open_disks(const char* path)
 {
     pending_open = true;
+    pending_read = true;
     request(0, Floppy_Action_Insert, path, 0);
 }
 
 bool gui_floppy_open(const char* path, const char* symbol_path)
 {
     pending_open = true;
+    pending_read = true;
     pending_symbols = true;
     pending_symbol_path = IsValidPointer(symbol_path) ? symbol_path : "";
     return request(0, Floppy_Action_Insert, path, 0);
@@ -380,6 +387,20 @@ static bool request(int drive, Floppy_Action action, const char* path, int index
 
 static bool perform(bool discard_changes)
 {
+    bool reads = (pending_action == Floppy_Action_Insert) || (pending_action == Floppy_Action_Select);
+
+    if (reads && !pending_read)
+    {
+        pending_discard = discard_changes;
+
+        if (gui_load_async(read_task, read_done))
+            return true;
+
+        clear_pending();
+        return false;
+    }
+
+    pending_read = false;
     bool done = false;
     bool second = false;
     const char* error = "Unable to load the floppy image.";
@@ -468,10 +489,30 @@ static bool perform(bool discard_changes)
         }
     }
 
+    clear_pending();
+    return done;
+}
+
+static void read_task(void)
+{
+    if (pending_action == Floppy_Action_Select)
+        emu_floppy_prepare_disk(pending_drive, pending_index);
+    else
+        emu_floppy_prepare(pending_open ? 0 : pending_drive, pending_path.c_str());
+}
+
+static void read_done(void)
+{
+    pending_read = true;
+    perform(pending_discard);
+}
+
+static void clear_pending(void)
+{
     pending_action = Floppy_Action_None;
     pending_open = false;
     pending_symbols = false;
-    return done;
+    pending_read = false;
 }
 
 static void draw_dirty_popup(void)
@@ -503,9 +544,8 @@ static void draw_dirty_popup(void)
     if (ImGui::Button("Cancel", ImVec2(100, 0)))
     {
         gui_close_popup();
-        pending_action = Floppy_Action_None;
-        pending_open = false;
-        pending_symbols = false;
+        clear_pending();
+        emu_floppy_clear_prepared();
     }
 
     ImGui::EndPopup();

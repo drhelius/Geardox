@@ -26,6 +26,7 @@
 #include "cdrom/cdrom_media.h"
 #include "drive/fdc.h"
 #include "drive/floppy_image.h"
+#include "drive/folder_disk.h"
 #include "drive/hard_disk_image.h"
 #include "drive/ide_controller.h"
 #include "media/firmware.h"
@@ -117,6 +118,10 @@ GeardoxCore::GeardoxCore()
     {
         m_hard_disk_write_protected[i] = false;
         m_hard_disk_pending[i] = false;
+        InitPointer(m_folder_disks[i]);
+        InitPointer(m_pending_folder_disks[i]);
+        InitPointer(m_pending_images[i]);
+        m_hard_disk_results[i] = new FolderDisk_Result();
     }
 
     m_hard_disk_state_changes = 0;
@@ -180,6 +185,14 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_video);
     SafeDelete(m_cdrom_audio);
     SafeDelete(m_fdc);
+    for (int i = 0; IsValidPointer(m_ide) && (i < GDOX_MAX_HARD_DISKS); i++)
+    {
+        CloseHardDisk(i);
+        SafeDelete(m_pending_folder_disks[i]);
+        SafeDelete(m_pending_images[i]);
+        SafeDelete(m_hard_disk_results[i]);
+    }
+
     SafeDelete(m_ide);
 
 
@@ -1090,7 +1103,7 @@ GDOX_CMOS_File_Result GeardoxCore::SaveCMOSFileIfChanged(const char* path)
     return GDOX_CMOS_FILE_SAVED;
 }
 
-bool GeardoxCore::LoadMedia(const char* file_path)
+bool GeardoxCore::LoadMedia(const char* file_path, const char* label)
 {
     if (!IsValidPointer(m_media))
         return false;
@@ -1098,7 +1111,7 @@ bool GeardoxCore::LoadMedia(const char* file_path)
     if (IsValidPointer(m_ide))
         m_ide->GetCdRom()->EjectDisc(m_scheduler->GetClocks());
 
-    bool loaded = m_media->LoadMedia(file_path);
+    bool loaded = m_media->LoadMedia(file_path, label);
 
     if (loaded && IsValidPointer(m_ide))
         m_ide->GetCdRom()->InsertDisc(m_scheduler->GetClocks());
@@ -1182,15 +1195,20 @@ bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected,
             return false;
 
         const HardDiskImage* image = m_ide->GetDisk(id)->GetImage();
+        SafeDelete(m_pending_folder_disks[id]);
+        SafeDelete(m_pending_images[id]);
         m_hard_disk_paths[id] = path;
         m_hard_disk_working_paths[id] = IsValidPointer(working_path) ? working_path : "";
         m_hard_disk_write_protected[id] = write_protected;
-        m_hard_disk_pending[id] = !image->IsOpen() || (strcmp(image->GetPath(), path) != 0) ||
-            (image->IsWriteProtected() != write_protected);
+        m_hard_disk_pending[id] = !image->IsOpen() || IsValidPointer(m_folder_disks[id]) ||
+            (strcmp(image->GetPath(), path) != 0) || (image->IsWriteProtected() != write_protected);
     }
     else
     {
         m_hard_disk_pending[id] = false;
+        SafeDelete(m_pending_folder_disks[id]);
+        SafeDelete(m_pending_images[id]);
+        CloseHardDisk(id);
 
         if (!m_ide->GetDisk(id)->Attach(path, write_protected, working_path))
             return false;
@@ -1204,10 +1222,146 @@ bool GeardoxCore::AttachHardDisk(int id, const char* path, bool write_protected,
     return true;
 }
 
+bool GeardoxCore::AttachHardDisk(int id, FolderDisk* disk)
+{
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(disk) || !IsValidPointer(m_ide) ||
+        (id == (int)m_pending_machine_config.cdrom - 1))
+    {
+        SafeDelete(disk);
+        return false;
+    }
+
+    if (m_powered)
+    {
+        SafeDelete(m_pending_folder_disks[id]);
+        SafeDelete(m_pending_images[id]);
+        m_pending_folder_disks[id] = disk;
+        m_hard_disk_paths[id] = disk->GetPath();
+        m_hard_disk_working_paths[id].clear();
+        m_hard_disk_write_protected[id] = false;
+        m_hard_disk_pending[id] = true;
+    }
+    else
+    {
+        m_hard_disk_pending[id] = false;
+        SafeDelete(m_pending_folder_disks[id]);
+        SafeDelete(m_pending_images[id]);
+        CloseHardDisk(id);
+
+        if (!AttachFolderDisk(id, disk))
+            return false;
+    }
+
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+
+    return true;
+}
+
+bool GeardoxCore::AttachHardDisk(int id, HardDiskImage* image, bool write_protected, const char* working_path)
+{
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(image) || !image->IsOpen() || !IsValidPointer(m_ide) ||
+        (id == (int)m_pending_machine_config.cdrom - 1))
+    {
+        SafeDelete(image);
+        return false;
+    }
+
+    std::string path = image->GetPath();
+    bool attached = false;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        const HardDiskImage* other = m_ide->GetDisk(i)->GetImage();
+        attached = attached || (other->IsOpen() && (path == other->GetPath()));
+    }
+
+    if (attached)
+    {
+        SafeDelete(image);
+        return AttachHardDisk(id, path.c_str(), write_protected, working_path);
+    }
+
+    if (m_powered)
+    {
+        SafeDelete(m_pending_folder_disks[id]);
+        SafeDelete(m_pending_images[id]);
+        m_pending_images[id] = image;
+        m_hard_disk_paths[id] = path;
+        m_hard_disk_working_paths[id] = IsValidPointer(working_path) ? working_path : "";
+        m_hard_disk_write_protected[id] = write_protected;
+        m_hard_disk_pending[id] = true;
+    }
+    else
+    {
+        m_hard_disk_pending[id] = false;
+        SafeDelete(m_pending_folder_disks[id]);
+        SafeDelete(m_pending_images[id]);
+        CloseHardDisk(id);
+
+        if (!m_ide->GetDisk(id)->Attach(image))
+            return false;
+    }
+
+    ResolveMachineConfig();
+
+    if (!IsMachineConfigPending())
+        m_machine_report = m_pending_machine_report;
+
+    return true;
+}
+
+FolderDisk* GeardoxCore::GetFolderDisk(int id)
+{
+    return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? m_folder_disks[id] : NULL;
+}
+
+const FolderDisk_Result& GeardoxCore::GetHardDiskResult(int id) const
+{
+    return *m_hard_disk_results[(id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? id : 0];
+}
+
+bool GeardoxCore::AttachFolderDisk(int id, FolderDisk* disk)
+{
+    if (!m_ide->GetDisk(id)->Attach(disk, disk->GetPath()))
+    {
+        SafeDelete(disk);
+        return false;
+    }
+
+    u64 session = 0;
+    u64 write = 0;
+    m_folder_disks[id] = disk;
+
+    if (disk->GetEndMark(&session, &write))
+        m_ide->GetDisk(id)->GetImage()->SetPrevious(session, write);
+
+    return true;
+}
+
+void GeardoxCore::CloseHardDisk(int id)
+{
+    HardDiskImage* image = m_ide->GetDisk(id)->GetImage();
+
+    if (IsValidPointer(m_folder_disks[id]))
+    {
+        image->Flush();
+        m_folder_disks[id]->Close(image->GetSession(), image->GetLastWrite(), m_hard_disk_results[id]);
+    }
+
+    m_ide->GetDisk(id)->Detach();
+    SafeDelete(m_folder_disks[id]);
+}
+
 void GeardoxCore::DetachHardDisk(int id)
 {
     if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS) || !IsValidPointer(m_ide))
         return;
+
+    SafeDelete(m_pending_folder_disks[id]);
+    SafeDelete(m_pending_images[id]);
 
     if (m_powered)
     {
@@ -1217,7 +1371,7 @@ void GeardoxCore::DetachHardDisk(int id)
     else
     {
         m_hard_disk_pending[id] = false;
-        m_ide->GetDisk(id)->Detach();
+        CloseHardDisk(id);
     }
 
     ResolveMachineConfig();
@@ -1412,9 +1566,21 @@ void GeardoxCore::ApplyHardDisks()
             continue;
 
         m_hard_disk_pending[i] = false;
-        m_ide->GetDisk(i)->Detach();
+        CloseHardDisk(i);
 
-        if (!m_hard_disk_paths[i].empty())
+        if (IsValidPointer(m_pending_folder_disks[i]))
+        {
+            FolderDisk* disk = m_pending_folder_disks[i];
+            InitPointer(m_pending_folder_disks[i]);
+            AttachFolderDisk(i, disk);
+        }
+        else if (IsValidPointer(m_pending_images[i]))
+        {
+            HardDiskImage* image = m_pending_images[i];
+            InitPointer(m_pending_images[i]);
+            m_ide->GetDisk(i)->Attach(image);
+        }
+        else if (!m_hard_disk_paths[i].empty())
             m_ide->GetDisk(i)->Attach(m_hard_disk_paths[i].c_str(), m_hard_disk_write_protected[i],
                 m_hard_disk_working_paths[i].c_str());
     }
@@ -1995,7 +2161,12 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
 
         if (state_media.hard_disk_attached[i] &&
             !image->Restore(state_media.hard_disk_session[i], state_media.hard_disk_write[i]))
+        {
             m_hard_disk_state_changes = SET_BIT(m_hard_disk_state_changes, i);
+
+            if (IsValidPointer(m_folder_disks[i]))
+                m_folder_disks[i]->SetQuarantine();
+        }
     }
 
     ApplyBusTiming();

@@ -19,6 +19,7 @@
 
 #define GUI_HARD_DISKS_IMPORT
 #include "gui_hard_disks.h"
+#include "drive/folder_disk.h"
 
 #include <string>
 #include "imgui.h"
@@ -34,6 +35,7 @@
 #include "media/game_descriptor.h"
 #include "emu_floppy.h"
 #include "emu_hard_disk.h"
+#include "emu_game.h"
 #include "utils.h"
 
 static const int k_create_sizes_mb[5] = { 40, 100, 250, 500, 2000 };
@@ -41,28 +43,33 @@ static const char* create_sizes = "40 MB\0" "100 MB\0" "250 MB\0" "500 MB\0" "20
 static const char* const k_slot_names[GDOX_MAX_HARD_DISKS] = { "Primary Master", "Primary Slave", "Secondary Master",
     "Secondary Slave" };
 
-static const int k_recreate_builtin = -1;
 
 static bool open_create = false;
 static bool open_quit = false;
 static bool open_confirm = false;
 static int dialog_id = 0;
-static int confirm_id = 0;
 static int create_choice = 1;
 static int create_custom_mb = 100;
 static int create_size_mb = 100;
 static bool create_formatted = true;
 static int source_id = 0;
-static bool source_loading = false;
-static bool source_reset = false;
-static bool source_rebuild = false;
+static std::string source_path;
+static int image_id = 0;
+static std::string image_path;
+static bool image_write_protected = false;
+static bool image_power_on = false;
 static int recreate_system = GDOX_GAME_SYSTEM_FREEDOS;
 
 static void default_menu(void);
 static void builtin_items(int id, bool loading);
 static const char* builtin_name(int system);
 static void disk_menu(int id);
-static bool load_source(int id, const char* path, bool rebuild);
+static bool load_source(int id, const char* path);
+static void source_task(void);
+static void source_done(void);
+static bool load_image(int id, const char* path, bool power_on);
+static void image_task(void);
+static void image_done(void);
 static void confirm_erase(void);
 static void attach(int id, const char* path);
 static void draw_create_popup(void);
@@ -143,6 +150,14 @@ void gui_hard_disks_update(void)
         ids += k_slot_names[i];
     }
 
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        FolderDisk* folder = emu_get_core()->GetFolderDisk(i);
+
+        if (IS_SET_BIT(changes, i) && IsValidPointer(folder) && folder->IsQuarantined())
+            ids += std::string(". ") + k_slot_names[i] + "'s changes go to " + folder->GetConflictsFolder() + " until it closes";
+    }
+
     gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "The hard disk changed since this state", ids.c_str());
 }
 
@@ -156,18 +171,7 @@ bool gui_hard_disks_load(const char* path)
         return false;
     }
 
-    if (!emu_hard_disk_attach(id, path, config_emulator.hard_disk_write_protected[id] != 0))
-    {
-        attach_error(path);
-        return false;
-    }
-
-    notify_attached(id, path, "Hard disk attached");
-
-    if (emu_is_empty())
-        gui_action_power_on();
-
-    return true;
+    return load_image(id, path, true);
 }
 
 bool gui_hard_disks_load_source(const char* path)
@@ -181,68 +185,69 @@ bool gui_hard_disks_load_source(const char* path)
         return false;
     }
 
-    return load_source(id, path, false);
+    return load_source(id, path);
 }
 
-void gui_hard_disks_source_loaded(void)
+static void source_task(void)
+{
+    emu_hard_disk_prepare_source(source_path.c_str());
+}
+
+static void source_done(void)
 {
     const Emu_HardDiskSource* source = emu_hard_disk_get_prepared_source();
-    bool protect = config_emulator.hard_disk_write_protected[source_id] != 0;
-    bool built = (source->report.result != FAT_IMAGE_ERROR) && (source->report.result != FAT_IMAGE_TOO_BIG);
-    bool reset = source_reset;
-    bool rebuild = source_rebuild;
-    source_loading = false;
-    source_reset = false;
-    source_rebuild = false;
 
-    if (source->report.result == FAT_IMAGE_TOO_BIG)
-    {
-        char message[GDOX_MAX_PATH + 128];
-        snprintf(message, sizeof(message), "This needs %u MB, and a FAT16 disk holds 2015 MB:\n%s",
-            (u32)(source->report.content_size / (1024 * 1024)), source->path);
-        gui_set_error_message(message);
-    }
-    else if (!built || !emu_hard_disk_attach_prepared_source(source_id, protect))
+    if (!source->ready || !emu_hard_disk_attach_prepared_source(source_id, false))
     {
         std::string message("Unable to make a hard disk from:\n");
         message += source->path;
+        message += source->error[0] != 0 ? std::string("\n") + source->error : std::string();
         gui_set_error_message(message.c_str());
-        built = false;
+        return;
     }
 
-    if (!built && !rebuild)
-        return;
+    notify_attached(source_id, source->path, "Hard disk attached");
 
-    if (built)
-        notify_attached(source_id, source->path, "Hard disk attached");
-    else
-        emu_hard_disk_attach_prepared_source(source_id, protect);
-
-    if (source->report.result == FAT_IMAGE_CHANGED)
-        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "This folder changed since its disk was made",
-            "Rebuild From Folder picks that up, and drops what DOS wrote to the disk");
-
-    if (source->report.left_out != 0)
+    if (source->left_out != 0)
     {
         char message[64];
-        snprintf(message, sizeof(message), "%u items are too deep for DOS to reach", source->report.left_out);
+        snprintf(message, sizeof(message), "%u items are too deep for DOS to reach", source->left_out);
         gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Part of this folder was left out", message);
     }
 
     if (emu_is_empty())
         gui_action_power_on();
-    else if (reset)
-        gui_action_reset();
 }
 
-bool gui_hard_disks_is_loading_source(void)
+static bool load_image(int id, const char* path, bool power_on)
 {
-    return source_loading;
+    if (gui_is_rom_loading() || emu_is_media_loading())
+        return false;
+
+    image_id = id;
+    image_path = path;
+    image_write_protected = config_emulator.hard_disk_write_protected[id] != 0;
+    image_power_on = power_on;
+    return gui_load_async(image_task, image_done);
 }
 
-void gui_hard_disks_reset_when_loaded(void)
+static void image_task(void)
 {
-    source_reset = true;
+    emu_hard_disk_prepare_image(image_id, image_path.c_str(), image_write_protected);
+}
+
+static void image_done(void)
+{
+    if (!emu_hard_disk_attach_prepared_image(image_id, false))
+    {
+        attach_error(image_path.c_str());
+        return;
+    }
+
+    notify_attached(image_id, image_path.c_str(), "Hard disk attached");
+
+    if (image_power_on && emu_is_empty())
+        gui_action_power_on();
 }
 
 bool gui_hard_disks_is_pending(void)
@@ -330,12 +335,6 @@ static void disk_menu(int id)
     {
         dialog_id = id;
         open_create = true;
-    }
-
-    if (ImGui::MenuItem("Rebuild From Folder...", NULL, false, !loading && (info.source[0] != 0)))
-    {
-        confirm_id = id;
-        open_confirm = true;
     }
 
     if (ImGui::MenuItem("Detach", NULL, false, present))
@@ -523,11 +522,10 @@ static const char* builtin_name(int system)
 void gui_hard_disks_confirm_recreate(int system)
 {
     recreate_system = system;
-    confirm_id = k_recreate_builtin;
     open_confirm = true;
 }
 
-static bool load_source(int id, const char* path, bool rebuild)
+static bool load_source(int id, const char* path)
 {
     if (gui_is_rom_loading() || emu_is_media_loading())
         return false;
@@ -539,9 +537,8 @@ static bool load_source(int id, const char* path, bool rebuild)
     }
 
     source_id = id;
-    source_rebuild = rebuild;
-    source_loading = gui_load_hard_disk_source(path, rebuild);
-    return source_loading;
+    source_path = trim_trailing_separators(path);
+    return gui_load_async(source_task, source_done);
 }
 
 static void confirm_erase(void)
@@ -549,50 +546,31 @@ static void confirm_erase(void)
     if (gui_is_rom_loading() || emu_is_media_loading())
         return;
 
-    bool powered = !emu_is_empty();
+    bool restart = !emu_is_empty() && emu_hard_disk_is_builtin_attached(recreate_system);
+    std::string error;
 
-    if (confirm_id == k_recreate_builtin)
-    {
-        bool restart = powered && emu_hard_disk_is_builtin_attached(recreate_system);
-        std::string error;
-
-        if (restart)
-            gui_action_power_off();
-
-        if (!emu_hard_disk_recreate_builtin(recreate_system))
-        {
-            emu_hard_disk_take_builtin_error(&error);
-            gui_set_error_message(("Unable to make a new built-in disk. The old one is untouched.\n" + error).c_str());
-        }
-
-        if (restart)
-            gui_action_power_on();
-
-        return;
-    }
-
-    if (powered)
+    if (restart)
         gui_action_power_off();
 
-    Emu_HardDiskInfo info;
-    emu_hard_disk_get_info(confirm_id, &info);
-    std::string source = info.source;
-    emu_get_core()->DetachHardDisk(confirm_id);
-    load_source(confirm_id, source.c_str(), true);
+    if (!emu_hard_disk_recreate_builtin(recreate_system))
+    {
+        emu_hard_disk_take_builtin_error(&error);
+        gui_set_error_message(("Unable to make a new built-in disk. The old one is untouched.\n" + error).c_str());
+    }
+
+    if (restart)
+        gui_action_power_on();
 }
 
 static void attach(int id, const char* path)
 {
     if (emu_hard_disk_is_source(path))
     {
-        load_source(id, path, false);
+        load_source(id, path);
         return;
     }
 
-    if (emu_hard_disk_attach(id, path, config_emulator.hard_disk_write_protected[id] != 0))
-        notify_attached(id, path, "Hard disk attached");
-    else
-        attach_error(path);
+    load_image(id, path, false);
 }
 
 static void attach_error(const char* path)
@@ -661,13 +639,9 @@ static void draw_confirm_popup(void)
 
     bool restart = !emu_is_empty() && emu_hard_disk_is_builtin_attached(recreate_system);
 
-    if (confirm_id == k_recreate_builtin)
-        ImGui::Text("%s a new built-in %s disk.\nEverything installed on the old one is lost.\n\n",
-            restart ? "This restarts the machine and makes" : "This makes",
-            recreate_system == GDOX_GAME_SYSTEM_MSDOS ? "MS-DOS" : "FreeDOS");
-    else
-        ImGui::Text("This restarts the machine and makes a new disk from the folder.\n"
-            "Everything DOS wrote to this disk is lost, saved games too.\n\n");
+    ImGui::Text("%s a new built-in %s disk.\nEverything installed on the old one is lost.\n\n",
+        restart ? "This restarts the machine and makes" : "This makes",
+        recreate_system == GDOX_GAME_SYSTEM_MSDOS ? "MS-DOS" : "FreeDOS");
 
     ImGui::Separator();
 

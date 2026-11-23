@@ -57,15 +57,19 @@
 static bool error_window_active = false;
 static char error_message[4096] = "";
 static bool loading_rom_active = false;
-static bool loading_hard_disk_source = false;
 static bool loading_game = false;
+static void (*loading_done)(void) = NULL;
+static std::string open_path;
+static std::string open_symbol_path;
+static GDOX_Content open_content = GDOX_CONTENT_MEDIA;
+static bool open_floppy = false;
+static std::vector<GameDisk_Found> open_found;
 static int pending_state_slot = 0;
 static std::string pending_state_path;
 static char loading_rom_path[4096] = "";
 static char loading_symbol_path[4096] = "";
 static bool loading_physical_cdrom = false;
 static bool loading_reset = false;
-static bool loading_power_on = false;
 static bool loading_reload = false;
 static bool loading_keep_debug = false;
 static bool output_focus_requested = false;
@@ -83,6 +87,8 @@ static void select_save_slot(int slot);
 static bool finish_loading_rom(void);
 static void load_pending_state(void);
 static void start_loading_rom(const char* path, const char* symbol_path);
+static void open_task(void);
+static void open_done(void);
 static void update_window_visibility_padding(void);
 static void update_key_mapper_pointer(const ImVec2& min, const ImVec2& max);
 static void set_style(void);
@@ -260,7 +266,7 @@ void gui_hotkey(config_HotkeyIndex hotkey, bool pressed)
     switch (hotkey)
     {
     case config_HotkeyIndex_OpenROM:
-        if (!emu_get_core()->GetMedia()->IsReady())
+        if (!gui_is_rom_loading() && !emu_is_media_loading())
             gui_shortcut_open_rom = true;
         break;
     case config_HotkeyIndex_ReloadROM:
@@ -393,41 +399,84 @@ void gui_hotkey(config_HotkeyIndex hotkey, bool pressed)
 
 bool gui_load_rom(const char* path, const char* symbol_path)
 {
+    if (loading_rom_active || !IsValidPointer(path))
+        return false;
+
+    open_path = path;
+    open_symbol_path = IsValidPointer(symbol_path) ? symbol_path : "";
+    strncpy_fit(loading_rom_path, path, sizeof(loading_rom_path));
+    loading_reset = false;
+    loading_reload = false;
+    loading_keep_debug = false;
+    return gui_load_async(open_task, open_done);
+}
+
+bool gui_load_async(void (*task)(void), void (*done)(void))
+{
     if (loading_rom_active)
         return false;
 
+    loading_done = done;
+    loading_rom_active = true;
+    emu_resume();
+    emu_load_task_async(task);
+    return true;
+}
+
+static void open_task(void)
+{
+    const char* path = open_path.c_str();
+    open_content = Content::Classify(path);
+    open_floppy = (open_content == GDOX_CONTENT_FLOPPY) ||
+        ((open_content == GDOX_CONTENT_PLAYLIST) && emu_floppy_is_image(path));
+    emu_game_find(path, &open_found);
+
+    if (open_found.empty() && (open_floppy || (open_content == GDOX_CONTENT_PLAYLIST)))
+        emu_floppy_prepare(0, path);
+}
+
+static void open_done(void)
+{
+    const char* path = open_path.c_str();
     GeardoxCore* core = emu_get_core();
     int drives = emu_is_empty() ? core->GetPendingMachineConfig().floppy_drives : core->GetMachineConfig().floppy_drives;
 
-    if (emu_game_is_content(path))
-        return gui_game_open(path);
+    if (!open_found.empty())
+    {
+        gui_game_open(open_found);
+        return;
+    }
 
-    GDOX_Content content = Content::Classify(path);
-    bool hard_disk = (content == GDOX_CONTENT_HARD_DISK_SOURCE) || (content == GDOX_CONTENT_HARD_DISK);
+    bool hard_disk = (open_content == GDOX_CONTENT_HARD_DISK_SOURCE) || (open_content == GDOX_CONTENT_HARD_DISK);
 
     if (hard_disk && emu_game_is_open() && !emu_game_close())
-        return false;
+        return;
 
-    if (content == GDOX_CONTENT_HARD_DISK_SOURCE)
-        return gui_hard_disks_load_source(path);
+    if (open_content == GDOX_CONTENT_HARD_DISK_SOURCE)
+    {
+        gui_hard_disks_load_source(path);
+        return;
+    }
 
-    if (content == GDOX_CONTENT_HARD_DISK)
-        return gui_hard_disks_load(path);
+    if (open_content == GDOX_CONTENT_HARD_DISK)
+    {
+        gui_hard_disks_load(path);
+        return;
+    }
 
-    if ((content == GDOX_CONTENT_FLOPPY) || ((content == GDOX_CONTENT_PLAYLIST) && emu_floppy_is_image(path)))
+    if (open_floppy)
     {
         if (drives == 0)
-        {
             gui_set_error_message("This machine has no floppy drive.");
-            return false;
-        }
+        else
+            gui_floppy_open(path, open_symbol_path.c_str());
 
-        return gui_floppy_open(path, symbol_path);
+        return;
     }
 
     const char* media_path = path;
 
-    if (content == GDOX_CONTENT_PLAYLIST)
+    if (open_content == GDOX_CONTENT_PLAYLIST)
     {
         bool floppies = false;
 
@@ -436,7 +485,7 @@ bool gui_load_rom(const char* path, const char* symbol_path)
             std::string message("Error loading playlist:\n");
             message += path;
             gui_set_error_message(message.c_str());
-            return false;
+            return;
         }
 
         if (floppies && (drives > 0))
@@ -449,8 +498,7 @@ bool gui_load_rom(const char* path, const char* symbol_path)
         emu_cdrom_playlist_clear();
 
     config_push_recent_media(path);
-    start_loading_rom(media_path, symbol_path);
-    return true;
+    start_loading_rom(media_path, open_symbol_path.c_str());
 }
 
 bool gui_load_playlist_disc(int index)
@@ -461,22 +509,10 @@ bool gui_load_playlist_disc(int index)
         return false;
 
     emu_cdrom_playlist_select(path);
+    loading_reset = false;
+    loading_reload = false;
     start_loading_rom(path, NULL);
     loading_keep_debug = true;
-    return true;
-}
-
-bool gui_load_hard_disk_source(const char* path, bool rebuild)
-{
-    if (loading_rom_active)
-        return false;
-
-    loading_hard_disk_source = true;
-    loading_rom_active = true;
-    loading_symbol_path[0] = '\0';
-    strncpy_fit(loading_rom_path, path, sizeof(loading_rom_path));
-    emu_resume();
-    emu_load_hard_disk_source_async(path, rebuild);
     return true;
 }
 
@@ -501,9 +537,6 @@ bool gui_start_game(const GameDisk_Found& found, int target, int program)
 static void start_loading_rom(const char* path, const char* symbol_path)
 {
     loading_physical_cdrom = false;
-    loading_reset = false;
-    loading_reload = false;
-    loading_keep_debug = false;
     gui_debug_auto_save_settings();
     emu_resume();
 
@@ -575,10 +608,6 @@ void gui_reset_when_loaded(void)
     loading_reset = loading_rom_active;
 }
 
-void gui_power_on_when_loaded(void)
-{
-    loading_power_on = loading_rom_active;
-}
 
 void gui_load_media_symbols(const char* media_path, const char* symbol_path)
 {
@@ -610,10 +639,11 @@ bool gui_finish_loading_rom(void)
         loading_game = false;
         gui_game_loaded();
     }
-    else if (loading_hard_disk_source)
+    else if (IsValidPointer(loading_done))
     {
-        loading_hard_disk_source = false;
-        gui_hard_disks_source_loaded();
+        void (*done)(void) = loading_done;
+        loading_done = NULL;
+        done();
     }
     else if (success)
         success = finish_loading_rom();
@@ -625,10 +655,9 @@ bool gui_finish_loading_rom(void)
 
     }
 
-    if (loading_power_on && !emu_is_powered_on())
-        emu_power_on();
+    if (loading_rom_active)
+        return success;
 
-    loading_power_on = false;
     load_pending_state();
     return success;
 }
@@ -1057,7 +1086,9 @@ static void show_loading_popup(void)
     if (!emu_is_media_loading())
     {
         gui_finish_loading_rom();
-        return;
+
+        if (!loading_rom_active || !emu_is_media_loading())
+            return;
     }
 
     gui_dialog_in_use = true;

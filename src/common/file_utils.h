@@ -38,9 +38,6 @@
 #endif
 #endif
 #include "log.h"
-#define MINIZ_NO_ZLIB_COMPATIBLE_NAMES
-#include <miniz.h>
-#undef MINIZ_NO_ZLIB_COMPATIBLE_NAMES
 
 #if defined(_WIN32)
 inline std::wstring utf8_to_wstring(const char* utf8_str)
@@ -249,89 +246,6 @@ inline bool is_safe_zip_entry_name(const char* name)
 
         component += length + 1;
     }
-}
-
-inline bool extract_zip_to_folder(const char* zip_path, const char* out_folder)
-{
-    using namespace std;
-    Debug("Extracting ZIP archive %s...", zip_path);
-    Debug("Output folder: %s", out_folder);
-
-    mz_zip_archive zip_archive;
-    memset(&zip_archive, 0, sizeof(zip_archive));
-
-    mz_bool status = mz_zip_reader_init_file(&zip_archive, zip_path, 0);
-
-    if (!status)
-    {
-        Error("mz_zip_reader_init_file() failed!");
-        return false;
-    }
-
-    string out_dir(out_folder);
-
-    if (!create_directory_tree_if_not_exists(out_dir.c_str()))
-    {
-        Error("Failed to create directory %s", out_dir.c_str());
-        mz_zip_reader_end(&zip_archive);
-        return false;
-    }
-
-    mz_uint num_files = mz_zip_reader_get_num_files(&zip_archive);
-
-    for (mz_uint i = 0; i < num_files; i++)
-    {
-        mz_zip_archive_file_stat file_stat;
-        if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat))
-        {
-            Error("mz_zip_reader_file_stat failed for file %d", i);
-            mz_zip_reader_end(&zip_archive);
-            return false;
-        }
-
-        if (!is_safe_zip_entry_name(file_stat.m_filename))
-        {
-            Error("Unsafe path in ZIP archive: %s", file_stat.m_filename);
-            mz_zip_reader_end(&zip_archive);
-            return false;
-        }
-
-        string name(file_stat.m_filename);
-        size_t separator = name.find('/');
-
-        while (separator != string::npos)
-        {
-            string directory = out_dir + "/" + name.substr(0, separator);
-
-            if (!create_directory_if_not_exists(directory.c_str()))
-            {
-                Error("Failed to create directory %s", directory.c_str());
-                mz_zip_reader_end(&zip_archive);
-                return false;
-            }
-
-            separator = name.find('/', separator + 1);
-        }
-
-        if (file_stat.m_is_directory)
-            continue;
-
-        string out_path = out_dir + "/" + name;
-
-        if (!mz_zip_reader_extract_to_file(&zip_archive, i, out_path.c_str(), 0))
-        {
-            Error("Failed to extract %s", out_path.c_str());
-            mz_zip_reader_end(&zip_archive);
-            return false;
-        }
-
-        Debug("Extracted: %s", out_path.c_str());
-    }
-
-    mz_zip_reader_end(&zip_archive);
-    Debug("Extraction complete.");
-
-    return true;
 }
 
 #endif /* FILE_UTILS_H */

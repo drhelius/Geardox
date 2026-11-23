@@ -35,12 +35,23 @@ struct HardDiskJournalEntry
     u8 data[512];
 };
 
+class HardDiskSource
+{
+public:
+    virtual ~HardDiskSource();
+    virtual u32 GetBlocks() const = 0;
+    virtual bool Read(u32 lba, u8* buffer, u32 count) = 0;
+    virtual bool Store(u32 lba, const u8* buffer) = 0;
+    virtual bool Sync() = 0;
+};
+
 class HardDiskImage
 {
 public:
     HardDiskImage();
     ~HardDiskImage();
     bool Open(const char* path, bool write_protected, const char* working_path = NULL);
+    bool Open(HardDiskSource* source, const char* path);
     void Close();
     bool IsOpen() const;
     const char* GetPath() const;
@@ -56,6 +67,7 @@ public:
     u64 GetSession() const;
     u64 GetLastWrite() const;
     bool Restore(u64 session, u64 write);
+    void SetPrevious(u64 session, u64 write);
     static bool Create(const char* path, u64 size, bool formatted);
     static bool IsImage(const char* path);
     static int GetImageId(const char* path);
@@ -76,6 +88,7 @@ private:
 
 private:
     MediaFile* m_file;
+    HardDiskSource* m_source;
     ChdFileAdapter* m_chd_adapter;
     chd_file* m_chd;
     std::vector<u8> m_hunk;
@@ -95,6 +108,8 @@ private:
     u64 m_session;
     u64 m_next_write;
     u64 m_last_write;
+    u64 m_previous_session;
+    u64 m_previous_write;
     u64 m_journal_base;
     std::vector<HardDiskJournalEntry> m_journal;
     u32 m_journal_start;

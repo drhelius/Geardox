@@ -42,6 +42,9 @@ struct Emu_FloppyInfo
 
 EXTERN void emu_floppy_init(void);
 EXTERN bool emu_floppy_is_image(const char* path);
+EXTERN void emu_floppy_prepare(int drive, const char* path);
+EXTERN void emu_floppy_prepare_disk(int drive, int index);
+EXTERN void emu_floppy_clear_prepared(void);
 EXTERN bool emu_floppy_insert(int drive, const char* path, bool discard_changes, bool keep_image);
 EXTERN bool emu_floppy_open(const char* path, bool discard_changes, bool* second);
 EXTERN bool emu_floppy_select_disk(int drive, int index, bool discard_changes);

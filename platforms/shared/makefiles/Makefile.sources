@@ -197,6 +197,7 @@ SOURCES_CXX := \
     $(SRC_DIR)/drive/hard_disk_image.cpp \
     $(SRC_DIR)/drive/import_common.cpp \
     $(SRC_DIR)/drive/fat_image.cpp \
+    $(SRC_DIR)/drive/folder_disk.cpp \
     $(SRC_DIR)/drive/iso_image.cpp \
     $(SRC_DIR)/drive/floppy_disk.cpp \
     $(SRC_DIR)/drive/floppy_image.cpp \

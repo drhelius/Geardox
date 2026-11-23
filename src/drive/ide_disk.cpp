@@ -48,10 +48,12 @@ IdeDisk::IdeDisk()
     m_id = 0;
     m_access_count = 0;
     m_delay_divider = 1;
+    m_image = new HardDiskImage();
 }
 
 IdeDisk::~IdeDisk()
 {
+    SafeDelete(m_image);
 }
 
 void IdeDisk::Init(int id)
@@ -82,27 +84,55 @@ bool IdeDisk::Attach(const char* path, bool write_protected, const char* working
 {
     Reset();
 
-    if (!m_image.Open(path, write_protected, working_path))
+    if (!m_image->Open(path, write_protected, working_path))
         return false;
 
-    Log("Hard disk image %s: %u sectors%s", path, m_image.GetBlocks(), m_image.IsWriteProtected() ? ", write protected" : "");
+    Log("Hard disk image %s: %u sectors%s", path, m_image->GetBlocks(), m_image->IsWriteProtected() ? ", write protected" : "");
+    return true;
+}
+
+bool IdeDisk::Attach(HardDiskSource* source, const char* path)
+{
+    Reset();
+
+    if (!m_image->Open(source, path))
+        return false;
+
+    Log("Hard disk from folder %s: %u sectors", path, m_image->GetBlocks());
+    return true;
+}
+
+bool IdeDisk::Attach(HardDiskImage* image)
+{
+    Reset();
+
+    if (!IsValidPointer(image) || !image->IsOpen())
+    {
+        SafeDelete(image);
+        return false;
+    }
+
+    SafeDelete(m_image);
+    m_image = image;
+    Log("Hard disk image %s: %u sectors%s", m_image->GetPath(), m_image->GetBlocks(),
+        m_image->IsWriteProtected() ? ", write protected" : "");
     return true;
 }
 
 void IdeDisk::Detach()
 {
-    m_image.Close();
+    m_image->Close();
     Reset();
 }
 
 bool IdeDisk::IsAttached() const
 {
-    return m_image.IsOpen();
+    return m_image->IsOpen();
 }
 
 u32 IdeDisk::GetBlocks() const
 {
-    return MIN(m_image.GetBlocks(), k_ide_max_lba);
+    return MIN(m_image->GetBlocks(), k_ide_max_lba);
 }
 
 // Ends a diagnostic with code 01h, an absent disk reads 00h. A reset also brings back the default translation
@@ -136,7 +166,7 @@ void IdeDisk::DetectGeometry()
     u32 heads = 0;
     u32 sectors = 0;
 
-    if (!m_image.GetGeometry(&heads, &sectors) || heads > 16 || sectors > 63)
+    if (!m_image->GetGeometry(&heads, &sectors) || heads > 16 || sectors > 63)
     {
         if (!ReadPartitionGeometry(&heads, &sectors))
         {
@@ -156,7 +186,7 @@ bool IdeDisk::ReadPartitionGeometry(u32* heads, u32* sectors)
 {
     u8 mbr[k_hard_disk_block_size];
 
-    if (!m_image.ReadBlock(0, mbr) || mbr[510] != 0x55 || mbr[511] != 0xAA)
+    if (!m_image->ReadBlock(0, mbr) || mbr[510] != 0x55 || mbr[511] != 0xAA)
         return false;
 
     for (int i = 0; i < 4; i++)
@@ -347,7 +377,7 @@ bool IdeDisk::ExecuteMedia(u8 command, u64 clocks)
     }
 
     // ATA has no way to say a disk is read only, an abort is the closest. DOS calls it a write fault
-    if ((multiple && m_state.multiple == 0) || ((write || format) && m_image.IsWriteProtected()))
+    if ((multiple && m_state.multiple == 0) || ((write || format) && m_image->IsWriteProtected()))
     {
         Complete(clocks, k_ide_error_abrt);
         return true;
@@ -485,7 +515,7 @@ void IdeDisk::LoadBlock()
 
         for (u32 i = 0; i < count; i++)
         {
-            if (!m_image.ReadBlock(m_state.lba + i, m_state.buffer + (i * k_hard_disk_block_size)))
+            if (!m_image->ReadBlock(m_state.lba + i, m_state.buffer + (i * k_hard_disk_block_size)))
             {
                 SetAddress(m_state.lba + i);
                 m_state.sector_count = (u8)(m_state.remaining - i);
@@ -546,7 +576,7 @@ void IdeDisk::StoreBlock()
     for (u32 i = 0; i < count; i++)
     {
         u8 error = m_state.lba + i >= blocks ? k_ide_error_idnf :
-            !m_image.WriteBlock(m_state.lba + i, m_state.buffer + (i * k_hard_disk_block_size)) ? k_ide_error_abrt : 0;
+            !m_image->WriteBlock(m_state.lba + i, m_state.buffer + (i * k_hard_disk_block_size)) ? k_ide_error_abrt : 0;
 
         if (error != 0)
         {
@@ -585,7 +615,7 @@ void IdeDisk::FormatTrack()
 
     for (u32 i = 0; i < count && error == 0; i++)
     {
-        if (!m_image.WriteBlock(m_state.lba + i, m_state.buffer))
+        if (!m_image->WriteBlock(m_state.lba + i, m_state.buffer))
             error = k_ide_error_abrt;
     }
 

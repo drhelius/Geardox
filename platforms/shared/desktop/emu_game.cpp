@@ -31,7 +31,7 @@
 #include "emu_dev.h"
 #include "gui_notifications.h"
 #include "media/media_file.h"
-#include "media/crc.h"
+#include "drive/folder_disk.h"
 
 static GameDisk disk;
 static int target = GDOX_GAME_TARGET_GAME;
@@ -57,16 +57,17 @@ static GDOX_Gamepad_Game game_gamepads[GDOX_MAX_GAMEPADS];
 static GDOX_Gamepad_Game base_gamepads[GDOX_MAX_GAMEPADS];
 static bool preparing = false;
 static bool prepared = false;
-static bool write_back_pending = false;
 static GDOX_Machine_Config prepare_config;
 static GDOX_Boot_Device saved_boot_device = GDOX_BOOT_DEVICE_AUTO;
-static std::string hard_disk_images[GDOX_MAX_HARD_DISKS];
-static FatImage_Report hard_disk_reports[GDOX_MAX_HARD_DISKS];
 static std::string error_text;
-static GameDisk_Result last_result;
+static std::string saves_path;
+static FolderDisk_Result last_result;
 static std::string last_result_name;
 static bool game_floppies[2] = { false, false };
 static bool game_cdrom = false;
+static std::string floppy_lists[2];
+static std::string cdrom_list;
+static bool cdrom_loaded = false;
 static GameDisk_Found current_found;
 static std::vector<std::pair<std::string, std::string> > game_keys;
 static const char k_empty_overrides[] = "[geardox]\nversion = 1\n";
@@ -79,7 +80,6 @@ static const char* const k_game_keys[][2] = {
     { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" }, { "sound", "mt32_model" },
     { "input", "mouse" }, { "input", "joystick" } };
 
-static std::string get_save_directory(void);
 static const std::vector<std::pair<std::string, std::string> >& get_game_keys(void);
 static bool same_overrides(const GameDescriptor& a, const GameDescriptor& b);
 static void notify_saved(void);
@@ -88,8 +88,8 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
 static void update_machines(void);
 static void apply_game_settings(void);
 static std::string write_list(const std::vector<std::string>& paths, const char* name);
+static std::string relative_path(const std::string& path, const std::string& folder);
 static void notify_write_back(void);
-static void prepare_hard_disk(int id);
 static void notify_message(const GameDisk_Message& message);
 
 bool emu_game_is_content(const char* path)
@@ -114,7 +114,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target, int program)
     if (emu_is_powered_on())
         emu_power_off();
 
-    if (!disk.Open(found, get_save_directory().c_str(), get_save_directory().c_str(), config_game.write_back == 0,
+    if (!disk.Open(found, emu_get_save_folder(NULL).c_str(), config_temp_path, true, config_game.write_back == 0,
         emu_dos_get_msdos_path().c_str(), emu_dos_get_ultrasnd_path().c_str(), emu_dos_get_glide_path().c_str()))
     {
         error_text = disk.GetError();
@@ -136,19 +136,44 @@ bool emu_game_open(const GameDisk_Found& found, int game_target, int program)
     return true;
 }
 
-// Touches nothing of the emulator's but the disc, while the machine is off
 void emu_game_prepare_thread(void)
 {
     prepared = disk.Prepare(prepare_config);
+    cdrom_list.clear();
+    cdrom_loaded = false;
 
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    for (int drive = 0; drive < 2; drive++)
+        floppy_lists[drive].clear();
+
+    if (!prepared)
+        return;
+
+    for (int i = 1; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        hard_disk_images[i].clear();
-        memset(&hard_disk_reports[i], 0, sizeof(hard_disk_reports[i]));
+        const char* path = disk.GetHardDisk(i);
 
-        if (prepared)
-            prepare_hard_disk(i);
+        if ((path[0] != 0) && emu_hard_disk_is_image(path))
+            emu_hard_disk_prepare_image(i, path, false);
     }
+
+    for (int drive = 0; drive < 2; drive++)
+    {
+        const std::vector<std::string>& floppies = disk.GetFloppies(drive);
+
+        if (floppies.empty())
+            continue;
+
+        floppy_lists[drive] = floppies.size() > 1 ? write_list(floppies, drive == 0 ? "a.m3u" : "b.m3u") : floppies[0];
+        emu_floppy_prepare(drive, floppy_lists[drive].c_str());
+    }
+
+    const std::vector<std::string>& cds = disk.GetCdRoms();
+
+    if (cds.empty())
+        return;
+
+    cdrom_list = cds.size() > 1 ? write_list(cds, "cd.m3u") : std::string();
+    cdrom_loaded = emu_get_core()->LoadMedia(cds[0].c_str(), disk.GetCdRomLabel());
 }
 
 bool emu_game_start(void)
@@ -169,32 +194,39 @@ bool emu_game_start(void)
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         emu_hard_disk_detach(i);
 
-    if (!emu_hard_disk_attach_game(0, disk.GetImagePath(), disk.GetDescriptorPath()))
+    if (!emu_hard_disk_attach_game(0, disk.TakeDisk()))
     {
-        error_text = std::string("Unable to attach the game's disk ") + disk.GetImagePath();
+        error_text = std::string("Unable to attach the game's disk ") + disk.GetSourcePath();
         disk.Close();
         core->ClearGameSettings();
+        emu_floppy_clear_prepared();
+
+        if (cdrom_loaded)
+            emu_eject_media();
+
         return false;
     }
 
     for (int i = 1; i < GDOX_MAX_HARD_DISKS; i++)
     {
-        if (!hard_disk_images[i].empty() && !emu_hard_disk_attach_game(i, hard_disk_images[i].c_str(), disk.GetHardDisk(i)))
+        FolderDisk* folder = disk.TakeHardDisk(i);
+        bool attached = IsValidPointer(folder) ? emu_hard_disk_attach_game(i, folder) :
+            ((disk.GetHardDisk(i)[0] == 0) || emu_hard_disk_attach_prepared_image(i, true));
+
+        if (!attached)
             gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "Unable to attach the game's hard disk", disk.GetHardDisk(i));
     }
 
     for (int drive = 0; drive < 2; drive++)
     {
-        const std::vector<std::string>& floppies = disk.GetFloppies(drive);
-
-        if (floppies.empty())
+        if (floppy_lists[drive].empty())
             continue;
 
-        std::string list = floppies.size() > 1 ? write_list(floppies, drive == 0 ? "a.m3u" : "b.m3u") : floppies[0];
-        game_floppies[drive] = emu_floppy_insert(drive, list.c_str(), false, disk.IsWritingToOverlay());
+        game_floppies[drive] = emu_floppy_insert(drive, floppy_lists[drive].c_str(), false, disk.IsWritingToSaves());
 
         if (!game_floppies[drive])
-            gui_notify(gui_NotificationWarning, ICON_MD_SAVE, "Unable to insert the game's floppy", list.c_str());
+            gui_notify(gui_NotificationWarning, ICON_MD_SAVE, "Unable to insert the game's floppy",
+                floppy_lists[drive].c_str());
     }
 
     const std::vector<std::string>& cds = disk.GetCdRoms();
@@ -203,12 +235,12 @@ bool emu_game_start(void)
     {
         bool floppies = false;
 
-        if (cds.size() > 1)
-            emu_cdrom_playlist_load(write_list(cds, "cd.m3u").c_str(), &floppies);
+        if (!cdrom_list.empty())
+            emu_cdrom_playlist_load(cdrom_list.c_str(), &floppies);
         else if (!emu_cdrom_playlist_select(cds[0].c_str()))
             emu_cdrom_playlist_clear();
 
-        game_cdrom = core->LoadMedia(cds[0].c_str());
+        game_cdrom = cdrom_loaded;
 
         if (!game_cdrom)
             gui_notify(gui_NotificationWarning, ICON_MD_ALBUM, "Unable to load the game's disc", cds[0].c_str());
@@ -229,9 +261,9 @@ bool emu_game_start(void)
     emu_update_cga_output();
     config_push_recent_game(disk.GetDescriptorPath());
 
-    if (disk.WasRecovered() || (disk.GetRefusedPath()[0] != 0))
+    if (disk.GetRecovery().done || disk.GetRecovery().refused)
     {
-        last_result = disk.GetLastWriteBack();
+        last_result = disk.GetRecovery();
         last_result_name = disk.GetName();
     }
 
@@ -241,15 +273,8 @@ bool emu_game_start(void)
     for (size_t i = 0; i < messages.size(); i++)
         notify_message(messages[i]);
 
-    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
-    {
-        if (hard_disk_reports[i].result == FAT_IMAGE_CHANGED)
-            gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "A hard disk's folder changed since its disk was made",
-                disk.GetHardDisk(i));
-    }
-
     notify_shadowed();
-    Log("Game: %s, %s", disk.GetName(), disk.WasBuilt() ? "disk built" : "disk reused");
+    Log("Game: %s, %s", disk.GetName(), disk.GetFolder());
     return emu_power_on();
 }
 
@@ -291,14 +316,10 @@ bool emu_game_close(void)
 
     game_cdrom = false;
 
-    bool written = disk.Finish();
-    last_result = disk.GetLastWriteBack();
+    last_result = core->GetHardDiskResult(0);
     last_result_name = disk.GetName();
-    write_back_pending = !written;
     notify_write_back();
-
-    if (written)
-        disk.Close();
+    disk.Close();
 
     core->ClearGameSettings();
     core->SetGameTarget(-1);
@@ -328,7 +349,7 @@ bool emu_game_close(void)
 
 bool emu_game_is_open(void)
 {
-    return disk.IsOpen() && !write_back_pending;
+    return disk.IsOpen();
 }
 
 const char* emu_game_get_name(void)
@@ -712,7 +733,7 @@ void emu_game_set_level(int level, int volume, int mute, bool save)
 
 bool emu_game_has_overrides(void)
 {
-    return emu_game_is_open() && !disk.GetOverrides().IsEmpty();
+    return emu_game_is_open() && (!disk.GetOverrides().IsEmpty() || disk.HasStartupEdits());
 }
 
 bool emu_game_reset_settings(void)
@@ -729,21 +750,29 @@ bool emu_game_reset_settings(void)
 }
 
 // The descriptor with its overrides as one file. Elsewhere than its folder, its paths become absolute
-bool emu_game_save_descriptor(const char* path)
+bool emu_game_save_descriptor(const char* path, const char* program)
 {
     if (!emu_game_is_open())
         return false;
 
     GameDescriptor out = disk.GetDescriptor();
-    std::string from = disk.GetDescriptorPath();
-    char directory[GDOX_MAX_PATH];
-    char base[GDOX_MAX_PATH];
-    get_directory(path, directory, sizeof(directory));
-    get_directory(from.c_str(), base, sizeof(base));
 
-    if (strcmp(directory, base) != 0)
+    if (IsValidPointer(program) && (program[0] != 0))
+        out.Set("run", "exe", program);
+
+    std::string folder = trim_trailing_separators(path_directory(path));
+    std::string source = trim_trailing_separators(disk.GetSourcePath());
+    bool zip = ends_with_no_case(source.c_str(), ".zip");
+    bool in_source = !zip && (path_forward_slashes(folder) == path_forward_slashes(source));
+    std::string root = (in_source || zip) ? std::string(disk.GetRootPath()) : std::string();
+    char base[GDOX_MAX_PATH];
+    get_directory(disk.GetDescriptorPath(), base, sizeof(base));
+
+    if (folder != trim_trailing_separators(base))
     {
-        out.Set("game", "source", disk.GetSourcePath());
+        if (!in_source)
+            out.Set("game", "source", disk.GetSourceSetting().c_str());
+
         static const char* const k_lists[3] = { "floppy_a", "floppy_b", "cdrom" };
 
         for (int i = 0; i < 3; i++)
@@ -752,7 +781,7 @@ bool emu_game_save_descriptor(const char* path)
             std::string value;
 
             for (size_t p = 0; p < paths.size(); p++)
-                value += (p > 0 ? ", " : "") + paths[p];
+                value += (p > 0 ? ", " : "") + relative_path(paths[p], root);
 
             if (!value.empty())
                 out.Set("drives", k_lists[i], value.c_str());
@@ -761,7 +790,8 @@ bool emu_game_save_descriptor(const char* path)
         for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         {
             if (disk.GetHardDisk(i)[0] != 0)
-                out.Set("drives", GameDescriptor::GetHardDiskKey(i), disk.GetHardDisk(i));
+                out.Set("drives", GameDescriptor::GetHardDiskKey(i),
+                    relative_path(disk.GetHardDisk(i), in_source ? root : std::string()).c_str());
         }
     }
 
@@ -769,18 +799,26 @@ bool emu_game_save_descriptor(const char* path)
     return out.WriteFile(path);
 }
 
+std::string emu_game_get_descriptor_location(void)
+{
+    if (!emu_game_is_open())
+        return std::string();
+
+    std::string folder = disk.IsWritingToSaves() ? std::string(disk.GetFolder()) : std::string(disk.GetSourcePath());
+    return path_join(folder, safe_file_name(disk.GetName(), "Game") + ".gdox");
+}
+
+bool emu_game_has_program(void)
+{
+    return emu_game_is_open() && !disk.GetDescriptor().GetInfo().exe.empty();
+}
+
 std::string emu_game_get_key_map_path(void)
 {
     if (!emu_game_is_open())
         return "";
 
-    char settings[GDOX_MAX_PATH];
-    char name[GDOX_MAX_PATH];
-    char path[GDOX_MAX_PATH];
-    get_filename_without_extension(disk.GetOverridesPath(), settings, sizeof(settings));
-    get_filename_without_extension(settings, name, sizeof(name));
-    join_path(get_save_directory().c_str(), (std::string(name) + ".keys").c_str(), path, sizeof(path));
-    return path;
+    return disk.GetKeysPath();
 }
 
 const char* emu_game_get_keys(void)
@@ -788,27 +826,7 @@ const char* emu_game_get_keys(void)
     return emu_game_is_open() ? disk.GetDescriptor().GetInfo().keys.c_str() : "";
 }
 
-bool emu_game_retry_write_back(void)
-{
-    if (!write_back_pending || !disk.IsOpen())
-        return false;
-
-    write_back_pending = !disk.RetryFinish();
-    last_result = disk.GetLastWriteBack();
-    notify_write_back();
-
-    if (!write_back_pending)
-        disk.Close();
-
-    return !write_back_pending;
-}
-
-bool emu_game_is_write_back_pending(void)
-{
-    return write_back_pending;
-}
-
-const GameDisk_Result& emu_game_get_last_write_back(void)
+const FolderDisk_Result& emu_game_get_last_write_back(void)
 {
     return last_result;
 }
@@ -820,10 +838,8 @@ const char* emu_game_get_last_write_back_name(void)
 
 const char* emu_game_get_saves_path(void)
 {
-    if (!disk.IsOpen())
-        return "";
-
-    return disk.IsWritingToOverlay() ? disk.GetOverlayPath() : disk.GetSourcePath();
+    saves_path = disk.IsOpen() ? disk.GetFolder() : "";
+    return saves_path.c_str();
 }
 
 bool emu_game_has_setup(void)
@@ -867,7 +883,7 @@ bool emu_game_set_program(int program)
 
 bool emu_game_needs_restart(void)
 {
-    return emu_game_is_open() && disk.NeedsRebuild(emu_get_core()->GetPendingMachineConfig());
+    return emu_game_is_open() && disk.NeedsRestart(emu_get_core()->GetPendingMachineConfig());
 }
 
 GameDisk* emu_game_get_disk(void)
@@ -917,77 +933,6 @@ void emu_game_list_programs(const char* folder, std::vector<std::string>* progra
     std::sort(programs->begin(), programs->end());
 }
 
-bool emu_game_new_descriptor(const char* folder, const char* program, std::string* path)
-{
-    std::string source = trim_trailing_separators(folder);
-    std::string name = path_filename(source);
-    std::string dos_folder;
-
-    for (size_t i = 0; (i < name.size()) && (dos_folder.size() < 8); i++)
-    {
-        char c = name[i];
-
-        if (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')))
-            dos_folder += (char)(((c >= 'a') && (c <= 'z')) ? c - 32 : c);
-    }
-
-    if ((dos_folder == "FREEDOS") || (dos_folder == "TEMP"))
-        dos_folder.clear();
-
-    error_text.clear();
-    std::string head = "[geardox]\nversion = 1\n\n[game]\nname = " + name + "\n";
-    std::string tail = "folder = C:\\" + dos_folder + "\n\n[run]\nexe = " + program + "\n";
-    GameDescriptor descriptor;
-    char file[GDOX_MAX_PATH];
-
-    if (config_game.write_back == 0)
-    {
-        std::string text = head + tail;
-        u64 size = 0;
-        s64 modified = 0;
-        join_path(source.c_str(), (name + ".gdox").c_str(), file, sizeof(file));
-
-        if (MediaFile::GetFileInfo(file, &size, &modified))
-        {
-            error_text = std::string("The game's folder already has ") + name + ".gdox: open or edit it instead.";
-            return false;
-        }
-
-        if (descriptor.Parse("", text.data(), text.size()) && descriptor.WriteFile(file))
-        {
-            *path = file;
-            return true;
-        }
-    }
-
-    std::string text = head + "source = " + source + "\n" + tail;
-
-    if (!descriptor.Parse("", text.data(), text.size()))
-    {
-        error_text = descriptor.GetError();
-        return false;
-    }
-
-    std::string directory = get_save_directory();
-    std::string id = crc_key(source);
-    create_directory_if_not_exists(directory.c_str());
-    join_path(directory.c_str(), (name + "." + id + ".gdox").c_str(), file, sizeof(file));
-    *path = file;
-
-    if (!descriptor.WriteFile(file))
-    {
-        error_text = std::string("Unable to write ") + file;
-        return false;
-    }
-
-    return true;
-}
-
-static void prepare_hard_disk(int id)
-{
-    disk.GetHardDiskImage(id, get_save_directory().c_str(), &hard_disk_images[id], &hard_disk_reports[id]);
-}
-
 static void notify_message(const GameDisk_Message& message)
 {
     switch (message.kind)
@@ -1021,12 +966,6 @@ static void notify_message(const GameDisk_Message& message)
             gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, message.title.c_str(), message.detail.c_str());
             break;
     }
-}
-
-static std::string get_save_directory(void)
-{
-    bool custom = (Directory_Location)config_emulator.savefiles_dir_option == Directory_Location_Custom;
-    return custom ? config_emulator.savefiles_path : std::string(config_root_path);
 }
 
 static const std::vector<std::pair<std::string, std::string> >& get_game_keys(void)
@@ -1086,7 +1025,7 @@ static void notify_shadowed(void)
 
     if (overrides.IsEmpty() || disk.IsFromDatabase() || !editable ||
         !MediaFile::GetFileInfo(disk.GetDescriptorPath(), &size, &descriptor_time) ||
-        !MediaFile::GetFileInfo(disk.GetOverridesPath(), &size, &overrides_time) || (descriptor_time <= overrides_time))
+        !MediaFile::GetFileInfo(disk.GetSettingsPath(), &size, &overrides_time) || (descriptor_time <= overrides_time))
         return;
 
     std::vector<std::pair<std::string, std::string> > keys = get_game_keys();
@@ -1283,6 +1222,17 @@ static void apply_game_settings(void)
     emu_get_core()->SetGameSettings(game, disk.GetName());
 }
 
+static std::string relative_path(const std::string& path, const std::string& folder)
+{
+    std::string prefix = path_forward_slashes(trim_trailing_separators(folder)) + "/";
+    std::string normal = path_forward_slashes(path);
+
+    if (folder.empty() || (normal.compare(0, prefix.size(), prefix) != 0))
+        return path;
+
+    return normal.substr(prefix.size());
+}
+
 static std::string write_list(const std::vector<std::string>& paths, const char* name)
 {
     std::string text;
@@ -1290,7 +1240,7 @@ static std::string write_list(const std::vector<std::string>& paths, const char*
     for (size_t i = 0; i < paths.size(); i++)
         text += paths[i] + "\n";
 
-    std::string list = std::string(disk.GetImagePath()) + "." + name;
+    std::string list = path_join(config_temp_path, path_filename(disk.GetFolder()) + "." + name);
     MediaFile* file = MediaFile::OpenNewFile(list.c_str());
 
     if (IsValidPointer(file))
@@ -1305,7 +1255,7 @@ static std::string write_list(const std::vector<std::string>& paths, const char*
 
 static void notify_write_back(void)
 {
-    const GameDisk_Result& r = disk.GetLastWriteBack();
+    const FolderDisk_Result& r = last_result;
     std::string detail;
 
     if (!r.done)
@@ -1327,7 +1277,7 @@ static void notify_write_back(void)
     for (size_t i = 0; i < r.notes.size() && i < 4; i++)
         detail += (i > 0 ? "\n" : "") + r.notes[i];
 
-    if ((r.conflicts > 0) || (r.kept > 0) || (r.startup > 0))
+    if ((r.conflicts > 0) || (r.failed > 0))
         gui_notify(gui_NotificationWarning, ICON_MD_SAVE, message, detail.c_str());
     else if ((r.written > 0) || (r.deleted > 0))
         gui_notify(gui_NotificationInfo, ICON_MD_SAVE, message);

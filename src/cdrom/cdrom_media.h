@@ -35,6 +35,7 @@ enum GDOX_CdRomFileKind
     GDOX_CDROM_FILE_RAW_MODE2
 };
 
+class MediaFile;
 class CdRomCueBinImage;
 class CdRomChdImage;
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
@@ -67,6 +68,7 @@ public:
     bool LoadIsoFromFile(const char* path, bool preload);
     bool LoadRawFromFile(const char* path, bool mode2, bool preload);
     bool LoadProbedFromFile(const char* path, GDOX_CdRomFileKind kind, bool preload);
+    bool LoadFromFolder(const char* path, const char* label, bool preload);
     static GDOX_CdRomFileKind ProbeFile(const char* path);
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     bool LoadPhysicalDrive(const char* device_id, bool preload);
@@ -79,9 +81,12 @@ public:
     bool PreloadTrack(u32 track_number, u32 lba);
 
 private:
+    static MediaFile* ResolveFolder(const char* reference, char* resolved_path, size_t resolved_size, void* user_data);
 
 private:
     CdRomImage* m_current_image;
+    std::string m_folder;
+    std::string m_folder_label;
     CdRomCueBinImage* m_cue_bin_image;
     CdRomChdImage* m_chd_image;
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)

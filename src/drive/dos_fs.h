@@ -80,6 +80,8 @@ void dos_fs_assign_names(const std::vector<std::string>& names, const std::vecto
     const DosFs_Name_Policy& policy, std::vector<std::string>* short_names);
 bool dos_is_short_name(const std::string& name, bool extension_needed);
 bool dos_fs_read_deleted(const std::string& folder, std::vector<std::string>* paths);
+bool dos_fs_write_deleted(const std::string& folder, const std::vector<std::string>& paths);
+std::string dos_fs_join(const std::string& base, const std::string& name);
 std::string dos_fs_config_header(bool msdos, int version);
 std::string dos_fs_himem_line(int version);
 std::string dos_fs_shell_line(bool msdos);

@@ -19,8 +19,6 @@
 
 #include <time.h>
 #include <algorithm>
-#include <map>
-#include <set>
 #include "fat_image.h"
 #include "dos_fs.h"
 #include "import_common.h"
@@ -107,17 +105,24 @@ static void write_entry(u8* out, const u8* name, u8 attributes, u16 date, u16 ti
 
 FatImage::FatImage()
 {
-    InitPointer(m_output);
     InitPointer(m_boot_sector);
     InitPointer(m_read);
     m_read_offset = 0;
     memset(&m_layout, 0, sizeof(m_layout));
     m_pinned_count = 0;
     m_label[0] = 0;
-    m_fingerprint = 0;
     m_left_out = 0;
     m_next_cluster = 2;
     m_base = 0;
+    m_layer = 0;
+    m_next_source = 0;
+
+    for (u32 i = 0; i < k_fat_open_sources; i++)
+    {
+        m_source_index[i] = 0;
+        InitPointer(m_sources[i]);
+    }
+
     Clear();
     SetLabel(k_fat_label);
     Finish();
@@ -129,11 +134,12 @@ FatImage::~FatImage()
     Clear();
 }
 
-bool FatImage::AddFolder(const char* path)
+bool FatImage::AddFolder(const char* path, u8 layer)
 {
+    m_layer = layer;
     Clear();
 
-    if (!IsValidPointer(path) || !WalkFolder(path, 0, 0))
+    if (!IsValidPointer(path) || !WalkFolder(trim_trailing_separators(path), 0, 0))
         return false;
 
     SetLabel(get_source_name(path).c_str());
@@ -141,33 +147,9 @@ bool FatImage::AddFolder(const char* path)
     return true;
 }
 
-bool FatImage::AddZip(const u8* archive, size_t size)
+void FatImage::SetLayer(u8 layer)
 {
-    Clear();
-
-    if (!m_zip.Open(archive, size))
-        return false;
-
-    if (!ScanZip())
-        return false;
-
-    Finish();
-    return true;
-}
-
-bool FatImage::AddZipFile(const char* path)
-{
-    Clear();
-
-    if (!m_zip.Open(path))
-        return false;
-
-    if (!ScanZip())
-        return false;
-
-    SetLabel(get_source_name(path).c_str());
-    Finish();
-    return true;
+    m_layer = layer;
 }
 
 void FatImage::SetLabel(const char* label)
@@ -199,37 +181,9 @@ void FatImage::SetBootSector(const u8* sector)
     m_boot_sector = sector;
 }
 
-u32 FatImage::GetFingerprint() const
-{
-    return m_fingerprint;
-}
-
 u32 FatImage::GetLeftOut() const
 {
     return m_left_out;
-}
-
-u64 FatImage::GetContentSize() const
-{
-    u64 size = 0;
-    std::vector<u32> pending(1, 0);
-
-    while (!pending.empty())
-    {
-        u32 directory = pending.back();
-        pending.pop_back();
-
-        for (size_t i = 0; i < m_entries[directory].children.size(); i++)
-        {
-            u32 child = m_entries[directory].children[i];
-            size += m_entries[child].size;
-
-            if (m_entries[child].directory)
-                pending.push_back(child);
-        }
-    }
-
-    return size;
 }
 
 u64 FatImage::GetRequiredSize(u64 free_size) const
@@ -268,6 +222,49 @@ u64 FatImage::GetRequiredSize(u64 free_size) const
     return 0;
 }
 
+static bool sort_runs(const FatImage_Run& a, const FatImage_Run& b)
+{
+    return a.first < b.first;
+}
+
+void FatImage::SortRuns(std::vector<FatImage_Run>* runs)
+{
+    std::sort(runs->begin(), runs->end(), sort_runs);
+}
+
+bool FatImage::Build(u64 size, FatImage_Volume* volume)
+{
+    u32 total = (u32)(size / k_fat_sector_size);
+    total -= total % k_fat_cylinder_sectors;
+
+    if (!GetLayout(total, &m_layout))
+    {
+        Error("A FAT16 disk can't be %u sectors", total);
+        return false;
+    }
+
+    if (CountClusters(0, m_layout.cluster_sectors * k_fat_sector_size) > m_layout.clusters)
+    {
+        Error("The files don't fit in a disk of %u sectors", total);
+        return false;
+    }
+
+    volume->blocks = total;
+    volume->metadata.clear();
+    volume->runs.clear();
+    m_fat.assign(m_layout.clusters + 2, 0);
+    m_fat[0] = (u16)(0xFF00 | k_fat_media);
+    m_fat[1] = k_fat_end_of_chain;
+    m_next_cluster = 2;
+    PlaceDirectory(0, 0, 0, volume);
+    WriteFat(volume);
+    WriteBootSector(volume);
+    WriteMasterBootRecord(volume);
+    std::vector<u16>().swap(m_fat);
+    SortRuns(&volume->runs);
+    return true;
+}
+
 bool FatImage::Write(const char* path, u64 size, bool replace)
 {
     u64 existing_size = 0;
@@ -279,55 +276,51 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
         return false;
     }
 
-    u32 total = (u32)(size / k_fat_sector_size);
-    total -= total % k_fat_cylinder_sectors;
+    FatImage_Volume volume;
 
-    if (!GetLayout(total, &m_layout))
-    {
-        Error("A FAT16 disk can't be %u sectors: %s", total, path);
+    if (!Build(size, &volume))
         return false;
-    }
-
-    u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
-
-    if (CountClusters(0, cluster_size) > m_layout.clusters)
-    {
-        Error("The files don't fit in a disk of %u sectors: %s", total, path);
-        return false;
-    }
 
     std::string temporary = std::string(path) + ".tmp";
-    m_output = MediaFile::OpenNewFile(temporary.c_str());
+    MediaFile* output = MediaFile::OpenNewFile(temporary.c_str());
 
-    if (!IsValidPointer(m_output))
+    if (!IsValidPointer(output))
     {
         Error("Unable to create the hard disk image %s", temporary.c_str());
         return false;
     }
 
-    m_fat.assign(m_layout.clusters + 2, 0);
-    m_fat[0] = (u16)(0xFF00 | k_fat_media);
-    m_fat[1] = k_fat_end_of_chain;
-    m_next_cluster = 2;
-    m_buffer.resize(k_fat_copy_size);
-
+    std::vector<u8> buffer(k_fat_copy_size);
     u8 zero[k_fat_sector_size] = { };
-    std::vector<u8> root;
-    u8 label_entry[k_fat_entry_size] = { };
-    write_entry(label_entry, (const u8*)m_label, k_fat_attribute_label, k_dos_default_date, k_dos_default_time, 0, 0);
-    u64 root_offset = (u64)(k_fat_sectors_per_track + 1 + (2 * m_layout.fat_sectors)) * k_fat_sector_size;
+    bool ok = output->WriteAt((u64)(volume.blocks - 1) * k_fat_sector_size, zero, k_fat_sector_size);
 
-    bool ok = m_output->WriteAt((u64)(total - 1) * k_fat_sector_size, zero, k_fat_sector_size);
-    u64 pinned_size = (u64)m_pinned_count * k_fat_entry_size;
-    ok = ok && PlaceDirectory(0, 0, 0, &root);
-    ok = ok && ((pinned_size == 0) || m_output->WriteAt(root_offset, root.data(), pinned_size));
-    ok = ok && m_output->WriteAt(root_offset + pinned_size, label_entry, k_fat_entry_size);
-    ok = ok && ((root.size() == pinned_size) || m_output->WriteAt(root_offset + pinned_size + k_fat_entry_size,
-        root.data() + pinned_size, root.size() - pinned_size));
-    ok = ok && WriteFat() && WriteBootSector() && WriteMasterBootRecord() && m_output->Flush();
-    SafeDelete(m_output);
-    std::vector<u8>().swap(m_buffer);
-    std::vector<u16>().swap(m_fat);
+    for (size_t i = 0; ok && (i < volume.runs.size()); i++)
+    {
+        const FatImage_Run& run = volume.runs[i];
+        u64 offset = (u64)run.first * k_fat_sector_size;
+
+        if (run.entry < 0)
+        {
+            ok = output->WriteAt(offset, volume.metadata.data() + run.offset, (u64)run.count * k_fat_sector_size);
+            continue;
+        }
+
+        u64 left = m_entries[run.entry].size;
+        u64 position = 0;
+
+        while (ok && (left != 0))
+        {
+            u32 chunk = (u32)MIN(left, (u64)buffer.size());
+            ok = (ReadEntryAt((u32)run.entry, position, buffer.data(), chunk) == chunk) &&
+                output->WriteAt(offset + position, buffer.data(), chunk);
+            position += chunk;
+            left -= chunk;
+        }
+    }
+
+    ok = ok && output->Flush();
+    SafeDelete(output);
+    CloseSources();
     ok = ok && MediaFile::MoveIntoPlace(temporary.c_str(), path);
 
     if (!ok)
@@ -339,119 +332,24 @@ bool FatImage::Write(const char* path, u64 size, bool replace)
     return ok;
 }
 
-bool FatImage::ReadFingerprint(const char* path, u32* fingerprint)
+bool FatImage::AddGame(const char* source, const char* dir, u8 layer, u8 root_layer)
 {
-    MediaFile* file = MediaFile::OpenFile(path);
-    u8 sector[k_fat_sector_size];
-
-    if (!IsValidPointer(file))
-        return false;
-
-    bool ok = file->ReadAt(0, sector, k_fat_sector_size) && (read_u16_le(sector + 510) == 0xAA55);
-    u32 start = ok ? read_u32_le(sector + k_fat_entry_offset + 8) : 0;
-    ok = ok && file->ReadAt((u64)start * k_fat_sector_size, sector, k_fat_sector_size) && (read_u16_le(sector + 510) == 0xAA55);
-    SafeDelete(file);
-
-    if (ok)
-        *fingerprint = read_u32_le(sector + 0x27);
-
-    return ok;
-}
-
-void FatImage::GetImageName(const char* source, std::string* name)
-{
-    *name = get_source_name(source) + "." + crc_key(trim_trailing_separators(source)) + ".geardox.hdd";
-}
-
-bool FatImage::IsSource(const char* path)
-{
-    return IsValidPointer(path) && (ends_with_no_case(path, ".zip") || MediaFile::IsDirectory(path));
-}
-
-std::string FatImage::GetImagePath(const char* source, const char* save_folder)
-{
-    std::string name;
-    std::string path(save_folder);
-    GetImageName(source, &name);
-    append_path_component(path, name.c_str());
-    return path;
-}
-
-bool FatImage::PrepareSource(const char* source, const char* save_folder, bool rebuild, std::string* image,
-    FatImage_Report* report)
-{
-    *image = GetImagePath(source, save_folder);
-    Prepare(source, image->c_str(), rebuild, report);
-    return (report->result != FAT_IMAGE_ERROR) && (report->result != FAT_IMAGE_TOO_BIG);
-}
-
-void FatImage::Prepare(const char* source, const char* image_path, bool rebuild, FatImage_Report* report)
-{
-    report->result = FAT_IMAGE_ERROR;
-    report->left_out = 0;
-    report->content_size = 0;
-
-    FatImage image;
-
-    if (!(ends_with_no_case(source, ".zip") && image.AddZipFile(source)) && !image.AddFolder(source))
-        return;
-
-    report->left_out = image.GetLeftOut();
-    report->content_size = image.GetContentSize();
-    u64 existing_size = 0;
-    s64 modified = 0;
-
-    if (!rebuild && MediaFile::GetFileInfo(image_path, &existing_size, &modified))
-    {
-        u32 fingerprint = 0;
-        bool same = ReadFingerprint(image_path, &fingerprint) && (fingerprint == image.GetFingerprint());
-        report->result = same ? FAT_IMAGE_SAME : FAT_IMAGE_CHANGED;
-        return;
-    }
-
-    u64 size = image.GetRequiredSize(k_fat_free_size);
-
-    if (size == 0)
-        report->result = FAT_IMAGE_TOO_BIG;
-    else if (image.Write(image_path, size, rebuild))
-        report->result = FAT_IMAGE_BUILT;
-}
-
-// The game goes in dir on C:, its folders made as the system's. A descriptor in the game's root never reaches its disk
-bool FatImage::AddGame(const char* source, const char* dir, const char* prefix)
-{
+    m_layer = root_layer;
     Clear();
 
     if (!IsValidPointer(source))
         return false;
 
-    if (IsValidPointer(prefix) && (prefix[0] != 0))
-    {
-        m_zip_prefix = to_upper_ascii(prefix);
-        std::replace(m_zip_prefix.begin(), m_zip_prefix.end(), '\\', '/');
-
-        if (m_zip_prefix[m_zip_prefix.size() - 1] != '/')
-            m_zip_prefix += "/";
-    }
-
     std::vector<std::string> parts;
     split_string(IsValidPointer(dir) ? dir : "", '\\', &parts, false);
 
     for (size_t i = 0; i < parts.size(); i++)
-    {
         m_base = AddEntry(m_base, parts[i], true);
-        m_entries[m_base].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    }
 
-    if (ends_with_no_case(source, ".zip"))
-    {
-        if (!m_zip.Open(source))
-            return false;
+    m_entries[m_base].layer = layer;
+    m_layer = layer;
 
-        if (!ScanZip())
-            return false;
-    }
-    else if (!WalkFolder(trim_trailing_separators(source), m_base, 0))
+    if (!WalkFolder(trim_trailing_separators(source), m_base, 0))
         return false;
 
     for (size_t i = m_entries[m_base].children.size(); i > 0; i--)
@@ -561,18 +459,20 @@ bool FatImage::ApplyLayout(const std::vector<FatImage_Rule>& rules)
     return true;
 }
 
-// Folders and files of the overlay replace the source's with the same name, whatever the case. Its .deleted lists
-// what the guest removed, one path from the root a line
-bool FatImage::AddOverlay(const char* path)
+bool FatImage::AddOverlay(const char* path, bool game, u8 layer)
 {
     std::string root = trim_trailing_separators(path);
     std::vector<std::string> deleted;
+    u32 directory = game ? m_base : 0;
+    u8 previous = m_layer;
+    m_layer = layer;
+    bool ok = WalkOverlay(root, directory, 0) && dos_fs_read_deleted(root, &deleted);
+    m_layer = previous;
 
-    if (!WalkOverlay(root, m_base, 0) || !dos_fs_read_deleted(root, &deleted))
-        return false;
+    if (ok)
+        ApplyDeleted(directory, deleted);
 
-    ApplyDeleted(deleted);
-    return true;
+    return ok;
 }
 
 bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
@@ -604,10 +504,9 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
         u32 entry = found >= 0 ? (u32)found : AddEntry(directory, files[i], false);
         m_entries[entry].source = item;
         m_entries[entry].size = size;
-        m_entries[entry].modified = modified;
         m_entries[entry].memory = -1;
-        m_entries[entry].crc = 0;
-        m_entries[entry].origin = FAT_IMAGE_ORIGIN_OVERLAY;
+        m_entries[entry].base = -1;
+        m_entries[entry].layer = m_layer;
         host_time_to_dos(modified, &m_entries[entry].date, &m_entries[entry].time);
     }
 
@@ -636,14 +535,14 @@ bool FatImage::WalkOverlay(const std::string& path, u32 directory, int depth)
     return true;
 }
 
-void FatImage::ApplyDeleted(const std::vector<std::string>& lines)
+void FatImage::ApplyDeleted(u32 root, const std::vector<std::string>& lines)
 {
     std::vector<std::string> names;
 
     for (size_t l = 0; l < lines.size(); l++)
     {
         const std::string& line = lines[l];
-        u32 directory = m_base;
+        u32 directory = root;
         int found = -1;
         split_string(line, '/', &names, false);
 
@@ -673,8 +572,6 @@ void FatImage::ApplyDeleted(const std::vector<std::string>& lines)
     }
 }
 
-// Laid out as FreeDOS installs itself, with CONFIG.SYS and AUTOEXEC.BAT left to the caller. Hidden, the five entries in
-// the root are hidden and KERNEL.SYS is also read only and system
 bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 {
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
@@ -686,7 +583,6 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 
     u32 freedos = AddEntry(0, k_dos_root_freedos, true);
     m_entries[freedos].attributes = k_fat_attribute_directory | hide;
-    m_entries[freedos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     bool ok = true;
 
     for (mz_uint i = 0; ok && (i < mz_zip_reader_get_num_files(zip.GetArchive())); i++)
@@ -706,38 +602,15 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 
         if (!zip.Extract(i, &m_memory.back()))
         {
-            m_memory.pop_back();
             ok = false;
             break;
         }
 
-        size_t size = m_memory.back().size();
-        u32 directory = kernel ? 0 : freedos;
         std::string rest = kernel ? name : name.substr(8);
-        size_t slash = rest.find('/');
-
-        while (slash != std::string::npos)
-        {
-            std::string folder = rest.substr(0, slash);
-            int found = FindChild(directory, folder);
-
-            if (found < 0)
-            {
-                found = (int)AddEntry(directory, folder, true);
-                m_entries[found].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-            }
-
-            directory = (u32)found;
-            rest = rest.substr(slash + 1);
-            slash = rest.find('/');
-        }
-
-        u32 entry = AddEntry(directory, rest, false);
-        FatImage_Entry& file = m_entries[entry];
+        u32 directory = AddDirectories(kernel ? 0 : freedos, &rest);
+        FatImage_Entry& file = m_entries[AddEntry(directory, rest, false)];
         file.memory = (int)m_memory.size() - 1;
-        file.size = size;
-        file.crc = stat.m_crc32;
-        file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        file.size = m_memory.back().size();
         host_time_to_dos((s64)stat.m_time, &file.date, &file.time);
 
         if (kernel && hidden)
@@ -753,36 +626,30 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
         AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size);
 
     if (ok)
-    {
-        u32 temp = AddEntry(0, k_dos_root_temp, true);
-        m_entries[temp].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-        m_entries[temp].attributes = k_fat_attribute_directory | hide;
-    }
+        m_entries[AddEntry(0, k_dos_root_temp, true)].attributes = k_fat_attribute_directory | hide;
 
     return ok;
 }
 
-// An imported MS-DOS: its C/ tree from the user's ZIP, read at Write, IO.SYS and MSDOS.SYS ahead of the
-// label as its boot sector wants, and Geardox' own tools from the FreeDOS files in \GEARDOX
 bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
     const std::vector<std::string>& pinned, bool shsucdx)
 {
     static const char* const k_tools[] = { "CTMOUSE.EXE", "UDVD2.SYS" };
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
     LeaveOutReserved(reserved);
+    MediaZip system;
 
-    if (!m_system_zip.Open(zip, size))
+    if (!system.Open(zip, size))
         return false;
 
     u32 dos = AddEntry(0, k_dos_root_dos, true);
     m_entries[dos].attributes = k_fat_attribute_directory | hide;
-    m_entries[dos].origin = FAT_IMAGE_ORIGIN_SYSTEM;
 
-    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(m_system_zip.GetArchive()); i++)
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(system.GetArchive()); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(m_system_zip.GetArchive(), i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(system.GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string name(stat.m_filename);
@@ -802,13 +669,15 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
         if (name.empty() || (name.find('/') != std::string::npos))
             continue;
 
+        m_memory.push_back(std::string());
+
+        if (!system.Extract(i, &m_memory.back()))
+            return false;
+
         bool boot = (directory == 0) && (std::find(pinned.begin(), pinned.end(), to_upper_ascii(name)) != pinned.end());
-        u32 entry = AddEntry(directory, name, false);
-        FatImage_Entry& file = m_entries[entry];
-        file.size = stat.m_uncomp_size;
-        file.crc = stat.m_crc32;
-        file.zip_index = i;
-        file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
+        FatImage_Entry& file = m_entries[AddEntry(directory, name, false)];
+        file.memory = (int)m_memory.size() - 1;
+        file.size = m_memory.back().size();
         host_time_to_dos((s64)stat.m_time, &file.date, &file.time);
 
         if (boot)
@@ -817,6 +686,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
             file.attributes = k_fat_attribute_archive | hide;
     }
 
+    system.Close();
     MediaZip tools;
 
     if (!tools.Open(k_freedos_files, k_freedos_files_size))
@@ -824,7 +694,6 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
 
     u32 geardox = AddEntry(0, k_dos_root_geardox, true);
     m_entries[geardox].attributes = k_fat_attribute_directory | hide;
-    m_entries[geardox].origin = FAT_IMAGE_ORIGIN_SYSTEM;
     bool ok = AddFreeDOSFile(&tools, "FREEDOS/COPYING.TXT", geardox, "COPYING.TXT") &&
         AddDosTool(geardox, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool(geardox, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
@@ -844,9 +713,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
     if (!ok)
         return false;
 
-    u32 temp = AddEntry(0, k_dos_root_temp, true);
-    m_entries[temp].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    m_entries[temp].attributes = k_fat_attribute_directory | hide;
+    m_entries[AddEntry(0, k_dos_root_temp, true)].attributes = k_fat_attribute_directory | hide;
     m_pinned = pinned;
     return true;
 }
@@ -859,19 +726,15 @@ bool FatImage::AddFreeDOSFile(MediaZip* zip, const char* name, u32 directory, co
     if ((index < 0) || !mz_zip_reader_file_stat(zip->GetArchive(), (mz_uint)index, &stat))
         return false;
 
-    std::string data;
+    m_memory.push_back(std::string());
 
-    if (!zip->Extract((mz_uint)index, &data))
+    if (!zip->Extract((mz_uint)index, &m_memory.back()))
         return false;
 
-    size_t size = data.size();
-    m_memory.push_back(data);
-    u32 entry = AddEntry(directory, target, false);
-    m_entries[entry].memory = (int)m_memory.size() - 1;
-    m_entries[entry].size = size;
-    m_entries[entry].crc = stat.m_crc32;
-    m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    host_time_to_dos((s64)stat.m_time, &m_entries[entry].date, &m_entries[entry].time);
+    FatImage_Entry& entry = m_entries[AddEntry(directory, target, false)];
+    entry.memory = (int)m_memory.size() - 1;
+    entry.size = m_memory.back().size();
+    host_time_to_dos((s64)stat.m_time, &entry.date, &entry.time);
     return true;
 }
 
@@ -880,19 +743,18 @@ bool FatImage::AddUltraSound(const u8* zip, size_t size)
     static const char* const k_reserved[] = { "ULTRASND" };
     std::vector<std::string> reserved(k_reserved, k_reserved + 1);
     LeaveOutReserved(reserved);
+    MediaZip patches;
 
-    if (!m_ultrasound_zip.Open(zip, size))
+    if (!patches.Open(zip, size))
         return false;
 
     u32 root = AddEntry(0, "ULTRASND", true);
-    m_entries[root].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    m_entries[root].ultrasound = true;
 
-    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(m_ultrasound_zip.GetArchive()); i++)
+    for (mz_uint i = 0; i < mz_zip_reader_get_num_files(patches.GetArchive()); i++)
     {
         mz_zip_archive_file_stat stat;
 
-        if (!mz_zip_reader_file_stat(m_ultrasound_zip.GetArchive(), i, &stat) || stat.m_is_directory)
+        if (!mz_zip_reader_file_stat(patches.GetArchive(), i, &stat) || stat.m_is_directory)
             continue;
 
         std::string rest(stat.m_filename);
@@ -900,33 +762,15 @@ bool FatImage::AddUltraSound(const u8* zip, size_t size)
         if (rest.empty() || (rest == k_import_version))
             continue;
 
-        u32 directory = root;
-        size_t slash = rest.find('/');
+        m_memory.push_back(std::string());
 
-        while (slash != std::string::npos)
-        {
-            std::string folder = rest.substr(0, slash);
-            int found = FindChild(directory, folder);
+        if (!patches.Extract(i, &m_memory.back()))
+            return false;
 
-            if (found < 0)
-            {
-                found = (int)AddEntry(directory, folder, true);
-                m_entries[found].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-                m_entries[found].ultrasound = true;
-            }
-
-            directory = (u32)found;
-            rest = rest.substr(slash + 1);
-            slash = rest.find('/');
-        }
-
-        u32 entry = AddEntry(directory, rest, false);
-        FatImage_Entry& file = m_entries[entry];
-        file.size = stat.m_uncomp_size;
-        file.crc = stat.m_crc32;
-        file.zip_index = i;
-        file.origin = FAT_IMAGE_ORIGIN_SYSTEM;
-        file.ultrasound = true;
+        u32 directory = AddDirectories(root, &rest);
+        FatImage_Entry& file = m_entries[AddEntry(directory, rest, false)];
+        file.memory = (int)m_memory.size() - 1;
+        file.size = m_memory.back().size();
         host_time_to_dos((s64)stat.m_time, &file.date, &file.time);
     }
 
@@ -936,14 +780,27 @@ bool FatImage::AddUltraSound(const u8* zip, size_t size)
 bool FatImage::AddDosTool(u32 directory, const char* name, const u8* data, u32 size)
 {
     m_memory.push_back(std::string((const char*)data, size));
-    u32 entry = AddEntry(directory, name, false);
-    m_entries[entry].memory = (int)m_memory.size() - 1;
-    m_entries[entry].size = size;
-    m_entries[entry].crc = CalculateCRC32(0, data, size);
-    m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
-    m_entries[entry].date = k_dos_tools_date;
-    m_entries[entry].time = k_dos_tools_time;
+    FatImage_Entry& entry = m_entries[AddEntry(directory, name, false)];
+    entry.memory = (int)m_memory.size() - 1;
+    entry.size = size;
+    entry.date = k_dos_tools_date;
+    entry.time = k_dos_tools_time;
     return true;
+}
+
+u32 FatImage::AddDirectories(u32 directory, std::string* rest)
+{
+    size_t slash = rest->find('/');
+
+    while (slash != std::string::npos)
+    {
+        int found = FindChild(directory, rest->substr(0, slash));
+        directory = found >= 0 ? (u32)found : AddEntry(directory, rest->substr(0, slash), true);
+        *rest = rest->substr(slash + 1);
+        slash = rest->find('/');
+    }
+
+    return directory;
 }
 
 // The names in m_pinned lead the root in their order, so the label is written after them
@@ -1034,7 +891,7 @@ void FatImage::LeaveOutMatching(u32 directory, const std::string& name, bool (*m
     }
 }
 
-bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attributes)
+bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attributes, const std::string* base)
 {
     u32 directory = 0;
     std::string rest;
@@ -1051,9 +908,14 @@ bool FatImage::AddMemoryFile(const char* path, const std::string& data, u8 attri
     u32 entry = AddEntry(directory, rest, false);
     m_entries[entry].memory = (int)m_memory.size() - 1;
     m_entries[entry].size = data.size();
-    m_entries[entry].crc = CalculateCRC32(0, data.data(), data.size());
     m_entries[entry].attributes = attributes;
-    m_entries[entry].origin = FAT_IMAGE_ORIGIN_SYSTEM;
+
+    if (IsValidPointer(base))
+    {
+        m_memory.push_back(*base);
+        m_entries[entry].base = (int)m_memory.size() - 1;
+    }
+
     return true;
 }
 
@@ -1080,27 +942,31 @@ bool FatImage::PatchFile(const char* path, u64 offset, const std::string& before
     data.replace((size_t)offset, after.size(), after);
     m_memory.push_back(data);
     entry.memory = (int)m_memory.size() - 1;
-    entry.crc = CalculateCRC32(0, data.data(), data.size());
-    entry.origin = FAT_IMAGE_ORIGIN_SYSTEM;
+    entry.source.clear();
     return true;
 }
 
-void FatImage::FinishGame(const char* label, u64 free_size, const u8* boot_sector)
+void FatImage::FinishGame(const char* label, const u8* boot_sector)
 {
     SetLabel(label);
     SetBootSector(boot_sector);
     Finish();
-    u8 data[8];
-    write_u32_le(data, (u32)free_size);
-    write_u32_le(data + 4, (u32)(free_size >> 32));
-    u32 crc = CalculateCRC32(m_fingerprint, boot_sector, k_fat_sector_size);
-    crc = CalculateCRC32(crc, k_freedos_mbr, k_freedos_mbr_size);
-    m_fingerprint = CalculateCRC32(crc, data, sizeof(data));
 }
 
 const FatImage_Entry& FatImage::GetEntry(u32 index) const
 {
     return m_entries[index];
+}
+
+u32 FatImage::GetBaseIndex() const
+{
+    return m_base;
+}
+
+const std::string& FatImage::GetBase(u32 index) const
+{
+    static const std::string k_none;
+    return m_entries[index].base >= 0 ? m_memory[m_entries[index].base] : k_none;
 }
 
 void FatImage::ListEntries(std::vector<FatImage_Listed>* listed) const
@@ -1118,7 +984,7 @@ void FatImage::ListDirectory(u32 directory, const std::string& dos_path, const s
         const FatImage_Entry& entry = m_entries[index];
         FatImage_Listed item;
         std::string name = dos_fs_entry_name(entry.short_name);
-        item.dos_path = dos_path.empty() ? name : dos_path + "\\" + name;
+        item.dos_path = dos_fs_join(dos_path, name);
         item.host_path = !entry.host.empty() ? entry.host : (host_path.empty() ? entry.name : host_path + "/" +
             entry.name);
         item.index = index;
@@ -1174,13 +1040,6 @@ bool FatImage::ReadEntry(const FatImage_Entry& entry, std::string* data)
         return true;
     }
 
-    if (entry.source.empty())
-    {
-        MediaZip& zip = entry.ultrasound ? m_ultrasound_zip :
-            entry.origin == FAT_IMAGE_ORIGIN_SYSTEM ? m_system_zip : m_zip;
-        return zip.Extract(entry.zip_index, data);
-    }
-
     MediaFile* file = MediaFile::OpenFile(entry.source.c_str());
 
     if (!IsValidPointer(file))
@@ -1192,18 +1051,57 @@ bool FatImage::ReadEntry(const FatImage_Entry& entry, std::string* data)
     return ok;
 }
 
+u32 FatImage::ReadEntryAt(u32 index, u64 offset, u8* buffer, u32 size)
+{
+    const FatImage_Entry& entry = m_entries[index];
+
+    if (offset >= entry.size)
+        return 0;
+
+    u32 count = (u32)MIN((u64)size, entry.size - offset);
+
+    if (entry.memory >= 0)
+    {
+        memcpy(buffer, m_memory[entry.memory].data() + offset, count);
+        return count;
+    }
+
+    MediaFile* file = OpenSource(index);
+    return (IsValidPointer(file) && file->ReadAt(offset, buffer, count)) ? count : 0;
+}
+
+MediaFile* FatImage::OpenSource(u32 index)
+{
+    for (u32 i = 0; i < k_fat_open_sources; i++)
+    {
+        if (IsValidPointer(m_sources[i]) && (m_source_index[i] == index))
+            return m_sources[i];
+    }
+
+    u32 slot = m_next_source;
+    m_next_source = (m_next_source + 1) % k_fat_open_sources;
+    SafeDelete(m_sources[slot]);
+    m_sources[slot] = MediaFile::OpenFile(m_entries[index].source.c_str());
+    m_source_index[slot] = index;
+    return m_sources[slot];
+}
+
+void FatImage::CloseSources()
+{
+    for (u32 i = 0; i < k_fat_open_sources; i++)
+        SafeDelete(m_sources[i]);
+}
+
 void FatImage::RemoveChild(u32 directory, u32 index)
 {
     std::vector<u32>& children = m_entries[directory].children;
     children.erase(std::remove(children.begin(), children.end(), index), children.end());
 }
 
-// The walk write-back trusts: a chain out of range or looping, a cluster in two chains, or a size past its chain and
-// the image is refused
-bool FatImage::Read(const char* path)
+bool FatImage::Read(MediaFile* file)
 {
     CloseRead();
-    m_read = MediaFile::OpenFile(path);
+    m_read = file;
     u8 sector[k_fat_sector_size];
 
     if (!IsValidPointer(m_read) || !m_read->ReadAt(0, sector, sizeof(sector)) || (read_u16_le(sector + 510) != 0xAA55))
@@ -1278,7 +1176,7 @@ bool FatImage::Read(const char* path)
 
 void FatImage::CloseRead()
 {
-    SafeDelete(m_read);
+    InitPointer(m_read);
     m_files.clear();
     m_fat.clear();
 }
@@ -1412,7 +1310,7 @@ bool FatImage::ReadDirectory(u32 cluster, const std::string& path, int depth, st
             name[0] = 0xE5;
 
         FatImage_File file;
-        file.path = path.empty() ? dos_fs_entry_name(name) : path + "\\" + dos_fs_entry_name(name);
+        file.path = dos_fs_join(path, dos_fs_entry_name(name));
         file.attributes = attributes;
         file.directory = (attributes & k_fat_attribute_directory) != 0;
         file.size = file.directory ? 0 : read_u32_le(entry + 28);
@@ -1500,94 +1398,53 @@ bool FatImage::ReadChain(u32 first, std::vector<u32>* chain, std::vector<u8>* us
     }
 }
 
-bool FatImage::GetFileCRC(const FatImage_File& file, u32* crc)
+bool FatImage::CopyOut(const FatImage_File& file, const char* path)
 {
-    return ReadFileData(file, NULL, NULL, crc);
-}
-
-bool FatImage::GetFileData(const FatImage_File& file, std::string* data, u32* crc)
-{
-    data->clear();
-    return ReadFileData(file, NULL, data, crc);
-}
-
-bool FatImage::CopyOut(const FatImage_File& file, const char* path, u32* crc)
-{
-    MediaFile* output = MediaFile::OpenNewFile(path);
-    u32 value = 0;
-
-    if (!IsValidPointer(output))
-        return false;
-
-    bool ok = ReadFileData(file, output, NULL, &value) && output->Flush();
-    SafeDelete(output);
-
-    if (IsValidPointer(crc))
-        *crc = value;
-
-    return ok;
-}
-
-bool FatImage::ReadFileData(const FatImage_File& file, MediaFile* output, std::string* data, u32* crc)
-{
-    *crc = 0;
-
-    if (!IsValidPointer(m_read) || file.directory)
-        return false;
-
-    if (file.size == 0)
-        return true;
-
     std::vector<u32> chain;
 
-    if (!ReadChain(file.first_cluster, &chain, NULL))
+    if (!IsValidPointer(m_read) || file.directory || ((file.size != 0) && !ReadChain(file.first_cluster, &chain, NULL)))
+        return false;
+
+    MediaFile* output = MediaFile::OpenNewFile(path);
+
+    if (!IsValidPointer(output))
         return false;
 
     u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
     std::vector<u8> buffer(cluster_size);
     u32 left = file.size;
+    bool ok = true;
 
-    for (size_t i = 0; (i < chain.size()) && (left != 0); i++)
+    for (size_t i = 0; ok && (i < chain.size()) && (left != 0); i++)
     {
         u32 chunk = MIN(left, cluster_size);
         u64 offset = m_read_offset + ((u64)m_layout.first_data + (u64)(chain[i] - 2) * m_layout.cluster_sectors) *
             k_fat_sector_size;
-
-        if (!m_read->ReadAt(offset, buffer.data(), chunk))
-            return false;
-
-        if (IsValidPointer(output) && !output->WriteAt((u64)file.size - left, buffer.data(), chunk))
-            return false;
-
-        if (IsValidPointer(data))
-            data->append((const char*)buffer.data(), chunk);
-
-        *crc = CalculateCRC32(*crc, buffer.data(), chunk);
+        ok = m_read->ReadAt(offset, buffer.data(), chunk) && output->WriteAt((u64)file.size - left, buffer.data(), chunk);
         left -= chunk;
     }
 
-    return left == 0;
+    ok = ok && (left == 0) && output->Flush();
+    SafeDelete(output);
+    return ok;
 }
 
 void FatImage::Clear()
 {
-    m_zip.Close();
-    m_system_zip.Close();
-    m_ultrasound_zip.Close();
+    CloseSources();
     m_pinned.clear();
     m_pinned_count = 0;
-    m_zip_prefix.clear();
     m_entries.clear();
     m_entries.resize(1);
     m_entries[0].directory = true;
     m_entries[0].size = 0;
     m_entries[0].date = k_dos_default_date;
     m_entries[0].time = k_dos_default_time;
+    m_entries[0].first_cluster = 0;
     m_entries[0].attributes = k_fat_attribute_directory;
-    m_entries[0].origin = FAT_IMAGE_ORIGIN_SOURCE;
+    m_entries[0].layer = m_layer;
     m_entries[0].memory = -1;
-    m_entries[0].crc = 0;
-    m_entries[0].modified = 0;
+    m_entries[0].base = -1;
     m_memory.clear();
     m_base = 0;
     m_left_out = 0;
@@ -1611,7 +1468,8 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         if (dos_fs_is_clutter(files[i]))
             continue;
 
-        if ((m_entries.size() >= k_fat_max_entries) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified))
+        if ((m_entries.size() >= k_fat_max_entries) || !MediaFile::GetFileInfo(item.c_str(), &size, &modified) ||
+            (size > k_fat_max_file_size))
         {
             m_left_out++;
             continue;
@@ -1620,7 +1478,6 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
         u32 entry = AddEntry(directory, files[i], false);
         m_entries[entry].source = item;
         m_entries[entry].size = size;
-        m_entries[entry].modified = modified;
         host_time_to_dos(modified, &m_entries[entry].date, &m_entries[entry].time);
     }
 
@@ -1652,120 +1509,6 @@ bool FatImage::WalkFolder(const std::string& path, u32 directory, int depth)
     return true;
 }
 
-bool FatImage::ScanZip()
-{
-    mz_uint count = mz_zip_reader_get_num_files(m_zip.GetArchive());
-    std::vector<std::pair<std::string, mz_uint> > order;
-
-    for (mz_uint i = 0; i < count; i++)
-    {
-        mz_zip_archive_file_stat stat;
-
-        if (!mz_zip_reader_file_stat(m_zip.GetArchive(), i, &stat))
-            return false;
-
-        order.push_back(std::make_pair(to_upper_ascii(stat.m_filename), i));
-    }
-
-    std::sort(order.begin(), order.end());
-    std::map<std::string, u32> directories;
-    directories[""] = m_base;
-
-    for (size_t i = 0; i < order.size(); i++)
-    {
-        mz_zip_archive_file_stat stat;
-
-        if (!mz_zip_reader_file_stat(m_zip.GetArchive(), order[i].second, &stat))
-            return false;
-
-        std::string name(stat.m_filename);
-        std::replace(name.begin(), name.end(), '\\', '/');
-
-        if (!m_zip_prefix.empty())
-        {
-            if (to_upper_ascii(name).compare(0, m_zip_prefix.size(), m_zip_prefix) != 0)
-                continue;
-
-            name = name.substr(m_zip_prefix.size());
-        }
-
-        std::vector<std::string> parts;
-        size_t start = 0;
-        bool clutter = false;
-
-        while (start <= name.size())
-        {
-            size_t end = name.find('/', start);
-            end = end == std::string::npos ? name.size() : end;
-            std::string part = name.substr(start, end - start);
-            start = end + 1;
-
-            if (part.empty() || (part == "."))
-                continue;
-
-            if (part == "..")
-            {
-                Error("This ZIP file has an entry outside of it: %s", stat.m_filename);
-                return false;
-            }
-
-            clutter = clutter || dos_fs_is_clutter(part);
-            parts.push_back(part);
-        }
-
-        if (parts.empty() || clutter)
-            continue;
-
-        if (!stat.m_is_directory && (!stat.m_is_supported || (stat.m_uncomp_size > k_fat_max_file_size)))
-        {
-            Error("This ZIP file has an encrypted, unsupported or oversized entry: %s", stat.m_filename);
-            return false;
-        }
-
-        if (m_entries.size() >= k_fat_max_entries)
-        {
-            m_left_out++;
-            continue;
-        }
-
-        u16 date = 0;
-        u16 time_value = 0;
-        host_time_to_dos((s64)stat.m_time, &date, &time_value);
-        size_t folders = stat.m_is_directory ? parts.size() : parts.size() - 1;
-        std::string path;
-        u32 directory = m_base;
-
-        for (size_t part = 0; part < folders; part++)
-        {
-            path += "/" + parts[part];
-            std::map<std::string, u32>::iterator found = directories.find(path);
-
-            if (found != directories.end())
-            {
-                directory = found->second;
-                continue;
-            }
-
-            directory = AddEntry(directory, parts[part], true);
-            m_entries[directory].date = date;
-            m_entries[directory].time = time_value;
-            directories[path] = directory;
-        }
-
-        if (stat.m_is_directory)
-            continue;
-
-        u32 entry = AddEntry(directory, parts[parts.size() - 1], false);
-        m_entries[entry].size = stat.m_uncomp_size;
-        m_entries[entry].zip_index = order[i].second;
-        m_entries[entry].crc = stat.m_crc32;
-        m_entries[entry].date = date;
-        m_entries[entry].time = time_value;
-    }
-
-    return true;
-}
-
 u32 FatImage::AddEntry(u32 directory, const std::string& name, bool is_directory)
 {
     u32 index = (u32)m_entries.size();
@@ -1777,14 +1520,11 @@ u32 FatImage::AddEntry(u32 directory, const std::string& name, bool is_directory
     entry.size = 0;
     entry.date = k_dos_default_date;
     entry.time = k_dos_default_time;
-    entry.zip_index = 0;
     entry.first_cluster = 0;
     entry.attributes = is_directory ? k_fat_attribute_directory : k_fat_attribute_archive;
-    entry.origin = FAT_IMAGE_ORIGIN_SOURCE;
-    entry.ultrasound = false;
+    entry.layer = m_layer;
     entry.memory = -1;
-    entry.crc = 0;
-    entry.modified = 0;
+    entry.base = -1;
     m_entries[directory].children.push_back(index);
     return index;
 }
@@ -1794,9 +1534,6 @@ void FatImage::Finish()
     AssignNames(0);
     PinEntries();
     LimitPaths(0, "");
-    u32 crc = CalculateCRC32(0, m_label, 11);
-    HashEntries(0, &crc);
-    m_fingerprint = crc;
 }
 
 void FatImage::AssignNames(u32 directory)
@@ -1840,7 +1577,7 @@ void FatImage::LimitPaths(u32 directory, const std::string& path)
         u32 index = m_entries[directory].children[i];
         const FatImage_Entry& entry = m_entries[index];
         std::string name = dos_fs_entry_name(entry.short_name);
-        std::string item = path.empty() ? name : path + "\\" + name;
+        std::string item = dos_fs_join(path, name);
 
         if (entry.directory && (item.size() > k_fat_max_path))
         {
@@ -1868,38 +1605,6 @@ u32 FatImage::CountEntries(u32 directory) const
     }
 
     return count;
-}
-
-// A folder's own date moves whenever the host writes in it, so only its name counts
-void FatImage::HashEntries(u32 directory, u32* crc) const
-{
-    for (size_t i = 0; i < m_entries[directory].children.size(); i++)
-    {
-        const FatImage_Entry& entry = m_entries[m_entries[directory].children[i]];
-        u8 data[12] = { };
-
-        if (!entry.directory)
-        {
-            write_u32_le(data, (u32)entry.size);
-            write_u32_le(data + 4, (u32)(entry.size >> 32));
-            write_u16_le(data + 8, entry.date);
-            write_u16_le(data + 10, entry.time);
-        }
-
-        *crc = CalculateCRC32(*crc, entry.name.data(), entry.name.size());
-        *crc = CalculateCRC32(*crc, data, sizeof(data));
-
-        // Generated and system files change with their contents and attributes, not only their size
-        if (entry.origin != FAT_IMAGE_ORIGIN_SOURCE)
-        {
-            u8 extra[6] = { entry.attributes, entry.origin, 0, 0, 0, 0 };
-            write_u32_le(extra + 2, entry.crc);
-            *crc = CalculateCRC32(*crc, extra, sizeof(extra));
-        }
-
-        if (entry.directory)
-            HashEntries(m_entries[directory].children[i], crc);
-    }
 }
 
 u64 FatImage::CountClusters(u32 directory, u32 cluster_size) const
@@ -1979,22 +1684,27 @@ u32 FatImage::Allocate(u32 clusters)
     return first;
 }
 
-bool FatImage::PlaceDirectory(u32 directory, u32 cluster, u32 parent, std::vector<u8>* content)
+void FatImage::PlaceDirectory(u32 directory, u32 cluster, u32 parent, FatImage_Volume* volume)
 {
     u32 cluster_size = m_layout.cluster_sectors * k_fat_sector_size;
     const std::vector<u32> children = m_entries[directory].children;
     const FatImage_Entry& self = m_entries[directory];
-    u32 own_entries = cluster != 0 ? 2 : 0;
-    content->assign((children.size() + own_entries) * k_fat_entry_size, 0);
+    bool root = cluster == 0;
+    size_t used = (children.size() + (root ? 1 : 2)) * k_fat_entry_size;
+    std::vector<u8> content(root ? (size_t)m_layout.root_sectors * k_fat_sector_size :
+        ((used + cluster_size - 1) / cluster_size) * cluster_size, 0);
 
-    if (cluster != 0)
+    if (root)
+        write_entry(content.data() + ((size_t)m_pinned_count * k_fat_entry_size), (const u8*)m_label, k_fat_attribute_label,
+            k_dos_default_date, k_dos_default_time, 0, 0);
+    else
     {
         u8 dot[11];
         memset(dot, ' ', sizeof(dot));
         dot[0] = '.';
-        write_entry(content->data(), dot, k_fat_attribute_directory, self.date, self.time, cluster, 0);
+        write_entry(content.data(), dot, k_fat_attribute_directory, self.date, self.time, cluster, 0);
         dot[1] = '.';
-        write_entry(content->data() + k_fat_entry_size, dot, k_fat_attribute_directory, self.date, self.time, parent, 0);
+        write_entry(content.data() + k_fat_entry_size, dot, k_fat_attribute_directory, self.date, self.time, parent, 0);
     }
 
     for (size_t i = 0; i < children.size(); i++)
@@ -2016,85 +1726,44 @@ bool FatImage::PlaceDirectory(u32 directory, u32 cluster, u32 parent, std::vecto
             continue;
 
         entry.first_cluster = Allocate((u32)((entry.size + cluster_size - 1) / cluster_size));
-
-        if (!CopyFile(entry, GetClusterOffset(entry.first_cluster)))
-            return false;
+        FatImage_Run run = { GetClusterSector(entry.first_cluster),
+            (u32)((entry.size + k_fat_sector_size - 1) / k_fat_sector_size), (int)children[i], 0 };
+        volume->runs.push_back(run);
     }
 
     for (size_t i = 0; i < children.size(); i++)
     {
         const FatImage_Entry& entry = m_entries[children[i]];
-        write_entry(content->data() + ((i + own_entries) * k_fat_entry_size), entry.short_name, entry.attributes,
-            entry.date, entry.time, entry.first_cluster, entry.directory ? 0 : (u32)entry.size);
+        size_t slot = root ? (i < m_pinned_count ? i : i + 1) : i + 2;
+        write_entry(content.data() + (slot * k_fat_entry_size), entry.short_name, entry.attributes, entry.date,
+            entry.time, entry.first_cluster, entry.directory ? 0 : (u32)entry.size);
     }
+
+    AddMetadata(volume, root ? k_fat_sectors_per_track + 1 + (2 * m_layout.fat_sectors) : GetClusterSector(cluster),
+        content.data(), content.size());
 
     for (size_t i = 0; i < children.size(); i++)
     {
         const FatImage_Entry& entry = m_entries[children[i]];
 
-        if (!entry.directory)
-            continue;
-
-        std::vector<u8> child;
-
-        if (!PlaceDirectory(children[i], entry.first_cluster, cluster, &child) ||
-            !m_output->WriteAt(GetClusterOffset(entry.first_cluster), child.data(), child.size()))
-            return false;
+        if (entry.directory)
+            PlaceDirectory(children[i], entry.first_cluster, cluster, volume);
     }
-
-    return true;
 }
 
-bool FatImage::CopyFile(FatImage_Entry& entry, u64 offset)
+u32 FatImage::GetClusterSector(u32 cluster) const
 {
-    if (entry.memory >= 0)
-    {
-        const std::string& data = m_memory[entry.memory];
-        return m_output->WriteAt(offset, data.data(), data.size());
-    }
-
-    if (entry.source.empty() && (entry.origin == FAT_IMAGE_ORIGIN_SYSTEM))
-    {
-        return (entry.ultrasound ? m_ultrasound_zip : m_system_zip).ExtractTo(entry.zip_index, m_output, offset);
-    }
-
-    if (entry.source.empty())
-    {
-        return m_zip.ExtractTo(entry.zip_index, m_output, offset);
-    }
-
-    MediaFile* file = MediaFile::OpenFile(entry.source.c_str());
-
-    if (!IsValidPointer(file))
-    {
-        Error("Unable to read %s", entry.source.c_str());
-        return false;
-    }
-
-    u64 left = entry.size;
-    bool ok = true;
-    u32 crc = 0;
-
-    while (ok && (left != 0))
-    {
-        u32 chunk = (u32)MIN(left, (u64)m_buffer.size());
-        ok = file->ReadExact(m_buffer.data(), chunk) && m_output->WriteAt(offset, m_buffer.data(), chunk);
-        crc = CalculateCRC32(crc, m_buffer.data(), chunk);
-        offset += chunk;
-        left -= chunk;
-    }
-
-    entry.crc = crc;
-
-    SafeDelete(file);
-
-    if (!ok)
-        Error("Unable to copy %s", entry.source.c_str());
-
-    return ok;
+    return k_fat_sectors_per_track + m_layout.first_data + ((cluster - 2) * m_layout.cluster_sectors);
 }
 
-bool FatImage::WriteFat()
+void FatImage::AddMetadata(FatImage_Volume* volume, u32 first, const u8* data, size_t size)
+{
+    FatImage_Run run = { first, (u32)(size / k_fat_sector_size), -1, (u64)volume->metadata.size() };
+    volume->metadata.insert(volume->metadata.end(), data, data + size);
+    volume->runs.push_back(run);
+}
+
+void FatImage::WriteFat(FatImage_Volume* volume)
 {
     std::vector<u8> table((size_t)m_layout.fat_sectors * k_fat_sector_size, 0);
 
@@ -2102,17 +1771,10 @@ bool FatImage::WriteFat()
         write_u16_le(table.data() + (i * 2), m_fat[i]);
 
     for (u32 i = 0; i < 2; i++)
-    {
-        u64 offset = (u64)(k_fat_sectors_per_track + 1 + (i * m_layout.fat_sectors)) * k_fat_sector_size;
-
-        if (!m_output->WriteAt(offset, table.data(), table.size()))
-            return false;
-    }
-
-    return true;
+        AddMetadata(volume, k_fat_sectors_per_track + 1 + (i * m_layout.fat_sectors), table.data(), table.size());
 }
 
-bool FatImage::WriteBootSector()
+void FatImage::WriteBootSector(FatImage_Volume* volume)
 {
     u8 sector[k_fat_sector_size] = { };
     u32 partition = m_layout.partition;
@@ -2144,13 +1806,13 @@ bool FatImage::WriteBootSector()
     sector[0x24] = 0x80;
     sector[0x25] = 0;
     sector[0x26] = 0x29;
-    write_u32_le(sector + 0x27, m_fingerprint);
+    write_u32_le(sector + 0x27, CalculateCRC32(partition, m_label, 11));
     memcpy(sector + 0x2B, m_label, 11);
     memcpy(sector + 0x36, k_fat_type, 8);
-    return m_output->WriteAt((u64)k_fat_sectors_per_track * k_fat_sector_size, sector, sizeof(sector));
+    AddMetadata(volume, k_fat_sectors_per_track, sector, sizeof(sector));
 }
 
-bool FatImage::WriteMasterBootRecord()
+void FatImage::WriteMasterBootRecord(FatImage_Volume* volume)
 {
     u8 sector[k_fat_sector_size];
     memcpy(sector, k_freedos_mbr, sizeof(sector));
@@ -2163,11 +1825,5 @@ bool FatImage::WriteMasterBootRecord()
     write_u32_le(entry + 8, k_fat_sectors_per_track);
     write_u32_le(entry + 12, m_layout.partition);
     write_u16_le(sector + 510, 0xAA55);
-    return m_output->WriteAt(0, sector, sizeof(sector));
-}
-
-u64 FatImage::GetClusterOffset(u32 cluster) const
-{
-    u64 sector = k_fat_sectors_per_track + m_layout.first_data + ((u64)(cluster - 2) * m_layout.cluster_sectors);
-    return sector * k_fat_sector_size;
+    AddMetadata(volume, 0, sector, sizeof(sector));
 }

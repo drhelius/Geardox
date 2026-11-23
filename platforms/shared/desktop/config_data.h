@@ -29,7 +29,7 @@ static const int config_minimum_version = 1;
 static const int config_max_recent_roms = 10;
 static const int config_max_recent_floppies = 10;
 static const int config_max_recent_hard_disks = 10;
-static const int config_max_recent_games = 10;
+static const int config_max_recent_games = 15;
 static const int config_floppy_drives = 2;
 
 enum config_ShaderMode

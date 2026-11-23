@@ -110,6 +110,7 @@ void application_headless_mainloop(void)
         gui_debug_update();
         gui_debug_profiler_update_headless();
         gui_finish_loading_rom();
+        application_continue_loading();
 
         if (emu_dev_quit_requested())
             break;

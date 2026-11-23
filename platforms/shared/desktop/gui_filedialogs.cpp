@@ -63,7 +63,6 @@ enum FileDialogID
     FileDialog_ChooseDefaultHardDisk,
     FileDialog_OpenGame,
     FileDialog_SaveDescriptor,
-    FileDialog_NewDescriptor,
     FileDialog_ImportMSDOS,
     FileDialog_ImportUltraSound,
     FileDialog_ImportUltraSoundFolder,
@@ -375,7 +374,7 @@ void gui_file_dialog_open_game_folder(void)
         default_path, false);
 }
 
-void gui_file_dialog_save_descriptor(void)
+void gui_file_dialog_save_descriptor(const char* default_path)
 {
     if (!begin_dialog())
         return;
@@ -383,7 +382,8 @@ void gui_file_dialog_save_descriptor(void)
     SDL_DialogFileFilter filters[] = {
         { "Game Descriptors", "gdox" }
     };
-    show_save_file_dialog(FileDialog_SaveDescriptor, filters, 1);
+    SDL_ShowSaveFileDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_SaveDescriptor, application_sdl_window,
+        filters, 1, IsValidPointer(default_path) && (default_path[0] != 0) ? default_path : NULL);
 }
 
 void gui_file_dialog_import_msdos(void)
@@ -429,16 +429,6 @@ void gui_file_dialog_import_glide(void)
         { "All Files", "*" }
     };
     show_open_file_dialog(FileDialog_ImportGlide, filters, 2);
-}
-
-void gui_file_dialog_new_descriptor(void)
-{
-    if (!begin_dialog())
-        return;
-
-    const char* default_path = config_file_dialogs.rom.empty() ? NULL : config_file_dialogs.rom.c_str();
-    SDL_ShowOpenFolderDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_NewDescriptor, application_sdl_window,
-        default_path, false);
 }
 
 void gui_file_dialog_create_hard_disk(int id)
@@ -547,8 +537,6 @@ static std::string* get_dialog_folder(FileDialogID id)
     {
         case FileDialog_OpenMedia:
         case FileDialog_OpenGame:
-        case FileDialog_NewDescriptor:
-        case FileDialog_SaveDescriptor:
             return &config_file_dialogs.rom;
         case FileDialog_LoadState:
         case FileDialog_SaveState:
@@ -653,6 +641,8 @@ static void SDLCALL file_dialog_callback(void* userdata, const char* const* file
         append_extension_if_missing(pending_dialog_path, ".vgm");
     else if (id == FileDialog_SaveVideo)
         append_extension_if_missing(pending_dialog_path, ".avi");
+    else if (id == FileDialog_SaveDescriptor)
+        append_extension_if_missing(pending_dialog_path, ".gdox");
     else if (id == FileDialog_SaveMemoryDump)
         append_extension_if_missing(pending_dialog_path, ".bin");
     else if (id == FileDialog_SaveDebugSettings)
@@ -739,9 +729,6 @@ static void process_dialog_result(FileDialogID id, const char* path)
             break;
         case FileDialog_SaveDescriptor:
             gui_game_dialog_save_descriptor(path);
-            break;
-        case FileDialog_NewDescriptor:
-            gui_game_dialog_new_descriptor(path);
             break;
         case FileDialog_ImportMSDOS:
             gui_dos_dialog_import_msdos(path);

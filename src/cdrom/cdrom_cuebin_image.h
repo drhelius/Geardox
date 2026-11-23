@@ -120,8 +120,6 @@ public:
     virtual bool PreloadDisc() override;
     virtual bool PreloadTrack(u32 track_number, u32 lba) override;
     void SetLoadOptions(const GDOX_CdRomCueBinLoadOptions& options);
-
-protected:
     bool LoadFromCueData(const char* source_path, const u8* cue_data, size_t cue_size,
         bool preload, GDOX_CdRomCueFileResolver resolver, void* resolver_user_data);
 

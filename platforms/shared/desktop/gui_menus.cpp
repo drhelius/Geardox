@@ -155,7 +155,6 @@ static void draw_mcp_status(void);
 static void draw_recording_status(const char* status, ImVec4 color, float dot_radius, float dot_width);
 static void file_dialogs(void);
 static bool media_menu_actions_enabled(void);
-static const char* get_current_media_directory_text(void);
 static void gamepad_configuration_item(const char* text, int* button, int player);
 static void hotkey_configuration_item(const char* text, config_Hotkey* hotkey);
 static void hotkey_configuration_menu(bool debug);
@@ -553,7 +552,7 @@ static void menu_cdrom(void)
     Media* media = emu_get_core()->GetMedia();
     bool loading = gui_is_rom_loading() || emu_is_media_loading();
     bool inserted = !loading && media->IsReady();
-    bool can_insert = !loading && !media->IsReady();
+    bool can_insert = !loading;
 
     if (ImGui::MenuItem("Insert Image...", config_hotkeys[config_HotkeyIndex_OpenROM].str, false, can_insert))
     {
@@ -579,8 +578,9 @@ static void menu_cdrom(void)
         for (int i = 0; i < discs; i++)
         {
             ImGui::PushID(i);
+            bool current = inserted && (i == emu_cdrom_playlist_get_index());
 
-            if (ImGui::MenuItem(emu_cdrom_playlist_get_name(i)))
+            if (ImGui::MenuItem(emu_cdrom_playlist_get_name(i), NULL, current) && !current)
                 gui_load_playlist_disc(i);
 
             ImGui::PopID();
@@ -666,11 +666,11 @@ static void draw_directory_tooltip(int option, const char* custom, const char* a
             break;
         case Directory_Location_ROM:
             if (!media)
-                ImGui::Text("Next to each disk image.");
-            else if (emu_is_empty())
-                ImGui::Text("The folder of the disk or CD in use.");
+                ImGui::Text("Next to each floppy or CHD image.");
+            else if (emu_is_empty() || emu_get_content_folder().empty())
+                ImGui::Text("A game's own folder in Save Files,\nor the folder of the CD, floppy or hard disk in use.");
             else
-                ImGui::Text("%s", get_current_media_directory_text());
+                ImGui::Text("%s", emu_get_content_folder().c_str());
             break;
         case Directory_Location_Custom:
             ImGui::Text("%s", custom);
@@ -738,7 +738,7 @@ static void menu_emulator(void)
         {
             if (ImGui::BeginMenu("Save States"))
             {
-                if (draw_directory_menu("savestate", "Default Location\0Same as ROM\0Custom Location\0\0",
+                if (draw_directory_menu("savestate", "Default Location\0With the Game or Disk\0Custom Location\0\0",
                     &config_emulator.savestates_dir_option, &config_emulator.savestates_path, gui_savestates_path,
                     IM_ARRAYSIZE(gui_savestates_path), &choose_savestates_path, NULL, true))
                     update_savestates_data();
@@ -748,18 +748,18 @@ static void menu_emulator(void)
 
             if (ImGui::BeginMenu("Save Files"))
             {
-                draw_directory_menu("savefiles", "Default Location\0Same as Disk\0Custom Location\0\0",
+                draw_directory_menu("savefiles", "Default Location\0Next to Each Image\0Custom Location\0\0",
                     &config_emulator.savefiles_dir_option, &config_emulator.savefiles_path, gui_savefiles_path,
                     IM_ARRAYSIZE(gui_savefiles_path), &choose_savefiles_path,
                     "Working copies of floppies and CHD disks,\neach machine's CMOS,\n"
-                    "and each game's disk, settings and key map.\n"
-                    "With Same as Disk, CMOS and game files use the default.", false);
+                    "and each game's own folder: its changes,\nsettings and key map.\n"
+                    "With Next to Each Image, only the working copies\ngo next to their image.", false);
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Screenshots"))
             {
-                draw_directory_menu("screenshots", "Default Location\0Same as ROM\0Custom Location\0\0",
+                draw_directory_menu("screenshots", "Default Location\0With the Game or Disk\0Custom Location\0\0",
                     &config_emulator.screenshots_dir_option, &config_emulator.screenshots_path, gui_screenshots_path,
                     IM_ARRAYSIZE(gui_screenshots_path), &choose_screenshots_path, NULL, true);
                 ImGui::EndMenu();
@@ -767,7 +767,7 @@ static void menu_emulator(void)
 
             if (ImGui::BeginMenu("Video Recordings"))
             {
-                draw_directory_menu("video_recordings", "Default Location\0Same as ROM\0Custom Location\0\0",
+                draw_directory_menu("video_recordings", "Default Location\0With the Game or Disk\0Custom Location\0\0",
                     &config_emulator.video_recordings_dir_option, &config_emulator.video_recordings_path,
                     gui_video_recordings_path, IM_ARRAYSIZE(gui_video_recordings_path), &choose_video_recordings_path,
                     NULL, true);
@@ -3876,16 +3876,6 @@ static void file_dialogs(void)
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     gui_popup_modal_physical_cdrom();
 #endif
-}
-
-static const char* get_current_media_directory_text(void)
-{
-#if defined(GDOX_ENABLE_PHYSICAL_CDROM)
-    if (!emu_is_empty() && emu_get_core()->GetMedia()->IsPhysicalCdRom())
-        return config_root_path;
-#endif
-
-    return emu_get_core()->GetMedia()->GetFileDirectory();
 }
 
 static void gamepad_configuration_item(const char* text, int* button, int player)

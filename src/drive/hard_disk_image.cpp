@@ -101,9 +101,14 @@ static bool ReadVhdFooter(const char* path, u32* blocks, u32* heads, u32* sector
     return true;
 }
 
+HardDiskSource::~HardDiskSource()
+{
+}
+
 HardDiskImage::HardDiskImage()
 {
     InitPointer(m_file);
+    InitPointer(m_source);
     InitPointer(m_chd_adapter);
     InitPointer(m_chd);
     m_hunk_index = k_no_hunk;
@@ -117,6 +122,8 @@ HardDiskImage::HardDiskImage()
     m_session = 0;
     m_next_write = 1;
     m_last_write = 0;
+    m_previous_session = 0;
+    m_previous_write = 0;
     m_journal_base = 0;
     m_journal_start = 0;
     m_journal_count = 0;
@@ -215,11 +222,27 @@ bool HardDiskImage::Open(const char* path, bool write_protected, const char* wor
     return true;
 }
 
+bool HardDiskImage::Open(HardDiskSource* source, const char* path)
+{
+    Close();
+
+    if (!IsValidPointer(source) || !IsValidPointer(path) || (source->GetBlocks() == 0))
+        return false;
+
+    m_source = source;
+    m_blocks = source->GetBlocks();
+    m_path = path;
+    m_file_name = path_filename(trim_trailing_separators(m_path));
+    m_session = ((u64)time(NULL) << 20) + ++s_sessions;
+    return true;
+}
+
 void HardDiskImage::Close()
 {
     if (IsOpen() && (m_overlay_blocks != 0))
         Flush();
 
+    InitPointer(m_source);
     SafeDelete(m_file);
     CloseChd();
     m_path.clear();
@@ -236,6 +259,8 @@ void HardDiskImage::Close()
     m_session = 0;
     m_next_write = 1;
     m_last_write = 0;
+    m_previous_session = 0;
+    m_previous_write = 0;
     m_journal_base = 0;
     ClearJournal();
     std::vector<HardDiskJournalEntry>().swap(m_redo);
@@ -243,7 +268,7 @@ void HardDiskImage::Close()
 
 bool HardDiskImage::IsOpen() const
 {
-    return IsValidPointer(m_file) || IsValidPointer(m_chd);
+    return IsValidPointer(m_file) || IsValidPointer(m_chd) || IsValidPointer(m_source);
 }
 
 const char* HardDiskImage::GetPath() const
@@ -315,7 +340,7 @@ bool HardDiskImage::Flush()
     if (!IsOpen() || (m_overlay_blocks == 0))
         return true;
 
-    bool copied = m_working_path.empty() ? IsValidPointer(m_file) : CreateWorkingCopy();
+    bool copied = IsValidPointer(m_source) || (m_working_path.empty() ? IsValidPointer(m_file) : CreateWorkingCopy());
     u32 lba = 0;
 
     for (; copied && (lba < m_blocks); lba++)
@@ -325,12 +350,16 @@ bool HardDiskImage::Flush()
         if (slot == 0)
             continue;
 
-        if (!m_file->WriteAt((u64)lba * k_hard_disk_block_size, &m_overlay[(size_t)(slot - 1) * k_hard_disk_block_size],
-            k_hard_disk_block_size))
+        const u8* data = &m_overlay[(size_t)(slot - 1) * k_hard_disk_block_size];
+
+        if (IsValidPointer(m_source) ? !m_source->Store(lba, data) :
+            !m_file->WriteAt((u64)lba * k_hard_disk_block_size, data, k_hard_disk_block_size))
             break;
     }
 
-    if (!copied || !m_file->Flush() || (lba < m_blocks))
+    bool synced = copied && (IsValidPointer(m_source) ? m_source->Sync() : m_file->Flush());
+
+    if (!synced || (lba < m_blocks))
     {
         if (!m_flush_failed)
             Error("Unable to write hard disk image %s, its changes stay in memory", m_path.c_str());
@@ -358,23 +387,38 @@ u32 HardDiskImage::GetWriteCount() const
 
 u64 HardDiskImage::GetSession() const
 {
-    return m_session;
+    return ((m_last_write == 0) && (m_previous_session != 0)) ? m_previous_session : m_session;
 }
 
 u64 HardDiskImage::GetLastWrite() const
 {
-    return m_last_write;
+    return ((m_last_write == 0) && (m_previous_session != 0)) ? m_previous_write : m_last_write;
 }
 
 bool HardDiskImage::Restore(u64 session, u64 write)
 {
-    if (!IsOpen() || (session != m_session))
+    if (!IsOpen())
+        return false;
+
+    if ((m_previous_session != 0) && (session == m_previous_session) && (write == m_previous_write))
+    {
+        session = m_session;
+        write = 0;
+    }
+
+    if (session != m_session)
         return false;
 
     if (write == m_last_write)
         return true;
 
     return (write < m_last_write) ? Undo(write) : Redo(write);
+}
+
+void HardDiskImage::SetPrevious(u64 session, u64 write)
+{
+    m_previous_session = session;
+    m_previous_write = write;
 }
 
 bool HardDiskImage::CreateWorkingCopy()
@@ -461,6 +505,9 @@ void HardDiskImage::CloseChd()
 
 bool HardDiskImage::ReadImage(u32 lba, u8* buffer, u32 count)
 {
+    if (IsValidPointer(m_source))
+        return m_source->Read(lba, buffer, count);
+
     if (IsValidPointer(m_file))
         return m_file->ReadAt((u64)lba * k_hard_disk_block_size, buffer, (u64)count * k_hard_disk_block_size);
 

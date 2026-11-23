@@ -40,7 +40,7 @@
 
 static std::vector<GameDisk_Found> choices;
 static std::vector<std::string> programs;
-static std::string program_folder;
+static std::string chosen_program;
 static int next_target = GDOX_GAME_TARGET_GAME;
 static int next_program = -1;
 static bool open_choice = false;
@@ -57,6 +57,7 @@ static void show_folder(const char* path);
 static void menu_recent(void);
 static void popup_choice(void);
 static void popup_programs(void);
+static void save_descriptor(void);
 static void popup_write_back(void);
 
 void gui_game_menu(void)
@@ -85,13 +86,15 @@ void gui_game_menu(void)
         gui_file_dialog_open_game();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A .gdox game descriptor, or a ZIP with one in its root.");
+        ImGui::SetTooltip("A .gdox, a game's ZIP or one of its programs.\nA game with a .gdox, or one the game database\n"
+            "knows, starts by itself. Any other opens\nat the DOS prompt in its folder.");
 
     if (ImGui::MenuItem("Open Game Folder...", NULL, false, !loading))
         gui_file_dialog_open_game_folder();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A folder with a .gdox game descriptor in its root.");
+        ImGui::SetTooltip("A game's folder. With a .gdox, or when the game\ndatabase knows it, the game starts by itself.\n"
+            "Any other opens at the DOS prompt in its folder.");
 
     menu_recent();
     ImGui::Separator();
@@ -105,28 +108,6 @@ void gui_game_menu(void)
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("What the last game saved on closing:\nfiles saved, deleted, conflicts.");
-
-    if (emu_game_is_write_back_pending())
-    {
-        ImGui::PushStyleColor(ImGuiCol_Text, (ImVec4)red);
-
-        if (ImGui::MenuItem("Retry Saving"))
-            emu_game_retry_write_back();
-
-        ImGui::PopStyleColor();
-
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s's changes weren't saved.\nSee Last Save Report...", emu_game_get_last_write_back_name());
-    }
-
-    ImGui::Separator();
-
-    if (ImGui::MenuItem("New Game Descriptor...", NULL, false, !loading))
-        gui_file_dialog_new_descriptor();
-
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Pick the game's folder and its start program.\nWrites the .gdox there and opens the game.\n"
-            "Read-only folders use the save folder instead.\nSo does Save Games To > Geardox's Save Folder.");
 
     ImGui::Separator();
     menu_options();
@@ -270,11 +251,12 @@ static void menu_files(bool open)
 
     ImGui::Separator();
 
-    if (ImGui::MenuItem("Save Descriptor As..."))
-        gui_file_dialog_save_descriptor();
+    if (ImGui::MenuItem("Save Descriptor..."))
+        save_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Saves one descriptor with the game's changes merged in.");
+        ImGui::SetTooltip("Saves the game's .gdox with your changes and key map\nin it, then opens the game from it. "
+            "A game at the\nDOS prompt first asks which program starts it.");
 
     if (ImGui::MenuItem("Forget This Game's Changes", NULL, false, emu_game_has_overrides()))
     {
@@ -308,11 +290,12 @@ static void menu_options(void)
 {
     if (ImGui::BeginMenu("Save Games To"))
     {
-        static const char* const k_places[2] = { "The Game's Folder", "Geardox's Save Folder" };
+        static const char* const k_places[2] = { "The Game's Folder", "The Save Files Folder" };
         static const char* const k_tooltips[2] =
         {
-            "Changes are written back to the game's folder.\nZIPs and read-only folders use the save folder.",
-            "The game's folder is never written.\nChanges in the save folder are laid over it each run."
+            "Changes are written back to the game's folder.\nZIPs and read-only folders use the Save Files folder.",
+            "The game's folder is never written.\nIts changes go to its own folder in Save Files\n"
+            "and are laid over it each run."
         };
         int selected = config_game.write_back != 0 ? 1 : 0;
         float text_width = MAX(ImGui::CalcTextSize(k_places[0]).x, ImGui::CalcTextSize(k_places[1]).x);
@@ -396,7 +379,7 @@ void gui_game_popups(void)
     {
         open_programs = false;
         gui_dialog_in_use = true;
-        ImGui::OpenPopup("New Game Descriptor");
+        ImGui::OpenPopup("Save Descriptor");
     }
 
     if (open_write_back)
@@ -411,11 +394,9 @@ void gui_game_popups(void)
     popup_write_back();
 }
 
-bool gui_game_open(const char* path)
+bool gui_game_open(const std::vector<GameDisk_Found>& found)
 {
-    std::vector<GameDisk_Found> found;
-
-    if (!emu_game_find(path, &found))
+    if (found.empty())
         return false;
 
     if (found.size() > 1)
@@ -467,26 +448,37 @@ void gui_game_loaded(void)
         emu_pause();
 }
 
-void gui_game_dialog_new_descriptor(const char* folder)
+void gui_game_dialog_save_descriptor(const char* path)
 {
-    program_folder = folder;
-    emu_game_list_programs(folder, &programs);
+    if (!emu_game_save_descriptor(path, chosen_program.c_str()))
+    {
+        gui_notify(gui_NotificationError, NULL, "Unable to save the descriptor", path);
+        return;
+    }
+
+    gui_notify(gui_NotificationSuccess, ICON_MD_SAVE, "Descriptor saved", path);
+    gui_load_rom(path);
+}
+
+static void save_descriptor(void)
+{
+    chosen_program.clear();
+
+    if (emu_game_has_program())
+    {
+        gui_file_dialog_save_descriptor(emu_game_get_descriptor_location().c_str());
+        return;
+    }
+
+    emu_game_list_programs(emu_game_get_disk()->GetRootPath(), &programs);
 
     if (programs.empty())
     {
-        gui_set_error_message("This folder has no .EXE, .COM or .BAT in its root or one level down.");
+        gui_set_error_message("This game's folder has no .EXE, .COM or .BAT in its root or one level down.");
         return;
     }
 
     open_programs = true;
-}
-
-void gui_game_dialog_save_descriptor(const char* path)
-{
-    if (emu_game_save_descriptor(path))
-        gui_notify(gui_NotificationSuccess, ICON_MD_SAVE, "Descriptor saved", path);
-    else
-        gui_notify(gui_NotificationError, NULL, "Unable to save the descriptor", path);
 }
 
 static bool start(const GameDisk_Found& found)
@@ -582,10 +574,10 @@ static void popup_programs(void)
 {
     gui_center_next_window();
 
-    if (!ImGui::BeginPopupModal("New Game Descriptor", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+    if (!ImGui::BeginPopupModal("Save Descriptor", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 
-    ImGui::Text("Which program starts the game in %s?", get_filename(program_folder.c_str()));
+    ImGui::Text("Which program starts %s?", emu_game_get_name());
     ImGui::Separator();
     ImGui::BeginChild("##programs", ImVec2(360, 240), true);
 
@@ -595,16 +587,9 @@ static void popup_programs(void)
 
         if (ImGui::Selectable(programs[i].c_str()))
         {
-            std::string path;
             gui_close_popup();
-
-            if (emu_game_new_descriptor(program_folder.c_str(), programs[i].c_str(), &path))
-            {
-                gui_notify(gui_NotificationSuccess, ICON_MD_VIDEOGAME_ASSET, "Game descriptor written", path.c_str());
-                gui_load_rom(path.c_str());
-            }
-            else
-                gui_set_error_message((std::string("Unable to write the game descriptor:\n") + emu_game_get_error()).c_str());
+            chosen_program = programs[i];
+            gui_file_dialog_save_descriptor(emu_game_get_descriptor_location().c_str());
         }
 
         ImGui::PopID();
@@ -627,14 +612,14 @@ static void popup_write_back(void)
     if (!ImGui::BeginPopupModal("Last Save Report", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         return;
 
-    const GameDisk_Result& r = emu_game_get_last_write_back();
+    const FolderDisk_Result& r = emu_game_get_last_write_back();
     ImGui::TextColored(cyan, "%s", emu_game_get_last_write_back_name());
 
     if (r.refused)
-        ImGui::TextColored(red, "Nothing was saved: the game's disk couldn't be processed. It's kept for a retry.");
+        ImGui::TextColored(red, "Nothing was saved: the game's disk didn't add up. Its changes are kept aside.");
     else
         ImGui::Text("%u files saved, %u deleted, %u folders, %u conflicts, %u not saved", r.written, r.deleted,
-            r.directories, r.conflicts, r.kept);
+            r.directories, r.conflicts, r.failed);
 
     if (!r.notes.empty())
     {

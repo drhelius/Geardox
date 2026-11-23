@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <vector>
 #include "drive/fat_image.h"
+#include "media/media_file.h"
 #include "drive/hard_disk_image.h"
 #include "drive/i82077.h"
 #include "drive/ide_cdrom.h"
@@ -1806,8 +1807,9 @@ static Trace_File_Map* get_file_map(int id)
     map.names.clear();
 
     FatImage reader;
+    MediaFile* file = MediaFile::OpenFile(map.path.c_str());
 
-    if (reader.Read(map.path.c_str()))
+    if (IsValidPointer(file) && reader.Read(file))
     {
         reader.GetSectorMap(&map.extents);
         const std::vector<FatImage_File>& files = reader.GetFiles();
@@ -1819,6 +1821,7 @@ static Trace_File_Map* get_file_map(int id)
     }
 
     reader.CloseRead();
+    SafeDelete(file);
     return map.extents.empty() ? NULL : &map;
 }
 
@@ -1867,8 +1870,7 @@ static void format_file_name(int id, u32 lba, char* buffer, size_t size)
     }
 
     offset += (u64)(lba - extent.first) * 512;
-    std::string name = map->names[(size_t)extent.file];
-    std::replace(name.begin(), name.end(), '/', '\\');
+    std::string name = path_back_slashes(map->names[(size_t)extent.file]);
     snprintf(buffer, size, "  %c:\\%s +%llXh", id == 0 ? 'C' : 'D', name.c_str(), (unsigned long long)offset);
 }
 

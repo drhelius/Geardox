@@ -84,10 +84,10 @@ EXTERN const GDOX_Gamepad_Game* emu_game_get_base_gamepad(int pad);
 EXTERN void emu_game_set_gamepad(int pad, const GDOX_Gamepad_Game& gamepad);
 EXTERN bool emu_game_has_overrides(void);
 EXTERN bool emu_game_reset_settings(void);
-EXTERN bool emu_game_save_descriptor(const char* path);
-EXTERN bool emu_game_retry_write_back(void);
-EXTERN bool emu_game_is_write_back_pending(void);
-EXTERN const GameDisk_Result& emu_game_get_last_write_back(void);
+EXTERN bool emu_game_save_descriptor(const char* path, const char* program);
+EXTERN std::string emu_game_get_descriptor_location(void);
+EXTERN bool emu_game_has_program(void);
+EXTERN const FolderDisk_Result& emu_game_get_last_write_back(void);
 EXTERN const char* emu_game_get_last_write_back_name(void);
 EXTERN const char* emu_game_get_saves_path(void);
 EXTERN bool emu_game_has_setup(void);
@@ -102,7 +102,6 @@ EXTERN int emu_game_get_base_system(void);
 EXTERN bool emu_game_set_system(int system);
 EXTERN bool emu_game_get_found(GameDisk_Found* found);
 EXTERN void emu_game_list_programs(const char* folder, std::vector<std::string>* programs);
-EXTERN bool emu_game_new_descriptor(const char* folder, const char* program, std::string* path);
 
 #undef EMU_GAME_IMPORT
 #undef EXTERN

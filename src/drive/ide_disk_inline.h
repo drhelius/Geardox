@@ -24,7 +24,7 @@
 
 INLINE HardDiskImage* IdeDisk::GetImage()
 {
-    return &m_image;
+    return m_image;
 }
 
 INLINE u8 IdeDisk::GetStatus() const

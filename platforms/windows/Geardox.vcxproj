@@ -113,6 +113,7 @@
     <ClCompile Include="..\..\src\drive\hard_disk_image.cpp" />
     <ClCompile Include="..\..\src\drive\import_common.cpp" />
     <ClCompile Include="..\..\src\drive\fat_image.cpp" />
+    <ClCompile Include="..\..\src\drive\folder_disk.cpp" />
     <ClCompile Include="..\..\src\drive\iso_image.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_disk.cpp" />
     <ClCompile Include="..\..\src\drive\floppy_image.cpp" />
@@ -594,6 +595,7 @@
     <ClInclude Include="..\..\src\common\common.h" />
     <ClInclude Include="..\..\src\common\byte_order.h" />
     <ClInclude Include="..\..\src\common\file_utils.h" />
+    <ClInclude Include="..\..\src\common\process_utils.h" />
     <ClInclude Include="..\..\src\common\path_utils.h" />
     <ClInclude Include="..\..\src\common\string_utils.h" />
     <ClInclude Include="..\..\src\media\crc.h" />
@@ -680,6 +682,7 @@
     <ClInclude Include="..\..\src\drive\hard_disk_image.h" />
     <ClInclude Include="..\..\src\drive\import_common.h" />
     <ClInclude Include="..\..\src\drive\fat_image.h" />
+    <ClInclude Include="..\..\src\drive\folder_disk.h" />
     <ClInclude Include="..\..\src\drive\iso_image.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk.h" />
     <ClInclude Include="..\..\src\drive\floppy_disk_inline.h" />
