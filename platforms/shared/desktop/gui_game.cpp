@@ -27,11 +27,13 @@
 #include "fonts/IconsMaterialDesign.h"
 #include "config.h"
 #include "emu.h"
+#include "emu_dos.h"
 #include "emu_game.h"
 #include "gui.h"
 #include "gui_actions.h"
 #include "gui_colors.h"
 #include "gui_filedialogs.h"
+#include "gui_menus.h"
 #include "gui_notifications.h"
 #include "utils.h"
 #include "media/media_file.h"
@@ -40,11 +42,14 @@ static std::vector<GameDisk_Found> choices;
 static std::vector<std::string> programs;
 static std::string program_folder;
 static int next_target = GDOX_GAME_TARGET_GAME;
+static int next_program = -1;
 static bool open_choice = false;
 static bool open_programs = false;
 static bool open_write_back = false;
 
 static bool start(const GameDisk_Found& found);
+static void boot_to(int target, int program);
+static std::string program_name(const std::string& command);
 static void menu_boot(bool enabled);
 static void menu_files(bool open);
 static void menu_options(void);
@@ -133,30 +138,115 @@ static void menu_boot(bool enabled)
     if (!ImGui::BeginMenu("Boot To", enabled))
     {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Restarts into the game, its setup or the DOS prompt.\nThe disk stays as it is.");
+            ImGui::SetTooltip("Restarts into the game, its setup or the DOS prompt.\nThe disk stays as it is.\n"
+                "A change of program opens the game again.");
 
         return;
     }
 
+    GameDisk* disk = emu_game_get_disk();
+    const GDOX_Game_Info& info = disk->GetDescriptor().GetInfo();
     int target = emu_game_get_target();
+    bool game = target == GDOX_GAME_TARGET_GAME;
+    bool voodoo = disk->HasVoodooProgram();
+    bool chosen = emu_game_get_program() == GDOX_GAME_PROGRAM_VOODOO;
+    int source = voodoo && !chosen ? emu_game_get_source("run", "program") : (int)Emu_Game_Source_User;
+    bool pushed = gui_push_game_source_color(source);
 
-    if (ImGui::MenuItem("Game", NULL, target == GDOX_GAME_TARGET_GAME))
-        emu_game_set_target(GDOX_GAME_TARGET_GAME);
+    if (ImGui::MenuItem("Game", program_name(info.exe).c_str(), game && !disk->UsesVoodooExe()))
+        boot_to(GDOX_GAME_TARGET_GAME, voodoo ? (int)GDOX_GAME_PROGRAM_GAME : -1);
+
+    if (pushed)
+        ImGui::PopStyleColor();
+
+    if (voodoo && ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("The game's own program.");
+        ImGui::Text("Switching opens the game again and keeps the choice.");
+        gui_draw_game_source_tooltip(source);
+        ImGui::EndTooltip();
+    }
+
+    if (voodoo)
+    {
+        const GDOX_Machine_Profile& profile = k_machine_profiles[emu_get_core()->GetPendingMachineConfig().model];
+        bool pci = (profile.features & GDOX_MACHINE_FEATURE_PCI) != 0;
+        bool driver = !disk->VoodooProgramNeedsDriver() || (emu_dos_get_glide_name()[0] != 0);
+        std::string name = program_name(info.voodoo_exe);
+        source = chosen ? emu_game_get_source("run", "program") : (int)Emu_Game_Source_User;
+        pushed = gui_push_game_source_color(source);
+
+        if (ImGui::MenuItem("3dfx Voodoo", name.c_str(), game && disk->UsesVoodooExe(), pci && driver))
+            boot_to(GDOX_GAME_TARGET_GAME, GDOX_GAME_PROGRAM_VOODOO);
+
+        if (pushed)
+            ImGui::PopStyleColor();
+
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            ImGui::BeginTooltip();
+
+            if (!pci)
+                ImGui::Text("The 3dfx Voodoo needs a Pentium machine.");
+            else if (!driver)
+            {
+                ImGui::Text("%s needs the 3dfx Voodoo driver.", name.c_str());
+                ImGui::Text("Import it in Video > 3dfx Voodoo Driver.");
+            }
+            else
+            {
+                ImGui::Text("The game's 3dfx program, with the 3dfx Voodoo fitted.");
+                ImGui::Text("Switching opens the game again and keeps the choice.");
+            }
+
+            gui_draw_game_source_tooltip(source);
+            ImGui::EndTooltip();
+        }
+    }
+
+    ImGui::Separator();
 
     if (ImGui::MenuItem("Setup", NULL, target == GDOX_GAME_TARGET_SETUP, emu_game_has_setup()))
-        emu_game_set_target(GDOX_GAME_TARGET_SETUP);
+        boot_to(GDOX_GAME_TARGET_SETUP, -1);
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("%s", emu_game_has_setup() ? "Runs the game's setup for its sound card or controls.\n"
             "Ends at the DOS prompt." : "The game descriptor names no setup program.");
 
     if (ImGui::MenuItem("DOS Prompt", NULL, target == GDOX_GAME_TARGET_PROMPT))
-        emu_game_set_target(GDOX_GAME_TARGET_PROMPT);
+        boot_to(GDOX_GAME_TARGET_PROMPT, -1);
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("The DOS prompt in the game's folder.");
 
     ImGui::EndMenu();
+}
+
+static void boot_to(int target, int program)
+{
+    GameDisk_Found found;
+    bool switching = (program >= 0) && (program != emu_game_get_program());
+
+    if (switching && !emu_game_set_program(program))
+        return;
+
+    if ((switching || emu_game_needs_restart()) && emu_game_get_found(&found))
+    {
+        next_target = target;
+        next_program = switching ? -1 : emu_game_get_program();
+        start(found);
+        return;
+    }
+
+    emu_game_set_target(target);
+}
+
+static std::string program_name(const std::string& command)
+{
+    std::string program = command.substr(0, command.find(' '));
+    size_t slash = program.find_last_of("\\/");
+    return slash == std::string::npos ? program : program.substr(slash + 1);
 }
 
 static void menu_files(bool open)
@@ -195,7 +285,7 @@ static void menu_files(bool open)
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("Forgets every change made for this game:\nMachine, CGA Output, Emulated Joystick,\n"
-            "Host Gamepads, Game Music, volumes and DOS.\nThe key map is kept.");
+            "Host Gamepads, Game Music, volumes, DOS\nand the program in Boot To.\nThe key map is kept.");
 
     ImGui::EndMenu();
 }
@@ -343,6 +433,24 @@ void gui_game_set_next_target(int target)
     next_target = target;
 }
 
+void gui_game_set_next_program(int program)
+{
+    next_program = program;
+}
+
+bool gui_game_restart_if_needed(void)
+{
+    GameDisk_Found found;
+
+    if (!emu_game_needs_restart() || !emu_game_get_found(&found))
+        return false;
+
+    next_target = emu_game_get_target();
+    next_program = emu_game_get_program();
+    start(found);
+    return true;
+}
+
 void gui_game_loaded(void)
 {
     if (!emu_game_start())
@@ -384,9 +492,11 @@ void gui_game_dialog_save_descriptor(const char* path)
 static bool start(const GameDisk_Found& found)
 {
     int target = next_target;
+    int program = next_program;
     next_target = GDOX_GAME_TARGET_GAME;
+    next_program = -1;
 
-    if (!gui_start_game(found, target))
+    if (!gui_start_game(found, target, program))
     {
         std::string message("Unable to open the game:\n");
         message += emu_game_get_error();

@@ -60,7 +60,7 @@ EXTERN void gui_hotkey(config_HotkeyIndex hotkey, bool pressed);
 EXTERN bool gui_load_rom(const char* path, const char* symbol_path = NULL);
 EXTERN bool gui_load_playlist_disc(int index);
 EXTERN bool gui_load_hard_disk_source(const char* path, bool rebuild);
-EXTERN bool gui_start_game(const GameDisk_Found& found, int target);
+EXTERN bool gui_start_game(const GameDisk_Found& found, int target, int program = -1);
 EXTERN void gui_load_physical_cdrom(const char* device_id);
 EXTERN void gui_reload_cdrom(void);
 EXTERN void gui_reset_when_loaded(void);

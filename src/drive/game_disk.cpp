@@ -283,6 +283,39 @@ static std::string release_fragment(const char* settings, bool sound)
     return fragment;
 }
 
+static bool program_path(const std::string& folder, const std::string& command, std::string* path)
+{
+    std::string program = slashes(command);
+    size_t space = program.find(' ');
+
+    if (space != std::string::npos)
+        program = program.substr(0, space);
+
+    if ((program.size() > 1) && (program[1] == ':') && (to_upper_ascii(program[0]) != 'C'))
+        return false;
+
+    *path = (program.size() > 1) && (program[1] == ':') ? collapse(program.substr(2)) :
+        collapse(slashes(folder) + "/" + program);
+    return true;
+}
+
+static std::string program_name(const std::string& command)
+{
+    std::string program = slashes(command.substr(0, command.find(' ')));
+    size_t slash = program.find_last_of('/');
+    return slash == std::string::npos ? program : program.substr(slash + 1);
+}
+
+static bool has_game_overlay(FatImage* image, const std::string& path)
+{
+    size_t slash = path.find_last_of('/');
+    std::string folder = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
+    std::string overlay;
+
+    return (image->GetFile((folder + k_dos_glide_overlay).c_str(), &overlay) && GlideImport::IsOverlay(overlay)) ||
+        (image->GetFile(k_dos_glide_overlay, &overlay) && GlideImport::IsOverlay(overlay));
+}
+
 static bool sort_found(const std::pair<std::string, GameDisk_Found>& a, const std::pair<std::string, GameDisk_Found>& b)
 {
     return a.first < b.first;
@@ -308,7 +341,12 @@ GameDisk::GameDisk()
     m_msdos.crc = 0;
     m_ultrasnd_loaded = false;
     m_glide_loaded = false;
+    m_voodoo_release = false;
+    m_program = -1;
+    m_voodoo_program = false;
+    m_voodoo_driver = false;
     m_voodoo_exe = false;
+    m_voodoo_note.kind = GAME_DISK_MESSAGE_VOODOO;
     m_ultrasnd.patches = 0;
     m_ultrasnd.crc = 0;
     m_left_out = 0;
@@ -500,8 +538,7 @@ bool GameDisk::OpenFromDatabase(const GameDisk_Found& found)
         m_base.Merge(release);
     }
 
-    if (match.voodoo && !m_base.Has("machine", "voodoo"))
-        m_base.Set("machine", "voodoo", "on");
+    m_voodoo_release = match.voodoo;
 
     std::vector<GameDatabase_Rule> rules;
     GameDatabase::GetLayout(match.release, &rules);
@@ -710,7 +747,13 @@ void GameDisk::Close()
     m_glide.clear();
     m_glide_name.clear();
     m_glide_loaded = false;
+    m_voodoo_release = false;
+    m_program = -1;
+    m_voodoo_program = false;
+    m_voodoo_driver = false;
     m_voodoo_exe = false;
+    m_voodoo_note.title.clear();
+    m_voodoo_note.detail.clear();
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         m_hard_disks[i].clear();
@@ -773,11 +816,14 @@ const GameDescriptor& GameDisk::GetOverrides() const
     return m_overrides;
 }
 
-// The descriptor's machine, the CD drive moved off the game's hard disks, and RAM enough for its EMS when it names
-// none and the user's is too small
+// The descriptor's machine, the CD drive moved off the game's hard disks, RAM enough for its EMS when it names none
+// and the user's is too small, and the 3dfx card for its 3dfx program
 void GameDisk::GetGameSettings(const GDOX_Machine_Settings& user, GDOX_Machine_Settings* game) const
 {
     GetGameSettings(m_descriptor, user, game, GetSystem());
+
+    if (IsVoodooChosen())
+        game->voodoo = 1;
 }
 
 // The game's own choice, then MS-DOS when the user imported it, then FreeDOS
@@ -837,43 +883,40 @@ bool GameDisk::HasCDExtension() const
 bool GameDisk::UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine)
 {
     const GDOX_Game_Info& info = m_descriptor.GetInfo();
-
-    if (!machine.voodoo || info.voodoo_exe.empty())
-        return false;
-
-    std::string program = slashes(info.voodoo_exe);
-    size_t space = program.find(' ');
-
-    if (space != std::string::npos)
-        program = program.substr(0, space);
-
-    if ((program.size() > 1) && (program[1] == ':') && (to_upper_ascii(program[0]) != 'C'))
-        return true;
-
-    std::string path = (program.size() > 1) && (program[1] == ':') ? collapse(program.substr(2)) :
-        collapse(slashes(info.folder) + "/" + program);
+    bool chosen = GetProgram() == GDOX_GAME_PROGRAM_VOODOO;
+    bool offered = IsVoodooOffered();
+    std::string path;
     std::string data;
+    bool readable = offered && program_path(info.folder, info.voodoo_exe, &path);
+    m_voodoo_program = offered && (!readable || image->GetFile(path.c_str(), &data));
+    m_voodoo_driver = readable && m_voodoo_program && GlideImport::ImportsOverlay(data) && !has_game_overlay(image, path);
+    m_voodoo_note.title.clear();
+    m_voodoo_note.detail.clear();
+    bool voodoo = chosen && m_voodoo_program && machine.voodoo && (!m_voodoo_driver || LoadGlide());
 
-    if (!image->GetFile(path.c_str(), &data))
+    if (chosen && !voodoo)
     {
-        Log("%s: %s isn't in the game, %s runs instead", info.name.c_str(), info.voodoo_exe.c_str(), info.exe.c_str());
-        return false;
+        std::string program = program_name(info.voodoo_exe);
+        m_voodoo_note.kind = m_voodoo_program && machine.voodoo ? GAME_DISK_MESSAGE_VOODOO_DRIVER : GAME_DISK_MESSAGE_VOODOO;
+        m_voodoo_note.title = info.voodoo_exe.empty() ? "The game has no 3dfx program" :
+            !offered ? "This copy of the game has no 3dfx program" :
+            !m_voodoo_program ? program + " isn't in the game" :
+            !machine.voodoo ? "The 3dfx Voodoo needs a Pentium machine" : program + " needs the 3dfx Voodoo driver";
+        m_voodoo_note.detail = info.exe.empty() ? "The DOS prompt runs instead" : program_name(info.exe) + " runs instead";
+    }
+    else if (machine.voodoo && !voodoo && program_path(info.folder, info.exe, &path) &&
+        image->GetFile(path.c_str(), &data) && GlideImport::ImportsOverlay(data) && !has_game_overlay(image, path) &&
+        !LoadGlide())
+    {
+        m_voodoo_note.kind = GAME_DISK_MESSAGE_VOODOO_DRIVER;
+        m_voodoo_note.title = program_name(info.exe) + " needs the 3dfx Voodoo driver";
     }
 
-    if (!GlideImport::ImportsOverlay(data) || LoadGlide())
-        return true;
+    if (!m_voodoo_note.title.empty())
+        Log("%s: %s%s%s", info.name.c_str(), m_voodoo_note.title.c_str(), m_voodoo_note.detail.empty() ? "" : ", ",
+            m_voodoo_note.detail.c_str());
 
-    size_t slash = path.find_last_of('/');
-    std::string folder = slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
-    std::string overlay;
-
-    if ((image->GetFile((folder + k_dos_glide_overlay).c_str(), &overlay) && GlideImport::IsOverlay(overlay)) ||
-        (image->GetFile(k_dos_glide_overlay, &overlay) && GlideImport::IsOverlay(overlay)))
-        return true;
-
-    Log("%s: %s needs GLIDE2X.OVL from the 3dfx DOS driver, import it in Video > 3dfx Voodoo Driver; %s runs instead",
-        info.name.c_str(), info.voodoo_exe.c_str(), info.exe.c_str());
-    return false;
+    return voodoo;
 }
 
 bool GameDisk::LoadGlide()
@@ -1390,9 +1433,44 @@ bool GameDisk::HasWithheldSettings() const
     return m_withheld_settings;
 }
 
+void GameDisk::SetProgram(int program)
+{
+    m_program = (program >= 0) && (program < GDOX_GAME_PROGRAM_COUNT) ? program : -1;
+}
+
+int GameDisk::GetProgram() const
+{
+    return m_program >= 0 ? m_program : m_descriptor.GetInfo().program;
+}
+
+bool GameDisk::IsVoodooOffered() const
+{
+    return !m_descriptor.GetInfo().voodoo_exe.empty() && (!m_database || m_voodoo_release);
+}
+
+bool GameDisk::IsVoodooChosen() const
+{
+    return IsVoodooOffered() && (GetProgram() == GDOX_GAME_PROGRAM_VOODOO);
+}
+
+bool GameDisk::HasVoodooProgram() const
+{
+    return m_voodoo_program;
+}
+
+bool GameDisk::VoodooProgramNeedsDriver() const
+{
+    return m_voodoo_driver;
+}
+
 bool GameDisk::UsesVoodooExe() const
 {
     return m_voodoo_exe;
+}
+
+bool GameDisk::NeedsRebuild(const GDOX_Machine_Config& machine) const
+{
+    return m_has_machine && ((machine.voodoo != 0) != (m_machine.voodoo != 0));
 }
 
 bool GameDisk::IsFolderReadOnly() const
@@ -1495,6 +1573,9 @@ void GameDisk::GetMessages(std::vector<GameDisk_Message>* messages) const
         message.detail = GetRefusedPath();
         messages->push_back(message);
     }
+
+    if (!m_voodoo_note.title.empty())
+        messages->push_back(m_voodoo_note);
 }
 
 const GameDisk_Result& GameDisk::GetLastWriteBack() const
@@ -1603,6 +1684,8 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
     if (machine.gus && LoadUltraSound() && !image->AddUltraSound((const u8*)m_ultrasnd.zip.data(), m_ultrasnd.zip.size()))
         return Fail("Unable to add %s to the game's disk", m_ultrasnd.name.c_str());
 
+    m_voodoo_exe = UseVoodooExe(image, machine);
+
     if (machine.voodoo)
     {
         image->LeaveOutMatching(k_dos_glide_overlay, GlideImport::IsStub);
@@ -1612,7 +1695,6 @@ bool GameDisk::Assemble(FatImage* image, const GDOX_Machine_Config& machine, Gam
             return Fail("Unable to add %s to the game's disk", m_glide_name.c_str());
     }
 
-    m_voodoo_exe = UseVoodooExe(image, machine);
     system->autoexec = GetBatch(machine);
 
     if (!image->AddMemoryFile(k_dos_config_sys, system->config_sys, attributes) ||

@@ -41,7 +41,7 @@ enum Emu_Game_Source
 
 EXTERN bool emu_game_is_content(const char* path);
 EXTERN bool emu_game_find(const char* path, std::vector<GameDisk_Found>* found);
-EXTERN bool emu_game_open(const GameDisk_Found& found, int target);
+EXTERN bool emu_game_open(const GameDisk_Found& found, int target, int program = -1);
 EXTERN void emu_game_prepare_thread(void);
 EXTERN bool emu_game_start(void);
 EXTERN bool emu_game_close(void);
@@ -91,6 +91,9 @@ EXTERN const GameDisk_Result& emu_game_get_last_write_back(void);
 EXTERN const char* emu_game_get_last_write_back_name(void);
 EXTERN const char* emu_game_get_saves_path(void);
 EXTERN bool emu_game_has_setup(void);
+EXTERN int emu_game_get_program(void);
+EXTERN bool emu_game_set_program(int program);
+EXTERN bool emu_game_needs_restart(void);
 EXTERN GameDisk* emu_game_get_disk(void);
 EXTERN std::string emu_game_get_key_map_path(void);
 EXTERN const char* emu_game_get_keys(void);

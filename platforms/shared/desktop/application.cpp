@@ -343,6 +343,7 @@ void application_load_media(const ApplicationParams& params)
             Log("Symbol file argument: %s", params.symbol_file);
 
         gui_game_set_next_target(params.game_target);
+        gui_game_set_next_program(params.game_program);
         bool powered = emu_is_powered_on();
         gui_load_rom(params.rom_file, params.symbol_file);
 

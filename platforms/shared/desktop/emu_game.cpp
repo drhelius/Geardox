@@ -104,7 +104,7 @@ bool emu_game_find(const char* path, std::vector<GameDisk_Found>* found)
     return GameDisk::Find(path, found);
 }
 
-bool emu_game_open(const GameDisk_Found& found, int game_target)
+bool emu_game_open(const GameDisk_Found& found, int game_target, int program)
 {
     error_text.clear();
 
@@ -122,6 +122,7 @@ bool emu_game_open(const GameDisk_Found& found, int game_target)
     }
 
     disk.SetKeyboardLayout(config_input.keyboard_layout.c_str());
+    disk.SetProgram(program);
     current_found = found;
     target = CLAMP(game_target, 0, GDOX_GAME_TARGET_COUNT - 1);
     saved_boot_device = emu_get_core()->GetBootDevice();
@@ -830,6 +831,45 @@ bool emu_game_has_setup(void)
     return emu_game_is_open() && !disk.GetDescriptor().GetInfo().setup_exe.empty();
 }
 
+int emu_game_get_program(void)
+{
+    return disk.IsOpen() ? disk.GetProgram() : (int)GDOX_GAME_PROGRAM_GAME;
+}
+
+bool emu_game_set_program(int program)
+{
+    if (!emu_game_is_open())
+        return false;
+
+    GameDescriptor before = disk.GetOverrides();
+    GameDescriptor overrides = before;
+
+    if (overrides.IsEmpty())
+        overrides.Parse("", k_empty_overrides, sizeof(k_empty_overrides) - 1);
+
+    if (program == disk.GetBase().GetInfo().program)
+        overrides.Unset("run", "program");
+    else
+        overrides.Set("run", "program", program == GDOX_GAME_PROGRAM_VOODOO ? "voodoo" : "game");
+
+    if (same_overrides(before, overrides))
+        return true;
+
+    if (!disk.SaveOverrides(overrides))
+    {
+        gui_notify(gui_NotificationError, NULL, "Unable to save the game's settings", disk.GetError());
+        return false;
+    }
+
+    notify_saved();
+    return true;
+}
+
+bool emu_game_needs_restart(void)
+{
+    return emu_game_is_open() && disk.NeedsRebuild(emu_get_core()->GetPendingMachineConfig());
+}
+
 GameDisk* emu_game_get_disk(void)
 {
     return &disk;
@@ -965,6 +1005,18 @@ static void notify_message(const GameDisk_Message& message)
         case GAME_DISK_MESSAGE_REFUSED:
             gui_notify(gui_NotificationError, ICON_MD_SAVE, message.title.c_str(), message.detail.c_str());
             break;
+        case GAME_DISK_MESSAGE_VOODOO:
+            gui_notify(gui_NotificationWarning, ICON_MD_VIDEOGAME_ASSET, message.title.c_str(), message.detail.c_str(), NULL,
+                gui_NotificationDurationLong);
+            break;
+        case GAME_DISK_MESSAGE_VOODOO_DRIVER:
+        {
+            std::string detail = message.detail.empty() ? std::string() : message.detail + "\n";
+            detail += "Import it in Video > 3dfx Voodoo Driver";
+            gui_notify(gui_NotificationWarning, ICON_MD_VIDEOGAME_ASSET, message.title.c_str(), detail.c_str(), NULL,
+                gui_NotificationDurationLong);
+            break;
+        }
         default:
             gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, message.title.c_str(), message.detail.c_str());
             break;
@@ -1039,6 +1091,7 @@ static void notify_shadowed(void)
 
     std::vector<std::pair<std::string, std::string> > keys = get_game_keys();
     keys.push_back(std::make_pair(std::string("dos"), std::string("system")));
+    keys.push_back(std::make_pair(std::string("run"), std::string("program")));
     std::string names;
 
     for (size_t i = 0; i < keys.size(); i++)
@@ -1192,6 +1245,7 @@ static void update_machines(void)
     GameDisk::GetGameSettings(stripped, user, &without, disk.GetSystem());
     base_machine = config_machine;
     overlay_settings(&base_machine, without);
+    base_machine.voodoo = base_machine.voodoo || disk.IsVoodooChosen();
     game_joystick = disk.GetDescriptor().GetInfo().joystick;
     base_joystick = stripped.GetInfo().joystick;
     game_cga_output = disk.GetDescriptor().GetInfo().cga_output;

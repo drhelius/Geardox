@@ -104,8 +104,9 @@ Media:
       --fd2 FILE            Floppy image in drive 2
       --load-state SLOT     Load save state slot 1-5, or a state file, once the
                             media is loaded
-      --target TARGET       What a game descriptor runs: game, setup, prompt or
-                            debug (its program through GDXDBG)
+      --target TARGET       What a game descriptor runs: game, voodoo (its 3dfx
+                            program), setup, prompt or debug (its program
+                            through GDXDBG)
 
 Machine (for this run only, the saved settings stay):
       --model MODEL         386sx_20, 386dx_33, 486sx_33, 486dx2_66,

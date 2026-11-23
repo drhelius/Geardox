@@ -5624,11 +5624,13 @@ json DebugAdapter::StartLoadMedia(const std::string& file_path, const std::strin
     {
         int game_target = target == "setup" ? GDOX_GAME_TARGET_SETUP : target == "prompt" ? GDOX_GAME_TARGET_PROMPT :
             target == "debug" ? GDOX_GAME_TARGET_DEBUG : GDOX_GAME_TARGET_GAME;
+        int program = target == "voodoo" ? (int)GDOX_GAME_PROGRAM_VOODOO : -1;
 
-        if (!target.empty() && (target != "game") && (target != "setup") && (target != "prompt") && (target != "debug"))
-            return {{"error", "target is game, setup, prompt or debug"}};
+        if (!target.empty() && (target != "game") && (target != "voodoo") && (target != "setup") && (target != "prompt") &&
+            (target != "debug"))
+            return {{"error", "target is game, voodoo, setup, prompt or debug"}};
 
-        if (!gui_start_game(found[0], game_target))
+        if (!gui_start_game(found[0], game_target, program))
             return {{"error", std::string("Unable to open the game: ") + emu_game_get_error()}};
 
         return {{"file_path", file_path}};
@@ -5663,8 +5665,8 @@ json DebugAdapter::GetGameInfo()
         { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
         { "drives", "hdd_primary_slave" }, { "drives", "hdd_secondary_slave" }, { "drives", "cdrom" }, { "run", "exe" },
-        { "run", "args" }, { "run", "cwd" }, { "run", "voodoo_exe" }, { "run", "voodoo_args" }, { "run", "setup_exe" },
-        { "run", "setup_args" }, { "run", "on_exit" }, { "run", "boot" } };
+        { "run", "args" }, { "run", "cwd" }, { "run", "voodoo_exe" }, { "run", "voodoo_args" }, { "run", "program" },
+        { "run", "setup_exe" }, { "run", "setup_args" }, { "run", "on_exit" }, { "run", "boot" } };
     const GameDescriptor& descriptor = disk->GetDescriptor();
     const GameDescriptor& overrides = disk->GetOverrides();
     const GDOX_Machine_Config& config = m_core->GetMachineConfig();
@@ -5709,6 +5711,9 @@ json DebugAdapter::GetGameInfo()
                 {"mt32_model", emu_game_get_mt32_model() >= 0 ? json(k_mt32_models[emu_game_get_mt32_model()].id) :
                 json()}}},
         {"target", k_targets[emu_game_get_target()]},
+        {"program", {{"runs", disk->UsesVoodooExe() ? "voodoo" : "game"},
+            {"chosen", disk->GetProgram() == GDOX_GAME_PROGRAM_VOODOO ? "voodoo" : "game"},
+            {"voodoo_program", disk->HasVoodooProgram()}, {"needs_driver", disk->VoodooProgramNeedsDriver()}}},
         {"keyboard_layout", disk->GetKeyboardLayout()},
         {"system", {{"name", disk->GetSystemName()}, {"id", disk->GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? "msdos" : "freedos"},
             {"layer", overrides.Has("dos", "system") ? "override" : descriptor.Has("dos", "system") ? "descriptor" :

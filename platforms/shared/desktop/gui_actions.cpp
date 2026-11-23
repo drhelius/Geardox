@@ -29,6 +29,7 @@
 #include "ogl_renderer.h"
 #include "events.h"
 #include "gui.h"
+#include "gui_game.h"
 #include "gui_notifications.h"
 #include "input_macro.h"
 #include "debug/gui_debug.h"
@@ -100,7 +101,7 @@ void gui_action_power_off(void)
 
 void gui_action_reset(void)
 {
-    if (emu_is_empty())
+    if (emu_is_empty() || gui_game_restart_if_needed())
         return;
 
     gui_notify(gui_NotificationInfo, ICON_MD_REFRESH, "Reset");

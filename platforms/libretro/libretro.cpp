@@ -193,6 +193,7 @@ static bool game_write_folder = false;
 static bool game_freedos_only = false;
 static char game_keyboard_layout[8] = "us";
 static int game_target = GDOX_GAME_TARGET_GAME;
+static int game_program = -1;
 static bool game_options_hidden = false;
 static bool cmos_shared = true;
 static bool cmos_shared_active = false;
@@ -2265,8 +2266,11 @@ static void check_variables(void)
     var.value = NULL;
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
         game_target = strcmp(var.value, "setup") == 0 ? GDOX_GAME_TARGET_SETUP :
             strcmp(var.value, "prompt") == 0 ? GDOX_GAME_TARGET_PROMPT : GDOX_GAME_TARGET_GAME;
+        game_program = strcmp(var.value, "voodoo") == 0 ? (int)GDOX_GAME_PROGRAM_VOODOO : -1;
+    }
 
     var.key = "geardox_write_back";
     var.value = NULL;
@@ -3406,6 +3410,15 @@ static void game_message(const GameDisk_Message& message)
             log_cb(RETRO_LOG_ERROR, "The last session's disk didn't add up, kept as %s\n", message.detail.c_str());
             show_message(message.title.c_str(), 3, RETRO_LOG_ERROR);
             break;
+        case GAME_DISK_MESSAGE_VOODOO:
+            snprintf(text, sizeof(text), "%s: %s", message.title.c_str(), message.detail.c_str());
+            show_message(text, 3, RETRO_LOG_WARN);
+            break;
+        case GAME_DISK_MESSAGE_VOODOO_DRIVER:
+            snprintf(text, sizeof(text), "%s%s%s: put its ZIP or GLIDE2X.OVL in <system>/geardox/3dfx",
+                message.title.c_str(), message.detail.empty() ? "" : ", ", message.detail.c_str());
+            show_message(text, 3, RETRO_LOG_WARN);
+            break;
         default:
             log_cb(RETRO_LOG_INFO, "%s: %s\n", message.title.c_str(), message.detail.c_str());
             break;
@@ -3442,6 +3455,7 @@ static bool game_open(const char* path, bool* game)
         game_disk.SetSystem(GDOX_GAME_SYSTEM_FREEDOS);
 
     game_disk.SetKeyboardLayout(game_keyboard_layout);
+    game_disk.SetProgram(game_program);
 
     for (int i = 0; i < game_disk.GetDescriptor().GetWarningCount(); i++)
         log_cb(RETRO_LOG_WARN, "%s\n", game_disk.GetDescriptor().GetWarning(i));

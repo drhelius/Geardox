@@ -480,7 +480,7 @@ bool gui_load_hard_disk_source(const char* path, bool rebuild)
     return true;
 }
 
-bool gui_start_game(const GameDisk_Found& found, int target)
+bool gui_start_game(const GameDisk_Found& found, int target, int program)
 {
     if (loading_rom_active)
         return false;
@@ -488,7 +488,7 @@ bool gui_start_game(const GameDisk_Found& found, int target)
     gui_debug_auto_save_settings();
     emu_resume();
 
-    if (!emu_game_open(found, target))
+    if (!emu_game_open(found, target, program))
         return false;
 
     loading_game = true;

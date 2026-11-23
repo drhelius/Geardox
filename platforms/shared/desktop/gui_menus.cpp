@@ -1595,9 +1595,10 @@ static bool menu_machine_video(void)
     ImGui::Separator();
 
     bool voodoo = menu_settings->voodoo;
+    bool program = emu_game_is_open() && emu_game_get_disk()->IsVoodooChosen();
     bool voodoo_pushed = gui_push_game_source_color(voodoo_source);
 
-    if (ImGui::MenuItem("3dfx Voodoo Graphics", "", &voodoo, pci))
+    if (ImGui::MenuItem("3dfx Voodoo Graphics", "", &voodoo, pci && !program))
     {
         menu_settings->voodoo = voodoo;
         changed = true;
@@ -1611,6 +1612,10 @@ static bool menu_machine_video(void)
         ImGui::BeginTooltip();
         ImGui::Text("A second PCI card with 4 MB for 3D games.");
         ImGui::Text("Pentium machines only. Reset to apply.");
+
+        if (program)
+            ImGui::Text("On for the 3dfx program in Game > Boot To.");
+
         gui_draw_game_source_tooltip(voodoo_source);
         ImGui::EndTooltip();
     }

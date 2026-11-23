@@ -1575,8 +1575,8 @@ json McpServer::BuildToolList()
             {"type", "object"},
             {"properties", {
                 {"file_path", {{"type", "string"}, {"description", "Absolute path."}}},
-                {"target", {{"type", "string"}, {"enum", json::array({"game", "setup", "prompt", "debug"})},
-                    {"description", "For a game descriptor: what runs at boot. Default game. debug runs the game's program through GDXDBG, reporting it to the program tools."}}}
+                {"target", {{"type", "string"}, {"enum", json::array({"game", "voodoo", "setup", "prompt", "debug"})},
+                    {"description", "For a game descriptor: what runs at boot. Default game, the program the game's choice names. voodoo runs its 3dfx program with the 3dfx Voodoo fitted, for this session. debug runs the game's program through GDXDBG, reporting it to the program tools."}}}
             }},
             {"required", json::array({"file_path"})},
             {"additionalProperties", false}
@@ -1670,6 +1670,7 @@ json McpServer::BuildToolList()
     tools.push_back(make_tool("get_game_info", "Get Game Info",
         "The game open from a .gdox descriptor: the descriptor with its overrides, each key set and its layer "
         "(descriptor or override), the machine in use and where each value came from, the target (game, setup or prompt), "
+        "the program (which runs, which is chosen, whether the game has a 3dfx program and whether that needs the imported 3dfx driver), "
         "the DOS it boots (FreeDOS or the user's imported MS-DOS) and its layer, the disk image, whether it was built or reused, where saves go, whether the session is open, and the last "
         "write-back with its conflicts. open is false with no game.", k_mcp_tool_read, empty_schema()));
 

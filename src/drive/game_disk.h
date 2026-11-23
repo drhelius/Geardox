@@ -54,7 +54,9 @@ enum GameDisk_Message_Kind
     GAME_DISK_MESSAGE_READ_ONLY,
     GAME_DISK_MESSAGE_RECOGNISED,
     GAME_DISK_MESSAGE_LEFT_OUT,
-    GAME_DISK_MESSAGE_REFUSED
+    GAME_DISK_MESSAGE_REFUSED,
+    GAME_DISK_MESSAGE_VOODOO,
+    GAME_DISK_MESSAGE_VOODOO_DRIVER
 };
 
 struct GameDisk_Message
@@ -146,7 +148,13 @@ public:
     bool IsFromDatabase() const;
     bool HasReleaseSettings() const;
     bool HasWithheldSettings() const;
+    void SetProgram(int program);
+    int GetProgram() const;
+    bool IsVoodooChosen() const;
+    bool HasVoodooProgram() const;
+    bool VoodooProgramNeedsDriver() const;
     bool UsesVoodooExe() const;
+    bool NeedsRebuild(const GDOX_Machine_Config& machine) const;
 
 private:
     bool OpenFromDatabase(const GameDisk_Found& found);
@@ -159,6 +167,7 @@ private:
     bool LoadSystem();
     bool LoadUltraSound();
     bool LoadGlide();
+    bool IsVoodooOffered() const;
     bool UseVoodooExe(FatImage* image, const GDOX_Machine_Config& machine);
     bool IsGamePath(const std::string& dos_path) const;
     bool Assemble(FatImage* image, const GDOX_Machine_Config& machine, GameDisk_Manifest_System* system);
@@ -213,7 +222,12 @@ private:
     std::string m_glide;
     std::string m_glide_name;
     bool m_glide_loaded;
+    bool m_voodoo_release;
+    int m_program;
+    bool m_voodoo_program;
+    bool m_voodoo_driver;
     bool m_voodoo_exe;
+    GameDisk_Message m_voodoo_note;
     bool m_write_overlay;
     bool m_folder_read_only;
     bool m_built;

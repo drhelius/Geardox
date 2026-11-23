@@ -50,6 +50,13 @@ enum GDOX_Game_System
     GDOX_GAME_SYSTEM_COUNT
 };
 
+enum GDOX_Game_Program
+{
+    GDOX_GAME_PROGRAM_GAME = 0,
+    GDOX_GAME_PROGRAM_VOODOO,
+    GDOX_GAME_PROGRAM_COUNT
+};
+
 enum GDOX_Game_Target
 {
     GDOX_GAME_TARGET_GAME = 0,
@@ -118,6 +125,7 @@ struct GDOX_Game_Info
     std::string voodoo_exe;
     std::string args;
     std::string voodoo_args;
+    int program;
     std::string cwd;
     std::string setup_exe;
     std::string setup_args;

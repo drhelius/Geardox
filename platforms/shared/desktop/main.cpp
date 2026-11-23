@@ -239,6 +239,11 @@ int main(int argc, char* argv[])
 
                 if (strcmp(value, "game") == 0)
                     app_params.game_target = 0;
+                else if (strcmp(value, "voodoo") == 0)
+                {
+                    app_params.game_target = 0;
+                    app_params.game_program = GDOX_GAME_PROGRAM_VOODOO;
+                }
                 else if (strcmp(value, "setup") == 0)
                     app_params.game_target = 1;
                 else if (strcmp(value, "prompt") == 0)
@@ -698,7 +703,7 @@ static void print_usage(const char* program)
     print_wrapped("      --fd1 FILE", "Floppy image in drive 1");
     print_wrapped("      --fd2 FILE", "Floppy image in drive 2");
     print_wrapped("      --load-state SLOT", "Load save state slot 1-5, or a state file, once the media is loaded");
-    print_wrapped("      --target TARGET", "What a game descriptor runs: game, setup, prompt or debug (its program through GDXDBG)");
+    print_wrapped("      --target TARGET", "What a game descriptor runs: game, voodoo (its 3dfx program), setup, prompt or debug (its program through GDXDBG)");
     printf("\nMachine (for this run only, the saved settings stay):\n");
     print_wrapped("      --model MODEL", models);
     print_wrapped("      --cpu-mhz MHZ", speeds);

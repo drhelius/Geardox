@@ -196,7 +196,8 @@ Choose **Game > Boot To > Game** to start the game with the saved setup choices.
 **Game > Boot To > DOS Prompt** opens a DOS prompt in the game's folder. From there you can run its setup
 program or other DOS commands without adding them to the descriptor.
 
-Each **Boot To** choice restarts the emulated PC.
+Each **Boot To** choice restarts the emulated PC. A game with a 3dfx program also has **3dfx Voodoo** there, and a
+change between **Game** and **3dfx Voodoo** opens the game again.
 
 By default, quitting a game returns to DOS. To turn off the emulated PC when the game exits, add
 `on_exit = poweroff` under `[run]`. To close Geardox as well, enable **Game > Quit When a Game Powers Off**.
@@ -430,14 +431,19 @@ In RetroArch, turn on the **Gravis UltraSound (restart)** core option, and put t
 ## Use a 3dfx Voodoo
 
 Geardox can add a 3dfx Voodoo Graphics with 4 MB, as a second PCI card next to the video card, for DOS games with
-3dfx support. It needs a Pentium model, and it's off unless a game asks for it: `voodoo = on` under `[machine]`, or
-**Emulator > Machine > Video Card > 3dfx Voodoo Graphics** for every game. The monitor shows the Voodoo while a game
-draws with it and the video card otherwise, as the card's pass-through cable did.
+3dfx support. It needs a Pentium model, and it's off unless a game asks for it: its 3dfx program, `voodoo = on` under
+`[machine]`, or **Emulator > Machine > Video Card > 3dfx Voodoo Graphics** for every game. The monitor shows the Voodoo
+while a game draws with it and the video card otherwise, as the card's pass-through cable did.
 
 Most games start their 3dfx version from its own program. Name it with `voodoo_exe` under `[run]`, and its options
-with `voodoo_args`: Geardox runs it instead of `exe` whenever the card is on, and `exe` when it's off. Geardox's game
-database fills it in for the games it knows, and turns the card on when it recognises the game's 3dfx program in your
-copy, or when the game only runs on one. `voodoo = off` in the game's settings keeps it off.
+with `voodoo_args`. A game always starts with `exe`: choose **Game > Boot To > 3dfx Voodoo** to run the 3dfx program
+instead, with the card fitted for it. The game opens again, and Geardox keeps the choice for it until you choose
+**Boot To > Game** or **Game > Game Files > Forget This Game's Changes**. `program = voodoo` under `[run]` makes the
+3dfx program a descriptor's own choice. `voodoo = on` only fits the card: it doesn't choose the program.
+
+Geardox's game database fills in `voodoo_exe` for the games it knows, and offers **Boot To > 3dfx Voodoo** when it
+recognises the game's 3dfx program in your copy. For a game that only runs on a Voodoo, it turns the card on and runs
+the game's program.
 
 Games with 3dfx's library built into their program run with nothing more. Most others load `GLIDE2X.OVL`, 3dfx's
 DOS driver, which isn't included with Geardox. Import it once:
@@ -450,11 +456,13 @@ set up the processor's memory caching in a way only a Pentium Pro or Pentium II 
 
 Every game with the card on then gets the driver in `C:\`, on its `PATH`. A game's own `GLIDE2X.OVL` in its folder
 still wins. Some digital releases ship a small `glide2x.ovl` that only works in their own emulator; Geardox leaves it
-out while the card is on, without touching the game's files. When a game's `voodoo_exe` needs the driver and none is
-imported, Geardox runs `exe` instead and says so. **Remove Driver** in the same menu deletes Geardox's copy.
+out while the card is on, without touching the game's files. When the 3dfx program needs the driver and none is
+imported, **Boot To > 3dfx Voodoo** is unavailable, and a game that chose it runs `exe` instead and says so. A game whose
+`exe` needs the driver says so when it starts. **Remove Driver** in the same menu deletes Geardox's copy.
 
-In RetroArch, turn on the **3dfx Voodoo Graphics (restart)** core option, and put the driver's ZIP, or
-`GLIDE2X.OVL`, in `geardox/3dfx` inside RetroArch's system folder.
+In RetroArch, set the **Game Runs (restart)** core option to **3dfx Voodoo** to run a game's 3dfx program, or turn on
+**3dfx Voodoo Graphics (restart)** for the card alone. Put the driver's ZIP, or `GLIDE2X.OVL`, in `geardox/3dfx`
+inside RetroArch's system folder.
 
 ## Troubleshooting
 
@@ -571,8 +579,9 @@ run from their CD.
 | `exe` | No | The program that starts the game | A `.EXE`, `.COM` or `.BAT` path, relative to `folder` or on another drive. Without `args`, options can follow it after a space | None: Geardox stops at the DOS prompt | `exe = ORION.EXE` |
 | `args` | No | Options passed to `exe` | Text | None | `args = -nosound` |
 | `cwd` | No | The folder the game starts in, for games that must run from a folder other than their program's. Not used for a program on another drive | A DOS path, relative to `folder` | The folder containing `exe` | `cwd = DATA` |
-| `voodoo_exe` | No | The game's 3dfx program, run instead of `exe` when the 3dfx Voodoo is on. See [Use a 3dfx Voodoo](#use-a-3dfx-voodoo) | A program path as in `exe`. Without `voodoo_args`, options can follow it after a space | None: `exe` runs | `voodoo_exe = GTAFX.EXE` |
+| `voodoo_exe` | No | The game's 3dfx program, run instead of `exe` when it's chosen in **Game > Boot To > 3dfx Voodoo** or with `program`. See [Use a 3dfx Voodoo](#use-a-3dfx-voodoo) | A program path as in `exe`. Without `voodoo_args`, options can follow it after a space | None: `exe` runs | `voodoo_exe = GTAFX.EXE` |
 | `voodoo_args` | No | Options passed to `voodoo_exe` | Text | None | `voodoo_args = -3dfx` |
+| `program` | No | The program the game runs. **Game > Boot To** keeps its choice in the game's settings | `game`: `exe`. `voodoo`: `voodoo_exe`, with the 3dfx Voodoo fitted | `game` | `program = voodoo` |
 | `setup_exe` | No | The game's setup program. **Game > Boot To > Setup** runs it | A program path as in `exe`. Without `setup_args`, options can follow it after a space | None: **Boot To > Setup** is unavailable | `setup_exe = INSTALL.EXE` |
 | `setup_args` | No | Options passed to `setup_exe` | Text | None | `setup_args = -S` |
 | `on_exit` | No | What happens when the game quits | `prompt`: return to the DOS prompt. `poweroff`: power off the emulated PC. With **Game > Quit When a Game Powers Off**, Geardox closes too | `prompt` | `on_exit = poweroff` |
@@ -609,7 +618,7 @@ options in RetroArch. The **Default** column shows what those are unless you cha
 | `drive_timing` | No | How long the drives' mechanics take: seeks, the wait for a sector to come round, and spinning up a CD. `fast` takes a sixteenth of the time, so games load sooner; `real` is for programs that time the drive. Transfers keep their speed either way | `real`, `fast` | Your setting (Auto, which is `fast` for games) | `drive_timing = real` |
 | `video` | No | The video card. `cga` and `ega` are IBM's own cards, for games written for them. On a model without its slot, `gd5428_vlb` or `gd5446` becomes `gd5428`, with a warning | `cga`, `ega`, `vga`, `gd5428` (Cirrus ISA), `gd5428_vlb` (Cirrus VL-Bus, 486s only), `gd5446` (Cirrus PCI, Pentiums only) | Your setting (`gd5428` on the 386s, `gd5428_vlb` on the 486s, `gd5446` on the Pentiums) | `video = cga` |
 | `cga_output` | No | The monitor on the CGA. `auto` shows composite colour when the game turns on 640x200 with the colour burst, and RGB otherwise; `composite` is for games drawn for a composite monitor | `auto`, `rgb`, `composite` | Your setting (`auto`) | `cga_output = composite` |
-| `voodoo` | No | A 3dfx Voodoo Graphics next to the video card, on the Pentiums only. See [Use a 3dfx Voodoo](#use-a-3dfx-voodoo) | `on`, `off` | Your setting (`off`) | `voodoo = on` |
+| `voodoo` | No | A 3dfx Voodoo Graphics next to the video card, on the Pentiums only. It doesn't choose the program: see `program` under `[run]` and [Use a 3dfx Voodoo](#use-a-3dfx-voodoo) | `on`, `off` | Your setting (`off`) | `voodoo = on` |
 
 ### `[sound]`
 

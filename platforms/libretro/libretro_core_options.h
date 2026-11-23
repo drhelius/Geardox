@@ -797,11 +797,12 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "geardox_game_target",
         "Game Runs (restart)",
         NULL,
-        "What a game descriptor runs at each boot: the game, its setup program, or the DOS prompt on its drive.",
+        "What a game descriptor runs at each boot: the game, its 3dfx program with the 3dfx Voodoo fitted, its setup program, or the DOS prompt on its drive.",
         NULL,
         "system",
         {
             { "game",   "Game" },
+            { "voodoo", "3dfx Voodoo" },
             { "setup",  "Setup" },
             { "prompt", "DOS Prompt" },
             { NULL, NULL },

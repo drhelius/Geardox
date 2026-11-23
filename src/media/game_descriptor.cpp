@@ -127,6 +127,7 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "run", "voodoo_exe", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "args", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "voodoo_args", DESCRIPTOR_TEXT, NULL, 0, 0 },
+    { "run", "program", DESCRIPTOR_CHOICE, "game,voodoo", 0, 0 },
     { "run", "cwd", DESCRIPTOR_PATH, NULL, 0, 0 },
     { "run", "setup_exe", DESCRIPTOR_TEXT, NULL, 0, 0 },
     { "run", "setup_args", DESCRIPTOR_TEXT, NULL, 0, 0 },
@@ -952,6 +953,7 @@ void GameDescriptor::Build()
     info.voodoo_exe = Get("run", "voodoo_exe");
     info.args = Get("run", "args");
     info.voodoo_args = Get("run", "voodoo_args");
+    info.program = Get("run", "program") == "voodoo" ? GDOX_GAME_PROGRAM_VOODOO : GDOX_GAME_PROGRAM_GAME;
     info.cwd = Get("run", "cwd");
     info.setup_exe = Get("run", "setup_exe");
     info.setup_args = Get("run", "setup_args");

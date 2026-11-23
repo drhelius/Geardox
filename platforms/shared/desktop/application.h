@@ -34,6 +34,7 @@ struct ApplicationParams
     const char* state_file = NULL;
     int state_slot = 0;
     int game_target = 0;
+    int game_program = -1;
     bool force_fullscreen = false;
     bool force_windowed = false;
     int mcp_mode = -1;
