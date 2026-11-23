@@ -2130,8 +2130,8 @@ static void get_machine_summary(const GDOX_Machine_Config& config, char* text, s
 {
     char cpu[96];
     get_machine_cpu_text(config, cpu, sizeof(cpu));
-    snprintf(text, text_size, "%s · %s · %u MB", k_machine_profiles[config.model].name, cpu,
-        config.ram_size / (1024 * 1024));
+    const char* name = strncmp(cpu, "80", 2) == 0 ? cpu + 2 : cpu;
+    snprintf(text, text_size, "%s · %u MB", name, config.ram_size / (1024 * 1024));
 }
 
 static float get_combo_items_width(const char* items)
