@@ -148,12 +148,12 @@ void emu_game_prepare_thread(void)
     if (!prepared)
         return;
 
-    for (int i = 1; i < GDOX_MAX_HARD_DISKS; i++)
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
         const char* path = disk.GetHardDisk(i);
 
         if ((path[0] != 0) && emu_hard_disk_is_image(path))
-            emu_hard_disk_prepare_image(i, path, false);
+            emu_hard_disk_prepare_image(i, path, false, i == 0 ? disk.GetWorkingPath().c_str() : NULL);
     }
 
     for (int drive = 0; drive < 2; drive++)
@@ -194,7 +194,7 @@ bool emu_game_start(void)
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         emu_hard_disk_detach(i);
 
-    if (!emu_hard_disk_attach_game(0, disk.TakeDisk()))
+    if (disk.IsImage() ? !emu_hard_disk_attach_prepared_image(0, true) : !emu_hard_disk_attach_game(0, disk.TakeDisk()))
     {
         error_text = std::string("Unable to attach the game's disk ") + disk.GetSourcePath();
         disk.Close();
@@ -316,7 +316,7 @@ bool emu_game_close(void)
 
     game_cdrom = false;
 
-    last_result = core->GetHardDiskResult(0);
+    last_result = disk.IsImage() ? FolderDisk_Result() : core->GetHardDiskResult(0);
     last_result_name = disk.GetName();
     notify_write_back();
     disk.Close();
@@ -787,7 +787,7 @@ bool emu_game_save_descriptor(const char* path, const char* program)
                 out.Set("drives", k_lists[i], value.c_str());
         }
 
-        for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        for (int i = 1; i < GDOX_MAX_HARD_DISKS; i++)
         {
             if (disk.GetHardDisk(i)[0] != 0)
                 out.Set("drives", GameDescriptor::GetHardDiskKey(i),
@@ -799,18 +799,106 @@ bool emu_game_save_descriptor(const char* path, const char* program)
     return out.WriteFile(path);
 }
 
+bool emu_game_save_image_descriptor(const char* image, std::string* path, std::string* error)
+{
+    static const char* const k_unset[][2] = { { "game", "folder" }, { "game", "free_mb" }, { "run", "voodoo_exe" },
+        { "run", "voodoo_args" }, { "run", "program" }, { "run", "cwd" }, { "run", "setup_args" }, { "run", "on_exit" } };
+    static const char* const k_sections[4] = { "dos", "env", "config_sys", "autoexec" };
+    static const char* const k_lists[3] = { "floppy_a", "floppy_b", "cdrom" };
+    static const char* const k_mpus[GDOX_MPU_MODE_COUNT] = { "off", "on", "uart" };
+    *path = path_strip_extension(image) + ".gdox";
+
+    if (!emu_game_is_open())
+        return false;
+
+    if (MediaFile::Exists(path->c_str()))
+    {
+        *error = path_filename(*path) + " is already there";
+        return false;
+    }
+
+    GameDescriptor out = disk.GetDescriptor();
+    std::string folder = path_directory(image);
+
+    if (disk.UsesVoodooExe())
+    {
+        out.Set("run", "exe", disk.GetDescriptor().GetInfo().voodoo_exe.c_str());
+        out.Unset("run", "args");
+
+        if (!disk.GetDescriptor().GetInfo().voodoo_args.empty())
+            out.Set("run", "args", disk.GetDescriptor().GetInfo().voodoo_args.c_str());
+    }
+
+    for (size_t i = 0; i < sizeof(k_unset) / sizeof(k_unset[0]); i++)
+        out.Unset(k_unset[i][0], k_unset[i][1]);
+
+    for (int i = 0; i < 4; i++)
+        out.RemoveSection(k_sections[i]);
+
+    for (int i = 0; i < 3; i++)
+    {
+        const std::vector<std::string>& paths = i < 2 ? disk.GetFloppies(i) : disk.GetCdRoms();
+        std::string value;
+
+        for (size_t p = 0; p < paths.size(); p++)
+        {
+            if (relative_path(paths[p], config_temp_path) != paths[p])
+            {
+                *error = "The game's discs and floppies are in its ZIP";
+                return false;
+            }
+
+            value += (p > 0 ? ", " : "") + relative_path(paths[p], folder);
+        }
+
+        if (!value.empty())
+            out.Set("drives", k_lists[i], value.c_str());
+    }
+
+    for (int i = 1; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        if (disk.GetHardDisk(i)[0] != 0)
+            out.Set("drives", GameDescriptor::GetHardDiskKey(i), relative_path(disk.GetHardDisk(i), folder).c_str());
+    }
+
+    const GDOX_Machine_Config& machine = disk.GetMachine();
+    out.Set("game", "name", disk.GetName());
+    out.Set("game", "source", path_filename(image).c_str());
+    out.Set("machine", "ram_mb", std::to_string(machine.ram_size / (1024 * 1024)).c_str());
+    out.Set("machine", "voodoo", machine.voodoo ? "on" : "off");
+    out.Set("sound", "card", k_sound_cards[machine.sound_card].id);
+    out.Set("sound", "irq", std::to_string(machine.sound_irq).c_str());
+    out.Set("sound", "dma", std::to_string(machine.sound_dma).c_str());
+    out.Set("sound", "mpu", k_mpus[machine.mpu]);
+    out.Set("sound", "gus", machine.gus ? "on" : "off");
+    out.Set("input", "mouse", k_mice[machine.mouse].id);
+    out.SetKeys(emu_get_core()->GetKeyMap()->GetMerged());
+
+    if (out.WriteFile(path->c_str()))
+        return true;
+
+    *error = "Unable to write " + path_filename(*path);
+    return false;
+}
+
+bool emu_game_is_image(void)
+{
+    return emu_game_is_open() && disk.IsImage();
+}
+
 std::string emu_game_get_descriptor_location(void)
 {
     if (!emu_game_is_open())
         return std::string();
 
-    std::string folder = disk.IsWritingToSaves() ? std::string(disk.GetFolder()) : std::string(disk.GetSourcePath());
+    std::string folder = disk.IsImage() ? path_directory(disk.GetSourcePath()) :
+        disk.IsWritingToSaves() ? std::string(disk.GetFolder()) : std::string(disk.GetSourcePath());
     return path_join(folder, safe_file_name(disk.GetName(), "Game") + ".gdox");
 }
 
 bool emu_game_has_program(void)
 {
-    return emu_game_is_open() && !disk.GetDescriptor().GetInfo().exe.empty();
+    return emu_game_is_open() && (disk.IsImage() || !disk.GetDescriptor().GetInfo().exe.empty());
 }
 
 std::string emu_game_get_key_map_path(void)

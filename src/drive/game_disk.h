@@ -73,6 +73,7 @@ public:
         bool write_to_folder, const char* msdos_path, const char* ultrasnd_path, const char* glide_path = NULL);
     void Close();
     bool IsOpen() const;
+    bool IsImage() const;
     bool SaveOverrides(const GameDescriptor& overrides);
     bool ClearOverrides();
     const GameDescriptor& GetDescriptor() const;
@@ -99,6 +100,7 @@ public:
     std::string GetSourceSetting() const;
     const char* GetFolder() const;
     std::string GetSavesPath() const;
+    std::string GetWorkingPath() const;
     const char* GetSettingsPath() const;
     std::string GetKeysPath() const;
     bool IsWritingToSaves() const;
@@ -110,6 +112,7 @@ public:
     const std::vector<std::string>& GetCdRoms() const;
     const char* GetCdRomLabel() const;
     const char* GetHardDisk(int id) const;
+    const GDOX_Machine_Config& GetMachine() const;
     void GetMessages(std::vector<GameDisk_Message>* messages) const;
     const char* GetError() const;
     bool IsFromDatabase() const;
@@ -152,6 +155,7 @@ private:
     std::string m_overrides_path;
     std::string m_source;
     bool m_source_zip;
+    bool m_source_image;
     std::string m_zip_prefix;
     std::string m_extracted;
     std::string m_root;

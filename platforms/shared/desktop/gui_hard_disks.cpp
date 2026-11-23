@@ -59,6 +59,7 @@ static std::string image_path;
 static bool image_write_protected = false;
 static bool image_power_on = false;
 static int save_id = 0;
+static bool save_game = false;
 static std::string save_path;
 static std::string save_error;
 static std::string save_warning;
@@ -311,11 +312,12 @@ void gui_hard_disks_dialog_save(int id, const char* path)
     gui_save_async(save_task, save_done);
 }
 
-void gui_hard_disks_save(int id)
+void gui_hard_disks_save(int id, bool game)
 {
     Emu_HardDiskInfo info;
     emu_hard_disk_get_info(id, &info);
     std::string name = path_filename(trim_trailing_separators(info.path));
+    save_game = game;
 
     if (info.folder)
         name = info.game && (id == 0) ? emu_game_get_name() : path_strip_extension(name, ".zip");
@@ -345,7 +347,15 @@ static void save_done(void)
         return;
     }
 
-    gui_notify(gui_NotificationSuccess, ICON_MD_SAVE, "Hard disk image saved", save_path.c_str());
+    std::string detail = save_path;
+    std::string descriptor;
+    std::string error;
+
+    if (save_game && emu_game_is_open())
+        detail += "\n" + (emu_game_save_image_descriptor(save_path.c_str(), &descriptor, &error) ?
+            path_filename(descriptor) + " plays it with the game's settings" : "No .gdox saved: " + error);
+
+    gui_notify(gui_NotificationSuccess, ICON_MD_SAVE, "Hard disk image saved", detail.c_str());
 
     if (!save_warning.empty())
         gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "DOS was writing to the disk, save the image again",
@@ -396,7 +406,7 @@ static void disk_menu(int id)
     }
 
     if (ImGui::MenuItem("Save Image As...", NULL, false, gui_hard_disks_can_save(id)))
-        gui_hard_disks_save(id);
+        gui_hard_disks_save(id, false);
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("A copy of this disk as it is now, in a hard disk image.\nThe disk in use stays the same.");

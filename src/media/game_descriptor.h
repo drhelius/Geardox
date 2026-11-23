@@ -158,6 +158,7 @@ public:
     bool Set(const char* section, const char* key, const char* value);
     void SetKeys(const std::string& text);
     void Unset(const char* section, const char* key);
+    void RemoveSection(const char* section);
     bool Has(const char* section, const char* key) const;
     std::string Get(const char* section, const char* key) const;
     bool IsEmpty() const;

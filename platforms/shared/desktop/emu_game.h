@@ -85,6 +85,8 @@ EXTERN void emu_game_set_gamepad(int pad, const GDOX_Gamepad_Game& gamepad);
 EXTERN bool emu_game_has_overrides(void);
 EXTERN bool emu_game_reset_settings(void);
 EXTERN bool emu_game_save_descriptor(const char* path, const char* program);
+EXTERN bool emu_game_save_image_descriptor(const char* image, std::string* path, std::string* error);
+EXTERN bool emu_game_is_image(void);
 EXTERN std::string emu_game_get_descriptor_location(void);
 EXTERN bool emu_game_has_program(void);
 EXTERN const FolderDisk_Result& emu_game_get_last_write_back(void);

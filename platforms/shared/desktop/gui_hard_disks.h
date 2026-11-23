@@ -36,7 +36,7 @@ EXTERN void gui_hard_disks_dialog_attach(int id, const char* path);
 EXTERN void gui_hard_disks_dialog_create(int id, const char* path);
 EXTERN void gui_hard_disks_dialog_default(const char* path);
 EXTERN void gui_hard_disks_dialog_save(int id, const char* path);
-EXTERN void gui_hard_disks_save(int id);
+EXTERN void gui_hard_disks_save(int id, bool game);
 EXTERN bool gui_hard_disks_can_save(int id);
 EXTERN void gui_hard_disks_open_quit_confirmation(void);
 EXTERN void gui_hard_disks_confirm_recreate(int system);

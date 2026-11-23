@@ -171,13 +171,14 @@ bool emu_hard_disk_attach_prepared_source(int id, bool write_protected)
     return true;
 }
 
-void emu_hard_disk_prepare_image(int id, const char* path, bool write_protected)
+void emu_hard_disk_prepare_image(int id, const char* path, bool write_protected, const char* working_path)
 {
     if (!valid_id(id) || !IsValidPointer(path))
         return;
 
     SafeDelete(prepared_images[id]);
-    prepared_working_paths[id] = get_working_path(path);
+    prepared_working_paths[id] = IsValidPointer(working_path) && (working_path[0] != 0) ? std::string(working_path) :
+        get_working_path(path);
     prepared_write_protected[id] = write_protected;
     HardDiskImage* image = new HardDiskImage();
 
@@ -434,7 +435,7 @@ bool emu_hard_disk_save(int id, const char* path, std::string* error, std::strin
         FolderDisk* folder = core->GetFolderDisk(i);
 
         if (is_under(path, info.path) || is_under(path, info.pending_path) ||
-            is_under(path, get_working_path(info.path)) ||
+            is_under(path, game_disks[i] ? prepared_working_paths[i] : get_working_path(info.path)) ||
             (IsValidPointer(folder) && is_under(path, folder->GetDataFolder())))
         {
             *error = "This file or folder is part of a hard disk in use. Save the image somewhere else.";
@@ -469,6 +470,9 @@ bool emu_hard_disk_set_write_protected(int id, bool write_protected)
         return false;
 
     const char* path = info.pending ? info.pending_path : info.path;
+
+    if (info.game && !info.folder)
+        return emu_get_core()->AttachHardDisk(id, path, write_protected, prepared_working_paths[id].c_str());
 
     if (path[0] != 0)
         return emu_hard_disk_attach(id, path, write_protected);

@@ -41,6 +41,7 @@ static const char k_game_disk_msdos[] = "MS-DOS";
 static const char k_game_disk_settings[] = "Settings.ini";
 static const char k_game_disk_keys[] = "Keys.ini";
 static const char k_game_disk_base[] = ".base";
+static const char k_game_disk_working[] = "C.hdd";
 static const char k_game_disk_line_blanks[] = " \t\r\x1A";
 static const u8 k_game_disk_layer_system = 0;
 static const u8 k_game_disk_layer_game = 1;
@@ -333,6 +334,7 @@ GameDisk::GameDisk()
 {
     m_open = false;
     m_source_zip = false;
+    m_source_image = false;
     m_database = false;
     m_release_settings = false;
     m_withheld_settings = false;
@@ -686,10 +688,6 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
 
     const GDOX_Game_Info& base = m_base.GetInfo();
 
-    if (!m_base.Has("game", "folder"))
-        return Fail("%s: no folder in [game], the game's folder on C: such as C:\\GAME, or C:\\ for the root",
-            path_filename(found.inner.empty() ? found.path : found.inner).c_str());
-
     if (!m_database && base.source.empty())
         m_source = found.inner.empty() ? m_base_directory : trim_trailing_separators(found.path);
     else if (!m_database)
@@ -707,10 +705,16 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
         m_source = is_absolute_path(source) ? source : find_host(m_base_directory, source);
     }
 
-    if (!MediaFile::Exists(m_source.c_str()))
-        return Fail("The game's folder or ZIP isn't there: %s", m_source.c_str());
-
     m_source_zip = ends_with_no_case(m_source.c_str(), ".zip");
+    m_source_image = HardDiskImage::IsImage(m_source.c_str()) && !MediaFile::IsDirectory(m_source.c_str());
+
+    if (!m_source_image && !m_base.Has("game", "folder"))
+        return Fail("%s: no folder in [game], the game's folder on C: such as C:\\GAME, or C:\\ for the root",
+            path_filename(found.inner.empty() ? found.path : found.inner).c_str());
+
+    if (!MediaFile::Exists(m_source.c_str()))
+        return Fail("The game's %s isn't there: %s", m_source_image ? "hard disk image" : "folder or ZIP", m_source.c_str());
+
     std::string source = m_zip_prefix.empty() ? m_source : m_source + "|" + m_zip_prefix;
     m_folder = FolderDisk::GetDataFolder(m_save_directory.c_str(), base.name, crc_key(source + "|" + base.name));
 
@@ -731,7 +735,7 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     m_descriptor = m_base;
     m_descriptor.Merge(m_overrides);
     m_write_saves = m_source_zip || !write_to_folder;
-    m_folder_read_only = !m_write_saves && !FolderDisk::IsWritable(m_source);
+    m_folder_read_only = !m_write_saves && !m_source_image && !FolderDisk::IsWritable(m_source);
     m_write_saves = m_write_saves || m_folder_read_only;
     m_open = true;
     return true;
@@ -753,6 +757,7 @@ void GameDisk::Close()
     m_overrides_path.clear();
     m_source.clear();
     m_source_zip = false;
+    m_source_image = false;
     m_zip_prefix.clear();
     m_root.clear();
     m_layout.clear();
@@ -856,6 +861,11 @@ bool GameDisk::IsOpen() const
     return m_open;
 }
 
+bool GameDisk::IsImage() const
+{
+    return m_source_image;
+}
+
 const GameDescriptor& GameDisk::GetDescriptor() const
 {
     return m_descriptor;
@@ -923,6 +933,9 @@ bool GameDisk::HasMSDOS() const
 
 const char* GameDisk::GetSystemName() const
 {
+    if (m_source_image)
+        return "DOS in its image";
+
     if (GetSystem() != GDOX_GAME_SYSTEM_MSDOS)
         return k_freedos_version;
 
@@ -1151,6 +1164,12 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
 
     m_machine = machine;
     m_has_machine = true;
+
+    if (m_source_image)
+    {
+        m_hard_disks[0] = m_source;
+        return true;
+    }
 
     if (!LoadSystem())
     {
@@ -1527,7 +1546,16 @@ const char* GameDisk::GetFolder() const
 
 std::string GameDisk::GetSavesPath() const
 {
+    if (m_source_image)
+        return GetWorkingPath().empty() ? path_directory(m_source) : m_folder;
+
     return m_write_saves ? path_join(m_folder, k_game_disk_saves) : m_source;
+}
+
+std::string GameDisk::GetWorkingPath() const
+{
+    bool working = m_source_image && (m_write_saves || ends_with_no_case(m_source.c_str(), ".chd"));
+    return working ? path_join(m_folder, k_game_disk_working) : std::string();
 }
 
 const char* GameDisk::GetSettingsPath() const
@@ -1585,9 +1613,14 @@ const char* GameDisk::GetHardDisk(int id) const
     return (id >= 0) && (id < GDOX_MAX_HARD_DISKS) ? m_hard_disks[id].c_str() : "";
 }
 
+const GDOX_Machine_Config& GameDisk::GetMachine() const
+{
+    return m_machine;
+}
+
 bool GameDisk::NeedsRestart(const GDOX_Machine_Config& machine) const
 {
-    return m_has_machine && ((GetProgram() != m_built_program) || ((machine.gus != 0) != (m_machine.gus != 0)) ||
+    return m_has_machine && !m_source_image && ((GetProgram() != m_built_program) || ((machine.gus != 0) != (m_machine.gus != 0)) ||
         ((machine.voodoo != 0) != (m_machine.voodoo != 0)) || (GetConfigSys(machine) != m_config_base) ||
         (GetBatch(machine) != m_autoexec_base));
 }

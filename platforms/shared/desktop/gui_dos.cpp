@@ -117,7 +117,8 @@ static void menu_game(bool loading)
     bool open = emu_game_is_open();
     int source = emu_game_get_source("dos", "system");
     bool pushed = gui_push_game_source_color(source);
-    bool menu = ImGui::BeginMenu("Game", open && !loading);
+    bool image = emu_game_is_image();
+    bool menu = ImGui::BeginMenu("Game", open && !loading && !image);
 
     if (pushed)
         ImGui::PopStyleColor();
@@ -125,7 +126,8 @@ static void menu_game(bool loading)
     if (!menu)
     {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", open ? "The DOS the game boots.\nChanging it saves, closes and reopens the game." :
+            ImGui::SetTooltip("%s", image ? "This game boots the DOS in its hard disk image." :
+                open ? "The DOS the game boots.\nChanging it saves, closes and reopens the game." :
                 "Open a game to choose its DOS.");
 
         return;

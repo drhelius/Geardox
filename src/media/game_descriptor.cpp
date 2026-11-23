@@ -654,6 +654,32 @@ void GameDescriptor::Unset(const char* section, const char* key)
     Build();
 }
 
+void GameDescriptor::RemoveSection(const char* section)
+{
+    std::string prefix = std::string(section) + ".";
+    std::map<std::string, std::string>::iterator it = m_values.lower_bound(prefix);
+
+    while ((it != m_values.end()) && (it->first.compare(0, prefix.size(), prefix) == 0))
+        m_values.erase(it++);
+
+    if (strcmp(section, "env") == 0)
+        m_env_order.clear();
+    else if (strcmp(section, "keys") == 0)
+        m_keys_order.clear();
+    else if (strcmp(section, "config_sys") == 0)
+    {
+        m_config_sys.clear();
+        m_has_config_sys = false;
+    }
+    else if (strcmp(section, "autoexec") == 0)
+    {
+        m_autoexec.clear();
+        m_has_autoexec = false;
+    }
+
+    Build();
+}
+
 bool GameDescriptor::Has(const char* section, const char* key) const
 {
     return m_values.count(std::string(section) + "." + key) != 0;

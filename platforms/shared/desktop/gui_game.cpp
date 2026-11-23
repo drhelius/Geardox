@@ -238,7 +238,7 @@ static void menu_files(bool open)
     GameDisk* disk = emu_game_get_disk();
 
     if (ImGui::MenuItem("Show Game Folder"))
-        show_folder(disk->GetSourcePath());
+        show_folder(disk->IsImage() ? path_directory(disk->GetSourcePath()).c_str() : disk->GetSourcePath());
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", disk->GetSourcePath());
@@ -247,7 +247,8 @@ static void menu_files(bool open)
         show_folder(emu_game_get_saves_path());
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("Where the game's changes are saved on close:\n%s", emu_game_get_saves_path());
+        ImGui::SetTooltip(disk->IsImage() ? "Where the image with the game's changes is:\n%s" :
+            "Where the game's changes are saved on close:\n%s", emu_game_get_saves_path());
 
     ImGui::Separator();
 
@@ -258,10 +259,10 @@ static void menu_files(bool open)
         ImGui::SetTooltip("Saves the game's .gdox with your changes and key map\nin it, then opens the game from it.");
 
     if (ImGui::MenuItem("Save Hard Disk Image...", NULL, false, gui_hard_disks_can_save(0)))
-        gui_hard_disks_save(0);
+        gui_hard_disks_save(0, true);
 
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip("A copy of the game's C: as it is now, with its DOS,\nin a hard disk image that boots on its own.");
+        ImGui::SetTooltip("A copy of the game's C: as it is now in an image,\nand a .gdox that plays it with the game's settings.");
 
     if (ImGui::MenuItem("Forget This Game's Changes", NULL, false, emu_game_has_overrides()))
     {

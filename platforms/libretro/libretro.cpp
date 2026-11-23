@@ -3478,7 +3478,10 @@ static bool game_open(const char* path, bool* game)
     for (size_t i = 0; i < messages.size(); i++)
         game_message(messages[i]);
 
-    if (!core->AttachHardDisk(0, game_disk.TakeDisk()))
+    bool attached_c = game_disk.IsImage() ? core->AttachHardDisk(0, game_disk.GetHardDisk(0), false,
+        game_disk.GetWorkingPath().c_str()) : core->AttachHardDisk(0, game_disk.TakeDisk());
+
+    if (!attached_c)
     {
         log_cb(RETRO_LOG_ERROR, "Unable to attach the game's disk %s\n", game_disk.GetSourcePath());
         game_disk.Close();
@@ -3607,6 +3610,9 @@ static void game_end(void)
 static void log_write_back(void)
 {
     const FolderDisk_Result& r = core->GetHardDiskResult(0);
+
+    if (game_disk.IsImage())
+        return;
 
     if (!r.done && !r.refused && (r.failed == 0))
         return;

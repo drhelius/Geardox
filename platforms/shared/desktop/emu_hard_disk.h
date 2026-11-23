@@ -66,7 +66,7 @@ EXTERN bool emu_hard_disk_is_source_attached(const char* path);
 EXTERN void emu_hard_disk_prepare_source(const char* path);
 EXTERN const Emu_HardDiskSource* emu_hard_disk_get_prepared_source(void);
 EXTERN bool emu_hard_disk_attach_prepared_source(int id, bool write_protected);
-EXTERN void emu_hard_disk_prepare_image(int id, const char* path, bool write_protected);
+EXTERN void emu_hard_disk_prepare_image(int id, const char* path, bool write_protected, const char* working_path = NULL);
 EXTERN bool emu_hard_disk_attach_prepared_image(int id, bool game);
 EXTERN int emu_hard_disk_get_default(void);
 EXTERN std::string emu_hard_disk_get_default_path(void);

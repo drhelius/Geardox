@@ -4722,7 +4722,7 @@ json DebugAdapter::FlushHardDisks()
     return {{"success", true}};
 }
 
-json DebugAdapter::SaveHardDisk(int id, const std::string& file_path)
+json DebugAdapter::SaveHardDisk(int id, const std::string& file_path, bool descriptor)
 {
     if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS))
         return {{"error", "id must be 0-3"}};
@@ -4738,8 +4738,12 @@ json DebugAdapter::SaveHardDisk(int id, const std::string& file_path)
     if (path_exists(path))
         return {{"error", "A file already exists at " + file_path}};
 
+    if (descriptor && (!emu_game_is_open() || (id != 0)))
+        return {{"error", "descriptor needs an open game and its C:, id 0"}};
+
     std::string error;
     std::string warning;
+    std::string descriptor_path;
 
     if (!emu_hard_disk_save(id, path, &error, &warning))
         return {{"error", "Failed to save the hard disk image: " + error}};
@@ -4749,6 +4753,11 @@ json DebugAdapter::SaveHardDisk(int id, const std::string& file_path)
 
     if (!warning.empty())
         result["warning"] = warning;
+
+    if (descriptor && emu_game_save_image_descriptor(path, &descriptor_path, &error))
+        result["descriptor_path"] = descriptor_path;
+    else if (descriptor)
+        result["descriptor_error"] = error;
 
     return result;
 }
@@ -5748,7 +5757,8 @@ json DebugAdapter::GetGameInfo()
         {"recovered", disk->GetRecovery().done},
         {"refused", disk->GetRecovery().refused},
         {"left_out", disk->GetLeftOut()},
-        {"saves_to", disk->IsWritingToSaves() ? "save_folder" : "game_folder"},
+        {"saves_to", disk->IsImage() ? (disk->GetWorkingPath().empty() ? "image" : "save_folder") :
+            (disk->IsWritingToSaves() ? "save_folder" : "game_folder")},
         {"saves", disk->GetSavesPath()},
         {"state_mismatch", IsValidPointer(m_core->GetFolderDisk(0)) && m_core->GetFolderDisk(0)->IsQuarantined()},
         {"last_write_back", {{"done", last.done}, {"refused", last.refused}, {"written", last.written},

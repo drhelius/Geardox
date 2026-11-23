@@ -1740,6 +1740,11 @@ json McpServer::BuildToolList()
                 {"file_path", {
                     {"type", "string"},
                     {"description", "Absolute path of the new image, .hdd or .img. An existing file is never replaced."}
+                }},
+                {"descriptor", {
+                    {"type", "boolean"},
+                    {"description", "With id 0 and a game open, also save a .gdox next to the image that plays it with the "
+                        "game's settings, never replacing a file. Default: false."}
                 }}
             }},
             {"required", json::array({"id", "file_path"})},
@@ -3426,7 +3431,8 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     }
     else if (normalizedTool == "save_hard_disk")
     {
-        return m_debugAdapter.SaveHardDisk(arguments.value("id", -1), arguments.value("file_path", ""));
+        return m_debugAdapter.SaveHardDisk(arguments.value("id", -1), arguments.value("file_path", ""),
+            arguments.value("descriptor", false));
     }
     else if (normalizedTool == "read_hard_disk_sector")
     {
