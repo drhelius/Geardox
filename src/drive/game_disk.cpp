@@ -1068,6 +1068,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
     Discard();
     m_error.clear();
     m_recovery = FolderDisk_Result();
+    m_recoveries.clear();
     m_merged.clear();
     m_startup_edits = false;
     m_left_out = 0;
@@ -1160,6 +1161,8 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
             Discard();
             return Fail("%s", error.c_str());
         }
+
+        m_recoveries.push_back(m_hard_disk_sources[i]->GetRecovery());
     }
 
     m_machine = machine;
@@ -1195,8 +1198,6 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         }
         else if (!disk->Recover(tree, layers, m_folder))
             ok = Fail("%s", disk->GetError());
-
-        m_recovery = disk->GetRecovery();
     }
 
     if (ok)
@@ -1218,6 +1219,9 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
         Discard();
         return false;
     }
+
+    m_recovery = disk->GetRecovery();
+    m_recoveries.insert(m_recoveries.begin(), m_recovery);
 
     if (!m_voodoo_note.title.empty())
         Log("%s: %s%s%s", GetName(), m_voodoo_note.title.c_str(), m_voodoo_note.detail.empty() ? "" : ", ",
@@ -1630,19 +1634,26 @@ void GameDisk::GetMessages(std::vector<GameDisk_Message>* messages) const
     GameDisk_Message message;
     messages->clear();
 
-    if (m_recovery.done)
+    for (size_t i = 0; i < m_recoveries.size(); i++)
     {
-        message.kind = GAME_DISK_MESSAGE_RECOVERED;
-        message.title = "The last session didn't end, its changes were saved";
-        message.detail = format_string("%u files written back", m_recovery.written);
-        messages->push_back(message);
-    }
+        const FolderDisk_Result& r = m_recoveries[i];
+        const char* title = FolderDisk::DescribeRecovery(r);
 
-    if (m_recovery.refused)
-    {
-        message.kind = GAME_DISK_MESSAGE_REFUSED;
-        message.title = "The last session's disk didn't add up, its changes weren't saved";
-        message.detail = m_recovery.notes.empty() ? std::string() : m_recovery.notes[0];
+        if (!IsValidPointer(title))
+            continue;
+
+        message.kind = r.done ? GAME_DISK_MESSAGE_RECOVERED : GAME_DISK_MESSAGE_REFUSED;
+        message.title = title;
+
+        if (r.done)
+            message.detail = r.conflicts != 0 ? format_string("%u files in Conflicts", r.conflicts) :
+                format_string("%u files written back", r.written);
+        else
+            message.detail = r.notes.empty() ? std::string() : r.notes[0];
+
+        if (r.path != m_source)
+            message.detail = path_filename(r.path) + ": " + message.detail;
+
         messages->push_back(message);
     }
 

@@ -925,5 +925,9 @@ time the game opens.
 rest of that session goes there, under its DOS paths, and the game's folder stays as it was.
 
 While the game runs, `Disk` holds what DOS has written so far. If Geardox stops without closing the game, it writes
-those changes out the next time the game opens, and says so. If they don't add up, it keeps them as
-`Disk/Changes.refused`, reports the problem and starts from the game's folder as it is.
+those changes out the next time the game opens, and says so.
+
+If the drive doesn't add up, such as when you close the game while DOS is saving a file, Geardox writes nothing, says
+so and keeps the drive as it is. The next time the game opens it goes on from that same drive, so a save state from
+then still loads, and its changes are written when it closes. If the game's folder or its startup files changed in
+between, Geardox keeps those changes as `Disk/Changes.refused` and starts from the game's folder as it is.

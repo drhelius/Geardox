@@ -193,6 +193,7 @@ private:
     FolderDisk* m_disk;
     FolderDisk* m_hard_disk_sources[GDOX_MAX_HARD_DISKS];
     FolderDisk_Result m_recovery;
+    std::vector<FolderDisk_Result> m_recoveries;
     u32 m_left_out;
     std::vector<std::string> m_floppies[2];
     std::vector<std::string> m_cdroms;

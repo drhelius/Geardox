@@ -32,10 +32,13 @@ static const u32 k_folder_disk_slot = 4 + k_folder_disk_sector;
 static const u32 k_folder_disk_layout_magic = 0x4C584447;
 static const u32 k_folder_disk_layout_version = 2;
 static const u32 k_folder_disk_layout_header = 36;
+static const u32 k_folder_disk_session_size = 20;
+static const u32 k_folder_disk_session_quarantine = 0x01;
 static const char k_folder_disk_folder[] = "Disk";
 static const char k_folder_disk_changes[] = "Changes";
 static const char k_folder_disk_layout[] = "Layout";
 static const char k_folder_disk_lock[] = "Lock";
+static const char k_folder_disk_session[] = "Session";
 static const char k_folder_disk_saves[] = "Saves";
 static const char k_folder_disk_conflicts[] = "Conflicts";
 static const char k_folder_disk_base[] = ".base";
@@ -219,6 +222,7 @@ FolderDisk::FolderDisk()
     m_end_write = 0;
     m_locked = false;
     m_quarantine = false;
+    m_left = false;
     m_resumed = true;
     m_volume.blocks = 0;
     m_recovery = FolderDisk_Result();
@@ -323,8 +327,11 @@ bool FolderDisk::Recover(FatImage* tree, const std::vector<FolderDisk_Layer>& la
         return false;
     }
 
-    Log("The last session of %s didn't end, writing it back", m_data.c_str());
+    Log("The last session of %s wasn't written back, trying now", m_data.c_str());
     FolderDisk_Result recovery = FolderDisk_Result();
+    u64 session = 0;
+    u64 write = 0;
+    LoadSession(&m_quarantine, &session, &write);
     AddItems();
     bool ok = LoadLayout(false) && LoadChanges();
 
@@ -334,22 +341,20 @@ bool FolderDisk::Recover(FatImage* tree, const std::vector<FolderDisk_Layer>& la
         recovery.notes.push_back("The last session's layout can't be read: " + GetLayoutPath());
     }
     else
-        ok = WriteBack(0, 0, &recovery);
+        ok = WriteBack(session, write, &recovery);
 
     SafeDelete(m_changes);
-    std::string changes = GetChangesPath();
 
-    if (recovery.refused)
-    {
-        MediaFile::RemoveFile((changes + ".refused").c_str());
-        MediaFile::RenameFile(changes.c_str(), (changes + ".refused").c_str());
-        Log("The last session of %s doesn't add up, its changes are kept as %s.refused", m_data.c_str(), changes.c_str());
-    }
+    if (recovery.refused && m_quarantine)
+        SetAside();
     else if (ok)
-        MediaFile::RemoveFile(changes.c_str());
-    else
+    {
+        MediaFile::RemoveFile(GetChangesPath().c_str());
+        MediaFile::RemoveFile(GetSessionPath().c_str());
+    }
+    else if (!recovery.refused)
         Fail("The last session's changes can't all be written back: %s",
-            recovery.notes.empty() ? changes.c_str() : recovery.notes.back().c_str());
+            recovery.notes.empty() ? GetChangesPath().c_str() : recovery.notes.back().c_str());
 
     std::string error = m_error;
     Clear();
@@ -364,6 +369,7 @@ bool FolderDisk::Open(FatImage* tree, const std::vector<FolderDisk_Layer>& layer
     FolderDisk_Result recovery = m_recovery;
     Clear();
     m_recovery = recovery;
+    m_recovery.path = path;
     m_tree = tree;
     m_layers = layers;
     m_data = data_folder;
@@ -375,12 +381,27 @@ bool FolderDisk::Open(FatImage* tree, const std::vector<FolderDisk_Layer>& layer
     if (!TakeLock())
         return Fail("This disk is open in another Geardox: %s", GetLockPath().c_str());
 
-    if (HasSession(m_data))
-        return Fail("The last session's changes weren't written back: %s", GetChangesPath().c_str());
-
     AddItems();
+    bool layout = LoadLayout(true);
 
-    if (LoadLayout(true))
+    if (HasSession(m_data))
+    {
+        if (layout && LoadChanges())
+        {
+            bool quarantine = false;
+            LoadSession(&quarantine, &m_end_session, &m_end_write);
+            m_left = true;
+            m_recovery.kept = true;
+            Log("The last session's disk of %s is used as it was left", m_path.c_str());
+            return true;
+        }
+
+        SetAside();
+    }
+
+    MediaFile::RemoveFile(GetSessionPath().c_str());
+
+    if (layout)
         return true;
 
     u64 size = m_tree->GetRequiredSize(free_size);
@@ -431,17 +452,22 @@ bool FolderDisk::Close(u64 session, u64 write, bool resumed, FolderDisk_Result* 
     }
 
     SafeDelete(m_changes);
-    std::string changes = GetChangesPath();
+    result->path = m_path;
 
-    if (result->refused)
-    {
-        MediaFile::RemoveFile((changes + ".refused").c_str());
-        MediaFile::RenameFile(changes.c_str(), (changes + ".refused").c_str());
-    }
+    if (result->refused && m_quarantine)
+        SetAside();
     else if (ok)
-        MediaFile::RemoveFile(changes.c_str());
-    else
-        Log("The changes of %s stay in %s, the next launch writes them back", m_path.c_str(), changes.c_str());
+    {
+        MediaFile::RemoveFile(GetChangesPath().c_str());
+        MediaFile::RemoveFile(GetSessionPath().c_str());
+    }
+    else if (changed)
+    {
+        result->kept = true;
+        SaveSession(session, write);
+        Log("The changes of %s stay in %s, the next launch tries again: %s", m_path.c_str(), GetChangesPath().c_str(),
+            result->notes.empty() ? "" : result->notes.back().c_str());
+    }
 
     Clear();
     return ok;
@@ -458,6 +484,8 @@ void FolderDisk::SetQuarantine()
         return;
 
     m_quarantine = true;
+    m_left = false;
+    SaveSession(0, 0);
     Log("A state %s can't go back to was loaded, its changes go to %s", m_path.c_str(), GetConflictsFolder().c_str());
 }
 
@@ -491,6 +519,18 @@ std::string FolderDisk::GetConflictsFolder() const
 const FolderDisk_Result& FolderDisk::GetRecovery() const
 {
     return m_recovery;
+}
+
+const char* FolderDisk::DescribeRecovery(const FolderDisk_Result& recovery)
+{
+    if (recovery.done)
+        return "The last session's changes were saved";
+
+    if (recovery.refused)
+        return recovery.kept ? "The last session's disk didn't add up, it goes on as it was left" :
+            "The last session's disk didn't add up, its changes weren't saved";
+
+    return NULL;
 }
 
 const char* FolderDisk::GetError() const
@@ -531,6 +571,11 @@ bool FolderDisk::Read(u32 lba, u8* buffer, u32 count)
 
 bool FolderDisk::Store(u32 lba, const u8* buffer)
 {
+    if (m_left)
+        MediaFile::RemoveFile(GetSessionPath().c_str());
+
+    m_left = false;
+
     if (!IsValidPointer(m_changes))
     {
         m_changes = MediaFile::OpenNewFile(GetChangesPath().c_str());
@@ -688,6 +733,7 @@ void FolderDisk::Clear()
     m_end_session = 0;
     m_end_write = 0;
     m_quarantine = false;
+    m_left = false;
     m_resumed = true;
     m_recovery = FolderDisk_Result();
     m_error.clear();
@@ -998,6 +1044,37 @@ void FolderDisk::GetRest(const FatImage& disk, const std::vector<FatImage_Extent
     }
 }
 
+bool FolderDisk::SaveSession(u64 session, u64 write)
+{
+    u8 data[k_folder_disk_session_size];
+    write_u32_le(data, m_quarantine ? k_folder_disk_session_quarantine : 0);
+    write_u64_le(data + 4, session);
+    write_u64_le(data + 12, write);
+    return MediaFile::WriteFileAtomic(GetSessionPath().c_str(), data, sizeof(data));
+}
+
+void FolderDisk::LoadSession(bool* quarantine, u64* session, u64* write) const
+{
+    std::string data;
+    bool valid = MediaFile::ReadFile(GetSessionPath().c_str(), k_folder_disk_session_size, &data, true) &&
+        (data.size() == k_folder_disk_session_size);
+    const u8* bytes = (const u8*)data.data();
+    *quarantine = valid && ((read_u32_le(bytes) & k_folder_disk_session_quarantine) != 0);
+    *session = valid ? read_u64_le(bytes + 4) : 0;
+    *write = valid ? read_u64_le(bytes + 12) : 0;
+}
+
+void FolderDisk::SetAside()
+{
+    std::string changes = GetChangesPath();
+    SafeDelete(m_changes);
+    m_slots.clear();
+    MediaFile::RemoveFile((changes + ".refused").c_str());
+    MediaFile::RenameFile(changes.c_str(), (changes + ".refused").c_str());
+    MediaFile::RemoveFile(GetSessionPath().c_str());
+    Log("The changes in %s can't be used, they're kept as %s.refused", m_data.c_str(), changes.c_str());
+}
+
 bool FolderDisk::LoadChanges()
 {
     m_changes = MediaFile::OpenFile(GetChangesPath().c_str(), true);
@@ -1276,4 +1353,9 @@ std::string FolderDisk::GetLayoutPath() const
 std::string FolderDisk::GetLockPath() const
 {
     return path_join(path_join(m_data, k_folder_disk_folder), k_folder_disk_lock);
+}
+
+std::string FolderDisk::GetSessionPath() const
+{
+    return path_join(path_join(m_data, k_folder_disk_folder), k_folder_disk_session);
 }

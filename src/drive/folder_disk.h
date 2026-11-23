@@ -40,11 +40,13 @@ struct FolderDisk_Result
 {
     bool done;
     bool refused;
+    bool kept;
     u32 written;
     u32 deleted;
     u32 directories;
     u32 conflicts;
     u32 failed;
+    std::string path;
     std::vector<std::string> notes;
 };
 
@@ -90,6 +92,7 @@ public:
     const char* GetDataFolder() const;
     std::string GetConflictsFolder() const;
     const FolderDisk_Result& GetRecovery() const;
+    static const char* DescribeRecovery(const FolderDisk_Result& recovery);
     const char* GetError() const;
     u32 GetLeftOut() const;
     std::string GetHostPath(const std::string& dos_path) const;
@@ -108,6 +111,9 @@ private:
     bool LoadLayout(bool strict);
     bool SaveLayout(const FatImage& disk, u64 session, u64 write);
     void GetRest(const FatImage& disk, const std::vector<FatImage_Extent>& extents, bool old, std::vector<FatImage_Extent>* rest);
+    bool SaveSession(u64 session, u64 write);
+    void LoadSession(bool* quarantine, u64* session, u64* write) const;
+    void SetAside();
     bool LoadChanges();
     bool WriteBack(u64 session, u64 write, FolderDisk_Result* result);
     bool Route(const std::string& path, std::map<std::string, FolderDisk_Item>* items, FolderDisk_Item* item) const;
@@ -115,6 +121,7 @@ private:
     std::string GetChangesPath() const;
     std::string GetLayoutPath() const;
     std::string GetLockPath() const;
+    std::string GetSessionPath() const;
 
 private:
     FatImage* m_tree;
@@ -131,6 +138,7 @@ private:
     u64 m_end_write;
     bool m_locked;
     bool m_quarantine;
+    bool m_left;
     bool m_resumed;
     FolderDisk_Result m_recovery;
     std::string m_error;

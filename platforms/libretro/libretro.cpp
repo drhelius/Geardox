@@ -3406,7 +3406,7 @@ static void game_message(const GameDisk_Message& message)
             show_message(text, 1, RETRO_LOG_INFO);
             break;
         case GAME_DISK_MESSAGE_REFUSED:
-            log_cb(RETRO_LOG_ERROR, "The last session's disk didn't add up, kept as %s\n", message.detail.c_str());
+            log_cb(RETRO_LOG_ERROR, "%s: %s\n", message.title.c_str(), message.detail.c_str());
             show_message(message.title.c_str(), 3, RETRO_LOG_ERROR);
             break;
         case GAME_DISK_MESSAGE_VOODOO:
