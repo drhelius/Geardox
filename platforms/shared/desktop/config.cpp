@@ -29,6 +29,7 @@
 
 #define CONFIG_IMPORT
 #include "config.h"
+#include "common/process_utils.h"
 
 #define MINI_CASE_SENSITIVE
 #include "ini.h"
@@ -62,8 +63,6 @@ static char* get_portable_path(bool force_portable);
 static bool check_portable(const char* base_path);
 static void remove_stale_temp_folders(const char* temp_root_path);
 static SDL_EnumerationResult SDLCALL collect_directory_entry(void* userdata, const char* dirname, const char* fname);
-static bool is_process_running(unsigned long pid);
-static unsigned long get_process_id(void);
 static bool get_setting(const char* group, const char* key, std::string* value);
 static bool parse_int_string(const std::string& value, int* result);
 static bool parse_float_string(const std::string& value, float* result);
@@ -552,31 +551,6 @@ static SDL_EnumerationResult SDLCALL collect_directory_entry(void* userdata, con
     UNUSED(dirname);
     ((std::vector<std::string>*)userdata)->push_back(fname);
     return SDL_ENUM_CONTINUE;
-}
-
-static bool is_process_running(unsigned long pid)
-{
-#if defined(_WIN32)
-    HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, (DWORD)pid);
-
-    if (process == NULL)
-        return GetLastError() == ERROR_ACCESS_DENIED;
-
-    bool running = WaitForSingleObject(process, 0) == WAIT_TIMEOUT;
-    CloseHandle(process);
-    return running;
-#else
-    return (kill((pid_t)pid, 0) == 0) || (errno == EPERM);
-#endif
-}
-
-static unsigned long get_process_id(void)
-{
-#if defined(_WIN32)
-    return (unsigned long)GetCurrentProcessId();
-#else
-    return (unsigned long)getpid();
-#endif
 }
 
 static bool get_setting(const char* group, const char* key, std::string* value)

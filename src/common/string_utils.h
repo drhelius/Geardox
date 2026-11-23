@@ -466,6 +466,19 @@ inline char printable_char(u8 c, char fallback = '.')
     return ((c >= 0x20) && (c <= 0x7E)) ? (char)c : fallback;
 }
 
+inline std::string safe_file_name(const std::string& name, const char* fallback)
+{
+    std::string result;
+
+    for (size_t i = 0; i < name.size(); i++)
+    {
+        char c = name[i];
+        result += ((u8)c < 0x20) || (strchr("<>:\"/\\|?*", c) != NULL) ? '_' : c;
+    }
+
+    return result.empty() ? std::string(fallback) : result;
+}
+
 inline std::string vformat_string(const char* format, va_list args)
 {
     char buffer[256];

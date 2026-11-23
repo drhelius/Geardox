@@ -204,8 +204,7 @@ static void split_list(const std::string& text, std::vector<std::string>* items)
 // C:\ for the root, or DOS names from it with \ or /: C:\GAMES\ORION. FREEDOS and TEMP are the system's
 static bool check_dos_dir(const std::string& value, std::string* normalized)
 {
-    std::string text = to_upper_ascii(trim_chars(value));
-    std::replace(text.begin(), text.end(), '/', '\\');
+    std::string text = path_back_slashes(to_upper_ascii(trim_chars(value)));
 
     if ((text.compare(0, 2, "C:") != 0) || ((text.size() > 2) && (text[2] != '\\')))
         return false;

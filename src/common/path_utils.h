@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include <string>
 #include "string_utils.h"
 
@@ -196,6 +197,20 @@ inline std::string trim_trailing_separators(const std::string& path)
     while ((result.size() > 1) && ((result[result.size() - 1] == '/') || (result[result.size() - 1] == '\\')))
         result.resize(result.size() - 1);
 
+    return result;
+}
+
+inline std::string path_forward_slashes(const std::string& path)
+{
+    std::string result(path);
+    std::replace(result.begin(), result.end(), '\\', '/');
+    return result;
+}
+
+inline std::string path_back_slashes(const std::string& path)
+{
+    std::string result(path);
+    std::replace(result.begin(), result.end(), '/', '\\');
     return result;
 }
 

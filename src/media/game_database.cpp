@@ -34,9 +34,7 @@ typedef std::map<std::string, const GameDatabase_File*> GameDatabase_View;
 
 static std::string upper_path(const std::string& path)
 {
-    std::string out = to_upper_ascii(path);
-    std::replace(out.begin(), out.end(), '\\', '/');
-    return out;
+    return path_forward_slashes(to_upper_ascii(path));
 }
 
 static bool ends_with_path(const std::string& path, const std::string& tail)
