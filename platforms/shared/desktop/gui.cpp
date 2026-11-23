@@ -57,6 +57,7 @@
 static bool error_window_active = false;
 static char error_message[4096] = "";
 static bool loading_rom_active = false;
+static bool loading_is_save = false;
 static bool loading_game = false;
 static void (*loading_done)(void) = NULL;
 static std::string open_path;
@@ -423,6 +424,26 @@ bool gui_load_async(void (*task)(void), void (*done)(void))
     return true;
 }
 
+bool gui_save_async(void (*task)(void), void (*done)(void))
+{
+    bool paused = emu_is_paused();
+
+    if (!gui_load_async(task, done))
+        return false;
+
+    loading_is_save = true;
+
+    if (paused)
+        emu_pause();
+
+    return true;
+}
+
+bool gui_is_saving(void)
+{
+    return loading_is_save;
+}
+
 static void open_task(void)
 {
     const char* path = open_path.c_str();
@@ -631,6 +652,7 @@ bool gui_finish_loading_rom(void)
         return false;
 
     loading_rom_active = false;
+    loading_is_save = false;
     gui_dialog_in_use = false;
     bool success = emu_finish_media_loading();
 
@@ -1119,7 +1141,7 @@ static void show_loading_popup(void)
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
-        ImGui::Text("LOADING...");
+        ImGui::TextUnformatted(loading_is_save ? "SAVING..." : "LOADING...");
 
         ImGui::PopFont();
         ImGui::EndPopup();

@@ -47,6 +47,7 @@ EXTERN void gui_file_dialog_import_ultrasnd(void);
 EXTERN void gui_file_dialog_import_ultrasnd_folder(void);
 EXTERN void gui_file_dialog_import_glide(void);
 EXTERN void gui_file_dialog_create_hard_disk(int id);
+EXTERN void gui_file_dialog_save_hard_disk(int id, const char* name);
 EXTERN void gui_file_dialog_choose_screenshot_path(void);
 EXTERN void gui_file_dialog_choose_video_recording_path(void);
 EXTERN void gui_file_dialog_save_screenshot(void);

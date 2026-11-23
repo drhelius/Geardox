@@ -28,6 +28,7 @@
 #include "emu_dos.h"
 #include "emu_floppy.h"
 #include "drive/dos_disk.h"
+#include "drive/fat_image.h"
 #include "drive/folder_disk.h"
 #include "drive/hard_disk_image.h"
 #include "media/game_descriptor.h"
@@ -54,6 +55,7 @@ static int get_builtin_system(const char* path);
 static bool make_builtin(int system, bool replace);
 static bool attach_default(int id, int choice);
 static bool is_generated(int id, const char* path);
+static bool is_under(const std::string& path, const std::string& folder);
 
 bool emu_hard_disk_is_image(const char* path)
 {
@@ -413,6 +415,52 @@ bool emu_hard_disk_create(int id, const char* path, int size_mb, bool formatted,
     return emu_hard_disk_attach(id, path, write_protected);
 }
 
+bool emu_hard_disk_save(int id, const char* path, std::string* error, std::string* warning)
+{
+    error->clear();
+    warning->clear();
+    GeardoxCore* core = emu_get_core();
+
+    if (!valid_id(id) || !IsValidPointer(path) || !core->GetHardDisk(id)->IsOpen())
+    {
+        *error = "There is no hard disk to save.";
+        return false;
+    }
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+    {
+        Emu_HardDiskInfo info;
+        emu_hard_disk_get_info(i, &info);
+        FolderDisk* folder = core->GetFolderDisk(i);
+
+        if (is_under(path, info.path) || is_under(path, info.pending_path) ||
+            is_under(path, get_working_path(info.path)) ||
+            (IsValidPointer(folder) && is_under(path, folder->GetDataFolder())))
+        {
+            *error = "This file or folder is part of a hard disk in use. Save the image somewhere else.";
+            return false;
+        }
+    }
+
+    if (!core->GetHardDisk(id)->Save(path))
+    {
+        *error = "Check the free space, and that the disk's own files are still there.";
+        return false;
+    }
+
+    if (!IsValidPointer(core->GetFolderDisk(id)))
+        return true;
+
+    FatImage image;
+    MediaFile* file = MediaFile::OpenFile(path);
+
+    if (!image.Read(file))
+        *warning = image.GetReadError();
+
+    SafeDelete(file);
+    return true;
+}
+
 bool emu_hard_disk_set_write_protected(int id, bool write_protected)
 {
     Emu_HardDiskInfo info;
@@ -580,6 +628,15 @@ static bool attach_default(int id, int choice)
 static bool is_generated(int id, const char* path)
 {
     return game_disks[id] || (get_builtin_system(path) >= 0);
+}
+
+static bool is_under(const std::string& path, const std::string& folder)
+{
+    std::string inner = path_forward_slashes(path);
+    std::string outer = path_forward_slashes(trim_trailing_separators(folder));
+
+    return !outer.empty() && starts_with_no_case(inner.c_str(), outer.c_str()) &&
+        ((inner.size() == outer.size()) || (inner[outer.size()] == '/'));
 }
 
 static std::string get_working_path(const char* path)

@@ -68,6 +68,7 @@ enum FileDialogID
     FileDialog_ImportUltraSoundFolder,
     FileDialog_ImportGlide,
     FileDialog_CreateHardDisk,
+    FileDialog_SaveHardDisk,
     FileDialog_ChooseScreenshotPath,
     FileDialog_ChooseVideoRecordingPath,
     FileDialog_SaveScreenshot,
@@ -443,6 +444,21 @@ void gui_file_dialog_create_hard_disk(int id)
     show_save_file_dialog(FileDialog_CreateHardDisk, filters, 1);
 }
 
+void gui_file_dialog_save_hard_disk(int id, const char* name)
+{
+    if (!begin_dialog())
+        return;
+
+    dialog_hard_disk_id = id;
+    const char* folder = get_dialog_location(FileDialog_SaveHardDisk);
+    std::string path = path_join(IsValidPointer(folder) ? folder : "", name);
+    SDL_DialogFileFilter filters[] = {
+        { "Hard Disk Images", "hdd;img" }
+    };
+    SDL_ShowSaveFileDialog(file_dialog_callback, (void*)(intptr_t)FileDialog_SaveHardDisk, application_sdl_window,
+        filters, 1, path.c_str());
+}
+
 void gui_file_dialog_save_memory_dump(void)
 {
     if (!begin_dialog())
@@ -553,6 +569,7 @@ static std::string* get_dialog_folder(FileDialogID id)
         case FileDialog_AttachFolder:
         case FileDialog_ChooseDefaultHardDisk:
         case FileDialog_CreateHardDisk:
+        case FileDialog_SaveHardDisk:
             return &config_file_dialogs.hard_disks;
         case FileDialog_SaveScreenshot:
             return &config_file_dialogs.screenshots;
@@ -655,6 +672,11 @@ static void SDLCALL file_dialog_callback(void* userdata, const char* const* file
         if (!path_has_extension(pending_dialog_path))
             pending_dialog_path += ".hdd";
     }
+    else if (id == FileDialog_SaveHardDisk)
+    {
+        if (!ends_with_no_case(pending_dialog_path.c_str(), ".img"))
+            append_extension_if_missing(pending_dialog_path, ".hdd");
+    }
     else if (id == FileDialog_SaveFloppy || id == FileDialog_NewFloppy)
     {
         if (!FloppyImage::IsSaveName(pending_dialog_path.c_str()))
@@ -720,6 +742,9 @@ static void process_dialog_result(FileDialogID id, const char* path)
             break;
         case FileDialog_CreateHardDisk:
             gui_hard_disks_dialog_create(dialog_hard_disk_id, path);
+            break;
+        case FileDialog_SaveHardDisk:
+            gui_hard_disks_dialog_save(dialog_hard_disk_id, path);
             break;
         case FileDialog_ChooseDefaultHardDisk:
             gui_hard_disks_dialog_default(path);

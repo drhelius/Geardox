@@ -375,6 +375,25 @@ bool HardDiskImage::Flush()
     return true;
 }
 
+bool HardDiskImage::Save(const char* path)
+{
+    if (!IsOpen() || !IsValidPointer(path) || (path[0] == 0))
+        return false;
+
+    std::string temporary = std::string(path) + ".tmp";
+    bool ok = WriteImage(temporary.c_str()) && MediaFile::MoveIntoPlace(temporary.c_str(), path);
+
+    if (!ok)
+    {
+        MediaFile::RemoveFile(temporary.c_str());
+        Error("Unable to save the hard disk image %s", path);
+        return false;
+    }
+
+    Log("Hard disk %s saved as %s", m_path.c_str(), path);
+    return true;
+}
+
 u32 HardDiskImage::GetUnflushedBlocks() const
 {
     return m_overlay_blocks;
@@ -424,24 +443,7 @@ void HardDiskImage::SetPrevious(u64 session, u64 write)
 bool HardDiskImage::CreateWorkingCopy()
 {
     std::string temporary = m_working_path + ".tmp";
-    MediaFile* copy = MediaFile::OpenNewFile(temporary.c_str());
-
-    if (!IsValidPointer(copy))
-        return false;
-
-    std::vector<u8> chunk(1024 * 1024);
-    u32 chunk_blocks = (u32)chunk.size() / k_hard_disk_block_size;
-    bool ok = true;
-
-    for (u64 lba = 0; ok && (lba < m_blocks); lba += chunk_blocks)
-    {
-        u32 count = (u32)MIN((u64)chunk_blocks, m_blocks - lba);
-        ok = ReadImage((u32)lba, chunk.data(), count) &&
-            copy->WriteAt(lba * k_hard_disk_block_size, chunk.data(), (u64)count * k_hard_disk_block_size);
-    }
-
-    ok = copy->Flush() && ok;
-    SafeDelete(copy);
+    bool ok = WriteImage(temporary.c_str());
     MediaFile* existing = ok ? MediaFile::OpenFile(m_working_path.c_str()) : NULL;
     ok = ok && !IsValidPointer(existing) && MediaFile::RenameFile(temporary.c_str(), m_working_path.c_str());
     SafeDelete(existing);
@@ -530,6 +532,48 @@ bool HardDiskImage::ReadImage(u32 lba, u8* buffer, u32 count)
     }
 
     return true;
+}
+
+bool HardDiskImage::ReadBlocks(u32 lba, u8* buffer, u32 count)
+{
+    bool read = ReadImage(lba, buffer, count);
+
+    for (u32 i = 0; i < count; i++)
+    {
+        bool changed = !m_overlay_index.empty() && (m_overlay_index[lba + i] != 0);
+
+        if ((!read || changed) && !ReadBlock(lba + i, buffer + ((size_t)i * k_hard_disk_block_size)))
+            return false;
+    }
+
+    return true;
+}
+
+bool HardDiskImage::WriteImage(const char* path)
+{
+    MediaFile* file = MediaFile::OpenNewFile(path);
+
+    if (!IsValidPointer(file))
+        return false;
+
+    std::vector<u8> chunk(1024 * 1024);
+    u32 chunk_blocks = (u32)chunk.size() / k_hard_disk_block_size;
+    u8 zero[k_hard_disk_block_size] = { };
+    bool ok = file->WriteAt((u64)(m_blocks - 1) * k_hard_disk_block_size, zero, k_hard_disk_block_size);
+
+    for (u64 lba = 0; ok && (lba < m_blocks); lba += chunk_blocks)
+    {
+        u32 count = (u32)MIN((u64)chunk_blocks, m_blocks - lba);
+        size_t size = (size_t)count * k_hard_disk_block_size;
+        ok = ReadBlocks((u32)lba, chunk.data(), count);
+
+        if (ok && ((chunk[0] != 0) || (memcmp(chunk.data(), chunk.data() + 1, size - 1) != 0)))
+            ok = file->WriteAt(lba * k_hard_disk_block_size, chunk.data(), size);
+    }
+
+    ok = file->Flush() && ok;
+    SafeDelete(file);
+    return ok;
 }
 
 void HardDiskImage::StoreBlock(u32 lba, const u8* buffer)

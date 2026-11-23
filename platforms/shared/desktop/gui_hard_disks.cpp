@@ -58,6 +58,11 @@ static int image_id = 0;
 static std::string image_path;
 static bool image_write_protected = false;
 static bool image_power_on = false;
+static int save_id = 0;
+static std::string save_path;
+static std::string save_error;
+static std::string save_warning;
+static bool saved = false;
 static int recreate_system = GDOX_GAME_SYSTEM_FREEDOS;
 
 static void default_menu(void);
@@ -70,6 +75,8 @@ static void source_done(void);
 static bool load_image(int id, const char* path, bool power_on);
 static void image_task(void);
 static void image_done(void);
+static void save_task(void);
+static void save_done(void);
 static void confirm_erase(void);
 static void attach(int id, const char* path);
 static void draw_create_popup(void);
@@ -294,6 +301,57 @@ void gui_hard_disks_dialog_default(const char* path)
     emu_hard_disk_set_default(config_DefaultDisk_Custom, path);
 }
 
+void gui_hard_disks_dialog_save(int id, const char* path)
+{
+    if (!gui_hard_disks_can_save(id))
+        return;
+
+    save_id = id;
+    save_path = path;
+    gui_save_async(save_task, save_done);
+}
+
+void gui_hard_disks_save(int id)
+{
+    Emu_HardDiskInfo info;
+    emu_hard_disk_get_info(id, &info);
+    std::string name = path_filename(trim_trailing_separators(info.path));
+
+    if (info.folder)
+        name = info.game && (id == 0) ? emu_game_get_name() : path_strip_extension(name, ".zip");
+    else
+        name = path_strip_extension(name) + " Copy";
+
+    gui_file_dialog_save_hard_disk(id, (safe_file_name(name, "Disk") + ".hdd").c_str());
+}
+
+bool gui_hard_disks_can_save(int id)
+{
+    Emu_HardDiskInfo info;
+    return emu_hard_disk_get_info(id, &info) && info.attached && !info.pending && !gui_is_rom_loading() &&
+        !emu_is_media_loading();
+}
+
+static void save_task(void)
+{
+    saved = emu_hard_disk_save(save_id, save_path.c_str(), &save_error, &save_warning);
+}
+
+static void save_done(void)
+{
+    if (!saved)
+    {
+        gui_set_error_message(("Unable to save the hard disk image:\n" + save_path + "\n" + save_error).c_str());
+        return;
+    }
+
+    gui_notify(gui_NotificationSuccess, ICON_MD_SAVE, "Hard disk image saved", save_path.c_str());
+
+    if (!save_warning.empty())
+        gui_notify(gui_NotificationWarning, ICON_MD_STORAGE, "DOS was writing to the disk, save the image again",
+            save_warning.c_str());
+}
+
 void gui_hard_disks_open_quit_confirmation(void)
 {
     open_quit = true;
@@ -336,6 +394,12 @@ static void disk_menu(int id)
         dialog_id = id;
         open_create = true;
     }
+
+    if (ImGui::MenuItem("Save Image As...", NULL, false, gui_hard_disks_can_save(id)))
+        gui_hard_disks_save(id);
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("A copy of this disk as it is now, in a hard disk image.\nThe disk in use stays the same.");
 
     if (ImGui::MenuItem("Detach", NULL, false, present))
     {

@@ -33,6 +33,7 @@
 #include "gui_actions.h"
 #include "gui_colors.h"
 #include "gui_filedialogs.h"
+#include "gui_hard_disks.h"
 #include "gui_menus.h"
 #include "gui_notifications.h"
 #include "utils.h"
@@ -254,6 +255,12 @@ static void menu_files(bool open)
 
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Saves the game's .gdox with your changes and key map\nin it, then opens the game from it.");
+
+    if (ImGui::MenuItem("Save Hard Disk Image...", NULL, false, gui_hard_disks_can_save(0)))
+        gui_hard_disks_save(0);
+
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("A copy of the game's C: as it is now, with its DOS,\nin a hard disk image that boots on its own.");
 
     if (ImGui::MenuItem("Forget This Game's Changes", NULL, false, emu_game_has_overrides()))
     {

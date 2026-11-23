@@ -52,6 +52,7 @@
 #endif
 
 static bool running = true;
+static bool quit_pending = false;
 static bool paused_when_focus_lost = false;
 static bool window_settings_pending = false;
 static bool window_resizable = true;
@@ -224,6 +225,9 @@ void application_mainloop(void)
 
         if (emu_dev_quit_requested())
             running = false;
+
+        if (quit_pending && !gui_is_saving())
+            request_quit();
     }
 }
 
@@ -687,6 +691,11 @@ static void sdl_events_quit(const SDL_Event* event)
 
 static void request_quit(void)
 {
+    quit_pending = gui_is_saving();
+
+    if (quit_pending)
+        return;
+
     bool floppies = emu_floppy_flush();
     bool hard_disks = emu_hard_disk_flush();
 

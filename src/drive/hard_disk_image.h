@@ -62,6 +62,7 @@ public:
     bool ReadBlock(u32 lba, u8* buffer);
     bool WriteBlock(u32 lba, const u8* buffer);
     bool Flush();
+    bool Save(const char* path);
     u32 GetUnflushedBlocks() const;
     u32 GetWriteCount() const;
     u64 GetSession() const;
@@ -79,6 +80,8 @@ private:
     void CloseChd();
     void ReadChdGeometry(const char* path);
     bool ReadImage(u32 lba, u8* buffer, u32 count);
+    bool ReadBlocks(u32 lba, u8* buffer, u32 count);
+    bool WriteImage(const char* path);
     void StoreBlock(u32 lba, const u8* buffer);
     bool CreateWorkingCopy();
     bool Undo(u64 write);
