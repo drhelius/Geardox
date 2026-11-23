@@ -86,15 +86,13 @@ void gui_game_menu(void)
         gui_file_dialog_open_game();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A .gdox, a game's ZIP or one of its programs.\nA game with a .gdox, or one the game database\n"
-            "knows, starts by itself. Any other opens\nat the DOS prompt in its folder.");
+        ImGui::SetTooltip("A .gdox file, a game's ZIP or one of its programs.");
 
     if (ImGui::MenuItem("Open Game Folder...", NULL, false, !loading))
         gui_file_dialog_open_game_folder();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("A game's folder. With a .gdox, or when the game\ndatabase knows it, the game starts by itself.\n"
-            "Any other opens at the DOS prompt in its folder.");
+        ImGui::SetTooltip("A game's folder. With a .gdox file in it or whithout it.");
 
     menu_recent();
     ImGui::Separator();
@@ -255,8 +253,7 @@ static void menu_files(bool open)
         save_descriptor();
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Saves the game's .gdox with your changes and key map\nin it, then opens the game from it. "
-            "A game at the\nDOS prompt first asks which program starts it.");
+        ImGui::SetTooltip("Saves the game's .gdox with your changes and key map\nin it, then opens the game from it.");
 
     if (ImGui::MenuItem("Forget This Game's Changes", NULL, false, emu_game_has_overrides()))
     {
