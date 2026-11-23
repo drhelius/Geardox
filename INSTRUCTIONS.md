@@ -151,10 +151,11 @@ Geardox tells you.
 
 **Save Image As...** in a position of **Drives > Hard Disks** copies the disk there, as it is now, to a new `.hdd` or
 `.img` file. It works for any disk, a folder, a ZIP and a game's C: included, and the disk in use stays the same. For
-the open game's C:, **Game > Game Files > Save Hard Disk Image...** does the same: the image holds DOS, the game and
-everything it has saved so far, and it boots and starts the game on its own. Geardox has to be able to read all of the
-disk's files, and the image can't go inside a folder that is a disk. Its size is fixed: for more free space in it, set
-`free_mb` in the game's `.gdox` before you save it.
+the open game's C:, **Game > Game Files > Save Hard Disk Image...** also saves a `.gdox` next to the image, which plays
+it with the game's settings: see [Use a hard disk image](GDOX_README.md#use-a-hard-disk-image). The image holds DOS,
+the game and everything it has saved so far, and it boots and starts the game on its own. Geardox has to be able to read
+all of the disk's files, and the image can't go inside a folder that is a disk. Its size is fixed: for more free space
+in it, set `free_mb` in the game's `.gdox` before you save it.
 
 ## Installing a Game from Floppies or a CD
 
@@ -388,7 +389,8 @@ The rest is the **Save Files folder**, this same folder unless **Emulator > Dire
 - `<name>.<id>` folders, one for each game and for each folder or ZIP attached as a hard disk, keep what DOS changed:
   - `Saves` holds a game's saves when they can't go into its folder: a game in a ZIP or a read-only folder, or any
     game when **Game > Save Games To** is **The Save Files Folder**.
-  - `C` holds what the game wrote elsewhere on C:.
+  - `C` holds what the game wrote elsewhere on C:, and `C.hdd` a game's hard disk image with its changes, when the
+    image itself isn't written.
   - `FreeDOS` and `MS-DOS` hold the changes to each DOS's own files, `AUTOEXEC.BAT` and `CONFIG.SYS` among them, with
     the version they were edited from in `.base`. Your edits win at the next launch; when the `.gdox` or a setting such
     as the sound card's IRQ later changes the same file, Geardox joins both and tells you.

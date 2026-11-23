@@ -7,6 +7,7 @@ FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 - [Start with a game folder](#start-with-a-game-folder)
 - [Create a GDOX file by hand](#create-a-gdox-file-by-hand)
 - [Use a ZIP or CD image](#use-a-zip-or-cd-image)
+- [Use a hard disk image](#use-a-hard-disk-image)
 - [Run setup or use the DOS prompt](#run-setup-or-use-the-dos-prompt)
 - [Find your saves](#find-your-saves)
 - [Adjust a game's settings](#adjust-a-games-settings)
@@ -89,6 +90,8 @@ game.
 
 Geardox creates the DOS folder specified by `folder`. It accepts short DOS names such as `C:\ORION` (up to 8
 characters, without spaces). Use `folder = C:\` to place the game files directly in the root of C:.
+
+`source` can also be [a hard disk image](#use-a-hard-disk-image), and then `folder` isn't needed.
 
 If you leave out `source`, Geardox uses the folder containing the descriptor. If the descriptor is inside a ZIP, it
 uses that ZIP instead. Set `source` when you want to keep the descriptor somewhere else.
@@ -179,6 +182,39 @@ Disc and floppy images can also be inside the game's ZIP: use their path inside 
 `cdrom = Discs/WAR2.cue`.
 For multiple discs, list them separated by commas, or use one `.m3u` playlist.
 
+## Use a Hard Disk Image
+
+A game's C: can be a hard disk image instead of a folder: a PC you've already set up, with its own DOS. Point `source`
+to it:
+
+```ini
+[geardox]
+version = 1
+
+[game]
+name = Master of Orion
+source = Orion.hdd
+
+[machine]
+model = 386dx_33
+```
+
+Geardox boots the image as it is, with the descriptor's machine, sound, keys, gamepads, CDs, floppies and extra hard
+disks. `folder` isn't needed. Nothing is added to the image, so `[dos]`, `[env]`, `[config_sys]` and `[autoexec]` do
+nothing, and neither does what `[run]` starts: the image's own `CONFIG.SYS` and `AUTOEXEC.BAT` decide. The image can be
+a `.hdd`, `.img`, fixed-size `.vhd` or `.chd`, outside any ZIP.
+
+The easiest way to get one is **Game > Game Files > Save Hard Disk Image...** with a game open. It saves the game's C:
+as it is now, with its DOS and its saves, and next to it a `.gdox` of the same name with the game's settings, unless
+there is one already or the game's discs or floppies are inside its ZIP. The image starts the game by itself, and
+**Boot To > Setup** and **DOS Prompt** work in it. The sound card, its IRQ and DMA, the UltraSound, the mouse and the
+Voodoo are written in that `.gdox`, because the image's startup files are made for them: change them only along with
+those files.
+
+What the game saves stays in the image. With **Game > Save Games To > The Save Files Folder**, for `.chd` images, and in
+RetroArch by default, the image is never written: a copy of it, `C.hdd` in the game's `<name>.<id>` folder, keeps the
+changes and is used from then on. Delete `C.hdd` to go back to the image.
+
 ## Run Setup or Use the DOS Prompt
 
 Many games have a separate setup program for choosing a sound card or controls. Add its filename to the existing
@@ -232,6 +268,7 @@ has a folder of its own, `<name>.<id>`, with the rest of its C: drive and its se
 | --- | --- |
 | `Saves` | The game's changed files, when they don't go back into its folder |
 | `C` | Files the game wrote elsewhere on C: |
+| `C.hdd` | A game's hard disk image with its changes, when the image isn't written; see [Use a hard disk image](#use-a-hard-disk-image) |
 | `FreeDOS`, `MS-DOS` | Changes to each DOS's own files, `AUTOEXEC.BAT` and `CONFIG.SYS` among them; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) |
 | `Conflicts` | Changes that couldn't go back; see [Save recovery and file conflicts](#save-recovery-and-file-conflicts) |
 | `Disk` | Geardox's record of the drive, and what DOS has written so far while the game runs |
@@ -489,7 +526,7 @@ inside RetroArch's system folder.
 
 | Problem | What to check |
 | --- | --- |
-| The descriptor will not open | The error message identifies invalid or missing settings. Every descriptor requires `version = 1` in `[geardox]` and `folder` in `[game]`, written as a DOS path such as `C:\ORION`. |
+| The descriptor will not open | The error message identifies invalid or missing settings. Every descriptor requires `version = 1` in `[geardox]` and, unless `source` is a hard disk image, `folder` in `[game]`, written as a DOS path such as `C:\ORION`. |
 | The game database recognises a game but its settings don't suit your copy | Change them in the menus, or write a descriptor for it with **Game > Game Files > Save Descriptor...**: a descriptor in the folder always wins. **Game > Use Game Database** turns recognition off. |
 | Geardox cannot find the game folder or ZIP | Check `source` under `[game]`. Relative paths start from the descriptor's folder, and paths should not have surrounding quotes. |
 | "Bad command or filename" | Check `exe` under `[run]`. It starts from the game's folder inside DOS; include any subfolder inside your folder or ZIP. |
@@ -586,8 +623,8 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | Key | Required | Description | Values | Default | Example |
 | --- | --- | --- | --- | --- | --- |
 | `name` | No | The game's title, shown in the window title and used for the C: volume label, save state names and the game's own folder in the Save Files folder. A new name starts a new, empty folder for the game | Text | The descriptor's file name | `name = Master of Orion` |
-| `folder` | Yes | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it of up to 48 characters after `C:\`. Each folder name has up to 8 characters, plus an optional 3-character extension, made of letters, digits and ``$ % ' - _ @ ~ ` ! ( ) { } ^ # &``, without spaces. The first folder cannot be `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) | — | `folder = C:\ORION` |
-| `source` | No | The game's files on your computer | A folder, a `.zip` file, or a folder inside a ZIP | The folder or ZIP containing the descriptor | `source = Orion.zip` or `source = Collection.zip/ORION` |
+| `folder` | Yes, unless `source` is a hard disk image | The folder on the DOS C: drive where Geardox places the game's files | `C:\` for the root, or a path below it of up to 48 characters after `C:\`. Each folder name has up to 8 characters, plus an optional 3-character extension, made of letters, digits and ``$ % ' - _ @ ~ ` ! ( ) { } ^ # &``, without spaces. The first folder cannot be `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) | — | `folder = C:\ORION` |
+| `source` | No | The game's files on your computer, or [a hard disk image](#use-a-hard-disk-image) that is the whole C: drive | A folder, a `.zip` file, a folder inside a ZIP, or a `.hdd`, `.img`, fixed-size `.vhd` or `.chd` hard disk image | The folder or ZIP containing the descriptor | `source = Orion.zip` or `source = Collection.zip/ORION` |
 | `free_mb` | No | Free space on C: for saves and other files the game creates, in MB | `16` to `1024` | `64` | `free_mb = 256` |
 
 ### `[run]`
