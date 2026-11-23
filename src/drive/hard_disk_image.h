@@ -33,6 +33,7 @@ struct HardDiskJournalEntry
     u64 write;
     u32 lba;
     u8 data[512];
+    bool readable;
 };
 
 class HardDiskSource
@@ -87,7 +88,7 @@ private:
     bool CreateWorkingCopy();
     bool Undo(u64 write);
     bool Redo(u64 write);
-    void Journal(u32 lba, const u8* data, u64 write);
+    void Journal(u32 lba, const u8* data, u64 write, bool readable);
     void ClearJournal();
 
 private:
@@ -116,6 +117,7 @@ private:
     u64 m_previous_write;
     bool m_resumed;
     u64 m_journal_base;
+    u64 m_flushed_write;
     std::vector<HardDiskJournalEntry> m_journal;
     u32 m_journal_start;
     u32 m_journal_count;

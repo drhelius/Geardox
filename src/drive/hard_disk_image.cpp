@@ -126,6 +126,7 @@ HardDiskImage::HardDiskImage()
     m_previous_write = 0;
     m_resumed = false;
     m_journal_base = 0;
+    m_flushed_write = 0;
     m_journal_start = 0;
     m_journal_count = 0;
 }
@@ -264,6 +265,7 @@ void HardDiskImage::Close()
     m_previous_write = 0;
     m_resumed = false;
     m_journal_base = 0;
+    m_flushed_write = 0;
     ClearJournal();
     std::vector<HardDiskJournalEntry>().swap(m_redo);
 }
@@ -319,18 +321,13 @@ bool HardDiskImage::WriteBlock(u32 lba, const u8* buffer)
     if (!IsOpen() || m_write_protected || (lba >= m_blocks))
         return false;
 
-    u8 old[k_hard_disk_block_size];
+    u8 old[k_hard_disk_block_size] = { };
+    bool readable = ReadBlock(lba, old);
 
-    if (!ReadBlock(lba, old))
-    {
-        ClearJournal();
-        m_journal_base = m_next_write;
-    }
-    else if (memcmp(old, buffer, k_hard_disk_block_size) == 0)
+    if (readable && (memcmp(old, buffer, k_hard_disk_block_size) == 0))
         return true;
-    else
-        Journal(lba, old, m_next_write);
 
+    Journal(lba, old, m_next_write, readable);
     m_redo.clear();
     m_last_write = m_next_write++;
     StoreBlock(lba, buffer);
@@ -344,6 +341,7 @@ bool HardDiskImage::Flush()
 
     bool copied = IsValidPointer(m_source) || (m_working_path.empty() ? IsValidPointer(m_file) : CreateWorkingCopy());
     u32 lba = 0;
+    m_flushed_write = m_next_write - 1;
 
     for (; copied && (lba < m_blocks); lba++)
     {
@@ -603,9 +601,17 @@ bool HardDiskImage::Undo(u64 write)
 {
     u32 newer = 0;
 
-    while ((newer < m_journal_count) &&
-        (m_journal[(m_journal_start + m_journal_count - 1 - newer) % k_hard_disk_journal_entries].write > write))
-        newer++;
+    for (; newer < m_journal_count; newer++)
+    {
+        const HardDiskJournalEntry& entry =
+            m_journal[(m_journal_start + m_journal_count - 1 - newer) % k_hard_disk_journal_entries];
+
+        if (entry.write <= write)
+            break;
+
+        if (!entry.readable && (entry.write <= m_flushed_write))
+            return false;
+    }
 
     if (newer == m_journal_count ? write != m_journal_base :
         m_journal[(m_journal_start + m_journal_count - 1 - newer) % k_hard_disk_journal_entries].write != write)
@@ -627,7 +633,10 @@ bool HardDiskImage::Undo(u64 write)
         else
             m_redo.clear();
 
-        StoreBlock(entry.lba, entry.data);
+        if (entry.readable)
+            StoreBlock(entry.lba, entry.data);
+        else
+            m_overlay_index[entry.lba] = 0;
     }
 
     m_last_write = write;
@@ -645,21 +654,15 @@ bool HardDiskImage::Redo(u64 write)
     if ((older == count) || (m_redo[count - 1 - older].write != write))
         return false;
 
-    u8 current[k_hard_disk_block_size];
+    u8 current[k_hard_disk_block_size] = { };
 
     for (size_t i = 0; i <= older; i++)
     {
         HardDiskJournalEntry entry = m_redo.back();
         m_redo.pop_back();
 
-        if (ReadBlock(entry.lba, current))
-            Journal(entry.lba, current, entry.write);
-        else
-        {
-            ClearJournal();
-            m_journal_base = entry.write;
-        }
-
+        bool readable = ReadBlock(entry.lba, current);
+        Journal(entry.lba, current, entry.write, readable);
         StoreBlock(entry.lba, entry.data);
     }
 
@@ -667,7 +670,7 @@ bool HardDiskImage::Redo(u64 write)
     return true;
 }
 
-void HardDiskImage::Journal(u32 lba, const u8* data, u64 write)
+void HardDiskImage::Journal(u32 lba, const u8* data, u64 write, bool readable)
 {
     if (m_journal_count == k_hard_disk_journal_entries)
     {
@@ -684,6 +687,7 @@ void HardDiskImage::Journal(u32 lba, const u8* data, u64 write)
     HardDiskJournalEntry& entry = m_journal[index];
     entry.write = write;
     entry.lba = lba;
+    entry.readable = readable;
     memcpy(entry.data, data, k_hard_disk_block_size);
     m_journal_count++;
 }
