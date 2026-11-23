@@ -4722,6 +4722,37 @@ json DebugAdapter::FlushHardDisks()
     return {{"success", true}};
 }
 
+json DebugAdapter::SaveHardDisk(int id, const std::string& file_path)
+{
+    if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS))
+        return {{"error", "id must be 0-3"}};
+
+    const char* path = file_path.c_str();
+
+    if (!is_absolute_path(path))
+        return {{"error", "file_path must be an absolute path"}};
+
+    if (!ends_with_no_case(path, ".hdd") && !ends_with_no_case(path, ".img"))
+        return {{"error", "file_path must end in .hdd or .img"}};
+
+    if (path_exists(path))
+        return {{"error", "A file already exists at " + file_path}};
+
+    std::string error;
+    std::string warning;
+
+    if (!emu_hard_disk_save(id, path, &error, &warning))
+        return {{"error", "Failed to save the hard disk image: " + error}};
+
+    json result = {{"success", true}, {"id", id}, {"file_path", file_path},
+        {"blocks", m_core->GetHardDisk(id)->GetBlocks()}};
+
+    if (!warning.empty())
+        result["warning"] = warning;
+
+    return result;
+}
+
 json DebugAdapter::ReadHardDiskSector(int id, s64 lba)
 {
     if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS))

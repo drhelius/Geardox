@@ -318,6 +318,7 @@ public:
         bool formatted);
     json DetachHardDisk(int id);
     json FlushHardDisks();
+    json SaveHardDisk(int id, const std::string& file_path);
     json ReadHardDiskSector(int id, s64 lba);
     json SetFloppyWriteProtect(int drive, bool write_protected);
 

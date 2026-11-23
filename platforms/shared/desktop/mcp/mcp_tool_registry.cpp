@@ -295,7 +295,7 @@ static const char* const kMcpMediaTools[] =
 {
     "load_media", "eject_cdrom", "close_cdrom_tray", "insert_playlist_disc", "get_media_info", "list_recent_media",
     "insert_floppy", "create_blank_floppy", "eject_floppy", "swap_floppies", "set_floppy_write_protect",
-    "attach_hard_disk", "detach_hard_disk", "flush_hard_disks", "get_game_info"
+    "attach_hard_disk", "detach_hard_disk", "flush_hard_disks", "save_hard_disk", "get_game_info"
 };
 
 static const char* const kMcpCaptureTools[] =

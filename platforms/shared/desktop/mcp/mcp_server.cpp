@@ -1729,6 +1729,23 @@ json McpServer::BuildToolList()
         "Write the hard disks' changes to their image files now instead of after 2 s without writes.",
         k_mcp_tool_write_idempotent_world, empty_schema()));
 
+    tools.push_back(make_tool("save_hard_disk", "Save Hard Disk",
+        "Save a slot's disk as it is now, unwritten changes included, to a new raw image: a game's live C:, a folder, a ZIP "
+        "or an image. The disk in use stays the same. warning says what doesn't add up when DOS was writing to it.",
+        k_mcp_tool_write_world,
+        {
+            {"type", "object"},
+            {"properties", {
+                {"id", hard_disk_id},
+                {"file_path", {
+                    {"type", "string"},
+                    {"description", "Absolute path of the new image, .hdd or .img. An existing file is never replaced."}
+                }}
+            }},
+            {"required", json::array({"id", "file_path"})},
+            {"additionalProperties", false}
+        }));
+
     tools.push_back(make_tool("read_hard_disk_sector", "Read Hard Disk Sector",
         "Read a 512-byte sector as the guest sees it, unwritten changes included, without bus traffic.",
         k_mcp_tool_read,
@@ -3406,6 +3423,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     else if (normalizedTool == "flush_hard_disks")
     {
         return m_debugAdapter.FlushHardDisks();
+    }
+    else if (normalizedTool == "save_hard_disk")
+    {
+        return m_debugAdapter.SaveHardDisk(arguments.value("id", -1), arguments.value("file_path", ""));
     }
     else if (normalizedTool == "read_hard_disk_sector")
     {
