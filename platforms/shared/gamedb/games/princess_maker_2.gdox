@@ -1,0 +1,10 @@
+[geardox]
+version = 1
+
+[game]
+name = Princess Maker 2
+folder = C:\PRINCESS
+
+[run]
+exe = PM2.EXE
+setup_exe = DOSINST.EXE

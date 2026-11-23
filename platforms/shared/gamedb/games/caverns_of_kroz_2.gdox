@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Caverns Of Kroz 2
+folder = C:\CAVERNS
+
+[run]
+exe = CAVERNS.EXE

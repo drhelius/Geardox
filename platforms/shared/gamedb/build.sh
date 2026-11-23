@@ -20,7 +20,7 @@ HEX = re.compile(r"^[0-9A-F]+$")
 BYTES = re.compile(r"^([0-9A-F]{2})+$")
 RELEASE_SECTIONS = ("sound", "drives")
 VOODOO_EXE = re.compile(r"^\s*voodoo_exe\s*=", re.M | re.I)
-SINGLE_MIN = 64 * 1024
+SINGLE_MIN = 32 * 1024
 errors = []
 
 

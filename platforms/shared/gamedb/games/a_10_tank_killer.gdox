@@ -1,0 +1,12 @@
+[geardox]
+version = 1
+
+[game]
+name = A-10 Tank Killer
+folder = C:\A10
+
+[run]
+exe = A10.COM
+
+[sound]
+midi = mt32

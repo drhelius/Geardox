@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Return To Kroz
+folder = C:\RETURN
+
+[run]
+exe = RETURN.EXE

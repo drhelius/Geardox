@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Temple Of Kroz
+folder = C:\TEMPLE
+
+[run]
+exe = TEMPLE.EXE

@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = The Final Crusade Of Kroz
+folder = C:\CRUSADE
+
+[run]
+exe = CRUSADE.EXE

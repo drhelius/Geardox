@@ -1,0 +1,13 @@
+[geardox]
+version = 1
+
+[game]
+name = Wonderland
+folder = C:\WONDER
+
+[run]
+exe = GAME.EXE
+args = -disp v -adlib
+
+[sound]
+midi = mt32

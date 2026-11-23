@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Star Trek TNG Trivia
+folder = C:\TNGTRIV
+
+[run]
+exe = NGT1.EXE

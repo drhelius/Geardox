@@ -1,0 +1,9 @@
+[geardox]
+version = 1
+
+[game]
+name = Kingdom Of Kroz 2
+folder = C:\KINGDOM
+
+[run]
+exe = KINGDOM.EXE
