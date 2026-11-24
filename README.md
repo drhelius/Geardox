@@ -72,6 +72,7 @@ Outside a game, the mapper's changes go to a `.keys` file named after the conten
 - **DOS**: `FreeDOS.hdd` and `MS-DOS.hdd` live in the save directory. For your MS-DOS, put its Setup disk images, or a ZIP of them, in `geardox/msdos` inside the system directory, the Gravis UltraSound install disks in `geardox/ultrasnd`, and the 3dfx Voodoo driver's ZIP, or `GLIDE2X.OVL`, in `geardox/3dfx`.
 - **Options**: The machine, drives, game and DOS settings are core options, most applied at restart.
 - **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files, and each game's `Keys.ini`, go to the save directory.
+- **Run-Ahead**: Use RetroArch's single instance mode or preemptive frames. Second instance mode isn't supported: both instances would use the same disks, so the game's files can be damaged.
 - **MIDI**: The built-in synths take MT-32 ROMs from `geardox/mt32` (or the system directory itself) and a sound bank from `geardox/soundfonts`. For a synth outside RetroArch, set **MIDI Out** to **External Port** and turn on RetroArch's MIDI output in **Settings → Audio → MIDI**.
 
 ### Debugging Features
