@@ -23,6 +23,7 @@
 #include "dos_fs.h"
 #include "import_common.h"
 #include "freedos.h"
+#include "doskey.h"
 #include "../dos/dos_tools.h"
 #include "../media/media_file.h"
 #include "../media/crc.h"
@@ -700,7 +701,8 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
         AddDosTool(geardox, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
         AddDosTool(geardox, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size) &&
         AddDosTool(geardox, "GDXIDLE.SYS", k_dos_gdxidle, k_dos_gdxidle_size) &&
-        AddDosTool(geardox, "GDXPAD.COM", k_dos_gdxpad, k_dos_gdxpad_size);
+        AddDosTool(geardox, "GDXPAD.COM", k_dos_gdxpad, k_dos_gdxpad_size) &&
+        AddDosTool(geardox, "DOSKEY.COM", k_doskey, k_doskey_size);
 
     for (size_t i = 0; ok && (i < sizeof(k_tools) / sizeof(k_tools[0])); i++)
         ok = AddFreeDOSFile(&tools, (std::string("FREEDOS/BIN/") + k_tools[i]).c_str(), geardox, k_tools[i]);

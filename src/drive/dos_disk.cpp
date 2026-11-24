@@ -113,5 +113,9 @@ std::string DosDisk::GetAutoexec(int system, const DosImport_System* msdos, cons
 
     out += "LH CTMOUSE\r\n";
     out += (ms && msdos->cd_extension) ? "LH MSCDEX /D:FDCD0001\r\n" : "LH SHSUCDX /QQ /D:FDCD0001\r\n";
+
+    if (ms)
+        out += dos_fs_doskey_line();
+
     return out;
 }

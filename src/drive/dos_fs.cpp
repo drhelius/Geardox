@@ -411,6 +411,11 @@ std::string dos_fs_keyb_line(const std::string& layout, bool msdos)
     return "LH KEYB " + layout + (msdos ? ",437,C:\\DOS\\KEYBOARD.SYS\r\n" : ",437,C:\\FREEDOS\\BIN\\KEYBOARD.SYS\r\n");
 }
 
+std::string dos_fs_doskey_line()
+{
+    return "LH C:\\GEARDOX\\DOSKEY.COM -I DOSKEY=C:\\GEARDOX\\DOSKEY.COM $*\r\n";
+}
+
 s64 dos_time_to_host(u16 date, u16 time_value)
 {
     struct tm local;

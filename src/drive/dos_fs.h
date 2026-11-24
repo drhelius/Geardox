@@ -87,6 +87,7 @@ std::string dos_fs_himem_line(int version);
 std::string dos_fs_shell_line(bool msdos);
 std::string dos_fs_autoexec_header(bool msdos);
 std::string dos_fs_keyb_line(const std::string& layout, bool msdos);
+std::string dos_fs_doskey_line();
 s64 dos_time_to_host(u16 date, u16 time_value);
 void host_time_to_dos(s64 modified, u16* date, u16* time_value);
 

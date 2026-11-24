@@ -1455,6 +1455,10 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
         out += "ECHO This game has no setup program.\r\n";
 
     out += ":PROMPT\r\n";
+
+    if (msdos)
+        out += dos_fs_doskey_line();
+
     return out;
 }
 
