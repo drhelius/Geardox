@@ -45,7 +45,8 @@ bash scripts/install.sh
 
 The script prints the path of an existing Geardox (the `GEARDOX_BIN` environment variable first, then `geardox` on `PATH`). Otherwise it installs the latest release: via Homebrew on macOS, or from the PPA or the GitHub release on Linux. You can set `INSTALL_DIR` to control where a downloaded binary goes (default: `~/.local/bin`).
 
-Geardox has no release yet. Until there is one, the script prints how to build it from source: clone [https://github.com/drhelius/geardox](https://github.com/drhelius/geardox), run `make -C platforms/macos` on macOS or `make -C platforms/linux` on Linux, and use the binary at `platforms/<os>/geardox`. Set `GEARDOX_BIN` to that path.
+You can also get a desktop build from the [downloads](../../README.md#downloads) or
+[build it from source](../../README.md#build-instructions). Set `GEARDOX_BIN` to the executable's full path.
 
 ### Connecting as MCP Server
 

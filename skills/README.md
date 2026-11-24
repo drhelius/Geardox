@@ -6,7 +6,9 @@
 
 All skills require the **Geardox emulator** running as an MCP server. The emulator must be configured in your AI client (Claude Code, Codex, etc.) so the agent can access the MCP tools.
 
-Geardox has its BIOS built in, so there are no firmware files to set up. It has no release yet: build it from source (see the [README](../README.md#build-instructions)), or let each skill's `scripts/install.sh` print the steps.
+Geardox has its BIOS built in, so there are no firmware files to set up. Get a desktop build from the
+[downloads](../README.md#downloads), [build it from source](../README.md#build-instructions), or let each skill's
+`scripts/install.sh` install it.
 
 See [MCP_README.md](../MCP_README.md) for complete setup instructions (STDIO, HTTP, Claude Code, Codex).
 
