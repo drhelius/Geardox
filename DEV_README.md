@@ -21,9 +21,9 @@ own debugger, or with an AI agent.
 You need Geardox, a DOS toolchain and, to debug at source level, gdb. The commands are for macOS; Linux and Windows
 have the same tools in their package managers.
 
-1. **Geardox.** Build it from this repository (see [Build Instructions](README.md#build-instructions)), and note
-   where the `geardox` program is. The examples call `geardox`, so either put it on your `PATH` or give its full path
-   where asked below.
+1. **Geardox.** Get a desktop build from the [downloads](README.md#downloads) or
+   [build it from source](README.md#build-instructions), and note where the `geardox` program is. The examples call
+   `geardox`, so either put it on your `PATH` or give its full path where asked below.
 2. **A toolchain.** Pick one to start with:
    - **DJGPP** (C and C++, 32-bit): unpack a [release](https://github.com/andrewwutw/build-djgpp/releases) and add its
      `bin` folder to `PATH`. DJGPP programs also need `CWSDPMI.EXE` from `csdpmi7b.zip` (DJGPP's `v2misc` folder):

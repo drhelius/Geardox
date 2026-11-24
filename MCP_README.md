@@ -4,6 +4,50 @@ A [Model Context Protocol](https://modelcontextprotocol.io/introduction) server 
 
 This server provides tools for game development, rom hacking, translation, reverse engineering, and debugging through standardized MCP protocols compatible with AI agents like Claude Code, Codex and others.
 
+## Downloads
+
+These MCP Bundles (`.mcpb`) package Geardox with its MCP server configuration for MCP clients that install bundles.
+Claude Code and Codex use a regular Geardox build instead, see [Quick Start](#quick-start).
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Architecture</th>
+      <th>Download Link</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="2"><strong>Windows</strong></td>
+      <td>x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-windows-x64.mcpb">Geardox-0.0.2-mcpb-windows-x64.mcpb</a></td>
+    </tr>
+    <tr>
+      <td>ARM64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-windows-arm64.mcpb">Geardox-0.0.2-mcpb-windows-arm64.mcpb</a></td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>macOS</strong></td>
+      <td>x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-macos-x64.mcpb">Geardox-0.0.2-mcpb-macos-x64.mcpb</a></td>
+    </tr>
+    <tr>
+      <td>ARM64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-macos-arm64.mcpb">Geardox-0.0.2-mcpb-macos-arm64.mcpb</a></td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Linux</strong></td>
+      <td>x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-linux-x64.mcpb">Geardox-0.0.2-mcpb-linux-x64.mcpb</a></td>
+    </tr>
+    <tr>
+      <td>ARM64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-linux-arm64.mcpb">Geardox-0.0.2-mcpb-linux-arm64.mcpb</a></td>
+    </tr>
+  </tbody>
+</table>
+
 ## Features
 
 - **Full Debugger Access**: Intel 80386, 486 and Pentium registers with the x87 FPU, descriptor tables, paging, memory inspection, execute, data, I/O and interrupt breakpoints, and execution control
@@ -97,9 +141,11 @@ Without `--mcp-router`, call every MCP tool directly.
 
 Geardox has its BIOS built in (SeaBIOS and SeaVGABIOS), so there is no firmware to set and nothing to load before starting. With no media attached it boots a built-in DOS hard disk: FreeDOS, or your own MS-DOS once you import it.
 
-Geardox has no releases yet, so there are no downloads and no MCP Bundles (`.mcpb`) to install. [Build it from source](README.md#build-instructions) for your platform. In the examples below, replace `/path/to/geardox` with the full path to the executable:
+Get a desktop build of Geardox from the [downloads](README.md#downloads) or
+[build it from source](README.md#build-instructions). In the examples below, replace `/path/to/geardox` with the full
+path to the executable:
 
-- **macOS:** `/path/to/Geardox.app/Contents/MacOS/geardox`
+- **macOS:** `/Applications/Geardox.app/Contents/MacOS/geardox`
 - **Linux:** `/path/to/geardox`
 - **Windows:** `C:/path/to/geardox.exe`
 

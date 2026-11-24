@@ -16,6 +16,93 @@ This is an open source project with its ongoing development made possible thanks
 
 Don't hesitate to report bugs or ask for new features by [opening an issue](https://github.com/drhelius/Geardox/issues).
 
+## Downloads
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Architecture</th>
+      <th>Download Link</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="2"><strong>Windows</strong></td>
+      <td>Desktop x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-windows-x64.zip">Geardox-0.0.2-desktop-windows-x64.zip</a></td>
+    </tr>
+    <tr>
+      <td>Desktop ARM64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-windows-arm64.zip">Geardox-0.0.2-desktop-windows-arm64.zip</a></td>
+    </tr>
+    <tr>
+      <td rowspan="3"><strong>macOS</strong></td>
+      <td>Homebrew</td>
+      <td><code>brew install --cask drhelius/geardome/geardox</code></td>
+    </tr>
+    <tr>
+      <td>Desktop Apple Silicon</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-macos-arm64.zip">Geardox-0.0.2-desktop-macos-arm64.zip</a></td>
+    </tr>
+    <tr>
+      <td>Desktop Intel</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-macos-intel.zip">Geardox-0.0.2-desktop-macos-intel.zip</a></td>
+    </tr>
+    <tr>
+      <td rowspan="6"><strong>Linux</strong></td>
+      <td>Ubuntu PPA</td>
+      <td><a href="https://github.com/drhelius/ppa-geardome">drhelius/ppa-geardome</a></td>
+    </tr>
+    <tr>
+      <td>Fedora RPM</td>
+      <td><a href="https://github.com/drhelius/rpm-geardome">drhelius/rpm-geardome</a></td>
+    </tr>
+    <tr>
+      <td>Desktop Ubuntu 26.04 x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-ubuntu26.04-x64.zip">Geardox-0.0.2-desktop-ubuntu26.04-x64.zip</a></td>
+    </tr>
+    <tr>
+      <td>Desktop Ubuntu 26.04 ARM64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-ubuntu26.04-arm64.zip">Geardox-0.0.2-desktop-ubuntu26.04-arm64.zip</a></td>
+    </tr>
+    <tr>
+      <td>Desktop Ubuntu 24.04 x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-ubuntu24.04-x64.zip">Geardox-0.0.2-desktop-ubuntu24.04-x64.zip</a></td>
+    </tr>
+    <tr>
+      <td>Desktop Ubuntu 24.04 ARM64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-ubuntu24.04-arm64.zip">Geardox-0.0.2-desktop-ubuntu24.04-arm64.zip</a></td>
+    </tr>
+    <tr>
+      <td><strong>BSD</strong></td>
+      <td>Desktop x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-desktop-bsd-x64.zip">Geardox-0.0.2-desktop-bsd-x64.zip</a></td>
+    </tr>
+    <tr>
+      <td><strong>MCPB</strong></td>
+      <td>All platforms</td>
+      <td><a href="MCP_README.md">MCP Readme</a></td>
+    </tr>
+    <tr>
+      <td><strong>RetroArch</strong></td>
+      <td>Libretro Linux x64</td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-libretro-linux-x64.zip">Geardox-0.0.2-libretro-linux-x64.zip</a></td>
+    </tr>
+    <tr>
+      <td><strong>Dev Builds</strong></td>
+      <td>All platforms</td>
+      <td><a href="https://github.com/drhelius/Geardox/actions/workflows/geardox.yml">GitHub Actions</a></td>
+    </tr>
+  </tbody>
+</table>
+
+**Notes:**
+
+- **Windows**: May need [Visual C++ Redistributable](https://go.microsoft.com/fwlink/?LinkId=746572) and [OpenGL Compatibility Pack](https://apps.microsoft.com/detail/9nqpsl29bfff)
+- **Homebrew**: If Homebrew asks you to trust the third-party tap, run `brew trust --tap drhelius/geardome`
+- **Linux**: May need `libsdl3`
+
 ## Features
 
 - Very accurate 386, 486 and Pentium core that passes [test386](https://github.com/barotto/test386.asm) and [SingleStepTests/80386](https://github.com/singlesteptests/80386), with dynarec and 80-bit x87 FPU.

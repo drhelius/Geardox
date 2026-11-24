@@ -5,6 +5,8 @@ drives, hard disks and a CD-ROM drive. A real PC needs DOS to run games, so Gear
 You never have to install DOS yourself. If you own MS-DOS, import it once and games and the built-in disk run on it
 instead: see [Use your own MS-DOS](GDOX_README.md#use-your-own-ms-dos).
 
+Get a desktop build from the [downloads](README.md#downloads) and open Geardox.
+
 - [Play a game](#play-a-game)
 - [Starting with nothing attached](#starting-with-nothing-attached)
 - [Using the DOS prompt](#using-the-dos-prompt)
