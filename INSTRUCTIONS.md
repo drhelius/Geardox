@@ -94,6 +94,9 @@ Both disks come ready for games, with the same `CONFIG.SYS` and `AUTOEXEC.BAT` f
   [Memory](GDOX_README.md#memory).
 - KEYB loads your layout from **DOS > Keyboard Layout**, when it isn't United States. The disk takes the layout chosen
   when it's made.
+- The Up and Down keys recall what you typed and Tab completes file names. On MS-DOS that's Enhanced DOSKEY, which also
+  completes program names, lists your commands with F7 and keeps macros. To leave it out, remove its line from
+  `AUTOEXEC.BAT`.
 - The PC rests while DOS waits for a key, so an idle prompt doesn't keep your computer busy.
 
 To start over, choose **DOS > Recreate Built-in MS-DOS Disk...** or **DOS > Recreate Built-in FreeDOS Disk...**. It

@@ -23,7 +23,7 @@ and game disks alike. Geardox also adds GDXRUN, GDXDBG and POWEROFF to `\FREEDOS
 CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. LBACACHE is the read cache a game descriptor's
 `cache = on` loads. MKEYB is the small keyboard driver FreeDOS game disks load instead of KEYB when they have no upper
 memory: KEYB leaves a gap of about 28K below its data there, and MKEYB stays under 1K. Disks on the user's own MS-DOS take CTMOUSE, UDVD2, `COPYING`, and SHSUCDX for MS-DOS 5.0, from
-here into their `\GEARDOX`, next to GDXRUN, GDXDBG, POWEROFF and GDXIDLE from `src/dos`.
+here into their `\GEARDOX`, next to GDXRUN, GDXDBG, POWEROFF and GDXIDLE from `src/dos`, and DOSKEY from `dependencies/doskey`.
 
 ## Building
 

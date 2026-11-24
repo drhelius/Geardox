@@ -875,8 +875,9 @@ C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
 C:\DOS            Everything MS-DOS Setup installs there
 C:\GEARDOX        Geardox's tools: the mouse and CD drivers, the programs that start the game and power off,
                   GDXIDLE.SYS, which rests the PC while DOS waits for a key as FreeDOS's IDLEHALT does,
-                  and GDXPAD.COM, which keeps conventional memory up to 32K so DOS extenders load above it,
-                  as on a PC with a few more drivers in low memory
+                  GDXPAD.COM, which keeps conventional memory up to 32K so DOS extenders load above it,
+                  as on a PC with a few more drivers in low memory, and Enhanced DOSKEY, which loads when
+                  the game leaves you at the prompt
 C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```
