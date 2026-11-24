@@ -9,6 +9,7 @@ header:
 
 request dd 0
 old_2a dd 0
+old_2f dd 0
 
 strategy:
     mov [cs:request], bx
@@ -38,6 +39,31 @@ int_2a:
 .chain:
     jmp far [cs:old_2a]
 
+int_2f:
+    cmp ax, 1680h
+    jne .chain
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+    push es
+    mov ax, 4800h
+    int 2Fh
+    or al, al
+    jz .done
+    mov ax, es
+    cmp ax, [bp + 4]
+    jne .done
+    sti
+    hlt
+.done:
+    pop es
+    pop bx
+    pop ax
+    pop bp
+.chain:
+    jmp far [cs:old_2f]
+
 resident_end:
 
 init:
@@ -51,6 +77,12 @@ init:
     mov [cs:old_2a + 2], ax
     mov word [es:2Ah * 4], int_2a
     mov [es:2Ah * 4 + 2], cs
+    mov ax, [es:2Fh * 4]
+    mov [cs:old_2f], ax
+    mov ax, [es:2Fh * 4 + 2]
+    mov [cs:old_2f + 2], ax
+    mov word [es:2Fh * 4], int_2f
+    mov [es:2Fh * 4 + 2], cs
     sti
     mov word [bx + 14], resident_end
     mov [bx + 16], cs
