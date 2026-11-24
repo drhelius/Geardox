@@ -53,6 +53,7 @@ tests/
 *.cfg
 *.zip
 !platforms/shared/dependencies/freedos/packages/*.zip
+!platforms/shared/dependencies/doskey/*.zip
 *.geardox
 *.so
 *.sav

@@ -75,6 +75,7 @@ INCLUDES += -I$(DEPS_DIR)/miniz
 INCLUDES += -I$(DEPS_DIR)/mt32emu/src
 INCLUDES += -I$(DEPS_DIR)/seabios
 INCLUDES += -I$(DEPS_DIR)/freedos
+INCLUDES += -I$(DEPS_DIR)/doskey
 INCLUDES += -I$(DEPS_DIR)/stb
 INCLUDES += -I$(DEPS_DIR)/zstd
 

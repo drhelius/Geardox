@@ -604,6 +604,9 @@
     <ClCompile Include="..\shared\dependencies\freedos\freedos.cpp">
       <Filter>dependencies\freedos</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\dependencies\doskey\doskey.cpp">
+      <Filter>dependencies\doskey</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\dependencies\miniz\miniz.c">
       <Filter>dependencies\miniz</Filter>
     </ClCompile>
@@ -1322,6 +1325,9 @@
     </Filter>
     <Filter Include="dependencies\freedos">
       <UniqueIdentifier>{7f3a1c52-9e4d-4b86-a1d7-3c5e8f2b6d10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dependencies\doskey">
+      <UniqueIdentifier>{c4a96e0b-2d17-4f35-9b8e-61d0a7f3e258}</UniqueIdentifier>
     </Filter>
     <Filter Include="dependencies\miniz">
       <UniqueIdentifier>{466b2296-06dc-4afd-a898-3c4ed168681e}</UniqueIdentifier>

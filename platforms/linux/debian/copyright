@@ -48,6 +48,11 @@ Copyright: The FreeDOS Project and the respective program authors
 License: GPL-2+ and GPL-2 and Artistic and public-domain
 Comment: Each package in packages/ holds its own notices and source code
 
+Files: platforms/shared/dependencies/doskey/*
+Copyright: 2001-2011 Paul Houle
+License: GPL-2+
+Comment: doskey20asrc.zip holds its notices and source code
+
 Files: platforms/libretro/libretro.h
 Copyright: 2010-2024 The RetroArch team
 License: MIT
