@@ -4708,7 +4708,9 @@ json DebugAdapter::DetachHardDisk(int id)
     if ((id < 0) || (id >= GDOX_MAX_HARD_DISKS))
         return {{"error", "id must be 0-3"}};
 
-    emu_hard_disk_detach(id);
+    if (!emu_hard_disk_detach(id))
+        return {{"error", "Unable to write the hard disk changes, the disk stays attached"}};
+
     json result = hard_disk_json(id);
     result["success"] = true;
     return result;

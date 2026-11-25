@@ -165,7 +165,13 @@ bool emu_hard_disk_attach_prepared_source(int id, bool write_protected)
     prepared_disk = NULL;
     prepared_source.ready = false;
 
-    if (!valid_id(id) || !emu_get_core()->AttachHardDisk(id, disk))
+    if (!emu_hard_disk_save_changes(id))
+    {
+        SafeDelete(disk);
+        return false;
+    }
+
+    if (!emu_get_core()->AttachHardDisk(id, disk))
         return false;
 
     game_disks[id] = false;
@@ -194,6 +200,12 @@ bool emu_hard_disk_attach_prepared_image(int id, bool game)
 {
     if (!valid_id(id) || !IsValidPointer(prepared_images[id]))
         return false;
+
+    if (!emu_hard_disk_save_changes(id))
+    {
+        SafeDelete(prepared_images[id]);
+        return false;
+    }
 
     HardDiskImage* image = prepared_images[id];
     InitPointer(prepared_images[id]);
@@ -375,7 +387,7 @@ bool emu_hard_disk_take_fallback_error(std::string* error)
 
 bool emu_hard_disk_attach(int id, const char* path, bool write_protected)
 {
-    if (!valid_id(id) || !IsValidPointer(path) ||
+    if (!valid_id(id) || !IsValidPointer(path) || !emu_hard_disk_save_changes(id) ||
         !emu_get_core()->AttachHardDisk(id, path, write_protected, get_working_path(path).c_str()))
         return false;
 
@@ -390,7 +402,13 @@ bool emu_hard_disk_attach(int id, const char* path, bool write_protected)
 
 bool emu_hard_disk_attach_game(int id, FolderDisk* disk)
 {
-    if (!valid_id(id) || !emu_get_core()->AttachHardDisk(id, disk))
+    if (!emu_hard_disk_save_changes(id))
+    {
+        SafeDelete(disk);
+        return false;
+    }
+
+    if (!emu_get_core()->AttachHardDisk(id, disk))
         return false;
 
     game_disks[id] = true;
@@ -399,7 +417,7 @@ bool emu_hard_disk_attach_game(int id, FolderDisk* disk)
 
 bool emu_hard_disk_detach(int id)
 {
-    if (!valid_id(id))
+    if (!emu_hard_disk_save_changes(id))
         return false;
 
     emu_get_core()->DetachHardDisk(id);
@@ -409,7 +427,8 @@ bool emu_hard_disk_detach(int id)
 
 bool emu_hard_disk_create(int id, const char* path, int size_mb, bool formatted, bool write_protected)
 {
-    if (!valid_id(id) || !IsValidPointer(path) || (size_mb <= 0) || SDL_GetPathInfo(path, NULL))
+    if (!valid_id(id) || !IsValidPointer(path) || (size_mb <= 0) || SDL_GetPathInfo(path, NULL) ||
+        !emu_hard_disk_save_changes(id))
         return false;
 
     if (!HardDiskImage::Create(path, (u64)size_mb * 1024 * 1024, formatted))
@@ -474,13 +493,26 @@ bool emu_hard_disk_set_write_protected(int id, bool write_protected)
     const char* path = info.pending ? info.pending_path : info.path;
 
     if (info.game && !info.folder)
-        return emu_get_core()->AttachHardDisk(id, path, write_protected, prepared_working_paths[id].c_str());
+        return emu_hard_disk_save_changes(id) &&
+            emu_get_core()->AttachHardDisk(id, path, write_protected, prepared_working_paths[id].c_str());
 
     if (path[0] != 0)
         return emu_hard_disk_attach(id, path, write_protected);
 
     config_emulator.hard_disk_write_protected[id] = write_protected ? 1 : 0;
     return true;
+}
+
+bool emu_hard_disk_save_changes(int id)
+{
+    if (!valid_id(id))
+        return false;
+
+    if (emu_get_core()->GetHardDisk(id)->Flush())
+        return true;
+
+    flush_error = true;
+    return false;
 }
 
 bool emu_hard_disk_flush(void)

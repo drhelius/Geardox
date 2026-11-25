@@ -1574,6 +1574,12 @@ void GeardoxCore::ApplyHardDisks()
         if (!m_hard_disk_pending[i])
             continue;
 
+        if (!m_ide->GetDisk(i)->GetImage()->Flush())
+        {
+            Error("Hard disk %d stays attached until its changes are saved", i);
+            continue;
+        }
+
         m_hard_disk_pending[i] = false;
         CloseHardDisk(i);
 

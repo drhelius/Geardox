@@ -245,13 +245,15 @@ void emu_destroy(void)
         save_key_map();
     }
 
-    emu_game_close();
+    emu_game_close(true);
 
     if (!emu_floppy_flush())
         Error("Unable to save one or more floppy disks on exit");
 
     save_cmos();
-    emu_hard_disk_flush();
+
+    if (!emu_hard_disk_flush())
+        Error("Unable to save one or more hard disks on exit");
 
     runahead_destroy();
     rewind_destroy();

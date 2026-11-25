@@ -88,6 +88,7 @@ EXTERN bool emu_hard_disk_detach(int id);
 EXTERN bool emu_hard_disk_create(int id, const char* path, int size_mb, bool formatted, bool write_protected);
 EXTERN bool emu_hard_disk_save(int id, const char* path, std::string* error, std::string* warning);
 EXTERN bool emu_hard_disk_set_write_protected(int id, bool write_protected);
+EXTERN bool emu_hard_disk_save_changes(int id);
 EXTERN bool emu_hard_disk_flush(void);
 EXTERN void emu_hard_disk_update(void);
 EXTERN bool emu_hard_disk_take_flush_error(void);

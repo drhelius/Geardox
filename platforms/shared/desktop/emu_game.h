@@ -44,7 +44,7 @@ EXTERN bool emu_game_find(const char* path, std::vector<GameDisk_Found>* found);
 EXTERN bool emu_game_open(const GameDisk_Found& found, int target, int program = -1);
 EXTERN void emu_game_prepare_thread(void);
 EXTERN bool emu_game_start(void);
-EXTERN bool emu_game_close(void);
+EXTERN bool emu_game_close(bool force = false);
 EXTERN bool emu_game_is_open(void);
 EXTERN const char* emu_game_get_name(void);
 EXTERN const char* emu_game_get_error(void);

@@ -192,6 +192,26 @@ bool emu_game_start(void)
         return false;
     }
 
+    bool saved = true;
+
+    for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
+        saved = emu_hard_disk_save_changes(i) && saved;
+
+    if (!saved)
+    {
+        error_text = "Unable to save the hard disk changes. The disks stay attached until they are saved.";
+        disk.Close();
+        core->ClearGameSettings();
+        emu_update_joystick_type();
+        emu_update_cga_output();
+        emu_floppy_clear_prepared();
+
+        if (cdrom_loaded)
+            emu_eject_media();
+
+        return false;
+    }
+
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
         emu_hard_disk_detach(i);
 
@@ -279,7 +299,7 @@ bool emu_game_start(void)
     return emu_power_on();
 }
 
-bool emu_game_close(void)
+bool emu_game_close(bool force)
 {
     if (preparing)
         return false;
@@ -289,6 +309,12 @@ bool emu_game_close(void)
 
     GeardoxCore* core = emu_get_core();
 
+    for (int i = 0; !force && (i < GDOX_MAX_HARD_DISKS); i++)
+    {
+        if (!emu_hard_disk_save_changes(i))
+            return false;
+    }
+
     if (emu_is_powered_on())
         emu_power_off();
 
@@ -297,7 +323,12 @@ bool emu_game_close(void)
         Emu_HardDiskInfo info;
         emu_hard_disk_get_info(i, &info);
 
-        if (info.game)
+        if (!info.game)
+            continue;
+
+        if (force)
+            core->DetachHardDisk(i);
+        else
             emu_hard_disk_detach(i);
     }
 
