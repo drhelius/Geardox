@@ -8,9 +8,9 @@
 [![License](https://img.shields.io/github/license/drhelius/Geardox)](https://github.com/drhelius/Geardox/blob/main/LICENSE)
 [![Twitter Follow](https://img.shields.io/twitter/follow/drhelius)](https://x.com/drhelius)
 
-Geardox is a gaming oriented, cross-platform MS-DOS PC emulator written in C++ that runs on Windows, macOS, Linux, BSD and RetroArch, with an embedded MCP server for AI debugging and development.
+Geardox is a gaming oriented, cross-platform, MS-DOS PC emulator written in C++ that runs on Windows, macOS, Linux, BSD and RetroArch, with an embedded MCP server for AI debugging and development.
 
-It emulates 386, 486 and Pentium PCs, comes with FreeDOS built in, and runs MS-DOS 5.0-6.22, Windows 3.1, and Windows 95 with 3dfx and DirectX games.
+It emulates 386, 486 and Pentium PCs accurately, comes with FreeDOS built in, and runs MS-DOS 5.0-6.22, Windows 3.1, and Windows 95 games.
 
 This is an open source project with its ongoing development made possible thanks to the support by these awesome [backers](backers.md). If you find it useful, please consider [sponsoring](https://github.com/sponsors/drhelius).
 
