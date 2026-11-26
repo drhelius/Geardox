@@ -318,13 +318,17 @@ hotkeys, which use Ctrl+Shift, Ctrl with an F-key or a digit, and Alt+Enter. On 
 them; on a Mac keyboard the F-keys may need Fn. **Input > Keyboard > Paste as Keystrokes** types the clipboard into
 the PC.
 
-**Game Focus is for playing.** Press **Ctrl+F10**, or go fullscreen with **Alt+Enter**. The mouse is then locked in
-the window, and every hotkey is off except Ctrl+F10, Alt+Enter, Ctrl+F1 and Ctrl+F2, so even a game's own Ctrl and
-F-key combinations reach it. The window title shows it's on. **Ctrl+F10** leaves it, and so do switching to another
-window and leaving fullscreen.
+**Capture Mouse** (**Ctrl+F11**) locks the mouse inside the window, and every hotkey keeps working, so save states
+and rewind stay at hand. Going fullscreen with **Alt+Enter** captures it too.
+
+**Game Focus** (**Ctrl+F10**) is for games that use Ctrl and F-key combinations themselves: the mouse is locked and
+every hotkey is off except Ctrl+F10, Alt+Enter, Ctrl+F1 and Ctrl+F2, so those combinations reach the game. Pressing
+**Ctrl+F10** again leaves it, back to the captured mouse in fullscreen. The window title shows either state.
+Switching to another window, opening a menu and leaving fullscreen release both.
 
 | Hotkey | Does |
 | --- | --- |
+| Ctrl+F11 | Capture Mouse on and off |
 | Ctrl+F10 | Game Focus on and off |
 | Alt+Enter | Fullscreen |
 | Ctrl+F1, Ctrl+F2 | Keyboard mapper, key changes off and on |
@@ -349,8 +353,8 @@ opened. A descriptor can set them too, including one key that sends several, suc
 **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key changes off and on, for instance to type a character's name in
 a game that moves on letters. Every game starts with them on.
 
-**The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, Game Focus
-locks it inside the window.
+**The mouse** moves the PC's mouse while the pointer is over the screen. For games that need free movement, Capture
+Mouse (Ctrl+F11) locks it inside the window.
 
 **A gamepad** presses the PC's keys and moves its mouse. Out of the box, the D-pad sends the cursor keys, the left
 stick moves the mouse, A and B click, X is Space, Y is Left Ctrl, L1 is Left Alt, R1 is Left Shift, Back is Esc and
@@ -422,7 +426,7 @@ are named after its folder, `<name>.<id>.state1` to `.state5`, and with nothing 
 | The PC boots from a floppy I forgot | Eject it from **Drives > Floppies**, or use **Geardox > Reset and Boot From > Hard Disk**. |
 | The games I installed are missing | A game has its own C:. Close it and choose **Geardox > Power On** to get the built-in disk back. Games installed on the FreeDOS disk aren't on the MS-DOS one: **Drives > Hard Disks > Default Disk** switches back, or attach both to copy them. |
 | Hotkeys don't work | Game Focus is on, as the window title says. Press Ctrl+F10. |
-| The mouse stops at the window's edge | Press Ctrl+F10 for Game Focus, which locks it in the window. |
+| The mouse stops at the window's edge | Press Ctrl+F11 to capture the mouse, which locks it in the window. |
 | The game runs too fast | Turn off **Turbo** (Ctrl+Shift+T), or pick a 386 in **Emulator > Machine > Model**. |
 | No sound | Run the game's setup and choose Sound Blaster 16, port 220, IRQ 5, DMA 1. |
 | No music with General MIDI or MT-32 | Add the MT-32 ROMs or a sound bank in **Audio > Built-in Synths**, or start an outside synth and choose its port in **Audio > MIDI Out**. See [MIDI Music](#midi-music). |

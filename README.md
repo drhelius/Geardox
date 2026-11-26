@@ -118,7 +118,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - Two floppy drives (360 KB-2.88 MB) with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
 - Up to four IDE hard disks with raw, fixed `vhd` and `chd` images, and blank disk creation.
 - Keyboard with DOS layouts, PS/2 and serial mice, game port joysticks (standard, Gravis GamePad, CH FlightStick Pro), and up to two gamepads as keyboard and mouse (mapped per game) or joystick.
-- Per-game keyboard mapper, Game Focus mouse capture and clipboard paste as keystrokes.
+- Per-game keyboard mapper, mouse capture, Game Focus and clipboard paste as keystrokes.
 - Save states (5 slots), rewind and run-ahead.
 - AVI video recording, screenshots and VGM recording (OPL2, OPL3).
 - Standalone: Windows, Linux, BSD and macOS.
@@ -142,7 +142,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - **Portable Mode**: Run with `--portable`, or create an empty file named `portable.ini` in the same directory as the application binary. On macOS, place the file next to the `.app` bundle.
 
 ### Keyboard
-Keys go to the PC. Geardox keeps only its hotkeys, `Ctrl+Shift`, `Ctrl` with an F-key or a digit, and `Alt+Enter` (`Cmd` and `Option` replace `Ctrl` and `Alt` on macOS), set in **Emulator → Hotkeys**. `Ctrl+F10` or fullscreen enters Game Focus, which locks the mouse and keeps only `Ctrl+F10`, `Alt+Enter`, `Ctrl+F1` (keyboard mapper) and `Ctrl+F2` (key changes on and off). See [Keyboard, mouse and joystick](INSTRUCTIONS.md#keyboard-mouse-and-joystick), and [`[keys]`](GDOX_README.md#keys) for the key names.
+Keys go to the PC. Geardox keeps only its hotkeys, `Ctrl+Shift`, `Ctrl` with an F-key or a digit, and `Alt+Enter` (`Cmd` and `Option` replace `Ctrl` and `Alt` on macOS), set in **Emulator → Hotkeys**. `Ctrl+F11` or fullscreen captures the mouse with every hotkey still working. `Ctrl+F10` enters Game Focus, which locks the mouse and keeps only `Ctrl+F10`, `Alt+Enter`, `Ctrl+F1` (keyboard mapper) and `Ctrl+F2` (key changes on and off). See [Keyboard, mouse and joystick](INSTRUCTIONS.md#keyboard-mouse-and-joystick), and [`[keys]`](GDOX_README.md#keys) for the key names.
 
 Outside a game, the mapper's changes go to a `.keys` file named after the content (`PC.keys` with nothing loaded) in the `Save Files` folder.
 
