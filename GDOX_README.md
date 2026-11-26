@@ -382,8 +382,8 @@ joined with `+`, such as `f13 = left_ctrl + left_alt + delete`, or nothing at al
 The same can be done while the game runs: **Ctrl+F1** (**Cmd+F1** on macOS) opens the keyboard mapper, a picture of
 the PC keyboard where you click a PC key and press the key of yours that should drive it. Those changes are kept for
 that game in `Keys.ini`, in its `<name>.<id>` folder, and win over the descriptor's lines for the same key.
-**Save Descriptor...** writes both into its `[keys]`. The mapper's **All Games** button edits changes for every game
-instead, for fixes to your own keyboard, kept in `PC.keys` and applied under each game's own changes.
+**Save Descriptor...** writes both into its `[keys]`. The mapper's **All Games** button is for fixes to your own
+keyboard instead: they apply to every game and are kept in `PC.keys`, and a game's own change to the same key wins.
 
 Keys bound like WASD above no longer type their letters. **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key
 changes off and on, to name a character or a saved game. All Games changes stay on.

@@ -346,10 +346,11 @@ yours; click it again to deselect it. Each PC key lists the keys that drive it, 
 one to remove it. Removing the last binding you gave a key of yours gives it back its default, while removing a
 built-in one leaves that key doing nothing. Right click the PC key to remove all but the built-in ones. Red keys are
 ones no key of yours reaches. Press the same hotkey again, or click **Close**, to go back to the game. **This Game** and
-**All Games**, at the bottom, pick what the changes are for. The mapper starts on This Game, whose changes are kept for
-that game only, beside its other files; with no game open, they're kept for the disc, floppy or hard disk image you
-opened. All Games is for fixes to your own keyboard, applied to every game under each game's own changes, and with
-nothing loaded it is what you edit. **Reset All**, clicked twice, drops the changes of the side shown. A descriptor can
+**All Games**, at the bottom, choose where the changes go. The mapper opens on **This Game**: a game keeps them beside
+its other files, and a disc, floppy or hard disk image opened without a game keeps them for that image. **All Games** is
+for fixes to your own keyboard: they apply to everything you run, and a game's own change to the same key wins over
+them. With nothing loaded, only All Games is available. **Reset All**, clicked twice, drops the changes of the side
+shown. A descriptor can
 set them too, including one key that sends several, such as Ctrl, Alt and Del; see
 [Remap keys](GDOX_README.md#remap-keys).
 
