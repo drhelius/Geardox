@@ -35,7 +35,8 @@ KeyMap::KeyMap()
     memset(m_references, 0, sizeof(m_references));
     m_enabled = true;
     m_blocked = false;
-    m_changed = false;
+    memset(m_changed, 0, sizeof(m_changed));
+    m_edit_layer = GDOX_KEY_MAP_USER;
     ResetBuiltIn();
 }
 
@@ -297,6 +298,11 @@ const GDOX_Key_Map_Entry& KeyMap::GetLayerEntry(GDOX_Key_Map_Layer layer, u16 us
 
 const GDOX_Key_Map_Entry& KeyMap::GetEntry(u16 usage, GDOX_Key_Map_Layer* layer) const
 {
+    return GetEntryUpTo(m_edit_layer, usage, layer);
+}
+
+const GDOX_Key_Map_Entry& KeyMap::GetEntryUpTo(int top, u16 usage, GDOX_Key_Map_Layer* layer) const
+{
     if (!IsHostKey(usage))
     {
         if (IsValidPointer(layer))
@@ -305,7 +311,7 @@ const GDOX_Key_Map_Entry& KeyMap::GetEntry(u16 usage, GDOX_Key_Map_Layer* layer)
         return k_key_map_empty;
     }
 
-    for (int l = GDOX_KEY_MAP_USER; l > GDOX_KEY_MAP_BUILT_IN; l--)
+    for (int l = top; l > GDOX_KEY_MAP_BUILT_IN; l--)
     {
         if (m_layers[l][usage].set)
         {
@@ -338,7 +344,7 @@ bool KeyMap::Bind(u16 usage, const GDOX_Keys* keys, int count)
         entry.keys[entry.count++] = (u8)keys[i];
     }
 
-    SetUserEntry(usage, entry);
+    SetEditEntry(usage, entry);
     return true;
 }
 
@@ -361,14 +367,14 @@ bool KeyMap::Unbind(u16 usage, GDOX_Keys key)
     if (entry.count == current.count)
         return false;
 
-    if ((entry.count == 0) && (layer == GDOX_KEY_MAP_USER))
+    if ((entry.count == 0) && (layer == m_edit_layer))
     {
-        m_layers[GDOX_KEY_MAP_USER][usage] = k_key_map_empty;
-        m_changed = true;
+        m_layers[m_edit_layer][usage] = k_key_map_empty;
+        m_changed[m_edit_layer] = true;
         return true;
     }
 
-    SetUserEntry(usage, entry);
+    SetEditEntry(usage, entry);
     return true;
 }
 
@@ -379,18 +385,28 @@ bool KeyMap::RestoreBuiltIn(u16 usage)
 
     GDOX_Key_Map_Entry entry = m_layers[GDOX_KEY_MAP_BUILT_IN][usage];
     entry.set = true;
-    SetUserEntry(usage, entry);
+    SetEditEntry(usage, entry);
     return true;
 }
 
-bool KeyMap::IsChanged() const
+void KeyMap::SetEditLayer(GDOX_Key_Map_Layer layer)
 {
-    return m_changed;
+    m_edit_layer = layer == GDOX_KEY_MAP_GLOBAL ? GDOX_KEY_MAP_GLOBAL : GDOX_KEY_MAP_USER;
 }
 
-void KeyMap::SetChanged(bool changed)
+GDOX_Key_Map_Layer KeyMap::GetEditLayer() const
 {
-    m_changed = changed;
+    return m_edit_layer;
+}
+
+bool KeyMap::IsChanged(GDOX_Key_Map_Layer layer) const
+{
+    return m_changed[layer];
+}
+
+void KeyMap::SetChanged(GDOX_Key_Map_Layer layer, bool changed)
+{
+    m_changed[layer] = changed;
 }
 
 bool KeyMap::LoadFiles(const char* user_path, const char* game_text, std::string* error)
@@ -401,7 +417,7 @@ bool KeyMap::LoadFiles(const char* user_path, const char* game_text, std::string
     SetEnabled(true);
     ClearLayer(GDOX_KEY_MAP_GAME);
     ClearLayer(GDOX_KEY_MAP_USER);
-    SetChanged(false);
+    SetChanged(GDOX_KEY_MAP_USER, false);
 
     if (!SetLayer(GDOX_KEY_MAP_GAME, game_text, &game_error))
         ClearLayer(GDOX_KEY_MAP_GAME);
@@ -417,21 +433,42 @@ bool KeyMap::LoadFiles(const char* user_path, const char* game_text, std::string
     return false;
 }
 
-bool KeyMap::SaveUserFile(const char* path)
+bool KeyMap::LoadGlobalFile(const char* path, std::string* error)
 {
-    if (!IsChanged() || !IsValidPointer(path) || (path[0] == 0))
+    std::string text;
+
+    ClearLayer(GDOX_KEY_MAP_GLOBAL);
+    SetChanged(GDOX_KEY_MAP_GLOBAL, false);
+
+    if (!IsValidPointer(path) || (path[0] == 0) || !MediaFile::ReadFile(path, k_media_file_no_limit, &text, true))
         return true;
 
-    SetChanged(false);
+    if (SetLayer(GDOX_KEY_MAP_GLOBAL, text.c_str(), error))
+        return true;
 
-    if (IsLayerEmpty(GDOX_KEY_MAP_USER))
+    ClearLayer(GDOX_KEY_MAP_GLOBAL);
+    return false;
+}
+
+bool KeyMap::SaveFile(GDOX_Key_Map_Layer layer, const char* path)
+{
+    if (!IsChanged(layer) || !IsValidPointer(path) || (path[0] == 0))
+        return true;
+
+    if (IsLayerEmpty(layer))
     {
         MediaFile::RemoveFile(path);
+        SetChanged(layer, false);
         return true;
     }
 
-    std::string text = "[keys]\n" + GetLayer(GDOX_KEY_MAP_USER);
-    return MediaFile::WriteFileAtomic(path, text.data(), text.size());
+    std::string text = "[keys]\n" + GetLayer(layer);
+
+    if (!MediaFile::WriteFileAtomic(path, text.data(), text.size()))
+        return false;
+
+    SetChanged(layer, false);
+    return true;
 }
 
 bool KeyMap::IsHostKey(u16 usage)
@@ -586,7 +623,7 @@ std::string KeyMap::FormatTargets(const GDOX_Key_Map_Entry& entry)
 
 const GDOX_Key_Map_Entry& KeyMap::GetActiveEntry(u16 usage) const
 {
-    return m_enabled ? GetEntry(usage) : m_layers[GDOX_KEY_MAP_BUILT_IN][usage];
+    return GetEntryUpTo(m_enabled ? m_edit_layer : GDOX_KEY_MAP_GLOBAL, usage, NULL);
 }
 
 const GDOX_Key_Map_Entry& KeyMap::GetBaseEntry(GDOX_Key_Map_Layer layer, u16 usage) const
@@ -600,14 +637,14 @@ const GDOX_Key_Map_Entry& KeyMap::GetBaseEntry(GDOX_Key_Map_Layer layer, u16 usa
     return m_layers[GDOX_KEY_MAP_BUILT_IN][usage];
 }
 
-void KeyMap::SetUserEntry(u16 usage, const GDOX_Key_Map_Entry& entry)
+void KeyMap::SetEditEntry(u16 usage, const GDOX_Key_Map_Entry& entry)
 {
-    if (SameTargets(entry, GetBaseEntry(GDOX_KEY_MAP_USER, usage)))
-        m_layers[GDOX_KEY_MAP_USER][usage] = k_key_map_empty;
+    if (SameTargets(entry, GetBaseEntry(m_edit_layer, usage)))
+        m_layers[m_edit_layer][usage] = k_key_map_empty;
     else
-        m_layers[GDOX_KEY_MAP_USER][usage] = entry;
+        m_layers[m_edit_layer][usage] = entry;
 
-    m_changed = true;
+    m_changed[m_edit_layer] = true;
 }
 
 void KeyMap::PressHostTargets(u16 usage)

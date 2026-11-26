@@ -7090,6 +7090,8 @@ static json key_map_layer(KeyMap* key_map, GDOX_Key_Map_Layer layer)
 json DebugAdapter::GetKeyMap()
 {
     KeyMap* key_map = m_core->GetKeyMap();
+    GDOX_Key_Map_Layer edit_layer = key_map->GetEditLayer();
+    key_map->SetEditLayer(GDOX_KEY_MAP_USER);
     bool reached[GDOX_KEY_COUNT] = { };
     json remapped = json::object();
 
@@ -7122,8 +7124,10 @@ json DebugAdapter::GetKeyMap()
     result["file"] = emu_key_map_get_path();
     result["game"] = key_map_layer(key_map, GDOX_KEY_MAP_GAME);
     result["user"] = key_map_layer(key_map, GDOX_KEY_MAP_USER);
+    result["global"] = key_map_layer(key_map, GDOX_KEY_MAP_GLOBAL);
     result["remapped"] = remapped;
     result["unreachable"] = unreachable;
+    key_map->SetEditLayer(edit_layer);
     return result;
 }
 
@@ -7133,6 +7137,8 @@ json DebugAdapter::SetKeyBinding(const std::string& host, const std::string& key
     u16 usage = 0;
     GDOX_Key_Map_Entry entry;
     std::string error;
+    GDOX_Key_Map_Layer layer = emu_key_map_get_path()[0] != 0 ? GDOX_KEY_MAP_USER : GDOX_KEY_MAP_GLOBAL;
+    GDOX_Key_Map_Layer edit_layer = key_map->GetEditLayer();
 
     if (keys == "default")
     {
@@ -7143,8 +7149,8 @@ json DebugAdapter::SetKeyBinding(const std::string& host, const std::string& key
 
         GDOX_Key_Map_Entry empty;
         memset(&empty, 0, sizeof(empty));
-        key_map->SetEntry(GDOX_KEY_MAP_USER, (u16)found, empty);
-        key_map->SetChanged(true);
+        key_map->SetEntry(layer, (u16)found, empty);
+        key_map->SetChanged(layer, true);
         usage = (u16)found;
     }
     else
@@ -7157,12 +7163,16 @@ json DebugAdapter::SetKeyBinding(const std::string& host, const std::string& key
         for (int i = 0; i < entry.count; i++)
             targets[i] = (GDOX_Keys)entry.keys[i];
 
+        key_map->SetEditLayer(layer);
         key_map->Bind(usage, targets, entry.count);
     }
 
     emu_key_map_save();
-    return {{"success", true}, {"host", KeyMap::GetHostKeyName(usage)},
-        {"keys", KeyMap::FormatTargets(key_map->GetEntry(usage))}, {"file", emu_key_map_get_path()}};
+    key_map->SetEditLayer(GDOX_KEY_MAP_USER);
+    std::string bound = KeyMap::FormatTargets(key_map->GetEntry(usage));
+    key_map->SetEditLayer(edit_layer);
+    const char* file = layer == GDOX_KEY_MAP_GLOBAL ? emu_key_map_get_global_path() : emu_key_map_get_path();
+    return {{"success", true}, {"host", KeyMap::GetHostKeyName(usage)}, {"keys", bound}, {"file", file}};
 }
 
 json DebugAdapter::SetKeyMapping(bool enabled)

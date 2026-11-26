@@ -31,6 +31,7 @@ typedef void (*GDOX_Key_Event_Fn)(void* context, GDOX_Keys key, bool pressed);
 enum GDOX_Key_Map_Layer
 {
     GDOX_KEY_MAP_BUILT_IN = 0,
+    GDOX_KEY_MAP_GLOBAL,
     GDOX_KEY_MAP_GAME,
     GDOX_KEY_MAP_USER,
     GDOX_KEY_MAP_LAYER_COUNT
@@ -72,10 +73,13 @@ public:
     bool Bind(u16 usage, const GDOX_Keys* keys, int count);
     bool Unbind(u16 usage, GDOX_Keys key);
     bool RestoreBuiltIn(u16 usage);
-    bool IsChanged() const;
-    void SetChanged(bool changed);
+    void SetEditLayer(GDOX_Key_Map_Layer layer);
+    GDOX_Key_Map_Layer GetEditLayer() const;
+    bool IsChanged(GDOX_Key_Map_Layer layer) const;
+    void SetChanged(GDOX_Key_Map_Layer layer, bool changed);
     bool LoadFiles(const char* user_path, const char* game_text, std::string* error);
-    bool SaveUserFile(const char* path);
+    bool LoadGlobalFile(const char* path, std::string* error);
+    bool SaveFile(GDOX_Key_Map_Layer layer, const char* path);
 
     static bool IsHostKey(u16 usage);
     static int FindHostKey(const char* name);
@@ -89,9 +93,10 @@ public:
     static std::string FormatTargets(const GDOX_Key_Map_Entry& entry);
 
 private:
+    const GDOX_Key_Map_Entry& GetEntryUpTo(int top, u16 usage, GDOX_Key_Map_Layer* layer) const;
     const GDOX_Key_Map_Entry& GetActiveEntry(u16 usage) const;
     const GDOX_Key_Map_Entry& GetBaseEntry(GDOX_Key_Map_Layer layer, u16 usage) const;
-    void SetUserEntry(u16 usage, const GDOX_Key_Map_Entry& entry);
+    void SetEditEntry(u16 usage, const GDOX_Key_Map_Entry& entry);
     void PressHostTargets(u16 usage);
     void FlushDeferredHostKeys();
     static bool IsDeferredHostKey(u16 usage);
@@ -110,7 +115,8 @@ private:
     int m_references[GDOX_KEY_COUNT];
     bool m_enabled;
     bool m_blocked;
-    bool m_changed;
+    bool m_changed[GDOX_KEY_MAP_LAYER_COUNT];
+    GDOX_Key_Map_Layer m_edit_layer;
     GDOX_Key_Event_Fn m_callback;
     void* m_context;
 };

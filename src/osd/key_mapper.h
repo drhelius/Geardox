@@ -75,8 +75,11 @@ private:
     void DrawInfo();
     void DrawChips(int y);
     void DrawButtons();
-    void DrawButton(int x, int y, int width, const char* text);
+    void DrawButton(int x, int y, int width, const char* text, bool active = false, bool enabled = true);
+    void SetEditLayer(GDOX_Key_Map_Layer layer);
+    bool HasGame() const;
     void GetResetRect(int* x, int* y, int* width, int* height) const;
+    void GetLayerRect(int index, int* x, int* y, int* width, int* height) const;
     void GetCloseRect(int* x, int* y, int* width, int* height) const;
     bool IsPointerIn(int x, int y, int width, int height) const;
     std::string DescribeHostKey(u16 usage) const;

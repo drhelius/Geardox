@@ -102,6 +102,7 @@ static std::vector<std::string> cdrom_playlist;
 static int cdrom_playlist_index = -1;
 static int cmos_model = -1;
 static std::string key_map_path;
+static std::string global_key_map_path;
 
 static void load_media_thread_func(void);
 static void reset_buffers(void);
@@ -124,6 +125,7 @@ static void sync_cmos(void);
 static void notify_machine(void);
 static void update_key_map(void);
 static std::string get_key_map_path(std::string* title);
+static std::string get_global_key_map_path(void);
 static void save_key_map(void);
 static bool init_debug(void);
 static void destroy_debug(void);
@@ -728,6 +730,11 @@ void emu_key_mapping_toggle(void)
 const char* emu_key_map_get_path(void)
 {
     return key_map_path.c_str();
+}
+
+const char* emu_key_map_get_global_path(void)
+{
+    return global_key_map_path.c_str();
 }
 
 void emu_key_map_save(void)
@@ -2256,18 +2263,33 @@ static void update_key_map(void)
 {
     std::string title;
     std::string path = get_key_map_path(&title);
+    std::string global_path = get_global_key_map_path();
     KeyMap* key_map = geardox->GetKeyMap();
     KeyMapper* mapper = geardox->GetKeyMapper();
+    std::string error;
 
     mapper->SetTitle(title.c_str());
+
+    if ((path == key_map_path) && (global_path == global_key_map_path))
+        return;
+
+    save_key_map();
+
+    if (global_path != global_key_map_path)
+    {
+        global_key_map_path = global_path;
+
+        if (!key_map->LoadGlobalFile(global_path.c_str(), &error))
+        {
+            Log("Ignoring the key map %s: %s", global_path.c_str(), error.c_str());
+            gui_notify(gui_NotificationError, ICON_MD_KEYBOARD, "Key map ignored", error.c_str(), "key_map");
+        }
+    }
 
     if (path == key_map_path)
         return;
 
-    save_key_map();
     key_map_path = path;
-
-    std::string error;
 
     if (!key_map->LoadFiles(path.c_str(), emu_game_get_keys(), &error))
     {
@@ -2292,6 +2314,11 @@ static std::string get_key_map_path(std::string* title)
     if (content[0] == '\0')
         content = emu_hard_disk_get_content_path();
 
+    *title = content[0] != '\0' ? get_filename(content) : "";
+
+    if (content[0] == '\0')
+        return "";
+
     const char* directory = get_configurated_dir(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str());
     char folder[GDOX_MAX_PATH];
     char name[GDOX_MAX_PATH];
@@ -2299,30 +2326,46 @@ static std::string get_key_map_path(std::string* title)
 
     if (!IsValidPointer(directory))
     {
-        if (content[0] != '\0')
-            get_directory(content, folder, sizeof(folder));
-        else
-            strncpy_fit(folder, config_root_path, sizeof(folder));
-
+        get_directory(content, folder, sizeof(folder));
         directory = folder;
     }
 
-    if (content[0] != '\0')
-        get_filename_without_extension(content, name, sizeof(name));
-    else
-        strncpy_fit(name, "PC", sizeof(name));
-
-    *title = content[0] != '\0' ? get_filename(content) : "";
+    get_filename_without_extension(content, name, sizeof(name));
     join_path(directory, (std::string(name) + ".keys").c_str(), path, sizeof(path));
+
+    std::string global = get_global_key_map_path();
+
+    if ((global.size() == strlen(path)) && ends_with_no_case(path, global.c_str()))
+    {
+        *title = "";
+        return "";
+    }
+
+    return path;
+}
+
+static std::string get_global_key_map_path(void)
+{
+    const char* directory = get_configurated_dir(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str());
+    char path[GDOX_MAX_PATH];
+
+    join_path(IsValidPointer(directory) ? directory : config_root_path, "PC.keys", path, sizeof(path));
     return path;
 }
 
 static void save_key_map(void)
 {
-    if (!geardox->GetKeyMap()->SaveUserFile(key_map_path.c_str()))
+    KeyMap* key_map = geardox->GetKeyMap();
+    const std::string* paths[2] = { &key_map_path, &global_key_map_path };
+    const GDOX_Key_Map_Layer layers[2] = { GDOX_KEY_MAP_USER, GDOX_KEY_MAP_GLOBAL };
+
+    for (int i = 0; i < 2; i++)
     {
-        Log("Unable to save the key map %s", key_map_path.c_str());
-        gui_notify(gui_NotificationError, ICON_MD_KEYBOARD, "Unable to save the key map", key_map_path.c_str(), "key_map");
+        if (key_map->SaveFile(layers[i], paths[i]->c_str()))
+            continue;
+
+        Log("Unable to save the key map %s", paths[i]->c_str());
+        gui_notify(gui_NotificationError, ICON_MD_KEYBOARD, "Unable to save the key map", paths[i]->c_str(), "key_map");
     }
 }
 

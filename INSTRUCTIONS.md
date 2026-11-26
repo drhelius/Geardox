@@ -345,9 +345,12 @@ PC key, then press the key of your keyboard that should drive it, on its own. Th
 yours; click it again to deselect it. Each PC key lists the keys that drive it, built-in ones first: click the **x** on
 one to remove it. Removing the last binding you gave a key of yours gives it back its default, while removing a
 built-in one leaves that key doing nothing. Right click the PC key to remove all but the built-in ones. Red keys are
-ones no key of yours reaches. Press the same hotkey again, or click **Close**, to go back to the game. Changes are kept
-for that game only, beside its other files; with no game open, they're kept for the disc, floppy or hard disk image you
-opened. A descriptor can set them too, including one key that sends several, such as Ctrl, Alt and Del; see
+ones no key of yours reaches. Press the same hotkey again, or click **Close**, to go back to the game. **This Game** and
+**All Games**, at the bottom, pick what the changes are for. The mapper starts on This Game, whose changes are kept for
+that game only, beside its other files; with no game open, they're kept for the disc, floppy or hard disk image you
+opened. All Games is for fixes to your own keyboard, applied to every game under each game's own changes, and with
+nothing loaded it is what you edit. **Reset All**, clicked twice, drops the changes of the side shown. A descriptor can
+set them too, including one key that sends several, such as Ctrl, Alt and Del; see
 [Remap keys](GDOX_README.md#remap-keys).
 
 **Ctrl+F2** (**Cmd+F2** on macOS) turns the game's key changes off and on, for instance to type a character's name in
@@ -411,7 +414,8 @@ The rest is the **Save Files folder**, this same folder unless **Emulator > Dire
   - `Settings.ini` and `Keys.ini` keep the game's own settings and key map, and `<name>.gdox` is the `.gdox` that
     **Save Descriptor...** suggests when it can't go in the game's folder.
 - Working copies of floppy and CHD images, and a `.geardox.cmos` file for each PC model, with its BIOS settings.
-- `.keys` files keep the key maps made with no game open, named after the disc, floppy or hard disk image.
+- `.keys` files keep the key maps made with no game open, named after the disc, floppy or hard disk image, and
+  `PC.keys` keeps the All Games changes.
 
 Save states, screenshots and recordings go to this folder too, and **Emulator > Directories** moves each kind. There,
 **With the Game or Disk** keeps them in the game's `<name>.<id>` folder, or next to the CD, floppy or hard disk image in

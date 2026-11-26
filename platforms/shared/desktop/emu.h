@@ -138,6 +138,7 @@ EXTERN void emu_key_mapper_set_buttons(u8 buttons);
 EXTERN bool emu_key_mapping_is_enabled(void);
 EXTERN void emu_key_mapping_toggle(void);
 EXTERN const char* emu_key_map_get_path(void);
+EXTERN const char* emu_key_map_get_global_path(void);
 EXTERN void emu_key_map_save(void);
 EXTERN void emu_set_mouse_delta(int x, int y);
 EXTERN void emu_set_mouse_buttons(u8 buttons);

@@ -144,7 +144,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 ### Keyboard
 Keys go to the PC. Geardox keeps only its hotkeys, `Ctrl+Shift`, `Ctrl` with an F-key or a digit, and `Alt+Enter` (`Cmd` and `Option` replace `Ctrl` and `Alt` on macOS), set in **Emulator → Hotkeys**. `Ctrl+F11` or fullscreen captures the mouse with every hotkey still working. `Ctrl+F10` enters Game Focus, which locks the mouse and keeps only `Ctrl+F10`, `Alt+Enter`, `Ctrl+F1` (keyboard mapper) and `Ctrl+F2` (key changes on and off). See [Keyboard, mouse and joystick](INSTRUCTIONS.md#keyboard-mouse-and-joystick), and [`[keys]`](GDOX_README.md#keys) for the key names.
 
-Outside a game, the mapper's changes go to a `.keys` file named after the content (`PC.keys` with nothing loaded) in the `Save Files` folder.
+The mapper's **This Game** and **All Games** buttons pick what the changes are for. The mapper starts on This Game. All Games is for fixes to your own keyboard, applied to every game under each game's own changes. With nothing loaded it edits All Games, and `Ctrl+F2` keeps All Games changes on. With no game open, This Game changes go to a `.keys` file named after the content, and All Games changes to `PC.keys`, in the `Save Files` folder.
 
 ### Disks and Discs
 [Attaching disks and discs](INSTRUCTIONS.md#attaching-disks-and-discs) explains what each file does and where its changes go. Also:
@@ -158,7 +158,7 @@ Outside a game, the mapper's changes go to a `.keys` file named after the conten
 - **Content**: A `.gdox`, a game folder or ZIP, a DOS program, a CD, floppy or hard disk image, or an `m3u` playlist mixing them. Disk control swaps floppies and CDs. Hard disk images write to a working copy in the save directory. A game's folder is read in place and its changes go back into it when the content closes, a ZIP's to the game's own folder in the save directory.
 - **DOS**: `FreeDOS.hdd` and `MS-DOS.hdd` live in the save directory. For your MS-DOS, put its Setup disk images, or a ZIP of them, in `geardox/msdos` inside the system directory, the Gravis UltraSound install disks in `geardox/ultrasnd`, and the 3dfx Voodoo driver's ZIP, or `GLIDE2X.OVL`, in `geardox/3dfx`.
 - **Options**: The machine, drives, game and DOS settings are core options, most applied at restart.
-- **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files, and each game's `Keys.ini`, go to the save directory.
+- **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files, and each game's `Keys.ini`, go to the save directory; the All Games changes are `geardox.keys` there.
 - **Run-Ahead**: Use RetroArch's single instance mode or preemptive frames. Second instance mode isn't supported: both instances would use the same disks, so the game's files can be damaged.
 - **MIDI**: The built-in synths take MT-32 ROMs from `geardox/mt32` (or the system directory itself) and a sound bank from `geardox/soundfonts`. For a synth outside RetroArch, set **MIDI Out** to **External Port** and turn on RetroArch's MIDI output in **Settings → Audio → MIDI**.
 
