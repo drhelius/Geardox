@@ -26,6 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(SIO_UDP_CONNRESET)
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
+#endif
+
 static bool started = false;
 
 static bool set_non_blocking(SOCKET s)
