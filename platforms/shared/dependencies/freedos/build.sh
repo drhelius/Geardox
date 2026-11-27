@@ -64,6 +64,7 @@ FILES = [
     ("tree", "TREE.COM", BIN + "TREE.COM"),
     ("udvd2", "UDVD2.SYS", BIN + "UDVD2.SYS"),
     ("xcopy", "XCOPY.EXE", BIN + "XCOPY.EXE"),
+    ("crynwr", "DRIVERS/CRYNWR/NE2000.COM", BIN + "NE2000.COM"),
 ]
 
 def check_packages():
@@ -78,7 +79,7 @@ def check_packages():
 def read_member(package, name):
     with zipfile.ZipFile(os.path.join(packages, package + ".zip")) as archive:
         for member in archive.namelist():
-            if member.upper() == "BIN/" + name:
+            if (member.upper() == "BIN/" + name) or (member.upper() == name):
                 return archive.read(member)
 
     sys.exit("%s has no %s" % (package, name))

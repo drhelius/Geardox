@@ -26,6 +26,7 @@ TOOLS = [
     ("k_dos_no_system", "nosys.asm"),
     ("k_dos_gdxdbg", "gdxdbg.asm"),
     ("k_dos_gdxgus", "gdxgus.asm"),
+    ("k_dos_gdxipx", "gdxipx.asm"),
 ]
 
 LICENSE = """/*

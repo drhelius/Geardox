@@ -1506,6 +1506,14 @@ std::string GameDisk::GetBatch(const GDOX_Machine_Config& machine) const
     if (machine.mouse != GDOX_MOUSE_NONE)
         out += msdos ? "LH C:\\GEARDOX\\CTMOUSE.EXE\r\n" : "LH CTMOUSE\r\n";
 
+    if (machine.network_card == GDOX_NETWORK_CARD_NE2000)
+    {
+        const char* folder = msdos ? "C:\\GEARDOX\\" : "";
+        snprintf(line, sizeof(line), "LH %sNE2000.COM 0x60 %d 0x%X\r\nLH %sGDXIPX.COM\r\n", folder, machine.network_irq,
+            machine.network_base, folder);
+        out += line;
+    }
+
     if (!info.cds.empty() && msdos && HasCDExtension())
         out += "LH C:\\DOS\\MSCDEX.EXE /D:FDCD0001\r\n";
     else if (!info.cds.empty())

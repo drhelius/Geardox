@@ -623,6 +623,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
     ok = (bin >= 0) && AddDosTool((u32)bin, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool((u32)bin, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
         AddDosTool((u32)bin, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
+        AddDosTool((u32)bin, "GDXIPX.COM", k_dos_gdxipx, k_dos_gdxipx_size) &&
         AddDosTool((u32)bin, "GDXPAD.COM", k_dos_gdxpad, k_dos_gdxpad_size) &&
         AddDosTool((u32)bin, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size);
 
@@ -635,7 +636,7 @@ bool FatImage::AddFreeDOS(bool hidden, const std::vector<std::string>& reserved)
 bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vector<std::string>& reserved,
     const std::vector<std::string>& pinned, bool shsucdx)
 {
-    static const char* const k_tools[] = { "CTMOUSE.EXE", "UDVD2.SYS" };
+    static const char* const k_tools[] = { "CTMOUSE.EXE", "UDVD2.SYS", "NE2000.COM" };
     u8 hide = hidden ? k_fat_attribute_hidden : 0;
     LeaveOutReserved(reserved);
     MediaZip system;
@@ -699,6 +700,7 @@ bool FatImage::AddMSDOS(const u8* zip, size_t size, bool hidden, const std::vect
         AddDosTool(geardox, "GDXRUN.COM", k_dos_gdxrun, k_dos_gdxrun_size) &&
         AddDosTool(geardox, "GDXDBG.COM", k_dos_gdxdbg, k_dos_gdxdbg_size) &&
         AddDosTool(geardox, "GDXGUS.COM", k_dos_gdxgus, k_dos_gdxgus_size) &&
+        AddDosTool(geardox, "GDXIPX.COM", k_dos_gdxipx, k_dos_gdxipx_size) &&
         AddDosTool(geardox, "POWEROFF.COM", k_dos_poweroff, k_dos_poweroff_size) &&
         AddDosTool(geardox, "GDXIDLE.SYS", k_dos_gdxidle, k_dos_gdxidle_size) &&
         AddDosTool(geardox, "GDXPAD.COM", k_dos_gdxpad, k_dos_gdxpad_size) &&

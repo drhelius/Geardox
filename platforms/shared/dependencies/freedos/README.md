@@ -20,7 +20,8 @@ from the packages, in `\FREEDOS\BIN`, and the license texts are in `\FREEDOS`.
 `CONFIG.SYS` and `AUTOEXEC.BAT` aren't in the ZIP: Geardox writes them for each disk it makes, the built-in FreeDOS disk
 and game disks alike. Geardox also adds GDXRUN, GDXDBG and POWEROFF to `\FREEDOS\BIN` from `src/dos`.
 
-CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. LBACACHE is the read cache a game descriptor's
+CTMOUSE and SHSUCDX wait for the mouse and CD-ROM hardware. NE2000 is Crynwr's packet driver, from the
+`crynwr` package, which game disks load with GDXIPX when the machine has the network card. LBACACHE is the read cache a game descriptor's
 `cache = on` loads. MKEYB is the small keyboard driver FreeDOS game disks load instead of KEYB when they have no upper
 memory: KEYB leaves a gap of about 28K below its data there, and MKEYB stays under 1K. Disks on the user's own MS-DOS take CTMOUSE, UDVD2, `COPYING`, and SHSUCDX for MS-DOS 5.0, from
 here into their `\GEARDOX`, next to GDXRUN, GDXDBG, POWEROFF and GDXIDLE from `src/dos`, and DOSKEY from `dependencies/doskey`.
@@ -47,4 +48,5 @@ See the `FREEDOS_LICENSE_STR` notice and each package's own texts. `COPYING` is 
 from the kernel package. Nearly every program is under it, most of them with "or any later version". XCOPY is under
 version 2 alone. MKEYB is under the GPL, with leave to pack its executable with any packer. HIMEMX is under the GPL
 and/or the Artistic License. JEMM is partly under the Artistic License, kept with
-it in `DOC/JEMM/Artistic.txt`, and otherwise in the public domain. Each package holds its binaries, source and notices.
+it in `DOC/JEMM/Artistic.txt`, and otherwise in the public domain. Crynwr's NE2000 driver is under the GPL version 1, its sources
+in the package's `SOURCE/CRYNWR/SOURCES.ZIP`. Each package holds its binaries, source and notices.
