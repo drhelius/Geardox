@@ -1491,6 +1491,13 @@ void Video::UpdateGeometry()
     m_canvas_width = (int)(((u32)m_render_width * monitor_dots) / m_canvas_zoom);
     m_canvas_height = m_render_height * (int)m_canvas_v_divider;
 
+    if (m_extended)
+    {
+        u32 canvas_width = MAX((u32)m_canvas_width, 1U);
+        u32 dot_scale = (8 * (u32)m_canvas_height + 3 * canvas_width) / (6 * canvas_width);
+        m_canvas_width *= (int)MAX(dot_scale, 1U);
+    }
+
     if (m_ega && !IsEGA350Lines())
         m_canvas_height *= 2;
 }
