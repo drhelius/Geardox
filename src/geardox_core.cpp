@@ -3000,7 +3000,7 @@ void GeardoxCore::InitMemoryMap()
 
     // Main RAM goes first: where it covers the linear aperture the board's DRAM answers, but for its hole at 15 MB
     if (m_video->IsCirrus() && (!m_memory->RegisterHandlerRegion(GDOX_DEBUG_REGION_LINEAR_VRAM, "Linear VRAM",
-        m_video->GetVRAMSize(), k_video_aperture_base, video_flags | (HasMemoryHole() ? GDOX_DEBUG_REGION_OVERLAY : 0),
+        m_video->GetApertureSize(), k_video_aperture_base, video_flags | (HasMemoryHole() ? GDOX_DEBUG_REGION_OVERLAY : 0),
         m_video, Video::ReadLinearCallback,
         Video::WriteLinearCallback, Video::PeekLinearCallback) ||
         !m_memory->SetRegionWideHandlers(GDOX_DEBUG_REGION_LINEAR_VRAM, Video::WriteLinear16Callback,

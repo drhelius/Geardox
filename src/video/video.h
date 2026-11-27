@@ -225,6 +225,7 @@ public:
     bool IsCGAComposite() const;
     bool IsUnlocked() const;
     u32 GetVRAMSize() const;
+    u32 GetApertureSize() const;
     bool IsExtendedMode() const;
     Video_Extended_Format GetExtendedFormat() const;
     u32 GetExtendedBytesPerPixel() const;
@@ -367,7 +368,6 @@ private:
     u8 ReadMemory(u32 address);
     u8 PeekMemory(u32 address) const;
     void WriteMemory(u32 address, u8 value);
-    u32 GetApertureSize() const;
     u32 GetApertureMappedSize() const;
     u32 GetPlaneBase(u32 offset) const;
     u32 GetHostOffset(u32 address) const;
