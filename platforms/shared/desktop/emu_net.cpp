@@ -244,8 +244,8 @@ bool emu_net_get_bar_text(char* text, int size)
     if (session->GetState() == NET_SESSION_CONNECTING)
         snprintf(text, size, "NET: JOINING");
     else
-        snprintf(text, size, "NET: MACHINE %d OF %d%s", session->GetMachine(), session->GetMachineCount(),
-            session->GetMode() == NET_SESSION_HOST ? " (HOST)" : "");
+        snprintf(text, size, "NET: %d/%d (%s)", session->GetMachine(), session->GetMachineCount(),
+            session->GetMode() == NET_SESSION_HOST ? "HOST" : "GUEST");
 
     return true;
 }
