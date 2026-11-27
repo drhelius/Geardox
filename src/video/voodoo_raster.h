@@ -275,6 +275,7 @@ private:
 
 static const u8 k_voodoo_dither_4x4[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
 static const u8 k_voodoo_dither_2x2[16] = { 8, 10, 8, 10, 11, 9, 11, 9, 8, 10, 8, 10, 11, 9, 11, 9 };
+static const u8 k_voodoo_lod_dither[4] = { 0, 2, 3, 1 };
 static const u32 k_voodoo_tmu_config = 0x11;
 static const int k_voodoo_mode_runtime = -1;
 static const int k_voodoo_texture_off = 0;

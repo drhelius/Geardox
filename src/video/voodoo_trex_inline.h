@@ -83,7 +83,7 @@ INLINE s32 VoodooTrex::GetLodBase(s64 dsdx, s64 dsdy, s64 dtdx, s64 dtdy)
 }
 
 INLINE void VoodooTrex::GetCoordinates(const VoodooTrex_Texture& texture, double iters, double itert, double iterw,
-    s32 lod_base, u32 dither, s32& s, s32& t, s32& lod)
+    const VoodooTrex_Lod& lod_params, u32 dither, s32& s, s32& t, s32& lod)
 {
     u32 mode = texture.texture_mode;
 
@@ -111,15 +111,25 @@ INLINE void VoodooTrex::GetCoordinates(const VoodooTrex_Texture& texture, double
         return;
     }
 
-    lod = lod_base;
+    lod = lod_params.base;
 
     if ((mode & 0x01) != 0)
-        lod -= Log2(iterw, 32);
+    {
+        double recip = 1.0 / iterw;
+        double s_coord = iters * recip;
+        double t_coord = itert * recip;
+        double sx = lod_params.dsdx - s_coord * lod_params.dwdx;
+        double tx = lod_params.dtdx - t_coord * lod_params.dwdx;
+        double sy = lod_params.dsdy - s_coord * lod_params.dwdy;
+        double ty = lod_params.dtdy - t_coord * lod_params.dwdy;
+        double footprint = MAX(sx * sx + tx * tx, sy * sy + ty * ty) * recip * recip;
+        lod = Log2(footprint, 0) / 2;
+    }
 
     lod += texture.lod_bias;
 
     if ((mode & 0x10) != 0)
-        lod += (s32)(dither << 4);
+        lod += (s32)(dither << 6);
 
     lod = CLAMP(lod, texture.lod_min, texture.lod_max);
 }
@@ -234,11 +244,11 @@ INLINE s32 VoodooTrex::GetMipLevel(const VoodooTrex_Texture& texture, s32 lod)
 }
 
 INLINE u32 VoodooTrex::FetchTexel(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert,
-    double iterw, s32 lod_base, u32 dither, s32& lod)
+    double iterw, const VoodooTrex_Lod& lod_params, u32 dither, s32& lod)
 {
     s32 s;
     s32 t;
-    GetCoordinates(texture, iters, itert, iterw, lod_base, dither, s, t, lod);
+    GetCoordinates(texture, iters, itert, iterw, lod_params, dither, s, t, lod);
 
     s32 ilod = GetMipLevel(texture, lod);
     u32 mode = texture.texture_mode;
@@ -252,11 +262,11 @@ INLINE u32 VoodooTrex::FetchTexel(const VoodooTrex_Texture& texture, const u8* m
 
 template<bool bilinear>
 INLINE u32 VoodooTrex::FetchFiltered(const VoodooTrex_Texture& texture, const u8* memory, double iters, double itert,
-    double iterw, s32 lod_base, u32 dither, s32& lod)
+    double iterw, const VoodooTrex_Lod& lod_params, u32 dither, s32& lod)
 {
     s32 s;
     s32 t;
-    GetCoordinates(texture, iters, itert, iterw, lod_base, dither, s, t, lod);
+    GetCoordinates(texture, iters, itert, iterw, lod_params, dither, s, t, lod);
 
     s32 ilod = GetMipLevel(texture, lod);
 

@@ -1410,9 +1410,12 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
         itertw = (double)(triangle.start_tw + (s64)dy * triangle.dtwdy + (s64)dx * triangle.dtwdx);
     }
 
+    VoodooTrex::VoodooTrex_Lod lod_params = { triangle.lod_base, (double)triangle.dsdx, (double)triangle.dsdy,
+        (double)triangle.dtdx, (double)triangle.dtdy, (double)triangle.dtwdx, (double)triangle.dtwdy };
+
     u32 alpha_mode = p.alpha_mode;
     u32 alpha_reference = alpha_mode >> 24;
-    const u8* lod_dither = &k_voodoo_dither_4x4[(scry & 3) * 4];
+    const u8* lod_dither = &k_voodoo_lod_dither[(scry & 1) * 2];
     const u8 (*dither)[2][256] = m_dither[d.dither][scry & 3];
     bool stippled = (fbz_mode & k_voodoo_fbz_stipple) != 0;
     bool wfloat_needed = (depth_needed || fog) && d.wfloat;
@@ -1469,14 +1472,14 @@ void VoodooRaster::DrawSpan(const VoodooRaster_Pipeline& p, const VoodooTrex::Vo
                     else
                     {
                         u32 sample = VoodooTrex::FetchTexel(*texture, m_texture_memory, iters, itert, itertw,
-                            triangle.lod_base, lod_dither[x & 3], lod);
+                            lod_params, lod_dither[x & 1], lod);
                         texel = VoodooTrex::Combine(*texture, sample, 0, lod);
                     }
                 }
                 else
                 {
                     u32 sample = VoodooTrex::FetchFiltered<texture_mode == k_voodoo_texture_bilinear>(*texture,
-                        m_texture_memory, iters, itert, itertw, triangle.lod_base, lod_dither[x & 3], lod);
+                        m_texture_memory, iters, itert, itertw, lod_params, lod_dither[x & 1], lod);
                     texel = texture->replace ? sample : VoodooTrex::Combine(*texture, sample, 0, lod);
                 }
             }
