@@ -75,7 +75,8 @@ static const char* const k_game_keys[][2] = {
     { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
     { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
     { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
-    { "machine", "voodoo" }, { "network", "card" }, { "network", "port" }, { "network", "irq" },
+    { "machine", "voodoo" }, { "network", "card" }, { "network", "port" }, { "network", "irq" }, { "network", "com1" },
+    { "network", "com2" },
     { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" },
     { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" }, { "sound", "mt32_model" },
     { "input", "mouse" }, { "input", "joystick" } };
@@ -544,6 +545,15 @@ void emu_game_apply_machine(void)
 
     if ((m.network_irq != b.network_irq) && (find_network_irq(m.network_irq) >= 0))
         overrides.Set("network", "irq", std::to_string(m.network_irq).c_str());
+
+    static const char* const k_links[SERIAL_LINK_KIND_COUNT] = { "none", "null_modem", "modem" };
+    static const char* const k_com_keys[2] = { "com1", "com2" };
+
+    for (int i = 0; i < 2; i++)
+    {
+        if ((m.com_link[i] != b.com_link[i]) && (m.com_link[i] >= 0) && (m.com_link[i] < SERIAL_LINK_KIND_COUNT))
+            overrides.Set("network", k_com_keys[i], k_links[m.com_link[i]]);
+    }
 
     if (m.mouse != b.mouse)
         overrides.Set("input", "mouse", k_mice[m.mouse].id);
@@ -1084,6 +1094,7 @@ static void notify_message(const GameDisk_Message& message)
             gui_notify(gui_NotificationWarning, ICON_MD_RESTORE, message.title.c_str(), message.detail.c_str());
             break;
         case GAME_DISK_MESSAGE_READ_ONLY:
+        case GAME_DISK_MESSAGE_MACHINE:
             gui_notify(gui_NotificationInfo, ICON_MD_FOLDER, message.title.c_str(), message.detail.c_str(), NULL,
                 gui_NotificationDurationLong);
             break;
@@ -1270,6 +1281,8 @@ void emu_game_config_to_settings(const config_Machine& machine, GDOX_Machine_Set
     settings->network_card = machine.network_card;
     settings->network_base = machine.network_base;
     settings->network_irq = machine.network_irq;
+    settings->com_link[0] = machine.com_link[0];
+    settings->com_link[1] = machine.com_link[1];
 }
 
 static void overlay_settings(config_Machine* machine, const GDOX_Machine_Settings& game)
@@ -1297,6 +1310,9 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
     machine->network_card = game.network_card >= 0 ? game.network_card : machine->network_card;
     machine->network_base = game.network_base > 0 ? game.network_base : machine->network_base;
     machine->network_irq = game.network_irq > 0 ? game.network_irq : machine->network_irq;
+
+    for (int i = 0; i < 2; i++)
+        machine->com_link[i] = game.com_link[i] >= 0 ? game.com_link[i] : machine->com_link[i];
 }
 
 // The menus show the game's machine: the descriptor and its overrides over the user's. The base leaves out the

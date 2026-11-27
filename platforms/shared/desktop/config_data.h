@@ -30,6 +30,7 @@ static const int config_max_recent_roms = 10;
 static const int config_max_recent_floppies = 10;
 static const int config_max_recent_hard_disks = 10;
 static const int config_max_recent_games = 15;
+static const int config_max_recent_hosts = 10;
 static const int config_floppy_drives = 2;
 
 enum config_ShaderMode
@@ -139,6 +140,16 @@ struct config_Game
     std::string recent[config_max_recent_games];
 };
 
+struct config_Network
+{
+    std::string address;
+    int port;
+    std::string name;
+    std::string password;
+    int machines;
+    std::string recent[config_max_recent_hosts];
+};
+
 struct config_Machine
 {
     int model;
@@ -162,6 +173,7 @@ struct config_Machine
     int network_card;
     int network_base;
     int network_irq;
+    int com_link[2];
 };
 
 struct config_Video
@@ -432,6 +444,7 @@ EXTERN config_Emulator config_emulator;
 EXTERN config_FileDialogs config_file_dialogs;
 EXTERN config_Machine config_machine;
 EXTERN config_Game config_game;
+EXTERN config_Network config_network;
 EXTERN config_Video config_video;
 EXTERN config_Audio config_audio;
 EXTERN config_Rewind config_rewind;

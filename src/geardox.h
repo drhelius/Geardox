@@ -43,5 +43,6 @@
 #include "system/machine_profiles.h"
 #include "network/ne2000.h"
 #include "network/network_port.h"
+#include "network/serial_link.h"
 
 #endif /* GEARDOX_H */

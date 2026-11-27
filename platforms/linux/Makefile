@@ -4,6 +4,7 @@ SOURCES_CXX += $(SRC_DIR)/cdrom/cdrom_drive.cpp
 SOURCES_CXX += $(SRC_DIR)/cdrom/cdrom_physical_image.cpp
 SOURCES_CXX += $(SRC_DIR)/cdrom/cdrom_drive_linux.cpp
 SOURCES_CXX += $(DESKTOP_SRC_DIR)/midi_port_linux.cpp
+SOURCES_CXX += $(DESKTOP_SRC_DIR)/net/net_socket_posix.cpp
 
 CPPFLAGS += -DGDOX_ENABLE_PHYSICAL_CDROM
 CPPFLAGS += -DGDOX_ENABLE_MIDI_PORT

@@ -64,6 +64,7 @@
 #include "system/parallel_port.h"
 #include "network/ne2000.h"
 #include "network/network_port.h"
+#include "network/serial_link.h"
 #include "system/machine_profiles.h"
 #include "video/video.h"
 #include "video/voodoo.h"
@@ -157,6 +158,9 @@ GeardoxCore::GeardoxCore()
     m_debug_step = GDOX_DEBUG_STEP_NONE;
     m_debug_step_resume = false;
     m_debug_interrupt_deferred = false;
+    m_slice_active = false;
+    m_slice_frame_start = 0;
+    m_slice_limit = GDOX_NO_EVENT;
 }
 
 GeardoxCore::~GeardoxCore()
@@ -340,7 +344,7 @@ void GeardoxCore::Init()
     m_keyboard->Init();
     m_i8042->Init(m_pic, m_scheduler, m_system_control, m_keyboard);
     m_ps2_mouse->Init(m_input);
-    m_serial_ports->Init(m_pic, m_scheduler, m_input);
+    m_serial_ports->Init(m_pic, m_scheduler, m_input, m_network_port);
     m_game_port->Init(m_input);
     m_ne2000->Init(m_pic, m_scheduler, m_network_port);
     m_rtc->Init(m_pic, m_scheduler);
@@ -414,9 +418,62 @@ GDOX_Run_Result GeardoxCore::RunToFrame(u8* frame_buffer, s16* sample_buffer, in
 #endif
 }
 
+GDOX_Run_Result GeardoxCore::RunToFrameSlice(u8* frame_buffer, s16* sample_buffer, int* sample_count, bool render,
+    u32 slice_clocks, bool* frame_ended)
+{
+    *frame_ended = false;
+
+    if (sample_count != NULL)
+        *sample_count = 0;
+
+    if (!m_slice_active)
+    {
+        GDOX_Run_Result result = RunToFrameTemplate<false>(frame_buffer, sample_buffer, sample_count, NULL, render,
+            slice_clocks);
+        *frame_ended = !m_slice_active;
+        return result;
+    }
+
+    if (m_paused)
+        return GDOX_RUN_PAUSED;
+
+    if (!m_powered)
+    {
+        m_slice_active = false;
+        *frame_ended = true;
+        return GDOX_RUN_NOT_READY;
+    }
+
+    if (m_ne2000->IsEnabled())
+        m_ne2000->Poll(m_scheduler->GetClocks());
+
+    if (m_network_port->HasSerial())
+        m_serial_ports->PollLinks(m_scheduler->GetClocks());
+
+    m_slice_limit = m_scheduler->GetClocks() + slice_clocks;
+    RunFrame<false>(m_slice_frame_start);
+    m_slice_limit = GDOX_NO_EVENT;
+    FinishSlice(sample_buffer, sample_count);
+    *frame_ended = !m_slice_active;
+    return GDOX_RUN_FRAME_READY;
+}
+
+void GeardoxCore::FinishSlice(s16* sample_buffer, int* sample_count)
+{
+    if (m_video->IsFrameReady() || (m_scheduler->GetClocks() >= GetFrameLimit(m_slice_frame_start)) || !m_powered)
+    {
+        m_slice_active = false;
+        EndFrame(m_slice_frame_start, sample_buffer, sample_count);
+        return;
+    }
+
+    m_audio->Synchronize(m_scheduler->GetClocks());
+    m_audio->EndFrame(sample_buffer, sample_count);
+}
+
 template<bool debugger>
 GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_buffer, int* sample_count,
-    GDOX_Debug_Run* debug, bool render)
+    GDOX_Debug_Run* debug, bool render, u32 slice_clocks)
 {
     m_frame_buffer = frame_buffer;
 
@@ -442,6 +499,9 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
 
     if (m_ne2000->IsEnabled())
         m_ne2000->Poll(frame_start);
+
+    if (m_network_port->HasSerial())
+        m_serial_ports->PollLinks(frame_start);
 
     m_i386->BeginDynarecFrame();
     m_video->BeginFrame(frame_buffer, render);
@@ -476,6 +536,16 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
             m_profiler->CountFrame();
             m_i386->UpdateVBlankWatch();
         }
+    }
+    else if (slice_clocks != 0)
+    {
+        m_slice_active = true;
+        m_slice_frame_start = frame_start;
+        m_slice_limit = frame_start + slice_clocks;
+        RunFrame<false>(frame_start);
+        m_slice_limit = GDOX_NO_EVENT;
+        FinishSlice(sample_buffer, sample_count);
+        return GDOX_RUN_FRAME_READY;
     }
     else
         RunFrame<false>(frame_start);
@@ -757,7 +827,8 @@ INLINE bool GeardoxCore::IsFrameDone(u64 frame_start) const
 
 INLINE u64 GeardoxCore::GetFrameLimit(u64 frame_start) const
 {
-    return frame_start + (m_video->IsRunning() ? GDOX_MACHINE_CLOCKS_PER_FRAME * 4 : GDOX_MACHINE_CLOCKS_PER_FRAME);
+    u64 limit = frame_start + (m_video->IsRunning() ? GDOX_MACHINE_CLOCKS_PER_FRAME * 4 : GDOX_MACHINE_CLOCKS_PER_FRAME);
+    return MIN(limit, m_slice_limit);
 }
 
 INLINE GDOX_Bus_Access_Context GeardoxCore::BeginSlice()
@@ -2095,7 +2166,9 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.video_card == machine_config.video_card) && (m_machine_config.voodoo == machine_config.voodoo) &&
         (m_machine_config.network_card == machine_config.network_card) &&
         (m_machine_config.network_base == machine_config.network_base) &&
-        (m_machine_config.network_irq == machine_config.network_irq);
+        (m_machine_config.network_irq == machine_config.network_irq) &&
+        (m_machine_config.com_link[0] == machine_config.com_link[0]) &&
+        (m_machine_config.com_link[1] == machine_config.com_link[1]);
 
     if (!same_machine)
     {
@@ -2358,6 +2431,7 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.network_card);
     G_SERIALIZE(serializer, config.network_base);
     G_SERIALIZE(serializer, config.network_irq);
+    G_SERIALIZE_ARRAY(serializer, config.com_link, 2);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -2417,6 +2491,9 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.network_card = config.network_card < GDOX_NETWORK_CARD_COUNT ? config.network_card : (u8)GDOX_NETWORK_CARD_NONE;
     config.network_base = find_network_base(config.network_base) >= 0 ? config.network_base : k_ne2000_default_base;
     config.network_irq = find_network_irq(config.network_irq) >= 0 ? config.network_irq : k_ne2000_default_irq;
+
+    for (int i = 0; i < 2; i++)
+        config.com_link[i] = config.com_link[i] < SERIAL_LINK_KIND_COUNT ? config.com_link[i] : (u8)SERIAL_LINK_NONE;
 
     if (k_video_cards[config.video_card].local_bus && ((profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) == 0))
         config.video_card = GDOX_VIDEO_CARD_GD5428;
@@ -2718,6 +2795,12 @@ void GeardoxCore::ResolveMachineConfig()
     config.network_base = (u16)pick_setting(game.network_base, user.network_base, 0, &source);
     config.network_irq = (u8)pick_setting(game.network_irq, user.network_irq, 0, &source);
 
+    for (int i = 0; i < 2; i++)
+    {
+        int link = pick_setting(game.com_link[i], user.com_link[i], -1, &source);
+        config.com_link[i] = link > 0 ? (u8)link : (u8)SERIAL_LINK_NONE;
+    }
+
     // Games load as fast as their drives' transfers allow, unless they or the user ask for the drives' mechanics
     if ((drive_timing >= 0) && (drive_timing < GDOX_DRIVE_TIMING_COUNT))
         config.drive_timing = (u8)drive_timing;
@@ -2867,7 +2950,10 @@ void GeardoxCore::ApplyMachineConfig()
         m_i8042->SetMouse(m_machine_config.mouse == GDOX_MOUSE_PS2 ? m_ps2_mouse : NULL);
 
     if (IsValidPointer(m_serial_ports))
+    {
         m_serial_ports->SetMouse(m_machine_config.mouse == GDOX_MOUSE_SERIAL);
+        m_serial_ports->SetLinks(m_machine_config.com_link[0], m_machine_config.com_link[1]);
+    }
 
     if (IsValidPointer(m_ne2000))
         m_ne2000->SetConfig(m_machine_config.network_card == GDOX_NETWORK_CARD_NE2000, m_machine_config.network_base,

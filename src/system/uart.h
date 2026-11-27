@@ -55,6 +55,7 @@ public:
         bool timeout_pending;
         u64 tx_clocks;
         u64 timeout_clocks;
+        u8 inputs;
     };
 
 public:
@@ -67,6 +68,9 @@ public:
     u64 GetNextEventClocks() const;
     bool HandleEvent(u64 clocks, u8& sent);
     void Receive(u8 data, u8 data_bits, u32 divisor, u64 clocks);
+    void ReceiveLinked(u8 data, u64 clocks);
+    void SetModemInputs(u8 inputs);
+    bool CanReceive() const;
     bool IsInterruptPending() const;
     bool IsLoopback() const;
     u8 GetModemOutputs() const;

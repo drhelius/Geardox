@@ -104,6 +104,8 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "network", "card", DESCRIPTOR_CHOICE, "none,ne2000", 0, 0 },
     { "network", "port", DESCRIPTOR_CHOICE, "300,320,340,360", 0, 0 },
     { "network", "irq", DESCRIPTOR_CHOICE, "3,4,5,9,10,11,12,15", 0, 0 },
+    { "network", "com1", DESCRIPTOR_CHOICE, "none,null_modem,modem", 0, 0 },
+    { "network", "com2", DESCRIPTOR_CHOICE, "none,null_modem,modem", 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "pad1", "use", DESCRIPTOR_CHOICE, "keys,joystick", 0, 0 },
@@ -865,6 +867,14 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
 
     if (parse_number(Get("network", "irq"), &number))
         settings->network_irq = number;
+
+    static const char* const com_keys[2] = { "com1", "com2" };
+
+    for (int i = 0; i < 2; i++)
+    {
+        if (Has("network", com_keys[i]))
+            settings->com_link[i] = choice_index("none,null_modem,modem", Get("network", com_keys[i]));
+    }
 
     found = Has("input", "mouse") ? find_mouse_type(Get("input", "mouse").c_str()) : -1;
 

@@ -684,6 +684,18 @@ bool FolderDisk::Fail(const char* format, ...)
     return false;
 }
 
+bool FolderDisk::IsLockedElsewhere(const std::string& data_folder)
+{
+    std::string path = path_join(path_join(data_folder, k_folder_disk_folder), k_folder_disk_lock);
+    std::string text;
+
+    if (!MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
+        return false;
+
+    unsigned long owner = strtoul(text.c_str(), NULL, 10);
+    return (owner != get_process_id()) && is_process_running(owner);
+}
+
 bool FolderDisk::TakeLock()
 {
     std::string path = GetLockPath();

@@ -47,7 +47,8 @@ enum GameDisk_Message_Kind
     GAME_DISK_MESSAGE_REFUSED,
     GAME_DISK_MESSAGE_STARTUP,
     GAME_DISK_MESSAGE_VOODOO,
-    GAME_DISK_MESSAGE_VOODOO_DRIVER
+    GAME_DISK_MESSAGE_VOODOO_DRIVER,
+    GAME_DISK_MESSAGE_MACHINE
 };
 
 struct GameDisk_Message
@@ -105,6 +106,7 @@ public:
     std::string GetKeysPath() const;
     bool IsWritingToSaves() const;
     bool IsFolderReadOnly() const;
+    int GetMachineSlot() const;
     bool HasStartupEdits() const;
     const FolderDisk_Result& GetRecovery() const;
     u32 GetLeftOut() const;
@@ -125,6 +127,10 @@ public:
     bool VoodooProgramNeedsDriver() const;
     bool UsesVoodooExe() const;
     bool NeedsRestart(const GDOX_Machine_Config& machine) const;
+
+private:
+    bool TakeMachineSlot();
+    void ReleaseMachineSlot();
 
 private:
     static bool FindGames(const std::string& source, bool prompt, std::vector<GameDisk_Found>* found);
@@ -152,6 +158,9 @@ private:
     std::string m_save_directory;
     std::string m_temp_directory;
     std::string m_folder;
+    std::string m_disk_folder;
+    std::string m_source_lock;
+    int m_machine_slot;
     std::string m_overrides_path;
     std::string m_source;
     bool m_source_zip;

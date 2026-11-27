@@ -26,6 +26,37 @@
 #define NETWORK_FRAME_MAX 1518
 #define NETWORK_QUEUE_FRAMES 1024
 #define NETWORK_QUEUE_BYTES (1024 * 1024)
+#define NETWORK_SERIAL_QUEUE 16384
+#define NETWORK_SERIAL_RECORD 1024
+
+enum Network_Serial_Kind
+{
+    NETWORK_SERIAL_DATA = 1,
+    NETWORK_SERIAL_LINES,
+    NETWORK_SERIAL_CALL,
+    NETWORK_SERIAL_ANSWER,
+    NETWORK_SERIAL_HANGUP
+};
+
+class NetworkSerialQueue
+{
+public:
+    NetworkSerialQueue();
+    void Clear();
+    bool Push(int channel, int kind, int peer, const u8* data, int size);
+    bool Pop(int* channel, int* kind, int* peer, u8* data, int* size);
+    bool IsEmpty() const;
+    int GetFree() const;
+
+private:
+    void Write(const u8* data, int size);
+    void Read(u8* data, int size);
+
+private:
+    u8 m_data[NETWORK_SERIAL_QUEUE];
+    int m_head;
+    int m_size;
+};
 
 class NetworkFrameQueue
 {
@@ -81,6 +112,14 @@ public:
     int GetReceivedCount() const;
     int GetSentCount() const;
     const NetworkPort_Stats* GetStats() const;
+    void SetSerialAttached(int channel, bool attached);
+    bool IsSerialAttached(int channel) const;
+    bool HasSerial() const;
+    bool SendSerial(int channel, int kind, int peer, const u8* data, int size);
+    bool TakeSentSerial(int* channel, int* kind, int* peer, u8* data, int* size);
+    bool DeliverSerial(int channel, int kind, int peer, const u8* data, int size);
+    bool TakeReceivedSerial(int* channel, int* kind, int* peer, u8* data, int* size);
+    int GetSerialSendFree() const;
 
 private:
     NetworkFrameQueue m_received;
@@ -88,6 +127,9 @@ private:
     NetworkPort_Stats m_stats;
     bool m_speculative;
     bool m_attached;
+    bool m_serial_attached[2];
+    NetworkSerialQueue m_serial_sent;
+    NetworkSerialQueue m_serial_received;
 };
 
 #endif /* NETWORK_PORT_H */

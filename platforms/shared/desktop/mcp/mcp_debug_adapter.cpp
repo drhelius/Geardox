@@ -42,6 +42,10 @@
 #include "system/parallel_port.h"
 #include "network/ne2000.h"
 #include "network/network_port.h"
+#include "network/serial_link.h"
+#include "network/modem.h"
+#include "../emu_net.h"
+#include "../net/net_session.h"
 #include "system/serial_ports.h"
 #include "system/uart.h"
 #include "system/debug_console.h"
@@ -3477,7 +3481,11 @@ json DebugAdapter::GetSerialStatus()
         const char* stop_bits = (lcr & 0x04) == 0 ? "1" : (data_bits == 5 ? "1.5" : "2");
         const char* parity = (lcr & 0x08) == 0 ? "none" : ((lcr & 0x20) != 0 ?
             ((lcr & 0x10) != 0 ? "space" : "mark") : ((lcr & 0x10) != 0 ? "even" : "odd"));
-        const char* attached = (i == 0) && ports->IsMouseAttached() ? "serial mouse" : "none";
+        static const char* const k_links[SERIAL_LINK_KIND_COUNT] = { "none", "null modem", "modem" };
+        static const char* const k_modem_modes[] = { "idle", "dialing", "ringing", "online", "online command" };
+        int link = ports->GetLinkKind(i);
+        const char* attached = (i == 0) && ports->IsMouseAttached() ? "serial mouse" :
+            k_links[link < SERIAL_LINK_KIND_COUNT ? link : 0];
         char name[8];
         snprintf(name, sizeof(name), "COM%d", i + 1);
 
@@ -3516,7 +3524,11 @@ json DebugAdapter::GetSerialStatus()
             {"fifo", {{"enabled", (state->fcr & 0x01) != 0}, {"rx_count", state->rx_count},
                 {"tx_count", state->tx_count}, {"rx_trigger", k_rx_trigger_levels[state->fcr >> 6]},
                 {"rbr", Hex(state->rbr, 2)}, {"shift_register_full", state->tsr_full}}},
-            {"pending", {{"thr_empty", state->thre_pending}, {"timeout", state->timeout_pending}}}
+            {"pending", {{"thr_empty", state->thre_pending}, {"timeout", state->timeout_pending}}},
+            {"link", link == SERIAL_LINK_NONE ? json() : json({{"buffered", ports->GetLink(i)->GetState()->rx_count},
+                {"dropped", ports->GetLink(i)->GetState()->dropped},
+                {"modem", link == SERIAL_LINK_MODEM ? json(k_modem_modes[ports->GetLink(i)->GetModem()->GetState()->mode % 5]) :
+                json()}})}
         });
     }
 
@@ -3531,13 +3543,46 @@ static std::string mac_text(const u8* address)
     return text;
 }
 
+static json network_session_status(void)
+{
+    NetSession* session = emu_net_get_session();
+
+    if (!IsValidPointer(session))
+        return json();
+
+    static const char* const k_modes[] = { "off", "host", "join" };
+    static const char* const k_states[] = { "idle", "connecting", "connected", "failed" };
+    json machines = json::array();
+
+    for (int i = 1; i <= NET_SWITCH_MACHINES; i++)
+    {
+        const Net_Session_Peer* peer = session->GetPeer(i);
+
+        if (IsValidPointer(peer) && peer->present)
+            machines.push_back({{"machine", i}, {"name", peer->name}, {"rtt_ms", peer->rtt_ms >= 0 ?
+                json(peer->rtt_ms) : json()}, {"this", i == session->GetMachine()}});
+    }
+
+    json result = {{"mode", k_modes[session->GetMode()]}, {"state", k_states[session->GetState()]},
+        {"machine", session->GetMachine()}, {"machines", machines}, {"limit", session->GetMaxMachines()},
+        {"stale_frames", session->GetDroppedFrames()}};
+
+    if (session->GetMode() != NET_SESSION_OFF)
+        result["endpoint"] = session->GetHostText();
+
+    if (session->GetState() == NET_SESSION_FAILED)
+        result["error"] = session->GetError();
+
+    return result;
+}
+
 json DebugAdapter::GetNetworkStatus()
 {
     NE2000* card = m_core->GetNE2000();
     NetworkPort* port = m_core->GetNetworkPort();
 
     if (!card->IsEnabled())
-        return {{"card", "none"}};
+        return {{"card", "none"}, {"session", network_session_status()}};
 
     NE2000::NE2000_State* state = card->GetState();
     const NE2000::NE2000_Counters* counters = card->GetCounters();
@@ -3592,7 +3637,8 @@ json DebugAdapter::GetNetworkStatus()
         {"frames", {{"sent", counters->sent}, {"received", counters->received}, {"filtered", counters->filtered},
             {"runts", counters->runts}, {"ring_full", counters->overflows}, {"queue_dropped", stats->dropped_received},
             {"queued_in", port->GetReceivedCount()}, {"queued_out", port->GetSentCount()}}},
-        {"last_frames", frames}
+        {"last_frames", frames},
+        {"session", network_session_status()}
     };
 }
 

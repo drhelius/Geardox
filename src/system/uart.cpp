@@ -257,6 +257,23 @@ bool UART::HandleEvent(u64 clocks, u8& sent)
     return false;
 }
 
+void UART::ReceiveLinked(u8 data, u64 clocks)
+{
+    if (!IsLoopback())
+        Store((u8)(data & BIT_MASK(5 + (m_state.lcr & 0x03))), 0, clocks);
+}
+
+void UART::SetModemInputs(u8 inputs)
+{
+    m_state.inputs = inputs & 0xF0;
+    UpdateModemStatus();
+}
+
+bool UART::CanReceive() const
+{
+    return m_state.rx_count < (((m_state.fcr & 0x01) != 0) ? UART_FIFO_SIZE : 1);
+}
+
 // What the receiver samples from a frame sent at its own rate: data bits first, then stop bits and an idle line
 void UART::Receive(u8 data, u8 data_bits, u32 divisor, u64 clocks)
 {
@@ -447,7 +464,7 @@ void UART::UpdateModemStatus()
 u8 UART::GetModemInputs() const
 {
     if (!IsLoopback())
-        return 0;
+        return m_state.inputs;
 
     u8 mcr = m_state.mcr;
 
@@ -485,6 +502,7 @@ void UART::Serialize(StateSerializer& serializer)
     G_SERIALIZE(serializer, m_state.timeout_pending);
     G_SERIALIZE(serializer, m_state.tx_clocks);
     G_SERIALIZE(serializer, m_state.timeout_clocks);
+    G_SERIALIZE(serializer, m_state.inputs);
 }
 
 void UART::SanitizeState()

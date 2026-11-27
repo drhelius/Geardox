@@ -215,6 +215,12 @@ extern "C" void macos_install_dock_menu(void)
     [NSApp setDelegate:geardox_application_delegate];
 }
 
+extern "C" void macos_launch_new_instance(void)
+{
+    if (geardox_application_delegate)
+        [geardox_application_delegate launchNewInstance:nil];
+}
+
 extern "C" void macos_remove_dock_menu(void)
 {
     if (!geardox_application_delegate)

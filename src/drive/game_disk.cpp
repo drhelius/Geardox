@@ -30,11 +30,13 @@
 #include "../media/crc.h"
 #include "../audio/ultrasound.h"
 #include "../system/machine_profiles.h"
+#include "../common/process_utils.h"
 
 static const char k_game_disk_database[] = "db:";
 static const char k_game_disk_program[] = "exe:";
 static const char k_game_disk_prompt[] = "prompt:";
 static const char k_game_disk_saves[] = "Saves";
+static const int k_game_disk_machines = 8;
 static const char k_game_disk_c[] = "C";
 static const char k_game_disk_freedos[] = "FreeDOS";
 static const char k_game_disk_msdos[] = "MS-DOS";
@@ -340,6 +342,7 @@ GameDisk::GameDisk()
     m_withheld_settings = false;
     m_write_saves = false;
     m_folder_read_only = false;
+    m_machine_slot = 1;
     m_startup_edits = false;
     m_has_machine = false;
     m_msdos_loaded = false;
@@ -737,13 +740,103 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     m_write_saves = m_source_zip || !write_to_folder;
     m_folder_read_only = !m_write_saves && !m_source_image && !FolderDisk::IsWritable(m_source);
     m_write_saves = m_write_saves || m_folder_read_only;
+
+    if (!TakeMachineSlot())
+        return Fail("%s already runs on %d machines of this computer", base.name.c_str(), k_game_disk_machines);
+
     m_open = true;
     return true;
+}
+
+static std::string get_temp_directory(void)
+{
+#if defined(_WIN32)
+    wchar_t buffer[MAX_PATH + 1];
+    DWORD length = GetTempPathW(MAX_PATH + 1, buffer);
+    return (length > 0) && (length <= MAX_PATH) ? wstring_to_utf8(buffer) : std::string();
+#else
+    const char* folder = getenv("TMPDIR");
+    return IsValidPointer(folder) && (folder[0] != 0) ? std::string(folder) : std::string("/tmp");
+#endif
+}
+
+static int take_process_lock(const std::string& path)
+{
+    std::string text;
+    unsigned long self = get_process_id();
+
+    if (MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
+    {
+        unsigned long owner = strtoul(text.c_str(), NULL, 10);
+
+        if ((owner != self) && is_process_running(owner))
+            return 0;
+    }
+
+    std::string pid = format_string("%lu\n", self);
+    return MediaFile::WriteFileAtomic(path.c_str(), pid.data(), pid.size()) ? 1 : -1;
+}
+
+bool GameDisk::TakeMachineSlot()
+{
+    bool source_lock = !m_write_saves;
+    std::string temp = source_lock ? get_temp_directory() : std::string();
+    std::string key = crc_key(m_source + "|" + m_zip_prefix);
+
+    for (int slot = 1; slot <= k_game_disk_machines; slot++)
+    {
+        std::string data = slot == 1 ? m_folder : path_join(m_folder, format_string("Machine %d", slot));
+
+        if (FolderDisk::IsLockedElsewhere(data))
+            continue;
+
+        if (source_lock && !temp.empty())
+        {
+            std::string lock = path_join(temp, format_string("geardox-%s-%d.lock", key.c_str(), slot));
+            int taken = take_process_lock(lock);
+
+            if (taken == 0)
+                continue;
+
+            if (taken > 0)
+                m_source_lock = lock;
+        }
+
+        m_machine_slot = slot;
+        m_disk_folder = data;
+
+        if (slot > 1)
+        {
+            m_write_saves = true;
+            Log("%s runs as machine %d on this computer, its changes stay in %s", m_base.GetInfo().name.c_str(), slot,
+                data.c_str());
+        }
+
+        return MediaFile::MakeDirectories(m_disk_folder.c_str());
+    }
+
+    return false;
+}
+
+void GameDisk::ReleaseMachineSlot()
+{
+    if (!m_source_lock.empty())
+        MediaFile::RemoveFile(m_source_lock.c_str());
+
+    m_source_lock.clear();
+    m_disk_folder.clear();
+    m_machine_slot = 1;
+}
+
+int GameDisk::GetMachineSlot() const
+{
+    return m_machine_slot;
 }
 
 void GameDisk::Close()
 {
     Discard();
+    ReleaseMachineSlot();
     m_open = false;
     m_has_machine = false;
     m_base.Clear();
@@ -787,6 +880,7 @@ void GameDisk::Close()
     m_voodoo_note.detail.clear();
     m_write_saves = false;
     m_folder_read_only = false;
+    m_machine_slot = 1;
     m_config_base.clear();
     m_autoexec_base.clear();
     m_merged.clear();
@@ -842,7 +936,7 @@ bool GameDisk::ClearOverrides()
 
     for (int i = 0; i < 2; i++)
     {
-        std::string folder = path_join(m_folder, i == 0 ? k_game_disk_freedos : k_game_disk_msdos);
+        std::string folder = path_join(m_disk_folder, i == 0 ? k_game_disk_freedos : k_game_disk_msdos);
         std::string base = path_join(folder, k_game_disk_base);
         MediaFile::RemoveFile(path_join(folder, k_dos_config_sys).c_str());
         MediaFile::RemoveFile(path_join(folder, k_dos_autoexec_bat).c_str());
@@ -1187,7 +1281,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
     FolderDisk* disk = new FolderDisk();
     bool ok = true;
 
-    if (FolderDisk::HasSession(m_folder))
+    if (FolderDisk::HasSession(m_disk_folder))
     {
         FatImage* tree = new FatImage();
 
@@ -1196,7 +1290,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
             SafeDelete(tree);
             ok = false;
         }
-        else if (!disk->Recover(tree, layers, m_folder))
+        else if (!disk->Recover(tree, layers, m_disk_folder))
             ok = Fail("%s", disk->GetError());
     }
 
@@ -1209,7 +1303,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
             SafeDelete(tree);
             ok = false;
         }
-        else if (!disk->Open(tree, layers, m_folder, (u64)info.free_mb * 1024 * 1024, m_source))
+        else if (!disk->Open(tree, layers, m_disk_folder, (u64)info.free_mb * 1024 * 1024, m_source))
             ok = Fail("%s", disk->GetError());
     }
 
@@ -1555,15 +1649,15 @@ const char* GameDisk::GetFolder() const
 std::string GameDisk::GetSavesPath() const
 {
     if (m_source_image)
-        return GetWorkingPath().empty() ? path_directory(m_source) : m_folder;
+        return GetWorkingPath().empty() ? path_directory(m_source) : m_disk_folder;
 
-    return m_write_saves ? path_join(m_folder, k_game_disk_saves) : m_source;
+    return m_write_saves ? path_join(m_disk_folder, k_game_disk_saves) : m_source;
 }
 
 std::string GameDisk::GetWorkingPath() const
 {
     bool working = m_source_image && (m_write_saves || ends_with_no_case(m_source.c_str(), ".chd"));
-    return working ? path_join(m_folder, k_game_disk_working) : std::string();
+    return working ? path_join(m_disk_folder, k_game_disk_working) : std::string();
 }
 
 const char* GameDisk::GetSettingsPath() const
@@ -1661,6 +1755,14 @@ void GameDisk::GetMessages(std::vector<GameDisk_Message>* messages) const
         messages->push_back(message);
     }
 
+    if (m_machine_slot > 1)
+    {
+        message.kind = GAME_DISK_MESSAGE_MACHINE;
+        message.title = format_string("Machine %d: another Geardox runs this game, so its changes stay here", m_machine_slot);
+        message.detail = m_disk_folder;
+        messages->push_back(message);
+    }
+
     if (IsFolderReadOnly())
     {
         message.kind = GAME_DISK_MESSAGE_READ_ONLY;
@@ -1710,7 +1812,7 @@ const char* GameDisk::GetError() const
 
 std::string GameDisk::GetDosFolder() const
 {
-    return path_join(m_folder, GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? k_game_disk_msdos : k_game_disk_freedos);
+    return path_join(m_disk_folder, GetSystem() == GDOX_GAME_SYSTEM_MSDOS ? k_game_disk_msdos : k_game_disk_freedos);
 }
 
 std::string GameDisk::GetStartupFile(const char* name, const std::string& base)
@@ -1768,8 +1870,8 @@ bool GameDisk::BuildTree(const GDOX_Machine_Config& machine, FatImage* image, st
     if (!top.empty() && (std::find(reserved.begin(), reserved.end(), top) != reserved.end()))
         return Fail("The game's folder, C:\\%s, is the system's: give it another folder in [game]", info.folder.c_str());
 
-    std::string saves = path_join(m_folder, k_game_disk_saves);
-    std::string c = path_join(m_folder, k_game_disk_c);
+    std::string saves = path_join(m_disk_folder, k_game_disk_saves);
+    std::string c = path_join(m_disk_folder, k_game_disk_c);
     std::string dos = GetDosFolder();
 
     if (!image->AddGame(m_root.c_str(), info.folder.c_str(), k_game_disk_layer_game, k_game_disk_layer_c))

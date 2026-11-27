@@ -225,6 +225,29 @@ void config_push_recent_game(const std::string& path)
     recent[0] = path;
 }
 
+void config_push_recent_host(const std::string& host)
+{
+    if (host.empty())
+        return;
+
+    std::string* recent = config_network.recent;
+    int slot = 0;
+
+    for (slot = 0; slot < config_max_recent_hosts; slot++)
+    {
+        if (recent[slot].compare(host) == 0)
+            break;
+    }
+
+    if (slot >= config_max_recent_hosts)
+        slot = config_max_recent_hosts - 1;
+
+    for (int index = slot; index > 0; index--)
+        recent[index] = recent[index - 1];
+
+    recent[0] = host;
+}
+
 void config_read(void)
 {
     if (!config_ini_file->read(config_ini_data))

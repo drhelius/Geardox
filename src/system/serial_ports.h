@@ -26,7 +26,9 @@
 #define SERIAL_PORTS 2
 
 class Input;
+class NetworkPort;
 class PIC;
+class SerialLink;
 class Scheduler;
 class SerialMouse;
 class StateSerializer;
@@ -39,7 +41,11 @@ class SerialPorts
 public:
     SerialPorts();
     ~SerialPorts();
-    void Init(PIC* pic, Scheduler* scheduler, Input* input);
+    void Init(PIC* pic, Scheduler* scheduler, Input* input, NetworkPort* port);
+    void SetLinks(int com1, int com2);
+    void PollLinks(u64 clocks);
+    SerialLink* GetLink(int index);
+    int GetLinkKind(int index) const;
     void SetTraceLogger(TraceLogger* trace_logger);
     void SetMouse(bool attached);
     void Reset();
@@ -60,6 +66,7 @@ private:
     int GetIndex(u16 port) const;
     void Synchronize(u64 clocks);
     u64 GetNextClocks() const;
+    void Transmitted(int index, u8 value, u64 clocks);
     void UpdateModemLines(int index, u64 clocks);
     void UpdateIRQ();
     void UpdateEvent();
@@ -69,6 +76,8 @@ private:
 
 private:
     UART* m_uart[SERIAL_PORTS];
+    SerialLink* m_links[SERIAL_PORTS];
+    NetworkPort* m_port;
     SerialMouse* m_mouse;
     PIC* m_pic;
     Scheduler* m_scheduler;

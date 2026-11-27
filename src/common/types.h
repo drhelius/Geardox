@@ -653,6 +653,7 @@ struct GDOX_Machine_Config
     u8 network_card;
     u16 network_base;
     u8 network_irq;
+    u8 com_link[2];
 };
 
 enum GDOX_Network_Card
@@ -774,6 +775,7 @@ struct GDOX_Machine_Settings
     int network_card;
     int network_base;
     int network_irq;
+    int com_link[2];
 };
 
 struct GDOX_Machine_Report

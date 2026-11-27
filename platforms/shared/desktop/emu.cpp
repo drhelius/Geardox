@@ -41,6 +41,7 @@
 #include "video/mc6845.h"
 #include "media/media_file.h"
 #include "emu_hard_disk.h"
+#include "emu_net.h"
 #include "emu_midi.h"
 #include "emu_synth.h"
 #include "events.h"
@@ -173,6 +174,7 @@ bool emu_init(void)
     emu_floppy_init();
 
     sound_queue_init();
+    emu_net_init();
     emu_midi_init();
     emu_synth_init();
     emu_midi_update_port();
@@ -260,6 +262,7 @@ void emu_destroy(void)
     runahead_destroy();
     rewind_destroy();
     SafeDelete(mcp_manager);
+    emu_net_destroy();
     emu_midi_destroy();
     sound_queue_destroy();
     SafeDelete(geardox);
@@ -275,8 +278,12 @@ void emu_destroy(void)
 void emu_update(void)
 {
     if (loading_state.load() != Loading_State_None)
+    {
+        emu_net_update(true);
         return;
+    }
 
+    emu_net_update(false);
     emu_mcp_pump_commands();
     emu_dev_update();
 
@@ -460,6 +467,8 @@ void emu_update(void)
         emu_midi_end_frame(sample_count);
     else
         emu_midi_idle();
+
+    emu_net_update(false);
 
     if (emu_game_update())
         return;
@@ -2181,6 +2190,7 @@ static void after_state_loaded(const char* path, int index)
     events_sync_input();
     rewind_reset();
     emu_midi_state_loaded();
+    emu_net_state_loaded();
 }
 
 static void restore_state_frame(const char* path, int index)

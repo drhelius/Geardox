@@ -119,11 +119,83 @@ void NetworkFrameQueue::ResetDropped()
     m_dropped = 0;
 }
 
+NetworkSerialQueue::NetworkSerialQueue()
+{
+    Clear();
+}
+
+void NetworkSerialQueue::Clear()
+{
+    m_head = 0;
+    m_size = 0;
+}
+
+bool NetworkSerialQueue::Push(int channel, int kind, int peer, const u8* data, int size)
+{
+    if ((size < 0) || (size > NETWORK_SERIAL_RECORD) || (m_size + 5 + size > NETWORK_SERIAL_QUEUE))
+        return false;
+
+    u8 header[5] = { (u8)channel, (u8)kind, (u8)peer, (u8)size, (u8)(size >> 8) };
+    Write(header, 5);
+
+    if (size > 0)
+        Write(data, size);
+
+    return true;
+}
+
+bool NetworkSerialQueue::Pop(int* channel, int* kind, int* peer, u8* data, int* size)
+{
+    if (m_size < 5)
+        return false;
+
+    u8 header[5];
+    Read(header, 5);
+    *channel = header[0];
+    *kind = header[1];
+    *peer = header[2];
+    *size = header[3] | (header[4] << 8);
+
+    if (*size > 0)
+        Read(data, *size);
+
+    return true;
+}
+
+bool NetworkSerialQueue::IsEmpty() const
+{
+    return m_size == 0;
+}
+
+int NetworkSerialQueue::GetFree() const
+{
+    return NETWORK_SERIAL_QUEUE - m_size;
+}
+
+void NetworkSerialQueue::Write(const u8* data, int size)
+{
+    for (int i = 0; i < size; i++)
+        m_data[(m_head + m_size + i) % NETWORK_SERIAL_QUEUE] = data[i];
+
+    m_size += size;
+}
+
+void NetworkSerialQueue::Read(u8* data, int size)
+{
+    for (int i = 0; i < size; i++)
+        data[i] = m_data[(m_head + i) % NETWORK_SERIAL_QUEUE];
+
+    m_head = (m_head + size) % NETWORK_SERIAL_QUEUE;
+    m_size -= size;
+}
+
 NetworkPort::NetworkPort()
 {
     memset(&m_stats, 0, sizeof(m_stats));
     m_speculative = false;
     m_attached = false;
+    m_serial_attached[0] = false;
+    m_serial_attached[1] = false;
 }
 
 NetworkPort::~NetworkPort()
@@ -134,6 +206,8 @@ void NetworkPort::Clear()
 {
     m_received.Clear();
     m_sent.Clear();
+    m_serial_sent.Clear();
+    m_serial_received.Clear();
 }
 
 void NetworkPort::SetSpeculative(bool speculative)
@@ -241,4 +315,53 @@ int NetworkPort::GetSentCount() const
 const NetworkPort::NetworkPort_Stats* NetworkPort::GetStats() const
 {
     return &m_stats;
+}
+
+void NetworkPort::SetSerialAttached(int channel, bool attached)
+{
+    m_serial_attached[channel & 1] = attached;
+}
+
+bool NetworkPort::IsSerialAttached(int channel) const
+{
+    return m_serial_attached[channel & 1];
+}
+
+bool NetworkPort::HasSerial() const
+{
+    return m_serial_attached[0] || m_serial_attached[1];
+}
+
+bool NetworkPort::SendSerial(int channel, int kind, int peer, const u8* data, int size)
+{
+    if (m_speculative)
+        return true;
+
+    return m_serial_sent.Push(channel, kind, peer, data, size);
+}
+
+bool NetworkPort::TakeSentSerial(int* channel, int* kind, int* peer, u8* data, int* size)
+{
+    return m_serial_sent.Pop(channel, kind, peer, data, size);
+}
+
+bool NetworkPort::DeliverSerial(int channel, int kind, int peer, const u8* data, int size)
+{
+    if ((channel < 0) || (channel > 1) || !m_serial_attached[channel])
+        return false;
+
+    return m_serial_received.Push(channel, kind, peer, data, size);
+}
+
+bool NetworkPort::TakeReceivedSerial(int* channel, int* kind, int* peer, u8* data, int* size)
+{
+    if (m_speculative)
+        return false;
+
+    return m_serial_received.Pop(channel, kind, peer, data, size);
+}
+
+int NetworkPort::GetSerialSendFree() const
+{
+    return m_serial_sent.GetFree();
 }

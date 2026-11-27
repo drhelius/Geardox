@@ -4,6 +4,7 @@ SOURCES_CXX += $(SRC_DIR)/cdrom/cdrom_drive.cpp
 SOURCES_CXX += $(SRC_DIR)/cdrom/cdrom_physical_image.cpp
 SOURCES_CXX += $(SRC_DIR)/cdrom/cdrom_drive_macos.cpp
 SOURCES_CXX += $(DESKTOP_SRC_DIR)/midi_port_macos.cpp
+SOURCES_CXX += $(DESKTOP_SRC_DIR)/net/net_socket_posix.cpp
 SOURCES_MM += macos.mm
 OBJECTS += $(SOURCES_MM:.mm=.o)
 CPPFLAGS += -DGDOX_ENABLE_PHYSICAL_CDROM

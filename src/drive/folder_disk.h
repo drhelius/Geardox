@@ -79,6 +79,7 @@ public:
     static std::string GetDataFolder(const char* save_folder, const std::string& name, const std::string& key);
     static bool IsWritable(const std::string& folder);
     static bool HasSession(const std::string& data_folder);
+    static bool IsLockedElsewhere(const std::string& data_folder);
     bool Recover(FatImage* tree, const std::vector<FolderDisk_Layer>& layers, const std::string& data_folder);
     bool Open(FatImage* tree, const std::vector<FolderDisk_Layer>& layers, const std::string& data_folder,
         u64 free_size, const std::string& path);

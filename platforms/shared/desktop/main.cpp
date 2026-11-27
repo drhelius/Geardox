@@ -23,6 +23,7 @@
 #include <signal.h>
 #endif
 #include "geardox.h"
+#include "emu_net.h"
 #include "application.h"
 #include "application_headless.h"
 #include "config.h"
@@ -62,6 +63,7 @@ static void apply_machine_overrides(void);
 static void restore_machine_settings(void);
 static void print_wrapped(const char* label, const std::string& text);
 static void print_usage(const char* program);
+static bool is_port(const char* text);
 
 int main(int argc, char* argv[])
 {
@@ -77,6 +79,9 @@ int main(int argc, char* argv[])
     bool mcp_stdio_set = false;
     bool mcp_http_set = false;
     bool headless = false;
+    int net_mode = 0;
+    const char* net_host = NULL;
+    int net_port = 0;
     bool portable = false;
 
     for (int i = 1; i < argc; i++)
@@ -347,6 +352,23 @@ int main(int argc, char* argv[])
                     return -1;
                 }
             }
+            else if (strcmp(argv[i], "--host") == 0)
+            {
+                net_mode = 1;
+
+                if ((i + 1 < argc) && is_port(argv[i + 1]))
+                    net_port = atoi(argv[++i]);
+            }
+            else if (strcmp(argv[i], "--join") == 0)
+            {
+                const char* value = option_value(argc, argv, &i);
+
+                if (!value)
+                    return -1;
+
+                net_mode = 2;
+                net_host = value;
+            }
             else if (strcmp(argv[i], "--mcp-http-port") == 0)
             {
                 const char* value = option_value(argc, argv, &i);
@@ -398,6 +420,12 @@ int main(int argc, char* argv[])
             continue;
         }
 
+        if ((strcmp(argv[i], "--host") == 0) && (i + 1 < argc) && is_port(argv[i + 1]))
+        {
+            i++;
+            continue;
+        }
+
         if (argv[i][0] != '-' && strcmp(argv[i], "/?") != 0)
         {
             if (non_option_count == 0)
@@ -443,6 +471,7 @@ int main(int argc, char* argv[])
     config_init(portable);
     config_read();
     apply_machine_overrides();
+    emu_net_set_command_line(net_mode, net_host, net_port);
 
     if (app_params.mcp_tcp_port_set)
         config_emulator.mcp_tcp_port = app_params.mcp_tcp_port;
@@ -503,11 +532,26 @@ int main(int argc, char* argv[])
     return (ret == 0) && dev_quit ? dev_exit_code : ret;
 }
 
+static bool is_port(const char* text)
+{
+    if ((text == NULL) || (text[0] == 0) || (strlen(text) > 5))
+        return false;
+
+    for (const char* c = text; *c != 0; c++)
+    {
+        if ((*c < '0') || (*c > '9'))
+            return false;
+    }
+
+    int port = atoi(text);
+    return (port > 0) && (port < 65536);
+}
+
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
         "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--gus", "--video",
-        "--mouse", "--cdrom", "--joystick", "--run", "--timeout", "--boot-speed", "--speed", "--gdb-port" };
+        "--mouse", "--cdrom", "--joystick", "--run", "--timeout", "--boot-speed", "--speed", "--gdb-port", "--join" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
     {
@@ -715,6 +759,9 @@ static void print_usage(const char* program)
     print_wrapped("      --mouse MOUSE", "none, ps2, serial");
     print_wrapped("      --cdrom DRIVE", "none, pm, ps, sm, ss (primary or secondary, master or slave)");
     print_wrapped("      --joystick DEVICE", "none, standard, gamepad, flightstick");
+    printf("\nNetwork:\n");
+    print_wrapped("      --host [PORT]", "Hosts a network session on PORT (default: the Network menu's port)");
+    print_wrapped("      --join HOST[:PORT]", "Joins the network session at HOST");
     printf("\nDevelopment (Debug turns on for this run only):\n");
     print_wrapped("      --run COMMAND", "Runs COMMAND in the game descriptor's folder through GDXDBG, which reports it to the debugger");
     print_wrapped("      --stop-at-entry", "Stops in the debugger at the program's first instruction");

@@ -263,6 +263,12 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Game", "CloseOnPowerOff", config_game.close_on_power_off, false);
     CONFIG_BOOL("Game", "Database", config_game.database, true);
     CONFIG_STRING_ARRAY("Game", "Recent%d", config_game.recent, config_max_recent_games, "");
+    CONFIG_STRING("Network", "Address", config_network.address, "");
+    CONFIG_INT_RANGE("Network", "Port", config_network.port, 28636, 1, 65535);
+    CONFIG_STRING("Network", "Name", config_network.name, "");
+    CONFIG_STRING("Network", "Password", config_network.password, "");
+    CONFIG_INT_RANGE("Network", "Machines", config_network.machines, 8, 2, 8);
+    CONFIG_STRING_ARRAY("Network", "Recent%d", config_network.recent, config_max_recent_hosts, "");
 
     // File dialogs
     CONFIG_STRING("FileDialogs", "ROM", config_file_dialogs.rom, "");
@@ -306,6 +312,8 @@ static inline void process(config_Operation operation)
         GDOX_NETWORK_CARD_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "NetworkPort", config_machine.network_base, k_ne2000_default_base, 0x300, 0x360);
     CONFIG_INT_RANGE("Machine", "NetworkIRQ", config_machine.network_irq, k_ne2000_default_irq, 3, 15);
+    CONFIG_INT_RANGE("Machine", "COM1Link", config_machine.com_link[0], SERIAL_LINK_NONE, 0, SERIAL_LINK_KIND_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "COM2Link", config_machine.com_link[1], SERIAL_LINK_NONE, 0, SERIAL_LINK_KIND_COUNT - 1);
     CONFIG_INT_RANGE("Machine", "DriveTiming", config_machine.drive_timing, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
         GDOX_DRIVE_TIMING_COUNT - 1);
 

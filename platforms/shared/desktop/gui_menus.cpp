@@ -41,6 +41,8 @@
 #include "emu_dos.h"
 #include "midi_port.h"
 #include "gui_game.h"
+#include "gui_network.h"
+#include "emu_net.h"
 #include "gui_dos.h"
 #include "ogl_renderer.h"
 #include "ogl_shader_chain.h"
@@ -105,6 +107,7 @@ static bool menu_machine_sound(void);
 static bool menu_machine_video(void);
 static bool menu_machine_mouse(void);
 static bool menu_machine_network(void);
+static bool menu_machine_serial_ports(void);
 static bool menu_machine_network_choice(const char* name, const char* id, const char* key, int count, const int* values,
     const char* const* labels, int* setting, int base, bool enabled);
 static bool menu_machine_cdrom_drive(void);
@@ -202,6 +205,7 @@ void gui_main_menu(void)
         menu_video();
         menu_input();
         menu_audio();
+        gui_network_menu();
         menu_debug();
         menu_about();
         draw_mcp_status();
@@ -916,6 +920,9 @@ static void menu_machine(void)
         changed = true;
 
     if (menu_machine_network())
+        changed = true;
+
+    if (menu_machine_serial_ports())
         changed = true;
 
     ImGui::Separator();
@@ -1671,6 +1678,40 @@ static bool menu_machine_network(void)
     return changed;
 }
 
+static bool menu_machine_serial_ports(void)
+{
+    int source = MAX(emu_game_get_source("network", "com1"), emu_game_get_source("network", "com2"));
+
+    if (!begin_game_menu("Serial Ports", source))
+        return false;
+
+    static const int k_links[SERIAL_LINK_KIND_COUNT] = { SERIAL_LINK_NONE, SERIAL_LINK_NULL_MODEM, SERIAL_LINK_MODEM };
+    static const char* const k_link_labels[SERIAL_LINK_KIND_COUNT] = { "None", "Null Modem", "Modem" };
+    static const char* const k_names[2] = { "COM1", "COM2" };
+    static const char* const k_ids[2] = { "##machine_com1", "##machine_com2" };
+    static const char* const k_keys[2] = { "com1", "com2" };
+    const config_Machine* base = emu_game_get_base_machine();
+    bool changed = false;
+
+    for (int i = 0; i < 2; i++)
+    {
+        if ((i == 0) && (menu_settings->mouse == GDOX_MOUSE_SERIAL))
+        {
+            ImGui::BeginDisabled();
+            ImGui::MenuItem("COM1", "Serial Mouse");
+            ImGui::EndDisabled();
+            continue;
+        }
+
+        if (menu_machine_network_choice(k_names[i], k_ids[i], k_keys[i], SERIAL_LINK_KIND_COUNT, k_links, k_link_labels,
+            &menu_settings->com_link[i], base->com_link[i], true))
+            changed = true;
+    }
+
+    ImGui::EndMenu();
+    return changed;
+}
+
 static bool menu_machine_network_choice(const char* name, const char* id, const char* key, int count, const int* values,
     const char* const* labels, int* setting, int base, bool enabled)
 {
@@ -1723,8 +1764,17 @@ static bool menu_machine_network_choice(const char* name, const char* id, const 
     else if (ImGui::IsItemHovered())
     {
         ImGui::BeginTooltip();
-        ImGui::Text("Network > Host or Join connects the card to other machines.");
-        ImGui::Text("The disks Geardox makes load its DOS drivers at this port and IRQ.");
+        if (strncmp(key, "com", 3) == 0)
+        {
+            ImGui::Text("Null Modem reaches the same port of the other machine in a session of two.");
+            ImGui::Text("Modem answers AT commands and dials the session's machines by their number.");
+        }
+        else
+        {
+            ImGui::Text("Network > Host or Join connects the card to other machines.");
+            ImGui::Text("The disks Geardox makes load its DOS drivers at this port and IRQ.");
+        }
+
         ImGui::Text("Reset the emulator to apply changes.");
         gui_draw_game_source_tooltip(source);
         ImGui::EndTooltip();
@@ -3835,8 +3885,11 @@ static void draw_mcp_status(void)
     bool vgm_recording = emu_is_vgm_recording();
     bool mcp_running = emu_mcp_is_running();
     bool gdb_running = emu_gdb_is_running();
+    char net_status[64];
+    bool net_running = gui_network_get_status(net_status, sizeof(net_status));
+    ImVec4 net_color = emu_net_is_connected() ? service_mcp_http_color : service_mcp_stdio_color;
 
-    if (!video_recording && !vgm_recording && !mcp_running && !gdb_running)
+    if (!video_recording && !vgm_recording && !mcp_running && !gdb_running && !net_running)
         return;
 
     const char* video_recording_status = "REC VIDEO";
@@ -3889,6 +3942,12 @@ static void draw_mcp_status(void)
             text_width += spacing;
         text_width += ImGui::CalcTextSize(gdb_status).x;
     }
+    if (net_running)
+    {
+        if (text_width > 0.0f)
+            text_width += spacing;
+        text_width += ImGui::CalcTextSize(net_status).x;
+    }
 
     float status_x = ImGui::GetWindowWidth() - text_width - style.ItemSpacing.x - 10.0f;
     float cursor_x = ImGui::GetCursorPosX();
@@ -3924,6 +3983,14 @@ static void draw_mcp_status(void)
             ImGui::SameLine(0.0f, spacing);
 
         ImGui::TextColored(gdb_color, "%s", gdb_status);
+    }
+
+    if (net_running)
+    {
+        if (video_recording || vgm_recording || mcp_running || gdb_running)
+            ImGui::SameLine(0.0f, spacing);
+
+        ImGui::TextColored(net_color, "%s", net_status);
     }
 }
 
@@ -4003,6 +4070,7 @@ static void file_dialogs(void)
     gui_floppy_popups();
     gui_hard_disks_popups();
     gui_game_popups();
+    gui_network_popups();
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
     gui_popup_modal_physical_cdrom();
 #endif

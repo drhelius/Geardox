@@ -22,6 +22,8 @@
 #include "pic.h"
 #include "scheduler.h"
 #include "../input/serial_mouse.h"
+#include "../network/serial_link.h"
+#include "../network/network_port.h"
 #include "../common/trace_logger.h"
 #include "../common/state_serializer.h"
 
@@ -29,12 +31,14 @@ SerialPorts::SerialPorts()
 {
     InitPointer(m_pic);
     InitPointer(m_scheduler);
+    InitPointer(m_port);
     m_trace_logger = TraceLogger::GetDisabled();
     m_mouse_attached = false;
 
     for (int i = 0; i < SERIAL_PORTS; i++)
     {
         m_uart[i] = new UART();
+        m_links[i] = new SerialLink();
         m_irq[i] = false;
         m_modem_outputs[i] = 0;
     }
@@ -45,16 +49,63 @@ SerialPorts::SerialPorts()
 SerialPorts::~SerialPorts()
 {
     for (int i = 0; i < SERIAL_PORTS; i++)
+    {
         SafeDelete(m_uart[i]);
+        SafeDelete(m_links[i]);
+    }
 
     SafeDelete(m_mouse);
 }
 
-void SerialPorts::Init(PIC* pic, Scheduler* scheduler, Input* input)
+void SerialPorts::Init(PIC* pic, Scheduler* scheduler, Input* input, NetworkPort* port)
 {
     m_pic = pic;
     m_scheduler = scheduler;
+    m_port = port;
     m_mouse->Init(input);
+
+    for (int i = 0; i < SERIAL_PORTS; i++)
+        m_links[i]->Init(m_uart[i], port, i);
+}
+
+void SerialPorts::SetLinks(int com1, int com2)
+{
+    m_links[0]->SetKind(m_mouse_attached ? SERIAL_LINK_NONE : com1);
+    m_links[1]->SetKind(com2);
+}
+
+void SerialPorts::PollLinks(u64 clocks)
+{
+    int channel = 0;
+    int kind = 0;
+    int peer = 0;
+    int size = 0;
+    u8 data[NETWORK_SERIAL_RECORD];
+    bool any = false;
+
+    while (m_port->TakeReceivedSerial(&channel, &kind, &peer, data, &size))
+    {
+        if ((channel >= 0) && (channel < SERIAL_PORTS))
+            m_links[channel]->Receive(kind, peer, data, size, clocks);
+
+        any = true;
+    }
+
+    if (any)
+    {
+        UpdateIRQ();
+        UpdateEvent();
+    }
+}
+
+SerialLink* SerialPorts::GetLink(int index)
+{
+    return m_links[index];
+}
+
+int SerialPorts::GetLinkKind(int index) const
+{
+    return m_links[index]->GetKind();
 }
 
 void SerialPorts::SetTraceLogger(TraceLogger* trace_logger)
@@ -73,6 +124,7 @@ void SerialPorts::Reset()
     for (int i = 0; i < SERIAL_PORTS; i++)
     {
         m_uart[i]->Reset();
+        m_links[i]->Reset();
         m_modem_outputs[i] = 0;
     }
 
@@ -169,16 +221,18 @@ void SerialPorts::Synchronize(u64 clocks)
 
         if (next == m_uart[0]->GetNextEventClocks())
         {
-            if (m_uart[0]->HandleEvent(next, value) && unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL,
-                TRACE_SERIAL_TRANSMIT)))
-                TraceEvent(TRACE_SERIAL_TRANSMIT, 0, 0, value, 0);
+            if (m_uart[0]->HandleEvent(next, value))
+                Transmitted(0, value, next);
         }
         else if (next == m_uart[1]->GetNextEventClocks())
         {
-            if (m_uart[1]->HandleEvent(next, value) && unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL,
-                TRACE_SERIAL_TRANSMIT)))
-                TraceEvent(TRACE_SERIAL_TRANSMIT, 1, 0, value, 0);
+            if (m_uart[1]->HandleEvent(next, value))
+                Transmitted(1, value, next);
         }
+        else if (next == m_links[0]->GetNextEventClocks())
+            m_links[0]->HandleEvent(next);
+        else if (next == m_links[1]->GetNextEventClocks())
+            m_links[1]->HandleEvent(next);
         else if (m_mouse->HandleEvent(next, value))
         {
             m_uart[0]->Receive(value, k_serial_mouse_data_bits, k_serial_mouse_divisor, next);
@@ -197,7 +251,17 @@ void SerialPorts::Synchronize(u64 clocks)
 u64 SerialPorts::GetNextClocks() const
 {
     u64 next = MIN(m_uart[0]->GetNextEventClocks(), m_uart[1]->GetNextEventClocks());
+    next = MIN(next, MIN(m_links[0]->GetNextEventClocks(), m_links[1]->GetNextEventClocks()));
     return m_mouse_attached ? MIN(next, m_mouse->GetNextEventClocks()) : next;
+}
+
+void SerialPorts::Transmitted(int index, u8 value, u64 clocks)
+{
+    if (unlikely(m_trace_logger->IsEventEnabled(TRACE_SERIAL, TRACE_SERIAL_TRANSMIT)))
+        TraceEvent(TRACE_SERIAL_TRANSMIT, index, 0, value, 0);
+
+    if (m_links[index]->GetKind() != SERIAL_LINK_NONE)
+        m_links[index]->Transmit(value, clocks);
 }
 
 int SerialPorts::GetIndex(u16 port) const
@@ -225,6 +289,9 @@ void SerialPorts::UpdateModemLines(int index, u64 clocks)
 
     if (index == 0 && m_mouse_attached)
         m_mouse->SetRTS((outputs & k_uart_rts) != 0, clocks);
+
+    if (m_links[index]->GetKind() != SERIAL_LINK_NONE)
+        m_links[index]->SetOutputs(outputs, clocks);
 }
 
 void SerialPorts::UpdateIRQ()
@@ -302,7 +369,10 @@ void SerialPorts::LoadState(std::istream& stream, int version)
     Serialize(serializer);
 
     for (int i = 0; i < SERIAL_PORTS; i++)
+    {
         m_uart[i]->SanitizeState();
+        m_links[i]->SanitizeState();
+    }
 
     m_mouse->SanitizeState();
 
@@ -319,6 +389,7 @@ void SerialPorts::Serialize(StateSerializer& serializer)
         m_uart[i]->Serialize(serializer);
         G_SERIALIZE(serializer, m_irq[i]);
         G_SERIALIZE(serializer, m_modem_outputs[i]);
+        m_links[i]->Serialize(serializer);
     }
 
     m_mouse->Serialize(serializer);

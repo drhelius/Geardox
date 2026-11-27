@@ -33,6 +33,7 @@
 #include "gui_actions.h"
 #include "gui_game.h"
 #include "emu_game.h"
+#include "emu_net.h"
 #include "gui_hard_disks.h"
 #include "display.h"
 #include "utils.h"
@@ -88,6 +89,7 @@ extern "C" void macos_set_native_fullscreen(void* nswindow, bool enter);
 extern "C" void macos_refocus_window(void* nswindow);
 extern "C" void macos_install_dock_menu(void);
 extern "C" void macos_remove_dock_menu(void);
+extern "C" void macos_launch_new_instance(void);
 #endif
 
 int application_init(const ApplicationParams& params)
@@ -406,6 +408,19 @@ static void load_step(int step)
             gui_load_state_after_media(params.state_slot, params.state_file);
     }
 }
+
+#if defined(__APPLE__)
+bool application_can_launch_new_instance(void)
+{
+    return macos_new_instance_enabled;
+}
+
+void application_launch_new_instance(void)
+{
+    if (macos_new_instance_enabled)
+        macos_launch_new_instance();
+}
+#endif
 
 bool application_check_single_instance(const char* rom_file, const char* symbol_file)
 {
@@ -728,7 +743,8 @@ static void sdl_events_app(const SDL_Event* event)
         {
             display_use_vsync_if_enabled();
 
-            if (config_emulator.pause_when_inactive && !emu_mcp_is_running() && !paused_when_focus_lost)
+            if (config_emulator.pause_when_inactive && !emu_mcp_is_running() && !emu_net_is_active() &&
+                !paused_when_focus_lost)
                 emu_resume();
 
             break;
@@ -741,7 +757,7 @@ static void sdl_events_app(const SDL_Event* event)
             events_release_keyboard();
             events_release_mouse();
 
-            if (config_emulator.pause_when_inactive && !emu_mcp_is_running())
+            if (config_emulator.pause_when_inactive && !emu_mcp_is_running() && !emu_net_is_active())
             {
                 paused_when_focus_lost = emu_is_paused();
                 emu_pause();

@@ -175,6 +175,18 @@
     <ClCompile Include="..\shared\desktop\emu_midi.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
+    <ClCompile Include="..\shared\desktop\emu_net.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\gui_network.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\net\net_session.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\desktop\net\net_socket_win32.cpp">
+      <Filter>desktop</Filter>
+    </ClCompile>
     <ClCompile Include="..\shared\desktop\emu_synth.cpp">
       <Filter>desktop</Filter>
     </ClCompile>
@@ -356,6 +368,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\network\net_services.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\network\serial_link.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\network\modem.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\system\parallel_port.cpp">
@@ -883,6 +901,8 @@
     <ClInclude Include="..\..\src\network\net_crc.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\net_switch.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\net_services.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\network\serial_link.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\network\modem.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\parallel_port.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\system\system_control_inline.h"><Filter>src</Filter></ClInclude>
@@ -1189,6 +1209,18 @@
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\emu_midi.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\emu_net.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\gui_network.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\net\net_session.h">
+      <Filter>desktop</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\desktop\net\net_socket.h">
       <Filter>desktop</Filter>
     </ClInclude>
     <ClInclude Include="..\shared\desktop\midi_port.h">

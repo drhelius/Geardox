@@ -746,6 +746,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "disabled"
     },
     {
+        "geardox_serial_link",
+        "Serial Link (restart)",
+        NULL,
+        "During a network session: COM1, or COM2 when the serial mouse is on COM1, as a null modem cable to the other machine of a session of two, or as a modem that dials the session's machines by their number. A game's own setting wins.",
+        NULL,
+        "system",
+        {
+            { "none",       "None" },
+            { "null_modem", "Null Modem" },
+            { "modem",      "Modem" },
+            { NULL, NULL },
+        },
+        "none"
+    },
+    {
         "geardox_descriptor",
         "Game Descriptors (restart)",
         NULL,

@@ -46,6 +46,7 @@
 #include "video/video.h"
 #include "video/voodoo.h"
 #include "libretro_core_options.h"
+#include "libretro_net.h"
 
 #define RETRO_DEVICE_PC_JOYSTICK      RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_JOYPAD, 0)
 #define RETRO_DEVICE_GAMEPAD_KEYS     RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_KEYBOARD, 0)
@@ -105,6 +106,10 @@ static int current_screen_width = 0;
 static int current_screen_height = 0;
 static float current_aspect_ratio = 0.0f;
 static float current_fps = 60.0f;
+static u8* network_frame = NULL;
+static bool network_card_added = false;
+static int serial_link_option = 0;
+static int serial_link_visible = -1;
 static float aspect_ratio = 0.0f;
 static int frameskip_type = 0;
 static unsigned frameskip_threshold = 33;
@@ -207,6 +212,9 @@ static void unload_content(void);
 static void set_machine_config(void);
 static void report_machine(void);
 static void show_message(const char* message, unsigned priority, enum retro_log_level level);
+static void network_event(int event, int machine);
+static void apply_serial_link(void);
+static int network_boost(void);
 static void get_system_av_info(struct retro_system_av_info* info);
 static void audio_buffer_status(bool active, unsigned occupancy, bool underrun_likely);
 static void update_frameskip(void);
@@ -454,6 +462,7 @@ void retro_init(void)
     midi_supported = environ_cb(RETRO_ENVIRONMENT_GET_MIDI_INTERFACE, &midi_interface) &&
         IsValidPointer(midi_interface.output_enabled) && IsValidPointer(midi_interface.write);
     midi_output = false;
+    libretro_net_init(environ_cb, core, network_event);
 }
 
 void retro_deinit(void)
@@ -461,9 +470,12 @@ void retro_deinit(void)
     if (content_loaded)
         unload_content();
 
+    libretro_net_deinit();
     SafeDeleteArray(frame_buffer);
+    SafeDeleteArray(network_frame);
     SafeDelete(core);
     MediaFile::SetVfsInterface(NULL);
+    network_card_added = false;
 
     message_interface_version = 0;
     libretro_supports_bitmasks = false;
@@ -599,8 +611,20 @@ void retro_run(void)
 
     audio_sample_count = 0;
     bool powered = core->IsPoweredOn();
+    int boost = network_boost();
+    bool frame_ended = true;
     midi_begin_frame(av_enable);
-    core->RunToFrame(frame_buffer, audio_buf, &audio_sample_count, render);
+    libretro_net_begin_run(av_enable);
+
+    if (libretro_net_is_active())
+    {
+        u32 frame_clocks = (u32)((double)GDOX_MACHINE_CLOCK_RATE * runtime_info.frame_time / 1000.0);
+        core->RunToFrameSlice(frame_buffer, audio_buf, &audio_sample_count, render, frame_clocks / (u32)boost, &frame_ended);
+    }
+    else
+        core->RunToFrame(frame_buffer, audio_buf, &audio_sample_count, render);
+
+    libretro_net_end_run();
     midi_end_frame(av_enable, audio_sample_count / 2);
     key_map_update();
     floppy_update();
@@ -650,8 +674,26 @@ void retro_run(void)
         }
     }
 
-    video_cb((render || !libretro_supports_dupe) ? frame_buffer : NULL, runtime_info.screen_width,
-        runtime_info.screen_height, runtime_info.screen_width * sizeof(u32));
+    if (!frame_ended && !libretro_supports_dupe)
+    {
+        video_cb(IsValidPointer(network_frame) ? network_frame : frame_buffer, runtime_info.screen_width,
+            runtime_info.screen_height, runtime_info.screen_width * sizeof(u32));
+    }
+    else if (!frame_ended)
+        video_cb(NULL, runtime_info.screen_width, runtime_info.screen_height, runtime_info.screen_width * sizeof(u32));
+    else
+    {
+        if (libretro_net_is_active() && !libretro_supports_dupe && render)
+        {
+            if (!IsValidPointer(network_frame))
+                network_frame = new u8[GDOX_MAX_FRAME_BUFFER_WIDTH * GDOX_MAX_FRAME_BUFFER_HEIGHT * sizeof(u32)];
+
+            memcpy(network_frame, frame_buffer, (size_t)runtime_info.screen_width * runtime_info.screen_height * sizeof(u32));
+        }
+
+        video_cb((render || !libretro_supports_dupe) ? frame_buffer : NULL, runtime_info.screen_width,
+            runtime_info.screen_height, runtime_info.screen_width * sizeof(u32));
+    }
 
     if (core->GetKeyMapper()->IsOpen())
     {
@@ -1269,6 +1311,78 @@ static void show_message(const char* message, unsigned priority, enum retro_log_
     environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &msg);
 }
 
+static void apply_serial_link(void)
+{
+    int link = libretro_net_is_active() ? serial_link_option : SERIAL_LINK_NONE;
+    bool mouse = machine_settings.mouse == GDOX_MOUSE_SERIAL;
+    machine_settings.com_link[0] = mouse ? SERIAL_LINK_NONE : link;
+    machine_settings.com_link[1] = mouse ? link : SERIAL_LINK_NONE;
+}
+
+static int network_boost(void)
+{
+    if (!libretro_net_is_active())
+        return 1;
+
+    struct retro_throttle_state throttle;
+    float fps = 1000.0f / runtime_info.frame_time;
+
+    if (!environ_cb(RETRO_ENVIRONMENT_GET_THROTTLE_STATE, &throttle) || (throttle.mode != RETRO_THROTTLE_NONE) ||
+        (throttle.rate <= fps * 1.5f))
+        return 1;
+
+    return CLAMP((int)(throttle.rate / fps + 0.499f), 1, 4);
+}
+
+static void network_event(int event, int machine)
+{
+    char text[128];
+
+    switch (event)
+    {
+        case LIBRETRO_NET_STARTED:
+            update_core_options_display();
+            apply_serial_link();
+            set_machine_config();
+
+            if (!core->GetNE2000()->IsEnabled() && !core->GetNetworkPort()->HasSerial() && !network_card_added)
+            {
+                network_card_added = true;
+                machine_settings.network_card = GDOX_NETWORK_CARD_NE2000;
+                set_machine_config();
+
+                if (core->IsPoweredOn() && (core->GetScheduler()->GetClocks() < (u64)GDOX_MACHINE_CLOCK_RATE * 10))
+                {
+                    retro_reset();
+                    show_message("Network session: the NE2000 is in, the machine restarted", 3, RETRO_LOG_INFO);
+                    break;
+                }
+
+                show_message("Network session: restart the content to add the NE2000", 4, RETRO_LOG_WARN);
+                break;
+            }
+
+            snprintf(text, sizeof(text), machine == 1 ? "Hosting a network session" : "Joined the network session");
+            show_message(text, 2, RETRO_LOG_INFO);
+            break;
+        case LIBRETRO_NET_STOPPED:
+            update_core_options_display();
+            show_message("The network session ended", 2, RETRO_LOG_INFO);
+            break;
+        case LIBRETRO_NET_JOINED:
+            snprintf(text, sizeof(text), "Machine %d joined the session", machine);
+            show_message(text, 2, RETRO_LOG_INFO);
+            break;
+        case LIBRETRO_NET_LEFT:
+            snprintf(text, sizeof(text), "Machine %d left the session", machine);
+            show_message(text, 2, RETRO_LOG_INFO);
+            break;
+        default:
+            show_message("The session is full: 8 machines", 2, RETRO_LOG_WARN);
+            break;
+    }
+}
+
 static void get_system_av_info(struct retro_system_av_info* info)
 {
     core->GetRuntimeInfo(runtime_info);
@@ -1279,7 +1393,7 @@ static void get_system_av_info(struct retro_system_av_info* info)
     info->geometry.max_height   = GDOX_MAX_FRAME_BUFFER_HEIGHT;
     info->geometry.aspect_ratio = aspect_ratio == 0.0f ?
         (float)runtime_info.display_width / (float)runtime_info.display_height : aspect_ratio;
-    info->timing.fps            = 1000.0f / runtime_info.frame_time;
+    info->timing.fps            = 1000.0f / runtime_info.frame_time * (libretro_net_is_active() ? 4.0f : 1.0f);
     info->timing.sample_rate    = GDOX_AUDIO_SAMPLE_RATE;
 }
 
@@ -1897,6 +2011,15 @@ static bool update_core_options_display(void)
     struct retro_variable var = { "geardox_frameskip", NULL };
     bool threshold_visible = environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value && (strcmp(var.value, "Manual") == 0);
     bool changed = update_game_options_display();
+    int link_visible = libretro_net_is_active() ? 1 : 0;
+
+    if (link_visible != serial_link_visible)
+    {
+        struct retro_core_option_display link = { "geardox_serial_link", link_visible != 0 };
+        environ_cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY, &link);
+        serial_link_visible = link_visible;
+        changed = true;
+    }
 
     if (threshold_visible == frameskip_threshold_visible)
         return changed;
@@ -2246,6 +2369,15 @@ static void check_variables(void)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
         machine_settings.voodoo = strcmp(var.value, "enabled") == 0 ? 1 : 0;
+
+    var.key = "geardox_serial_link";
+    var.value = NULL;
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        serial_link_option = strcmp(var.value, "null_modem") == 0 ? SERIAL_LINK_NULL_MODEM :
+            strcmp(var.value, "modem") == 0 ? SERIAL_LINK_MODEM : SERIAL_LINK_NONE;
+
+    apply_serial_link();
 
     var.key = "geardox_midi";
     var.value = NULL;
@@ -3434,6 +3566,10 @@ static void game_message(const GameDisk_Message& message)
         case GAME_DISK_MESSAGE_RECOGNISED:
             snprintf(text, sizeof(text), "%s: %s", message.title.c_str(), message.detail.c_str());
             show_message(text, 1, RETRO_LOG_INFO);
+            break;
+        case GAME_DISK_MESSAGE_MACHINE:
+            log_cb(RETRO_LOG_INFO, "%s: %s\n", message.title.c_str(), message.detail.c_str());
+            show_message(message.title.c_str(), 2, RETRO_LOG_INFO);
             break;
         case GAME_DISK_MESSAGE_REFUSED:
             log_cb(RETRO_LOG_ERROR, "%s: %s\n", message.title.c_str(), message.detail.c_str());

@@ -98,6 +98,8 @@ public:
     GDOX_Run_Result RunToFrame(u8* frame_buffer, s16* sample_buffer, int* sample_count, bool render = true);
     GDOX_Run_Result RunToFrame(u8* frame_buffer, s16* sample_buffer, int* sample_count, GDOX_Debug_Run* debug,
         bool render = true);
+    GDOX_Run_Result RunToFrameSlice(u8* frame_buffer, s16* sample_buffer, int* sample_count, bool render,
+        u32 slice_clocks, bool* frame_ended);
 
     bool PowerOn();
     void PowerOff();
@@ -217,7 +219,9 @@ public:
 
 private:
     template<bool debugger>
-    GDOX_Run_Result RunToFrameTemplate(u8* frame_buffer, s16* sample_buffer, int* sample_count, GDOX_Debug_Run* debug, bool render);
+    GDOX_Run_Result RunToFrameTemplate(u8* frame_buffer, s16* sample_buffer, int* sample_count, GDOX_Debug_Run* debug,
+        bool render, u32 slice_clocks = 0);
+    void FinishSlice(s16* sample_buffer, int* sample_count);
     template<bool debugger>
     bool RunFrame(u64 frame_start);
     void RunDebuggerFrame(u64 frame_start, GDOX_Debug_Run* debug);
@@ -363,6 +367,9 @@ private:
     GDOX_Debug_Step m_debug_step;
     bool m_debug_step_resume;
     bool m_debug_interrupt_deferred;
+    bool m_slice_active;
+    u64 m_slice_frame_start;
+    u64 m_slice_limit;
 
     u8* m_frame_buffer;
 };

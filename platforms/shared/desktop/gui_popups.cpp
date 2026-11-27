@@ -33,6 +33,7 @@
 #include "application.h"
 #include "display.h"
 #include "gamepad.h"
+#include "emu_net.h"
 #include "emu.h"
 #include "hotkeys.h"
 #include "license.h"
@@ -413,6 +414,10 @@ void gui_popup_modal_load_defaults(void)
     {
         ImGui::Text("Are you sure you want to load default settings?\n\n");
         ImGui::Text("Current content will close.\n\n");
+
+        if (emu_net_is_active())
+            ImGui::Text("The network session ends.\n\n");
+
         ImGui::Text("This action cannot be reverted.\n\n");
         ImGui::Separator();
 
@@ -421,6 +426,7 @@ void gui_popup_modal_load_defaults(void)
         if (ImGui::Button("Yes", ImVec2(120, 0)))
         {
             gui_close_popup();
+            emu_net_leave();
             gui_action_load_defaults();
         }
 

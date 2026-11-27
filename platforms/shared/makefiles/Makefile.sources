@@ -41,7 +41,6 @@ SOURCES_MT32 := \
     $(DEPS_DIR)/mt32emu/src/TVF.cpp \
     $(DEPS_DIR)/mt32emu/src/TVP.cpp \
     $(DEPS_DIR)/mt32emu/src/Tables.cpp \
-    $(DEPS_DIR)/mt32emu/src/sha1/sha1.cpp \
 
 SOURCES_SOUNDFONT := \
     $(DEPS_DIR)/fluidsynth/fluid_geardox.c \
@@ -96,6 +95,7 @@ SOURCES_CXX := \
     $(DEPS_DIR)/seabios/seabios.cpp \
     $(DEPS_DIR)/freedos/freedos.cpp \
     $(DEPS_DIR)/doskey/doskey.cpp \
+    $(DEPS_DIR)/mt32emu/src/sha1/sha1.cpp \
     $(DESKTOP_SRC_DIR)/main.cpp \
     $(DESKTOP_SRC_DIR)/application.cpp \
     $(DESKTOP_SRC_DIR)/application_headless.cpp \
@@ -135,6 +135,9 @@ SOURCES_CXX := \
     $(DESKTOP_SRC_DIR)/midi_queue.cpp \
     $(DESKTOP_SRC_DIR)/midi_port.cpp \
     $(DESKTOP_SRC_DIR)/emu_midi.cpp \
+    $(DESKTOP_SRC_DIR)/emu_net.cpp \
+    $(DESKTOP_SRC_DIR)/gui_network.cpp \
+    $(DESKTOP_SRC_DIR)/net/net_session.cpp \
     $(DESKTOP_SRC_DIR)/emu_synth.cpp \
     $(DESKTOP_SRC_DIR)/single_instance.cpp \
     $(DESKTOP_SRC_DIR)/debug/gui_debug.cpp \
@@ -258,6 +261,8 @@ SOURCES_CXX := \
     $(SRC_DIR)/network/net_crc.cpp \
     $(SRC_DIR)/network/net_switch.cpp \
     $(SRC_DIR)/network/net_services.cpp \
+    $(SRC_DIR)/network/serial_link.cpp \
+    $(SRC_DIR)/network/modem.cpp \
     $(SRC_DIR)/system/parallel_port.cpp \
     $(SRC_DIR)/system/scheduler.cpp \
     $(SRC_DIR)/system/system_control.cpp \
