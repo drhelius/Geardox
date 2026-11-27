@@ -69,6 +69,7 @@
 #include "video/video.h"
 #include "video/voodoo.h"
 #include "osd/key_mapper.h"
+#include "common/random_utils.h"
 
 GeardoxCore::GeardoxCore()
 {
@@ -2985,14 +2986,7 @@ void GeardoxCore::ApplyMachineConfig()
 
 void GeardoxCore::ChooseNetworkAddress()
 {
-    static u32 count = 0;
-    count++;
-    u32 seed = (u32)time(NULL) ^ (u32)clock() ^ (u32)(size_t)this ^ (count * 0x9E3779B9U);
-    seed ^= seed >> 16;
-    seed *= 0x7FEB352DU;
-    seed ^= seed >> 15;
-    seed *= 0x846CA68BU;
-    seed ^= seed >> 16;
+    u32 seed = random_u32();
 
     if ((seed & 0xFFFF) < 2)
         seed |= 0x8000;

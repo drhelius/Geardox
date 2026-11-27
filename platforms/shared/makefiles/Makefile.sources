@@ -258,7 +258,6 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/serial_ports.cpp \
     $(SRC_DIR)/network/ne2000.cpp \
     $(SRC_DIR)/network/network_port.cpp \
-    $(SRC_DIR)/network/net_crc.cpp \
     $(SRC_DIR)/network/net_switch.cpp \
     $(SRC_DIR)/network/net_services.cpp \
     $(SRC_DIR)/network/serial_link.cpp \

@@ -153,6 +153,7 @@ private:
     void SendKeepalive(Net_Session_Link& link, u8 sender);
     void SendPeers();
     void AddEvent(Net_Session_Event_Type type, int machine, const char* text);
+    void AddDuplicateEvent(int first, int second, const u8* address);
     void RouteSerial(int from, int channel, int to, int kind, const u8* data, int size);
     void DeliverSerial(int target, int channel, int from, int kind, const u8* data, int size);
     void Proof(const u8* nonce, u8* proof) const;

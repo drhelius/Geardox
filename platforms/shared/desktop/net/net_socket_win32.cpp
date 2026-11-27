@@ -90,11 +90,6 @@ bool net_socket_resolve(const char* host, uint32_t* ip)
     return true;
 }
 
-void net_socket_format(uint32_t ip, char* text, int size)
-{
-    snprintf(text, size, "%u.%u.%u.%u", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
-}
-
 net_socket net_socket_listen(uint16_t port)
 {
     SOCKET s = socket(AF_INET, SOCK_STREAM, 0);

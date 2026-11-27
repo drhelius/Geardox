@@ -81,7 +81,6 @@
     <ClCompile Include="..\..\src\system\serial_ports.cpp" />
     <ClCompile Include="..\..\src\network\ne2000.cpp" />
     <ClCompile Include="..\..\src\network\network_port.cpp" />
-    <ClCompile Include="..\..\src\network\net_crc.cpp" />
     <ClCompile Include="..\..\src\network\net_switch.cpp" />
     <ClCompile Include="..\..\src\network\net_services.cpp" />
     <ClCompile Include="..\..\src\network\serial_link.cpp" />
@@ -608,6 +607,7 @@
     <ClInclude Include="..\..\src\common\byte_order.h" />
     <ClInclude Include="..\..\src\common\file_utils.h" />
     <ClInclude Include="..\..\src\common\process_utils.h" />
+    <ClInclude Include="..\..\src\common\random_utils.h" />
     <ClInclude Include="..\..\src\common\path_utils.h" />
     <ClInclude Include="..\..\src\common\string_utils.h" />
     <ClInclude Include="..\..\src\media\crc.h" />
@@ -649,7 +649,6 @@
     <ClInclude Include="..\..\src\network\ne2000.h" />
     <ClInclude Include="..\..\src\network\ne2000_inline.h" />
     <ClInclude Include="..\..\src\network\network_port.h" />
-    <ClInclude Include="..\..\src\network\net_crc.h" />
     <ClInclude Include="..\..\src\network\net_switch.h" />
     <ClInclude Include="..\..\src\network\net_services.h" />
     <ClInclude Include="..\..\src\network\serial_link.h" />

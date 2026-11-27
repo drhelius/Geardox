@@ -19,6 +19,7 @@
 
 #include "net_session.h"
 #include "sha1/sha1.h"
+#include "common/random_utils.h"
 
 enum Net_Session_Message
 {
@@ -54,43 +55,6 @@ static const u64 k_keepalive_ms = 1000;
 static const u64 k_timeout_ms = 10000;
 static const int k_nonce_size = 16;
 static const int k_proof_size = 20;
-
-static u32 random_state = 0;
-
-static u32 next_random(void)
-{
-    if (random_state == 0)
-        random_state = (u32)time(NULL) ^ (u32)clock() ^ (u32)(size_t)&random_state ^ 0x5A17C3E9U;
-
-    random_state ^= random_state << 13;
-    random_state ^= random_state >> 17;
-    random_state ^= random_state << 5;
-    return random_state;
-}
-
-static inline void write16(u8* data, u16 value)
-{
-    data[0] = (u8)(value >> 8);
-    data[1] = (u8)value;
-}
-
-static inline void write32(u8* data, u32 value)
-{
-    data[0] = (u8)(value >> 24);
-    data[1] = (u8)(value >> 16);
-    data[2] = (u8)(value >> 8);
-    data[3] = (u8)value;
-}
-
-static inline u16 read16(const u8* data)
-{
-    return (u16)((data[0] << 8) | data[1]);
-}
-
-static inline u32 read32(const u8* data)
-{
-    return ((u32)data[0] << 24) | ((u32)data[1] << 16) | ((u32)data[2] << 8) | data[3];
-}
 
 static void copy_name(char* name, const u8* data)
 {
@@ -174,7 +138,7 @@ bool NetSession::Host(u16 port, const char* name, const char* password, int mach
     m_password = password;
     m_machine = 1;
     m_max_machines = CLAMP(machines, 2, NET_SWITCH_MACHINES);
-    m_token = next_random() | 1;
+    m_token = random_u32() | 1;
     m_error.clear();
     m_host_text = "port " + std::to_string(port);
     m_switch->Reset();
@@ -339,11 +303,7 @@ void NetSession::UpdateHost(NetworkPort* local, u64 now_ms)
 
     if (m_switch->TakeDuplicate(&duplicate))
     {
-        char text[96];
-        snprintf(text, sizeof(text), "Machines %d and %d share the address %02X:%02X:%02X:%02X:%02X:%02X",
-            duplicate.first, duplicate.second, duplicate.address[0], duplicate.address[1], duplicate.address[2],
-            duplicate.address[3], duplicate.address[4], duplicate.address[5]);
-        AddEvent(NET_SESSION_EVENT_DUPLICATE, duplicate.first, text);
+        AddDuplicateEvent(duplicate.first, duplicate.second, duplicate.address);
         u8 payload[8];
         memcpy(payload, duplicate.address, 6);
         payload[6] = (u8)duplicate.first;
@@ -377,7 +337,7 @@ void NetSession::UpdateHost(NetworkPort* local, u64 now_ms)
         if (keepalive)
         {
             u8 payload[4];
-            write32(payload, (u32)now_ms);
+            write_u32_be(payload, (u32)now_ms);
             QueueMessage(*link, NET_MESSAGE_PING, payload, sizeof(payload));
         }
 
@@ -450,7 +410,7 @@ void NetSession::UpdateJoin(NetworkPort* local, u64 now_ms)
         {
             m_last_keepalive = now_ms;
             u8 payload[4];
-            write32(payload, (u32)now_ms);
+            write_u32_be(payload, (u32)now_ms);
             QueueMessage(*link, NET_MESSAGE_PING, payload, sizeof(payload));
             SendKeepalive(*link, (u8)m_machine);
         }
@@ -501,11 +461,11 @@ void NetSession::AcceptClients(u64 now_ms)
         link->udp_ip = ip;
 
         for (int i = 0; i < k_nonce_size; i++)
-            link->nonce[i] = (u8)next_random();
+            link->nonce[i] = (u8)random_u32();
 
         u8 payload[6 + k_nonce_size];
         memcpy(payload, k_magic, 4);
-        write16(payload + 4, NET_SESSION_PROTOCOL);
+        write_u16_be(payload + 4, NET_SESSION_PROTOCOL);
         memcpy(payload + 6, link->nonce, k_nonce_size);
         QueueMessage(*link, NET_MESSAGE_CHALLENGE, payload, sizeof(payload));
         FlushLink(*link);
@@ -534,7 +494,7 @@ bool NetSession::ReadLink(Net_Session_Link& link, int machine, u64 now_ms)
 
         while (link.in_size >= 3)
         {
-            int length = read16(link.in);
+            int length = read_u16_be(link.in);
 
             if ((length < 1) || (length > NET_SESSION_MESSAGE_MAX))
             {
@@ -604,7 +564,7 @@ bool NetSession::QueueMessage(Net_Session_Link& link, u8 type, const u8* payload
     if ((size + 3 > NET_SESSION_BUFFER_SIZE - link.out_size) || (size + 1 > NET_SESSION_MESSAGE_MAX))
         return false;
 
-    write16(link.out + link.out_size, (u16)(size + 1));
+    write_u16_be(link.out + link.out_size, (u16)(size + 1));
     link.out[link.out_size + 2] = type;
 
     if (size > 0)
@@ -631,7 +591,7 @@ bool NetSession::HandleHostMessage(int machine, u8 type, const u8* payload, int 
 
         u8 reason = 0;
 
-        if (read16(payload + 4) != NET_SESSION_PROTOCOL)
+        if (read_u16_be(payload + 4) != NET_SESSION_PROTOCOL)
             reason = NET_REJECT_VERSION;
         else if (!m_password.empty())
         {
@@ -668,7 +628,7 @@ bool NetSession::HandleHostMessage(int machine, u8 type, const u8* payload, int 
 
         u8 welcome[6];
         welcome[0] = (u8)free_machine;
-        write32(welcome + 1, m_token);
+        write_u32_be(welcome + 1, m_token);
         welcome[5] = (u8)m_max_machines;
         QueueMessage(*link, NET_MESSAGE_WELCOME, welcome, sizeof(welcome));
 
@@ -688,7 +648,7 @@ bool NetSession::HandleHostMessage(int machine, u8 type, const u8* payload, int 
             return true;
         case NET_MESSAGE_PONG:
             if (size >= 4)
-                m_peers[machine].rtt_ms = (int)((u32)now_ms - read32(payload));
+                m_peers[machine].rtt_ms = (int)((u32)now_ms - read_u32_be(payload));
             return true;
         case NET_MESSAGE_BYE:
             CloseLink(machine, true);
@@ -724,7 +684,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
                 return false;
             }
 
-            if (read16(payload + 4) != NET_SESSION_PROTOCOL)
+            if (read_u16_be(payload + 4) != NET_SESSION_PROTOCOL)
             {
                 Fail("The host runs another Geardox version");
                 return false;
@@ -733,7 +693,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
             u8 hello[6 + NET_SESSION_NAME_SIZE + k_proof_size];
             memset(hello, 0, sizeof(hello));
             memcpy(hello, k_magic, 4);
-            write16(hello + 4, NET_SESSION_PROTOCOL);
+            write_u16_be(hello + 4, NET_SESSION_PROTOCOL);
             strncpy((char*)hello + 6, m_name.c_str(), NET_SESSION_NAME_SIZE);
             Proof(payload + 6, hello + 6 + NET_SESSION_NAME_SIZE);
             QueueMessage(*link, NET_MESSAGE_HELLO, hello, sizeof(hello));
@@ -747,7 +707,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
             }
 
             m_machine = payload[0];
-            m_token = read32(payload + 1);
+            m_token = read_u32_be(payload + 1);
             m_max_machines = payload[5];
             m_state = NET_SESSION_CONNECTED;
             m_last_keepalive = now_ms;
@@ -776,7 +736,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
                     continue;
 
                 peers[number].present = true;
-                peers[number].rtt_ms = (s16)read16(p + 1);
+                peers[number].rtt_ms = (s16)read_u16_be(p + 1);
                 copy_name(peers[number].name, p + 3);
             }
 
@@ -806,7 +766,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
             return true;
         case NET_MESSAGE_PONG:
             if (size >= 4)
-                m_peers[1].rtt_ms = (int)((u32)now_ms - read32(payload));
+                m_peers[1].rtt_ms = (int)((u32)now_ms - read_u32_be(payload));
             return true;
         case NET_MESSAGE_BYE:
             AddEvent(NET_SESSION_EVENT_ENDED, 1, "The host ended the session");
@@ -816,12 +776,8 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
             return false;
         case NET_MESSAGE_DUPLICATE:
             if (size >= 8)
-            {
-                char text[96];
-                snprintf(text, sizeof(text), "Machines %d and %d share the address %02X:%02X:%02X:%02X:%02X:%02X",
-                    payload[6], payload[7], payload[0], payload[1], payload[2], payload[3], payload[4], payload[5]);
-                AddEvent(NET_SESSION_EVENT_DUPLICATE, payload[6], text);
-            }
+                AddDuplicateEvent(payload[6], payload[7], payload);
+
             return true;
         case NET_MESSAGE_SERIAL:
             if (size >= 4)
@@ -845,7 +801,7 @@ void NetSession::ReceiveDatagrams(NetworkPort* local, u64 now_ms)
             return;
 
         if ((size < k_datagram_header) || (m_datagram[0] != 'G') || (m_datagram[1] != 'N') ||
-            (read32(m_datagram + 4) != m_token))
+            (read_u32_be(m_datagram + 4) != m_token))
             continue;
 
         if (m_mode == NET_SESSION_HOST)
@@ -878,7 +834,7 @@ void NetSession::HandleDatagram(Net_Session_Link& link, int machine, const u8* d
     if (data[2] != NET_DATAGRAM_FRAME)
         return;
 
-    u32 sequence = read32(data + 8);
+    u32 sequence = read_u32_be(data + 8);
     int part = data[12];
     int parts = data[13];
     int length = size - k_datagram_header;
@@ -948,8 +904,8 @@ void NetSession::SendFrame(Net_Session_Link& link, u8 sender, const u8* data, in
         m_datagram[1] = 'N';
         m_datagram[2] = NET_DATAGRAM_FRAME;
         m_datagram[3] = sender;
-        write32(m_datagram + 4, m_token);
-        write32(m_datagram + 8, sequence);
+        write_u32_be(m_datagram + 4, m_token);
+        write_u32_be(m_datagram + 8, sequence);
         m_datagram[12] = (u8)part;
         m_datagram[13] = (u8)parts;
         memcpy(m_datagram + k_datagram_header, data + offset, length);
@@ -965,7 +921,7 @@ void NetSession::SendKeepalive(Net_Session_Link& link, u8 sender)
     datagram[1] = 'N';
     datagram[2] = NET_DATAGRAM_KEEPALIVE;
     datagram[3] = sender;
-    write32(datagram + 4, m_token);
+    write_u32_be(datagram + 4, m_token);
     net_socket_send_to(m_udp, link.udp_ip, link.udp_port, datagram, sizeof(datagram));
 }
 
@@ -981,7 +937,7 @@ void NetSession::SendPeers()
             continue;
 
         payload[offset] = (u8)i;
-        write16(payload + offset + 1, (u16)(s16)m_peers[i].rtt_ms);
+        write_u16_be(payload + offset + 1, (u16)(s16)m_peers[i].rtt_ms);
         memset(payload + offset + 3, 0, NET_SESSION_NAME_SIZE);
         memcpy(payload + offset + 3, m_peers[i].name, strlen(m_peers[i].name));
         offset += 3 + NET_SESSION_NAME_SIZE;
@@ -1070,6 +1026,14 @@ void NetSession::CloseLink(int machine, bool notify)
 
     m_peers[machine].present = false;
     SendPeers();
+}
+
+void NetSession::AddDuplicateEvent(int first, int second, const u8* address)
+{
+    char mac[18];
+    hex_encode(address, 6, mac, sizeof(mac), true, ':');
+    std::string text = format_string("Machines %d and %d share the address %s", first, second, mac);
+    AddEvent(NET_SESSION_EVENT_DUPLICATE, first, text.c_str());
 }
 
 void NetSession::AddEvent(Net_Session_Event_Type type, int machine, const char* text)
@@ -1209,24 +1173,18 @@ bool NetSession::SendSerial(int channel, int to, int kind, const u8* data, int s
 
 void NetSession::RouteSerial(int from, int channel, int to, int kind, const u8* data, int size)
 {
-    int target = -1;
+    bool present[NET_SWITCH_PORTS];
 
-    if (to == 0)
+    for (int i = 0; i < NET_SWITCH_PORTS; i++)
+        present[i] = m_peers[i].present;
+
+    int target = net_serial_target(from, to, present);
+
+    if ((target < 0) && (to == 0) && (GetMachineCount() > 2) && !m_serial_warned)
     {
-        for (int i = 1; (i < NET_SWITCH_PORTS) && (GetMachineCount() == 2); i++)
-        {
-            if (m_peers[i].present && (i != from))
-                target = i;
-        }
-
-        if ((target < 0) && (GetMachineCount() > 2) && !m_serial_warned)
-        {
-            m_serial_warned = true;
-            AddEvent(NET_SESSION_EVENT_SERIAL, from, "A serial link pairs two machines: this session has more");
-        }
+        m_serial_warned = true;
+        AddEvent(NET_SESSION_EVENT_SERIAL, from, "A serial link pairs two machines: this session has more");
     }
-    else if ((to < NET_SWITCH_PORTS) && m_peers[to].present && (to != from))
-        target = to;
 
     if (target < 0)
     {

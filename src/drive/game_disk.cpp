@@ -30,7 +30,6 @@
 #include "../media/crc.h"
 #include "../audio/ultrasound.h"
 #include "../system/machine_profiles.h"
-#include "../common/process_utils.h"
 
 static const char k_game_disk_database[] = "db:";
 static const char k_game_disk_program[] = "exe:";
@@ -748,35 +747,6 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     return true;
 }
 
-static std::string get_temp_directory(void)
-{
-#if defined(_WIN32)
-    wchar_t buffer[MAX_PATH + 1];
-    DWORD length = GetTempPathW(MAX_PATH + 1, buffer);
-    return (length > 0) && (length <= MAX_PATH) ? wstring_to_utf8(buffer) : std::string();
-#else
-    const char* folder = getenv("TMPDIR");
-    return IsValidPointer(folder) && (folder[0] != 0) ? std::string(folder) : std::string("/tmp");
-#endif
-}
-
-static int take_process_lock(const std::string& path)
-{
-    std::string text;
-    unsigned long self = get_process_id();
-
-    if (MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
-    {
-        unsigned long owner = strtoul(text.c_str(), NULL, 10);
-
-        if ((owner != self) && is_process_running(owner))
-            return 0;
-    }
-
-    std::string pid = format_string("%lu\n", self);
-    return MediaFile::WriteFileAtomic(path.c_str(), pid.data(), pid.size()) ? 1 : -1;
-}
-
 bool GameDisk::TakeMachineSlot()
 {
     bool source_lock = !m_write_saves;
@@ -793,12 +763,11 @@ bool GameDisk::TakeMachineSlot()
         if (source_lock && !temp.empty())
         {
             std::string lock = path_join(temp, format_string("geardox-%s-%d.lock", key.c_str(), slot));
-            int taken = take_process_lock(lock);
 
-            if (taken == 0)
+            if (MediaFile::IsLockedElsewhere(lock.c_str()))
                 continue;
 
-            if (taken > 0)
+            if (MediaFile::TakeLock(lock.c_str()))
                 m_source_lock = lock;
         }
 

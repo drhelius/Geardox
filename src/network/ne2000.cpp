@@ -19,7 +19,7 @@
 
 #include "ne2000.h"
 #include "network_port.h"
-#include "net_crc.h"
+#include "../media/crc.h"
 #include "../system/pic.h"
 #include "../system/scheduler.h"
 #include "../common/trace_logger.h"
@@ -67,6 +67,37 @@ static const int k_ne2000_min_frame = 60;
 static const int k_ne2000_wire_overhead = 8 + 4 + 12;
 static const u32 k_ne2000_wire_bytes_per_second = 1250000;
 static const u8 k_ne2000_counter_limit = 0xC0;
+
+static void append_fcs(u8* frame, int size)
+{
+    write_u32_le(frame + size, CalculateCRC32(0, frame, size));
+}
+
+static bool check_fcs(const u8* frame, int size)
+{
+    return (size >= 4) && (CalculateCRC32(0, frame, size - 4) == read_u32_le(frame + size - 4));
+}
+
+static u32 multicast_hash(const u8* address)
+{
+    u32 crc = 0xFFFFFFFF;
+
+    for (int i = 0; i < 6; i++)
+    {
+        u8 value = address[i];
+
+        for (int bit = 0; bit < 8; bit++)
+        {
+            u32 carry = (crc >> 31) ^ ((value >> bit) & 1);
+            crc <<= 1;
+
+            if (carry)
+                crc = (crc ^ 0x04C11DB6) | carry;
+        }
+    }
+
+    return (crc >> 26) & 0x3F;
+}
 
 NE2000::NE2000()
 {
@@ -623,11 +654,11 @@ void NE2000::CompleteTransmit(u64 clocks)
     if (loopback)
     {
         bool inhibit = (m_state.tcr & k_ne2000_tcr_crc) != 0;
-        bool crc_ok = inhibit && (size >= 4) && net_crc_check(m_frame, size);
+        bool crc_ok = inhibit && check_fcs(m_frame, size);
 
         if (!inhibit)
         {
-            net_crc_append(m_frame, size);
+            append_fcs(m_frame, size);
             size += 4;
         }
 
@@ -678,7 +709,7 @@ void NE2000::CompleteReceive(u64 clocks)
         m_counters.filtered++;
     else
     {
-        net_crc_append(m_frame, size);
+        append_fcs(m_frame, size);
         Receive(m_frame, size + 4, clocks);
     }
 
@@ -830,7 +861,7 @@ bool NE2000::AcceptsAddress(const u8* destination) const
     if (!(m_state.rcr & k_ne2000_rcr_am))
         return false;
 
-    u32 index = net_crc_hash(destination);
+    u32 index = multicast_hash(destination);
     return (m_state.mar[index >> 3] & (1 << (index & 7))) != 0;
 }
 

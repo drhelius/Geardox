@@ -351,19 +351,12 @@ static void move_serial(NetworkPort* port)
 
 static void route_serial(int from, int channel, int to, int kind, const u8* data, int size)
 {
-    int target = -1;
+    bool present[NET_SWITCH_PORTS];
 
-    if ((to == 0) && (net_machine_count == 2))
-        target = from == 1 ? -1 : 1;
+    for (int i = 0; i < NET_SWITCH_PORTS; i++)
+        present[i] = (i == 1) || ((i > 1) && (net_clients[i] >= 0));
 
-    for (int i = 2; (to == 0) && (net_machine_count == 2) && (i < NET_SWITCH_PORTS) && (target < 0); i++)
-    {
-        if ((net_clients[i] >= 0) && (i != from))
-            target = i;
-    }
-
-    if ((to > 0) && (to != from) && ((to == 1) || ((to < NET_SWITCH_PORTS) && (net_clients[to] >= 0))))
-        target = to;
+    int target = net_serial_target(from, to, present);
 
     if (target < 0)
     {

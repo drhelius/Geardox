@@ -25,7 +25,6 @@
 #include "../media/media_file.h"
 #include "../media/media_zip.h"
 #include "../media/crc.h"
-#include "../common/process_utils.h"
 
 static const u32 k_folder_disk_sector = 512;
 static const u32 k_folder_disk_slot = 4 + k_folder_disk_sector;
@@ -686,33 +685,12 @@ bool FolderDisk::Fail(const char* format, ...)
 
 bool FolderDisk::IsLockedElsewhere(const std::string& data_folder)
 {
-    std::string path = path_join(path_join(data_folder, k_folder_disk_folder), k_folder_disk_lock);
-    std::string text;
-
-    if (!MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
-        return false;
-
-    unsigned long owner = strtoul(text.c_str(), NULL, 10);
-    return (owner != get_process_id()) && is_process_running(owner);
+    return MediaFile::IsLockedElsewhere(path_join(path_join(data_folder, k_folder_disk_folder), k_folder_disk_lock).c_str());
 }
 
 bool FolderDisk::TakeLock()
 {
-    std::string path = GetLockPath();
-    std::string text;
-    unsigned long self = get_process_id();
-
-    if (MediaFile::ReadFile(path.c_str(), k_media_file_no_limit, &text, true))
-    {
-        unsigned long owner = strtoul(text.c_str(), NULL, 10);
-
-        if ((owner != self) && is_process_running(owner))
-            return false;
-    }
-
-    std::string pid = format_string("%lu\n", self);
-    m_locked = MediaFile::MakeDirectories(path_directory(path).c_str()) &&
-        MediaFile::WriteFileAtomic(path.c_str(), pid.data(), pid.size());
+    m_locked = MediaFile::TakeLock(GetLockPath().c_str());
     return m_locked;
 }
 

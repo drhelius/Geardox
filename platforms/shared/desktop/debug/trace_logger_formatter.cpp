@@ -2657,8 +2657,10 @@ static void format_voodoo(const GDOX_Trace_Entry& entry, char* buffer, size_t si
 static void format_net(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
 {
     static const char* const k_drops[] = { "stopped", "address", "runt", "monitor", "ring full" };
-    const u8* d = entry.net.destination;
-    const u8* s = entry.net.source;
+    char d[18];
+    char s[18];
+    hex_encode(entry.net.destination, 6, d, sizeof(d), true, ':');
+    hex_encode(entry.net.source, 6, s, sizeof(s), true, ':');
 
     switch (entry.event)
     {
@@ -2672,19 +2674,16 @@ static void format_net(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
             break;
         case TRACE_NET_TRANSMIT:
             format_event(buffer, size, "NET", entry.net.value != 0 ? "LOOPBACK" : "TRANSMIT",
-                "%u bytes  type %04X  %02X:%02X:%02X:%02X:%02X:%02X > %02X:%02X:%02X:%02X:%02X:%02X", entry.net.length,
-                entry.net.type, s[0], s[1], s[2], s[3], s[4], s[5], d[0], d[1], d[2], d[3], d[4], d[5]);
+                "%u bytes  type %04X  %s > %s", entry.net.length, entry.net.type, s, d);
             break;
         case TRACE_NET_RECEIVE:
             format_event(buffer, size, "NET", "RECEIVE",
-                "%u bytes  type %04X  %02X:%02X:%02X:%02X:%02X:%02X > %02X:%02X:%02X:%02X:%02X:%02X  curr %02X bnry %02X",
-                entry.net.length, entry.net.type, s[0], s[1], s[2], s[3], s[4], s[5], d[0], d[1], d[2], d[3], d[4], d[5],
+                "%u bytes  type %04X  %s > %s  curr %02X bnry %02X", entry.net.length, entry.net.type, s, d,
                 entry.net.curr, entry.net.bnry);
             break;
         case TRACE_NET_DROP:
-            format_event(buffer, size, "NET", "DROP", "%s  %u bytes  type %04X  > %02X:%02X:%02X:%02X:%02X:%02X",
-                entry.net.reason < 5 ? k_drops[entry.net.reason] : "?", entry.net.length, entry.net.type, d[0], d[1], d[2],
-                d[3], d[4], d[5]);
+            format_event(buffer, size, "NET", "DROP", "%s  %u bytes  type %04X  > %s",
+                entry.net.reason < 5 ? k_drops[entry.net.reason] : "?", entry.net.length, entry.net.type, d);
             break;
         case TRACE_NET_IRQ:
             format_event(buffer, size, "NET", "IRQ", "%s  isr %02X imr %02X", entry.net.value != 0 ? "raise" : "lower",

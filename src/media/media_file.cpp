@@ -20,6 +20,7 @@
 #include "media_file.h"
 #include "media_file_native.h"
 #include "../common/common.h"
+#include "../common/process_utils.h"
 
 #if defined(__LIBRETRO__)
 #include "media_file_libretro.h"
@@ -347,6 +348,26 @@ bool MediaFile::MakeDirectories(const char* path)
         return false;
 
     return MakeDirectory(path);
+}
+
+bool MediaFile::IsLockedElsewhere(const char* path)
+{
+    std::string text;
+
+    if (!ReadFile(path, k_media_file_no_limit, &text, true))
+        return false;
+
+    unsigned long owner = strtoul(text.c_str(), NULL, 10);
+    return (owner != get_process_id()) && is_process_running(owner);
+}
+
+bool MediaFile::TakeLock(const char* path)
+{
+    if (IsLockedElsewhere(path))
+        return false;
+
+    std::string pid = format_string("%lu\n", get_process_id());
+    return MakeDirectories(path_directory(path).c_str()) && WriteFileAtomic(path, pid.data(), pid.size());
 }
 
 void MediaFile::RemoveTree(const char* path)

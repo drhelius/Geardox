@@ -49,6 +49,8 @@ public:
     static bool RemoveFile(const char* path);
     static bool MakeDirectory(const char* path);
     static bool MakeDirectories(const char* path);
+    static bool IsLockedElsewhere(const char* path);
+    static bool TakeLock(const char* path);
     static bool DeleteDirectory(const char* path);
     static void RemoveTree(const char* path);
     static bool SetModified(const char* path, s64 modified);

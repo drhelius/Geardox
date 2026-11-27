@@ -17,15 +17,31 @@
  *
  */
 
-#ifndef NET_CRC_H
-#define NET_CRC_H
+#ifndef RANDOM_UTILS_H
+#define RANDOM_UTILS_H
 
-#include "../common/common.h"
+#include <time.h>
+#include "types.h"
 
-u32 net_crc32(const u8* data, int size);
-void net_crc_append(u8* frame, int size);
-bool net_crc_check(const u8* frame, int size);
-u32 net_crc_hash(const u8* address);
-u16 net_checksum(const u8* data, int size, u32 sum = 0);
+inline u32 random_u32()
+{
+    static u32 state = 0;
 
-#endif /* NET_CRC_H */
+    if (state == 0)
+    {
+        u32 seed = (u32)time(NULL) ^ (u32)clock() ^ (u32)(size_t)&state ^ 0x9E3779B9U;
+        seed ^= seed >> 16;
+        seed *= 0x7FEB352DU;
+        seed ^= seed >> 15;
+        seed *= 0x846CA68BU;
+        seed ^= seed >> 16;
+        state = seed != 0 ? seed : 0x5A17C3E9U;
+    }
+
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+
+#endif /* RANDOM_UTILS_H */

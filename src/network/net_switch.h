@@ -87,4 +87,26 @@ private:
     u8 m_reply[NETWORK_FRAME_MAX];
 };
 
+static inline int net_serial_target(int from, int to, const bool* present)
+{
+    int machines = 0;
+    int other = -1;
+
+    for (int i = 1; i < NET_SWITCH_PORTS; i++)
+    {
+        if (!present[i])
+            continue;
+
+        machines++;
+
+        if (i != from)
+            other = i;
+    }
+
+    if (to == 0)
+        return machines == 2 ? other : -1;
+
+    return (to < NET_SWITCH_PORTS) && present[to] && (to != from) ? to : -1;
+}
+
 #endif /* NET_SWITCH_H */

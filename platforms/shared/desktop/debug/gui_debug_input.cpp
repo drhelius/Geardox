@@ -167,9 +167,10 @@ void gui_debug_window_network_card(void)
         return;
     }
 
-    const u8* mac = card->GetAddress();
+    char mac[18];
+    hex_encode(card->GetAddress(), 6, mac, sizeof(mac), true, ':');
     ImGui::TextColored(cyan, "NE2000 $%03X IRQ %u", card->GetBase(), card->GetIRQ()); ImGui::SameLine(0.0f, space * 2);
-    ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    ImGui::TextColored(white, "%s", mac);
     ImGui::Separator();
 
     if (ImGui::BeginTable("##ne2000", 2, flags))
@@ -243,8 +244,8 @@ void gui_debug_window_network_card(void)
 
         ImGui::TableNextRow();
         gui_debug_grid_label("PAR");
-        ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", state->par[0], state->par[1], state->par[2],
-            state->par[3], state->par[4], state->par[5]);
+        hex_encode(state->par, 6, mac, sizeof(mac), true, ':');
+        ImGui::TextColored(white, "%s", mac);
 
         ImGui::TableNextRow();
         gui_debug_grid_label("MAR");
@@ -300,11 +301,11 @@ void gui_debug_window_network_card(void)
             ImGui::TableNextColumn();
             ImGui::TextColored(violet, "%04X", frame.type);
             ImGui::TableNextColumn();
-            ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", frame.source[0], frame.source[1],
-                frame.source[2], frame.source[3], frame.source[4], frame.source[5]);
+            hex_encode(frame.source, 6, mac, sizeof(mac), true, ':');
+            ImGui::TextColored(white, "%s", mac);
             ImGui::TableNextColumn();
-            ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", frame.destination[0], frame.destination[1],
-                frame.destination[2], frame.destination[3], frame.destination[4], frame.destination[5]);
+            hex_encode(frame.destination, 6, mac, sizeof(mac), true, ':');
+            ImGui::TextColored(white, "%s", mac);
         }
 
         ImGui::EndTable();

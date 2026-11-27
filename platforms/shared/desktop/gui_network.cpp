@@ -324,14 +324,9 @@ static void menu_recent(void)
 
         if (ImGui::MenuItem(config_network.recent[i].c_str()))
         {
-            std::string recent = config_network.recent[i];
-            size_t colon = recent.rfind(':');
-            std::string host = colon == std::string::npos ? recent : recent.substr(0, colon);
+            std::string host = net_socket_split_port(config_network.recent[i], &config_network.port);
             strncpy_fit(address_text, host.c_str(), sizeof(address_text));
             config_network.address = host;
-
-            if (colon != std::string::npos)
-                config_network.port = CLAMP(atoi(recent.substr(colon + 1).c_str()), 1, 65535);
         }
     }
 

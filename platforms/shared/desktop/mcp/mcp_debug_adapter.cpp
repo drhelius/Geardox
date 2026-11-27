@@ -3561,14 +3561,6 @@ json DebugAdapter::GetSerialStatus()
     return {{"ports", list}};
 }
 
-static std::string mac_text(const u8* address)
-{
-    char text[24];
-    snprintf(text, sizeof(text), "%02X:%02X:%02X:%02X:%02X:%02X", address[0], address[1], address[2], address[3],
-        address[4], address[5]);
-    return text;
-}
-
 static json network_session_status(void)
 {
     NetSession* session = emu_net_get_session();
@@ -3628,8 +3620,8 @@ json DebugAdapter::GetNetworkStatus()
     {
         const NE2000::NE2000_Frame& frame = history[(next - 1 - i + NE2000_HISTORY) % NE2000_HISTORY];
         frames.push_back({{"direction", frame.sent ? "sent" : "received"}, {"length", frame.length},
-            {"type", Hex(frame.type, 4)}, {"source", mac_text(frame.source)},
-            {"destination", mac_text(frame.destination)}, {"status", Hex(frame.status, 2)}});
+            {"type", Hex(frame.type, 4)}, {"source", hex_string(frame.source, 6, true, ':')},
+            {"destination", hex_string(frame.destination, 6, true, ':')}, {"status", Hex(frame.status, 2)}});
     }
 
     return {
@@ -3637,7 +3629,7 @@ json DebugAdapter::GetNetworkStatus()
         {"base", Hex(card->GetBase(), 4)},
         {"irq", card->GetIRQ()},
         {"irq_line", state->irq},
-        {"address", mac_text(card->GetAddress())},
+        {"address", hex_string(card->GetAddress(), 6, true, ':')},
         {"cr", {{"value", Hex(cr, 2)}, {"stop", (cr & 0x01) != 0}, {"start", (cr & 0x02) != 0},
             {"transmitting", (cr & 0x04) != 0}, {"remote_dma", (cr >> 3) & 0x07}, {"page", cr >> 6}}},
         {"isr", {{"value", Hex(isr, 2)}, {"prx", (isr & 0x01) != 0}, {"ptx", (isr & 0x02) != 0},
@@ -3657,7 +3649,7 @@ json DebugAdapter::GetNetworkStatus()
             {"curr", Hex(state->curr, 2)}}},
         {"transmit", {{"tpsr", Hex(state->tpsr, 2)}, {"tbcr", state->tbcr}}},
         {"remote_dma", {{"rsar", Hex(state->rsar, 4)}, {"rbcr", state->rbcr}}},
-        {"physical_address", mac_text(state->par)},
+        {"physical_address", hex_string(state->par, 6, true, ':')},
         {"multicast_filter", mar},
         {"tally", {{"frame_alignment", state->cntr[0]}, {"crc", state->cntr[1]}, {"missed", state->cntr[2]}}},
         {"frames", {{"sent", counters->sent}, {"received", counters->received}, {"filtered", counters->filtered},

@@ -119,7 +119,6 @@ SOURCES_CXX :=  $(DEPS_DIR)/bochs_fpu/bochs_fpu.cpp \
                 $(SOURCE_DIR)/system/serial_ports.cpp \
                 $(SOURCE_DIR)/network/ne2000.cpp \
                 $(SOURCE_DIR)/network/network_port.cpp \
-                $(SOURCE_DIR)/network/net_crc.cpp \
                 $(SOURCE_DIR)/network/net_switch.cpp \
                 $(SOURCE_DIR)/network/net_services.cpp \
                 $(SOURCE_DIR)/network/serial_link.cpp \

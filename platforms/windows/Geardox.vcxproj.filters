@@ -361,9 +361,6 @@
     <ClCompile Include="..\..\src\network\network_port.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\network\net_crc.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\network\net_switch.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -857,6 +854,7 @@
     <ClInclude Include="..\..\src\common\byte_order.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\file_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\process_utils.h"><Filter>src</Filter></ClInclude>
+    <ClInclude Include="..\..\src\common\random_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\path_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\common\string_utils.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\media\crc.h"><Filter>src</Filter></ClInclude>
@@ -898,7 +896,6 @@
     <ClInclude Include="..\..\src\network\ne2000.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\ne2000_inline.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\network_port.h"><Filter>src</Filter></ClInclude>
-    <ClInclude Include="..\..\src\network\net_crc.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\net_switch.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\net_services.h"><Filter>src</Filter></ClInclude>
     <ClInclude Include="..\..\src\network\serial_link.h"><Filter>src</Filter></ClInclude>

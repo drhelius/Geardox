@@ -248,4 +248,16 @@ inline bool is_safe_zip_entry_name(const char* name)
     }
 }
 
+inline std::string get_temp_directory()
+{
+#if defined(_WIN32)
+    wchar_t buffer[MAX_PATH + 1];
+    DWORD length = GetTempPathW(MAX_PATH + 1, buffer);
+    return (length > 0) && (length <= MAX_PATH) ? wstring_to_utf8(buffer) : std::string();
+#else
+    const char* folder = getenv("TMPDIR");
+    return (folder != NULL) && (folder[0] != 0) ? std::string(folder) : std::string("/tmp");
+#endif
+}
+
 #endif /* FILE_UTILS_H */

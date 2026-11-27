@@ -136,19 +136,8 @@ bool emu_net_host(void)
 
 bool emu_net_join(void)
 {
-    std::string host = config_network.address.empty() ? "127.0.0.1" : config_network.address;
     int port = config_network.port;
-    size_t colon = host.rfind(':');
-
-    if (colon != std::string::npos)
-    {
-        int parsed = atoi(host.substr(colon + 1).c_str());
-
-        if ((parsed > 0) && (parsed < 65536))
-            port = parsed;
-
-        host = host.substr(0, colon);
-    }
+    std::string host = net_socket_split_port(config_network.address.empty() ? "127.0.0.1" : config_network.address, &port);
 
     std::string error;
     state_notice = false;
