@@ -64,6 +64,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "MouseJoystick", config_debug.show_mouse_joystick, false);
     CONFIG_BOOL("Debug", "SerialPorts", config_debug.show_serial_ports, false);
     CONFIG_BOOL("Debug", "ParallelPort", config_debug.show_parallel_port, false);
+    CONFIG_BOOL("Debug", "NetworkCard", config_debug.show_network_card, false);
     CONFIG_BOOL("Debug", "Keyboard", config_debug.show_keyboard, false);
     CONFIG_BOOL("Debug", "VGA", config_debug.show_vga, false);
     CONFIG_BOOL("Debug", "VGARegisters", config_debug.show_vga_registers, false);
@@ -127,6 +128,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Debug", "TraceSystem", config_debug.trace_system, false);
     CONFIG_BOOL("Debug", "TraceGUS", config_debug.trace_gus, false);
     CONFIG_BOOL("Debug", "TraceVoodoo", config_debug.trace_voodoo, false);
+    CONFIG_BOOL("Debug", "TraceNet", config_debug.trace_net, false);
     CONFIG_INT_RANGE("Debug", "TraceCpuInterruptEvents", config_debug.trace_cpu_interrupt_events,
         TRACE_CPU_INTERRUPT_EVENT_DEFAULT, 0, TRACE_CPU_INTERRUPT_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceIoEvents", config_debug.trace_io_events, TRACE_IO_EVENT_ALL, 0, TRACE_IO_EVENT_ALL);
@@ -166,6 +168,8 @@ static inline void process(config_Operation operation)
         TRACE_GUS_EVENT_ALL);
     CONFIG_INT_RANGE("Debug", "TraceVoodooEvents", config_debug.trace_voodoo_events, TRACE_VOODOO_EVENT_ALL, 0,
         TRACE_VOODOO_EVENT_ALL);
+    CONFIG_INT_RANGE("Debug", "TraceNetEvents", config_debug.trace_net_events, TRACE_NET_EVENT_DEFAULT, 0,
+        TRACE_NET_EVENT_ALL);
     CONFIG_INT("Debug", "TraceVBlankWatchAddress", config_debug.trace_vblank_watch_address, 0);
     CONFIG_INT_RANGE("Debug", "TraceVBlankWatchOperation", config_debug.trace_vblank_watch_operation, 1, 0, 2);
     CONFIG_INT_RANGE("Debug", "TraceOutput", config_debug.trace_output, 0, 0, 1);
@@ -298,6 +302,10 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Machine", "Turbo", config_machine.turbo, true);
     CONFIG_INT_RANGE("Machine", "CDROMSpeed", config_machine.cdrom_speed, GDOX_CDROM_SPEED_4X, 0,
         GDOX_CDROM_SPEED_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "NetworkCard", config_machine.network_card, GDOX_NETWORK_CARD_NONE, 0,
+        GDOX_NETWORK_CARD_COUNT - 1);
+    CONFIG_INT_RANGE("Machine", "NetworkPort", config_machine.network_base, k_ne2000_default_base, 0x300, 0x360);
+    CONFIG_INT_RANGE("Machine", "NetworkIRQ", config_machine.network_irq, k_ne2000_default_irq, 3, 15);
     CONFIG_INT_RANGE("Machine", "DriveTiming", config_machine.drive_timing, GDOX_MACHINE_AUTO, GDOX_MACHINE_AUTO,
         GDOX_DRIVE_TIMING_COUNT - 1);
 

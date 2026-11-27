@@ -1223,6 +1223,11 @@ json McpServer::BuildToolList()
         "divisor and baud, IER, IIR, FCR, LCR, MCR, LSR, MSR and scratch registers with their bits decoded, FIFO "
         "counts and the IRQ line.", k_mcp_tool_read, empty_schema()));
 
+    tools.push_back(make_tool("get_network_status", "Get Network Status",
+        "Read the NE2000 network card and its session: port, IRQ and address, the DP8390's registers by page with "
+        "their bits decoded, the receive ring, remote DMA, tally counters, frame counters, queued frames and the last "
+        "frames sent and received.", k_mcp_tool_read, empty_schema()));
+
     tools.push_back(make_tool("get_parallel_status", "Get Parallel Status",
         "Read LPT1 (0378 IRQ 7, nothing attached): data latch, status (7F with nothing attached) and "
         "control, with the bits decoded.", k_mcp_tool_read, empty_schema()));
@@ -3266,6 +3271,10 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     {
         return m_debugAdapter.GetParallelStatus();
     }
+    else if (normalizedTool == "get_network_status")
+    {
+        return m_debugAdapter.GetNetworkStatus();
+    }
     else if (normalizedTool == "get_keyboard_status")
     {
         return m_debugAdapter.GetKeyboardStatus();
@@ -3539,6 +3548,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
         event_filters[TRACE_SYSTEM] = TRACE_SYSTEM_EVENT_DEFAULT;
         event_filters[TRACE_GUS] = TRACE_GUS_EVENT_ALL;
         event_filters[TRACE_VOODOO] = TRACE_VOODOO_EVENT_ALL;
+        event_filters[TRACE_NET] = TRACE_NET_EVENT_DEFAULT;
 
         if (enabled && arguments.contains("filters"))
         {

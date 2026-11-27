@@ -80,6 +80,7 @@ void runahead_run(int frames, u8* frame_buffer, s16* sample_buffer, int* sample_
     MidiOut* midi = core->GetAudio()->GetMidiOut();
     MidiOut::MidiOut_Capture capture = midi->GetCapture();
     midi->SetCapture(MidiOut::MIDI_OUT_CAPTURE_OFF);
+    core->GetNetworkPort()->SetSpeculative(true);
 
     for (int i = 0; i < frames; i++)
     {
@@ -91,6 +92,7 @@ void runahead_run(int frames, u8* frame_buffer, s16* sample_buffer, int* sample_
     if (!core->IsPoweredOn())
     {
         midi->SetCapture(capture);
+        core->GetNetworkPort()->SetSpeculative(false);
         return;
     }
 
@@ -106,6 +108,7 @@ void runahead_run(int frames, u8* frame_buffer, s16* sample_buffer, int* sample_
     }
 
     midi->SetCapture(capture);
+    core->GetNetworkPort()->SetSpeculative(false);
 }
 
 static bool ensure_buffer(void)

@@ -382,6 +382,9 @@ static inline void clear_machine_settings(GDOX_Machine_Settings* settings)
     settings->drive_timing = GDOX_MACHINE_AUTO;
     settings->video_card = GDOX_MACHINE_AUTO;
     settings->voodoo = GDOX_MACHINE_AUTO;
+    settings->network_card = GDOX_MACHINE_AUTO;
+    settings->network_base = GDOX_MACHINE_AUTO;
+    settings->network_irq = GDOX_MACHINE_AUTO;
 }
 
 static inline void default_machine_settings(GDOX_Machine_Settings* settings)
@@ -397,6 +400,9 @@ static inline void default_machine_settings(GDOX_Machine_Settings* settings)
     settings->cdrom = GDOX_CDROM_SECONDARY_MASTER;
     settings->cdrom_speed = GDOX_CDROM_SPEED_4X;
     settings->voodoo = 0;
+    settings->network_card = GDOX_NETWORK_CARD_NONE;
+    settings->network_base = 0x300;
+    settings->network_irq = 10;
 }
 
 static inline bool has_sound_blaster_dsp(const GDOX_Machine_Config& config)

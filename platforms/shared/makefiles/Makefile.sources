@@ -253,6 +253,11 @@ SOURCES_CXX := \
     $(SRC_DIR)/system/mc146818.cpp \
     $(SRC_DIR)/system/uart.cpp \
     $(SRC_DIR)/system/serial_ports.cpp \
+    $(SRC_DIR)/network/ne2000.cpp \
+    $(SRC_DIR)/network/network_port.cpp \
+    $(SRC_DIR)/network/net_crc.cpp \
+    $(SRC_DIR)/network/net_switch.cpp \
+    $(SRC_DIR)/network/net_services.cpp \
     $(SRC_DIR)/system/parallel_port.cpp \
     $(SRC_DIR)/system/scheduler.cpp \
     $(SRC_DIR)/system/system_control.cpp \

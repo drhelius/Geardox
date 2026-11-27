@@ -36,6 +36,7 @@
 #include "serial_ports.h"
 #include "system_control.h"
 #include "../input/game_port.h"
+#include "../network/ne2000.h"
 #include "../video/video.h"
 
 IO::IO()
@@ -60,6 +61,7 @@ IO::IO()
     InitPointer(m_pci_bus);
     InitPointer(m_piix);
     InitPointer(m_dev_port);
+    InitPointer(m_ne2000);
     memset(m_decoded_ports, 0xFF, sizeof(m_decoded_ports));
 }
 
@@ -70,7 +72,7 @@ IO::~IO()
 void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
     IdeController* ide, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
     DebugConsole* debug_console, I8042* i8042, DMA* dma, SerialPorts* serial_ports, ParallelPort* parallel_port,
-    GamePort* game_port, PciBus* pci_bus, Piix* piix, DevPort* dev_port)
+    GamePort* game_port, PciBus* pci_bus, Piix* piix, DevPort* dev_port, NE2000* ne2000)
 {
     m_scheduler = scheduler;
     m_audio = audio;
@@ -92,6 +94,7 @@ void IO::Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* vid
     m_pci_bus = pci_bus;
     m_piix = piix;
     m_dev_port = dev_port;
+    m_ne2000 = ne2000;
     Reset();
 }
 
@@ -135,6 +138,26 @@ void IO::WriteIDEData(u16 port, u16 value, GDOX_Bus_Access_Context& context)
     m_ide->WriteData(port, value, context.clocks);
 
     if (EventsChanged(next_event, interrupt))
+        context.end_batch = true;
+}
+
+u16 IO::ReadNetworkData(GDOX_Bus_Access_Context& context)
+{
+    bool interrupt = m_pic->IsInterruptPending();
+    u16 value = m_ne2000->ReadData16(context.clocks);
+
+    if (m_pic->IsInterruptPending() != interrupt)
+        context.end_batch = true;
+
+    return value;
+}
+
+void IO::WriteNetworkData(u16 value, GDOX_Bus_Access_Context& context)
+{
+    bool interrupt = m_pic->IsInterruptPending();
+    m_ne2000->WriteData16(value, context.clocks);
+
+    if (m_pic->IsInterruptPending() != interrupt)
         context.end_batch = true;
 }
 
@@ -247,6 +270,9 @@ u8 IO::ReadPort(u16 port, GDOX_Bus_Access_Context& context)
 
             if (m_parallel_port->Decodes(port & k_io_isa_mask))
                 return m_parallel_port->Read(port & k_io_isa_mask);
+
+            if (m_ne2000->Decodes(port & k_io_isa_mask))
+                return m_ne2000->Read(port & k_io_isa_mask, context.clocks);
             break;
     }
 
@@ -354,6 +380,12 @@ bool IO::Peek(u16 port, u64 clocks, u8& value) const
                 return true;
             }
 
+            if (m_ne2000->Decodes(port & k_io_isa_mask))
+            {
+                value = m_ne2000->Peek(port & k_io_isa_mask);
+                return true;
+            }
+
             if (!m_system_control->Decodes(port))
                 return false;
 
@@ -441,6 +473,9 @@ u64 IO::GetReadStableUntil(u16 port, int width, u64 clocks) const
 
             if (m_parallel_port->Decodes(port & k_io_isa_mask))
                 return GDOX_NO_EVENT;
+
+            if (m_ne2000->Decodes(port & k_io_isa_mask))
+                return m_ne2000->GetReadStableUntil(port & k_io_isa_mask);
 
             return m_dma->Decodes(port) ? m_dma->GetReadStableUntil(port) : 0;
     }
@@ -589,6 +624,8 @@ void IO::Write8(u16 port, u8 value, GDOX_Bus_Access_Context& context)
                 m_game_port->Write(context.clocks);
             else if (m_parallel_port->Decodes(port & k_io_isa_mask))
                 m_parallel_port->Write(port & k_io_isa_mask, value);
+            else if (m_ne2000->Decodes(port & k_io_isa_mask))
+                m_ne2000->Write(port & k_io_isa_mask, value, context.clocks);
             else
                 Debug("Unknown IO write at %04X, value=%02X", port, value);
             break;

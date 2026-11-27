@@ -57,6 +57,8 @@ class PS2Mouse;
 class SerialPorts;
 class ParallelPort;
 class GamePort;
+class NE2000;
+class NetworkPort;
 class MC146818;
 class FirmwareConfig;
 class DebugConsole;
@@ -192,6 +194,8 @@ public:
     SerialPorts* GetSerialPorts();
     ParallelPort* GetParallelPort();
     GamePort* GetGamePort();
+    NE2000* GetNE2000();
+    NetworkPort* GetNetworkPort();
     MC146818* GetRTC();
     GDOX_CMOS_File_Result LoadCMOSFile(const char* path);
     GDOX_CMOS_File_Result SaveCMOSFileIfChanged(const char* path);
@@ -266,6 +270,7 @@ private:
     void InitMemoryMap();
     void InitCMOS();
     void ApplyFirmwareDevices();
+    void ChooseNetworkAddress();
 
     bool LoadState(std::istream& stream, GDOX_SaveState_Media* media = NULL);
     void Serialize(StateSerializer& serializer, GDOX_Machine_Config& config, int version);
@@ -300,6 +305,8 @@ private:
     SerialPorts* m_serial_ports;
     ParallelPort* m_parallel_port;
     GamePort* m_game_port;
+    NE2000* m_ne2000;
+    NetworkPort* m_network_port;
     MC146818* m_rtc;
     FirmwareConfig* m_firmware_config;
     DebugConsole* m_debug_console;
@@ -319,6 +326,7 @@ private:
     bool m_game;
     GDOX_Machine_Bus_Waits m_card_bus_waits;
     GDOX_Machine_Bus_Timing m_card_bus_timing;
+    GDOX_Machine_Port_Wait m_card_port_waits[GDOX_MACHINE_PORT_WAIT_BLOCKS];
     GDOX_Machine_Config m_machine_config;
     GDOX_Machine_Config m_pending_machine_config;
     GDOX_Machine_Report m_machine_report;

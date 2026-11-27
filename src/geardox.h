@@ -41,5 +41,7 @@
 #include "system/debug_console.h"
 #include "system/dev_port.h"
 #include "system/machine_profiles.h"
+#include "network/ne2000.h"
+#include "network/network_port.h"
 
 #endif /* GEARDOX_H */

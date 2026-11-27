@@ -62,6 +62,8 @@
 #include "system/dev_port.h"
 #include "system/serial_ports.h"
 #include "system/parallel_port.h"
+#include "network/ne2000.h"
+#include "network/network_port.h"
 #include "system/machine_profiles.h"
 #include "video/video.h"
 #include "video/voodoo.h"
@@ -93,6 +95,8 @@ GeardoxCore::GeardoxCore()
     InitPointer(m_serial_ports);
     InitPointer(m_parallel_port);
     InitPointer(m_game_port);
+    InitPointer(m_ne2000);
+    InitPointer(m_network_port);
     InitPointer(m_rtc);
     InitPointer(m_firmware_config);
     InitPointer(m_debug_console);
@@ -113,6 +117,7 @@ GeardoxCore::GeardoxCore()
     m_game = false;
     memset(&m_card_bus_waits, 0, sizeof(m_card_bus_waits));
     memset(&m_card_bus_timing, 0, sizeof(m_card_bus_timing));
+    memset(m_card_port_waits, 0, sizeof(m_card_port_waits));
 
     for (int i = 0; i < GDOX_MAX_HARD_DISKS; i++)
     {
@@ -178,6 +183,8 @@ GeardoxCore::~GeardoxCore()
     SafeDelete(m_serial_ports);
     SafeDelete(m_parallel_port);
     SafeDelete(m_game_port);
+    SafeDelete(m_ne2000);
+    SafeDelete(m_network_port);
     SafeDelete(m_rtc);
     SafeDelete(m_firmware_config);
     SafeDelete(m_debug_console);
@@ -275,6 +282,12 @@ void GeardoxCore::Init()
     if (!IsValidPointer(m_game_port))
         m_game_port = new GamePort();
 
+    if (!IsValidPointer(m_network_port))
+        m_network_port = new NetworkPort();
+
+    if (!IsValidPointer(m_ne2000))
+        m_ne2000 = new NE2000();
+
     if (!IsValidPointer(m_rtc))
         m_rtc = new MC146818();
 
@@ -329,6 +342,7 @@ void GeardoxCore::Init()
     m_ps2_mouse->Init(m_input);
     m_serial_ports->Init(m_pic, m_scheduler, m_input);
     m_game_port->Init(m_input);
+    m_ne2000->Init(m_pic, m_scheduler, m_network_port);
     m_rtc->Init(m_pic, m_scheduler);
     m_firmware_config->Init();
     m_debug_console->Init();
@@ -345,7 +359,7 @@ void GeardoxCore::Init()
     m_pci_bus->RegisterDevice(k_pci_device_piix, m_piix, &Piix::ReadCallback, &Piix::WriteCallback);
     m_io->Init(m_scheduler, m_audio, m_pic, m_pit, m_video, m_memory, m_fdc, m_ide, m_system_control, m_rtc,
         m_firmware_config, m_debug_console, m_i8042, m_dma, m_serial_ports, m_parallel_port, m_game_port, m_pci_bus,
-        m_piix, m_dev_port);
+        m_piix, m_dev_port, m_ne2000);
     m_i386->Init(m_memory, m_io);
     m_video->SetStartCycles(m_i386->GetStartCyclesPointer());
     m_i386->SetFPUErrorCallback(this, &GeardoxCore::FPUErrorCallback);
@@ -380,6 +394,7 @@ void GeardoxCore::Init()
     m_serial_ports->SetTraceLogger(m_trace_logger);
     m_parallel_port->SetTraceLogger(m_trace_logger);
     m_game_port->SetTraceLogger(m_trace_logger);
+    m_ne2000->SetTraceLogger(m_trace_logger);
     m_media->Init();
     Reset();
 }
@@ -424,6 +439,10 @@ GDOX_Run_Result GeardoxCore::RunToFrameTemplate(u8* frame_buffer, s16* sample_bu
 
     u64 frame_start = m_scheduler->GetClocks();
     m_input->BeginMouseFrame(frame_start);
+
+    if (m_ne2000->IsEnabled())
+        m_ne2000->Poll(frame_start);
+
     m_i386->BeginDynarecFrame();
     m_video->BeginFrame(frame_buffer, render);
 
@@ -974,6 +993,9 @@ INLINE void GeardoxCore::DispatchEvents()
             case SCHEDULER_EVENT_SERIAL:
                 m_serial_ports->HandleEvent(clocks);
                 break;
+            case SCHEDULER_EVENT_NET:
+                m_ne2000->HandleEvent(clocks);
+                break;
             default:
                 break;
         }
@@ -985,6 +1007,7 @@ INLINE void GeardoxCore::DispatchEvents()
 bool GeardoxCore::PowerOn()
 {
     ResolveMachineConfig();
+    ChooseNetworkAddress();
     Reset();
     m_powered = true;
     return true;
@@ -1835,6 +1858,7 @@ bool GeardoxCore::SaveState(std::ostream& stream, size_t& size, bool screenshot,
     m_serial_ports->SaveState(stream);
     m_parallel_port->SaveState(stream);
     m_game_port->SaveState(stream);
+    m_ne2000->SaveState(stream);
     m_video->SaveState(stream);
     m_cdrom_audio->SaveState(stream);
     m_fdc->SaveState(stream, media);
@@ -2068,7 +2092,10 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
         (m_machine_config.mouse == machine_config.mouse) &&
         (m_machine_config.cdrom == machine_config.cdrom) && (m_machine_config.cdrom_speed == machine_config.cdrom_speed) &&
         (m_machine_config.drive_timing == machine_config.drive_timing) &&
-        (m_machine_config.video_card == machine_config.video_card) && (m_machine_config.voodoo == machine_config.voodoo);
+        (m_machine_config.video_card == machine_config.video_card) && (m_machine_config.voodoo == machine_config.voodoo) &&
+        (m_machine_config.network_card == machine_config.network_card) &&
+        (m_machine_config.network_base == machine_config.network_base) &&
+        (m_machine_config.network_irq == machine_config.network_irq);
 
     if (!same_machine)
     {
@@ -2148,6 +2175,7 @@ bool GeardoxCore::LoadState(std::istream& stream, GDOX_SaveState_Media* media)
     m_serial_ports->LoadState(stream, header.version);
     m_parallel_port->LoadState(stream, header.version);
     m_game_port->LoadState(stream, header.version);
+    m_ne2000->LoadState(stream, header.version);
     m_video->LoadState(stream, header.version);
     m_cdrom_audio->LoadState(stream);
     m_fdc->LoadState(stream, header.version);
@@ -2327,6 +2355,9 @@ void GeardoxCore::Serialize(StateSerializer& serializer, GDOX_Machine_Config& co
     G_SERIALIZE(serializer, config.video_card);
     G_SERIALIZE(serializer, config.drive_timing);
     G_SERIALIZE(serializer, config.voodoo);
+    G_SERIALIZE(serializer, config.network_card);
+    G_SERIALIZE(serializer, config.network_base);
+    G_SERIALIZE(serializer, config.network_irq);
 }
 
 void GeardoxCore::SerializeMedia(StateSerializer& serializer, GDOX_SaveState_Media& media, u32 version)
@@ -2383,6 +2414,9 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     config.cdrom_speed = config.cdrom_speed < GDOX_CDROM_SPEED_COUNT ? config.cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
     config.drive_timing = config.drive_timing < GDOX_DRIVE_TIMING_COUNT ? config.drive_timing : (u8)GDOX_DRIVE_TIMING_REAL;
     config.video_card = config.video_card < GDOX_VIDEO_CARD_COUNT ? config.video_card : (u8)GDOX_VIDEO_CARD_GD5428;
+    config.network_card = config.network_card < GDOX_NETWORK_CARD_COUNT ? config.network_card : (u8)GDOX_NETWORK_CARD_NONE;
+    config.network_base = find_network_base(config.network_base) >= 0 ? config.network_base : k_ne2000_default_base;
+    config.network_irq = find_network_irq(config.network_irq) >= 0 ? config.network_irq : k_ne2000_default_irq;
 
     if (k_video_cards[config.video_card].local_bus && ((profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) == 0))
         config.video_card = GDOX_VIDEO_CARD_GD5428;
@@ -2532,6 +2566,9 @@ void GeardoxCore::Reset()
     if (IsValidPointer(m_game_port))
         m_game_port->Reset();
 
+    if (IsValidPointer(m_ne2000))
+        m_ne2000->Reset();
+
     if (IsValidPointer(m_rtc))
         m_rtc->Reset(m_scheduler->GetClocks());
 
@@ -2676,6 +2713,10 @@ void GeardoxCore::ResolveMachineConfig()
     config.mouse = (mouse >= 0) && (mouse < GDOX_MOUSE_TYPE_COUNT) ? (u8)mouse : (u8)GDOX_MOUSE_PS2;
     config.cdrom = (cdrom >= 0) && (cdrom < GDOX_CDROM_POSITION_COUNT) ? (u8)cdrom : (u8)GDOX_CDROM_SECONDARY_MASTER;
     config.cdrom_speed = (cdrom_speed >= 0) && (cdrom_speed < GDOX_CDROM_SPEED_COUNT) ? (u8)cdrom_speed : (u8)GDOX_CDROM_SPEED_4X;
+    int network_card = pick_setting(game.network_card, user.network_card, -1, &source);
+    config.network_card = network_card > 0 ? (u8)GDOX_NETWORK_CARD_NE2000 : (u8)GDOX_NETWORK_CARD_NONE;
+    config.network_base = (u16)pick_setting(game.network_base, user.network_base, 0, &source);
+    config.network_irq = (u8)pick_setting(game.network_irq, user.network_irq, 0, &source);
 
     // Games load as fast as their drives' transfers allow, unless they or the user ask for the drives' mechanics
     if ((drive_timing >= 0) && (drive_timing < GDOX_DRIVE_TIMING_COUNT))
@@ -2828,6 +2869,10 @@ void GeardoxCore::ApplyMachineConfig()
     if (IsValidPointer(m_serial_ports))
         m_serial_ports->SetMouse(m_machine_config.mouse == GDOX_MOUSE_SERIAL);
 
+    if (IsValidPointer(m_ne2000))
+        m_ne2000->SetConfig(m_machine_config.network_card == GDOX_NETWORK_CARD_NE2000, m_machine_config.network_base,
+            m_machine_config.network_irq);
+
     if (IsValidPointer(m_ide))
     {
         m_ide->SetCdRom((int)m_machine_config.cdrom - 1, k_cdrom_speed_factors[m_machine_config.cdrom_speed]);
@@ -2850,6 +2895,24 @@ void GeardoxCore::ApplyMachineConfig()
     }
 
     ApplyFirmwareDevices();
+}
+
+void GeardoxCore::ChooseNetworkAddress()
+{
+    static u32 count = 0;
+    count++;
+    u32 seed = (u32)time(NULL) ^ (u32)clock() ^ (u32)(size_t)this ^ (count * 0x9E3779B9U);
+    seed ^= seed >> 16;
+    seed *= 0x7FEB352DU;
+    seed ^= seed >> 15;
+    seed *= 0x846CA68BU;
+    seed ^= seed >> 16;
+
+    if ((seed & 0xFFFF) < 2)
+        seed |= 0x8000;
+
+    u8 address[6] = { 0x02, 0x47, 0x44, 0x58, (u8)(seed >> 8), (u8)seed };
+    m_ne2000->SetAddress(address);
 }
 
 // SeaBIOS finds the VGA BIOS through the firmware config and prints to the debug console
@@ -2918,6 +2981,35 @@ void GeardoxCore::ApplyBusTiming()
         }
 
         timing = &m_card_bus_timing;
+    }
+
+    if (IsValidPointer(timing) && IsValidPointer(timing->port_waits) && IsValidPointer(m_ne2000) && m_ne2000->IsEnabled())
+    {
+        if (timing != &m_card_bus_timing)
+        {
+            m_card_bus_timing = *timing;
+            timing = &m_card_bus_timing;
+        }
+
+        int slot = 0;
+
+        for (int i = 0; i < GDOX_MACHINE_PORT_WAIT_BLOCKS; i++)
+        {
+            m_card_port_waits[i] = m_card_bus_timing.port_waits[i];
+
+            if ((slot == 0) && (i > 0) && (m_card_port_waits[i].first == 0) && (m_card_port_waits[i].last == 0))
+                slot = i;
+        }
+
+        if (slot > 0)
+        {
+            m_card_port_waits[slot].first = (u16)(m_ne2000->GetBase() + 0x10);
+            m_card_port_waits[slot].last = (u16)(m_ne2000->GetBase() + 0x17);
+            m_card_port_waits[slot].extra[0] = m_card_port_waits[0].extra[0];
+            m_card_port_waits[slot].extra[1] = m_card_port_waits[0].extra[1];
+        }
+
+        m_card_bus_timing.port_waits = m_card_port_waits;
     }
 
     // The board caches DRAM and its shadow copies; the VGA window, ROMs and the ISA bus stay on the bus

@@ -101,6 +101,9 @@ static const Descriptor_Key k_descriptor_keys[] =
     { "sound", "gus_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
     { "sound", "mt32_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
     { "sound", "gm_mute", DESCRIPTOR_CHOICE, "on,off", 0, 0 },
+    { "network", "card", DESCRIPTOR_CHOICE, "none,ne2000", 0, 0 },
+    { "network", "port", DESCRIPTOR_CHOICE, "300,320,340,360", 0, 0 },
+    { "network", "irq", DESCRIPTOR_CHOICE, "3,4,5,9,10,11,12,15", 0, 0 },
     { "input", "mouse", DESCRIPTOR_MOUSE, NULL, 0, 0 },
     { "input", "joystick", DESCRIPTOR_JOYSTICK, NULL, 0, 0 },
     { "pad1", "use", DESCRIPTOR_CHOICE, "keys,joystick", 0, 0 },
@@ -141,7 +144,7 @@ static const Descriptor_Key k_descriptor_gamepad_target = { NULL, NULL, DESCRIPT
 
 static const char* const k_descriptor_sections[] =
 {
-    "geardox", "game", "machine", "sound", "input", "keys", "pad1", "pad2", "dos", "env", "drives", "run", "config_sys",
+    "geardox", "game", "machine", "sound", "network", "input", "keys", "pad1", "pad2", "dos", "env", "drives", "run", "config_sys",
     "autoexec"
 };
 
@@ -853,6 +856,15 @@ void GameDescriptor::GetMachineSettings(GDOX_Machine_Settings* settings) const
 
     if (Has("machine", "voodoo"))
         settings->voodoo = Get("machine", "voodoo") == "on" ? 1 : 0;
+
+    if (Has("network", "card"))
+        settings->network_card = Get("network", "card") == "ne2000" ? GDOX_NETWORK_CARD_NE2000 : GDOX_NETWORK_CARD_NONE;
+
+    if (Has("network", "port"))
+        settings->network_base = (int)strtol(Get("network", "port").c_str(), NULL, 16);
+
+    if (parse_number(Get("network", "irq"), &number))
+        settings->network_irq = number;
 
     found = Has("input", "mouse") ? find_mouse_type(Get("input", "mouse").c_str()) : -1;
 

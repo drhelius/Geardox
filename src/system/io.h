@@ -31,6 +31,7 @@ class FirmwareConfig;
 class I8042;
 class IdeController;
 class MC146818;
+class NE2000;
 class GamePort;
 class Memory;
 class ParallelPort;
@@ -51,7 +52,7 @@ public:
     void Init(Scheduler* scheduler, Audio* audio, PIC* pic, PIT* pit, Video* video, Memory* memory, FDC* fdc,
         IdeController* ide, SystemControl* system_control, MC146818* rtc, FirmwareConfig* firmware_config,
         DebugConsole* debug_console, I8042* i8042, DMA* dma, SerialPorts* serial_ports, ParallelPort* parallel_port,
-        GamePort* game_port, PciBus* pci_bus, Piix* piix, DevPort* dev_port);
+        GamePort* game_port, PciBus* pci_bus, Piix* piix, DevPort* dev_port, NE2000* ne2000);
     void Reset();
     u8 Read8(u16 port, GDOX_Bus_Access_Context& context);
     u16 Read16(u16 port, GDOX_Bus_Access_Context& context);
@@ -69,6 +70,8 @@ private:
     bool EventsChanged(u64 next_event, bool interrupt) const;
     u16 ReadIDEData(u16 port, GDOX_Bus_Access_Context& context);
     void WriteIDEData(u16 port, u16 value, GDOX_Bus_Access_Context& context);
+    u16 ReadNetworkData(GDOX_Bus_Access_Context& context);
+    void WriteNetworkData(u16 value, GDOX_Bus_Access_Context& context);
 
 private:
     Scheduler* m_scheduler;
@@ -90,6 +93,7 @@ private:
     PciBus* m_pci_bus;
     Piix* m_piix;
     DevPort* m_dev_port;
+    NE2000* m_ne2000;
     DMA* m_dma;
     u8 m_decoded_ports[0x2000];
 };

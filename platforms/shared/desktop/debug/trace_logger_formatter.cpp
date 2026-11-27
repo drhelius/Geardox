@@ -62,6 +62,7 @@ static void format_parallel(const GDOX_Trace_Entry& entry, char* buffer, size_t 
 static void format_system(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_gus(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_voodoo(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
+static void format_net(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_mark(const GDOX_Trace_Entry& entry, char* buffer, size_t size);
 static void format_bit_list(u8 bits, int base, char* buffer, size_t size);
 static void format_msf(u32 lba, char* buffer, size_t size);
@@ -193,6 +194,9 @@ void trace_logger_format_entry(const GDOX_Trace_Entry& entry,
             break;
         case TRACE_VOODOO:
             format_voodoo(entry, buffer, buffer_size);
+            break;
+        case TRACE_NET:
+            format_net(entry, buffer, buffer_size);
             break;
         case TRACE_MARK:
             format_mark(entry, buffer, buffer_size);
@@ -2646,6 +2650,56 @@ static void format_voodoo(const GDOX_Trace_Entry& entry, char* buffer, size_t si
         default:
             format_event(buffer, size, "VOODOO", "LFB READ", "%06X = %08X  fifo drained %u", entry.voodoo.value,
                 entry.voodoo.data, entry.voodoo.queued);
+            break;
+    }
+}
+
+static void format_net(const GDOX_Trace_Entry& entry, char* buffer, size_t size)
+{
+    static const char* const k_drops[] = { "stopped", "address", "runt", "monitor", "ring full" };
+    const u8* d = entry.net.destination;
+    const u8* s = entry.net.source;
+
+    switch (entry.event)
+    {
+        case TRACE_NET_WRITE:
+            format_event(buffer, size, "NET", "WRITE", "p%u reg %02X = %02X  cr %02X isr %02X", entry.net.page,
+                entry.net.reg, entry.net.value, entry.net.cr, entry.net.isr);
+            break;
+        case TRACE_NET_READ:
+            format_event(buffer, size, "NET", "READ", "p%u reg %02X = %02X", entry.net.page, entry.net.reg,
+                entry.net.value);
+            break;
+        case TRACE_NET_TRANSMIT:
+            format_event(buffer, size, "NET", entry.net.value != 0 ? "LOOPBACK" : "TRANSMIT",
+                "%u bytes  type %04X  %02X:%02X:%02X:%02X:%02X:%02X > %02X:%02X:%02X:%02X:%02X:%02X", entry.net.length,
+                entry.net.type, s[0], s[1], s[2], s[3], s[4], s[5], d[0], d[1], d[2], d[3], d[4], d[5]);
+            break;
+        case TRACE_NET_RECEIVE:
+            format_event(buffer, size, "NET", "RECEIVE",
+                "%u bytes  type %04X  %02X:%02X:%02X:%02X:%02X:%02X > %02X:%02X:%02X:%02X:%02X:%02X  curr %02X bnry %02X",
+                entry.net.length, entry.net.type, s[0], s[1], s[2], s[3], s[4], s[5], d[0], d[1], d[2], d[3], d[4], d[5],
+                entry.net.curr, entry.net.bnry);
+            break;
+        case TRACE_NET_DROP:
+            format_event(buffer, size, "NET", "DROP", "%s  %u bytes  type %04X  > %02X:%02X:%02X:%02X:%02X:%02X",
+                entry.net.reason < 5 ? k_drops[entry.net.reason] : "?", entry.net.length, entry.net.type, d[0], d[1], d[2],
+                d[3], d[4], d[5]);
+            break;
+        case TRACE_NET_IRQ:
+            format_event(buffer, size, "NET", "IRQ", "%s  isr %02X imr %02X", entry.net.value != 0 ? "raise" : "lower",
+                entry.net.isr, entry.net.imr);
+            break;
+        case TRACE_NET_DMA:
+            if (entry.net.reg != 0)
+                format_event(buffer, size, "NET", "DMA", "complete  address %04X", entry.net.address);
+            else
+                format_event(buffer, size, "NET", "DMA", "%s  address %04X count %04X",
+                    entry.net.value == 0x08 ? "read" : entry.net.value == 0x10 ? "write" : "send packet",
+                    entry.net.address, entry.net.count);
+            break;
+        default:
+            format_event(buffer, size, "NET", "RESET", "cr %02X isr %02X", entry.net.cr, entry.net.isr);
             break;
     }
 }

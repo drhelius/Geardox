@@ -172,6 +172,16 @@ INLINE GamePort* GeardoxCore::GetGamePort()
     return m_game_port;
 }
 
+INLINE NE2000* GeardoxCore::GetNE2000()
+{
+    return m_ne2000;
+}
+
+INLINE NetworkPort* GeardoxCore::GetNetworkPort()
+{
+    return m_network_port;
+}
+
 INLINE MC146818* GeardoxCore::GetRTC()
 {
     return m_rtc;

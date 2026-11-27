@@ -262,7 +262,7 @@ static const char* const kMcpProgramTools[] =
 static const char* const kMcpSystemTools[] =
 {
     "get_pic_status", "get_pit_status", "get_dma_status", "get_system_status", "set_turbo", "get_rtc_status",
-    "get_keyboard_status", "get_serial_status", "get_parallel_status", "get_bios_log"
+    "get_keyboard_status", "get_serial_status", "get_parallel_status", "get_network_status", "get_bios_log"
 };
 
 static const char* const kMcpVideoTools[] =

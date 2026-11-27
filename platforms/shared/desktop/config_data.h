@@ -159,6 +159,9 @@ struct config_Machine
     int cdrom_speed;
     int drive_timing;
     bool turbo;
+    int network_card;
+    int network_base;
+    int network_irq;
 };
 
 struct config_Video
@@ -328,6 +331,7 @@ struct config_Debug
     bool trace_system;
     bool trace_gus;
     bool trace_voodoo;
+    bool trace_net;
     int trace_cpu_interrupt_events;
     int trace_io_events;
     int trace_pic_events;
@@ -348,6 +352,7 @@ struct config_Debug
     int trace_system_events;
     int trace_gus_events;
     int trace_voodoo_events;
+    int trace_net_events;
     int trace_vblank_watch_address;
     int trace_vblank_watch_operation;
     int trace_output;
@@ -374,6 +379,7 @@ struct config_Debug
     bool show_mouse_joystick;
     bool show_serial_ports;
     bool show_parallel_port;
+    bool show_network_card;
     bool show_keyboard;
     bool show_vga;
     bool show_vga_registers;

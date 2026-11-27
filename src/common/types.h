@@ -650,6 +650,16 @@ struct GDOX_Machine_Config
     u8 video_card;
     u8 drive_timing;
     u8 voodoo;
+    u8 network_card;
+    u16 network_base;
+    u8 network_irq;
+};
+
+enum GDOX_Network_Card
+{
+    GDOX_NETWORK_CARD_NONE = 0,
+    GDOX_NETWORK_CARD_NE2000,
+    GDOX_NETWORK_CARD_COUNT
 };
 
 enum GDOX_Sound_Card
@@ -761,6 +771,9 @@ struct GDOX_Machine_Settings
     int video_card;
     int drive_timing;
     int voodoo;
+    int network_card;
+    int network_base;
+    int network_irq;
 };
 
 struct GDOX_Machine_Report

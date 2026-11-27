@@ -29,6 +29,7 @@
 EXTERN void gui_debug_window_mouse_joystick(void);
 EXTERN void gui_debug_window_serial_ports(void);
 EXTERN void gui_debug_window_parallel_port(void);
+EXTERN void gui_debug_window_network_card(void);
 EXTERN void gui_debug_window_keyboard(void);
 
 #undef GUI_DEBUG_INPUT_IMPORT

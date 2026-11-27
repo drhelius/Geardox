@@ -40,6 +40,8 @@
 #include "input/ps2_mouse.h"
 #include "input/serial_mouse.h"
 #include "system/parallel_port.h"
+#include "network/ne2000.h"
+#include "network/network_port.h"
 #include "system/serial_ports.h"
 #include "system/uart.h"
 #include "system/debug_console.h"
@@ -3521,6 +3523,79 @@ json DebugAdapter::GetSerialStatus()
     return {{"ports", list}};
 }
 
+static std::string mac_text(const u8* address)
+{
+    char text[24];
+    snprintf(text, sizeof(text), "%02X:%02X:%02X:%02X:%02X:%02X", address[0], address[1], address[2], address[3],
+        address[4], address[5]);
+    return text;
+}
+
+json DebugAdapter::GetNetworkStatus()
+{
+    NE2000* card = m_core->GetNE2000();
+    NetworkPort* port = m_core->GetNetworkPort();
+
+    if (!card->IsEnabled())
+        return {{"card", "none"}};
+
+    NE2000::NE2000_State* state = card->GetState();
+    const NE2000::NE2000_Counters* counters = card->GetCounters();
+    const NetworkPort::NetworkPort_Stats* stats = port->GetStats();
+    u8 cr = state->cr;
+    u8 isr = state->isr;
+    json mar = json::array();
+    json frames = json::array();
+    int count = 0;
+    int next = 0;
+    const NE2000::NE2000_Frame* history = card->GetHistory(&count, &next);
+
+    for (int i = 0; i < 8; i++)
+        mar.push_back(Hex(state->mar[i], 2));
+
+    for (int i = 0; i < count; i++)
+    {
+        const NE2000::NE2000_Frame& frame = history[(next - 1 - i + NE2000_HISTORY) % NE2000_HISTORY];
+        frames.push_back({{"direction", frame.sent ? "sent" : "received"}, {"length", frame.length},
+            {"type", Hex(frame.type, 4)}, {"source", mac_text(frame.source)},
+            {"destination", mac_text(frame.destination)}, {"status", Hex(frame.status, 2)}});
+    }
+
+    return {
+        {"card", "NE2000"},
+        {"base", Hex(card->GetBase(), 4)},
+        {"irq", card->GetIRQ()},
+        {"irq_line", state->irq},
+        {"address", mac_text(card->GetAddress())},
+        {"cr", {{"value", Hex(cr, 2)}, {"stop", (cr & 0x01) != 0}, {"start", (cr & 0x02) != 0},
+            {"transmitting", (cr & 0x04) != 0}, {"remote_dma", (cr >> 3) & 0x07}, {"page", cr >> 6}}},
+        {"isr", {{"value", Hex(isr, 2)}, {"prx", (isr & 0x01) != 0}, {"ptx", (isr & 0x02) != 0},
+            {"rxe", (isr & 0x04) != 0}, {"txe", (isr & 0x08) != 0}, {"ovw", (isr & 0x10) != 0},
+            {"cnt", (isr & 0x20) != 0}, {"rdc", (isr & 0x40) != 0}, {"rst", (isr & 0x80) != 0}}},
+        {"imr", Hex(state->imr, 2)},
+        {"dcr", {{"value", Hex(state->dcr, 2)}, {"word_transfers", (state->dcr & 0x01) != 0},
+            {"normal_operation", (state->dcr & 0x08) != 0}, {"auto_remove", (state->dcr & 0x10) != 0}}},
+        {"tcr", {{"value", Hex(state->tcr, 2)}, {"inhibit_crc", (state->tcr & 0x01) != 0},
+            {"loopback", (state->tcr >> 1) & 0x03}}},
+        {"rcr", {{"value", Hex(state->rcr, 2)}, {"runts", (state->rcr & 0x02) != 0},
+            {"broadcast", (state->rcr & 0x04) != 0}, {"multicast", (state->rcr & 0x08) != 0},
+            {"promiscuous", (state->rcr & 0x10) != 0}, {"monitor", (state->rcr & 0x20) != 0}}},
+        {"tsr", Hex(state->tsr, 2)},
+        {"rsr", Hex(state->rsr, 2)},
+        {"ring", {{"pstart", Hex(state->pstart, 2)}, {"pstop", Hex(state->pstop, 2)}, {"bnry", Hex(state->bnry, 2)},
+            {"curr", Hex(state->curr, 2)}}},
+        {"transmit", {{"tpsr", Hex(state->tpsr, 2)}, {"tbcr", state->tbcr}}},
+        {"remote_dma", {{"rsar", Hex(state->rsar, 4)}, {"rbcr", state->rbcr}}},
+        {"physical_address", mac_text(state->par)},
+        {"multicast_filter", mar},
+        {"tally", {{"frame_alignment", state->cntr[0]}, {"crc", state->cntr[1]}, {"missed", state->cntr[2]}}},
+        {"frames", {{"sent", counters->sent}, {"received", counters->received}, {"filtered", counters->filtered},
+            {"runts", counters->runts}, {"ring_full", counters->overflows}, {"queue_dropped", stats->dropped_received},
+            {"queued_in", port->GetReceivedCount()}, {"queued_out", port->GetSentCount()}}},
+        {"last_frames", frames}
+    };
+}
+
 json DebugAdapter::GetParallelStatus()
 {
     ParallelPort* port = m_core->GetParallelPort();
@@ -5696,7 +5771,8 @@ json DebugAdapter::GetGameInfo()
         { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" }, { "machine", "cdrom_speed" },
         { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "voodoo" }, { "sound", "card" },
         { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" }, { "sound", "midi" },
-        { "sound", "midi_out" }, { "sound", "midi_port" },
+        { "sound", "midi_out" }, { "sound", "midi_port" }, { "network", "card" }, { "network", "port" },
+        { "network", "irq" },
         { "sound", "mt32_model" }, { "input", "mouse" }, { "input", "joystick" }, { "dos", "memory" }, { "dos", "ems_kb" }, { "dos", "ems_frame" }, { "dos", "files" },
         { "dos", "buffers" }, { "dos", "version" }, { "dos", "system" }, { "dos", "system_files" }, { "dos", "cache" }, { "dos", "keyboard" },
         { "drives", "floppy_a" }, { "drives", "floppy_b" },
@@ -5743,6 +5819,8 @@ json DebugAdapter::GetGameInfo()
             {"sound_card", k_sound_cards[config.sound_card].id}, {"sound_irq", config.sound_irq},
             {"sound_dma", config.sound_dma}, {"mpu", k_mcp_mpu_modes[config.mpu < GDOX_MPU_MODE_COUNT ? config.mpu : 0]},
             {"gus", config.gus != 0},
+            {"network", config.network_card == GDOX_NETWORK_CARD_NE2000 ? json({{"card", "ne2000"},
+                {"port", Hex(config.network_base, 3)}, {"irq", config.network_irq}}) : json("none")},
             {"video", k_video_cards[config.video_card].id},
             {"mouse", k_mice[config.mouse].id}, {"joystick", emu_game_get_joystick() >= 0 ?
                 json(k_joysticks[emu_game_get_joystick()].id) : json()}, {"midi", emu_game_get_midi() >= 0 ?

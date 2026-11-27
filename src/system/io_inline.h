@@ -24,12 +24,16 @@
 #include "firmware_config.h"
 #include "pci_bus.h"
 #include "../drive/ide_controller.h"
+#include "../network/ne2000.h"
 
 // The IDE data port answers with -I/O CS16, every other port is 8 bits wide
 INLINE u16 IO::Read16(u16 port, GDOX_Bus_Access_Context& context)
 {
     if (m_ide->IsDataPort(port & k_io_isa_mask))
         return ReadIDEData(port & k_io_isa_mask, context);
+
+    if (m_ne2000->IsDataPort(port & k_io_isa_mask))
+        return ReadNetworkData(context);
 
     u16 value = Read8(port, context);
     value |= (u16)Read8((u16)(port + 1), context) << 8;
@@ -58,6 +62,12 @@ INLINE void IO::Write16(u16 port, u16 value, GDOX_Bus_Access_Context& context)
     if (m_ide->IsDataPort(port & k_io_isa_mask))
     {
         WriteIDEData(port & k_io_isa_mask, value, context);
+        return;
+    }
+
+    if (m_ne2000->IsDataPort(port & k_io_isa_mask))
+    {
+        WriteNetworkData(value, context);
         return;
     }
 

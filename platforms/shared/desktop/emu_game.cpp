@@ -75,7 +75,7 @@ static const char* const k_game_keys[][2] = {
     { "machine", "model" }, { "machine", "cpu_mhz" }, { "machine", "turbo" }, { "machine", "ram_mb" },
     { "machine", "fpu" }, { "machine", "floppy_a_type" }, { "machine", "floppy_b_type" },
     { "machine", "cdrom_speed" }, { "machine", "drive_timing" }, { "machine", "video" }, { "machine", "cga_output" },
-    { "machine", "voodoo" },
+    { "machine", "voodoo" }, { "network", "card" }, { "network", "port" }, { "network", "irq" },
     { "sound", "card" }, { "sound", "irq" }, { "sound", "dma" }, { "sound", "mpu" }, { "sound", "gus" },
     { "sound", "midi" }, { "sound", "midi_out" }, { "sound", "midi_port" }, { "sound", "mt32_model" },
     { "input", "mouse" }, { "input", "joystick" } };
@@ -532,6 +532,19 @@ void emu_game_apply_machine(void)
     if (m.voodoo != b.voodoo)
         overrides.Set("machine", "voodoo", m.voodoo ? "on" : "off");
 
+    if (m.network_card != b.network_card)
+        overrides.Set("network", "card", m.network_card == GDOX_NETWORK_CARD_NE2000 ? "ne2000" : "none");
+
+    if ((m.network_base != b.network_base) && (find_network_base(m.network_base) >= 0))
+    {
+        char port[8];
+        snprintf(port, sizeof(port), "%X", m.network_base);
+        overrides.Set("network", "port", port);
+    }
+
+    if ((m.network_irq != b.network_irq) && (find_network_irq(m.network_irq) >= 0))
+        overrides.Set("network", "irq", std::to_string(m.network_irq).c_str());
+
     if (m.mouse != b.mouse)
         overrides.Set("input", "mouse", k_mice[m.mouse].id);
 
@@ -903,6 +916,16 @@ bool emu_game_save_image_descriptor(const char* image, std::string* path, std::s
     out.Set("sound", "dma", std::to_string(machine.sound_dma).c_str());
     out.Set("sound", "mpu", k_mpus[machine.mpu]);
     out.Set("sound", "gus", machine.gus ? "on" : "off");
+
+    if (machine.network_card == GDOX_NETWORK_CARD_NE2000)
+    {
+        char port[8];
+        snprintf(port, sizeof(port), "%X", machine.network_base);
+        out.Set("network", "card", "ne2000");
+        out.Set("network", "port", port);
+        out.Set("network", "irq", std::to_string(machine.network_irq).c_str());
+    }
+
     out.Set("input", "mouse", k_mice[machine.mouse].id);
     out.SetKeys(emu_get_core()->GetKeyMap()->GetMerged());
 
@@ -1244,6 +1267,9 @@ void emu_game_config_to_settings(const config_Machine& machine, GDOX_Machine_Set
     settings->cdrom_speed = machine.cdrom_speed;
     settings->drive_timing = machine.drive_timing;
     settings->speed_mode = machine.turbo ? 1 : 0;
+    settings->network_card = machine.network_card;
+    settings->network_base = machine.network_base;
+    settings->network_irq = machine.network_irq;
 }
 
 static void overlay_settings(config_Machine* machine, const GDOX_Machine_Settings& game)
@@ -1268,6 +1294,9 @@ static void overlay_settings(config_Machine* machine, const GDOX_Machine_Setting
     machine->cdrom_speed = game.cdrom_speed >= 0 ? game.cdrom_speed : machine->cdrom_speed;
     machine->drive_timing = game.drive_timing >= 0 ? game.drive_timing : machine->drive_timing;
     machine->turbo = game.speed_mode >= 0 ? game.speed_mode != 0 : machine->turbo;
+    machine->network_card = game.network_card >= 0 ? game.network_card : machine->network_card;
+    machine->network_base = game.network_base > 0 ? game.network_base : machine->network_base;
+    machine->network_irq = game.network_irq > 0 ? game.network_irq : machine->network_irq;
 }
 
 // The menus show the game's machine: the descriptor and its overrides over the user's. The base leaves out the

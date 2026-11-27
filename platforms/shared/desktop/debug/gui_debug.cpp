@@ -164,6 +164,9 @@ void gui_debug_windows(void)
         if (config_debug.show_parallel_port)
             gui_debug_window_parallel_port();
 
+        if (config_debug.show_network_card)
+            gui_debug_window_network_card();
+
         if (config_debug.show_keyboard)
             gui_debug_window_keyboard();
 

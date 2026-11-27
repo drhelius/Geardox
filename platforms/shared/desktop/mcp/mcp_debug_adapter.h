@@ -144,7 +144,11 @@ static const McpTraceFilter k_mcp_trace_filters[] =
     { "voodoo.commands", TRACE_VOODOO, TRACE_VOODOO_EVENT_COMMANDS },
     { "voodoo.culled", TRACE_VOODOO, TRACE_VOODOO_EVENT_CULLED },
     { "voodoo.overflows", TRACE_VOODOO, TRACE_VOODOO_EVENT_OVERFLOWS },
-    { "voodoo.lfb_reads", TRACE_VOODOO, TRACE_VOODOO_EVENT_LFB_READS }
+    { "voodoo.lfb_reads", TRACE_VOODOO, TRACE_VOODOO_EVENT_LFB_READS },
+    { "net.frames", TRACE_NET, TRACE_NET_EVENT_FRAMES },
+    { "net.control", TRACE_NET, TRACE_NET_EVENT_CONTROL },
+    { "net.writes", TRACE_NET, TRACE_NET_EVENT_WRITES },
+    { "net.reads", TRACE_NET, TRACE_NET_EVENT_READS }
 };
 
 static const int k_mcp_trace_filter_count = sizeof(k_mcp_trace_filters) / sizeof(k_mcp_trace_filters[0]);
@@ -278,6 +282,7 @@ public:
     json GetRTCStatus();
     json GetKeyboardStatus();
     json GetSerialStatus();
+    json GetNetworkStatus();
     json GetParallelStatus();
     json GetCRTCStatus();
     json GetCGACRTCStatus(json result);

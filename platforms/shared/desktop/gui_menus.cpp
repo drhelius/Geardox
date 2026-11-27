@@ -104,6 +104,9 @@ static bool menu_machine_fpu(const GDOX_Machine_Profile& profile);
 static bool menu_machine_sound(void);
 static bool menu_machine_video(void);
 static bool menu_machine_mouse(void);
+static bool menu_machine_network(void);
+static bool menu_machine_network_choice(const char* name, const char* id, const char* key, int count, const int* values,
+    const char* const* labels, int* setting, int base, bool enabled);
 static bool menu_machine_cdrom_drive(void);
 static bool menu_machine_cdrom_speed(void);
 static bool menu_machine_drive_timing(void);
@@ -912,6 +915,9 @@ static void menu_machine(void)
     if (menu_machine_mouse())
         changed = true;
 
+    if (menu_machine_network())
+        changed = true;
+
     ImGui::Separator();
 
     if (menu_machine_floppy(0))
@@ -1624,6 +1630,114 @@ static bool menu_machine_video(void)
     return changed;
 }
 
+static bool menu_machine_network(void)
+{
+    int source = emu_game_get_source("network", "card");
+    int resource_source = MAX(emu_game_get_source("network", "port"), emu_game_get_source("network", "irq"));
+
+    if (!begin_game_menu("Network Card", MAX(source, resource_source)))
+        return false;
+
+    static const char* const k_cards[GDOX_NETWORK_CARD_COUNT] = { "None", "NE2000 (ISA)" };
+    static const int k_card_values[GDOX_NETWORK_CARD_COUNT] = { GDOX_NETWORK_CARD_NONE, GDOX_NETWORK_CARD_NE2000 };
+    static const int k_bases[4] = { 0x300, 0x320, 0x340, 0x360 };
+    static const char* const k_base_labels[4] = { "300h", "320h, shares 330h with the MPU-401", "340h",
+        "360h, shares 376h with IDE and 378h with LPT1" };
+    static const int k_irqs[8] = { 10, 11, 3, 4, 5, 9, 12, 15 };
+    static const char* const k_irq_labels[8] = { "IRQ 10", "IRQ 11", "IRQ 3, shared with COM2", "IRQ 4, shared with COM1",
+        "IRQ 5, shared with the sound card", "IRQ 9, shared with video and the MPU-401", "IRQ 12, shared with the PS/2 mouse",
+        "IRQ 15, shared with IDE" };
+
+    const config_Machine* base = emu_game_get_base_machine();
+    bool changed = false;
+
+    if (menu_machine_network_choice(NULL, "##machine_network_card", "card", GDOX_NETWORK_CARD_COUNT, k_card_values,
+        k_cards, &menu_settings->network_card, base->network_card, true))
+        changed = true;
+
+    ImGui::Separator();
+
+    bool card = menu_settings->network_card != GDOX_NETWORK_CARD_NONE;
+
+    if (menu_machine_network_choice("Port", "##machine_network_port", "port", 4, k_bases, k_base_labels,
+        &menu_settings->network_base, base->network_base, card))
+        changed = true;
+
+    if (menu_machine_network_choice("IRQ", "##machine_network_irq", "irq", 8, k_irqs, k_irq_labels,
+        &menu_settings->network_irq, base->network_irq, card))
+        changed = true;
+
+    ImGui::EndMenu();
+    return changed;
+}
+
+static bool menu_machine_network_choice(const char* name, const char* id, const char* key, int count, const int* values,
+    const char* const* labels, int* setting, int base, bool enabled)
+{
+    int source = emu_game_get_source("network", key);
+
+    if (IsValidPointer(name) && !begin_game_menu(name, source, enabled))
+        return false;
+
+    bool changed = false;
+    int selected = 0;
+    int base_index = 0;
+
+    for (int i = 0; i < count; i++)
+    {
+        if (*setting == values[i])
+            selected = i;
+
+        if (base == values[i])
+            base_index = i;
+    }
+
+    char game_default[96];
+    get_game_default_label(labels[base_index], game_default, sizeof(game_default));
+    float text_width = ImGui::CalcTextSize(game_default).x;
+
+    for (int i = 0; i < count; i++)
+        text_width = MAX(text_width, ImGui::CalcTextSize(labels[i]).x);
+
+    ImGui::PushItemWidth(gui_get_combo_width(text_width));
+
+    if (begin_game_combo(id, labels[selected], source))
+    {
+        if (game_default_item(game_default, source))
+        {
+            *setting = base;
+            changed = true;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (ImGui::Selectable(labels[i], selected == i))
+            {
+                *setting = values[i];
+                changed = true;
+            }
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Network > Host or Join connects the card to other machines.");
+        ImGui::Text("The disks Geardox makes load its DOS drivers at this port and IRQ.");
+        ImGui::Text("Reset the emulator to apply changes.");
+        gui_draw_game_source_tooltip(source);
+        ImGui::EndTooltip();
+    }
+
+    ImGui::PopItemWidth();
+
+    if (IsValidPointer(name))
+        ImGui::EndMenu();
+
+    return changed;
+}
+
 static bool menu_machine_mouse(void)
 {
     int source = emu_game_get_source("input", "mouse");
@@ -2047,14 +2161,18 @@ static void get_machine_hardware(const GDOX_Machine_Config& config, char* text, 
 
     const char* mpu_text = config.mpu == GDOX_MPU_INTELLIGENT ? "MPU-401" :
         config.mpu == GDOX_MPU_UART ? "MPU-401 UART" : "none";
+    char network[48] = "none";
+
+    if (config.network_card == GDOX_NETWORK_CARD_NE2000)
+        snprintf(network, sizeof(network), "NE2000, %Xh, IRQ %u", config.network_base, config.network_irq);
 
     snprintf(text, text_size, "Model: %s, %s (%s)\nCPU: %s at %u MHz\nFPU: %s\nRAM: %u MB, %s address bus\n"
-        "Bus: %u MHz, %s slots\nVideo: %s, %u %s\nSound: %s\nMIDI: %s\nMouse: %s\nHard disks: %s\nCD-ROM: %s\n"
+        "Bus: %u MHz, %s slots\nVideo: %s, %u %s\nSound: %s\nMIDI: %s\nMouse: %s\nNetwork: %s\nHard disks: %s\nCD-ROM: %s\n"
         "Floppy drives: %s\nDrive timing: %s", profile.name, profile.models, profile.released,
         k_machine_cpus[config.cpu].name, config.cpu_clock_rate / 1000000, fpu, config.ram_size / (1024 * 1024),
         k_machine_memory_maps[profile.map].name, profile.bus_clock_rate / 1000000, slots, video.name,
         video_kb >= 1024 ? video_kb / 1024 : video_kb, video_kb >= 1024 ? "MB" : "KB", sound_text,
-        mpu_text, config.mouse == GDOX_MOUSE_NONE ? "none" : k_mice[config.mouse].name,
+        mpu_text, config.mouse == GDOX_MOUSE_NONE ? "none" : k_mice[config.mouse].name, network,
         config.ide ? "IDE" : "none", cdrom, config.floppy_drives > 0 ? floppies : "none",
         k_drive_timings[config.drive_timing < GDOX_DRIVE_TIMING_COUNT ? config.drive_timing : 0].name);
 }
@@ -3634,6 +3752,7 @@ static void menu_debug(void)
             ImGui::MenuItem("Show Mouse and Joystick", "", &config_debug.show_mouse_joystick);
             ImGui::MenuItem("Show Serial Ports", "", &config_debug.show_serial_ports);
             ImGui::MenuItem("Show Parallel Port", "", &config_debug.show_parallel_port);
+            ImGui::MenuItem("Show Network Card", "", &config_debug.show_network_card);
             ImGui::EndMenu();
         }
 

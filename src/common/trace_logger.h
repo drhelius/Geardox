@@ -51,6 +51,7 @@ enum GDOX_Trace_Type : u8
     TRACE_SYSTEM,
     TRACE_GUS,
     TRACE_VOODOO,
+    TRACE_NET,
     TRACE_MARK,
     TRACE_TYPE_COUNT
 };
@@ -78,6 +79,7 @@ static_assert(TRACE_TYPE_COUNT < 32, "Trace category flags exceed 32 bits");
 #define TRACE_FLAG_SYSTEM           (1U << TRACE_SYSTEM)
 #define TRACE_FLAG_GUS              (1U << TRACE_GUS)
 #define TRACE_FLAG_VOODOO           (1U << TRACE_VOODOO)
+#define TRACE_FLAG_NET              (1U << TRACE_NET)
 #define TRACE_FLAG_MARK             (1U << TRACE_MARK)
 
 #define TRACE_ENTRY_NEXT_PC         0x0001
@@ -391,6 +393,34 @@ enum GDOX_Trace_Voodoo_Command : u8
 #define TRACE_VOODOO_EVENT_LFB_READS (1U << TRACE_VOODOO_LFB_READ)
 #define TRACE_VOODOO_EVENT_ALL       (TRACE_VOODOO_EVENT_COMMANDS | TRACE_VOODOO_EVENT_CULLED | \
     TRACE_VOODOO_EVENT_OVERFLOWS | TRACE_VOODOO_EVENT_LFB_READS)
+
+enum GDOX_Trace_Net_Event : u8
+{
+    TRACE_NET_WRITE = 0,
+    TRACE_NET_TRANSMIT,
+    TRACE_NET_RECEIVE,
+    TRACE_NET_DROP,
+    TRACE_NET_IRQ,
+    TRACE_NET_DMA,
+    TRACE_NET_RESET,
+    TRACE_NET_READ
+};
+
+enum GDOX_Trace_Net_Drop : u8
+{
+    TRACE_NET_DROP_STOPPED = 0,
+    TRACE_NET_DROP_ADDRESS,
+    TRACE_NET_DROP_RUNT,
+    TRACE_NET_DROP_MONITOR,
+    TRACE_NET_DROP_OVERFLOW
+};
+
+#define TRACE_NET_EVENT_WRITES       (1U << TRACE_NET_WRITE)
+#define TRACE_NET_EVENT_FRAMES       ((1U << TRACE_NET_TRANSMIT) | (1U << TRACE_NET_RECEIVE) | (1U << TRACE_NET_DROP))
+#define TRACE_NET_EVENT_CONTROL      ((1U << TRACE_NET_IRQ) | (1U << TRACE_NET_DMA) | (1U << TRACE_NET_RESET))
+#define TRACE_NET_EVENT_READS        (1U << TRACE_NET_READ)
+#define TRACE_NET_EVENT_DEFAULT      (TRACE_NET_EVENT_FRAMES | TRACE_NET_EVENT_CONTROL)
+#define TRACE_NET_EVENT_ALL          (TRACE_NET_EVENT_DEFAULT | TRACE_NET_EVENT_WRITES | TRACE_NET_EVENT_READS)
 
 enum GDOX_Trace_MIDI_Event : u8
 {
@@ -942,6 +972,26 @@ struct GDOX_Trace_Entry
             u8 command;
             u8 buffer;
         } voodoo;
+
+        struct
+        {
+            u16 length;
+            u16 type;
+            u16 address;
+            u16 count;
+            u8 reg;
+            u8 value;
+            u8 page;
+            u8 cr;
+            u8 isr;
+            u8 imr;
+            u8 bnry;
+            u8 curr;
+            u8 status;
+            u8 reason;
+            u8 destination[6];
+            u8 source[6];
+        } net;
 
         struct
         {

@@ -32,6 +32,8 @@
 #include "system/serial_ports.h"
 #include "system/uart.h"
 #include "system/parallel_port.h"
+#include "network/ne2000.h"
+#include "network/network_port.h"
 #include "system/machine_profiles.h"
 #include "../config.h"
 #include "../emu.h"
@@ -130,6 +132,180 @@ void gui_debug_window_parallel_port(void)
         draw_flag("INIT", (control & 0x04) == 0); ImGui::SameLine(0.0f, space);
         draw_flag("SEL", (control & 0x08) != 0); ImGui::SameLine(0.0f, space);
         draw_flag("IRQ", (control & 0x10) != 0);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::PopFont();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+void gui_debug_window_network_card(void)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
+    ImGui::SetNextWindowPos(ImVec2(300, 239), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(470, 520), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Network Card", &config_debug.show_network_card);
+
+    ImGui::PushFont(gui_default_font);
+
+    NE2000* card = emu_get_core()->GetNE2000();
+    NetworkPort* port = emu_get_core()->GetNetworkPort();
+    NE2000::NE2000_State* state = card->GetState();
+    float character = ImGui::CalcTextSize("0").x;
+    float space = ImGui::CalcTextSize(" ").x;
+    ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
+
+    if (!card->IsEnabled())
+    {
+        ImGui::TextColored(gray, "NO NETWORK CARD");
+        ImGui::PopFont();
+        ImGui::End();
+        ImGui::PopStyleVar();
+        return;
+    }
+
+    const u8* mac = card->GetAddress();
+    ImGui::TextColored(cyan, "NE2000 $%03X IRQ %u", card->GetBase(), card->GetIRQ()); ImGui::SameLine(0.0f, space * 2);
+    ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("##ne2000", 2, flags))
+    {
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 8);
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 44);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("CR");
+        ImGui::TextColored(white, "$%02X", state->cr); ImGui::SameLine(0.0f, space);
+        draw_flag("STP", (state->cr & 0x01) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("STA", (state->cr & 0x02) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("TXP", (state->cr & 0x04) != 0); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(gray, "RD%u PAGE %u", (state->cr >> 3) & 0x07, state->cr >> 6);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("ISR");
+        ImGui::TextColored(white, "$%02X", state->isr); ImGui::SameLine(0.0f, space);
+        draw_flag("PRX", (state->isr & 0x01) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("PTX", (state->isr & 0x02) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("RXE", (state->isr & 0x04) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("TXE", (state->isr & 0x08) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("OVW", (state->isr & 0x10) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("CNT", (state->isr & 0x20) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("RDC", (state->isr & 0x40) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("RST", (state->isr & 0x80) != 0);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("IMR");
+        ImGui::TextColored(white, "$%02X", state->imr); ImGui::SameLine(0.0f, space);
+        draw_flag("IRQ", state->irq);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("DCR");
+        ImGui::TextColored(white, "$%02X", state->dcr); ImGui::SameLine(0.0f, space);
+        draw_flag("WTS", (state->dcr & 0x01) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("LS", (state->dcr & 0x08) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("AR", (state->dcr & 0x10) != 0);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("TCR");
+        ImGui::TextColored(white, "$%02X", state->tcr); ImGui::SameLine(0.0f, space);
+        ImGui::TextColored(gray, "LOOPBACK %u", (state->tcr >> 1) & 0x03); ImGui::SameLine(0.0f, space);
+        draw_flag("CRC", (state->tcr & 0x01) != 0);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("RCR");
+        ImGui::TextColored(white, "$%02X", state->rcr); ImGui::SameLine(0.0f, space);
+        draw_flag("AR", (state->rcr & 0x02) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("AB", (state->rcr & 0x04) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("AM", (state->rcr & 0x08) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("PRO", (state->rcr & 0x10) != 0); ImGui::SameLine(0.0f, space);
+        draw_flag("MON", (state->rcr & 0x20) != 0);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("TSR RSR");
+        ImGui::TextColored(white, "$%02X $%02X", state->tsr, state->rsr);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("RING");
+        ImGui::TextColored(white, "PSTART $%02X PSTOP $%02X BNRY $%02X CURR $%02X", state->pstart, state->pstop,
+            state->bnry, state->curr);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("TX");
+        ImGui::TextColored(white, "TPSR $%02X TBCR $%04X", state->tpsr, state->tbcr);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("DMA");
+        ImGui::TextColored(white, "RSAR $%04X RBCR $%04X CLDA $%04X", state->rsar, state->rbcr, state->clda);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("PAR");
+        ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", state->par[0], state->par[1], state->par[2],
+            state->par[3], state->par[4], state->par[5]);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("MAR");
+        ImGui::TextColored(white, "%02X %02X %02X %02X %02X %02X %02X %02X", state->mar[0], state->mar[1],
+            state->mar[2], state->mar[3], state->mar[4], state->mar[5], state->mar[6], state->mar[7]);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("CNTR");
+        ImGui::TextColored(white, "%u %u %u", state->cntr[0], state->cntr[1], state->cntr[2]);
+
+        const NE2000::NE2000_Counters* counters = card->GetCounters();
+        const NetworkPort::NetworkPort_Stats* stats = port->GetStats();
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("FRAMES");
+        ImGui::TextColored(white, "SENT %u RECEIVED %u", counters->sent, counters->received);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("DROPPED");
+        ImGui::TextColored(white, "FILTER %u RUNT %u RING %u QUEUE %u", counters->filtered, counters->runts,
+            counters->overflows, stats->dropped_received);
+
+        ImGui::TableNextRow();
+        gui_debug_grid_label("QUEUED");
+        ImGui::TextColored(white, "IN %d OUT %d", port->GetReceivedCount(), port->GetSentCount());
+
+        ImGui::EndTable();
+    }
+
+    ImGui::NewLine();
+    ImGui::TextColored(cyan, "LAST FRAMES"); ImGui::Separator();
+
+    int count = 0;
+    int next = 0;
+    const NE2000::NE2000_Frame* history = card->GetHistory(&count, &next);
+
+    if (ImGui::BeginTable("##ne2000_frames", 5, flags))
+    {
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 3);
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 5);
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 5);
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 18);
+        ImGui::TableSetupColumn(NULL, ImGuiTableColumnFlags_WidthFixed, character * 18);
+
+        for (int i = 0; i < count; i++)
+        {
+            const NE2000::NE2000_Frame& frame = history[(next - 1 - i + NE2000_HISTORY) % NE2000_HISTORY];
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(frame.sent ? orange : green, "%s", frame.sent ? "TX" : "RX");
+            ImGui::TableNextColumn();
+            ImGui::TextColored(white, "%u", frame.length);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(violet, "%04X", frame.type);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", frame.source[0], frame.source[1],
+                frame.source[2], frame.source[3], frame.source[4], frame.source[5]);
+            ImGui::TableNextColumn();
+            ImGui::TextColored(white, "%02X:%02X:%02X:%02X:%02X:%02X", frame.destination[0], frame.destination[1],
+                frame.destination[2], frame.destination[3], frame.destination[4], frame.destination[5]);
+        }
 
         ImGui::EndTable();
     }
