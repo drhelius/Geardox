@@ -126,6 +126,9 @@ int application_init(const ApplicationParams& params)
         return 3;
     }
 
+    if (params.mcp_mode >= 0)
+        config_debug.debug = true;
+
     if (!gui_init())
     {
         Error("Failed to initialize GUI");
@@ -162,7 +165,6 @@ int application_init(const ApplicationParams& params)
         else
             Log("Auto-starting MCP server (mode: http, address: %s, port: %d)...", mcp_http_address, params.mcp_tcp_port);
 
-        config_debug.debug = true;
         emu_mcp_set_transport(params.mcp_mode, params.mcp_tcp_port, mcp_http_address);
         emu_mcp_start();
     }

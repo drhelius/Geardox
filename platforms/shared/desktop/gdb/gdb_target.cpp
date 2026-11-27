@@ -786,7 +786,9 @@ std::string GdbTarget::Monitor(const std::string& command)
         text = emu_dev_relaunch() ? "relaunching the game\n" : "no game is open\n";
     else if (name == "reset")
     {
+        emu_debug_override_start(true);
         emu_reset();
+        emu_debug_clear_start_override();
         text = "reset\n";
     }
     else if (name == "screen")
