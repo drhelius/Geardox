@@ -450,7 +450,7 @@ void gui_game_loaded(void)
 
     gui_notify(gui_NotificationInfo, ICON_MD_VIDEOGAME_ASSET, emu_game_get_name(), NULL, "power");
 
-    if (config_emulator.start_paused)
+    if (config_emulator.start_paused && !config_debug.debug)
         emu_pause();
 }
 

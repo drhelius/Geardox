@@ -98,7 +98,7 @@ Start every session by checking `debug_get_status` (powered on, paused, mode) an
 - A CD image (`.cue`, `.chd`, `.iso`) goes in the ATAPI CD-ROM drive. A floppy image (`.img`, `.ima`, `.vfd`, `.flp`, `.dsk`, `.d77`, `.d88`, `.hdm`, `.xdf`, `.mfm`, `.m3u` or `.zip`) goes in drive 0, or use `insert_floppy` for drive 0 or 1. A hard disk image (`.hdd`, `.h0`-`.h3`, `.img` or `.hdm` over 8 MB, a fixed `.vhd`, a hard disk `.chd`) attaches to its IDE slot or the first free one and powers on an empty machine; `attach_hard_disk` also takes a folder or ZIP as a FAT16 disk and can `create_size_mb` a blank one.
 - With nothing attached, the built-in DOS disks (FreeDOS, or MS-DOS once imported) boot to a DOS prompt, handy for running a program by hand with `keyboard_type`.
 
-`get_media_info` confirms what is loaded and `list_recent_media` lists recently opened images. `debug_reset` takes an optional `boot` (`floppy1`, `floppy2`, `hard_disk`, `cdrom`) to pick the boot device for one reset.
+`get_media_info` confirms what is loaded and `list_recent_media` lists recently opened images. `debug_reset` takes an optional `boot` (`floppy1`, `floppy2`, `hard_disk`, `cdrom`) to pick the boot device for one reset. The machine runs after a load or reset unless the emulator's Start Paused setting is on; pass `stop_at_start: true` to `debug_reset`, or to a `load_media` that starts the machine, to stop before the first instruction, and read `paused` in the answer.
 
 Load symbols with `load_symbols` (a text file with `ADDRESS NAME` or `NAME = ADDRESS` per line, GNU `nm` output, GNU ld and NASM maps) or add individual labels with `add_symbol`. A `.sym` file beside a CD or floppy image loads with it.
 
@@ -247,7 +247,7 @@ Use screenshots after stepping or continuing to see the visual impact of changes
 
 ### Finding the Boot Path
 
-1. `load_media` with a floppy, CD or `.gdox` and `debug_pause` immediately, or `debug_reset` with `boot` to pick the boot device. The CPU starts at the reset vector (FFFFFFF0h) in the System BIOS and jumps into the BIOS copy below 1 MB
+1. `debug_reset` with `stop_at_start: true`, and `boot` to pick the boot device, or `load_media` a `.gdox` with `stop_at_start: true`. The CPU stops at the reset vector (FFFFFFF0h) in the System BIOS, before it jumps into the BIOS copy below 1 MB
 2. `get_bios_log` — SeaBIOS's POST messages and which devices it tried to boot, in order (floppy, hard disk, CD-ROM)
 3. `get_disassembly` at `CS:EIP`, and set an execution breakpoint at `0000:7C00` to catch the boot sector after SeaBIOS loads it through INT 19h
 4. `set_trace_log` with `filters: ["cpu.software_ints", "system.post", "fdc", "ide"]` to see the INT 13h reads and the controller commands behind them

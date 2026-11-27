@@ -822,6 +822,7 @@ bool emu_power_on(void)
     notify_machine();
     emu_floppy_check_drives();
     reset_run_state();
+    emu_debug_start_paused(config_emulator.start_paused);
     update_savestates_data();
     return true;
 }
@@ -850,6 +851,7 @@ void emu_reset(void)
     notify_machine();
     emu_floppy_check_drives();
     reset_run_state();
+    emu_debug_start_paused(config_emulator.start_paused);
 }
 
 bool emu_cdrom_playlist_load(const char* path, bool* floppies)
@@ -1340,6 +1342,11 @@ void emu_debug_continue(void)
 {
     emu_debug_command = Debug_Command_Continue;
     emu_resume();
+}
+
+void emu_debug_start_paused(bool paused)
+{
+    emu_debug_command = (config_debug.debug && !paused) ? Debug_Command_Continue : Debug_Command_None;
 }
 
 void emu_update_joystick_type(void)

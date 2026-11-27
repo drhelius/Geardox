@@ -1178,7 +1178,7 @@ static bool finish_loading_rom(void)
     {
         emu_reset();
 
-        if (config_emulator.start_paused)
+        if (config_emulator.start_paused && !config_debug.debug)
             emu_pause();
     }
 

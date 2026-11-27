@@ -466,7 +466,8 @@ json McpServer::BuildToolList()
                     {"type", "string"},
                     {"description", "Boot device: a floppy drive, the hard disks or the CD-ROM."},
                     {"enum", json::array({"floppy1", "floppy2", "hard_disk", "cdrom"})}
-                }}
+                }},
+                {"stop_at_start", {{"type", "boolean"}, {"description", "Stop in the debugger before the first instruction; the answer's paused tells. Default: the Start Paused setting."}}}
             }},
             {"additionalProperties", false}
         }));
@@ -1582,7 +1583,8 @@ json McpServer::BuildToolList()
             {"properties", {
                 {"file_path", {{"type", "string"}, {"description", "Absolute path."}}},
                 {"target", {{"type", "string"}, {"enum", json::array({"game", "voodoo", "setup", "prompt", "debug"})},
-                    {"description", "For a game descriptor: what runs at boot. Default game, the program the game's choice names. voodoo runs its 3dfx program with the 3dfx Voodoo fitted, for this session. debug runs the game's program through GDXDBG, reporting it to the program tools."}}}
+                    {"description", "For a game descriptor: what runs at boot. Default game, the program the game's choice names. voodoo runs its 3dfx program with the 3dfx Voodoo fitted, for this session. debug runs the game's program through GDXDBG, reporting it to the program tools."}}},
+                {"stop_at_start", {{"type", "boolean"}, {"description", "When the load starts the machine, stop in the debugger before the first instruction; the answer's paused tells. Default: the Start Paused setting."}}}
             }},
             {"required", json::array({"file_path"})},
             {"additionalProperties", false}
@@ -2843,7 +2845,7 @@ json McpServer::ExecuteCommand(const std::string& toolName, const json& argument
     }
     else if (normalizedTool == "debug_reset")
     {
-        return m_debugAdapter.Reset(arguments.value("boot", ""));
+        return m_debugAdapter.Reset(arguments.value("boot", ""), arguments.value("stop_at_start", json()));
     }
     else if (normalizedTool == "debug_get_status")
     {
