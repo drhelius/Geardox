@@ -122,7 +122,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - Save states (5 slots), rewind and run-ahead.
 - AVI video recording, screenshots and VGM recording (OPL2, OPL3).
 - Standalone: Windows, Linux, BSD and macOS.
-- Libretro: Windows, Linux, macOS, Raspberry Pi, Android, iOS, tvOS, webOS, PlayStation 3, Nintendo GameCube, Nintendo WiiU, Nintendo Switch, Emscripten, Classic Mini systems (NES, SNES, C64, ...), OpenDingux, RetroFW and QNX.
+- Libretro: Windows, Linux, macOS, Raspberry Pi, Android, iOS, tvOS, webOS, PlayStation 3, Nintendo GameCube, Nintendo WiiU, Nintendo Switch, Nintendo Switch 2, Emscripten, Classic Mini systems (NES, SNES, C64, ...), OpenDingux, RetroFW and QNX.
 - Full debugger:
   - Just-in-time disassembler, call stack, debug symbols and automatic labels.
   - Execute, data, I/O and interrupt breakpoints.
