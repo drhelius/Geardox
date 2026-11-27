@@ -3887,7 +3887,8 @@ static void draw_mcp_status(void)
     bool gdb_running = emu_gdb_is_running();
     char net_status[64];
     bool net_running = gui_network_get_status(net_status, sizeof(net_status));
-    ImVec4 net_color = emu_net_is_connected() ? service_mcp_http_color : service_mcp_stdio_color;
+    ImVec4 net_color;
+    gui_network_get_status_color(&net_color);
 
     if (!video_recording && !vgm_recording && !mcp_running && !gdb_running && !net_running)
         return;

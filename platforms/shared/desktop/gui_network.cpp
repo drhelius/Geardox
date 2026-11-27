@@ -33,8 +33,9 @@
 #include "net/net_session.h"
 #include "net/net_socket.h"
 
-static const GuiColor& network_connected_color = green;
-static const GuiColor& network_waiting_color = amber;
+static const GuiColor& network_connected_color = cornflower;
+static const GuiColor& network_joining_color = violet;
+static const GuiColor& network_stopped_color = red;
 static bool open_add_card = false;
 static int pending_action = 0;
 static char address_text[256] = "";
@@ -43,10 +44,16 @@ static char password_text[64] = "";
 static bool texts_loaded = false;
 
 static void start_action(int action);
-static void draw_state(NetSession* session);
-static void draw_machines(NetSession* session);
-static void draw_settings(bool active);
-static void draw_host_addresses(void);
+static void menu_machines(NetSession* session);
+static void menu_host(bool active);
+static void menu_join(bool active);
+static void menu_name(bool active);
+static void menu_host_addresses(void);
+static void menu_recent(void);
+static void menu_max_machines(void);
+static void draw_port(void);
+static void draw_password(void);
+static void draw_status(NetSession* session);
 static void load_texts(void);
 
 void gui_network_menu(void)
@@ -67,27 +74,35 @@ void gui_network_menu(void)
     ImGui::Separator();
 #endif
 
-    if (ImGui::MenuItem("Host", NULL, false, !active))
+    if (ImGui::MenuItem("Host Session", NULL, false, !active))
         start_action(1);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Other machines join this one on the port below.\nFor play over the internet, forward this "
-            "port (TCP and UDP)\nin the router to this computer.");
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text("Other machines join this one on the host port.");
+        ImGui::Text("Over the internet, forward that port (TCP and UDP)");
+        ImGui::Text("in the router to this computer.");
+        ImGui::EndTooltip();
+    }
 
-    if (ImGui::MenuItem("Join", NULL, false, !active))
+    if (ImGui::MenuItem("Join Session", NULL, false, !active))
         start_action(2);
 
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Joins the machine hosting at the address and port below.");
+        ImGui::SetTooltip("Joins the machine hosting at the join address and port.");
 
-    if (ImGui::MenuItem("Leave", NULL, false, active))
+    if (ImGui::MenuItem("Leave Session", NULL, false, active))
         emu_net_leave();
 
     ImGui::Separator();
-    draw_state(session);
-    draw_machines(session);
+    menu_machines(session);
     ImGui::Separator();
-    draw_settings(active);
+    menu_host(active);
+    menu_join(active);
+    menu_name(active);
+    ImGui::Separator();
+    draw_status(session);
 
     ImGui::EndMenu();
 }
@@ -136,6 +151,11 @@ bool gui_network_get_status(char* text, int size)
     return emu_net_get_bar_text(text, size);
 }
 
+void gui_network_get_status_color(ImVec4* color)
+{
+    *color = emu_net_is_connected() ? network_connected_color : network_joining_color;
+}
+
 static void start_action(int action)
 {
     config_network.address = address_text;
@@ -155,39 +175,9 @@ static void start_action(int action)
         emu_net_join();
 }
 
-static void draw_state(NetSession* session)
+static void menu_machines(NetSession* session)
 {
-    switch (session->GetState())
-    {
-        case NET_SESSION_CONNECTING:
-            ImGui::TextColored(network_waiting_color, "Joining %s", session->GetHostText());
-            break;
-        case NET_SESSION_CONNECTED:
-            if (session->GetMode() == NET_SESSION_HOST)
-                ImGui::TextColored(network_connected_color, "Hosting on port %u", session->GetPort());
-            else
-                ImGui::TextColored(network_connected_color, "Joined %s", session->GetHostText());
-
-            ImGui::TextDisabled("Machine %d of %d", session->GetMachine(), session->GetMachineCount());
-
-            if (!emu_net_has_device())
-                ImGui::TextColored(network_waiting_color, "This machine has no network card");
-            break;
-        case NET_SESSION_FAILED:
-            ImGui::TextColored(red, "%s", session->GetError());
-            break;
-        default:
-            ImGui::TextColored(red, "Not connected");
-            break;
-    }
-}
-
-static void draw_machines(NetSession* session)
-{
-    if (session->GetState() != NET_SESSION_CONNECTED)
-        return;
-
-    if (!ImGui::BeginMenu("Machines"))
+    if (!ImGui::BeginMenu("Machines", session->GetState() == NET_SESSION_CONNECTED))
         return;
 
     ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX;
@@ -202,16 +192,16 @@ static void draw_machines(NetSession* session)
                 continue;
 
             bool own = i == session->GetMachine();
+            const char* name = own && !config_network.name.empty() ? config_network.name.c_str() : peer->name;
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::TextColored(own ? network_connected_color : white, "%d", i);
             ImGui::TableNextColumn();
-            ImGui::TextColored(own ? network_connected_color : white, "%s", own ? config_network.name.empty() ?
-                peer->name : config_network.name.c_str() : peer->name);
+            ImGui::TextColored(own ? network_connected_color : white, "%s", name);
             ImGui::TableNextColumn();
 
             if (own)
-                ImGui::TextDisabled("this machine");
+                ImGui::TextDisabled("This machine");
             else if (peer->rtt_ms >= 0)
                 ImGui::TextDisabled("%d ms", peer->rtt_ms);
             else
@@ -224,106 +214,74 @@ static void draw_machines(NetSession* session)
     ImGui::EndMenu();
 }
 
-static void draw_settings(bool active)
+static void menu_host(bool active)
 {
-    ImGui::BeginDisabled(active);
+    if (!ImGui::BeginMenu("Host"))
+        return;
 
+    ImGui::BeginDisabled(active);
+    draw_port();
+    draw_password();
+    menu_max_machines();
+    ImGui::EndDisabled();
+    ImGui::Separator();
+    menu_host_addresses();
+
+    ImGui::EndMenu();
+}
+
+static void menu_join(bool active)
+{
+    if (!ImGui::BeginMenu("Join"))
+        return;
+
+    ImGui::BeginDisabled(active);
     ImGui::Text("Address:");
-    ImGui::SameLine(90.0f);
-    ImGui::SetNextItemWidth(170.0f);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("255.255.255.255").x * 1.6f);
 
     if (ImGui::InputTextWithHint("##network_address", "127.0.0.1", address_text, sizeof(address_text),
         ImGuiInputTextFlags_AutoSelectAll))
         config_network.address = address_text;
 
-    ImGui::Text("Port:");
-    ImGui::SameLine(90.0f);
-    ImGui::SetNextItemWidth(60.0f);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The host's address, or its name.");
 
-    if (ImGui::InputInt("##network_port", &config_network.port, 0, 0))
-        config_network.port = CLAMP(config_network.port, 1, 65535);
-
-    if (ImGui::BeginMenu("Recent", config_network.recent[0].length() > 0))
-    {
-        for (int i = 0; i < config_max_recent_hosts; i++)
-        {
-            if (config_network.recent[i].length() == 0)
-                break;
-
-            if (ImGui::MenuItem(config_network.recent[i].c_str()))
-            {
-                std::string recent = config_network.recent[i];
-                size_t colon = recent.rfind(':');
-                std::string host = colon == std::string::npos ? recent : recent.substr(0, colon);
-                strncpy_fit(address_text, host.c_str(), sizeof(address_text));
-                config_network.address = host;
-
-                if (colon != std::string::npos)
-                    config_network.port = CLAMP(atoi(recent.substr(colon + 1).c_str()), 1, 65535);
-            }
-        }
-
-        ImGui::EndMenu();
-    }
-
+    draw_port();
+    draw_password();
     ImGui::Separator();
+    menu_recent();
+    ImGui::EndDisabled();
 
-    ImGui::Text("Name:");
-    ImGui::SameLine(90.0f);
-    ImGui::SetNextItemWidth(170.0f);
+    ImGui::EndMenu();
+}
+
+static void menu_name(bool active)
+{
+    if (!ImGui::BeginMenu("Name"))
+        return;
+
+    ImGui::BeginDisabled(active);
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("WWWWWWWWWWWWWWWW").x);
 
     if (ImGui::InputTextWithHint("##network_name", GDOX_TITLE, name_text, sizeof(name_text),
         ImGuiInputTextFlags_AutoSelectAll))
         config_network.name = name_text;
 
-    ImGui::Text("Password:");
-    ImGui::SameLine(90.0f);
-    ImGui::SetNextItemWidth(170.0f);
-
-    if (ImGui::InputTextWithHint("##network_password", "none", password_text, sizeof(password_text),
-        ImGuiInputTextFlags_Password | ImGuiInputTextFlags_AutoSelectAll))
-        config_network.password = password_text;
-
-    if (ImGui::BeginMenu("Max Machines"))
-    {
-        char label[16];
-        snprintf(label, sizeof(label), "%d", config_network.machines);
-        float text_width = ImGui::CalcTextSize("8").x;
-        ImGui::PushItemWidth(gui_get_combo_width(text_width));
-
-        if (ImGui::BeginCombo("##network_machines_limit", label))
-        {
-            for (int i = 2; i <= NET_SWITCH_MACHINES; i++)
-            {
-                snprintf(label, sizeof(label), "%d", i);
-
-                if (ImGui::Selectable(label, config_network.machines == i))
-                    config_network.machines = i;
-            }
-
-            ImGui::EndCombo();
-        }
-        else if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The most machines a hosted session lets in, this one included.");
-
-        ImGui::PopItemWidth();
-        ImGui::EndMenu();
-    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("How the other machines list this one.");
 
     ImGui::EndDisabled();
-    draw_host_addresses();
+    ImGui::EndMenu();
 }
 
-static void draw_host_addresses(void)
+static void menu_host_addresses(void)
 {
-    if (!ImGui::BeginMenu("Host Addresses"))
+    if (!ImGui::BeginMenu("Addresses"))
         return;
 
     u32 addresses[NET_SOCKET_ADDRESSES];
     int count = emu_net_get_local_addresses(addresses, NET_SOCKET_ADDRESSES);
-
-    if (count == 0)
-        ImGui::TextDisabled("No network");
 
     for (int i = 0; i < count; i++)
     {
@@ -338,11 +296,127 @@ static void draw_host_addresses(void)
             gui_notify(gui_NotificationInfo, ICON_MD_CONTENT_COPY, "Copied", item, "network",
                 gui_NotificationDurationShort);
         }
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::BeginTooltip();
+            ImGui::Text("Copies this address for the joining machines.");
+            ImGui::Text("Over the internet, they need the router's public address.");
+            ImGui::EndTooltip();
+        }
     }
 
-    ImGui::Separator();
-    ImGui::TextDisabled("Over the internet, give the router's public address");
+    if (count == 0)
+        ImGui::TextColored(network_stopped_color, "No network");
+
     ImGui::EndMenu();
+}
+
+static void menu_recent(void)
+{
+    if (!ImGui::BeginMenu("Recent Hosts", config_network.recent[0].length() > 0))
+        return;
+
+    for (int i = 0; i < config_max_recent_hosts; i++)
+    {
+        if (config_network.recent[i].length() == 0)
+            break;
+
+        if (ImGui::MenuItem(config_network.recent[i].c_str()))
+        {
+            std::string recent = config_network.recent[i];
+            size_t colon = recent.rfind(':');
+            std::string host = colon == std::string::npos ? recent : recent.substr(0, colon);
+            strncpy_fit(address_text, host.c_str(), sizeof(address_text));
+            config_network.address = host;
+
+            if (colon != std::string::npos)
+                config_network.port = CLAMP(atoi(recent.substr(colon + 1).c_str()), 1, 65535);
+        }
+    }
+
+    ImGui::EndMenu();
+}
+
+static void menu_max_machines(void)
+{
+    if (!ImGui::BeginMenu("Max Machines"))
+        return;
+
+    char label[16];
+    snprintf(label, sizeof(label), "%d", config_network.machines);
+    ImGui::PushItemWidth(gui_get_combo_width(ImGui::CalcTextSize("8").x));
+
+    if (ImGui::BeginCombo("##network_machines_limit", label))
+    {
+        for (int i = 2; i <= NET_SWITCH_MACHINES; i++)
+        {
+            snprintf(label, sizeof(label), "%d", i);
+
+            if (ImGui::Selectable(label, config_network.machines == i))
+                config_network.machines = i;
+        }
+
+        ImGui::EndCombo();
+    }
+    else if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The most machines the session lets in, this one included.");
+
+    ImGui::PopItemWidth();
+    ImGui::EndMenu();
+}
+
+static void draw_port(void)
+{
+    ImGui::Text("Port:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("000000").x + (ImGui::GetStyle().FramePadding.x * 2.0f));
+
+    if (ImGui::InputInt("##network_port", &config_network.port, 0, 0))
+        config_network.port = CLAMP(config_network.port, 1, 65535);
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("TCP and UDP, the same on the host and the joining machines.");
+}
+
+static void draw_password(void)
+{
+    ImGui::Text("Password:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("WWWWWWWWWWWW").x);
+
+    if (ImGui::InputTextWithHint("##network_password", "None", password_text, sizeof(password_text),
+        ImGuiInputTextFlags_Password | ImGuiInputTextFlags_AutoSelectAll))
+        config_network.password = password_text;
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The host's password; joining machines need the same.");
+}
+
+static void draw_status(NetSession* session)
+{
+    switch (session->GetState())
+    {
+        case NET_SESSION_CONNECTING:
+            ImGui::TextColored(network_joining_color, "Joining %s", session->GetHostText());
+            break;
+        case NET_SESSION_CONNECTED:
+            if (!emu_net_has_device())
+                ImGui::TextColored(network_stopped_color, "This machine has no network card");
+            else if (session->GetMode() == NET_SESSION_HOST)
+                ImGui::TextColored(network_connected_color, "Hosting on port %u, %d of %d machines", session->GetPort(),
+                    session->GetMachineCount(), session->GetMaxMachines());
+            else
+                ImGui::TextColored(network_connected_color, "Machine %d of %d on %s", session->GetMachine(),
+                    session->GetMachineCount(), session->GetHostText());
+            break;
+        case NET_SESSION_FAILED:
+            ImGui::TextColored(network_stopped_color, "%s", session->GetError());
+            break;
+        default:
+            ImGui::TextColored(network_stopped_color, "No session");
+            break;
+    }
 }
 
 static void load_texts(void)

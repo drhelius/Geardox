@@ -20,6 +20,8 @@
 #ifndef GUI_NETWORK_H
 #define GUI_NETWORK_H
 
+#include "imgui.h"
+
 #ifdef GUI_NETWORK_IMPORT
     #define EXTERN
 #else
@@ -29,6 +31,7 @@
 EXTERN void gui_network_menu(void);
 EXTERN void gui_network_popups(void);
 EXTERN bool gui_network_get_status(char* text, int size);
+EXTERN void gui_network_get_status_color(ImVec4* color);
 
 #undef GUI_NETWORK_IMPORT
 #undef EXTERN
