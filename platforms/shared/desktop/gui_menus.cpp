@@ -1771,7 +1771,7 @@ static bool menu_machine_network_choice(const char* name, const char* id, const 
         }
         else
         {
-            ImGui::Text("Network > Host or Join connects the card to other machines.");
+            ImGui::Text("Network > Host Session or Join Session connects the card to other machines.");
             ImGui::Text("The disks Geardox makes load its DOS drivers at this port and IRQ.");
         }
 

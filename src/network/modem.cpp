@@ -296,7 +296,10 @@ void Modem::Execute(const char* line, u64 clocks)
         {
             case 'Z':
                 read_number(&p);
-                HangUp(true, clocks);
+
+                if (m_state.mode != MODEM_RINGING)
+                    HangUp(true, clocks);
+
                 Factory();
                 break;
             case '&':
@@ -326,7 +329,7 @@ void Modem::Execute(const char* line, u64 clocks)
                 m_state.verbose = read_number(&p) != 0;
                 break;
             case 'H':
-                if (read_number(&p) == 0)
+                if ((read_number(&p) == 0) && (m_state.mode != MODEM_RINGING))
                     HangUp(true, clocks);
                 break;
             case 'S':
