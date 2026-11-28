@@ -96,7 +96,7 @@ void config_init(bool force_portable)
 
     config_root_path = root_path;
 
-    char temp_root_path[512];
+    char temp_root_path[GDOX_MAX_PATH];
     strncpy_fit(temp_root_path, config_root_path, sizeof(temp_root_path));
     strncat_fit(temp_root_path, "tmp/", sizeof(temp_root_path));
     create_directory_if_not_exists(temp_root_path);
@@ -539,7 +539,7 @@ static char* get_portable_path(bool force_portable)
 
 static bool check_portable(const char* base_path)
 {
-    char portable_file_path[512];
+    char portable_file_path[GDOX_MAX_PATH];
 
     if (base_path == NULL)
         return false;
