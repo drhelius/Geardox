@@ -863,7 +863,7 @@ then loads KEYB with it in each game's `AUTOEXEC.BAT`, on FreeDOS or MS-DOS, fro
 upper memory when there is some, and costs no conventional memory then.
 
 On FreeDOS with `memory = none` or `xms`, the default, there's no upper memory, and FreeDOS's KEYB would leave about
-30K of conventional memory unusable. Geardox loads MKEYB there instead, a FreeDOS keyboard driver that uses about 1K.
+40K of conventional memory unusable. Geardox loads MKEYB there instead, a FreeDOS keyboard driver that uses about 1K.
 It types letters, digits and accents as KEYB does, but on several layouts it lacks some AltGr symbols, such as `~` on
 Spanish and Italian, `{ [ ] }` on Italian and Swiss, or `| @` on Swedish and Finnish, and it shows a few accented
 capitals and symbols, such as `€`, as other characters. When a game's setup needs those, use `memory = umb`: KEYB
@@ -893,20 +893,23 @@ menu. KEYB loads into upper memory there too.
 Upper memory lets DOS load drivers outside the conventional memory area used by many games. `umb` and `ems`
 use V86 mode and provide VCPI; if a game refuses V86 mode, try `xms` or `none`.
 
-Free conventional memory for a game, with the mouse and CD drivers loaded:
+Free conventional memory for a game, with the mouse and CD drivers loaded. When DOS loads high, GDXPAD holds the
+memory below 32K, so games start above it as on a PC with a few more drivers in low memory:
 
 | `memory` | FreeDOS | MS-DOS 6.22 | MS-DOS 5.0 |
 | --- | --- | --- | --- |
 | `none` | 498 KB | 567 KB | 568 KB |
-| `xms` | 606 KB | 585 KB | 606 KB |
-| `umb` | 620 KB | 615 KB | 603 KB |
-| `ems` | 620 KB | 615 KB | 609 KB |
+| `xms` | 597 KB | 576 KB | 598 KB |
+| `umb` | 601 KB | 608 KB | 602 KB |
+| `ems` | 601 KB | 608 KB | 608 KB |
 
-`ems_kb = N` is a request for enough memory, not a cap on the EMS DOS exposes. Available EMS is RAM minus about
-1.5 MB on either DOS, with another 1 MB reserved when using at least 16 MB of RAM and a Cirrus card. On MS-DOS,
-extended memory stops below that 1 MB, so EMS doesn't grow past about 13.5 MB however much RAM there is. An explicit
-`ram_mb` setting prevents automatic RAM selection, and an explicit `memory` setting takes precedence over the mode
-implied by `ems_kb`.
+`ems_kb = N` is a request for enough memory, not a cap on the EMS DOS exposes, except on MS-DOS 5.0, whose EMM386
+sets aside exactly that much. Available EMS is RAM minus about 1.5 MB on either DOS. With at least 16 MB of RAM, the
+ISA and VL-Bus Cirrus cards also take the 2 MB below 16 MB, or the 1 MB below it on a Pentium, and MS-DOS's extended
+memory stops below them: with one of those cards, MS-DOS's EMS doesn't grow past about 12.5 MB however much RAM there
+is, 13.5 MB on a Pentium. The Pentiums' PCI card takes nothing. MS-DOS 5.0's extended memory stops below 16 MB on any
+machine, and FreeDOS's EMS at 32 MB. An explicit `ram_mb` setting prevents automatic RAM selection, and an explicit
+`memory` setting takes precedence over the mode implied by `ems_kb`.
 
 ### Files on the DOS C: Drive
 
@@ -916,7 +919,7 @@ With `folder = C:\ORION`, the prepared drive contains, on FreeDOS:
 C:\KERNEL.SYS     FreeDOS kernel
 C:\CONFIG.SYS     DOS configuration generated from the descriptor
 C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
-C:\FREEDOS\BIN    DOS commands, drivers and tools
+C:\FREEDOS\BIN    DOS commands, drivers and tools, Geardox's among them
 C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```
@@ -932,10 +935,11 @@ C:\CONFIG.SYS     DOS configuration generated from the descriptor
 C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
 C:\DOS            Everything MS-DOS Setup installs there
 C:\GEARDOX        Geardox's tools: the mouse and CD drivers, the network card's packet and IPX drivers, the
-                  programs that start the game and power off, GDXIDLE.SYS, which rests the PC while DOS waits
-                  for a key as FreeDOS's IDLEHALT does, GDXPAD.COM, which keeps conventional memory up to 32K
-                  so DOS extenders load above it, as on a PC with a few more drivers in low memory, and Enhanced
-                  DOSKEY, which loads when the game leaves you at the prompt
+                  programs that start the game and power off, GDXGUS.COM, which sets up the Gravis UltraSound,
+                  GDXDBG.COM, which runs programs for the debugger, GDXIDLE.SYS, which rests the PC while DOS
+                  waits for a key as FreeDOS's IDLEHALT does, GDXPAD.COM, which holds the memory below 32K so
+                  DOS extenders load above it, and Enhanced DOSKEY, which loads when the game leaves you at the
+                  prompt
 C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```
@@ -955,8 +959,8 @@ descriptor's from the next time the game opens.
 
 With `folder = C:\`, game files share the root of C: with DOS. Game entries named like DOS's own files or folders
 are left out, including a game's own `CONFIG.SYS` and `AUTOEXEC.BAT`. Using a named game folder avoids that overlap.
-A game folder can't be one of DOS's folders: `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`, nor `ULTRASND` with the Gravis
-UltraSound on.
+A game folder can't be one of DOS's folders: `FREEDOS`, `DOS`, `GEARDOX` or `TEMP`. With the Gravis UltraSound on
+and its software imported, `C:\ULTRASND` is the software's, and a game's own `ULTRASND` there is left out.
 
 For a game designed to boot directly from a floppy, set `floppy_a = disk.img` under `[drives]` and `boot = a` under
 `[run]`.
@@ -968,9 +972,11 @@ Then it writes each change where it belongs, all within the game's `<name>.<id>`
 `folder` back into the game's folder, or into `Saves` when they don't go back; the rest of C: into `C`; and DOS's own
 files into `FreeDOS` or `MS-DOS`. Extra hard disks made from folders with `hdd_primary_slave` or `hdd_secondary_slave`
 are written back into those folders the same way, and a ZIP's or a read-only folder's changes go to its own folder in
-the Save Files folder. Disk images keep their changes in the images.
+the Save Files folder. Disk images keep their changes in the images, except a `.chd`, or an image whose saves go to
+the Save Files folder: those work on a copy, `C.hdd`.
 
-In `Saves`, a `.deleted` file lists the files the game removed, so they stay removed the next time it runs. New files
+In `Saves`, and in `FreeDOS` or `MS-DOS`, a `.deleted` file lists the files the game removed, so they stay removed
+the next time it runs. New files
 take their DOS names; changed files keep their names on your computer.
 
 Change the game's folder on your computer only while the game is closed. Geardox doesn't look at it again until the

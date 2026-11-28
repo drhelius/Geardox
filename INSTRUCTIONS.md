@@ -204,7 +204,7 @@ Both come ready for games, with the same `CONFIG.SYS` and `AUTOEXEC.BAT` for the
 
 - The mouse driver and the CD-ROM driver load at every boot.
 - `BLASTER` is set for the default Sound Blaster 16 (`A220 I5 D1 H5 P330`).
-- Extended memory (XMS) and upper memory are on, and the drivers load high: about 615K is free on MS-DOS and 620K
+- Extended memory (XMS) and upper memory are on, and the drivers load high: about 608K is free on MS-DOS and 601K
   on FreeDOS. A program that won't run with a memory manager runs from a `.gdox` with `memory = xms`; see
   [Memory](GDOX_README.md#memory).
 - KEYB loads your layout from **DOS > Keyboard Layout**, when it isn't United States. The disk takes the layout chosen
