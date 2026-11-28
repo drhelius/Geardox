@@ -248,6 +248,32 @@ inline bool is_safe_zip_entry_name(const char* name)
     }
 }
 
+#if !defined(__LIBRETRO__)
+inline bool create_file_exclusive_utf8(const char* path, const void* data, size_t size)
+{
+#if defined(_WIN32)
+    HANDLE file = CreateFileW(utf8_to_wstring(path).c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (file == INVALID_HANDLE_VALUE)
+        return false;
+
+    DWORD written = 0;
+    bool ok = (WriteFile(file, data, (DWORD)size, &written, NULL) != 0) && (written == (DWORD)size);
+    CloseHandle(file);
+    return ok;
+#else
+    int file = open(path, O_WRONLY | O_CREAT | O_EXCL, 0644);
+
+    if (file < 0)
+        return false;
+
+    bool ok = write(file, data, size) == (ssize_t)size;
+    close(file);
+    return ok;
+#endif
+}
+#endif
+
 inline std::string get_temp_directory()
 {
 #if defined(_WIN32)

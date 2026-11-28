@@ -363,11 +363,27 @@ bool MediaFile::IsLockedElsewhere(const char* path)
 
 bool MediaFile::TakeLock(const char* path)
 {
-    if (IsLockedElsewhere(path))
+    std::string text;
+    bool existed = ReadFile(path, k_media_file_no_limit, &text, true);
+    unsigned long self = get_process_id();
+    unsigned long owner = existed ? strtoul(text.c_str(), NULL, 10) : 0;
+
+    if (existed && (owner != self) && is_process_running(owner))
         return false;
 
-    std::string pid = format_string("%lu\n", get_process_id());
-    return MakeDirectories(path_directory(path).c_str()) && WriteFileAtomic(path, pid.data(), pid.size());
+    std::string pid = format_string("%lu\n", self);
+
+    if (!MakeDirectories(path_directory(path).c_str()))
+        return false;
+
+#if defined(__LIBRETRO__)
+    return WriteFileAtomic(path, pid.data(), pid.size());
+#else
+    if (existed)
+        RemoveFile(path);
+
+    return create_file_exclusive_utf8(path, pid.data(), pid.size());
+#endif
 }
 
 void MediaFile::RemoveTree(const char* path)

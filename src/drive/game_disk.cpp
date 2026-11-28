@@ -764,11 +764,10 @@ bool GameDisk::TakeMachineSlot()
         {
             std::string lock = path_join(temp, format_string("geardox-%s-%d.lock", key.c_str(), slot));
 
-            if (MediaFile::IsLockedElsewhere(lock.c_str()))
-                continue;
-
             if (MediaFile::TakeLock(lock.c_str()))
                 m_source_lock = lock;
+            else if (MediaFile::IsLockedElsewhere(lock.c_str()))
+                continue;
         }
 
         m_machine_slot = slot;
