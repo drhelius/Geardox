@@ -113,7 +113,7 @@ static void reset_buffers(void);
 static void set_debug_start_state(void);
 static void reset_run_state(void);
 static void gdb_program_event(void* context, u8 type);
-static const char* get_configurated_dir(int option, const char* path);
+static const char* get_savestates_dir(void);
 static void get_video_recording_size(const GDOX_Runtime_Info& runtime, int* width, int* height);
 static void reset_rewind_timing(void);
 static double get_rewind_pop_seconds(void);
@@ -507,17 +507,19 @@ void emu_load_media_async(const char* file_path)
     loading_thread_active = true;
 }
 
-std::string emu_get_save_folder(const char* content)
+std::string emu_get_save_folder(Save_Folder folder, const char* content)
 {
-    switch ((Directory_Location)config_emulator.savefiles_dir_option)
-    {
-        case Directory_Location_ROM:
-            return IsValidPointer(content) ? path_directory(content) : std::string(config_root_path);
-        case Directory_Location_Custom:
-            return config_emulator.savefiles_path;
-        default:
-            return config_root_path;
-    }
+    static const char* const k_save_folders[] = { "Games", "Disks", "CMOS", "Key Maps" };
+    Directory_Location location = (Directory_Location)config_emulator.savefiles_dir_option;
+
+    if ((location == Directory_Location_ROM) && (folder == Save_Folder_Disks) && IsValidPointer(content) &&
+        (content[0] != 0))
+        return path_directory(content);
+
+    std::string path = location == Directory_Location_Custom ? config_emulator.savefiles_path :
+        std::string(config_default_save_files_path);
+    append_path_component(path, k_save_folders[folder]);
+    return path;
 }
 
 void emu_load_task_async(void (*task)(void))
@@ -1102,10 +1104,11 @@ bool emu_save_state_slot(int index)
     if (emu_is_empty())
         return false;
 
-    const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
+    const char* dir = get_savestates_dir();
     char path[GDOX_MAX_PATH];
-    bool saved = get_state_path(index, path, sizeof(path)) ? geardox->SaveState(path, -1, true) :
-        geardox->SaveState(dir, index, true);
+    bool has_path = get_state_path(index, path, sizeof(path));
+    MediaFile::MakeDirectories(has_path ? path_directory(path).c_str() : dir);
+    bool saved = has_path ? geardox->SaveState(path, -1, true) : geardox->SaveState(dir, index, true);
 
     update_savestates_data();
     return saved;
@@ -1116,7 +1119,7 @@ bool emu_load_state_slot(int index)
     if (emu_is_empty())
         return false;
 
-    const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
+    const char* dir = get_savestates_dir();
     char path[GDOX_MAX_PATH];
 
     if (get_state_path(index, path, sizeof(path)))
@@ -1178,7 +1181,7 @@ void update_savestates_data(void)
 
     for (int i = 0; i < 5; i++)
     {
-        const char* dir = get_configurated_dir(config_emulator.savestates_dir_option, config_emulator.savestates_path.c_str());
+        const char* dir = get_savestates_dir();
         char path[GDOX_MAX_PATH];
         int index = i + 1;
 
@@ -2167,21 +2170,21 @@ static void reset_run_state(void)
     rewind_reset();
 }
 
-static const char* get_configurated_dir(int location, const char* path)
+static const char* get_savestates_dir(void)
 {
-    switch ((Directory_Location)location)
+    switch ((Directory_Location)config_emulator.savestates_dir_option)
     {
         default:
         case Directory_Location_Default:
-            return config_root_path;
+            return config_default_save_states_path;
         case Directory_Location_ROM:
 #if defined(GDOX_ENABLE_PHYSICAL_CDROM)
             if (geardox->GetMedia()->IsPhysicalCdRom())
-                return config_root_path;
+                return config_default_save_states_path;
 #endif
             return NULL;
         case Directory_Location_Custom:
-            return path;
+            return config_emulator.savestates_path.c_str();
     }
 }
 
@@ -2244,10 +2247,10 @@ static bool get_state_path(int index, char* path, size_t path_size)
 
     std::string folder = emu_get_content_folder();
     std::string name = emu_get_content_name(true);
-    const char* directory = config_root_path;
+    const char* directory = config_default_save_states_path;
 
     if ((Directory_Location)config_emulator.savestates_dir_option == Directory_Location_ROM)
-        directory = folder.empty() ? config_root_path : folder.c_str();
+        directory = folder.empty() ? config_default_save_states_path : folder.c_str();
     else if ((Directory_Location)config_emulator.savestates_dir_option == Directory_Location_Custom)
         directory = config_emulator.savestates_path.c_str();
 
@@ -2354,19 +2357,12 @@ static std::string get_key_map_path(std::string* title)
     if (content[0] == '\0')
         return "";
 
-    const char* directory = get_configurated_dir(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str());
-    char folder[GDOX_MAX_PATH];
+    std::string directory = emu_get_save_folder(Save_Folder_Key_Maps, NULL);
     char name[GDOX_MAX_PATH];
     char path[GDOX_MAX_PATH];
 
-    if (!IsValidPointer(directory))
-    {
-        get_directory(content, folder, sizeof(folder));
-        directory = folder;
-    }
-
     get_filename_without_extension(content, name, sizeof(name));
-    join_path(directory, (std::string(name) + ".keys").c_str(), path, sizeof(path));
+    join_path(directory.c_str(), (std::string(name) + ".keys").c_str(), path, sizeof(path));
 
     std::string global = get_global_key_map_path();
 
@@ -2381,10 +2377,9 @@ static std::string get_key_map_path(std::string* title)
 
 static std::string get_global_key_map_path(void)
 {
-    const char* directory = get_configurated_dir(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str());
     char path[GDOX_MAX_PATH];
 
-    join_path(IsValidPointer(directory) ? directory : config_root_path, "PC.keys", path, sizeof(path));
+    join_path(emu_get_save_folder(Save_Folder_Key_Maps, NULL).c_str(), "PC.keys", path, sizeof(path));
     return path;
 }
 
@@ -2396,6 +2391,9 @@ static void save_key_map(void)
 
     for (int i = 0; i < 2; i++)
     {
+        if (key_map->IsChanged(layers[i]) && !key_map->IsLayerEmpty(layers[i]) && !paths[i]->empty())
+            MediaFile::MakeDirectories(path_directory(*paths[i]).c_str());
+
         if (key_map->SaveFile(layers[i], paths[i]->c_str()))
             continue;
 
@@ -2406,14 +2404,10 @@ static void save_key_map(void)
 
 static bool get_cmos_path(int model, char* path, size_t path_size)
 {
-    const char* directory = get_configurated_dir(config_emulator.savefiles_dir_option, config_emulator.savefiles_path.c_str());
     char file_name[GDOX_MAX_PATH];
 
-    if (!IsValidPointer(directory))
-        directory = config_root_path;
-
-    snprintf(file_name, sizeof(file_name), "%s.geardox.cmos", k_machine_profiles[model].key);
-    return join_path(directory, file_name, path, path_size);
+    snprintf(file_name, sizeof(file_name), "%s.cmos", k_machine_profiles[model].key);
+    return join_path(emu_get_save_folder(Save_Folder_CMOS, NULL).c_str(), file_name, path, path_size);
 }
 
 static void load_cmos(int model)
@@ -2436,6 +2430,7 @@ static void save_cmos(void)
     if ((cmos_model < 0) || !get_cmos_path(cmos_model, path, sizeof(path)))
         return;
 
+    MediaFile::MakeDirectories(path_directory(path).c_str());
     GDOX_CMOS_File_Result result = geardox->SaveCMOSFileIfChanged(path);
 
     if (result == GDOX_CMOS_FILE_FAILED)

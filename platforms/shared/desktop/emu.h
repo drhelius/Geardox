@@ -86,6 +86,14 @@ enum Directory_Location
     Directory_Location_Custom = 2
 };
 
+enum Save_Folder
+{
+    Save_Folder_Games = 0,
+    Save_Folder_Disks,
+    Save_Folder_CMOS,
+    Save_Folder_Key_Maps
+};
+
 EXTERN u8* emu_frame_buffer;
 EXTERN GDOX_SaveState_Header emu_savestates[5];
 EXTERN GDOX_SaveState_Screenshot emu_savestates_screenshots[5];
@@ -114,7 +122,7 @@ EXTERN void emu_destroy(void);
 EXTERN void emu_update(void);
 EXTERN void emu_load_media_async(const char* file_path);
 EXTERN void emu_load_task_async(void (*task)(void));
-EXTERN std::string emu_get_save_folder(const char* content);
+EXTERN std::string emu_get_save_folder(Save_Folder folder, const char* content);
 EXTERN std::string emu_get_content_folder(void);
 EXTERN std::string emu_get_content_name(bool unique);
 EXTERN void emu_load_game_async(void);

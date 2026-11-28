@@ -633,7 +633,8 @@ bool GameDisk::IsGameContent(const char* path)
 }
 
 bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, const char* temp_directory, bool settings,
-    bool write_to_folder, const char* msdos_path, const char* ultrasnd_path, const char* glide_path)
+    bool write_to_folder, const char* msdos_path, const char* ultrasnd_path, const char* glide_path,
+    const char* disks_directory)
 {
     Close();
     m_error.clear();
@@ -643,6 +644,8 @@ bool GameDisk::Open(const GameDisk_Found& found, const char* save_directory, con
     m_glide_path = (IsValidPointer(glide_path) && MediaFile::Exists(glide_path)) ? std::string(glide_path) : std::string();
     m_descriptor_path = found.path;
     m_save_directory = IsValidPointer(save_directory) ? trim_trailing_separators(save_directory) : std::string();
+    m_disks_directory = (IsValidPointer(disks_directory) && (disks_directory[0] != 0)) ?
+        trim_trailing_separators(disks_directory) : m_save_directory;
     m_temp_directory = IsValidPointer(temp_directory) ? trim_trailing_separators(temp_directory) : std::string();
 
     if (found.inner.compare(0, strlen(k_game_disk_database), k_game_disk_database) == 0)
@@ -813,6 +816,7 @@ void GameDisk::Close()
     m_descriptor_path.clear();
     m_base_directory.clear();
     m_save_directory.clear();
+    m_disks_directory.clear();
     m_temp_directory.clear();
     m_folder.clear();
     m_overrides_path.clear();
@@ -1214,7 +1218,7 @@ bool GameDisk::Prepare(const GDOX_Machine_Config& machine)
             continue;
 
         std::string error;
-        m_hard_disk_sources[i] = FolderDisk::OpenSource(m_hard_disks[i].c_str(), m_save_directory.c_str(),
+        m_hard_disk_sources[i] = FolderDisk::OpenSource(m_hard_disks[i].c_str(), m_disks_directory.c_str(),
             m_temp_directory.c_str(), &error);
 
         if (!IsValidPointer(m_hard_disk_sources[i]))

@@ -366,8 +366,11 @@ void gui_debug_auto_save_settings(void)
 
     std::string path = get_auto_debug_settings_path();
 
-    if (!path.empty())
-        gui_debug_save_settings(path.c_str());
+    if (path.empty())
+        return;
+
+    MediaFile::MakeDirectories(config_debug_path);
+    gui_debug_save_settings(path.c_str());
 }
 
 void gui_debug_auto_load_settings(void)
@@ -573,7 +576,7 @@ static std::string get_auto_debug_settings_path(void)
 
     filename += ".gdoxdebug";
 
-    std::string path = config_root_path;
+    std::string path = config_debug_path;
     append_path_component(path, filename.c_str());
     return path;
 }

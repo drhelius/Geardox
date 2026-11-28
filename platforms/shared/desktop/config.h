@@ -37,6 +37,12 @@ enum config_Operation
 
 EXTERN const char* config_root_path;
 EXTERN char config_temp_path[512];
+EXTERN char config_system_path[512];
+EXTERN char config_default_save_files_path[512];
+EXTERN char config_default_save_states_path[512];
+EXTERN char config_default_screenshots_path[512];
+EXTERN char config_default_video_recordings_path[512];
+EXTERN char config_debug_path[512];
 EXTERN char config_emu_file_path[512];
 EXTERN char config_imgui_file_path[512];
 

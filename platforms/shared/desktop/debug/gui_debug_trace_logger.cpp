@@ -655,7 +655,7 @@ static void trace_logger_menu(void)
             {
                 default:
                 case Directory_Location_Default:
-                    ImGui::Text("%s", config_root_path);
+                    ImGui::Text("%s", config_debug_path);
                     break;
                 case Directory_Location_ROM:
                     if (!emu_is_empty())
@@ -1064,7 +1064,7 @@ static bool trace_logger_start_disk(void)
     if (!trace_logger_apply_capacity())
         return false;
 
-    const char* directory = config_root_path;
+    const char* directory = config_debug_path;
 
     switch ((Directory_Location)config_debug.trace_disk_dir_option)
     {
@@ -1082,6 +1082,8 @@ static bool trace_logger_start_disk(void)
         default:
             break;
     }
+
+    create_directory_tree_if_not_exists(directory);
 
     char date_time[32];
     get_file_date_time_string(time(NULL), date_time, sizeof(date_time));

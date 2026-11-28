@@ -71,7 +71,8 @@ public:
     static std::string GetFoundName(const GameDisk_Found& found);
     static std::string GetDosFolderName(const std::string& name);
     bool Open(const GameDisk_Found& found, const char* save_directory, const char* temp_directory, bool settings,
-        bool write_to_folder, const char* msdos_path, const char* ultrasnd_path, const char* glide_path = NULL);
+        bool write_to_folder, const char* msdos_path, const char* ultrasnd_path, const char* glide_path = NULL,
+        const char* disks_directory = NULL);
     void Close();
     bool IsOpen() const;
     bool IsImage() const;
@@ -156,6 +157,7 @@ private:
     std::string m_descriptor_path;
     std::string m_base_directory;
     std::string m_save_directory;
+    std::string m_disks_directory;
     std::string m_temp_directory;
     std::string m_folder;
     std::string m_disk_folder;

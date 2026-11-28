@@ -257,6 +257,7 @@ static void game_end(void);
 static bool game_rebuild(void);
 static void game_attach_hard_disks(bool folders_only);
 static std::string get_temp_path(void);
+static std::string get_save_folder(const char* folder);
 static void log_write_back(void);
 static bool disk_add_images(const char* path, std::vector<DiskSetImage>& images);
 static bool disk_add_cdrom(const char* path, std::vector<DiskSetImage>& images);
@@ -1781,14 +1782,14 @@ static void key_map_load(void)
     std::string error;
 
     key_map_path.clear();
-    global_key_map_path = retro_save_directory;
+    global_key_map_path = get_save_folder("Key Maps");
     append_path_component(global_key_map_path, "geardox.keys");
     key_mapper_was_open = false;
     key_mapping_was_enabled = true;
 
     if (retro_game_path[0] != 0)
     {
-        key_map_path = retro_save_directory;
+        key_map_path = get_save_folder("Key Maps");
         append_path_component(key_map_path, (safe_file_name(get_file_name(retro_game_path, true), "geardox") + ".keys").c_str());
         core->GetKeyMapper()->SetTitle(game_active ? game_disk.GetName() : get_file_name(retro_game_path, false).c_str());
     }
@@ -1817,8 +1818,14 @@ static void key_map_load(void)
 
 static void key_map_save(void)
 {
-    bool saved = core->GetKeyMap()->SaveFile(GDOX_KEY_MAP_USER, key_map_path.c_str());
-    saved = core->GetKeyMap()->SaveFile(GDOX_KEY_MAP_GLOBAL, global_key_map_path.c_str()) && saved;
+    KeyMap* key_map = core->GetKeyMap();
+
+    if ((key_map->IsChanged(GDOX_KEY_MAP_USER) && !key_map->IsLayerEmpty(GDOX_KEY_MAP_USER)) ||
+        (key_map->IsChanged(GDOX_KEY_MAP_GLOBAL) && !key_map->IsLayerEmpty(GDOX_KEY_MAP_GLOBAL)))
+        MediaFile::MakeDirectories(get_save_folder("Key Maps").c_str());
+
+    bool saved = key_map->SaveFile(GDOX_KEY_MAP_USER, key_map_path.c_str());
+    saved = key_map->SaveFile(GDOX_KEY_MAP_GLOBAL, global_key_map_path.c_str()) && saved;
 
     if (!saved)
     {
@@ -2746,11 +2753,13 @@ static bool disk_add_floppy_images(const char* path, std::vector<DiskSetImage>& 
 
 static bool disk_add_save_disk(const std::string& name, const char* label, const char* volume, std::vector<DiskSetImage>& images)
 {
-    std::string path(retro_save_directory);
+    std::string folder = get_save_folder("Disks");
+    std::string path(folder);
     append_path_component(path, name.c_str());
 
     if (!MediaFile::Exists(path.c_str()))
     {
+        MediaFile::MakeDirectories(folder.c_str());
         u32 size = 0;
         u8* blank = FloppyImage::CreateBlank(FLOPPY_BLANK_1440K, true, &size);
 
@@ -3280,7 +3289,7 @@ static bool floppy_load_image(unsigned index, int floppy)
         else
             snprintf(suffix, sizeof(suffix), ".%08X.geardox.d77", image.crc);
 
-        working = retro_save_directory;
+        working = get_save_folder("Disks");
         append_path_component(working, (get_file_name(image.path.c_str(), true) + suffix).c_str());
         data = file.data() + offset;
         source = data;
@@ -3312,8 +3321,12 @@ static bool floppy_flush(int floppy)
     if (!disk->IsInserted() || !disk->IsDirty())
         return true;
 
-    if (floppy_working_path[floppy].empty() ||
-        !MediaFile::WriteFileAtomic(floppy_working_path[floppy].c_str(), disk->GetImage(), disk->GetImageSize()))
+    if (floppy_working_path[floppy].empty())
+        return false;
+
+    MediaFile::MakeDirectories(path_directory(floppy_working_path[floppy]).c_str());
+
+    if (!MediaFile::WriteFileAtomic(floppy_working_path[floppy].c_str(), disk->GetImage(), disk->GetImageSize()))
         return false;
 
     disk->ClearDirty();
@@ -3369,7 +3382,7 @@ static bool hard_disk_attach(const char* path)
 
     std::string name = get_file_name(path, false);
     size_t dot = name.find_last_of('.');
-    std::string working = retro_save_directory;
+    std::string working = get_save_folder("Disks");
     std::string extension = ends_with_no_case(path, ".chd") ? ".hdd" : name.substr(dot);
     append_path_component(working, (safe_file_name(name.substr(0, dot), "geardox") + ".save" + extension).c_str());
 
@@ -3384,6 +3397,8 @@ static bool hard_disk_attach(const char* path)
             return false;
         }
     }
+
+    MediaFile::MakeDirectories(get_save_folder("Disks").c_str());
 
     if (!core->AttachHardDisk(id, path, false, working.c_str()))
     {
@@ -3408,7 +3423,7 @@ static bool hard_disk_attach_source(const char* path)
     }
 
     std::string error;
-    FolderDisk* disk = FolderDisk::OpenSource(path, retro_save_directory, get_temp_path().c_str(), &error);
+    FolderDisk* disk = FolderDisk::OpenSource(path, get_save_folder("Disks").c_str(), get_temp_path().c_str(), &error);
 
     if (!IsValidPointer(disk))
     {
@@ -3442,7 +3457,7 @@ static bool hard_disk_attach_source(const char* path)
 }
 
 // The user's own Setup disks in <system>/geardox/msdos are imported into the save directory, and again when they
-// change. With none there, msdos.zip goes and games and the built-in disk run on FreeDOS
+// change. With none there, MS-DOS.zip goes and games and the built-in disk run on FreeDOS
 static Import_Step import_msdos(const char* source, const char* zip, std::string* text)
 {
     DosImport import;
@@ -3522,7 +3537,7 @@ static Import_Step import_glide(const char* source, const char* ovl, std::string
 
 static std::string system_import(const Import_Source& import)
 {
-    std::string path(retro_save_directory);
+    std::string path = get_save_folder("System");
     std::string source(retro_system_directory);
     std::vector<std::string> folders;
     std::vector<std::string> files;
@@ -3539,6 +3554,7 @@ static std::string system_import(const Import_Source& import)
         return "";
     }
 
+    MediaFile::MakeDirectories(path_directory(path).c_str());
     std::string text;
     Import_Step step = import.run(source.c_str(), path.c_str(), &text);
     static char message[512];
@@ -3620,8 +3636,9 @@ static bool game_open(const char* path, bool* game)
 
     static char message[1024];
 
-    if (!game_disk.Open(found[pick], retro_save_directory, get_temp_path().c_str(), false, game_write_folder,
-        game_freedos_only ? "" : msdos_zip.c_str(), ultrasnd_zip.c_str(), glide_ovl.c_str()))
+    if (!game_disk.Open(found[pick], get_save_folder("Games").c_str(), get_temp_path().c_str(), false, game_write_folder,
+        game_freedos_only ? "" : msdos_zip.c_str(), ultrasnd_zip.c_str(), glide_ovl.c_str(),
+        get_save_folder("Disks").c_str()))
     {
         snprintf(message, sizeof(message), "%s", game_disk.GetError());
         show_message(message, 3, RETRO_LOG_ERROR);
@@ -3825,7 +3842,15 @@ static void log_write_back(void)
 
 static std::string get_temp_path(void)
 {
-    return path_join(retro_save_directory, "Geardox Temp");
+    return get_save_folder("Temp");
+}
+
+static std::string get_save_folder(const char* folder)
+{
+    std::string path(retro_save_directory);
+    append_path_component(path, "geardox");
+    append_path_component(path, folder);
+    return path;
 }
 
 static void hard_disk_attach_builtin(void)
@@ -3834,14 +3859,14 @@ static void hard_disk_attach_builtin(void)
         return;
 
     int system = ((dos_disk == 0) && !msdos_zip.empty()) ? (int)GDOX_GAME_SYSTEM_MSDOS : (int)GDOX_GAME_SYSTEM_FREEDOS;
-    std::string path(retro_save_directory);
+    std::string path = get_save_folder("System");
     append_path_component(path, system == GDOX_GAME_SYSTEM_MSDOS ? k_dos_disk_msdos : k_dos_disk_freedos);
 
     if ((!MediaFile::Exists(path.c_str()) && !hard_disk_make_builtin(path, system)) && (system == GDOX_GAME_SYSTEM_MSDOS))
     {
         show_message("Unable to make the built-in MS-DOS disk, FreeDOS booted instead", 3, RETRO_LOG_WARN);
         system = GDOX_GAME_SYSTEM_FREEDOS;
-        path = retro_save_directory;
+        path = get_save_folder("System");
         append_path_component(path, k_dos_disk_freedos);
     }
 
@@ -3858,6 +3883,7 @@ static void hard_disk_attach_builtin(void)
 static bool hard_disk_make_builtin(const std::string& path, int system)
 {
     std::string error;
+    MediaFile::MakeDirectories(path_directory(path).c_str());
 
     if (DosDisk::WriteBuiltin(path.c_str(), system, msdos_zip.c_str(), game_keyboard_layout, false, &error))
         return true;
@@ -3905,8 +3931,12 @@ static void cmos_load(void)
 
     cmos_shared_active = cmos_shared;
     cmos_idle_flush.Reset();
-    cmos_path = retro_save_directory;
-    append_path_component(cmos_path, (name + ".geardox.cmos").c_str());
+    cmos_path = get_save_folder("CMOS");
+
+    if (cmos_shared_active)
+        MediaFile::MakeDirectories(cmos_path.c_str());
+
+    append_path_component(cmos_path, (name + ".cmos").c_str());
 
     GDOX_CMOS_File_Result result = core->LoadCMOSFile(cmos_shared_active ? cmos_path.c_str() : NULL);
 

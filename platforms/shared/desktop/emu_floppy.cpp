@@ -739,7 +739,7 @@ static bool insert_entries(int drive, const std::vector<Floppy_Entry>& entries, 
 
 static std::string make_working_path(const char* source_path, u32 base_crc, int copy)
 {
-    std::string directory = emu_get_save_folder(source_path);
+    std::string directory = emu_get_save_folder(Save_Folder_Disks, source_path);
     char name[GDOX_MAX_PATH];
     char file_name[GDOX_MAX_PATH];
     char path[GDOX_MAX_PATH];
@@ -816,7 +816,12 @@ static bool write_working_copy(int drive, bool report_errors)
     if (!disk->IsInserted() || !disk->IsDirty())
         return true;
 
-    if (hosts[drive].working_path.empty() || !write_disk(disk, hosts[drive].working_path.c_str(), report_errors))
+    if (hosts[drive].working_path.empty())
+        return false;
+
+    MediaFile::MakeDirectories(path_directory(hosts[drive].working_path).c_str());
+
+    if (!write_disk(disk, hosts[drive].working_path.c_str(), report_errors))
         return false;
 
     disk->ClearDirty();

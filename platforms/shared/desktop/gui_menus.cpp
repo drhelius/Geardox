@@ -129,9 +129,10 @@ static bool begin_game_menu(const char* label, int source, bool enabled = true);
 static bool begin_game_combo(const char* id, const char* preview, int source);
 static void get_game_default_label(const char* value, char* label, size_t label_size);
 static bool game_default_item(const char* label, int source);
-static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media);
-static bool draw_directory_menu(const char* id, const char* locations, int* option, std::string* path, char* buffer,
-    int buffer_size, bool* choose, const char* about, bool media);
+static void draw_directory_tooltip(int option, const char* default_path, const char* custom, const char* about,
+    bool media);
+static bool draw_directory_menu(const char* id, const char* locations, int* option, const char* default_path,
+    std::string* path, char* buffer, int buffer_size, bool* choose, const char* about, bool media);
 static void menu_video(void);
 static void menu_input(void);
 static void menu_audio(void);
@@ -656,7 +657,8 @@ static void menu_cdrom(void)
     ImGui::EndMenu();
 }
 
-static void draw_directory_tooltip(int option, const char* custom, const char* about, bool media)
+static void draw_directory_tooltip(int option, const char* default_path, const char* custom, const char* about,
+    bool media)
 {
     if (!ImGui::IsItemHovered())
         return;
@@ -669,7 +671,7 @@ static void draw_directory_tooltip(int option, const char* custom, const char* a
     switch ((Directory_Location)option)
     {
         case Directory_Location_Default:
-            ImGui::Text("%s", config_root_path);
+            ImGui::Text("%s", default_path);
             break;
         case Directory_Location_ROM:
             if (!media)
@@ -687,8 +689,8 @@ static void draw_directory_tooltip(int option, const char* custom, const char* a
     ImGui::EndTooltip();
 }
 
-static bool draw_directory_menu(const char* id, const char* locations, int* option, std::string* path, char* buffer,
-    int buffer_size, bool* choose, const char* about, bool media)
+static bool draw_directory_menu(const char* id, const char* locations, int* option, const char* default_path,
+    std::string* path, char* buffer, int buffer_size, bool* choose, const char* about, bool media)
 {
     char combo_id[64];
     char path_id[64];
@@ -697,7 +699,7 @@ static bool draw_directory_menu(const char* id, const char* locations, int* opti
 
     ImGui::PushItemWidth(get_combo_items_width(locations));
     bool changed = ImGui::Combo(combo_id, option, locations);
-    draw_directory_tooltip(*option, path->c_str(), about, media);
+    draw_directory_tooltip(*option, default_path, path->c_str(), about, media);
     ImGui::PopItemWidth();
 
     if ((Directory_Location)*option != Directory_Location_Custom)
@@ -746,8 +748,9 @@ static void menu_emulator(void)
             if (ImGui::BeginMenu("Save States"))
             {
                 if (draw_directory_menu("savestate", "Default Location\0With the Game or Disk\0Custom Location\0\0",
-                    &config_emulator.savestates_dir_option, &config_emulator.savestates_path, gui_savestates_path,
-                    IM_ARRAYSIZE(gui_savestates_path), &choose_savestates_path, NULL, true))
+                    &config_emulator.savestates_dir_option, config_default_save_states_path,
+                    &config_emulator.savestates_path, gui_savestates_path, IM_ARRAYSIZE(gui_savestates_path),
+                    &choose_savestates_path, NULL, true))
                     update_savestates_data();
 
                 ImGui::EndMenu();
@@ -756,10 +759,14 @@ static void menu_emulator(void)
             if (ImGui::BeginMenu("Save Files"))
             {
                 draw_directory_menu("savefiles", "Default Location\0Next to Each Image\0Custom Location\0\0",
-                    &config_emulator.savefiles_dir_option, &config_emulator.savefiles_path, gui_savefiles_path,
-                    IM_ARRAYSIZE(gui_savefiles_path), &choose_savefiles_path,
-                    "Working copies of floppies and CHD disks,\neach machine's CMOS,\n"
-                    "and each game's own folder: its changes,\nsettings and key map.\n"
+                    &config_emulator.savefiles_dir_option, config_default_save_files_path,
+                    &config_emulator.savefiles_path, gui_savefiles_path, IM_ARRAYSIZE(gui_savefiles_path),
+                    &choose_savefiles_path,
+                    "Games: each game's own folder, with its changes,\nsettings and key map.\n"
+                    "Disks: working copies of floppies and CHD disks,\n"
+                    "and the changes to folders and ZIPs attached as hard disks.\n"
+                    "CMOS: each PC model's BIOS settings.\n"
+                    "Key Maps: key maps made with no game open.\n"
                     "With Next to Each Image, only the working copies\ngo next to their image.", false);
                 ImGui::EndMenu();
             }
@@ -767,17 +774,18 @@ static void menu_emulator(void)
             if (ImGui::BeginMenu("Screenshots"))
             {
                 draw_directory_menu("screenshots", "Default Location\0With the Game or Disk\0Custom Location\0\0",
-                    &config_emulator.screenshots_dir_option, &config_emulator.screenshots_path, gui_screenshots_path,
-                    IM_ARRAYSIZE(gui_screenshots_path), &choose_screenshots_path, NULL, true);
+                    &config_emulator.screenshots_dir_option, config_default_screenshots_path,
+                    &config_emulator.screenshots_path, gui_screenshots_path, IM_ARRAYSIZE(gui_screenshots_path),
+                    &choose_screenshots_path, NULL, true);
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("Video Recordings"))
             {
                 draw_directory_menu("video_recordings", "Default Location\0With the Game or Disk\0Custom Location\0\0",
-                    &config_emulator.video_recordings_dir_option, &config_emulator.video_recordings_path,
-                    gui_video_recordings_path, IM_ARRAYSIZE(gui_video_recordings_path), &choose_video_recordings_path,
-                    NULL, true);
+                    &config_emulator.video_recordings_dir_option, config_default_video_recordings_path,
+                    &config_emulator.video_recordings_path, gui_video_recordings_path,
+                    IM_ARRAYSIZE(gui_video_recordings_path), &choose_video_recordings_path, NULL, true);
                 ImGui::EndMenu();
             }
 

@@ -89,7 +89,7 @@ private:
     std::string m_error;
 };
 
-static const char k_gus_import_file[] = "ultrasnd.zip";
+static const char k_gus_import_file[] = "UltraSound.zip";
 static const char k_gus_import_midi[] = "MIDI/";
 
 #endif /* GUS_IMPORT_H */

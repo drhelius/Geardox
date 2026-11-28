@@ -38,7 +38,7 @@ static bool glide_checked = false;
 std::string emu_dos_get_msdos_path(void)
 {
     char path[GDOX_MAX_PATH];
-    join_path(config_root_path, k_dos_import_file, path, sizeof(path));
+    join_path(config_system_path, k_dos_import_file, path, sizeof(path));
     return path;
 }
 
@@ -71,6 +71,7 @@ bool emu_dos_import_msdos(const char* path, std::string* message)
     std::string previous = emu_hard_disk_get_default_path();
     DosImport import;
     message->clear();
+    MediaFile::MakeDirectories(config_system_path);
 
     if (!import.AddSource(path) || (import.Import(emu_dos_get_msdos_path().c_str()) != DOS_IMPORT_DONE))
     {
@@ -96,7 +97,7 @@ bool emu_dos_remove_msdos(void)
 std::string emu_dos_get_ultrasnd_path(void)
 {
     char path[GDOX_MAX_PATH];
-    join_path(config_root_path, k_gus_import_file, path, sizeof(path));
+    join_path(config_system_path, k_gus_import_file, path, sizeof(path));
     return path;
 }
 
@@ -138,6 +139,7 @@ bool emu_dos_import_ultrasnd(const char* path, std::string* message)
 {
     GusImport import;
     message->clear();
+    MediaFile::MakeDirectories(config_system_path);
 
     if (!import.AddSource(path) || (import.Import(emu_dos_get_ultrasnd_path().c_str()) != GUS_IMPORT_DONE))
     {
@@ -160,7 +162,7 @@ bool emu_dos_remove_ultrasnd(void)
 std::string emu_dos_get_glide_path(void)
 {
     char path[GDOX_MAX_PATH];
-    join_path(config_root_path, k_glide_import_file, path, sizeof(path));
+    join_path(config_system_path, k_glide_import_file, path, sizeof(path));
     return path;
 }
 
@@ -181,6 +183,7 @@ bool emu_dos_import_glide(const char* path, std::string* message)
 {
     GlideImport import;
     message->clear();
+    MediaFile::MakeDirectories(config_system_path);
 
     if (import.Import(path, emu_dos_get_glide_path().c_str()) != GLIDE_IMPORT_DONE)
     {

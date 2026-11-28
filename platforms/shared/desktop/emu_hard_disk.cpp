@@ -144,8 +144,8 @@ void emu_hard_disk_prepare_source(const char* path)
     std::string error;
     SafeDelete(prepared_disk);
     strncpy_fit(prepared_source.path, trim_trailing_separators(path).c_str(), sizeof(prepared_source.path));
-    prepared_disk = FolderDisk::OpenSource(prepared_source.path, emu_get_save_folder(NULL).c_str(), config_temp_path,
-        &error);
+    prepared_disk = FolderDisk::OpenSource(prepared_source.path, emu_get_save_folder(Save_Folder_Disks, NULL).c_str(),
+        config_temp_path, &error);
     strncpy_fit(prepared_source.error, error.c_str(), sizeof(prepared_source.error));
     prepared_source.recovery = IsValidPointer(prepared_disk) ? FolderDisk::DescribeRecovery(prepared_disk->GetRecovery()) : NULL;
     prepared_source.recovery_refused = IsValidPointer(prepared_disk) && prepared_disk->GetRecovery().refused;
@@ -640,7 +640,7 @@ static bool valid_id(int id)
 static std::string get_builtin_path(int system)
 {
     char path[GDOX_MAX_PATH];
-    join_path(config_root_path, system == GDOX_GAME_SYSTEM_MSDOS ? k_dos_disk_msdos : k_dos_disk_freedos, path,
+    join_path(config_system_path, system == GDOX_GAME_SYSTEM_MSDOS ? k_dos_disk_msdos : k_dos_disk_freedos, path,
         sizeof(path));
     return path;
 }
@@ -660,6 +660,7 @@ static bool make_builtin(int system, bool replace)
 {
     std::string path = get_builtin_path(system);
     std::string msdos_zip = system == GDOX_GAME_SYSTEM_MSDOS ? emu_dos_get_msdos_path() : "";
+    MediaFile::MakeDirectories(config_system_path);
 
     return DosDisk::WriteBuiltin(path.c_str(), system, msdos_zip.c_str(), config_input.keyboard_layout.c_str(), replace,
         &builtin_error);
@@ -696,13 +697,14 @@ static std::string get_working_path(const char* path)
     if (!ends_with_no_case(path, ".chd") || !HardDiskImage::GetChdHash(path, &hash))
         return "";
 
-    std::string directory = emu_get_save_folder(path);
+    std::string directory = emu_get_save_folder(Save_Folder_Disks, path);
     char name[GDOX_MAX_PATH];
     char file_name[GDOX_MAX_PATH];
     char working[GDOX_MAX_PATH];
     get_filename_without_extension(path, name, sizeof(name));
     snprintf(file_name, sizeof(file_name), "%s.%08X.geardox.hdd", name, hash);
     join_path(directory.c_str(), file_name, working, sizeof(working));
+    MediaFile::MakeDirectories(directory.c_str());
     return working;
 }
 

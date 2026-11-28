@@ -86,7 +86,7 @@ private:
     std::string m_error;
 };
 
-static const char k_dos_import_file[] = "msdos.zip";
+static const char k_dos_import_file[] = "MS-DOS.zip";
 static const char k_dos_import_boot[] = "boot.bin";
 static const char k_dos_import_root[] = "C/";
 

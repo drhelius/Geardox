@@ -116,8 +116,9 @@ bool emu_game_open(const GameDisk_Found& found, int game_target, int program)
     if (emu_is_powered_on())
         emu_power_off();
 
-    if (!disk.Open(found, emu_get_save_folder(NULL).c_str(), config_temp_path, true, config_game.write_back == 0,
-        emu_dos_get_msdos_path().c_str(), emu_dos_get_ultrasnd_path().c_str(), emu_dos_get_glide_path().c_str()))
+    if (!disk.Open(found, emu_get_save_folder(Save_Folder_Games, NULL).c_str(), config_temp_path, true,
+        config_game.write_back == 0, emu_dos_get_msdos_path().c_str(), emu_dos_get_ultrasnd_path().c_str(),
+        emu_dos_get_glide_path().c_str(), emu_get_save_folder(Save_Folder_Disks, NULL).c_str()))
     {
         error_text = disk.GetError();
         return false;

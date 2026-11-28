@@ -44,8 +44,8 @@ static void update_soundfont_status(void);
 
 void emu_synth_init(void)
 {
-    create_folder(GDOX_MIDI_ENGINE_MT32, "mt32");
-    create_folder(GDOX_MIDI_ENGINE_SOUNDFONT, "soundfonts");
+    create_folder(GDOX_MIDI_ENGINE_MT32, "MT-32");
+    create_folder(GDOX_MIDI_ENGINE_SOUNDFONT, "SoundFonts");
     emu_synth_scan_mt32();
     emu_synth_find_soundfont();
 }
@@ -115,11 +115,11 @@ void emu_synth_get_default_folders(int engine, std::vector<std::string>& folders
 
     if (engine == GDOX_MIDI_ENGINE_MT32)
     {
-        add_folder(folders, config_root_path, "mt32");
+        add_folder(folders, config_system_path, "MT-32");
         return;
     }
 
-    add_folder(folders, config_root_path, "soundfonts");
+    add_folder(folders, config_system_path, "SoundFonts");
 #if defined(__APPLE__)
     add_folder(folders, SDL_GetUserFolder(SDL_FOLDER_HOME), "Library/Audio/Sounds/Banks");
 #elif defined(_WIN32)
@@ -271,12 +271,12 @@ static void add_folder(std::vector<std::string>& folders, const char* base, cons
 
 static void create_folder(int engine, const char* component)
 {
-    if (!MidiSynth::IsAvailable(engine) || !IsValidPointer(config_root_path) || (config_root_path[0] == 0))
+    if (!MidiSynth::IsAvailable(engine) || (config_system_path[0] == 0))
         return;
 
-    std::string path(config_root_path);
+    std::string path(config_system_path);
     append_path_component(path, component);
-    MediaFile::MakeDirectory(path.c_str());
+    MediaFile::MakeDirectories(path.c_str());
 }
 
 static void update_mt32_status(void)

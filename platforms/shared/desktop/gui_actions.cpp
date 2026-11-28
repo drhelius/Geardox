@@ -38,7 +38,8 @@
 #include "utils.h"
 #include "video_recorder.h"
 
-static std::string get_auto_file_path(int dir_option, const std::string& custom_path, const char* extension);
+static std::string get_auto_file_path(int dir_option, const std::string& custom_path, const char* default_path,
+    const char* extension);
 
 void gui_action_load_defaults(void)
 {
@@ -216,7 +217,8 @@ void gui_action_save_screenshot(const char* path)
             file_path += ".png";
     }
     else
-        file_path = get_auto_file_path(config_emulator.screenshots_dir_option, config_emulator.screenshots_path, ".png");
+        file_path = get_auto_file_path(config_emulator.screenshots_dir_option, config_emulator.screenshots_path,
+            config_default_screenshots_path, ".png");
 
     if (emu_save_screenshot(file_path.c_str()))
         gui_notify(gui_NotificationSuccess, ICON_MD_PHOTO_CAMERA, "Screenshot saved", file_path.c_str());
@@ -235,7 +237,7 @@ bool gui_action_start_video_recording(const char* path)
         file_path = path;
     else
         file_path = get_auto_file_path(config_emulator.video_recordings_dir_option, config_emulator.video_recordings_path,
-            ".avi");
+            config_default_video_recordings_path, ".avi");
 
     if (!emu_start_video_recording(file_path.c_str()))
     {
@@ -391,12 +393,13 @@ void gui_action_toggle_key_mapping(void)
         "Key mapping off", NULL, "key_mapping", gui_NotificationDurationShort);
 }
 
-static std::string get_auto_file_path(int dir_option, const std::string& custom_path, const char* extension)
+static std::string get_auto_file_path(int dir_option, const std::string& custom_path, const char* default_path,
+    const char* extension)
 {
     char date_time[32];
     get_file_date_time_string(time(NULL), date_time, sizeof(date_time));
 
-    std::string base_path = config_root_path;
+    std::string base_path = default_path;
     std::string media_name = "Geardox";
 
     if (!emu_is_empty())
@@ -413,6 +416,7 @@ static std::string get_auto_file_path(int dir_option, const std::string& custom_
             base_path = custom_path;
     }
 
+    create_directory_tree_if_not_exists(base_path.c_str());
     std::string file_path = base_path;
     append_path_component(file_path, media_name.c_str());
     file_path += " - ";

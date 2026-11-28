@@ -59,6 +59,6 @@ private:
     bool m_stub;
 };
 
-static const char k_glide_import_file[] = "glide2x.ovl";
+static const char k_glide_import_file[] = "GLIDE2X.OVL";
 
 #endif /* GLIDE_IMPORT_H */
