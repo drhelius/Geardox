@@ -71,6 +71,7 @@ void NetServices::Reset()
     memset(m_leases, 0, sizeof(m_leases));
     memset(&m_stats, 0, sizeof(m_stats));
     m_lease_count = 0;
+    m_lease_clock = 0;
     m_ip_id = 1;
 }
 
@@ -192,7 +193,10 @@ int NetServices::ProcessDHCP(const u8* frame, int size, int header, u8* reply)
         return 0;
 
     const u8* bootp = udp + 8;
-    int length = MIN((int)read_u16_be(udp + 4), udp_length) - 8;
+    int length = (int)read_u16_be(udp + 4) - 8;
+
+    if (length + 8 > udp_length)
+        return 0;
 
     if ((length < k_dhcp_fixed + 4) || (bootp[0] != 1) || (bootp[1] != 1) || (bootp[2] != 6) ||
         (read_u32_be(bootp + k_dhcp_fixed) != k_dhcp_cookie))
@@ -215,14 +219,11 @@ int NetServices::ProcessDHCP(const u8* frame, int size, int header, u8* reply)
             continue;
         }
 
-        if (i + 1 >= length)
-            break;
+        if ((i + 1 >= length) || (i + 2 + bootp[i + 1] > length))
+            return 0;
 
         int option_length = bootp[i + 1];
         const u8* value = bootp + i + 2;
-
-        if (i + 2 + option_length > length)
-            break;
 
         if ((option == 53) && (option_length >= 1))
             type = value[0];
@@ -355,20 +356,40 @@ int NetServices::ProcessDHCP(const u8* frame, int size, int header, u8* reply)
 
 int NetServices::FindLease(const u8* address, bool create)
 {
-    for (int i = 0; i < m_lease_count; i++)
+    int found = -1;
+
+    for (int i = 0; (i < m_lease_count) && (found < 0); i++)
     {
         if (memcmp(m_leases[i].address, address, 6) == 0)
-            return i;
+            found = i;
     }
 
-    if (!create || (m_lease_count >= NET_SERVICES_LEASES))
-        return -1;
+    if ((found < 0) && create && (m_lease_count < NET_SERVICES_LEASES))
+    {
+        found = m_lease_count++;
+        m_leases[found].ip = k_net_lease_first + (u32)found;
+        m_leases[found].bound = false;
+        memcpy(m_leases[found].address, address, 6);
+    }
+    else if ((found < 0) && create)
+    {
+        for (int i = 0; i < m_lease_count; i++)
+        {
+            bool better = (found < 0) || (m_leases[found].bound && !m_leases[i].bound) ||
+                ((m_leases[found].bound == m_leases[i].bound) && (m_leases[i].used < m_leases[found].used));
 
-    NetServices_Lease& lease = m_leases[m_lease_count];
-    memcpy(lease.address, address, 6);
-    lease.ip = k_net_lease_first + (u32)m_lease_count;
-    lease.bound = false;
-    return m_lease_count++;
+            if (better)
+                found = i;
+        }
+
+        m_leases[found].bound = false;
+        memcpy(m_leases[found].address, address, 6);
+    }
+
+    if (found >= 0)
+        m_leases[found].used = ++m_lease_clock;
+
+    return found;
 }
 
 int NetServices::BuildIP(u8* reply, const u8* destination_mac, u32 destination_ip, u8 protocol, int payload)

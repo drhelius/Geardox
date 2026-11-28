@@ -32,6 +32,7 @@ public:
         u8 address[6];
         u32 ip;
         bool bound;
+        u32 used;
     };
 
     struct NetServices_Stats
@@ -62,6 +63,7 @@ private:
 private:
     NetServices_Lease m_leases[NET_SERVICES_LEASES];
     int m_lease_count;
+    u32 m_lease_clock;
     NetServices_Stats m_stats;
     u16 m_ip_id;
 };
