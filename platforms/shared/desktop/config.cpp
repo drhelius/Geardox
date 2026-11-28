@@ -108,13 +108,12 @@ void config_init(bool force_portable)
     strncat_fit(config_temp_path, process_folder, sizeof(config_temp_path));
     create_directory_if_not_exists(config_temp_path);
 
-    set_folder_path(config_system_path, sizeof(config_system_path), "System/");
-    set_folder_path(config_default_save_files_path, sizeof(config_default_save_files_path), "Save Files/");
-    set_folder_path(config_default_save_states_path, sizeof(config_default_save_states_path), "Save States/");
-    set_folder_path(config_default_screenshots_path, sizeof(config_default_screenshots_path), "Screenshots/");
-    set_folder_path(config_default_video_recordings_path, sizeof(config_default_video_recordings_path),
-        "Video Recordings/");
-    set_folder_path(config_debug_path, sizeof(config_debug_path), "Debug/");
+    set_folder_path(config_system_path, sizeof(config_system_path), "System");
+    set_folder_path(config_default_save_files_path, sizeof(config_default_save_files_path), "Save Files");
+    set_folder_path(config_default_save_states_path, sizeof(config_default_save_states_path), "Save States");
+    set_folder_path(config_default_screenshots_path, sizeof(config_default_screenshots_path), "Screenshots");
+    set_folder_path(config_default_video_recordings_path, sizeof(config_default_video_recordings_path), "Video Recordings");
+    set_folder_path(config_debug_path, sizeof(config_debug_path), "Debug");
 
     strncpy_fit(config_emu_file_path, config_root_path, sizeof(config_emu_file_path));
     strncat_fit(config_emu_file_path, "config.ini", sizeof(config_emu_file_path));
@@ -582,6 +581,11 @@ static void set_folder_path(char* path, size_t size, const char* folder)
 {
     strncpy_fit(path, config_root_path, size);
     strncat_fit(path, folder, size);
+#if defined(_WIN32)
+    strncat_fit(path, "\\", size);
+#else
+    strncat_fit(path, "/", size);
+#endif
 }
 
 static SDL_EnumerationResult SDLCALL collect_directory_entry(void* userdata, const char* dirname, const char* fname)
