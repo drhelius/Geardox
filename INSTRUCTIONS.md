@@ -188,10 +188,11 @@ and `CONFIG.SYS` from the next time it opens.
 
 ## The Built-in Disk
 
-With no game open and no hard disk attached, Geardox boots a **built-in disk** as C:, and you get a DOS prompt:
-`C:\>`. It's a hard disk of about 500 MB, a file in [Geardox's settings folder](#where-geardox-keeps-its-files) that
-Geardox makes the first time it's needed. Then it's yours: anything you copy or install on it stays there, session
-after session. Updating Geardox never touches it, and neither does importing or removing MS-DOS.
+With no game open and no hard disk attached, Geardox boots a **built-in disk** as C:, and you get a DOS prompt: `C:\>`.
+It's a hard disk of about 500 MB, a file in the `System` folder of
+[Geardox's settings folder](#where-geardox-keeps-its-files) that Geardox makes the first time it's needed. Then it's
+yours: anything you copy or install on it stays there, session after session. Updating Geardox never touches it, and
+neither does importing or removing MS-DOS.
 
 There are two, and both can live side by side:
 
@@ -350,12 +351,12 @@ They need files that Geardox doesn't include. Set them up in **Audio > Built-in 
 shows what it found:
 
 - **MT-32:** the control and PCM ROMs of an MT-32 or CM-32L, which you have to dump from your own unit. Put them in
-  the `mt32` folder inside Geardox's settings folder, or choose any folder with **Custom Location** in
+  the `System/MT-32` folder inside Geardox's settings folder, or choose any folder with **Custom Location** in
   **MT-32 > ROMs**. The files are known by their contents, so their names don't matter, and ROMs split in two halves
   are joined. **MT-32 > Model** picks the unit: Auto plays a CM-32L when its ROMs are there, which plays everything
   an MT-32 does plus the sound effects of later Sierra games, then an MT-32.
 - **General MIDI:** a sound bank (a SoundFont file, `.sf2` or `.sf3`), such as the free GeneralUser GS or FluidR3_GM.
-  Put it in the `soundfonts` folder inside Geardox's settings folder, or in the system's usual place
+  Put it in the `System/SoundFonts` folder inside Geardox's settings folder, or in the system's usual place
   (`~/Library/Audio/Sounds/Banks` on macOS, `/usr/share/soundfonts`, `/usr/share/sounds/sf2` or
   `/usr/local/share/soundfonts` on Linux, `soundfonts` next to Geardox on Windows), or choose a file with
   **Custom Location** in **General MIDI > Sound Bank**. The first one by name is used.
@@ -504,17 +505,31 @@ next to it. On macOS, it goes next to the `.app`.
 
 In this folder:
 
-- `config.ini` holds your settings.
+```
+Geardox/
+├── config.ini            your settings
+├── imgui.ini             the window layout
+├── System/               what every game runs with
+├── Save Files/           what each game and disk changed, CMOS and key maps
+├── Save States/
+├── Screenshots/
+├── Video Recordings/
+├── Debug/                the debugger's settings and trace logs
+└── tmp/                  the games Geardox unpacks from ZIPs while they run
+```
+
+`System` holds what every game runs with:
+
 - `FreeDOS.hdd` is the built-in FreeDOS disk, and `MS-DOS.hdd` the built-in MS-DOS disk, made from your import the
   first time it's needed.
-- `msdos.zip` is your imported MS-DOS, `ultrasnd.zip` your imported Gravis UltraSound software and `glide2x.ovl` your
-  imported 3dfx Voodoo driver, once you've imported them.
-- `mt32` and `soundfonts` are the folders where the built-in synths look for MT-32 ROMs and sound banks.
-- `tmp` holds the games Geardox unpacks from ZIPs while they run.
+- `MS-DOS.zip` is your imported MS-DOS, `UltraSound.zip` your imported Gravis UltraSound software and `GLIDE2X.OVL`
+  your imported 3dfx Voodoo driver, once you've imported them.
+- `MT-32` and `SoundFonts` are the folders where the built-in synths look for MT-32 ROMs and sound banks.
 
-The rest is the **Save Files folder**, this same folder unless **Emulator > Directories > Save Files** moves it:
+`Save Files` is the **Save Files folder**. **Emulator > Directories > Save Files** can move it anywhere, and the same
+four folders go there:
 
-- `<name>.<id>` folders, one for each game and for each folder or ZIP attached as a hard disk, keep what DOS changed:
+- `Games` has a `<name>.<id>` folder for each game, with what DOS changed:
   - `Saves` holds a game's saves when they can't go into its folder: a game in a ZIP or a read-only folder, or any
     game when **Game > Save Games To** is **The Save Files Folder**.
   - `C` holds what the game wrote elsewhere on C:, and `C.hdd` a game's hard disk image with its changes, when the
@@ -529,14 +544,20 @@ The rest is the **Save Files folder**, this same folder unless **Emulator > Dire
     back.
   - `Settings.ini` and `Keys.ini` keep the game's own settings and key map, and `<name>.gdox` is the `.gdox` that
     **Save Descriptor...** suggests when it can't go in the game's folder.
-- Working copies of floppy and CHD images, and a `.geardox.cmos` file for each PC model, with its BIOS settings.
-- `.keys` files keep the key maps made with no game open, named after the disc, floppy or hard disk image, and
-  `PC.keys` keeps the All Games changes.
+- `Disks` holds the working copies of floppy and CHD images, and a `<name>.<id>` folder like a game's for each folder
+  or ZIP attached as a hard disk.
+- `CMOS` holds a `.cmos` file for each PC model, with its BIOS settings.
+- `Key Maps` holds the key maps made with no game open, in `.keys` files named after the disc, floppy or hard disk
+  image, and `PC.keys` with the All Games changes.
 
-Save states, screenshots and recordings go to this folder too, and **Emulator > Directories** moves each kind. There,
-**With the Game or Disk** keeps them in the game's `<name>.<id>` folder, or next to the CD, floppy or hard disk image in
-use, and **Next to Each Image**, for Save Files, puts only the working copies next to their image. A game's save states
-are named after its folder, `<name>.<id>.state1` to `.state5`, and with nothing open they're `PC.state1` to `.state5`.
+Save states, screenshots and recordings go to `Save States`, `Screenshots` and `Video Recordings`, and
+**Emulator > Directories** moves each kind. There, **With the Game or Disk** keeps them in the game's `<name>.<id>`
+folder, or next to the CD, floppy or hard disk image in use, and **Next to Each Image**, for Save Files, puts only the
+working copies next to their image. A game's save states are named after its folder, `<name>.<id>.state1` to
+`.state5`, and with nothing open they're `PC.state1` to `.state5`.
+
+`Debug` holds the debugger's settings for each disc and floppy, and the trace logs unless the Trace Logger's
+**Disk Output** chooses another place.
 
 ## Quick Fixes
 

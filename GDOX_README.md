@@ -255,15 +255,16 @@ The files of the game's folder go back where they came from, or to a place of th
 | --- | --- |
 | Desktop, from a writable game folder | Back into that folder |
 | Desktop, from a ZIP or a read-only folder | `Saves`, in the game's own folder in the Save Files folder |
-| RetroArch | `Saves`, in the game's own folder in RetroArch's save directory |
+| RetroArch | `Saves`, in the game's own folder in `geardox/Games` in RetroArch's save directory |
 
 **Game > Save Games To > The Save Files Folder** keeps any game folder unchanged: the game's changed files go to
 `Saves` and are laid over the folder each time it runs. It applies from the next game you open. In RetroArch,
 **Game Saves (restart)** chooses between the save directory, the default, and the game's folder; a ZIP always uses the
 save directory.
 
-The Save Files folder is Geardox's own folder unless **Emulator > Directories > Save Files** moves it. In it, each game
-has a folder of its own, `<name>.<id>`, with the rest of its C: drive and its settings:
+The Save Files folder is `Save Files` in Geardox's own folder unless **Emulator > Directories > Save Files** moves it.
+In its `Games` folder, and in `geardox/Games` in RetroArch's save directory, each game has a folder of its own,
+`<name>.<id>`, with the rest of its C: drive and its settings:
 
 | In `<name>.<id>` | What it holds |
 | --- | --- |
@@ -279,11 +280,11 @@ On desktop, **Game > Game Files > Show Saves Folder** opens the place the curren
 **Game > Last Save Report...** shows what the last game wrote when it closed. Changes that couldn't be written are
 kept and written the next time the game opens.
 
-Save states are kept apart from these files: in Geardox's own folder by default, or in the game's `<name>.<id>` folder
-with **Emulator > Directories > Save States > With the Game or Disk**. The record in `Disk` lets a save state taken at
-the end of a session load at the next launch as if the game had never closed. A save state the drive can't go back to,
-such as one taken before later saves, still loads, but for the rest of that session the game's folder stays as it was
-and its changes go to `Conflicts`.
+Save states are kept apart from these files: in `Save States` in Geardox's own folder by default, or in the game's
+`<name>.<id>` folder with **Emulator > Directories > Save States > With the Game or Disk**. The record in `Disk` lets a
+save state taken at the end of a session load at the next launch as if the game had never closed. A save state the drive
+can't go back to, such as one taken before later saves, still loads, but for the rest of that session the game's folder
+stays as it was and its changes go to `Conflicts`.
 
 ## Adjust a Game's Settings
 
@@ -427,9 +428,9 @@ instead. Geardox doesn't include MS-DOS: you import your own Setup disks once.
 2. Select one of the Setup disk images, or a ZIP containing them. When you select an image, Geardox reads every
    image in its folder.
 
-Geardox expands the files as MS-DOS Setup does and keeps its own copy, `msdos.zip`, in its settings folder. Your
-disk images are never changed. Any floppy image format Geardox can open works, and the disks can be in any order.
-The **DOS > MS-DOS** menu shows the imported MS-DOS in green, or in red when nothing is imported.
+Geardox expands the files as MS-DOS Setup does and keeps its own copy, `MS-DOS.zip`, in the `System` folder of its
+settings folder. Your disk images are never changed. Any floppy image format Geardox can open works, and the disks can
+be in any order. The **DOS > MS-DOS** menu shows the imported MS-DOS in green, or in red when nothing is imported.
 
 From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. With nothing attached,
 the PC boots the built-in MS-DOS disk, `MS-DOS.hdd`, made from your import the first time; see
@@ -462,7 +463,7 @@ Geardox imports them the next time content loads, and again whenever they change
 The **Game DOS (restart)** core option set to **FreeDOS** runs games on FreeDOS without removing anything, and
 RetroArch's per-game options make that choice for one game. **Built-in DOS Disk (restart)** chooses the disk that
 boots with no hard disk in the content: your MS-DOS when found, FreeDOS, or none. `MS-DOS.hdd` and `FreeDOS.hdd` live
-in RetroArch's save directory.
+in `geardox/System` in RetroArch's save directory.
 
 ## Use a Gravis UltraSound
 
@@ -480,10 +481,11 @@ included with Geardox. Import them once:
 2. Select a ZIP of the Gravis UltraSound 4.11 install disks, or any file of those disks. A folder holding an
    installed copy, with `ULTRASND.INI` and a `MIDI` folder, works too: select any file in it.
 
-Geardox unpacks the disks itself, checking every file, and keeps its own copy, `ultrasnd.zip`, in its settings folder.
-Every game with the card on then gets the software and patches in `C:\ULTRASND`. Other versions of the install disks
-aren't supported. The **Audio > Gravis UltraSound** menu shows the imported software and its patch count in green, or
-in red when nothing is imported. **Remove Software** there deletes Geardox's copy; your disks aren't touched.
+Geardox unpacks the disks itself, checking every file, and keeps its own copy, `UltraSound.zip`, in the `System` folder
+of its settings folder. Every game with the card on then gets the software and patches in `C:\ULTRASND`. Other versions
+of the install disks aren't supported. The **Audio > Gravis UltraSound** menu shows the imported software and its patch
+count in green, or in red when nothing is imported. **Remove Software** there deletes Geardox's copy; your disks aren't
+touched.
 
 In RetroArch, turn on the **Gravis UltraSound (restart)** core option, and put the install disks, or a ZIP of them, in
 `geardox/ultrasnd` inside RetroArch's system folder. Geardox imports them the next time content loads.
@@ -510,6 +512,8 @@ DOS driver, which isn't included with Geardox. Import it once:
 
 1. Choose **Video > 3dfx Voodoo Driver > Import Driver...**.
 2. Select a ZIP of a 3dfx Voodoo Graphics DOS driver, a folder holding one, or the `GLIDE2X.OVL` file itself.
+
+Geardox keeps its own copy, `GLIDE2X.OVL`, in the `System` folder of its settings folder.
 
 Use version 2.43 of the driver, such as the one in Orchid's Righteous 3D 3.00 package. The later 2.46 and 2.48 drivers
 set up the processor's memory caching in a way only a Pentium Pro or Pentium II has, and stop on these Pentiums.

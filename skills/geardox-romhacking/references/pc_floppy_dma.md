@@ -161,8 +161,9 @@ Real. Fast divides the step, head load and rotation waits by 16; byte times and 
   360 KB 40×2×9, 720 KB 80×2×9, 1.2 MB 80×2×15, 1.44 MB 80×2×18, 1.68 MB 80×2×21 (DMF), 2.88 MB 80×2×36; 512-byte
   sectors numbered from 1. A known size plus E5h padding takes that size. Otherwise the boot sector decides (media byte
   F0h or more, 8–36 sectors, 1 or 2 heads, at most 82 cylinders).
-- **Writes never touch the image file.** They go to a working copy, `name.CRC32.geardox.d77` in the save files folder,
-  flushed after a few idle seconds, on eject and on exit. Without floppy persistence the disk is write protected.
+- **Writes never touch the image file.** They go to a working copy, `name.CRC32.geardox.d77` in the save files
+  folder's `Disks`, flushed after a few idle seconds, on eject and on exit. Without floppy persistence the disk is write
+  protected.
   `modified` in `list_floppy_drives` means changes not yet flushed.
 
 ---
