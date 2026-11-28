@@ -32,6 +32,7 @@ KeyMap::KeyMap()
     memset(m_host_targets, 0, sizeof(m_host_targets));
     memset(m_host_down, 0, sizeof(m_host_down));
     memset(m_host_deferred, 0, sizeof(m_host_deferred));
+    memset(m_pad_targets, 0, sizeof(m_pad_targets));
     memset(m_references, 0, sizeof(m_references));
     m_enabled = true;
     m_blocked = false;
@@ -86,6 +87,46 @@ void KeyMap::HostKeyReleased(u16 usage)
     targets = k_key_map_empty;
 }
 
+void KeyMap::PadKeyPressed(GDOX_Keys key)
+{
+    if ((key <= GDOX_KEY_NONE) || (key >= GDOX_KEY_COUNT) || m_pad_targets[key].set)
+        return;
+
+    GDOX_Key_Map_Entry& targets = m_pad_targets[key];
+    targets = k_key_map_empty;
+
+    if (!m_blocked)
+    {
+        int usage = FindBuiltInHostKey((u8)key);
+
+        if (usage >= 0)
+            targets = GetActiveEntry((u16)usage);
+        else
+        {
+            targets.count = 1;
+            targets.keys[0] = (u8)key;
+        }
+    }
+
+    targets.set = true;
+
+    for (int i = 0; i < targets.count; i++)
+        PressKey(targets.keys[i]);
+}
+
+void KeyMap::PadKeyReleased(GDOX_Keys key)
+{
+    if ((key <= GDOX_KEY_NONE) || (key >= GDOX_KEY_COUNT))
+        return;
+
+    GDOX_Key_Map_Entry& targets = m_pad_targets[key];
+
+    for (int i = targets.count - 1; i >= 0; i--)
+        ReleaseKey(targets.keys[i]);
+
+    targets = k_key_map_empty;
+}
+
 void KeyMap::IgnoreHostKey(u16 usage)
 {
     if (!IsHostKey(usage) || m_host_down[usage])
@@ -122,6 +163,7 @@ void KeyMap::ReleaseAll()
     memset(m_host_targets, 0, sizeof(m_host_targets));
     memset(m_host_down, 0, sizeof(m_host_down));
     memset(m_host_deferred, 0, sizeof(m_host_deferred));
+    memset(m_pad_targets, 0, sizeof(m_pad_targets));
 }
 
 void KeyMap::Suspend()
@@ -657,6 +699,19 @@ void KeyMap::PressHostTargets(u16 usage)
 
     for (int i = 0; i < entry.count; i++)
         PressKey(entry.keys[i]);
+}
+
+int KeyMap::FindBuiltInHostKey(u8 key) const
+{
+    for (int usage = 0; usage < GDOX_HOST_KEY_COUNT; usage++)
+    {
+        const GDOX_Key_Map_Entry& entry = m_layers[GDOX_KEY_MAP_BUILT_IN][usage];
+
+        if (entry.set && (entry.count == 1) && (entry.keys[0] == key))
+            return usage;
+    }
+
+    return -1;
 }
 
 void KeyMap::FlushDeferredHostKeys()

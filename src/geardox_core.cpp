@@ -154,8 +154,6 @@ GeardoxCore::GeardoxCore()
     m_powered = false;
     m_paused = false;
     m_host_hotkeys = false;
-    memset(m_mapped_keys, 0, sizeof(m_mapped_keys));
-    memset(m_gamepad_keys_down, 0, sizeof(m_gamepad_keys_down));
     m_debug_step = GDOX_DEBUG_STEP_NONE;
     m_debug_step_resume = false;
     m_debug_interrupt_deferred = false;
@@ -1708,8 +1706,6 @@ void GeardoxCore::KeyReleased(GDOX_Keys key)
 
 void GeardoxCore::ReleaseAllKeys()
 {
-    memset(m_mapped_keys, 0, sizeof(m_mapped_keys));
-    memset(m_gamepad_keys_down, 0, sizeof(m_gamepad_keys_down));
     m_i8042->ReleaseAllKeys();
 }
 
@@ -1765,23 +1761,21 @@ void GeardoxCore::EnableHostHotkeys(bool enable)
 void GeardoxCore::KeyMapCallback(void* core, GDOX_Keys key, bool pressed)
 {
     GeardoxCore* geardox = static_cast<GeardoxCore*>(core);
-    geardox->m_mapped_keys[key] = pressed;
-    geardox->UpdateHeldKey(key);
+
+    if (pressed)
+        geardox->KeyPressed(key);
+    else
+        geardox->KeyReleased(key);
 }
 
 void GeardoxCore::GamepadKeyCallback(void* core, GDOX_Keys key, bool pressed)
 {
     GeardoxCore* geardox = static_cast<GeardoxCore*>(core);
-    geardox->m_gamepad_keys_down[key] = pressed;
-    geardox->UpdateHeldKey(key);
-}
 
-void GeardoxCore::UpdateHeldKey(GDOX_Keys key)
-{
-    if (m_mapped_keys[key] || m_gamepad_keys_down[key])
-        KeyPressed(key);
+    if (pressed)
+        geardox->m_key_map->PadKeyPressed(key);
     else
-        KeyReleased(key);
+        geardox->m_key_map->PadKeyReleased(key);
 }
 
 bool GeardoxCore::SaveState(const char* path, int index, bool screenshot)

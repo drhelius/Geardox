@@ -51,6 +51,8 @@ public:
     void Init(GDOX_Key_Event_Fn callback, void* context);
     void HostKeyPressed(u16 usage);
     void HostKeyReleased(u16 usage);
+    void PadKeyPressed(GDOX_Keys key);
+    void PadKeyReleased(GDOX_Keys key);
     void IgnoreHostKey(u16 usage);
     void DiscardDeferredHostKeys();
     bool IsHostKeyDown(u16 usage) const;
@@ -98,6 +100,7 @@ private:
     const GDOX_Key_Map_Entry& GetBaseEntry(GDOX_Key_Map_Layer layer, u16 usage) const;
     void SetEditEntry(u16 usage, const GDOX_Key_Map_Entry& entry);
     void PressHostTargets(u16 usage);
+    int FindBuiltInHostKey(u8 key) const;
     void FlushDeferredHostKeys();
     static bool IsDeferredHostKey(u16 usage);
     void PressKey(u8 key);
@@ -112,6 +115,7 @@ private:
     GDOX_Key_Map_Entry m_host_targets[GDOX_HOST_KEY_COUNT];
     bool m_host_down[GDOX_HOST_KEY_COUNT];
     bool m_host_deferred[GDOX_HOST_KEY_COUNT];
+    GDOX_Key_Map_Entry m_pad_targets[GDOX_KEY_COUNT];
     int m_references[GDOX_KEY_COUNT];
     bool m_enabled;
     bool m_blocked;

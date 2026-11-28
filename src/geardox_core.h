@@ -254,7 +254,6 @@ private:
     static void KeyMapCallback(void* core, GDOX_Keys key, bool pressed);
     static void GamepadKeyCallback(void* core, GDOX_Keys key, bool pressed);
     static void DevPortEventCallback(void* core, u8 type);
-    void UpdateHeldKey(GDOX_Keys key);
     void DispatchEvents();
     void Reset();
     void ResetCPU();
@@ -362,8 +361,6 @@ private:
     bool m_powered;
     bool m_paused;
     bool m_host_hotkeys;
-    bool m_mapped_keys[GDOX_KEY_COUNT];
-    bool m_gamepad_keys_down[GDOX_KEY_COUNT];
     GDOX_Debug_Step m_debug_step;
     bool m_debug_step_resume;
     bool m_debug_interrupt_deferred;
