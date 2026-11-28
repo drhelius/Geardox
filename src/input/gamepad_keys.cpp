@@ -276,7 +276,7 @@ void GamepadKeys::ReleaseTarget(int target)
 
 void GamepadKeys::MoveMouse(int pad, const GDOX_Gamepad_State& state, const GDOX_Gamepad_Mapping& mapping)
 {
-    float max_speed = (float)CLAMP(mapping.mouse_speed, 1, 15) * k_gamepad_keys_speed_scale;
+    float max_speed = k_gamepad_keys_speed_scale * powf(2.0f, (float)(CLAMP(mapping.mouse_speed, 1, 15) - 7) / 2.0f);
     float x = 0.0f;
     float y = 0.0f;
 
