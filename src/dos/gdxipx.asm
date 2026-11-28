@@ -202,6 +202,12 @@ send:
 .gathered:
     cmp dx, 30
     jb .bad
+    mov cx, tx_buf + 60
+    sub cx, di
+    jbe .padded
+    xor al, al
+    rep stosb
+.padded:
     mov fs, [bp + 2]
     mov bx, [bp + 8]
     mov si, mac
@@ -210,6 +216,8 @@ send:
     rep movsw
     cmp byte [send_mode], 0
     je .header
+    cmp word [fs:bx + 28h], 30
+    jb .bad
     mov word [tx_buf + 14], 0FFFFh
     mov ax, dx
     xchg al, ah
@@ -224,6 +232,12 @@ send:
     rep movsw
     mov ax, [fs:bx + 0Ah]
     mov [tx_buf + 14 + 28], ax
+    les di, [fs:bx + 24h]
+    mov si, tx_buf + 14
+    mov cx, 15
+    rep movsw
+    push cs
+    pop es
 .header:
     push ds
     mov ax, fs
@@ -297,9 +311,15 @@ f_sched5:
 f_sched7:
     xor dl, dl
 sched:
+    mov [es:si + 9], dl
+    mov ah, 62h
+    int 21h
+    cli
+    mov ax, bx
+    call field
+    mov [es:bx + si], ax
     mov ax, [bp + 20]
-    mov [es:si + 9], ax
-    mov [es:si + 0Bh], dl
+    mov [es:si + 0Ch], ax
     mov byte [es:si + 8], 0FDh
     mov di, aes_head
     jmp append
@@ -435,6 +455,41 @@ cancel_socket:
     mov byte [es:si + 9], 0FCh
     jmp cancel_socket
 .done:
+    xor ax, ax
+purge:
+.scan:
+    mov si, [aes_head]
+    mov es, [aes_head + 2]
+.look:
+    mov bx, es
+    or bx, si
+    jz .done
+    cmp byte [es:si + 9], 0FFh
+    jne .owner
+    or dx, dx
+    jz .owner
+    cmp [es:si + 0Ah], dx
+    je .hit
+.owner:
+    call field
+    cmp [es:bx + si], ax
+    je .hit
+    les si, [es:si]
+    jmp .look
+.hit:
+    push ax
+    mov di, aes_head
+    call unlink
+    pop ax
+    mov word [es:si + 8], 0FC00h
+    jmp .scan
+.done:
+    ret
+
+field:
+    movzx bx, byte [es:si + 9]
+    and bl, 6
+    add bx, 0Ah
     ret
 
 post:
@@ -576,11 +631,11 @@ int_1c:
     mov ax, es
     or ax, si
     jz .counted
-    mov ax, [es:si + 9]
+    mov ax, [es:si + 0Ch]
     or ax, ax
     jz .step
     dec ax
-    mov [es:si + 9], ax
+    mov [es:si + 0Ch], ax
 .step:
     les si, [es:si]
     jmp .count
@@ -592,7 +647,7 @@ int_1c:
     mov ax, es
     or ax, si
     jz .end
-    cmp word [es:si + 9], 0
+    cmp word [es:si + 0Ch], 0
     je .fire
     les si, [es:si]
     jmp .look
@@ -602,7 +657,7 @@ int_1c:
     mov ax, es
     mov fs, ax
     mov bx, si
-    mov dl, [fs:bx + 0Bh]
+    mov dl, [fs:bx + 9]
     xor al, al
     call post
     jmp .scan
@@ -647,6 +702,9 @@ int_21:
     add si, 2
     cmp si, SOCKETS * 2
     jb .socket
+    mov ax, bx
+    xor dx, dx
+    call purge
     pop fs
     pop es
     pop ds
