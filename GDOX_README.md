@@ -274,7 +274,7 @@ In its `Games` folder, and in `geardox/Games` in RetroArch's save directory, eac
 | `FreeDOS`, `MS-DOS` | Changes to each DOS's own files, `AUTOEXEC.BAT` and `CONFIG.SYS` among them; see [Files on the DOS C: drive](#files-on-the-dos-c-drive) |
 | `Conflicts` | Changes that couldn't go back; see [Save recovery and file conflicts](#save-recovery-and-file-conflicts) |
 | `Disk` | Geardox's record of the drive, and what DOS has written so far while the game runs |
-| `Settings.ini`, `Keys.ini` | Your settings and key map for the game |
+| `Settings.ini`, `Keys.ini` | Your settings and key map for the game, on desktop |
 
 On desktop, **Game > Game Files > Show Saves Folder** opens the place the current game's changed files go, and
 **Game > Last Save Report...** shows what the last game wrote when it closed. Changes that couldn't be written are
