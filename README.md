@@ -8,9 +8,9 @@
 [![License](https://img.shields.io/github/license/drhelius/Geardox)](https://github.com/drhelius/Geardox/blob/main/LICENSE)
 [![Twitter Follow](https://img.shields.io/twitter/follow/drhelius)](https://x.com/drhelius)
 
-Geardox is a gaming oriented, cross-platform, MS-DOS PC emulator written in C++ that runs on Windows, macOS, Linux, BSD and RetroArch, with an embedded MCP server for AI debugging and development.
+Geardox is a gaming oriented, cross-platform, MS-DOS PC emulator that runs on Windows, macOS, Linux, BSD and RetroArch, with an embedded MCP server for AI debugging and development.
 
-It emulates 386, 486 and Pentium PCs accurately, comes with FreeDOS built in, and runs MS-DOS 5.0-6.22, Windows 3.1, and Windows 95 games.
+It emulates 386, 486 and Pentium PCs, and runs MS-DOS 5.0-6.22, Windows 3.1, and Windows 95 games.
 
 This is an open source project with its ongoing development made possible thanks to the support by these awesome [backers](backers.md). If you find it useful, please consider [sponsoring](https://github.com/sponsors/drhelius).
 
@@ -106,21 +106,21 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 ## Features
 
 - Very accurate 386, 486 and Pentium core that passes [test386](https://github.com/barotto/test386.asm) and [SingleStepTests/80386](https://github.com/singlesteptests/80386), with dynarec and 80-bit x87 FPU.
-- 386SX-20 and 386DX-33 (ISA), 486SX-33, 486DX2-66 and 486DX4-100 (VL-Bus), and Pentium 75 to 200 (Intel 430FX PCI) machines, with selectable CPU speed, RAM (1-128 MB), FPU and Turbo.
-- Built-in SeaBIOS, SeaVGABIOS and FreeDOS: no BIOS or DOS files needed, and a ready-to-play DOS hard disk boots when nothing is attached. Optional import of MS-DOS 5.0-6.22 in any language.
-- [Game descriptors](GDOX_README.md) (`gdox`) and a built-in database of over 300 games: open a game folder or ZIP and it runs on the right machine and DOS, with its saves kept.
-- Host folders and ZIP files as FAT16 hard disks, read in place and written back.
-- IBM CGA (RGB and composite), IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA with 2 MB, VESA modes up to 1280x1024, BitBLT engine, hardware cursor and memory-mapped registers.
+- 386SX-20 and 386DX-33 (ISA), 486SX-33, 486DX2-66 and 486DX4-100 (VL-Bus), and Pentium 75 to 200 (Intel 430FX PCI) machines, with selectable CPU speed, RAM, FPU and Turbo.
+- Built-in SeaBIOS, SeaVGABIOS and FreeDOS: no BIOS or DOS files needed. Optional import of MS-DOS 5.0-6.22.
+- [Game descriptors](GDOX_README.md) (`gdox`) and a built-in database with hundreds of games: open a game folder or ZIP and it runs on the right machine and DOS.
+- IBM CGA, IBM EGA, VGA, and Cirrus Logic GD5428 (ISA, VL-Bus) and GD5446 (PCI) SVGA.
 - Windows 3.1, Windows for Workgroups 3.11 and Windows 95 with the Cirrus Logic accelerated display drivers, and DirectDraw games under DirectX.
-- 3dfx Voodoo Graphics with 4 MB as a second PCI card for DOS games with 3dfx support.
+- 3dfx Voodoo Graphics as a second PCI card for DOS games with 3dfx support.
 - PC speaker, AdLib, Sound Blaster 1.5, 2.0, Pro, Pro 2 and 16 (OPL2, dual OPL2, OPL3), Gravis UltraSound, CD audio, and MPU-401 with built-in MT-32 and General MIDI (SoundFont) synths or MIDI out to host synths on Windows, macOS and Linux.
-- ATAPI CD-ROM drive (1x-8x) with `cue/bin`, `iso`, `chd`, GOG `ins/gog`, `zip` and `m3u` playlists, and physical discs on Windows, macOS and Linux.
-- Two floppy drives (360 KB-2.88 MB) with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
+- ATAPI CD-ROM drive with `cue/bin`, `iso`, `chd`, `ins/gog`, `zip` and `m3u` playlists, and physical discs on Windows, macOS and Linux.
+- Two floppy drives with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
 - Up to four IDE hard disks with raw, fixed `vhd` and `chd` images, and blank disk creation.
+- Host folders and ZIP files as FAT16 hard disks, read in place and written back.
 - NE2000 network card with built-in DOS packet and IPX drivers, null modem and Hayes modem serial links, and network sessions of up to 8 machines over TCP and UDP or RetroArch netplay.
 - Keyboard with DOS layouts, PS/2 and serial mice, game port joysticks (standard, Gravis GamePad, CH FlightStick Pro), and up to two gamepads as keyboard and mouse (mapped per game) or joystick.
 - Per-game keyboard mapper, mouse capture, Game Focus and clipboard paste as keystrokes.
-- Save states (5 slots), rewind and run-ahead.
+- Save states, rewind and run-ahead.
 - AVI video recording, screenshots and VGM recording (OPL2, OPL3).
 - Standalone: Windows, Linux, BSD and macOS.
 - Libretro: Windows, Linux, macOS, Raspberry Pi, Android, iOS, tvOS, webOS, PlayStation 3, Nintendo GameCube, Nintendo WiiU, Nintendo Switch, Nintendo Switch 2, Emscripten, Classic Mini systems (NES, SNES, C64, ...), OpenDingux, RetroFW and QNX.
