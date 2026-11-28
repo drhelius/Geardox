@@ -81,6 +81,7 @@ int main(int argc, char* argv[])
     bool headless = false;
     int net_mode = 0;
     const char* net_host = NULL;
+    const char* net_host_address = NULL;
     int net_port = 0;
     bool portable = false;
 
@@ -359,6 +360,13 @@ int main(int argc, char* argv[])
                 if ((i + 1 < argc) && is_port(argv[i + 1]))
                     net_port = atoi(argv[++i]);
             }
+            else if (strcmp(argv[i], "--host-address") == 0)
+            {
+                net_host_address = option_value(argc, argv, &i);
+
+                if (!net_host_address)
+                    return -1;
+            }
             else if (strcmp(argv[i], "--join") == 0)
             {
                 const char* value = option_value(argc, argv, &i);
@@ -473,6 +481,9 @@ int main(int argc, char* argv[])
     apply_machine_overrides();
     emu_net_set_command_line(net_mode, net_host, net_port);
 
+    if (IsValidPointer(net_host_address))
+        config_network.host_address = net_host_address;
+
     if (app_params.mcp_tcp_port_set)
         config_emulator.mcp_tcp_port = app_params.mcp_tcp_port;
     else
@@ -550,8 +561,8 @@ static bool is_port(const char* text)
 static bool option_has_value(const char* option)
 {
     static const char* const k_options[] = { "--mcp-http-port", "--mcp-http-address", "--cd", "--fd1", "--fd2",
-        "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--gus", "--video",
-        "--mouse", "--cdrom", "--joystick", "--run", "--timeout", "--boot-speed", "--speed", "--gdb-port", "--join" };
+        "--load-state", "--target", "--model", "--cpu-mhz", "--ram", "--fpu", "--sound", "--gus", "--video", "--mouse",
+        "--cdrom", "--joystick", "--run", "--timeout", "--boot-speed", "--speed", "--gdb-port", "--join", "--host-address" };
 
     for (size_t i = 0; i < sizeof(k_options) / sizeof(k_options[0]); i++)
     {
@@ -761,6 +772,7 @@ static void print_usage(const char* program)
     print_wrapped("      --joystick DEVICE", "none, standard, gamepad, flightstick");
     printf("\nNetwork:\n");
     print_wrapped("      --host [PORT]", "Hosts a network session on PORT (default: the Network menu's port)");
+    print_wrapped("      --host-address A", "Address the hosted session listens on (default: the Network menu's address)");
     print_wrapped("      --join HOST[:PORT]", "Joins the network session at HOST");
     printf("\nDevelopment (Debug turns on for this run only):\n");
     print_wrapped("      --run COMMAND", "Runs COMMAND in the game descriptor's folder through GDXDBG, which reports it to the debugger");

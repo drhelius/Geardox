@@ -218,6 +218,8 @@ Machine (for this run only, the saved settings stay):
 Network:
       --host [PORT]         Hosts a network session on PORT (default: the
                             Network menu's port)
+      --host-address A      Address the hosted session listens on (default: the
+                            Network menu's address)
       --join HOST[:PORT]    Joins the network session at HOST
 
 Development (Debug turns on for this run only):
