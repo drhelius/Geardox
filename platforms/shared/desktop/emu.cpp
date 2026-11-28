@@ -513,7 +513,7 @@ std::string emu_get_save_folder(Save_Folder folder, const char* content)
     Directory_Location location = (Directory_Location)config_emulator.savefiles_dir_option;
 
     if ((location == Directory_Location_ROM) && (folder == Save_Folder_Disks) && IsValidPointer(content) &&
-        (content[0] != 0))
+        (content[0] != 0) && !starts_with_no_case(path_forward_slashes(content), path_forward_slashes(config_temp_path)))
         return path_directory(content);
 
     std::string path = location == Directory_Location_Custom ? config_emulator.savefiles_path :
