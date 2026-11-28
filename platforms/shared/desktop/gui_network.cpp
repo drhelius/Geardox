@@ -39,6 +39,7 @@ static const GuiColor& network_stopped_color = red;
 static bool open_add_card = false;
 static int pending_action = 0;
 static char address_text[256] = "";
+static char host_address_text[64] = "";
 static char name_text[64] = "";
 static char password_text[64] = "";
 static bool texts_loaded = false;
@@ -51,6 +52,7 @@ static void menu_name(bool active);
 static void menu_host_addresses(void);
 static void menu_recent(void);
 static void menu_max_machines(void);
+static void draw_host_address(void);
 static void draw_port(void);
 static void draw_password(void);
 static void draw_status(NetSession* session);
@@ -159,6 +161,7 @@ void gui_network_get_status_color(ImVec4* color)
 static void start_action(int action)
 {
     config_network.address = address_text;
+    config_network.host_address = host_address_text;
     config_network.name = name_text;
     config_network.password = password_text;
 
@@ -220,6 +223,7 @@ static void menu_host(bool active)
         return;
 
     ImGui::BeginDisabled(active);
+    draw_host_address();
     draw_port();
     draw_password();
     menu_max_machines();
@@ -361,6 +365,20 @@ static void menu_max_machines(void)
     ImGui::EndMenu();
 }
 
+static void draw_host_address(void)
+{
+    ImGui::Text("Address:");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::CalcTextSize("255.255.255.255").x + (ImGui::GetStyle().FramePadding.x * 2.0f));
+
+    if (ImGui::InputTextWithHint("##network_host_address", "0.0.0.0", host_address_text, sizeof(host_address_text),
+        ImGuiInputTextFlags_AutoSelectAll))
+        config_network.host_address = host_address_text;
+
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The address this machine listens on; 0.0.0.0 listens on all of them.");
+}
+
 static void draw_port(void)
 {
     ImGui::Text("Port:");
@@ -399,7 +417,7 @@ static void draw_status(NetSession* session)
             if (!emu_net_has_device())
                 ImGui::TextColored(network_stopped_color, "This machine has no network card");
             else if (session->GetMode() == NET_SESSION_HOST)
-                ImGui::TextColored(network_connected_color, "Hosting on port %u, %d of %d machines", session->GetPort(),
+                ImGui::TextColored(network_connected_color, "Hosting on %s, %d of %d machines", session->GetHostText(),
                     session->GetMachineCount(), session->GetMaxMachines());
             else
                 ImGui::TextColored(network_connected_color, "Machine %d of %d on %s", session->GetMachine(),
@@ -420,6 +438,7 @@ static void load_texts(void)
         return;
 
     strncpy_fit(address_text, config_network.address.c_str(), sizeof(address_text));
+    strncpy_fit(host_address_text, config_network.host_address.c_str(), sizeof(host_address_text));
     strncpy_fit(name_text, config_network.name.c_str(), sizeof(name_text));
     strncpy_fit(password_text, config_network.password.c_str(), sizeof(password_text));
     texts_loaded = true;

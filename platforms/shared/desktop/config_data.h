@@ -143,6 +143,7 @@ struct config_Game
 struct config_Network
 {
     std::string address;
+    std::string host_address;
     int port;
     std::string name;
     std::string password;

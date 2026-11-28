@@ -120,8 +120,8 @@ bool emu_net_host(void)
     std::string error;
     state_notice = false;
 
-    if (!session->Host((u16)config_network.port, session_name().c_str(), config_network.password.c_str(),
-        config_network.machines, &error))
+    if (!session->Host(config_network.host_address.c_str(), (u16)config_network.port, session_name().c_str(),
+        config_network.password.c_str(), config_network.machines, &error))
     {
         gui_notify(gui_NotificationError, ICON_MD_LAN, "Unable to host", error.c_str(), "network");
         return false;
@@ -129,9 +129,8 @@ bool emu_net_host(void)
 
     local_switch->Reset();
     local_switch->OpenPort(1);
-    char text[64];
-    snprintf(text, sizeof(text), "Hosting on port %d", config_network.port);
-    gui_notify(gui_NotificationSuccess, ICON_MD_LAN, text, NULL, "network");
+    std::string text = std::string("Hosting on ") + session->GetHostText();
+    gui_notify(gui_NotificationSuccess, ICON_MD_LAN, text.c_str(), NULL, "network");
     return true;
 }
 

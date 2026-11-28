@@ -437,9 +437,10 @@ modem and serial cable games of DOS.
 
 1. Fit the network card: **Emulator > Machine > Network Card > NE2000 (ISA)**, and reset. Games from the game database
    that play over a network already have it, and a machine without it offers to fit it when it hosts or joins.
-2. On one computer, choose **Network > Host Session**. **Network > Host** sets the port, 28183 by default, a password
-   and how many machines can join, up to 8. For play over the internet, forward that port for TCP and UDP in your
-   router to this computer; **Network > Host > Addresses** copies this computer's addresses for the others.
+2. On one computer, choose **Network > Host Session**. **Network > Host** sets the address it listens on, all of them
+   (0.0.0.0) by default, the port, 28183 by default, a password and how many machines can join, up to 8. For play over
+   the internet, forward that port for TCP and UDP in your router to this computer; **Network > Host > Addresses**
+   copies this computer's addresses for the others.
 3. On each of the others, type the host's address in **Network > Join**, with the port and password if the host
    changed them, and choose **Network > Join Session**.
 4. Start the game on every machine and choose its network (IPX) game.

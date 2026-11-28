@@ -94,7 +94,7 @@ bool net_socket_resolve(const char* host, uint32_t* ip)
     return true;
 }
 
-net_socket net_socket_listen(uint16_t port)
+net_socket net_socket_listen(uint32_t ip, uint16_t port)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -104,7 +104,7 @@ net_socket net_socket_listen(uint16_t port)
     int on = 1;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
     struct sockaddr_in address;
-    set_address(&address, INADDR_ANY, port);
+    set_address(&address, ip, port);
 
     if ((bind(fd, (struct sockaddr*)&address, sizeof(address)) != 0) || (listen(fd, 8) != 0) || !set_non_blocking(fd))
     {
@@ -209,7 +209,7 @@ int net_socket_receive(net_socket socket, void* data, int size)
     return received == 0 ? NET_SOCKET_ERROR : (int)received;
 }
 
-net_socket net_socket_udp(uint16_t port)
+net_socket net_socket_udp(uint32_t ip, uint16_t port)
 {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -217,7 +217,7 @@ net_socket net_socket_udp(uint16_t port)
         return NET_SOCKET_INVALID;
 
     struct sockaddr_in address;
-    set_address(&address, INADDR_ANY, port);
+    set_address(&address, ip, port);
 
     if ((bind(fd, (struct sockaddr*)&address, sizeof(address)) != 0) || !set_non_blocking(fd))
     {

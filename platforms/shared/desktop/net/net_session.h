@@ -87,7 +87,7 @@ class NetSession
 public:
     NetSession();
     ~NetSession();
-    bool Host(u16 port, const char* name, const char* password, int machines, std::string* error);
+    bool Host(const char* address, u16 port, const char* name, const char* password, int machines, std::string* error);
     bool Join(const char* host, u16 port, const char* name, const char* password, std::string* error);
     void Leave();
     void Update(NetworkPort* local, u64 now_ms);

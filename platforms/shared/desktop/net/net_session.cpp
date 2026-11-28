@@ -116,7 +116,8 @@ NetSession::~NetSession()
     SafeDelete(m_switch);
 }
 
-bool NetSession::Host(u16 port, const char* name, const char* password, int machines, std::string* error)
+bool NetSession::Host(const char* address, u16 port, const char* name, const char* password, int machines,
+    std::string* error)
 {
     Leave();
 
@@ -126,21 +127,30 @@ bool NetSession::Host(u16 port, const char* name, const char* password, int mach
         return false;
     }
 
-    m_listener = net_socket_listen(port);
+    u32 ip = 0;
 
-    if (m_listener == NET_SOCKET_INVALID)
+    if (IsValidPointer(address) && (address[0] != 0) && !net_socket_resolve(address, &ip))
     {
-        *error = "Port " + std::to_string(port) + " is in use or blocked";
+        *error = std::string("Can't find ") + address;
         return false;
     }
 
-    m_udp = net_socket_udp(port);
+    std::string on = ip != 0 ? std::string(" on ") + address : "";
+    m_listener = net_socket_listen(ip, port);
+
+    if (m_listener == NET_SOCKET_INVALID)
+    {
+        *error = "Port " + std::to_string(port) + on + " is in use or blocked";
+        return false;
+    }
+
+    m_udp = net_socket_udp(ip, port);
 
     if (m_udp == NET_SOCKET_INVALID)
     {
         net_socket_close(m_listener);
         m_listener = NET_SOCKET_INVALID;
-        *error = "UDP port " + std::to_string(port) + " is in use or blocked";
+        *error = "UDP port " + std::to_string(port) + on + " is in use or blocked";
         return false;
     }
 
@@ -152,7 +162,7 @@ bool NetSession::Host(u16 port, const char* name, const char* password, int mach
     m_machine = 1;
     m_max_machines = CLAMP(machines, 2, NET_SWITCH_MACHINES);
     m_error.clear();
-    m_host_text = "port " + std::to_string(port);
+    m_host_text = ip != 0 ? std::string(address) + ":" + std::to_string(port) : "port " + std::to_string(port);
     m_switch->Reset();
     m_switch->OpenPort(1);
     memset(m_peers, 0, sizeof(m_peers));
@@ -191,7 +201,7 @@ bool NetSession::Join(const char* host, u16 port, const char* name, const char* 
         return false;
     }
 
-    m_udp = net_socket_udp(0);
+    m_udp = net_socket_udp(0, 0);
 
     if (m_udp == NET_SOCKET_INVALID)
     {

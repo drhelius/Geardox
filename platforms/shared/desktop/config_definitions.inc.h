@@ -265,6 +265,7 @@ static inline void process(config_Operation operation)
     CONFIG_BOOL("Game", "Database", config_game.database, true);
     CONFIG_STRING_ARRAY("Game", "Recent%d", config_game.recent, config_max_recent_games, "");
     CONFIG_STRING("Network", "Address", config_network.address, "");
+    CONFIG_STRING_NOT_EMPTY("Network", "HostAddress", config_network.host_address, "0.0.0.0");
     CONFIG_INT_RANGE("Network", "Port", config_network.port, 28183, 1, 65535);
     CONFIG_STRING("Network", "Name", config_network.name, "");
     CONFIG_STRING("Network", "Password", config_network.password, "");
