@@ -21,29 +21,29 @@ Claude Code and Codex use a regular Geardox build instead, see [Quick Start](#qu
     <tr>
       <td rowspan="2"><strong>Windows</strong></td>
       <td>x64</td>
-      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-windows-x64.mcpb">Geardox-0.0.2-mcpb-windows-x64.mcpb</a></td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.3/Geardox-0.0.3-mcpb-windows-x64.mcpb">Geardox-0.0.3-mcpb-windows-x64.mcpb</a></td>
     </tr>
     <tr>
       <td>ARM64</td>
-      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-windows-arm64.mcpb">Geardox-0.0.2-mcpb-windows-arm64.mcpb</a></td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.3/Geardox-0.0.3-mcpb-windows-arm64.mcpb">Geardox-0.0.3-mcpb-windows-arm64.mcpb</a></td>
     </tr>
     <tr>
       <td rowspan="2"><strong>macOS</strong></td>
       <td>x64</td>
-      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-macos-x64.mcpb">Geardox-0.0.2-mcpb-macos-x64.mcpb</a></td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.3/Geardox-0.0.3-mcpb-macos-x64.mcpb">Geardox-0.0.3-mcpb-macos-x64.mcpb</a></td>
     </tr>
     <tr>
       <td>ARM64</td>
-      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-macos-arm64.mcpb">Geardox-0.0.2-mcpb-macos-arm64.mcpb</a></td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.3/Geardox-0.0.3-mcpb-macos-arm64.mcpb">Geardox-0.0.3-mcpb-macos-arm64.mcpb</a></td>
     </tr>
     <tr>
       <td rowspan="2"><strong>Linux</strong></td>
       <td>x64</td>
-      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-linux-x64.mcpb">Geardox-0.0.2-mcpb-linux-x64.mcpb</a></td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.3/Geardox-0.0.3-mcpb-linux-x64.mcpb">Geardox-0.0.3-mcpb-linux-x64.mcpb</a></td>
     </tr>
     <tr>
       <td>ARM64</td>
-      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.2/Geardox-0.0.2-mcpb-linux-arm64.mcpb">Geardox-0.0.2-mcpb-linux-arm64.mcpb</a></td>
+      <td><a href="https://github.com/drhelius/Geardox/releases/download/0.0.3/Geardox-0.0.3-mcpb-linux-arm64.mcpb">Geardox-0.0.3-mcpb-linux-arm64.mcpb</a></td>
     </tr>
   </tbody>
 </table>
