@@ -83,7 +83,7 @@ NetSession::NetSession()
     m_switch->SetOutput(&NetSession::SwitchOutput, this);
     InitPointer(m_local);
     m_event_count = 0;
-    m_serial_count = 0;
+    m_serial.Clear();
     m_serial_warned = false;
     m_last_keepalive = 0;
     m_dropped = 0;
@@ -245,7 +245,7 @@ void NetSession::Leave()
     m_machine = 0;
     m_switch->Reset();
     memset(m_peers, 0, sizeof(m_peers));
-    m_serial_count = 0;
+    m_serial.Clear();
     m_serial_warned = false;
 }
 
@@ -655,7 +655,7 @@ bool NetSession::HandleHostMessage(int machine, u8 type, const u8* payload, int 
             return false;
         case NET_MESSAGE_SERIAL:
         {
-            if (size < 4)
+            if ((size < 4) || !network_serial_valid(payload[0], payload[3], size - 4))
             {
                 CloseLink(machine, true);
                 return false;
@@ -780,7 +780,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
 
             return true;
         case NET_MESSAGE_SERIAL:
-            if (size >= 4)
+            if ((size >= 4) && network_serial_valid(payload[0], payload[3], size - 4))
                 QueueSerial(payload[0], payload[2], payload[3], payload + 4, size - 4);
             return true;
         default:
@@ -1199,6 +1199,9 @@ void NetSession::RouteSerial(int from, int channel, int to, int kind, const u8* 
 
 void NetSession::DeliverSerial(int target, int channel, int from, int kind, const u8* data, int size)
 {
+    if (!network_serial_valid(channel, kind, size))
+        return;
+
     if (target == 1)
     {
         QueueSerial(channel, from, kind, data, size);
@@ -1219,26 +1222,10 @@ void NetSession::DeliverSerial(int target, int channel, int from, int kind, cons
 
 void NetSession::QueueSerial(int channel, int from, int kind, const u8* data, int size)
 {
-    if (m_serial_count >= NET_SESSION_EVENTS)
-        return;
-
-    Net_Session_Serial& serial = m_serial[m_serial_count++];
-    serial.channel = channel;
-    serial.from = from;
-    serial.kind = kind;
-    serial.size = MIN(size, (int)sizeof(serial.data));
-
-    if (serial.size > 0)
-        memcpy(serial.data, data, serial.size);
+    m_serial.Push(channel, kind, from, data, size);
 }
 
 bool NetSession::TakeSerial(Net_Session_Serial* serial)
 {
-    if (m_serial_count == 0)
-        return false;
-
-    *serial = m_serial[0];
-    memmove(m_serial, m_serial + 1, sizeof(Net_Session_Serial) * (m_serial_count - 1));
-    m_serial_count--;
-    return true;
+    return m_serial.Pop(&serial->channel, &serial->kind, &serial->from, serial->data, &serial->size);
 }

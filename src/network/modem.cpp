@@ -188,7 +188,7 @@ void Modem::Receive(int kind, int peer, const u8* data, int size, u64 clocks)
             Ring(clocks);
             break;
         case NETWORK_SERIAL_ANSWER:
-            if (m_state.mode == MODEM_DIALING)
+            if ((m_state.mode == MODEM_DIALING) && IsPartner(peer))
             {
                 m_state.peer = (u8)peer;
                 Connect(clocks);
@@ -199,7 +199,7 @@ void Modem::Receive(int kind, int peer, const u8* data, int size, u64 clocks)
             bool busy = m_state.mode == MODEM_DIALING;
             bool ringing = m_state.mode == MODEM_RINGING;
 
-            if (m_state.mode == MODEM_IDLE)
+            if ((m_state.mode == MODEM_IDLE) || !IsPartner(peer))
                 break;
 
             HangUp(false, clocks);
@@ -209,7 +209,7 @@ void Modem::Receive(int kind, int peer, const u8* data, int size, u64 clocks)
             break;
         }
         case NETWORK_SERIAL_DATA:
-            if (m_state.mode == MODEM_ONLINE)
+            if ((m_state.mode == MODEM_ONLINE) && (peer == m_state.peer))
                 m_link->Queue(data, size, clocks);
             break;
         default:
@@ -492,6 +492,11 @@ void Modem::Ring(u64 clocks)
     }
 
     m_state.timer = clocks + Seconds(100);
+}
+
+bool Modem::IsPartner(int peer) const
+{
+    return (peer == 0) || (peer == m_state.peer) || ((m_state.mode == MODEM_DIALING) && (m_state.peer == 0));
 }
 
 u64 Modem::Seconds(u32 fiftieths) const

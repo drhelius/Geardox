@@ -35,8 +35,15 @@ enum Network_Serial_Kind
     NETWORK_SERIAL_LINES,
     NETWORK_SERIAL_CALL,
     NETWORK_SERIAL_ANSWER,
-    NETWORK_SERIAL_HANGUP
+    NETWORK_SERIAL_HANGUP,
+    NETWORK_SERIAL_RESYNC
 };
+
+static inline bool network_serial_valid(int channel, int kind, int size)
+{
+    return (channel >= 0) && (channel < 2) && (kind >= NETWORK_SERIAL_DATA) && (kind <= NETWORK_SERIAL_RESYNC) &&
+        (size >= 0) && (size <= NETWORK_SERIAL_RECORD);
+}
 
 class NetworkSerialQueue
 {
@@ -56,6 +63,8 @@ private:
     u8 m_data[NETWORK_SERIAL_QUEUE];
     int m_head;
     int m_size;
+    int m_tail;
+    bool m_tail_valid;
 };
 
 class NetworkFrameQueue
@@ -119,6 +128,8 @@ public:
     bool TakeSentSerial(int* channel, int* kind, int* peer, u8* data, int* size);
     bool DeliverSerial(int channel, int kind, int peer, const u8* data, int size);
     bool TakeReceivedSerial(int* channel, int* kind, int* peer, u8* data, int* size);
+    void DeliverSerialDisconnect(int machine);
+    void DeliverSerialResync();
     int GetSerialSendFree() const;
 
 private:

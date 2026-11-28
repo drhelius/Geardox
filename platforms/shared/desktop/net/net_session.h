@@ -180,8 +180,7 @@ private:
     Net_Session_Peer m_peers[NET_SWITCH_PORTS];
     Net_Session_Event m_events[NET_SESSION_EVENTS];
     int m_event_count;
-    Net_Session_Serial m_serial[NET_SESSION_EVENTS];
-    int m_serial_count;
+    NetworkSerialQueue m_serial;
     bool m_serial_warned;
     u64 m_last_keepalive;
     u32 m_dropped;

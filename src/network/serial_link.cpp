@@ -114,6 +114,8 @@ void SerialLink::Receive(int kind, int peer, const u8* data, int size, u64 clock
         m_state.remote = data[0];
         UpdateInputs();
     }
+    else if (kind == NETWORK_SERIAL_RESYNC)
+        Send(NETWORK_SERIAL_LINES, 0, &m_state.outputs, 1);
 }
 
 u64 SerialLink::GetNextEventClocks() const

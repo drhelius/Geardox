@@ -86,6 +86,7 @@ private:
     void Connect(u64 clocks);
     void HangUp(bool notify, u64 clocks);
     void Ring(u64 clocks);
+    bool IsPartner(int peer) const;
     u64 Seconds(u32 fiftieths) const;
 
 private:

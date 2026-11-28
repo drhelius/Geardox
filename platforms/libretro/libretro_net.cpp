@@ -54,6 +54,7 @@ static int find_port(uint16_t client_id);
 static void move_serial(NetworkPort* port);
 static void route_serial(int from, int channel, int to, int kind, const u8* data, int size);
 static void deliver_serial(int target, int channel, int from, int kind, const u8* data, int size);
+static void serial_disconnect_all(void);
 
 void libretro_net_init(retro_environment_t environ_cb, GeardoxCore* core, libretro_net_event_t event_cb)
 {
@@ -178,7 +179,7 @@ static void RETRO_CALLCONV net_receive(const void* buf, size_t len, uint16_t cli
                 net_core->GetNetworkPort()->Deliver(data + 1, (int)len - 1);
             break;
         case LIBRETRO_NET_PACKET_SERIAL:
-            if (len >= 5)
+            if ((len >= 5) && network_serial_valid(data[1], data[4], (int)len - 5))
             {
                 if (net_host)
                 {
@@ -194,8 +195,15 @@ static void RETRO_CALLCONV net_receive(const void* buf, size_t len, uint16_t cli
         case LIBRETRO_NET_PACKET_PEERS:
             if (!net_host && (len >= 3))
             {
+                int count = net_machine_count;
                 net_machine = data[1];
                 net_machine_count = data[2];
+
+                if (net_machine_count < count)
+                    serial_disconnect_all();
+
+                if (net_machine_count != count)
+                    net_core->GetNetworkPort()->DeliverSerialResync();
             }
             break;
         default:
@@ -212,6 +220,7 @@ static void RETRO_CALLCONV net_stop(void)
     net_machine_count = 0;
     net_switch->Reset();
     net_switch->OpenPort(1);
+    serial_disconnect_all();
 
     if (IsValidPointer(net_event))
         net_event(LIBRETRO_NET_STOPPED, 0);
@@ -259,6 +268,7 @@ static bool RETRO_CALLCONV net_connected(uint16_t client_id)
         net_switch->OpenPort(i);
         net_machine_count++;
         send_peers();
+        net_core->GetNetworkPort()->DeliverSerialResync();
 
         if (IsValidPointer(net_event))
             net_event(LIBRETRO_NET_JOINED, i);
@@ -283,6 +293,8 @@ static void RETRO_CALLCONV net_disconnected(uint16_t client_id)
     net_switch->ClosePort(port);
     net_machine_count--;
     send_peers();
+    net_core->GetNetworkPort()->DeliverSerialDisconnect(port);
+    net_core->GetNetworkPort()->DeliverSerialResync();
 
     if (IsValidPointer(net_event))
         net_event(LIBRETRO_NET_LEFT, port);
@@ -371,6 +383,9 @@ static void route_serial(int from, int channel, int to, int kind, const u8* data
 
 static void deliver_serial(int target, int channel, int from, int kind, const u8* data, int size)
 {
+    if (!network_serial_valid(channel, kind, size))
+        return;
+
     if (target == 1)
     {
         net_core->GetNetworkPort()->DeliverSerial(channel, kind, from, data, size);
@@ -388,6 +403,15 @@ static void deliver_serial(int target, int channel, int from, int kind, const u8
     packet[4] = (u8)kind;
     memcpy(packet + 5, data, size);
     net_send(RETRO_NETPACKET_RELIABLE, packet, (size_t)size + 5, (uint16_t)net_clients[target]);
+}
+
+static void serial_disconnect_all(void)
+{
+    if (!IsValidPointer(net_core))
+        return;
+
+    for (int machine = 1; machine <= NET_SWITCH_MACHINES; machine++)
+        net_core->GetNetworkPort()->DeliverSerialDisconnect(machine);
 }
 
 static int find_port(uint16_t client_id)

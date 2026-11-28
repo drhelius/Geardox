@@ -39,6 +39,7 @@ static int command_line_port = 0;
 static void local_output(void* context, int port, const u8* data, int size);
 static void move_serial(NetworkPort* port);
 static void notify_events(void);
+static void serial_session_ended(void);
 static std::string session_name(void);
 
 void emu_net_init(void)
@@ -158,6 +159,7 @@ void emu_net_leave(void)
         return;
 
     session->Leave();
+    serial_session_ended();
     gui_notify(gui_NotificationInfo, ICON_MD_LAN, "Left the session", NULL, "network");
 }
 
@@ -256,22 +258,28 @@ static void notify_events(void)
         switch (event.type)
         {
             case NET_SESSION_EVENT_JOINED:
+                emu_get_core()->GetNetworkPort()->DeliverSerialResync();
                 gui_notify(gui_NotificationInfo, ICON_MD_LAN, event.text, NULL, "network");
                 break;
             case NET_SESSION_EVENT_LEFT:
+                emu_get_core()->GetNetworkPort()->DeliverSerialDisconnect(event.machine);
+                emu_get_core()->GetNetworkPort()->DeliverSerialResync();
                 gui_notify(gui_NotificationInfo, ICON_MD_LAN, event.text, NULL, "network");
                 break;
             case NET_SESSION_EVENT_CONNECTED:
             {
                 char text[64];
                 snprintf(text, sizeof(text), "Joined as machine %d", event.machine);
+                emu_get_core()->GetNetworkPort()->DeliverSerialResync();
                 gui_notify(gui_NotificationSuccess, ICON_MD_LAN, text, session->GetHostText(), "network");
                 break;
             }
             case NET_SESSION_EVENT_ENDED:
+                serial_session_ended();
                 gui_notify(gui_NotificationWarning, ICON_MD_LINK_OFF, "The session ended", event.text, "network");
                 break;
             case NET_SESSION_EVENT_FAILED:
+                serial_session_ended();
                 gui_notify(gui_NotificationError, ICON_MD_LINK_OFF, "Unable to join", event.text, "network");
                 break;
             case NET_SESSION_EVENT_DUPLICATE:
@@ -284,6 +292,12 @@ static void notify_events(void)
                 break;
         }
     }
+}
+
+static void serial_session_ended(void)
+{
+    for (int machine = 1; machine <= NET_SWITCH_MACHINES; machine++)
+        emu_get_core()->GetNetworkPort()->DeliverSerialDisconnect(machine);
 }
 
 static std::string session_name(void)

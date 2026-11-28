@@ -128,14 +128,36 @@ void NetworkSerialQueue::Clear()
 {
     m_head = 0;
     m_size = 0;
+    m_tail = 0;
+    m_tail_valid = false;
 }
 
 bool NetworkSerialQueue::Push(int channel, int kind, int peer, const u8* data, int size)
 {
-    if ((size < 0) || (size > NETWORK_SERIAL_RECORD) || (m_size + 5 + size > NETWORK_SERIAL_QUEUE))
+    if ((size < 0) || (size > NETWORK_SERIAL_RECORD) || (m_size + size > NETWORK_SERIAL_QUEUE))
+        return false;
+
+    if ((kind == NETWORK_SERIAL_DATA) && m_tail_valid && (m_data[m_tail] == (u8)channel) &&
+        (m_data[(m_tail + 1) % NETWORK_SERIAL_QUEUE] == (u8)kind) && (m_data[(m_tail + 2) % NETWORK_SERIAL_QUEUE] == (u8)peer))
+    {
+        int tail_size = m_data[(m_tail + 3) % NETWORK_SERIAL_QUEUE] | (m_data[(m_tail + 4) % NETWORK_SERIAL_QUEUE] << 8);
+
+        if (tail_size + size <= NETWORK_SERIAL_RECORD)
+        {
+            Write(data, size);
+            tail_size += size;
+            m_data[(m_tail + 3) % NETWORK_SERIAL_QUEUE] = (u8)tail_size;
+            m_data[(m_tail + 4) % NETWORK_SERIAL_QUEUE] = (u8)(tail_size >> 8);
+            return true;
+        }
+    }
+
+    if (m_size + 5 + size > NETWORK_SERIAL_QUEUE)
         return false;
 
     u8 header[5] = { (u8)channel, (u8)kind, (u8)peer, (u8)size, (u8)(size >> 8) };
+    m_tail = (m_head + m_size) % NETWORK_SERIAL_QUEUE;
+    m_tail_valid = true;
     Write(header, 5);
 
     if (size > 0)
@@ -148,6 +170,9 @@ bool NetworkSerialQueue::Pop(int* channel, int* kind, int* peer, u8* data, int* 
 {
     if (m_size < 5)
         return false;
+
+    if (m_head == m_tail)
+        m_tail_valid = false;
 
     u8 header[5];
     Read(header, 5);
@@ -364,4 +389,21 @@ bool NetworkPort::TakeReceivedSerial(int* channel, int* kind, int* peer, u8* dat
 int NetworkPort::GetSerialSendFree() const
 {
     return m_serial_sent.GetFree();
+}
+
+void NetworkPort::DeliverSerialDisconnect(int machine)
+{
+    u8 lines = 0;
+
+    for (int channel = 0; channel < 2; channel++)
+    {
+        DeliverSerial(channel, NETWORK_SERIAL_HANGUP, machine, NULL, 0);
+        DeliverSerial(channel, NETWORK_SERIAL_LINES, machine, &lines, 1);
+    }
+}
+
+void NetworkPort::DeliverSerialResync()
+{
+    for (int channel = 0; channel < 2; channel++)
+        DeliverSerial(channel, NETWORK_SERIAL_RESYNC, 0, NULL, 0);
 }
