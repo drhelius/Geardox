@@ -18,6 +18,7 @@ Get a desktop build from the [downloads](README.md#downloads) and open Geardox.
 - [Machine settings](#machine-settings)
 - [MIDI music](#midi-music)
 - [Keyboard, mouse and joystick](#keyboard-mouse-and-joystick)
+- [Playing together](#playing-together)
 - [Where Geardox keeps its files](#where-geardox-keeps-its-files)
 - [Quick fixes](#quick-fixes)
 
@@ -198,6 +199,11 @@ into the image, and everything you install stays there.
   **Shut Down** turns the PC off.
 - **DirectX games** install DirectX from their own CD. DirectX 5's setup offers a newer Cirrus 5446 display driver:
   accept it and restart. If Windows then starts in Safe Mode, restart once more from the Start menu.
+- **Network:** fit the network card and reset. **Control Panel > Add New Hardware** finds an "NE2000 Compatible";
+  in its **Properties > Resources**, set the Interrupt to 10. Add **TCP/IP** from Microsoft in **Control Panel >
+  Network**, with the Windows CD in the drive. After the restart, Windows gets its address from the session's network.
+  For IPX games with DOS machines, set **IPX/SPX-compatible Protocol > Properties > Advanced > Frame Type** to
+  **Ethernet II**, the framing GDXIPX uses.
 - **3dfx Voodoo:** turn on **Emulator > Machine > Video Card > 3dfx Voodoo Graphics** and reset. Windows 95 finds a
   "PCI Early non-VGA Device" and asks for its driver: unpack 3dfx's Voodoo Graphics driver kit for Windows 95 (3.01.00
   works) to a folder, choose **Other Locations...** and type that folder, and type it again when Windows asks for the
@@ -249,6 +255,8 @@ shows the one imported.
 | Video Card | Auto | Cirrus Logic SVGA with 2 MB, VESA modes up to 1280x1024 and accelerated Windows drivers: the GD5428, ISA on the 386s and VL-Bus on the 486s, and the PCI GD5446 on the Pentiums. The IBM CGA and EGA are for games written for those cards. |
 | 3dfx Voodoo Graphics | Off | A second PCI card with 4 MB for DOS games with 3dfx support, on the Pentiums. The game database turns it on for a game that only runs on one, and **Game > Boot To > 3dfx Voodoo** fits it for a game's 3dfx program. Games that load `GLIDE2X.OVL` need **Video > 3dfx Voodoo Driver > Import Driver...** once: see [Use a 3dfx Voodoo](GDOX_README.md#use-a-3dfx-voodoo). |
 | Mouse | PS/2 | |
+| Network Card | None | An NE2000 at port 300 and IRQ 10 for network games: see [Playing together](#playing-together). |
+| Serial Ports | None | COM1 and COM2 as a null modem cable or a modem to another machine of a network session. |
 | CD-ROM Drive | Secondary Master, 4x | |
 | Drive Timing | Auto | Fast for games and Real otherwise. Fast takes a sixteenth of the time for seeks, the wait for a sector and a CD's spin-up; Real keeps the drives' mechanics. |
 
@@ -373,6 +381,26 @@ joystick port, and **Input > Emulated Joystick** picks what the game sees: a sta
 default) or a CH FlightStick Pro.
 
 All hotkeys can be changed in **Emulator > Hotkeys**, and its **Reset to Defaults** brings these back.
+
+## Playing Together
+
+Several Geardox machines make one network, in windows on one computer or on computers far apart, for the network,
+modem and serial cable play of DOS games.
+
+1. Fit the network card: **Emulator > Machine > Network Card > NE2000 (ISA)**, and reset. Games from the game database
+   that play over a network already have it, and a machine without it offers to fit it when it hosts or joins.
+2. On one computer, choose **Network > Host Session**. For play over the internet, forward its port, 28183 by default,
+   for TCP and UDP in your router; **Network > Host > Addresses** copies this computer's addresses for the others.
+3. On each of the others, type the host's address in **Network > Join** and choose **Network > Join Session**.
+4. Start the game everywhere and choose its network (IPX) game.
+
+A game's DOS loads the network drivers before the game starts: an NE2000 packet driver and GDXIPX, Geardox's IPX
+driver. The built-in disks carry both without loading them: type `NE2000 0x60 10 0x300`, then `GDXIPX`, on MS-DOS
+from `C:\GEARDOX`. Modem and serial cable games use **Emulator > Machine > Serial Ports**, set to Modem or Null Modem,
+instead of the card: see [Play over a network](GDOX_README.md#play-over-a-network).
+
+Most DOS games play in step: every machine waits for the slowest one each turn, so a slow computer slows the game
+down for everyone, and a delay over about 100 ms each way stops some games from starting.
 
 ## Where Geardox Keeps Its Files
 

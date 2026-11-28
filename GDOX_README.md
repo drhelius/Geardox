@@ -16,6 +16,7 @@ FreeDOS, or [your own MS-DOS](#use-your-own-ms-dos) once you import it.
 - [Use your own MS-DOS](#use-your-own-ms-dos)
 - [Use a Gravis UltraSound](#use-a-gravis-ultrasound)
 - [Use a 3dfx Voodoo](#use-a-3dfx-voodoo)
+- [Play over a network](#play-over-a-network)
 - [Troubleshooting](#troubleshooting)
 - [Other ways to open a game](#other-ways-to-open-a-game)
 - [Settings reference](#settings-reference)
@@ -523,6 +524,48 @@ In RetroArch, set the **Game Runs (restart)** core option to **3dfx Voodoo** to 
 **3dfx Voodoo Graphics (restart)** for the card alone. Put the driver's ZIP, or `GLIDE2X.OVL`, in `geardox/3dfx`
 inside RetroArch's system folder.
 
+## Play over a Network
+
+Geardox joins several of its machines into one network, in windows on one computer or on computers far apart, for the
+network, modem and serial cable play of DOS games. Network play needs the network card: `card = ne2000` under
+`[network]`, or **Emulator > Machine > Network Card** for every game. It's an NE2000 at port 300 and IRQ 10. Geardox's
+game database fits it to the games it knows with network play.
+
+With the card fitted, the game's DOS loads two drivers before the game starts: an NE2000 packet driver at INT 60h, and
+GDXIPX, Geardox's IPX driver, which games find as they found Novell's. Games that play over IPX, such as Doom, Duke
+Nukem 3D or Warcraft II, need nothing more: their network or IPX game finds the other machines. Programs with their
+own TCP/IP, such as mTCP, use the packet driver. The network hands out addresses from 10.68.0.100 by DHCP, 10.68.0.1
+answers pings, and it doesn't reach the internet.
+
+Modem and serial cable games use a COM port instead: `com1 = null_modem` or `com1 = modem` under `[network]`, `com2`
+the same, or **Emulator > Machine > Serial Ports** for every game. A null modem is a cable to the same port of the
+other machine, in a session of two. The modem is a Hayes modem that dials the session's machines by their number:
+`ATDT2` calls machine 2, and `ATDT` with no number, or 0, calls the other machine in a session of two. It answers
+with `ATA` or the game's answer option when it rings. A serial mouse takes COM1, so use COM2 with it.
+
+To connect the machines:
+
+1. On one computer, choose **Network > Host Session**. Over the internet, forward the host's port, 28183 by default,
+   for TCP and UDP in your router to this computer. **Network > Host > Addresses** copies this computer's addresses.
+2. On each of the others, type the host's address in **Network > Join**, with the password if the host set one, and
+   choose **Network > Join Session**.
+3. Start the game on every machine and choose its network, modem or serial game.
+
+The menu bar shows `NET: 1/2 (HOST)` on the host and `NET: 2/2 (GUEST)` on the others, and **Network > Machines** lists
+them with their delay. A machine without the card offers to fit it and reset when it hosts or joins. `--host` and
+`--join` do the same from the command line. Most DOS games play in step: every machine waits for the slowest, so the
+game runs at the speed of the slowest computer, and a delay over about 100 ms each way stops some of them from
+starting.
+
+The same game can run in several Geardox windows on one computer, with **Network > New Geardox Window** on macOS.
+The second window runs it as machine 2, up to machine 8, with its saves in `Machine 2` inside the game's save folder,
+and leaves the game's folder alone.
+
+In RetroArch, connect with RetroArch's own netplay, from its **Netplay** menu. Starting a session fits the card,
+restarting the game when it started moments before; later, restart the content to fit it. The **Serial Link
+(restart)** core option connects COM1, or COM2 with a serial mouse, as a null modem or a modem for games without
+`com1` or `com2`.
+
 ## Troubleshooting
 
 | Problem | What to check |
@@ -588,6 +631,7 @@ in `[game]`. Leave out any other setting the game doesn't need, and Geardox uses
 | `[drives]` | No | Floppy disks, extra hard disks and CDs, as in the **Drives** menu |
 | `[machine]` | No | The emulated PC: model, CPU clock and turbo, RAM, coprocessor, floppy and CD-ROM drives, drive timing, video card and CGA monitor |
 | `[sound]` | No | The sound card and its IRQ and DMA, the Gravis UltraSound, the MPU-401, MIDI music and the volumes |
+| `[network]` | No | The network card, its port and IRQ, and what the serial ports connect to |
 | `[input]` | No | The mouse and the joystick |
 | `[keys]` | No | Your keys and the PC keys they press |
 | `[pad1]`, `[pad2]` | No | The first and second gamepads: the PC keys and mouse buttons they press, and what moves the mouse |
@@ -711,6 +755,19 @@ default for `midi_out`: Built-in Synth plays on the synth for the kind of music 
 `<system>/geardox/mt32` or `<system>`, a sound bank in `<system>/geardox/soundfonts`), and External Port plays on the
 port in **Settings > Audio > MIDI**, where MIDI output must be on; `midi_port` isn't used. The **Built-in MT-32
 Model** core option is the default for `mt32_model`.
+
+### `[network]`
+
+Like `[machine]`, these settings follow your own Geardox settings when left out. See
+[Play over a network](#play-over-a-network).
+
+| Key | Required | Description | Values | Default | Example |
+| --- | --- | --- | --- | --- | --- |
+| `card` | No | The network card. With one, the game's DOS loads its packet driver and GDXIPX, Geardox's IPX driver | `none`, `ne2000` | Your setting (`none`) | `card = ne2000` |
+| `port` | No | The network card's port, in hexadecimal. 320 shares 330 with the MPU-401, and 360 shares 376 with IDE and 378 with LPT1 | `300`, `320`, `340`, `360` | Your setting (`300`) | `port = 340` |
+| `irq` | No | The network card's IRQ. 3 is COM2's, 4 COM1's, 5 the sound card's, 9 the video card's and the MPU-401's, 12 the PS/2 mouse's and 15 IDE's | `3`, `4`, `5`, `9`, `10`, `11`, `12`, `15` | Your setting (`10`) | `irq = 11` |
+| `com1` | No | What COM1 connects to in a network session. A serial mouse keeps COM1 | `none`, `null_modem`, `modem` | Your setting (`none`) | `com1 = null_modem` |
+| `com2` | No | What COM2 connects to in a network session | `none`, `null_modem`, `modem` | Your setting (`none`) | `com2 = modem` |
 
 ### `[input]`
 
@@ -874,11 +931,11 @@ C:\WINA20.386     As MS-DOS Setup installs it
 C:\CONFIG.SYS     DOS configuration generated from the descriptor
 C:\AUTOEXEC.BAT   Startup commands generated from the descriptor
 C:\DOS            Everything MS-DOS Setup installs there
-C:\GEARDOX        Geardox's tools: the mouse and CD drivers, the programs that start the game and power off,
-                  GDXIDLE.SYS, which rests the PC while DOS waits for a key as FreeDOS's IDLEHALT does,
-                  GDXPAD.COM, which keeps conventional memory up to 32K so DOS extenders load above it,
-                  as on a PC with a few more drivers in low memory, and Enhanced DOSKEY, which loads when
-                  the game leaves you at the prompt
+C:\GEARDOX        Geardox's tools: the mouse and CD drivers, the network card's packet and IPX drivers, the
+                  programs that start the game and power off, GDXIDLE.SYS, which rests the PC while DOS waits
+                  for a key as FreeDOS's IDLEHALT does, GDXPAD.COM, which keeps conventional memory up to 32K
+                  so DOS extenders load above it, as on a PC with a few more drivers in low memory, and Enhanced
+                  DOSKEY, which loads when the game leaves you at the prompt
 C:\TEMP           Temporary files
 C:\ORION          Your game's files
 ```

@@ -117,6 +117,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 - ATAPI CD-ROM drive (1x-8x) with `cue/bin`, `iso`, `chd`, GOG `ins/gog`, `zip` and `m3u` playlists, and physical discs on Windows, macOS and Linux.
 - Two floppy drives (360 KB-2.88 MB) with `img`, `ima`, `vfd`, `flp`, `dsk`, `d77`, `d88`, `hdm`, `xdf`, HxC `mfm`, `zip` and `m3u`, write protection and optional change persistence.
 - Up to four IDE hard disks with raw, fixed `vhd` and `chd` images, and blank disk creation.
+- NE2000 network card with built-in DOS packet and IPX drivers, null modem and Hayes modem serial links, and network sessions of up to 8 machines over TCP and UDP or RetroArch netplay.
 - Keyboard with DOS layouts, PS/2 and serial mice, game port joysticks (standard, Gravis GamePad, CH FlightStick Pro), and up to two gamepads as keyboard and mouse (mapped per game) or joystick.
 - Per-game keyboard mapper, mouse capture, Game Focus and clipboard paste as keystrokes.
 - Save states (5 slots), rewind and run-ahead.
@@ -128,7 +129,7 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
   - Execute, data, I/O and interrupt breakpoints.
   - Memory editor, trace logger and profiler.
   - i386 registers, descriptor tables, paging and x87 FPU.
-  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, 3dfx Voodoo registers, pipeline and buffers, OPL, Sound Blaster, Gravis UltraSound voices and DRAM, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports.
+  - VGA and Cirrus registers, BitBLT engine and hardware cursor, palettes, VRAM, 3dfx Voodoo registers, pipeline and buffers, OPL, Sound Blaster, Gravis UltraSound voices and DRAM, CD-ROM, floppy, IDE, interrupts, timers, DMA, system control, RTC, BIOS log, keyboard, mouse, joystick, serial and parallel ports, network card.
 - [MS-DOS development](DEV_README.md): run programs built on the host through GDXDBG, read their output and exit code, debug them with gdb or VS Code, and test them headless.
 - MCP server for AI-assisted debugging with Claude Code, Codex and similar.
 - *Portable Mode*, [programmable shader chain](platforms/shared/desktop/shaders/README.md), command line and drag & drop loading, and modern game controllers through [gamecontrollerdb.txt](https://github.com/mdqinc/SDL_GameControllerDB) beside the binary.
@@ -136,9 +137,10 @@ Don't hesitate to report bugs or ask for new features by [opening an issue](http
 ## Tips
 
 ### Basic Usage
-- **Getting Started**: [INSTRUCTIONS.md](INSTRUCTIONS.md) covers playing games, the built-in DOS disks, the DOS prompt, Windows 3.11 and Windows 95, disks and discs, machine settings, MIDI, keyboard, mouse, gamepads and where files are kept.
-- **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, and importing MS-DOS, the Gravis UltraSound software and the 3dfx Voodoo driver.
+- **Getting Started**: [INSTRUCTIONS.md](INSTRUCTIONS.md) covers playing games, the built-in DOS disks, the DOS prompt, Windows 3.11 and Windows 95, disks and discs, machine settings, MIDI, keyboard, mouse, gamepads, playing together and where files are kept.
+- **Games**: [GDOX_README.md](GDOX_README.md) covers game descriptors, the game database, ZIPs and CDs, saves, per-game settings, key and gamepad mapping, network play, and importing MS-DOS, the Gravis UltraSound software and the 3dfx Voodoo driver.
 - **MIDI Music**: The built-in synths need your own MT-32 ROMs and a SoundFont sound bank, set in **Audio → Built-in Synths**. See [MIDI music](INSTRUCTIONS.md#midi-music).
+- **Playing Together**: **Network → Host Session** on one computer and **Network → Join Session** on the others connect up to 8 machines for network, modem and serial cable games. The host's port, 28183 by default, takes TCP and UDP. See [Playing together](INSTRUCTIONS.md#playing-together).
 - **Portable Mode**: Run with `--portable`, or create an empty file named `portable.ini` in the same directory as the application binary. On macOS, place the file next to the `.app` bundle.
 
 ### Keyboard
@@ -160,6 +162,7 @@ The mapper's **This Game** and **All Games** buttons choose where your changes g
 - **Options**: The machine, drives, game and DOS settings are core options, most applied at restart.
 - **Input**: Port 1 is **Keyboard and Mouse** (default) or **PC Joystick**, port 2 **Keyboard and Mouse**. Turn on RetroArch's Game Focus (Scroll Lock by default) for the keyboard and the mapper hotkeys. `.keys` files, and each game's `Keys.ini`, go to the save directory; the All Games changes are `geardox.keys` there.
 - **Run-Ahead**: Use RetroArch's single instance mode or preemptive frames. Second instance mode isn't supported: both instances would use the same disks, so the game's files can be damaged.
+- **Netplay**: RetroArch's netplay connects the machines' network cards and serial ports. Starting a session fits the NE2000, and the **Serial Link (restart)** core option connects COM1 as a null modem or a modem.
 - **MIDI**: The built-in synths take MT-32 ROMs from `geardox/mt32` (or the system directory itself) and a sound bank from `geardox/soundfonts`. For a synth outside RetroArch, set **MIDI Out** to **External Port** and turn on RetroArch's MIDI output in **Settings → Audio → MIDI**.
 
 ### Debugging Features
@@ -211,6 +214,11 @@ Machine (for this run only, the saved settings stay):
       --cdrom DRIVE         none, pm, ps, sm, ss (primary or secondary, master
                             or slave)
       --joystick DEVICE     none, standard, gamepad, flightstick
+
+Network:
+      --host [PORT]         Hosts a network session on PORT (default: the
+                            Network menu's port)
+      --join HOST[:PORT]    Joins the network session at HOST
 
 Development (Debug turns on for this run only):
       --run COMMAND         Runs COMMAND in the game descriptor's folder
