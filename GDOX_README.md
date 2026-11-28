@@ -433,7 +433,7 @@ The **DOS > MS-DOS** menu shows the imported MS-DOS in green, or in red when not
 
 From the next game you open, every game runs on MS-DOS unless its descriptor asks for FreeDOS. With nothing attached,
 the PC boots the built-in MS-DOS disk, `MS-DOS.hdd`, made from your import the first time; see
-[Starting with nothing attached](INSTRUCTIONS.md#starting-with-nothing-attached). A game's C: drive then has MS-DOS's
+[The built-in disk](INSTRUCTIONS.md#the-built-in-disk). A game's C: drive then has MS-DOS's
 files instead of FreeDOS's, and the same `CONFIG.SYS` and `AUTOEXEC.BAT`, generated from the descriptor (see
 [Files on the DOS C: drive](#files-on-the-dos-c-drive)). Saves go to the same place whichever DOS runs; only the
 changes to DOS's own files are kept apart, in `FreeDOS` and `MS-DOS`.
