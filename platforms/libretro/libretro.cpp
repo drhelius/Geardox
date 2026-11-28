@@ -538,6 +538,9 @@ void retro_reset(void)
 
     report_machine();
     clear_input_state();
+
+    if (!core->GetMaxSaveStateSize(savestate_size))
+        savestate_size = 0;
 }
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
@@ -1341,30 +1344,39 @@ static void network_event(int event, int machine)
     switch (event)
     {
         case LIBRETRO_NET_STARTED:
+        {
             update_core_options_display();
             apply_serial_link();
             set_machine_config();
+            const GDOX_Machine_Config& pending = core->GetPendingMachineConfig();
+            const GDOX_Machine_Config& live = core->GetMachineConfig();
+            bool serial = (pending.com_link[0] != SERIAL_LINK_NONE) || (pending.com_link[1] != SERIAL_LINK_NONE);
 
-            if (!core->GetNE2000()->IsEnabled() && !core->GetNetworkPort()->HasSerial() && !network_card_added)
+            if ((pending.network_card == GDOX_NETWORK_CARD_NONE) && !serial && !network_card_added)
             {
                 network_card_added = true;
                 machine_settings.network_card = GDOX_NETWORK_CARD_NE2000;
                 set_machine_config();
+            }
 
+            if ((pending.network_card != live.network_card) || (pending.com_link[0] != live.com_link[0]) ||
+                (pending.com_link[1] != live.com_link[1]))
+            {
                 if (core->IsPoweredOn() && (core->GetScheduler()->GetClocks() < (u64)GDOX_MACHINE_CLOCK_RATE * 10))
                 {
                     retro_reset();
-                    show_message("Network session: the NE2000 is in, the machine restarted", 3, RETRO_LOG_INFO);
+                    show_message("Network session: the machine restarted with its network devices", 3, RETRO_LOG_INFO);
                     break;
                 }
 
-                show_message("Network session: restart the content to add the NE2000", 4, RETRO_LOG_WARN);
+                show_message("Network session: restart the content to connect the network devices", 4, RETRO_LOG_WARN);
                 break;
             }
 
             snprintf(text, sizeof(text), machine == 1 ? "Hosting a network session" : "Joined the network session");
             show_message(text, 2, RETRO_LOG_INFO);
             break;
+        }
         case LIBRETRO_NET_STOPPED:
             update_core_options_display();
             show_message("The network session ended", 2, RETRO_LOG_INFO);
