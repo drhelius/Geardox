@@ -2844,6 +2844,36 @@ void GeardoxCore::ResolveMachineConfig()
             "The %s takes no %d MB, it has %u MB", k_machine_profiles[config.model].name, ram_mb,
             config.ram_size / megabyte);
 
+    if (config.network_card != GDOX_NETWORK_CARD_NONE)
+    {
+        const char* port = ((config.network_base == 0x320) && config.mpu) ? "330h with the MPU-401" :
+            (config.network_base == 0x360) ? "376h with IDE and 378h with LPT1" : NULL;
+        const char* line = NULL;
+
+        if ((config.network_irq == config.sound_irq) && has_sound_blaster_dsp(config))
+            line = "the sound card";
+        else if (config.gus && (config.network_irq == get_gus_irq(config)))
+            line = "the UltraSound";
+        else if (config.network_irq == 3)
+            line = "COM2";
+        else if (config.network_irq == 4)
+            line = "COM1";
+        else if (config.network_irq == 9)
+            line = config.mpu ? "video and the MPU-401" : "video";
+        else if ((config.network_irq == 12) && (config.mouse == GDOX_MOUSE_PS2))
+            line = "the PS/2 mouse";
+        else if (config.network_irq == 15)
+            line = "IDE";
+
+        if (IsValidPointer(port) && (report.warning_count < GDOX_MACHINE_WARNING_COUNT))
+            snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+                "The network card at %03Xh shares %s", config.network_base, port);
+
+        if (IsValidPointer(line) && (report.warning_count < GDOX_MACHINE_WARNING_COUNT))
+            snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
+                "The network card shares IRQ %u with %s", config.network_irq, line);
+    }
+
     if (m_ram_size_locked && m_powered && (config.ram_size != m_machine_config.ram_size))
     {
         snprintf(report.warnings[report.warning_count++], GDOX_MACHINE_WARNING_SIZE,
