@@ -14,3 +14,6 @@ model = pentium_133
 
 [sound]
 midi = gm
+
+[network]
+card = ne2000

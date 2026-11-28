@@ -519,6 +519,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[sound]\n"
         "midi = gm\n"
         "\n"
+        "[network]\n"
+        "card = ne2000\n"
+        "\n"
         "[env]\n"
         "BUILD_GAMMA = 1.0\n" },
     { "blood_cryptic_passage", "Blood: Cryptic Passage",
@@ -538,7 +541,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 16\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "boppin", "Boppin'",
         "[geardox]\n"
         "version = 1\n"
@@ -724,7 +730,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = VOODO2C.EXE\n"
         "args = -novoodoo\n"
         "voodoo_exe = 3DFX.EXE\n"
-        "setup_exe = SNDSETUP.EXE\n" },
+        "setup_exe = SNDSETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "carmageddon_splat_pack", "Carmageddon Splat Pack",
         "[geardox]\n"
         "version = 1\n"
@@ -742,7 +751,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = VOODO2C.EXE\n"
         "args = -novoodoo\n"
         "voodoo_exe = CARMAV.EXE\n"
-        "setup_exe = SNDSETUP.EXE\n" },
+        "setup_exe = SNDSETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "castle_of_dr_brain", "Castle of Dr. Brain",
         "[geardox]\n"
         "version = 1\n"
@@ -1352,7 +1364,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = RALLY.EXE\n"
-        "setup_exe = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "deja_vu", "Deja Vu: A Nightmare Comes True",
         "[geardox]\n"
         "version = 1\n"
@@ -1405,7 +1420,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "descent_2", "Descent 2",
         "[geardox]\n"
         "version = 1\n"
@@ -1424,7 +1442,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 32\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "descent_anniversary_edition", "Descent: Anniversary Edition",
         "[geardox]\n"
         "version = 1\n"
@@ -1435,7 +1456,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DESCENTR.EXE\n"
-        "setup_exe = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "descent_levels_of_the_world", "Descent: Levels of the World",
         "[geardox]\n"
         "version = 1\n"
@@ -1446,7 +1470,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = DESCENTR.EXE\n"
-        "setup_exe = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "descent_v1_4a", "Descent",
         "[geardox]\n"
         "version = 1\n"
@@ -1460,7 +1487,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "discworld", "Discworld",
         "[geardox]\n"
         "version = 1\n"
@@ -1499,7 +1529,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "doom_ii", "DOOM II: Hell on Earth",
         "[geardox]\n"
         "version = 1\n"
@@ -1514,7 +1547,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "doom_ii_master_levels", "DOOM II: Master Levels",
         "[geardox]\n"
         "version = 1\n"
@@ -1528,7 +1564,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = DOOM2\\SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "doom_ii_master_levels_pack", "DOOM II: Hell on Earth",
         "[geardox]\n"
         "version = 1\n"
@@ -1542,7 +1581,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "doom_registered", "Doom",
         "[geardox]\n"
         "version = 1\n"
@@ -1556,7 +1598,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "dragon_lore_the_legend_begins", "Dragon Lore: The Legend Begins",
         "[geardox]\n"
         "version = 1\n"
@@ -1674,7 +1719,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "model = pentium_133\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "duke_nukem_3d_atomic_edition", "Duke Nukem 3D: Atomic Edition",
         "[geardox]\n"
         "version = 1\n"
@@ -1691,7 +1739,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "model = pentium_133\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "duke_nukem_ii", "Duke Nukem II",
         "[geardox]\n"
         "version = 1\n"
@@ -1965,7 +2016,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "final_doom_plutonia_experiment", "Final Doom: The Plutonia Experiment",
         "[geardox]\n"
         "version = 1\n"
@@ -1979,7 +2033,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "final_doom_tnt", "Final DOOM: TNT Evilution",
         "[geardox]\n"
         "version = 1\n"
@@ -1994,7 +2051,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "final_doom_tnt_evilution", "Final Doom: TNT Evilution",
         "[geardox]\n"
         "version = 1\n"
@@ -2008,7 +2068,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "flashback", "Flashback",
         "[geardox]\n"
         "version = 1\n"
@@ -2157,7 +2220,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "heretic_shadow_of_the_serpent_riders", "Heretic: Shadow of the Serpent Riders",
         "[geardox]\n"
         "version = 1\n"
@@ -2171,7 +2237,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "heroes_of_might_and_magic", "Heroes of Might and Magic",
         "[geardox]\n"
         "version = 1\n"
@@ -2227,7 +2296,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "hexen_deathkings_of_the_dark_citadel", "Hexen: Deathkings of the Dark Citadel",
         "[geardox]\n"
         "version = 1\n"
@@ -2241,7 +2313,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "hexen_ii", "Hexen II",
         "[geardox]\n"
         "version = 1\n"
@@ -3091,7 +3166,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETSOUND.EXE\n"
         "\n"
         "[machine]\n"
-        "ram_mb = 16\n" },
+        "ram_mb = 16\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "math_rescue_1", "Math Rescue 1",
         "[geardox]\n"
         "version = 1\n"
@@ -3824,7 +3902,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = QUAKE.EXE\n"
         "\n"
         "[machine]\n"
-        "model = pentium_133\n" },
+        "model = pentium_133\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "quake_dissolution_of_eternity", "Quake: Dissolution of Eternity",
         "[geardox]\n"
         "version = 1\n"
@@ -3838,7 +3919,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "args = -game rogue\n"
         "\n"
         "[machine]\n"
-        "model = pentium_133\n" },
+        "model = pentium_133\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "quake_scourge_of_armagon", "Quake: Scourge of Armagon",
         "[geardox]\n"
         "version = 1\n"
@@ -3852,7 +3936,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "args = -game hipnotic\n"
         "\n"
         "[machine]\n"
-        "model = pentium_133\n" },
+        "model = pentium_133\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "quake_shareware", "Quake (Shareware)",
         "[geardox]\n"
         "version = 1\n"
@@ -3867,6 +3954,9 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "[machine]\n"
         "model = pentium_133\n"
         "ram_mb = 16\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n"
         "\n"
         "[input]\n"
         "joystick = none\n" },
@@ -4164,7 +4254,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "rogue", "Rogue",
         "[geardox]\n"
         "version = 1\n"
@@ -4279,7 +4372,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 32\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "shadow_warrior_twin_dragon", "Shadow Warrior: Twin Dragon",
         "[geardox]\n"
         "version = 1\n"
@@ -4298,7 +4394,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 32\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "shadow_warrior_twin_dragon_standalone", "Shadow Warrior: Twin Dragon",
         "[geardox]\n"
         "version = 1\n"
@@ -4316,7 +4415,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 32\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "shadow_warrior_wanton_destruction", "Shadow Warrior: Wanton Destruction",
         "[geardox]\n"
         "version = 1\n"
@@ -4334,7 +4436,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "ram_mb = 32\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "shadowgate", "Shadowgate",
         "[geardox]\n"
         "version = 1\n"
@@ -5078,7 +5183,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = STRIFE1.EXE\n"
-        "setup_exe = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "stronghold_kingdom_simulator", "Stronghold: Kingdom Simulator",
         "[geardox]\n"
         "version = 1\n"
@@ -5302,7 +5410,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "\n"
         "[run]\n"
         "exe = TV.EXE\n"
-        "setup_exe = SETUP.EXE\n" },
+        "setup_exe = SETUP.EXE\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "the_black_cauldron", "The Black Cauldron",
         "[geardox]\n"
         "version = 1\n"
@@ -5539,7 +5650,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SOUND\\SETSOUND.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "theme_park", "Theme Park",
         "[geardox]\n"
         "version = 1\n"
@@ -6062,7 +6176,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "exe = WAR2.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "warcraft_orcs_and_humans", "Warcraft: Orcs and Humans",
         "[geardox]\n"
         "version = 1\n"
@@ -6076,7 +6193,10 @@ const GDOX_DB_Entry k_game_database_entries[] =
         "setup_exe = SETUP.EXE\n"
         "\n"
         "[sound]\n"
-        "midi = gm\n" },
+        "midi = gm\n"
+        "\n"
+        "[network]\n"
+        "card = ne2000\n" },
     { "warlords_ii_deluxe", "Warlords II Deluxe",
         "[geardox]\n"
         "version = 1\n"

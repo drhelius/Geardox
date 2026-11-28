@@ -10,3 +10,6 @@ exe = WAR2.EXE
 
 [sound]
 midi = gm
+
+[network]
+card = ne2000

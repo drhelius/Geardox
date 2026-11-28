@@ -17,5 +17,8 @@ ram_mb = 64
 [sound]
 midi = gm
 
+[network]
+card = ne2000
+
 [env]
 BUILD_GAMMA = 1.0

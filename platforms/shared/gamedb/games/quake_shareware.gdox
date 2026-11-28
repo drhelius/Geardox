@@ -12,5 +12,8 @@ exe = QUAKE.EXE
 model = pentium_133
 ram_mb = 16
 
+[network]
+card = ne2000
+
 [input]
 joystick = none

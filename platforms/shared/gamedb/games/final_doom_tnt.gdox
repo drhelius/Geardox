@@ -12,3 +12,6 @@ setup_exe = SETUP.EXE
 
 [sound]
 midi = gm
+
+[network]
+card = ne2000

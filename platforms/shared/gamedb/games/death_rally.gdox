@@ -8,3 +8,6 @@ folder = C:\RALLY
 [run]
 exe = RALLY.EXE
 setup_exe = SETUP.EXE
+
+[network]
+card = ne2000

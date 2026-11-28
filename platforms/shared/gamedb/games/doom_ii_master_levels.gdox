@@ -11,3 +11,6 @@ setup_exe = DOOM2\SETUP.EXE
 
 [sound]
 midi = gm
+
+[network]
+card = ne2000

@@ -11,3 +11,6 @@ setup_exe = SOUND\SETSOUND.EXE
 
 [sound]
 midi = gm
+
+[network]
+card = ne2000

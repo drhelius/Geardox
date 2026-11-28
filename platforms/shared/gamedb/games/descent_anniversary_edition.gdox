@@ -8,3 +8,6 @@ folder = C:\DESCENT
 [run]
 exe = DESCENTR.EXE
 setup_exe = SETUP.EXE
+
+[network]
+card = ne2000

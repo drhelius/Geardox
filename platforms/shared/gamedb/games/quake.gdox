@@ -10,3 +10,6 @@ exe = QUAKE.EXE
 
 [machine]
 model = pentium_133
+
+[network]
+card = ne2000
