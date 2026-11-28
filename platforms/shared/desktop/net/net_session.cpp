@@ -56,6 +56,20 @@ static const u64 k_timeout_ms = 10000;
 static const int k_nonce_size = 16;
 static const int k_proof_size = 20;
 
+static bool datagram_valid(const u8* data, int size)
+{
+    if ((size < k_datagram_header) || (size > k_datagram_header + k_datagram_payload) || (data[0] != 'G') ||
+        (data[1] != 'N'))
+        return false;
+
+    if (data[2] == NET_DATAGRAM_KEEPALIVE)
+        return true;
+
+    int parts = data[13];
+    return (data[2] == NET_DATAGRAM_FRAME) && (parts >= 1) && (parts <= 2) && (data[12] < parts) &&
+        (size > k_datagram_header);
+}
+
 static void copy_name(char* name, const u8* data)
 {
     memcpy(name, data, NET_SESSION_NAME_SIZE);
@@ -76,7 +90,6 @@ NetSession::NetSession()
     m_udp = NET_SOCKET_INVALID;
     m_port = 0;
     m_host_ip = 0;
-    m_token = 0;
     m_machine = 0;
     m_max_machines = NET_SWITCH_MACHINES;
     m_switch = new NetSwitch();
@@ -138,7 +151,6 @@ bool NetSession::Host(u16 port, const char* name, const char* password, int mach
     m_password = password;
     m_machine = 1;
     m_max_machines = CLAMP(machines, 2, NET_SWITCH_MACHINES);
-    m_token = random_u32() | 1;
     m_error.clear();
     m_host_text = "port " + std::to_string(port);
     m_switch->Reset();
@@ -628,7 +640,8 @@ bool NetSession::HandleHostMessage(int machine, u8 type, const u8* payload, int 
 
         u8 welcome[6];
         welcome[0] = (u8)free_machine;
-        write_u32_be(welcome + 1, m_token);
+        link->token = random_u32() | 1;
+        write_u32_be(welcome + 1, link->token);
         welcome[5] = (u8)m_max_machines;
         QueueMessage(*link, NET_MESSAGE_WELCOME, welcome, sizeof(welcome));
 
@@ -707,7 +720,7 @@ bool NetSession::HandleJoinMessage(u8 type, const u8* payload, int size, u64 now
             }
 
             m_machine = payload[0];
-            m_token = read_u32_be(payload + 1);
+            link->token = read_u32_be(payload + 1);
             m_max_machines = payload[5];
             m_state = NET_SESSION_CONNECTED;
             m_last_keepalive = now_ms;
@@ -800,32 +813,28 @@ void NetSession::ReceiveDatagrams(NetworkPort* local, u64 now_ms)
         if (size <= 0)
             return;
 
-        if ((size < k_datagram_header) || (m_datagram[0] != 'G') || (m_datagram[1] != 'N') ||
-            (read_u32_be(m_datagram + 4) != m_token))
+        if (!datagram_valid(m_datagram, size))
             continue;
 
-        if (m_mode == NET_SESSION_HOST)
+        int machine = m_datagram[3];
+        u32 token = read_u32_be(m_datagram + 4);
+        bool host = m_mode == NET_SESSION_HOST;
+
+        if ((host ? (machine < 2) : (machine != 1)) || (machine >= NET_SWITCH_PORTS) || !IsValidPointer(m_links[machine]) ||
+            (m_links[machine]->token != token))
+            continue;
+
+        Net_Session_Link& link = *m_links[machine];
+        link.last_heard = now_ms;
+
+        if (host)
         {
-            int machine = m_datagram[3];
-
-            if ((machine < 2) || (machine >= NET_SWITCH_PORTS) || !IsValidPointer(m_links[machine]))
-                continue;
-
-            Net_Session_Link& link = *m_links[machine];
             link.udp_ip = ip;
             link.udp_port = port;
             link.udp_known = true;
-            link.last_heard = now_ms;
-            HandleDatagram(link, machine, m_datagram, size, local);
         }
-        else
-        {
-            if ((m_datagram[3] != 1) || !IsValidPointer(m_links[1]))
-                continue;
 
-            m_links[1]->last_heard = now_ms;
-            HandleDatagram(*m_links[1], 1, m_datagram, size, local);
-        }
+        HandleDatagram(link, machine, m_datagram, size, local);
     }
 }
 
@@ -839,38 +848,32 @@ void NetSession::HandleDatagram(Net_Session_Link& link, int machine, const u8* d
     int parts = data[13];
     int length = size - k_datagram_header;
 
-    if ((parts < 1) || (parts > 2) || (part >= parts) || (length <= 0))
-        return;
-
-    if (part == 0)
+    if ((link.fragment_mask == 0) || (link.fragment_sequence != sequence) || (link.fragment_parts != parts))
     {
-        if (length > NETWORK_FRAME_MAX)
-            return;
-
-        memcpy(link.assembly, data + k_datagram_header, length);
-        link.assembly_size = length;
-        link.assembly_sequence = sequence;
-        link.assembly_parts = parts;
-        link.assembly_next = 1;
-    }
-    else
-    {
-        if ((link.assembly_next != 1) || (link.assembly_sequence != sequence) ||
-            (link.assembly_size + length > NETWORK_FRAME_MAX))
-        {
-            link.assembly_next = 0;
-            return;
-        }
-
-        memcpy(link.assembly + link.assembly_size, data + k_datagram_header, length);
-        link.assembly_size += length;
-        link.assembly_next = 2;
+        link.fragment_mask = 0;
+        link.fragment_sequence = sequence;
+        link.fragment_parts = parts;
     }
 
-    if (link.assembly_next != link.assembly_parts)
+    memcpy(link.fragment[part], data + k_datagram_header, length);
+    link.fragment_size[part] = length;
+    link.fragment_mask |= 1 << part;
+
+    if (link.fragment_mask != (1 << parts) - 1)
         return;
 
-    link.assembly_next = 0;
+    link.fragment_mask = 0;
+    u8 frame[NETWORK_FRAME_MAX];
+    int frame_size = 0;
+
+    for (int i = 0; i < parts; i++)
+    {
+        if (frame_size + link.fragment_size[i] > NETWORK_FRAME_MAX)
+            return;
+
+        memcpy(frame + frame_size, link.fragment[i], link.fragment_size[i]);
+        frame_size += link.fragment_size[i];
+    }
 
     if (link.sequence_known && ((s32)(sequence - link.last_sequence) <= 0))
     {
@@ -882,9 +885,9 @@ void NetSession::HandleDatagram(Net_Session_Link& link, int machine, const u8* d
     link.last_sequence = sequence;
 
     if (m_mode == NET_SESSION_HOST)
-        m_switch->Input(machine, link.assembly, link.assembly_size);
+        m_switch->Input(machine, frame, frame_size);
     else if (IsValidPointer(local))
-        local->Deliver(link.assembly, link.assembly_size);
+        local->Deliver(frame, frame_size);
 }
 
 void NetSession::SendFrame(Net_Session_Link& link, u8 sender, const u8* data, int size)
@@ -904,7 +907,7 @@ void NetSession::SendFrame(Net_Session_Link& link, u8 sender, const u8* data, in
         m_datagram[1] = 'N';
         m_datagram[2] = NET_DATAGRAM_FRAME;
         m_datagram[3] = sender;
-        write_u32_be(m_datagram + 4, m_token);
+        write_u32_be(m_datagram + 4, link.token);
         write_u32_be(m_datagram + 8, sequence);
         m_datagram[12] = (u8)part;
         m_datagram[13] = (u8)parts;
@@ -921,7 +924,7 @@ void NetSession::SendKeepalive(Net_Session_Link& link, u8 sender)
     datagram[1] = 'N';
     datagram[2] = NET_DATAGRAM_KEEPALIVE;
     datagram[3] = sender;
-    write_u32_be(datagram + 4, m_token);
+    write_u32_be(datagram + 4, link.token);
     net_socket_send_to(m_udp, link.udp_ip, link.udp_port, datagram, sizeof(datagram));
 }
 
@@ -994,10 +997,12 @@ void NetSession::ResetLink(Net_Session_Link& link)
     link.udp_sequence = 0;
     link.last_sequence = 0;
     link.sequence_known = false;
-    link.assembly_size = 0;
-    link.assembly_sequence = 0;
-    link.assembly_parts = 0;
-    link.assembly_next = 0;
+    link.token = 0;
+    link.fragment_size[0] = 0;
+    link.fragment_size[1] = 0;
+    link.fragment_sequence = 0;
+    link.fragment_parts = 0;
+    link.fragment_mask = 0;
 }
 
 void NetSession::CloseLink(int machine, bool notify)

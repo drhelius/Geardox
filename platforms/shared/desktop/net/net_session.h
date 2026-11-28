@@ -127,11 +127,12 @@ private:
         u32 udp_sequence;
         u32 last_sequence;
         bool sequence_known;
-        u8 assembly[NETWORK_FRAME_MAX];
-        int assembly_size;
-        u32 assembly_sequence;
-        int assembly_parts;
-        int assembly_next;
+        u32 token;
+        u8 fragment[2][NETWORK_FRAME_MAX];
+        int fragment_size[2];
+        u32 fragment_sequence;
+        int fragment_parts;
+        int fragment_mask;
     };
 
     static void SwitchOutput(void* context, int port, const u8* data, int size);
@@ -170,7 +171,6 @@ private:
     net_socket m_udp;
     u16 m_port;
     u32 m_host_ip;
-    u32 m_token;
     int m_machine;
     int m_max_machines;
     NetSwitch* m_switch;
