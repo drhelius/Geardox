@@ -916,19 +916,24 @@ const char* GameDescriptor::GetGamepadSection(int pad)
 }
 
 // JEMM makes EMS from extended memory, less the HMA, its DMA buffer, the UMBs and itself (JEMM Readme.txt §3), and
-// the hole for a Cirrus card's linear buffer takes 15-16 MB. MS-DOS's EMM386 leaves 1472K to 1488K less EMS free than
-// RAM, measured with MEM. The smallest size of the model that leaves the game its EMS
-int GameDescriptor::GetEMSRAM(int ems_kb, int model, bool cirrus, int system)
+// the hole for an ISA or VL-Bus Cirrus card's linear buffer takes the RAM from its start to 16 MB. MS-DOS's EMM386
+// leaves 1472K to 1488K less EMS free than RAM, measured with MEM, and MS-DOS's HIMEM stops at the hole. The smallest
+// size of the model that leaves the game its EMS
+int GameDescriptor::GetEMSRAM(int ems_kb, int model, int video_card, int system)
 {
     int reserved_kb = system == GDOX_GAME_SYSTEM_MSDOS ? 1488 : 1024 + 512;
-    const u8* sizes = k_machine_profiles[(model >= 0) && (model < GDOX_MACHINE_COUNT) ? model : k_machine_default_model].ram_sizes_mb;
+    model = (model >= 0) && (model < GDOX_MACHINE_COUNT) ? model : (int)k_machine_default_model;
+    int video = machine_video_card(model, video_card);
+    const u8* sizes = k_machine_profiles[model].ram_sizes_mb;
     int size = 0;
 
     while (sizes[size + 1] != 0)
     {
-        int hole = (cirrus && (sizes[size] >= 16)) ? 1024 : 0;
+        int ram_kb = sizes[size] * 1024;
+        int hole_kb = (int)(machine_memory_hole_start(model, video, (u32)sizes[size] * 1024 * 1024) / 1024);
+        int usable_kb = hole_kb == 0 ? ram_kb : system == GDOX_GAME_SYSTEM_MSDOS ? hole_kb : ram_kb - (16 * 1024 - hole_kb);
 
-        if ((sizes[size] * 1024) - hole - reserved_kb >= ems_kb)
+        if (usable_kb - reserved_kb >= ems_kb)
             break;
 
         size++;

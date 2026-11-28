@@ -1114,8 +1114,7 @@ void GameDisk::GetGameSettings(const GameDescriptor& descriptor, const GDOX_Mach
 
     int model = game->model >= 0 ? game->model : user.model >= 0 ? user.model : (int)k_machine_default_model;
     int video = game->video_card >= 0 ? game->video_card : user.video_card;
-    bool cirrus = (video < 0) || (video >= GDOX_VIDEO_CARD_COUNT) || (k_video_cards[video].family == GDOX_VIDEO_FAMILY_CIRRUS);
-    int needed = GameDescriptor::GetEMSRAM(info.ems_kb, model, cirrus, system);
+    int needed = GameDescriptor::GetEMSRAM(info.ems_kb, model, video, system);
     int ram = user.ram_mb > 0 ? user.ram_mb : k_machine_default_ram_mb;
 
     if (needed > ram)

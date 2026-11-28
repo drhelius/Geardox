@@ -173,7 +173,7 @@ public:
     static bool IsDescriptor(const char* path);
     static const char* GetHardDiskKey(int id);
     static const char* GetGamepadSection(int pad);
-    static int GetEMSRAM(int ems_kb, int model, bool cirrus, int system);
+    static int GetEMSRAM(int ems_kb, int model, int video_card, int system);
 
 private:
     bool ParseLine(const std::string& section, const std::string& line, int number);

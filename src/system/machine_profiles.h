@@ -283,6 +283,32 @@ static inline int find_video_card(const char* id)
     return -1;
 }
 
+static inline int machine_video_card(int model, int video_card)
+{
+    u32 features = k_machine_profiles[model].features;
+    bool local_bus = (features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
+    bool pci = (features & GDOX_MACHINE_FEATURE_PCI) != 0;
+
+    if ((video_card < 0) || (video_card >= GDOX_VIDEO_CARD_COUNT))
+        return pci ? GDOX_VIDEO_CARD_GD5446 : local_bus ? GDOX_VIDEO_CARD_GD5428_VLB : GDOX_VIDEO_CARD_GD5428;
+
+    if ((k_video_cards[video_card].local_bus && !local_bus) || (k_video_cards[video_card].pci && !pci))
+        return GDOX_VIDEO_CARD_GD5428;
+
+    return video_card;
+}
+
+static inline u32 machine_memory_hole_start(int model, int video_card, u32 ram_size)
+{
+    const GDOX_Video_Card_Info& card = k_video_cards[video_card];
+
+    if ((card.family != GDOX_VIDEO_FAMILY_CIRRUS) || card.pci || (ram_size < 16 * 1024 * 1024))
+        return 0;
+
+    return (k_machine_profiles[model].features & GDOX_MACHINE_FEATURE_PCI) != 0 ? 15 * 1024 * 1024 :
+        16 * 1024 * 1024 - card.memory_size;
+}
+
 static inline int find_sound_card(const char* id)
 {
     for (int i = 0; i < GDOX_SOUND_CARD_COUNT; i++)

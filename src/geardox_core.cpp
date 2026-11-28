@@ -2490,11 +2490,7 @@ void GeardoxCore::SanitizeMachineConfig(GDOX_Machine_Config& config)
     for (int i = 0; i < 2; i++)
         config.com_link[i] = config.com_link[i] < SERIAL_LINK_KIND_COUNT ? config.com_link[i] : (u8)SERIAL_LINK_NONE;
 
-    if (k_video_cards[config.video_card].local_bus && ((profile.features & GDOX_MACHINE_FEATURE_LOCAL_BUS) == 0))
-        config.video_card = GDOX_VIDEO_CARD_GD5428;
-
-    if (k_video_cards[config.video_card].pci && ((profile.features & GDOX_MACHINE_FEATURE_PCI) == 0))
-        config.video_card = GDOX_VIDEO_CARD_GD5428;
+    config.video_card = (u8)machine_video_card(config.model, config.video_card);
 
     if (config.cpu_clock_rate == 0)
         config.cpu_clock_rate = profile.cpu_clock_rate;
@@ -2771,8 +2767,6 @@ void GeardoxCore::ResolveMachineConfig()
     int cdrom_speed = pick_setting(game.cdrom_speed, user.cdrom_speed, -1, &source);
     int drive_timing = pick_setting(game.drive_timing, user.drive_timing, -1, &source);
     int video_card = pick_setting(game.video_card, user.video_card, -1, &source);
-    bool local_bus = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_LOCAL_BUS) != 0;
-    bool pci = (k_machine_profiles[config.model].features & GDOX_MACHINE_FEATURE_PCI) != 0;
 
     config.sound_card = (sound_card >= 0) && (sound_card < GDOX_SOUND_CARD_COUNT) ? (u8)sound_card : (u8)GDOX_SOUND_CARD_SB16;
     config.sound_irq = (u8)pick_setting(game.sound_irq, user.sound_irq, 0, &source);
@@ -2802,11 +2796,7 @@ void GeardoxCore::ResolveMachineConfig()
     else
         config.drive_timing = m_game ? (u8)GDOX_DRIVE_TIMING_FAST : (u8)GDOX_DRIVE_TIMING_REAL;
 
-    if ((video_card >= 0) && (video_card < GDOX_VIDEO_CARD_COUNT))
-        config.video_card = (u8)video_card;
-    else
-        config.video_card = pci ? (u8)GDOX_VIDEO_CARD_GD5446 :
-            local_bus ? (u8)GDOX_VIDEO_CARD_GD5428_VLB : (u8)GDOX_VIDEO_CARD_GD5428;
+    config.video_card = (u8)machine_video_card(config.model, video_card);
 
     report.title = m_game ? m_game_name.c_str() : NULL;
     report.warning_count = 0;
@@ -2882,13 +2872,12 @@ void GeardoxCore::ResolveMachineConfig()
 // to it and that RAM is lost. The 430FX can only leave 15-16 MB (its DRAMC), so an ISA card there runs banked
 bool GeardoxCore::HasMemoryHole() const
 {
-    return (k_video_cards[m_machine_config.video_card].family == GDOX_VIDEO_FAMILY_CIRRUS) &&
-        !k_video_cards[m_machine_config.video_card].pci && (m_machine_config.ram_size >= 16 * 1024 * 1024);
+    return GetMemoryHoleStart() != 0;
 }
 
 u32 GeardoxCore::GetMemoryHoleStart() const
 {
-    return HasPCIBus() ? 15 * 1024 * 1024 : 16 * 1024 * 1024 - k_video_cards[m_machine_config.video_card].memory_size;
+    return machine_memory_hole_start(m_machine_config.model, m_machine_config.video_card, m_machine_config.ram_size);
 }
 
 bool GeardoxCore::HasPCIBus() const
