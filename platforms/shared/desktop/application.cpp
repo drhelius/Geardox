@@ -549,7 +549,7 @@ static bool sdl_init(void)
     display_use_vsync_if_enabled();
     display_check_mixed_refresh_rates();
 
-    SDL_SetWindowMinimumSize(application_sdl_window, (int)(500 * content_scale), (int)(300 * content_scale));
+    SDL_SetWindowMinimumSize(application_sdl_window, (int)(660 * content_scale), (int)(300 * content_scale));
 
     float display_scale = SDL_GetWindowDisplayScale(application_sdl_window);
     Log("Display scale: %.2f", display_scale);
